@@ -129,14 +129,13 @@ class AzureAnalysisServicesHook(BaseHook):
             },
         }
 
-    @property
-    def client(self) -> httpx.AsyncClient:
-        """Return the shared HTTP client, creating it on first use."""
+    def get_conn(self) -> httpx.AsyncClient:
+        """Return and cache the HTTP client used to communicate with Analysis Services."""
         if self._client is None:
             self._client = httpx.AsyncClient(timeout=self.request_timeout)
         return self._client
 
-    def get_conn(self) -> AsyncTokenCredential:
+    def _get_credential(self) -> AsyncTokenCredential:
         """Return and cache the service principal credential."""
         if self._credential is not None:
             return self._credential
@@ -172,7 +171,7 @@ class AzureAnalysisServicesHook(BaseHook):
         """Return the validated status of an Azure Analysis Services model refresh."""
         refresh_url = f"{self._get_refreshes_url(server_name, database)}/{quote(refresh_id, safe='')}"
         try:
-            response = await self.client.get(refresh_url, headers=await self._get_headers())
+            response = await self.get_conn().get(refresh_url, headers=await self._get_headers())
             response.raise_for_status()
         except httpx.HTTPError as error:
             raise AzureAnalysisServicesRefreshException(
@@ -208,7 +207,7 @@ class AzureAnalysisServicesHook(BaseHook):
             )
 
         try:
-            response = await self.client.post(
+            response = await self.get_conn().post(
                 self._get_refreshes_url(server_name, database),
                 json={"Type": refresh_type},
                 headers=await self._get_headers(),
@@ -259,7 +258,7 @@ class AzureAnalysisServicesHook(BaseHook):
 
     async def _get_headers(self) -> dict[str, str]:
         try:
-            token = await self.get_conn().get_token(TOKEN_SCOPE)
+            token = await self._get_credential().get_token(TOKEN_SCOPE)
         except AzureError as error:
             raise AzureAnalysisServicesRefreshException(
                 "Failed to authenticate with Azure Analysis Services"

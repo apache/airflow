@@ -93,12 +93,23 @@ class TestAzureAnalysisServicesHook:
             "placeholders": {"host": "westus.asazure.windows.net"},
         }
 
+    @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
+    def test_get_conn_creates_and_caches_client(self, client_class):
+        hook = AzureAnalysisServicesHook(CONN_ID, request_timeout=REQUEST_TIMEOUT)
+
+        first_client = hook.get_conn()
+        second_client = hook.get_conn()
+
+        client_class.assert_called_once_with(timeout=REQUEST_TIMEOUT)
+        assert first_client is client_class.return_value
+        assert second_client is first_client
+
     @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
-    def test_get_conn_creates_and_caches_credential(self, credential_class):
+    def test_get_credential_creates_and_caches_credential(self, credential_class):
         hook = AzureAnalysisServicesHook(CONN_ID)
 
-        first_credential = hook.get_conn()
-        second_credential = hook.get_conn()
+        first_credential = hook._get_credential()
+        second_credential = hook._get_credential()
 
         credential_class.assert_called_once_with(
             tenant_id="tenant-id",
@@ -135,7 +146,7 @@ class TestAzureAnalysisServicesHook:
             ("client", "secret", {"tenantId": 123}, "Tenant ID is required"),
         ],
     )
-    def test_get_conn_requires_service_principal_fields(
+    def test_get_credential_requires_service_principal_fields(
         self, create_mock_connection, login, password, extra, message
     ):
         create_mock_connection(
@@ -150,7 +161,7 @@ class TestAzureAnalysisServicesHook:
         )
 
         with pytest.raises(ValueError, match=message):
-            AzureAnalysisServicesHook("invalid-auth").get_conn()
+            AzureAnalysisServicesHook("invalid-auth")._get_credential()
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
@@ -400,8 +411,8 @@ class TestAzureAnalysisServicesHook:
     @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
     async def test_aclose_closes_client_and_credential(self, client_class, credential_class):
         hook = AzureAnalysisServicesHook(CONN_ID)
-        client = hook.client
-        credential = hook.get_conn()
+        client = hook.get_conn()
+        credential = hook._get_credential()
 
         await hook.aclose()
 
@@ -415,8 +426,8 @@ class TestAzureAnalysisServicesHook:
     @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
     async def test_aclose_closes_credential_even_if_client_fails(self, client_class, credential_class):
         hook = AzureAnalysisServicesHook(CONN_ID)
-        hook.client.aclose.side_effect = RuntimeError("transport already gone")
-        credential = hook.get_conn()
+        hook.get_conn().aclose.side_effect = RuntimeError("transport already gone")
+        credential = hook._get_credential()
 
         with pytest.raises(RuntimeError, match="transport already gone"):
             await hook.aclose()
@@ -430,8 +441,8 @@ class TestAzureAnalysisServicesHook:
     @mock.patch(f"{MODULE}.httpx.AsyncClient", autospec=True)
     async def test_aclose_is_idempotent(self, client_class, credential_class):
         hook = AzureAnalysisServicesHook(CONN_ID)
-        client = hook.client
-        credential = hook.get_conn()
+        client = hook.get_conn()
+        credential = hook._get_credential()
 
         await hook.aclose()
         await hook.aclose()
