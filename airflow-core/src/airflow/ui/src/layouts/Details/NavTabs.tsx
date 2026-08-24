@@ -68,18 +68,19 @@ export const NavTabs = ({ tabs }: Props) => {
 
               return (
                 <Center
-                  _hover={{ color: "brand.solid" }}
+                  _hover={{ color: active ? "fg" : "brand.solid" }}
+                  _focus={{ color: active ? "fg" : "brand.solid" }}
                   borderBottomColor={active ? "brand.solid" : "transparent"}
                   borderBottomWidth={INDICATOR_HEIGHT}
-                  color={active ? "brand.solid" : "fg.muted"}
+                  color={active ? "fg" : "fg.muted"}
                   fontSize="md"
-                  fontWeight="medium"
+                  fontWeight={active ? "bold" : "medium"}
                   height="40px"
                   mb={`-${INDICATOR_HEIGHT}`} // Show the border on top of its parent's border
                   px={4}
                   transition="all 0.2s ease"
                 >
-                  {containerWidth > 600 || !Boolean(icon) ? label : icon}
+                  {containerWidth > 600 || !icon ? label : icon}
                 </Center>
               );
             }}
