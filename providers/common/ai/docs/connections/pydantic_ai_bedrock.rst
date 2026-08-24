@@ -84,6 +84,12 @@ more than one credential source is set at once, the bearer token
 - The environment-variable / instance-role credential chain
   (``AWS_PROFILE``, IAM role, …) when none of the fields above are set.
 
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
+
 Examples
 --------
 
