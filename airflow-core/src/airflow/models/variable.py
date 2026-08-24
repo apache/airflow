@@ -126,7 +126,15 @@ class Variable(Base, LoggingMixin):
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
-    def setdefault(cls, key, default, description=None, deserialize_json=False, *, session=None):
+    def setdefault(
+        cls,
+        key: str,
+        default: Any,
+        description: str | None = None,
+        deserialize_json: bool = False,
+        *,
+        session: Session | None = None,
+    ) -> Any:
         """
         Return the current value for a key or store the default value and return it.
 
