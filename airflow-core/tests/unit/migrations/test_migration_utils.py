@@ -46,6 +46,7 @@ from sqlalchemy.exc import MissingGreenlet, OperationalError
 from airflow import settings
 from airflow.migrations.utils import (
     disable_sqlite_fkeys,
+    get_asset_name_collation,
     ignore_sqlite_value_error,
     mysql_drop_foreignkey_if_exists,
 )
@@ -55,6 +56,8 @@ from airflow.utils.db import (
     downgrade,
     upgradedb,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 # The stairway runs hundreds of upgrade/downgrade cycles. Each cycle goes
 # through ``_single_connection_pool`` which calls ``settings.reconfigure_orm()``
@@ -66,6 +69,12 @@ from airflow.utils.db import (
 _STAIRWAY_TIMEOUT_SECONDS = 900
 
 pytestmark = pytest.mark.db_test
+
+
+def test_get_asset_name_collation():
+    with conf_vars({("database", "sql_engine_collation_for_asset_names"): "latin1_bin"}):
+        assert get_asset_name_collation() == "latin1_bin"
+
 
 # Stairway starts from the 3.0.0 head revision.  Starting here (rather than
 # the 2.6.2 squashed baseline) avoids triggering FAB-provider downgrade

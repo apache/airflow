@@ -19,6 +19,8 @@ from __future__ import annotations
 import contextlib
 from contextlib import contextmanager
 
+from airflow.configuration import conf
+
 
 @contextmanager
 def disable_sqlite_fkeys(op):
@@ -63,14 +65,6 @@ def ignore_sqlite_value_error():
     return contextlib.nullcontext()
 
 
-def asset_name_collation() -> str:
-    """
-    Return the MySQL collation for asset name/uri/group columns.
-
-    Mirrors ``airflow.models.base.get_asset_str_field``. Migrations resolve it at
-    run time rather than hard-coding it, because MySQL-compatible engines do not
-    all ship ``latin1_general_cs`` and a fresh install replays these migrations.
-    """
-    from airflow.configuration import conf
-
+def get_asset_name_collation() -> str:
+    """Return the MySQL collation used by asset identifier columns."""
     return conf.get("database", "sql_engine_collation_for_asset_names", fallback="latin1_general_cs")

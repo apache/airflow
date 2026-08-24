@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.dialects import mysql, postgresql
 
-from airflow.models.base import get_id_collation_args
+from airflow.models.base import get_asset_str_field, get_id_collation_args
 
 from tests_common.test_utils.config import conf_vars
 
@@ -50,3 +51,16 @@ pytestmark = pytest.mark.db_test
 def test_collation(dsn, expected, extra):
     with conf_vars({("database", "sql_alchemy_conn"): dsn, **extra}):
         assert expected == get_id_collation_args()
+
+
+@pytest.mark.parametrize(
+    ("dialect", "collation", "expected"),
+    [
+        pytest.param(mysql.dialect(), "latin1_general_cs", "latin1_general_cs", id="mysql-default"),
+        pytest.param(mysql.dialect(), "latin1_bin", "latin1_bin", id="mysql-override"),
+        pytest.param(postgresql.dialect(), "latin1_bin", None, id="postgres"),
+    ],
+)
+def test_asset_str_field_collation(dialect, collation, expected):
+    with conf_vars({("database", "sql_engine_collation_for_asset_names"): collation}):
+        assert get_asset_str_field().dialect_impl(dialect).collation == expected
