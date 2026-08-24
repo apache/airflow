@@ -40,6 +40,8 @@ class TestAdbcHook:
         # Provide a real pyarrow Schema so _to_record_batch can build RecordBatch
         self.conn.adbc_get_table_schema.return_value = schema([field("col", string())])
         self.conn.extra_dejson = {}
+        # get_messages is not on the dbapi.Connection spec but is called by AdbcHookMock.get_db_log_messages
+        self.conn.get_messages = mock.MagicMock(return_value=[])
         conn = self.conn
 
         logging.root.disabled = True
