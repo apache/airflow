@@ -445,7 +445,7 @@ class TestGoogleBidManagerDownloadReportOperator:
             report_name=REPORT_NAME,
             task_id="test_task",
         )
-        with pytest.raises(AirflowException, match="failed execution"):
+        with pytest.raises(AirflowException, match="is in state 'FAILED'. Expected 'DONE'"):
             op.execute(context=mock_context)
 
     @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.GoogleBidManagerHook")

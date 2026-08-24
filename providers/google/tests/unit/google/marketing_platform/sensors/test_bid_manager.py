@@ -20,7 +20,8 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from airflow.exceptions import AirflowException
+
+from airflow.exceptions import AirflowFailException
 from airflow.providers.google.marketing_platform.sensors.bid_manager import (
     GoogleBidManagerRunQuerySensor,
 )
@@ -63,5 +64,5 @@ class TestGoogleBidManagerRunQuerySensor:
         report_id = "REPORT_ID"
         hook_mock.return_value.get_report.return_value = {"metadata": {"status": {"state": "FAILED"}}}
         op = GoogleBidManagerRunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
-        with pytest.raises(AirflowException, match="failed execution"):
+        with pytest.raises(AirflowFailException, match="failed execution"):
             op.poke(context=None)
