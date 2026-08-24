@@ -305,9 +305,16 @@ deletion with a repository ruleset, and give the formal environment the
 stricter reviewer policy.
 
 Create and push a `ts-sdk/<version>` tag whose version exactly matches
-`package.json`. Dispatch the workflow on that same tag so npm provenance names
-the source commit that produced the tarball. To submit the package to npm's
-private staging area for review, run:
+`package.json`, then dispatch the workflow on that same tag so npm provenance
+names the source commit that produced the tarball. The tag must already exist
+on `apache/airflow` before the dispatch below can reference it as `--ref`:
+
+```bash
+git tag ts-sdk/1.0.0-beta1 <commit-sha>
+git push upstream ts-sdk/1.0.0-beta1
+```
+
+To submit the package to npm's private staging area for review, run:
 
 ```bash
 gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \

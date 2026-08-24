@@ -23,8 +23,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { describe, it } from "vitest";
 
 import { validateReleaseInputs } from "./validate-release-inputs.mjs";
 
