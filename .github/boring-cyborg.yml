@@ -131,6 +131,8 @@ labelPRBasedOnFilePath:
 
   provider:datadog:
     - providers/datadog/**
+  provider:ibm-db2:
+    - providers/ibm/db2/**
 
   provider:dbt-cloud:
     - providers/dbt/cloud/**

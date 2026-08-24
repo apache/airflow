@@ -111,6 +111,11 @@ class Variable(Base, LoggingMixin):
     def set_val(self, value):
         """Encode the specified value with Fernet Key and store it in Variables Table."""
         if value is not None:
+            if not isinstance(value, str):
+                raise TypeError(
+                    f"Variable value must be a string, got {type(value).__name__}. "
+                    "Use Variable.set(key, value, serialize_json=True) to store non-string values."
+                )
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
@@ -214,7 +219,9 @@ class Variable(Base, LoggingMixin):
         This operation overwrites an existing variable using the session's dialect-specific upsert operation.
 
         :param key: Variable Key
-        :param value: Value to set for the Variable
+        :param value: Value to set for the Variable. Non-string values are coerced with ``str()``
+            unless ``serialize_json=True``, so pass ``serialize_json=True`` to store them as JSON
+            that ``deserialize_json=True`` can read back.
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param team_name: Team name associated to the variable (if any)
@@ -280,7 +287,6 @@ class Variable(Base, LoggingMixin):
                 val=val,
                 description=description,
                 is_encrypted=is_encrypted,
-                team_name=team_name,
             )
             stmt = build_upsert_stmt(
                 get_dialect_name(session), Variable, ["key"], upsert_values, update_fields

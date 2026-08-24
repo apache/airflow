@@ -59,6 +59,7 @@ NON_PROVIDER_TOKENS = frozenset(
         "helm-chart",
         "docker-stack",
         "apache-airflow-ctl",
+        "apache-airflow-mypy",
         "task-sdk",
     }
 )

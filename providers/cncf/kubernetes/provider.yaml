@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1785633505
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 10.21.1
   - 10.21.0
   - 10.20.0
   - 10.19.0
@@ -375,7 +376,7 @@ config:
           per-call latency is high (network round-trip, admission webhooks). Pod
           templates are still built synchronously; only the create API calls are
           parallelized.
-        version_added: 10.20.0
+        version_added: 10.21.0
         type: boolean
         example: ~
         default: "False"
@@ -386,7 +387,7 @@ config:
           server (and admission webhooks) to avoid tripping API priority-and-fairness or
           rate limits. Has no effect when ``async_pod_creation`` is False. When set to 0
           the limit falls back to ``worker_pods_creation_batch_size``.
-        version_added: 10.20.0
+        version_added: 10.21.0
         type: integer
         example: "16"
         default: "0"

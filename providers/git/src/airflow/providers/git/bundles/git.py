@@ -42,7 +42,7 @@ class GitDagBundle(BaseDagBundle):
     Instead of cloning the repository every time, we clone the repository once into a bare repo from the source
     and then do a clone for each version from there.
 
-    :param tracking_ref: Branch or tag for this DAG bundle
+    :param tracking_ref: Branch, tag, or commit SHA for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
@@ -208,6 +208,9 @@ class GitDagBundle(BaseDagBundle):
                 raise RuntimeError("Error cloning repository") from e
             except InvalidGitRepositoryError as e:
                 raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
+            # If tracking_ref was just repointed to a SHA that predates this working clone's
+            # last fetch, this checkout fails until the clone is fetched or storage is cleared;
+            # tracked at https://github.com/apache/airflow/issues/71388
             self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:
