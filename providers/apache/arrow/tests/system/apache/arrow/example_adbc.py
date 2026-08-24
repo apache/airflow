@@ -58,12 +58,7 @@ with DAG(
         from airflow.providers.apache.arrow.hooks.adbc import AdbcHook
 
         hook = AdbcHook(adbc_conn_id=CONN_ID)
-        hook.run(
-            "CREATE TABLE IF NOT EXISTS users ("
-            "  id   INTEGER PRIMARY KEY,"
-            "  name TEXT NOT NULL"
-            ")"
-        )
+        hook.run("CREATE TABLE IF NOT EXISTS users (  id   INTEGER PRIMARY KEY,  name TEXT NOT NULL)")
 
     @dag.task
     def insert_rows():
