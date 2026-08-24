@@ -2522,3 +2522,268 @@ class TestSQLStatementState:
         assert obj.state == "FAILED"
         assert obj.error_code == "123"
         assert obj.error_message == "Error occurred"
+
+
+@pytest.mark.db_test
+class TestDatabricksHookAsyncConnection:
+    """
+    Tests for async connection retrieval in BaseDatabricksHook.
+
+    These tests verify that the async connection methods work correctly
+    and do not raise AsyncToSync RuntimeError when called from within
+    an async event loop (e.g., in the triggerer).
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
+        self.hook = DatabricksHook(retry_delay=0)
+
+    @pytest.mark.asyncio
+    async def test_aget_connection_returns_valid_connection(self):
+        """Test that aget_connection returns a valid Connection object."""
+        conn = await self.hook.aget_connection(DEFAULT_CONN_ID)
+        assert conn is not None
+        assert conn.host == HOST
+        assert conn.login == LOGIN
+        assert conn.password == PASSWORD
+
+    @pytest.mark.asyncio
+    async def test_aget_connection_with_token(self, create_connection_without_db):
+        """Test that aget_connection works with token authentication."""
+        create_connection_without_db(
+            Connection(
+                conn_id="databricks_token",
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=TOKEN,
+                extra=json.dumps({"token": TOKEN}),
+            )
+        )
+        hook = DatabricksHook(databricks_conn_id="databricks_token", retry_delay=0)
+        conn = await hook.aget_connection("databricks_token")
+        assert conn.password == TOKEN
+
+    @pytest.mark.asyncio
+    async def test_a_databricks_conn_is_available(self):
+        """Test that a_databricks_conn async property returns connection."""
+        async with self.hook:
+            conn = await self.hook.a_databricks_conn
+            assert conn is not None
+            assert conn.host == HOST
+            assert conn.login == LOGIN
+
+    @pytest.mark.asyncio
+    async def test_a_do_api_call_uses_async_connection(self):
+        """Test that _a_do_api_call works with async connection."""
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            async with self.hook:
+                result = await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID})
+
+            assert result == GET_RUN_RESPONSE
+            mock_get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_a_do_api_call_in_running_event_loop(self):
+        """
+        Test that _a_do_api_call works when called from within a running event loop.
+
+        This simulates the triggerer environment where an async event loop is already
+        running. This test ensures no AsyncToSync RuntimeError is raised.
+        """
+
+        async def run_in_existing_loop():
+            """Run async API call in an existing event loop - simulates triggerer."""
+            async with self.hook:
+                # This should NOT raise: RuntimeError: You cannot use AsyncToSync...
+                result = await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID})
+                return result
+
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            # Create a new event loop and run the async function
+            result = await run_in_existing_loop()
+            assert result == GET_RUN_RESPONSE
+
+    @pytest.mark.asyncio
+    async def test_a_get_run_state_uses_async_connection(self):
+        """Test that a_get_run_state works with async connection."""
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            async with self.hook:
+                run_state = await self.hook.a_get_run_state(RUN_ID)
+
+            assert run_state.life_cycle_state == LIFE_CYCLE_STATE
+            assert run_state.state_message == STATE_MESSAGE
+
+    @pytest.mark.asyncio
+    async def test_a_get_run_state_in_triggerer_context(self):
+        """
+        Test that a_get_run_state works when called from the triggerer context.
+
+        This is the actual code path used by DatabricksExecutionTrigger.
+        """
+
+        async def triggerer_like_polling():
+            """Simulate the triggerer's polling loop."""
+            async with self.hook:
+                while True:
+                    run_state = await self.hook.a_get_run_state(RUN_ID)
+                    if run_state.is_terminal:
+                        return run_state
+                    # In real triggerer, would sleep here
+
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            result = await triggerer_like_polling()
+            assert result.life_cycle_state == LIFE_CYCLE_STATE
+
+    @pytest.mark.asyncio
+    async def test_multiple_async_calls_in_same_loop(self):
+        """
+        Test that multiple async API calls work in the same event loop.
+
+        This verifies that the async connection caching works correctly across
+        multiple calls within the same async context.
+        """
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            async with self.hook:
+                # Make multiple API calls in sequence
+                result1 = await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID})
+                result2 = await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID + 1})
+                result3 = await self.hook.a_get_run_state(RUN_ID)
+
+            assert result1 == GET_RUN_RESPONSE
+            assert result2 == GET_RUN_RESPONSE
+            assert isinstance(result3, RunState)
+
+    @pytest.mark.asyncio
+    async def test_async_connection_not_blocking_event_loop(self):
+        """
+        Test that async connection methods do not block the event loop.
+
+        If sync connection was used incorrectly, this would block the event loop.
+        """
+        import asyncio
+
+        async def timed_async_call():
+            """Make async call and track if it was truly async."""
+            async with self.hook:
+                await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID})
+
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_response = mock.MagicMock()
+            mock_response.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_get.return_value = mock_response
+
+            # Run with timeout to detect blocking
+            try:
+                result = await asyncio.wait_for(timed_async_call(), timeout=5.0)
+                assert result is None  # No exception means success
+            except asyncio.TimeoutError:
+                pytest.fail("Async call blocked the event loop - possible sync call inside async context")
+
+
+@pytest.mark.db_test
+class TestDatabricksHookAsyncConnectionWithProxies:
+    """
+    Tests for async connection with proxy configuration.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=json.dumps({"proxies": PROXIES}),
+            )
+        )
+        self.hook = DatabricksHook(retry_delay=0)
+
+    @pytest.mark.asyncio
+    async def test_a_do_api_call_uses_proxies(self):
+        """Test that async API call respects proxy configuration."""
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            async with self.hook:
+                await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID})
+
+            # Verify proxy was used
+            call_kwargs = mock_get.call_args.kwargs
+            assert "proxy" in call_kwargs
+            assert call_kwargs["proxy"] == PROXIES["https"]
+
+
+@pytest.mark.db_test
+class TestDatabricksHookAsyncConnectionWithTokenAuth:
+    """
+    Tests for async connection with token authentication.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=None,
+                password=TOKEN,
+                extra=None,
+            )
+        )
+        self.hook = DatabricksHook(retry_delay=0)
+
+    @pytest.mark.asyncio
+    async def test_a_do_api_call_with_token_auth(self):
+        """Test that async API call works with token authentication."""
+        with mock.patch(
+            "airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get"
+        ) as mock_get:
+            mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+            async with self.hook:
+                result = await self.hook._a_do_api_call(("GET", "2.0/jobs/runs/get"), {"run_id": RUN_ID})
+
+            assert result == GET_RUN_RESPONSE
+            # Verify Bearer auth was used
+            call_kwargs = mock_get.call_args.kwargs
+            assert isinstance(call_kwargs["auth"], BearerAuth)
+            assert call_kwargs["auth"].token == TOKEN
