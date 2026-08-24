@@ -1,1 +1,0 @@
-Add optional ``Metadata.partition_key`` so yielding ``Metadata`` records partitions the same way as ``outlet_events.add_partitions``.

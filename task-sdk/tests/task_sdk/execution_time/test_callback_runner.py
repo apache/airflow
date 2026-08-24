@@ -44,8 +44,8 @@ def _run(func, outlet_events: OutletEventAccessors | None = None) -> OutletEvent
 class TestCreateExecutableRunnerMetadata:
     def test_two_yields_merge_extra_and_collect_partition_keys(self):
         def gen():
-            yield Metadata(ASSET, extra={"a": 1}, partition_key="us")
-            yield Metadata(ASSET, extra={"b": 2}, partition_key="eu")
+            yield Metadata(ASSET, extra={"a": 1}, partition_keys="us")
+            yield Metadata(ASSET, extra={"b": 2}, partition_keys="eu")
 
         outlet_events = _run(gen)
         accessor = outlet_events[ASSET]
@@ -68,8 +68,27 @@ class TestCreateExecutableRunnerMetadata:
 
     def test_add_partitions_list_matches_two_metadata_yields(self):
         def via_metadata():
-            yield Metadata(ASSET, extra={"row_count": 1}, partition_key="us")
-            yield Metadata(ASSET, extra={"row_count": 1}, partition_key="eu")
+            yield Metadata(ASSET, extra={"row_count": 1}, partition_keys="us")
+            yield Metadata(ASSET, extra={"row_count": 1}, partition_keys="eu")
+
+        def via_add_partitions(*, outlet_events):
+            outlet_events[ASSET].extra = {"row_count": 1}
+            outlet_events[ASSET].add_partitions(["us", "eu"])
+
+        metadata_events = OutletEventAccessors()
+        add_events = OutletEventAccessors()
+        _run(via_metadata, metadata_events)
+        via_add_partitions(outlet_events=add_events)
+
+        assert metadata_events[ASSET].extra == add_events[ASSET].extra == {"row_count": 1}
+        assert metadata_events[ASSET].partition_keys == add_events[ASSET].partition_keys == {"us", "eu"}
+        assert sorted(_serialize_outlet_events(metadata_events), key=lambda e: e["partition_key"]) == sorted(
+            _serialize_outlet_events(add_events), key=lambda e: e["partition_key"]
+        )
+
+    def test_metadata_partition_keys_list_matches_add_partitions(self):
+        def via_metadata():
+            yield Metadata(ASSET, extra={"row_count": 1}, partition_keys=["us", "eu"])
 
         def via_add_partitions(*, outlet_events):
             outlet_events[ASSET].extra = {"row_count": 1}
@@ -105,7 +124,7 @@ class TestCreateExecutableRunnerMetadata:
     )
     def test_invalid_partition_key_raises(self, key):
         def gen():
-            yield Metadata(ASSET, extra={"a": 1}, partition_key=key)
+            yield Metadata(ASSET, extra={"a": 1}, partition_keys=key)
 
         with pytest.raises(ValueError, match="partition_key"):
             _run(gen)
@@ -114,7 +133,7 @@ class TestCreateExecutableRunnerMetadata:
         alias = AssetAlias("outputs")
 
         def gen():
-            yield Metadata(ASSET, extra={"k": "v"}, alias=alias, partition_key="us")
+            yield Metadata(ASSET, extra={"k": "v"}, alias=alias, partition_keys="us")
 
         outlet_events = _run(gen)
         assert outlet_events[ASSET].extra == {"k": "v"}
@@ -140,7 +159,7 @@ class TestCreateExecutableRunnerMetadata:
         alias = AssetAlias("outputs")
 
         def gen():
-            yield Metadata(alias, extra={"k": 1}, partition_key="us")
+            yield Metadata(alias, extra={"k": 1}, partition_keys="us")
 
         with pytest.raises(TypeError, match="not supported on asset alias"):
             _run(gen)
@@ -152,8 +171,8 @@ class TestCreateAsyncExecutableRunnerMetadata:
         outlet_events = OutletEventAccessors()
 
         async def gen():
-            yield Metadata(ASSET, extra={"a": 1}, partition_key="us")
-            yield Metadata(ASSET, extra={"b": 2}, partition_key="eu")
+            yield Metadata(ASSET, extra={"a": 1}, partition_keys="us")
+            yield Metadata(ASSET, extra={"b": 2}, partition_keys="eu")
 
         await create_async_executable_runner(gen, outlet_events, logger=LOGGER).run()
         accessor = outlet_events[ASSET]
@@ -165,7 +184,7 @@ class TestCreateAsyncExecutableRunnerMetadata:
         outlet_events = OutletEventAccessors()
 
         async def gen():
-            yield Metadata(ASSET, extra={"a": 1}, partition_key="")
+            yield Metadata(ASSET, extra={"a": 1}, partition_keys="")
 
         with pytest.raises(ValueError, match="partition_key"):
             await create_async_executable_runner(gen, outlet_events, logger=LOGGER).run()

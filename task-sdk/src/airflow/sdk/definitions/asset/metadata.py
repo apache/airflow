@@ -35,11 +35,12 @@ class Metadata:
     Metadata to attach to an AssetEvent.
 
     ``extra`` is a JSON-serializable mapping merged onto the outlet event.
-    ``partition_key`` is an optional identity for partitioned consumers; it is
-    not inferred from ``extra``.
+    ``partition_keys`` is one key or a list of keys for partitioned consumers,
+    the same values as ``outlet_events.add_partitions``. It is not inferred
+    from ``extra``.
     """
 
     asset: Asset
     extra: dict[str, JsonValue] = attrs.field(factory=dict)
     alias: AssetAlias | None = None
-    partition_key: str | None = None
+    partition_keys: str | list[str] | None = None

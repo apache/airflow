@@ -2103,7 +2103,7 @@ class TestTaskInstance:
 
             @task(outlets=[asset])
             def write(item):
-                yield Metadata(asset, {"section": item}, partition_key=item)
+                yield Metadata(asset, {"section": item}, partition_keys=item)
 
             write.expand(item=items)
 
@@ -2123,7 +2123,7 @@ class TestTaskInstance:
 
             @task(outlets=[asset])
             def write():
-                yield Metadata(asset, extra={"n": 1}, partition_key="")
+                yield Metadata(asset, extra={"n": 1}, partition_keys="")
 
             write()
 

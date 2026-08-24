@@ -12860,7 +12860,7 @@ def _run_mapped_partition_producer(
 
             @task(outlets=[asset])
             def produce(item):
-                yield Metadata(asset, extra={"section": item}, partition_key=item)
+                yield Metadata(asset, extra={"section": item}, partition_keys=item)
 
         else:
 
