@@ -138,16 +138,21 @@
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Add Filter",
+    "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
+    "removeFilter": "Remove Filter",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
     "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
-    "startTime": "Start Time"
+    "selectDateTime": "Select date and time",
+    "startTime": "Start Time",
+    "time": "Time"
   },
   "fullscreen": {
     "tooltip": "Press {{hotkey}} for fullscreen"
@@ -192,6 +197,8 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "partition_one": "Partition",
+  "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
@@ -363,8 +370,10 @@
     "filterReset_other": "Reset filters",
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
+    "noResultsFound": "No results found",
     "noTagsFound": "No tags found",
     "noTeamsFound": "No teams found",
+    "ownerPlaceholder": "Filter by owner",
     "tagMode": {
       "all": "All",
       "any": "Any"

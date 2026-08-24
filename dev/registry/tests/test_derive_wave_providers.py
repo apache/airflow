@@ -90,7 +90,7 @@ WAVE_PROVIDER_TAGS = [
         # Explicit with dot-to-hyphen conversion.
         ("common.ai", "any", "common-ai", False, ""),
         # Explicit with non-provider tokens stripped.
-        ("apache-airflow helm-chart docker-stack", "any", "", False, ""),
+        ("apache-airflow apache-airflow-mypy helm-chart docker-stack", "any", "", False, ""),
         # Explicit dedup.
         ("amazon amazon google", "any", "amazon google", False, ""),
         # Empty.

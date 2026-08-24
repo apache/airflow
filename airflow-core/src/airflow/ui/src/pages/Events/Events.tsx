@@ -250,11 +250,18 @@ export const Events = () => {
 
   return (
     <>
-      <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
-
       <ErrorAlert error={error} />
       <DataTable
-        actions={
+        columns={columns}
+        data={eventLogs}
+        displayMode="table"
+        filterActions={<EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />}
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="common:event"
+        onStateChange={setTableURLState}
+        presentationActions={
           eventLogs.length > 0 ? (
             <ExpandCollapseButtons
               collapseLabel={translate("common:collapseAllExtra")}
@@ -265,14 +272,6 @@ export const Events = () => {
             />
           ) : undefined
         }
-        columns={columns}
-        data={eventLogs}
-        displayMode="table"
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="common:event"
-        onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />

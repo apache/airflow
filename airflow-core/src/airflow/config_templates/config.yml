@@ -1206,7 +1206,8 @@ metrics:
       default: "False"
     statsd_host:
       description: |
-        Specifies the host address where the StatsD daemon (or server) is running
+        Specifies the host address where the StatsD daemon (or server) is running.
+        Ignored when ``statsd_socket_path`` is set.
       version_added: 2.0.0
       type: string
       example: ~
@@ -1220,11 +1221,25 @@ metrics:
       default: "False"
     statsd_port:
       description: |
-        Specifies the port on which the StatsD daemon (or server) is listening to
+        Specifies the port on which the StatsD daemon (or server) is listening to.
+        Ignored when ``statsd_socket_path`` is set.
       version_added: 2.0.0
       type: integer
       example: ~
       default: "8125"
+    statsd_socket_path:
+      description: |
+        Path to a Unix Domain Socket used to submit metrics, instead of ``statsd_host``
+        and ``statsd_port``. Applies to both the StatsD and Datadog backends. Takes
+        precedence over ``statsd_host`` / ``statsd_port`` when set. For the Datadog
+        backend (``statsd_datadog_enabled = True``) a plain path or a ``unix://`` /
+        ``unixgram://`` / ``unixstream://`` URL is accepted; for the StatsD backend a
+        plain filesystem path is expected. Note that ``statsd_ipv6`` has no effect when
+        this option is set.
+      version_added: 3.4.0
+      type: string
+      example: "/var/run/statsd/statsd.sock"
+      default: ~
     statsd_prefix:
       description: |
         Defines the namespace for all metrics sent from Airflow to StatsD
@@ -1714,26 +1729,37 @@ api:
       default: "False"
     dag_cache_size:
       description: |
-        Size of the LRU cache for SerializedDAG objects in the API server.
-        Set to 0 to use an unbounded dict (no eviction, matching pre-3.2 behavior).
+        Max number of deserialized SerializedDAG objects the API server keeps in memory.
+        Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
+        ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
+        before 3.2.2.
+
         The cache is keyed by Dag version ID, so lookups by Dag ID
         (e.g., viewing a Dag's details) always query the database for the latest
         version, but the deserialized result is cached for subsequent
         version-specific lookups.
-      version_added: 3.3.0
+      version_added: 3.2.2
       type: integer
       example: ~
       default: "64"
     dag_cache_ttl:
       description: |
-        Time-to-live (seconds) for cached SerializedDAG objects in the API server.
-        After this time, cached DAGs will be re-fetched from the database on next access.
-        Set to 0 to disable TTL (cache entries will only be evicted by LRU policy).
+        Seconds a deserialized SerializedDAG stays in the API server's cache, applied whether or
+        not ``dag_cache_size`` sets a size limit. After this time the Dag is re-fetched from the
+        database on next access. Set to 0 to disable TTL, leaving eviction to the
+        ``dag_cache_size`` LRU policy.
 
-        Note: After a DAG is updated, the API server may serve the previous version
-        until the cached entry expires. Lower values reduce staleness but increase
-        database load.
-      version_added: 3.3.0
+        An entry's TTL is refreshed only when the entry is checked against the database after
+        ``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter
+        than that interval, even frequently requested entries can expire and reload between
+        checks. ``dag_cache_size`` remains the only hard ceiling on memory.
+
+        Note: this does not govern staleness. A Dag update that creates a new version is picked
+        up immediately, because the new version is a different cache key. A version rewritten in
+        place is re-checked against its current ``dag_hash`` once
+        ``[core] min_serialized_dag_update_interval`` has elapsed since the entry was last
+        validated, so that option bounds how long a rewritten version can be served stale.
+      version_added: 3.2.2
       type: integer
       example: ~
       default: "3600"

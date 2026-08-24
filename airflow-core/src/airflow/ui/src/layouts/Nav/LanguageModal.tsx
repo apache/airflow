@@ -18,7 +18,7 @@
  */
 import { useTranslation } from "react-i18next";
 
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 
 import LanguageSelector from "./LanguageSelector";
 
@@ -31,15 +31,9 @@ const LanguageModal = ({ isOpen, onClose }: LanguageModalProps) => {
   const { t: translate } = useTranslation();
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
-      <Dialog.Content backdrop>
-        <Dialog.Header>{translate("selectLanguage")}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <LanguageSelector />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal lazyMount onOpenChange={onClose} open={isOpen} title={translate("selectLanguage")}>
+      <LanguageSelector />
+    </Modal>
   );
 };
 

@@ -1510,6 +1510,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Build ts-sdk docs for a docs-only Markdown change that skips ts-sdk tests",
         ),
         pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Build only ts-sdk docs when a TypeDoc category entry point changes",
+        ),
+        pytest.param(
             ("ts-sdk/tsconfig.json",),
             {
                 "run-ts-sdk-docs": "true",
@@ -1872,6 +1881,11 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
             ("ts-sdk/docs/package-lock.json",),
             True,
             id="skipped when only the docs toolchain's lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            True,
+            id="skipped when only a TypeDoc category entry point changes",
         ),
     ],
 )
@@ -3053,7 +3067,7 @@ def test_upgrade_to_newer_dependencies(
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google informatica jdbc microsoft.mssql mysql odbc openlineage "
+                "exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
@@ -3089,6 +3103,13 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
+        ),
+        pytest.param(
+            ("dev/mypy/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow-mypy",
+            },
+            id="Only Apache Airflow Mypy docs changed",
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),

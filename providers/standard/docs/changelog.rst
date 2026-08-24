@@ -35,6 +35,7 @@
 Changelog
 ---------
 
+
 .. note::
     ``TriggerDagRunOperator`` gains an opt-in ``auto_clear_failed_tasks`` flag (default ``False``).
     When enabled and the triggered child Dag run already exists in a failed state, only its failed
@@ -44,6 +45,19 @@ Changelog
     with ``deferrable=True``. ``reset_dag_run`` still takes precedence when both are set. On Airflow
     3.x the failed-only clear is delivered via the Execution API and requires a new enough core; the
     operator raises ``NotImplementedError`` rather than silently falling back to a whole-run clear.
+=======
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support TaskFlow call syntax on stub tasks for the Lang SDK (#69757)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 
 1.17.0
 ......
