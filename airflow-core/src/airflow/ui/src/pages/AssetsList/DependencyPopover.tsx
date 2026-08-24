@@ -57,7 +57,7 @@ const IconTeamName = ({ teamName }: { readonly teamName?: string | null }) => {
 };
 
 export const DependencyPopover = ({ dependencies, type }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const dependencyKey = type.toLowerCase() as "dag" | "task";
 
   return (

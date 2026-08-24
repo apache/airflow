@@ -44,7 +44,7 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
@@ -292,7 +292,7 @@ AIRFLOW_UV_VERSION = "0.12.5"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.59"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.13"
+PREK_VERSION = "0.4.14"
 HATCH_VERSION = "1.18.0"
 PYYAML_VERSION = "6.0.3"
 
@@ -1788,7 +1788,7 @@ def install_provider_distributions(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     if run_in_parallel:
         list_of_all_providers = get_all_providers_in_dist(
             distribution_format=distribution_format, install_selected_providers=install_selected_providers
@@ -1927,7 +1927,7 @@ def verify_provider_distributions(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
         shell_params,
         project_name="breeze-providers",
@@ -4993,7 +4993,7 @@ def version_check(
         python=python,
         builder=builder,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     if os.environ.get("CI", "false") == "true":
         # Show output outside the group in CI
         print("::endgroup::")
