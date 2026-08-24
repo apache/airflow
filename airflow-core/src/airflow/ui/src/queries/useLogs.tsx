@@ -299,7 +299,7 @@ export const useLogs = (
   }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(

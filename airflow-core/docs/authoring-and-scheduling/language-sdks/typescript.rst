@@ -22,11 +22,12 @@ TypeScript SDK
 
 |experimental|
 
-The TypeScript SDK lets you implement Airflow task logic in TypeScript (or plain JavaScript), running on
-Node.js. The Dag and its scheduling remain in Python; individual tasks delegate to a Node.js subprocess that
-is spawned by :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
+The TypeScript SDK lets you group task handlers in a ``Dag`` and implement their logic in TypeScript (or
+plain JavaScript), running on Node.js. A matching Python stub Dag still declares the scheduling shape and
+dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **alpha** and its API may change.
+The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **beta** and its API may change.
 
 .. warning::
 
@@ -36,7 +37,8 @@ The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the 
 
 .. seealso::
 
-  For the full TypeScript API reference (task handlers, ``TaskClient``, and the coordinator runtime),
+  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, task handlers,
+  ``TaskClient``, supporting types, and exceptions),
   see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
 .. contents:: Contents
@@ -93,7 +95,7 @@ entry point.
 
 .. code-block:: typescript
 
-    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -304,7 +306,7 @@ Limitations
 * **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
   languages, so task names and dependencies are declared in Python with
   :func:`@task.stub <airflow.sdk.task.stub>`.
-* **Alpha status.** The SDK API may change in incompatible ways between releases.
+* **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One bundle per coordinator.** :class:`~airflow.sdk.coordinators.node.NodeCoordinator` launches the first
   usable bundle found in ``bundles_root``; it does not yet route different Dags or tasks to different
   bundles. To serve multiple bundles, register multiple coordinators on separate queues.

@@ -39,6 +39,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -605,6 +606,14 @@ class DagScheduleAssetReference(Base):
     asset = relationship("AssetModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
 
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning the Dag scheduled by this asset, or ``None``."""
+        # Gate before touching ``dag``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag.team_name if self.dag else None
+
     queue_records = relationship(
         "AssetDagRunQueue",
         primaryjoin="""and_(
@@ -661,6 +670,15 @@ class TaskOutletAssetReference(Base):
     )
 
     asset = relationship("AssetModel", back_populates="producing_tasks")
+    dag = relationship("DagModel", viewonly=True)
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning the Dag producing this asset, or ``None``."""
+        # Gate before touching ``dag``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag.team_name if self.dag else None
 
     __tablename__ = "task_outlet_asset_reference"
     __table_args__ = (

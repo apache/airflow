@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+9.35.0
+......
+
 .. warning::
   On Airflow 3.3+, ``GlueJobOperator``'s ``durable`` parameter now defaults to ``True``: the Glue
   job run id is persisted to task state store, and a worker crash on retry reconnects to the
@@ -36,6 +39,42 @@ Changelog
   alone does not change behavior there. Set ``durable=True`` explicitly (or the now-deprecated
   ``resume_glue_job_on_retry=True``) to opt in to the same reconnect behavior via an older,
   scan-based mechanism.
+
+Features
+~~~~~~~~
+
+* ``Replace 'resume_glue_job_on_retry' with durable execution for 'GlueJobOperator' (#71211)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent a broken job from stalling AWS Batch executor sync (#71380)``
+* ``Fail Glue job tasks promptly when a verbose job run errors (#71570)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+* ``Fail Glue job tasks stopped mid-run in deferrable verbose mode (#71495)``
+* ``Include Bedrock ingestion job failure reasons in the error message (#71124)``
+
+Misc
+~~~~
+
+* ``Narrow AirflowException to specific exceptions in DataSync operator (#70152)``
+* ``Move SendGrid and SES email backend setup docs to their providers (#71571)``
+* ``Add type annotations to sql hooks (#70815)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix incorrect documented defaults for MwaaTriggerDagRunOperator waiter params (#71740)``
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Probe AOSS index readiness as the Knowledge Base role in Bedrock RAG system test (#71745)``
+   * ``Make DMS system-test databases non-public (#71733)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix dynamic glue rule set recommendations sensor config (#71117)``
+   * ``Eliminate trust policy race by migrating emr_eks test to Pod Identity (#71207)``
+   * ``Update changelog with better wording (#71161)``
 
 9.34.0
 ......
