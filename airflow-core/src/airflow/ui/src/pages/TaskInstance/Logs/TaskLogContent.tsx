@@ -393,8 +393,8 @@ export const TaskLogContent = ({
                     pl={indent}
                     position="absolute"
                     ref={rowVirtualizer.measureElement}
-                    top={0}
-                    transform={`translateY(${virtualRow.start}px)`}
+                    // Must position with top, translateY breaks text selection across rows on Firefox (#55879, #56238)
+                    top={`${virtualRow.start}px`}
                     width={wrap ? "100%" : "max-content"}
                   >
                     <Box
@@ -432,8 +432,8 @@ export const TaskLogContent = ({
                   pl={indent}
                   position="absolute"
                   ref={rowVirtualizer.measureElement}
-                  top={0}
-                  transform={`translateY(${virtualRow.start}px)`}
+                  // Must position with top, translateY breaks text selection across rows on Firefox (#55879, #56238)
+                  top={`${virtualRow.start}px`}
                   width={wrap ? "100%" : "max-content"}
                 >
                   {visibleSearchMatchIndices?.has(virtualRow.index) ? (
