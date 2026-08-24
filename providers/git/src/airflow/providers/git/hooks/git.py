@@ -186,7 +186,9 @@ class GitHook(BaseHook):
     @contextlib.contextmanager
     def _token_askpass_env(self):
         """Hand the token to git through GIT_ASKPASS so it never reaches the repo URL."""
-        if not self.auth_token:
+        # Only http(s) consults GIT_ASKPASS, so writing the token to a temp script for an SSH
+        # connection that happens to carry one would put it on disk for nothing.
+        if not self.auth_token or not str(self.repo_url).startswith(("http://", "https://")):
             yield
             return
 
@@ -264,8 +266,8 @@ esac
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        # Wraps every branch, not just the token-only one: a connection may carry both a token
-        # and SSH options, and the token previously reached git through the URL on any branch.
+        # Wraps every branch, not just the token-only one: an http(s) connection may also carry
+        # SSH options, and the token used to reach git through the URL whichever branch ran.
         with self._token_askpass_env():
             if self.private_key:
                 with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:

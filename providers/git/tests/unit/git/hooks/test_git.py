@@ -514,3 +514,19 @@ class TestGitHook:
             assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
 
         assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
+
+    def test_token_askpass_env_skipped_for_ssh_transport(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_ssh_with_password",
+                host=AIRFLOW_GIT,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"key_file": "/files/pkey.pem", "strict_host_key_checking": "accept-new"},
+            )
+        )
+        hook = GitHook(git_conn_id="git_ssh_with_password")
+
+        with hook.configure_hook_env():
+            assert "GIT_ASKPASS" not in hook.env
+            assert "GIT_TERMINAL_PROMPT" not in hook.env
