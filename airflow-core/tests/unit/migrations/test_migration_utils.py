@@ -95,6 +95,35 @@ def test_asset_name_collation_in_mysql_offline_migrations(capsys):
     assert "latin1_general_cs" not in emitted_sql
 
 
+@pytest.mark.parametrize(
+    ("current_revision", "target_revision"),
+    [
+        pytest.param("fb2d4922cd79", "5a5d66100783", id="asset-alias-name"),
+        pytest.param("0d9e73a75ee4", "44eabb1904b4", id="asset-uri"),
+    ],
+)
+def test_asset_name_collation_in_mysql_offline_downgrades(
+    capsys,
+    current_revision,
+    target_revision,
+):
+    with conf_vars(
+        {
+            ("database", "sql_alchemy_conn"): "mysql+pymysql://root@localhost/airflow",
+            ("database", "sql_engine_collation_for_asset_names"): "latin1_bin",
+        }
+    ):
+        command.downgrade(
+            _get_alembic_config(),
+            f"{current_revision}:{target_revision}",
+            sql=True,
+        )
+
+    emitted_sql = capsys.readouterr().out
+    assert emitted_sql.count("latin1_bin") == 1
+    assert "latin1_general_cs" not in emitted_sql
+
+
 # Stairway starts from the 3.0.0 head revision.  Starting here (rather than
 # the 2.6.2 squashed baseline) avoids triggering FAB-provider downgrade
 # handling that airflow.utils.db.downgrade() applies when the target is below
