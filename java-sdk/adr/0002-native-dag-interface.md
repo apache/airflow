@@ -79,7 +79,9 @@ var dag = new DagDef("java_etl")
 ```
 
 `TaskDef`/`DagDef` carry configuration through fluent `.config(key, value)` calls and dependency
-edges through `.dependsOn(...)`, keyed to the Dag serialization schema.
+edges through `.dependsOn(...)`, keyed to the Dag serialization schema. `.config(...)` and
+`.dependsOn(...)` are the native-Dag additions this ADR proposes for `TaskDef`/`DagDef`; today's
+shipped classes only have `addTask(...)`.
 
 ## If `client`/`context` were real getter methods instead of injected parameters
 
@@ -132,19 +134,22 @@ bodies. Once `Client`/`Context` are getters, their real signatures already line 
 (`long -> long -> void`), so this type-checks with no generated class produced purely to make the
 types match.
 
-Open tradeoffs this ADR does not resolve:
+Open question this ADR does not resolve:
 
 - What calling `extract()` inside `depends()` actually does — whether Dag parsing runs against a
   distinct instance/mode so the call records an edge instead of executing the real task body — is
   a runtime-dispatch question, not a call-site question. This ADR only proposes the shape.
+
+If that question is answered, the implications are:
+
 - A task method becomes an ordinary instance method with a real return type, so it is directly
   unit-testable by subclassing and overriding `getClient()`/`getContext()` — no `In<T>` unwrapping
   needed in a test.
 - The interface-based `TaskDef`/`DagDef` surface is unaffected either way: it already wires edges
   through object references (`dependsOn(extract)`), not through compile-time-generated calls.
-- If adopted, the annotation surface drops `In<T>`, `TaskRef<T>`, and `<Class>Ref` codegen
-  entirely, along with the "IDE shows unresolved symbols until the first build" experience that
-  comes with a generated twin.
+- The annotation surface drops `In<T>`, `TaskRef<T>`, and `<Class>Ref` codegen entirely, along with
+  the "IDE shows unresolved symbols until the first build" experience that comes with a generated
+  twin.
 
 ## Consequences
 

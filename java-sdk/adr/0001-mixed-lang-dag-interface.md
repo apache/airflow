@@ -91,11 +91,12 @@ public static class SummarizeInput implements TaskInput {
 
 ```java
 public static class Transform implements InputTask<TaskArgs> {
-    public void execute(@NotNull Context context, Client client, TaskArgs args) {
-      var extracted = args.require(0, Long.class);
-      var threshold = args.get(1, Double.class);     // null when it resolves to nothing
-      log.log(INFO, "Got extracted value from the bound argument: {0}", extracted);
-      // ...
+  public void execute(@NotNull Context context, Client client, TaskArgs args) {
+    var extracted = args.require(0, Long.class);
+    var threshold = args.get(1, Double.class);     // null when it resolves to nothing
+    log.log(INFO, "Got extracted value from the bound argument: {0}", extracted);
+    // ...
+  }
 }
 ```
 
