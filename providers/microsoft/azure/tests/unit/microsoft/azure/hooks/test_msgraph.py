@@ -45,6 +45,7 @@ from airflow.providers.microsoft.azure.hooks.msgraph import (
     KiotaRequestAdapterHook,
     MSGraphMailHook,
     execute_callable,
+    send_email,
 )
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -1035,3 +1036,57 @@ class TestMSGraphMailHook:
                 subject="Airflow alert",
                 html_content="Something happened",
             )
+
+
+@patch("airflow.providers.microsoft.azure.hooks.msgraph.MSGraphMailHook", autospec=True)
+class TestSendEmail:
+    def test_send_email(self, mock_hook):
+        send_email(
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            conn_id="msgraph_api",
+            from_email="airflow@example.com",
+        )
+
+        mock_hook.assert_called_once_with(conn_id="msgraph_api")
+        mock_hook.return_value.send_email.assert_called_once_with(
+            from_email="airflow@example.com",
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            files=None,
+            cc=None,
+            bcc=None,
+            custom_headers=None,
+        )
+
+    def test_send_email_without_conn_id(self, mock_hook):
+        mock_hook.default_conn_name = MSGraphMailHook.default_conn_name
+
+        send_email(
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            conn_id=None,
+            from_email="airflow@example.com",
+        )
+
+        mock_hook.assert_called_once_with(conn_id="msgraph_default")
+
+    def test_send_email_without_from_email(self, mock_hook):
+        with pytest.raises(ValueError, match="`from_email` configuration has to be set"):
+            send_email(to="user@example.com", subject="Airflow alert", html_content="Something happened")
+
+        mock_hook.assert_not_called()
+
+    def test_send_email_when_dryrun(self, mock_hook):
+        send_email(
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            dryrun=True,
+            from_email="airflow@example.com",
+        )
+
+        mock_hook.assert_not_called()

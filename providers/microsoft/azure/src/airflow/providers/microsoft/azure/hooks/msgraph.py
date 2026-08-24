@@ -15,11 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Microsoft Graph API hook and the email backend built on it.
+
+.. spelling:word-list::
+
+    dryrun
+"""
+
 from __future__ import annotations
 
 import asyncio
 import inspect
 import json
+import logging
 import mimetypes
 import re
 import warnings
@@ -74,6 +83,8 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+log = logging.getLogger(__name__)
 
 
 def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -991,3 +1002,49 @@ class MSGraphMailHook(KiotaRequestAdapterHook):
                 await self.close_async_conn()
 
         asyncio.run(send_and_close())
+
+
+def send_email(
+    to: str | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    dryrun: bool = False,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    conn_id: str | None = None,
+    from_email: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
+    **kwargs,
+) -> None:
+    """
+    Email backend for Microsoft Graph.
+
+    .. note::
+        For more information, see :ref:`email-configuration-msgraph`
+    """
+    if not from_email:
+        raise ValueError(
+            "The `from_email` configuration has to be set for the Microsoft Graph emailer, as it "
+            "determines which mailbox the message is sent from."
+        )
+
+    if dryrun:
+        log.info("Dry run, not sending email with subject %r to %s", subject, to)
+        return
+
+    # ``mime_subtype`` and ``mime_charset`` are part of the email backend contract but have no
+    # counterpart here: Microsoft Graph composes the MIME message itself from the JSON payload.
+    hook = MSGraphMailHook(conn_id=conn_id or MSGraphMailHook.default_conn_name)
+    hook.send_email(
+        from_email=from_email,
+        to=to,
+        subject=subject,
+        html_content=html_content,
+        files=files,
+        cc=cc,
+        bcc=bcc,
+        custom_headers=custom_headers,
+    )

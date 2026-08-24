@@ -44,7 +44,7 @@ Follow the steps below to enable it:
    .. code-block:: ini
 
       [email]
-      email_backend = airflow.providers.microsoft.azure.emailer.send_email
+      email_backend = airflow.providers.microsoft.azure.hooks.msgraph.send_email
       email_conn_id = msgraph_default
       from_email = From email <email@example.com>
 
@@ -52,7 +52,7 @@ Follow the steps below to enable it:
 
    .. code-block:: sh
 
-      AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.providers.microsoft.azure.emailer.send_email
+      AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.providers.microsoft.azure.hooks.msgraph.send_email
       AIRFLOW__EMAIL__EMAIL_CONN_ID=msgraph_default
       AIRFLOW__EMAIL__FROM_EMAIL=email@example.com
 
