@@ -18,6 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export class DagRunsPage extends BasePage {
   public static get dagRunsUrl(): string {
@@ -61,7 +62,7 @@ export class DagRunsPage extends BasePage {
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await expect(this.dagRunsTable).toBeVisible();
 
-    const rows = this.dagRunsTable.locator("tbody tr");
+    const rows = this.dagRunsTable.locator(DATA_ROWS);
 
     await expect(rows).not.toHaveCount(0);
 
@@ -88,7 +89,7 @@ export class DagRunsPage extends BasePage {
    * Verify that run details are displayed in the table row
    */
   public async verifyRunDetailsDisplay(): Promise<void> {
-    const firstRow = this.dagRunsTable.locator("tbody tr").first();
+    const firstRow = this.dagRunsTable.locator(DATA_ROWS).first();
 
     await expect(firstRow).toBeVisible();
 
@@ -139,7 +140,7 @@ export class DagRunsPage extends BasePage {
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await expect(this.dagRunsTable).toBeVisible();
 
-    const rows = this.dagRunsTable.locator("tbody tr");
+    const rows = this.dagRunsTable.locator(DATA_ROWS);
 
     await expect(rows).not.toHaveCount(0);
 

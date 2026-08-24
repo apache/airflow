@@ -82,3 +82,27 @@ class NeptuneImportTaskFailedError(AirflowException):
 
 class GlueJobRunStoppedError(AirflowException):
     """Raised when a Glue job run finishes in a state that is not a real success."""
+
+
+class DataSyncTaskNotFoundError(AirflowException):
+    """Raised when a DataSync task could not be identified or created for the requested locations."""
+
+
+class DataSyncMultipleTasksError(AirflowException):
+    """Raised when multiple DataSync tasks match and random task choice is not allowed."""
+
+
+class DataSyncMultipleLocationsError(AirflowException):
+    """Raised when multiple DataSync locations match and random location choice is not allowed."""
+
+
+class DataSyncLocationNotFoundError(AirflowException):
+    """Raised when a DataSync location could not be determined or created."""
+
+
+class DataSyncTaskCreationError(AirflowException):
+    """Raised when DataSync task creation did not return a task ARN."""
+
+
+class DataSyncTaskExecutionFailedError(AirflowException):
+    """Raised when a DataSync task execution could not be started or did not complete successfully."""
