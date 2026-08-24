@@ -84,6 +84,7 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import CachedDBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
@@ -420,8 +421,11 @@ class TestSchedulerJob:
 
         job_runner = SchedulerJobRunner(Job())
 
+        assert isinstance(job_runner.scheduler_dag_bag, CachedDBDagBag)
         assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
         assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        # Reported separately from the API server's cache, not folded into it.
+        assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
     @pytest.mark.parametrize(
         "heartrate",
@@ -8843,6 +8847,35 @@ class TestSchedulerJob:
         orphaned, active = self._find_assets_activation(session)
         assert active == [asset1, asset3, asset5]
         assert orphaned == [asset2, asset4]
+
+    def test_asset_orphaning_keeps_alias_materialized_asset_active(self, session):
+        """An asset linked only through an ``AssetAlias`` association must stay active, not orphaned.
+
+        Reproduces #58058: a task with an ``AssetAlias`` outlet materializes a concrete asset at
+        runtime (via ``Metadata``). It has no schedule/outlet/inlet reference — only the alias
+        association — so the orphanage pass used to treat it as orphaned, leaving it out of the
+        Assets tab despite having events and a live alias.
+        """
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        asset = AssetModel(uri="test://alias_materialized", name="alias_materialized_asset", group="asset")
+        alias = AssetAliasModel(name="materializing_alias", group="asset")
+        asset.aliases.append(alias)
+        session.add_all([asset, alias])
+        session.flush()
+
+        # Referenced only via the alias association, so inactive before the pass.
+        orphaned, active = self._find_assets_activation(session)
+        assert asset in orphaned
+        assert asset not in active
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        # The alias association now counts as a reference, so the asset is activated.
+        orphaned, active = self._find_assets_activation(session)
+        assert asset in active
+        assert asset not in orphaned
 
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())

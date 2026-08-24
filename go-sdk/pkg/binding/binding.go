@@ -22,8 +22,7 @@
 // Captured defaults may go unclaimed, and a sole untagged struct can decode one
 // unclaimed argument as a whole value.
 //
-// Analyze validates a function once. Resolve binds each execution, while
-// ResolveUnbound zero-fills data parameters for runtimes without argument specs.
+// Analyze validates a function once. Resolve binds each execution.
 package binding
 
 import (
@@ -38,7 +37,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -161,22 +159,6 @@ func (p *Plan) Resolve(
 		return p.resolveLoneStructParam(ctx, client, args, out)
 	}
 	return p.resolveFlatParams(ctx, client, args, out)
-}
-
-// ResolveUnbound fills injectables and zero-fills data parameters.
-func (p *Plan) ResolveUnbound(
-	ctx context.Context,
-	logger *slog.Logger,
-	client sdk.Client,
-) []reflect.Value {
-	out := p.resolveInjectables(ctx, logger, client)
-	for i, plan := range p.params {
-		switch plan.kind {
-		case paramData, paramLoneStruct:
-			out[i] = reflect.Zero(plan.typ)
-		}
-	}
-	return out
 }
 
 func (p *Plan) resolveInjectables(
@@ -431,12 +413,13 @@ func (p *Plan) fetchArgValues(
 		return raws, nil
 	}
 
-	workload, ok := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
+	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
 	if !ok {
 		return nil, fmt.Errorf(
-			"task function %s: no workload in context, cannot resolve xcom arguments", p.fnName,
+			"task function %s: no task runtime context, cannot resolve xcom arguments", p.fnName,
 		)
 	}
+	ti := runtimeContext.TaskInstance()
 	// Stop sibling pulls after the first failure.
 	pullCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -445,8 +428,8 @@ func (p *Plan) fetchArgValues(
 	pull := func(i int) error {
 		a := args[i].(XComArg)
 		raw, err := c.GetXCom(
-			pullCtx, workload.TI.DagId, workload.TI.RunId, a.TaskID, nil,
-			api.XComReturnValueKey, nil,
+			pullCtx, ti.DagID, ti.RunID, a.TaskID, nil,
+			sdk.XComReturnValueKey, nil,
 		)
 		if err != nil {
 			return fmt.Errorf(
