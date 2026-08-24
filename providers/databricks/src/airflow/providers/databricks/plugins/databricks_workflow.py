@@ -554,7 +554,13 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             assert isinstance(task, DatabricksTaskBaseOperator)
 
         if ".launch" not in ti_key.task_id:
-            launch_task_id = get_launch_task_id(task_group)
+            try:
+                launch_task_id = get_launch_task_id(task_group)
+            except AirflowException:
+                # Declaring ``operators`` attaches this link to standalone Databricks tasks too, which
+                # have no launch task; render no URL rather than raising (which is a 500 in the
+                # Airflow 2 extra-links view). Mirrors the graceful "" the Airflow 3 branch returns.
+                return ""
             ti_key = _get_launch_task_key(ti_key, task_id=launch_task_id)
         metadata = get_xcom_result(ti_key, "return_value")
 
