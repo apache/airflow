@@ -515,7 +515,7 @@ class Variable(Base, LoggingMixin):
         var_val = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
-            # Only the metastore backend touches the metadata database, and it is the only
+            # Only the metastore Variable backend touches the metadata database, and it is the only
             # one whose signature accepts a session.
             session_kwargs: dict[str, Session] = {}
             if session is not None and isinstance(secrets_backend, MetastoreBackend):
