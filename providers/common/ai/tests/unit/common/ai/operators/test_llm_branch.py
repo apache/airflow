@@ -97,8 +97,8 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_forwards_max_cost_as_cost_limit(self, mock_hook_cls, mock_do_branch):
-        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, mock_do_branch):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
@@ -110,7 +110,7 @@ class TestLLMBranchOperator:
             task_id="test",
             prompt="Pick a branch",
             llm_conn_id="my_llm",
-            max_cost=0.5,
+            usage_limits={"cost_limit": "0.5"},
         )
         op.downstream_task_ids = {"task_a", "task_b"}
 

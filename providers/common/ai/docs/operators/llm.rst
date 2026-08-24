@@ -119,24 +119,30 @@ calls within a single task.
     :start-after: [START howto_operator_llm_usage_limits]
     :end-before: [END howto_operator_llm_usage_limits]
 
-``usage_limits`` cannot be templated -- it's an object, not a scalar. For a per-run
-cost cap, use ``max_cost`` -- a plain number (``max_cost=0.5``), and templatable:
+A plain ``dict`` can be passed instead of a ``UsageLimits`` instance, which lets
+Jinja template individual fields -- e.g. a per-run cost cap driven by an Airflow
+Variable so the budget can change per environment without editing the Dag:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
-    :start-after: [START howto_operator_llm_max_cost]
-    :end-before: [END howto_operator_llm_max_cost]
+    :start-after: [START howto_operator_llm_templated_usage_limits]
+    :end-before: [END howto_operator_llm_templated_usage_limits]
 
-``max_cost`` overrides ``cost_limit`` on ``usage_limits`` (building one if
-``usage_limits`` is ``None``); every other field on ``usage_limits`` is left as-is.
+Each dict value is rendered by Jinja like any other ``template_fields`` entry,
+then coerced to that field's type (``Decimal``, ``int``, or ``bool``). A value
+that doesn't parse -- an unset Variable renders to ``""``, a typo renders to a
+non-numeric string -- fails the task with a ``ValueError`` naming the field and
+the rendered value, instead of silently disabling the limit. A ``UsageLimits``
+instance passed directly is used as-is and is not templated or validated.
 
 Common knobs on ``UsageLimits``:
 
 - ``request_limit`` — max model requests per run (caps retry/tool-loop blow-ups).
   pydantic-ai applies a default of ``50`` when ``UsageLimits()`` is constructed
   without an explicit value, so passing ``UsageLimits(input_tokens_limit=4_000)``
-  silently inherits that 50-request cap. Set ``request_limit=None`` to disable
-  it explicitly when you only want a token cap.
+  (or the dict form ``{"input_tokens_limit": 4_000}``) silently inherits that
+  50-request cap. Set ``request_limit=None`` explicitly when you only want a
+  token cap.
 - ``input_tokens_limit`` / ``output_tokens_limit`` — per-run token caps.
 - ``total_tokens_limit`` — combined input + output cap.
 - ``tool_calls_limit`` — max tool invocations (``AgentOperator`` only).
@@ -150,7 +156,7 @@ Common knobs on ``UsageLimits``:
   is ``None`` and ``cost_limit`` silently has no effect (a ``CostNotFoundWarning`` is
   emitted instead of a failure). And like the other knobs above, setting ``cost_limit``
   alone still inherits the ``request_limit=50`` default — see the ``request_limit`` note
-  above. Note that ``cost_limit`` (and ``max_cost``) only cap the operator's own LLM calls --
+  above. Note that ``cost_limit`` only caps the operator's own LLM calls --
   the meta-agent that ``LLMRetryPolicy`` runs to classify a failed task is a separate,
   uncapped LLM call; see :doc:`../retry_policies`.
 
@@ -241,12 +247,10 @@ Parameters
   for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
-- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run.  Fails
-  the task when token / request / tool-call budgets are exceeded.  Default ``None``.
-- ``max_cost``: Convenience per-run USD cost cap, as a templated alternative to
-  ``usage_limits.cost_limit`` (``usage_limits`` itself cannot be templated). Overrides
-  ``cost_limit`` on ``usage_limits`` if both are set; every other field on
-  ``usage_limits`` is preserved.  Default ``None`` (``usage_limits`` unchanged).
+- ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a
+  ``dict`` of the same fields (templated via Jinja, then coerced per field type).
+  Fails the task when token / request / tool-call budgets are exceeded, or when a
+  templated dict value cannot be coerced.  Default ``None``.
 - ``require_approval``: If ``True``, the task defers after generating output and waits
   for human review.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``

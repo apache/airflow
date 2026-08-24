@@ -301,10 +301,10 @@ class TestLLMSchemaCompareOperator:
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
     )
-    def test_execute_forwards_max_cost_as_cost_limit(
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
         self, mock_build_system_prompt, mock_build_schema_context
     ):
-        """``max_cost`` is resolved into ``usage_limits.cost_limit`` before ``run_sync``."""
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_build_schema_context.return_value = "schema_context"
         mock_build_system_prompt.return_value = "system_prompt"
 
@@ -314,7 +314,7 @@ class TestLLMSchemaCompareOperator:
             llm_conn_id="llm_conn",
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["orders"],
-            max_cost=0.5,
+            usage_limits={"cost_limit": "0.5"},
         )
 
         mock_llm_hook = mock.Mock()

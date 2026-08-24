@@ -484,12 +484,15 @@ Parameters
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
   such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
-  agent run (initial run, durable replay, and HITL regeneration). Use it to
-  cap requests, tokens, or tool calls per task -- agents are particularly
-  prone to runaway tool loops, so ``tool_calls_limit`` is a useful guardrail.
-  It also supports a per-run USD ``cost_limit``; see :ref:`howto/operator:llm`
-  for the caveats (not a hard guarantee, silently inert for unpriced models)
-  and an example. Default ``None``.
+  agent run (initial run, durable replay, and HITL regeneration), or a ``dict``
+  of the same fields -- the dict form is templated via Jinja, then coerced per
+  field type, failing the task with a ``ValueError`` naming the field if a
+  rendered value doesn't parse. Use it to cap requests, tokens, or tool calls
+  per task -- agents are particularly prone to runaway tool loops, so
+  ``tool_calls_limit`` is a useful guardrail. It also supports a per-run USD
+  ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a hard
+  guarantee, silently inert for unpriced models) and an example. Default
+  ``None``.
 
   .. warning::
      With ``durable=True``, a task retry replays cached model steps instead of
@@ -498,14 +501,10 @@ Parameters
      from a live call. A ``cost_limit`` therefore counts already-paid-for
      replayed cost against every retry's fresh budget, leaving less headroom
      for the new calls the retry actually makes. And if the limit is lowered
-     between attempts -- easy to do by accident, since ``max_cost`` is
-     templated -- a retry can exceed it with zero new model calls. The
-     ``LLM run cost`` line in the task log reports the run's cumulative cost
-     for the same reason, not what this attempt actually spent.
-- ``max_cost``: Convenience per-run USD cost cap, as a templated alternative to
-  ``usage_limits.cost_limit`` (``usage_limits`` itself cannot be templated). Overrides
-  ``cost_limit`` on ``usage_limits`` if both are set; every other field on
-  ``usage_limits`` is preserved.  Default ``None`` (``usage_limits`` unchanged).
+     between attempts -- easy to do by accident when ``usage_limits`` is
+     templated as a dict -- a retry can exceed it with zero new model calls.
+     The ``LLM run cost`` line in the task log reports the run's cumulative
+     cost for the same reason, not what this attempt actually spent.
 - ``durable``: When ``True``, enables step-level caching of model responses and
   tool results. On retry, cached steps are replayed instead of re-executing
   expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
