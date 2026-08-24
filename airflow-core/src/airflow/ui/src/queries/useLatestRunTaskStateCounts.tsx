@@ -21,12 +21,8 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useLatestRunTaskStateCounts = ({
-  dagIds,
   dags,
 }: {
-  readonly dagIds: ReadonlyArray<string>;
-  // Refresh predicate is derived from useDags' data so the counts query doesn't
-  // need to be loaded before it knows whether to poll — avoids a chicken-and-egg.
   readonly dags: ReadonlyArray<DAGWithLatestDagRunsResponse> | undefined;
 }) => {
   const refetchInterval = useAutoRefresh({});
@@ -34,11 +30,15 @@ export const useLatestRunTaskStateCounts = ({
     dags?.some((dag) => !dag.is_paused && dag.latest_dag_runs.some((run) => isStatePending(run.state))) ??
     false;
 
-  // Stable key: sort the dag_ids so pagination/sort order changes don't churn the cache.
-  const sortedDagIds = [...dagIds].sort();
+  // latest_dag_runs is newest-first and may hold several runs per Dag (14 in card view),
+  // but only the latest is counted. Sorted for a stable query cache key.
+  const dagRunIds = (dags ?? [])
+    .map((dag) => dag.latest_dag_runs[0]?.id)
+    .filter((id): id is number => id !== undefined)
+    .sort((left, right) => left - right);
 
-  return useDagServiceGetLatestRunTaskInstanceStateCountsUi({ dagIds: sortedDagIds }, undefined, {
-    enabled: sortedDagIds.length > 0,
+  return useDagServiceGetLatestRunTaskInstanceStateCountsUi({ dagRunIds }, undefined, {
+    enabled: dagRunIds.length > 0,
     placeholderData: (prev) => prev,
     refetchInterval: hasPendingRun ? refetchInterval : false,
   });
