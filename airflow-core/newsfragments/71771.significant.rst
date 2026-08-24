@@ -16,6 +16,11 @@ group instead of once per file.
 - Overriding ``handle_parsing_result`` is still supported and also skips batching. It remains the
   only hook that sees every completion, including callback-only runs and failed parses.
 
+- ``[dag_processor] max_dags_per_persistence_group`` bounds how many Dags one write may carry,
+  defaulting to 32. A file is never split, so a single file defining more is still written in one
+  go. Lower it if the Dag processor holding many rows in one transaction causes lock waits; set
+  it to 1 to write one file at a time while keeping the new seam.
+
 **Behaviour changes:**
 
 - ``on_asset_created`` now reports the definition that is written. Where two files in one group
@@ -31,7 +36,7 @@ group instead of once per file.
 * Types of change
 
   * [ ] Dag changes
-  * [ ] Config changes
+  * [x] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
