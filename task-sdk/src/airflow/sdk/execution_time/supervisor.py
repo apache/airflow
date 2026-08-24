@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import atexit
 import contextlib
 import functools
 import io
@@ -442,17 +441,12 @@ def _fork_main(
             os.close(requests.fileno())
         os._exit(n)
 
-    if hasattr(atexit, "_clear"):
-        # Since we're in a fork we want to try and clear them. If we can't do it cleanly, then we won't try
-        # and run new atexit handlers.
-        with suppress(Exception):
-            atexit._clear()
-            base_exit = exit
-
-            def exit(n: int) -> NoReturn:
-                # This will only run any atexit funcs registered after we've forked.
-                atexit._run_exitfuncs()
-                base_exit(n)
+    # We deliberately never run atexit handlers registered post-fork (used to via
+    # atexit._run_exitfuncs() here). A library's atexit handler that isn't fork-safe -- holds a
+    # native lock or thread that didn't survive the fork -- can block forever, which means this
+    # forked task child, and the pod hosting it, never exits (e.g. pyarrow's S3 client finalizer
+    # deadlocking in its AWS-CRT teardown). There's no way to tell a safe handler from an unsafe
+    # one in advance, so os._exit() skips all of them rather than risk running an unknown one.
 
     try:
         block_orm_access()
