@@ -1,0 +1,1 @@
+Fix ``airflow tasks clear --dag-regex`` raising ``AttributeError: 'DAG' object has no attribute 'clear'``. The regex branch of ``get_dags`` now honors ``from_db=True`` and returns ``SerializedDAG`` instances from the metadata DB, matching the non-regex branch behavior.
