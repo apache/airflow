@@ -23,7 +23,7 @@ import os
 import random
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
@@ -434,16 +434,44 @@ class MetricsMap:
         self.histograms[name].record(value, tags)
 
 
-# The MeterProvider this module built, if any. A fork hands the child this reference, the atexit
-# hook, and a live pipeline: PeriodicExportingMetricReader registers its own after_in_child hook
-# that restarts the export thread, so the inherited readers resume exporting everything the parent
-# accumulated. The child owns none of it.
-_provider: MeterProvider | None = None
+# Stamped on the MeterProvider this module builds, recording the pid that built it.
+#
+# It lives on the provider rather than in a module global because this package is imported twice --
+# once as ``airflow._shared.observability`` and once as ``airflow.sdk._shared.observability`` -- so
+# each copy has its own globals and neither can see the other's. A module global would only ever
+# deduplicate within one copy, and would leave the fork cleanup below working only in whichever
+# copy happened to build the pipeline. The OTel global provider registry is genuinely
+# process-wide, which makes the provider itself the only place both copies can agree on.
+#
+# The pid it records answers "did *this* process build it?". A fork hands the child the object
+# with the parent's pid still on it, along with the atexit hook and a live pipeline:
+# PeriodicExportingMetricReader registers its own after_in_child hook that restarts the export
+# thread, so the inherited readers resume exporting everything the parent accumulated. The child
+# owns none of it, and the stale pid is what says so. See
+# https://github.com/apache/airflow/issues/64690; the OTel SDK keys ``service.instance.id`` off
+# the pid for the same question.
+_OWNER_PID_ATTR = "_airflow_owner_pid"
+
+
+def _find_provider_built_by_this_process() -> MeterProvider | None:
+    """Return the globally registered MeterProvider if this module built it in this process."""
+    if getattr(provider := metrics.get_meter_provider(), _OWNER_PID_ATTR, None) == os.getpid():
+        # Only a provider built by get_otel_logger() carries the marker, so this is an SDK one.
+        return cast("MeterProvider", provider)
+    return None
+
+
+def _find_pipeline_inherited_across_fork() -> MeterProvider | None:
+    """Return the globally registered MeterProvider if this module built it in a parent process."""
+    owner_pid = getattr(provider := metrics.get_meter_provider(), _OWNER_PID_ATTR, None)
+    if owner_pid is not None and owner_pid != os.getpid():
+        return cast("MeterProvider", provider)
+    return None
 
 
 def flush_otel_metrics():
-    if _provider is not None:
-        _provider.force_flush()
+    if (provider := _find_provider_built_by_this_process()) is not None:
+        provider.force_flush()
 
 
 def _find_own_readers(provider: MeterProvider) -> Sequence[Any] | None:
@@ -517,12 +545,10 @@ def _drop_inherited_exit_handler(provider: object) -> None:
 
 
 def _reset_provider_after_fork() -> None:
-    global _provider
     atexit.unregister(flush_otel_metrics)
     _drop_inherited_exit_handler(metrics.get_meter_provider())
-    if _provider is not None:
-        _stop_inherited_pipeline(_provider)
-    _provider = None
+    if (inherited := _find_pipeline_inherited_across_fork()) is not None:
+        _stop_inherited_pipeline(inherited)
 
 
 os.register_at_fork(after_in_child=_reset_provider_after_fork)
@@ -559,9 +585,12 @@ def get_otel_logger(
     parent accumulated; the readers the SDK revives in the child are left running, because on this
     path they are the only pipeline the child has.
 
-    This module builds at most one pipeline: later calls return a logger over the provider it
-    already built rather than leaving a second one exporting alongside it. A forked child stops
-    the pipeline it inherited and builds its own.
+    The process builds at most one pipeline: later calls return a logger over the provider it
+    already built rather than leaving a second one exporting alongside it. That holds across both
+    copies of this package, since ownership is recorded on the provider rather than in module
+    state. Each caller still gets its own :class:`SafeOtelLogger`, so the prefix, allow/block
+    lists, name handler and InfluxDB flag stay per-caller; only the pipeline is shared. A forked
+    child stops the pipeline it inherited and builds its own.
     """
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     validator = get_validator(metrics_allow_list, metrics_block_list)
@@ -573,10 +602,10 @@ def get_otel_logger(
             configured_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
         )
 
-    global _provider
-    if _provider is not None:
+    own_provider = _find_provider_built_by_this_process()
+    if own_provider is not None:
         return SafeOtelLogger(
-            _provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
+            own_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
         )
 
     otel_env_config = load_metrics_env_config()
@@ -627,7 +656,7 @@ def get_otel_logger(
     except (ImportError, AttributeError):
         pass
 
-    _provider = MeterProvider(
+    provider = MeterProvider(
         resource=resource,
         metric_readers=readers,
         views=[
@@ -638,9 +667,10 @@ def get_otel_logger(
         ],
         shutdown_on_exit=False,
     )
-    metrics.set_meter_provider(_provider)
+    setattr(provider, _OWNER_PID_ATTR, os.getpid())
+    metrics.set_meter_provider(provider)
 
     # Register a hook that flushes any in-memory metrics at shutdown.
     atexit.register(flush_otel_metrics)
 
-    return SafeOtelLogger(_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled)
+    return SafeOtelLogger(provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled)
