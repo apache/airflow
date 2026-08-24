@@ -244,8 +244,7 @@ def init_plugins(app: FastAPI) -> None:
             log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
             continue
 
-        team_name = subapp_dict.get("team_name")
-        if multi_team and team_name is not None:
+        if multi_team and (team_name := subapp_dict.get("team_name")) is not None:
             # Airflow applies no authorization to mounted plugin apps, so a team-scoped
             # plugin's endpoints would otherwise be reachable by any authenticated user.
             # `app.mount()` cannot attach middleware, so build the Mount directly.
@@ -281,7 +280,7 @@ def init_plugins(app: FastAPI) -> None:
             log.error("'middleware' value for %s is should be callable: %s", name, middleware)
             continue
 
-        if multi_team and middleware_dict.get("team_name") is not None:
+        if multi_team and (team_name := middleware_dict.get("team_name")) is not None:
             # Root middlewares wrap every request to the API server, including other
             # teams' and core routes, so they cannot be scoped to one team. A team plugin
             # that needs middleware should apply it inside its own FastAPI app.
@@ -290,7 +289,7 @@ def init_plugins(app: FastAPI) -> None:
                 "apply to the entire API server and cannot be restricted to a single team. "
                 "Apply it within the plugin's own fastapi_apps instead.",
                 name,
-                middleware_dict["team_name"],
+                team_name,
             )
             continue
 
