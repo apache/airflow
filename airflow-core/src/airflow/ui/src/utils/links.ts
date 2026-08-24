@@ -19,6 +19,18 @@
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { taskInstanceRoutes } from "src/router";
 
+export type TaskInstanceTab =
+  | "asset_events"
+  | "code"
+  | "details"
+  | "events"
+  | "logs"
+  | "rendered_templates"
+  | "required_actions"
+  | "task_instances"
+  | "task-state-store"
+  | "xcom";
+
 export const getTaskInstanceLink = (
   tiOrParams:
     | TaskInstanceResponse
@@ -28,16 +40,21 @@ export const getTaskInstanceLink = (
         mapIndex?: number;
         taskId: string;
       },
+  tab?: TaskInstanceTab,
 ): string => {
+  const tabPath = tab === undefined ? "" : `/${tab}`;
+
   if ("dag_id" in tiOrParams) {
     return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
-    }`;
+    }${tabPath}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;
 
-  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
+  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${
+    mapIndex >= 0 ? `/mapped/${mapIndex}` : ""
+  }${tabPath}`;
 };
 
 export const getRedirectPath = (targetPath: string): string => {

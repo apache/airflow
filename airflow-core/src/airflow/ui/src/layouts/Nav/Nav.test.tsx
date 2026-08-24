@@ -56,22 +56,22 @@ const wrapperAt = (path: string) => {
   return wrapper;
 };
 
-describe("Nav home button", () => {
+describe("Nav dashboard button", () => {
   it("links to the dashboard at /home", () => {
     render(<Nav />, { wrapper: wrapperAt("/") });
 
-    expect(screen.getByTestId("nav-home-link")).toHaveAttribute("href", "/home");
+    expect(screen.getByTestId("nav-dashboard-link")).toHaveAttribute("href", "/home");
   });
 
   it("is active on the dashboard route", () => {
     render(<Nav />, { wrapper: wrapperAt("/home") });
 
-    expect(screen.getByTestId("nav-home-link")).toHaveAttribute("aria-current", "page");
+    expect(screen.getByTestId("nav-dashboard-link")).toHaveAttribute("aria-current", "page");
   });
 
   it("is not active on the landing page", () => {
     render(<Nav />, { wrapper: wrapperAt("/") });
 
-    expect(screen.getByTestId("nav-home-link")).not.toHaveAttribute("aria-current");
+    expect(screen.getByTestId("nav-dashboard-link")).not.toHaveAttribute("aria-current");
   });
 });

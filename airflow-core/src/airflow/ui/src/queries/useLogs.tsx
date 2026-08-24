@@ -120,7 +120,7 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}/logs?try_number=${tryNumber}` : "";
+  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance, "logs")}?try_number=${tryNumber}` : "";
 
   try {
     let lineNumber = 0;
