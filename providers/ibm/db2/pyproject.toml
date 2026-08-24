@@ -62,8 +62,13 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    "ibm-db>=3.2.0",
-    "ibm-db-sa>=0.4.0",
+    # IBM ships no Db2 client for Linux ARM64, so ibm-db has no aarch64 wheel and its
+    # sdist build fails there with `NameError: name 'arch_' is not defined`, which
+    # breaks the linux/arm64 CI image.
+    # ibm-db-sa is pure Python, but it declares ibm-db as a dependency, so installing
+    # it on aarch64 would pull ibm-db back in. It carries the same marker.
+    "ibm-db>=3.2.0; platform_machine != 'aarch64'",
+    "ibm-db-sa>=0.4.0; platform_machine != 'aarch64'",
     "methodtools>=0.4.7",
 ]
 
