@@ -603,8 +603,12 @@ class DagModelOperation(NamedTuple):
                 .where(DagModel.dag_id.in_(self.dags))
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
+                .options(joinedload(DagModel.task_inlet_asset_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
+                # ``FOR NO KEY UPDATE`` conflicts with itself, and a group holds far more rows
+                # than one file did, so every writer takes them in the same order.
+                .order_by(DagModel.dag_id)
             ),
             of=DagModel,
             session=session,
@@ -865,10 +869,8 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
-            # Insertion order here is the order the rows are locked, and a batched write hands
-            # over several files' Dags at once, so two writers can take shared assets in opposite
-            # orders and deadlock. Sorting by a stable key closes it; tracked at
-            # https://github.com/apache/airflow/issues/71911
+            # Definition order decides which asset wins the unique-name race in ``asset_active``;
+            # :meth:`sync_assets` sorts what it inserts instead.
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
@@ -888,13 +890,19 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
-        orm_assets.update(
-            ((model.name, model.uri), model)
-            for model in asset_manager.create_assets(
-                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
-                session=session,
-            )
+        # ``asset`` is unique on (name, uri): two writers inserting the same new assets in
+        # opposite orders deadlock on that index.
+        to_create = sorted(
+            (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
+            key=lambda asset: (asset.name, asset.uri),
         )
+        created = {
+            (model.name, model.uri): model
+            for model in asset_manager.create_assets(to_create, session=session)
+        }
+        # Back to collection order: ``activate_assets_if_possible`` takes these first come, first
+        # served, so sorting for insertion must not decide which of two assets sharing a name wins.
+        orm_assets.update((key, created[key]) for key in self.assets if key in created)
         return orm_assets
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -1059,13 +1067,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No assets means there are no references to update.
-        if not assets:
-            return
         for dag_id, references in self.inlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_inlet_asset_references = []
+                if dags[dag_id].task_inlet_asset_references:
+                    dags[dag_id].task_inlet_asset_references = []
                 continue
             referenced_inlets = {
                 (task_id, asset.id)
@@ -1083,7 +1089,8 @@ class AssetModelOperation(NamedTuple):
         for dag_id, references in self.outlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_outlet_asset_references = []
+                if dags[dag_id].task_outlet_asset_references:
+                    dags[dag_id].task_outlet_asset_references = []
                 continue
             referenced_outlets = {
                 (task_id, assets[d.name, d.uri]): (

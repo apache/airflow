@@ -3210,6 +3210,16 @@ dag_processor:
       type: integer
       example: ~
       default: "2"
+    max_dags_per_persistence_group:
+      description: |
+        How many Dags the Dag processor may write in one database call before the next
+        file starts a new one. A file is never split, so one defining more than this is
+        still written in one go. Lower it if holding that many rows at once causes lock
+        waits; 1 writes a file at a time.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "32"
     file_parsing_sort_mode:
       description: |
         One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.

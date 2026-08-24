@@ -534,6 +534,48 @@ class TestAssetModelOperation:
         op.add_dag_asset_name_uri_references(session=session)
         assert session.execute(select(*columns)).all() == expected
 
+    @staticmethod
+    def _unpersisted(dag_id: str, assets: list[Asset]) -> LazyDeserializedDAG:
+        """Build a Dag without writing it, so its assets are still new when the write runs."""
+        return LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=assets))
+
+    def test_new_assets_are_inserted_in_one_order_whatever_defined_them(self, session):
+        """Two writers inserting the same new assets in opposite orders deadlock on that index."""
+        op = AssetModelOperation.collect(
+            {
+                "alpha": self._unpersisted("alpha", [Asset("m_asset"), Asset("b_asset")]),
+                "zulu": self._unpersisted("zulu", [Asset("z_asset"), Asset("a_asset")]),
+            }
+        )
+
+        with mock.patch.object(
+            airflow.dag_processing.collection.asset_manager,
+            "create_assets",
+            autospec=True,
+            return_value=[],
+        ) as create:
+            op.sync_assets(session=session)
+
+        inserted = create.call_args.args[0] if create.call_args.args else create.call_args.kwargs["assets"]
+        assert [asset.name for asset in inserted] == ["a_asset", "b_asset", "m_asset", "z_asset"]
+
+    def test_sorting_for_insertion_does_not_change_which_asset_is_activated(self, session):
+        """Of two assets sharing a name the first handed over wins; sorting must not move that."""
+        op = AssetModelOperation.collect(
+            {
+                "zz": self._unpersisted("zz", [Asset(name="dup", uri="s3://zzz")]),
+                "aa": self._unpersisted("aa", [Asset(name="dup", uri="s3://aaa")]),
+            }
+        )
+
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+        op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        activated = [(a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive))]
+        assert activated == [("dup", "s3://zzz")]
+
     def test_change_asset_property_sync_group(self, dag_maker, session):
         asset = Asset("myasset", group="old_group")
         with dag_maker(schedule=[asset]) as dag:

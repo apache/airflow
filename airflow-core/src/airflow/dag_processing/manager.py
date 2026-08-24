@@ -108,15 +108,8 @@ def _make_execution_api() -> InProcessExecutionAPI:
     return InProcessExecutionAPI()
 
 
-MAX_DAGS_PER_PERSISTENCE_GROUP = 32
-"""
-How many Dags a group takes on before the next file starts a new one.
-
-Counted in Dags rather than files because that is what a write costs and what it locks: a few
-files generating Dags dynamically can be thousands. It bounds what grouping adds, not the write
-itself -- a file is never split, so one file defining more than this is still written in one go,
-exactly as it was before sweeps were grouped at all.
-"""
+class SerializationErrorInGroup(RuntimeError):
+    """Raised to discard a group whose write found a Dag that will not serialize."""
 
 
 class DagParsingStat(NamedTuple):
@@ -293,6 +286,14 @@ class DagFileProcessorManager(LoggingMixin):
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
+
+    _max_dags_per_group: int = attrs.field(
+        factory=_config_int_factory("dag_processor", "max_dags_per_persistence_group"), init=False
+    )
+    """
+    Counted in Dags, not files: a write's cost is its Dags, and one file can define thousands. A
+    file is never split, so one defining more than this is still written in one go.
+    """
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
@@ -1292,6 +1293,8 @@ class DagFileProcessorManager(LoggingMixin):
         try:
             self.persist_parsing_results([result], session=session)
         except Exception:
+            # Owns the session, so swallowing this would commit what the write left pending.
+            session.rollback()
             self._throttle_after_failed_persist(result)
             return
 
@@ -1494,9 +1497,8 @@ class DagFileProcessorManager(LoggingMixin):
         reads what is already registered first. Files are not counted -- ``[dag_processor]
         parsing_processes`` already bounds how many arrive.
 
-        A Dag that fails to serialize rather than to parse is not covered: those errors are only
-        known once the write is under way, so a run cannot be ended on them. Tracked at
-        https://github.com/apache/airflow/issues/71911
+        A Dag that fails to serialize cannot end a run here -- that is only known once the write
+        is under way -- so :meth:`_persist_bundle_group` discards the group instead.
         """
         groups: list[list[FileParseResult]] = []
         bundles: list[tuple[str, str | None, dict | None]] = []
@@ -1520,21 +1522,19 @@ class DagFileProcessorManager(LoggingMixin):
                 bool(groups)
                 and not run_ended
                 and bundles[-1] == bundle_key
-                and dag_counts[-1] + len(dags) <= MAX_DAGS_PER_PERSISTENCE_GROUP
+                and dag_counts[-1] + len(dags) <= self._max_dags_per_group
                 and claimed_dag_ids[-1].isdisjoint(dag_ids)
                 and dag_locs_claimed[-1].isdisjoint(file_locs)
                 and file_locs_claimed[-1].isdisjoint(dag_locs)
                 and dag_locs_claimed[-1].isdisjoint(dag_locs)
             )
             if not joins_run:
-                # A new group takes the file whatever its size; a file cannot be split.
                 groups.append([])
                 bundles.append(bundle_key)
                 dag_counts.append(0)
                 claimed_dag_ids.append(set())
                 dag_locs_claimed.append(set())
                 file_locs_claimed.append(set())
-                run_ended = False
 
             groups[-1].append(item)
             dag_counts[-1] += len(dags)
@@ -1592,6 +1592,7 @@ class DagFileProcessorManager(LoggingMixin):
             dag_warnings = {warning for warning in dag_warnings if warning.dag_id not in defined}
             dag_warnings.update(file_warnings)
 
+        reported_by_parsing = set(import_errors)
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=items[0].bundle_version,
@@ -1603,6 +1604,14 @@ class DagFileProcessorManager(LoggingMixin):
             session=session,
             files_parsed=files_parsed,
         )
+        if len(items) > 1 and set(import_errors) - reported_by_parsing:
+            # The write reads what is registered before it knows a Dag will not serialize, and
+            # stales that Dag last, so the files beside it were written against stale state.
+            # Grouping cannot see it coming, so the group is redone a file at a time.
+            raise SerializationErrorInGroup(
+                f"{len(set(import_errors) - reported_by_parsing)} Dag(s) in this group of "
+                f"{len(items)} files failed to serialize; writing the files separately instead."
+            )
 
     def _collect_results(self):
         finished = []
@@ -1678,6 +1687,15 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
             try:
                 self._dispatch_persist(group)
+            except SerializationErrorInGroup:
+                # Raised only after the built-in write rolled back, so nothing was kept even when
+                # a replacement reached it through ``super()``. Expected, so no traceback.
+                self.log.warning(
+                    "A Dag in this group of %d files will not serialize; writing them separately instead.",
+                    len(group),
+                )
+                for item in group:
+                    self._persist_single(item)
             except Exception:
                 if self._has_override_for("persist_parsing_results"):
                     # Only the built-in write is known to have kept nothing when it raises. A
