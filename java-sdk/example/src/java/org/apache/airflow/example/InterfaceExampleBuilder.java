@@ -50,10 +50,12 @@ public class InterfaceExampleBuilder {
     }
   }
 
-  public static class Transform implements Task {
-    public void execute(@NotNull Context context, Client client) {
-      var extracted = client.getXCom("extract");
-      log.log(INFO, "Got XCom from extract: {0}", extracted);
+  // The Python Dag file calls transform(extracted), and TaskArgs reads that
+  // binding by position -- for a call site not worth its own bundle class.
+  public static class Transform implements InputTask<TaskArgs> {
+    public void execute(@NotNull Context context, Client client, TaskArgs args) {
+      var extracted = args.require(0, Long.class);
+      log.log(INFO, "Got extracted value from the bound argument: {0}", extracted);
 
       var variable = client.getVariable("my_variable");
       log.log(INFO, "Got variable: {0}", variable);
@@ -63,11 +65,22 @@ public class InterfaceExampleBuilder {
     }
   }
 
-  public static class Load implements Task {
-    public void execute(@NotNull Context context, Client client) {
-      var transformed = client.getXCom("transform");
-      log.log(INFO, "Got XCom from transform: {0}", transformed);
-      throw new RuntimeException("I failed");
+  public static class SummarizeInput implements TaskInput {
+    @ArgName("region_code")
+    public String region;
+
+    public long transformed;
+  }
+
+  // summarize(region_code=..., transformed=...) is called with keyword
+  // arguments, which bind to the bundle's fields by name.
+  public static class Summarize implements InputTask<SummarizeInput> {
+    public void execute(@NotNull Context context, Client client, SummarizeInput input) {
+      log.log(
+          INFO, "Summarize region {0} for transformed value {1}", input.region, input.transformed);
+      if (!"emea".equals(input.region)) {
+        throw new RuntimeException("expected region 'emea' but got " + input.region);
+      }
     }
   }
 
@@ -75,6 +88,6 @@ public class InterfaceExampleBuilder {
     return new DagDef("java_interface_example")
         .addTask("extract", Extract.class)
         .addTask("transform", Transform.class)
-        .addTask("load", Load.class);
+        .addTask("summarize", Summarize.class);
   }
 }

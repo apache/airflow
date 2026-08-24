@@ -27,6 +27,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import org.apache.airflow.sdk.*;
 
+// The Python Dag file (src/resources/dags/java_examples.py) owns the graph: each
+// data parameter below receives whatever the @task.stub call site bound at its
+// position, so this class registers task implementations only.
 @SuppressWarnings("DuplicatedCode")
 @Builder.Dag(id = "java_annotation_example")
 public class AnnotationExample {
@@ -52,7 +55,7 @@ public class AnnotationExample {
   }
 
   @Builder.Task(id = "transform")
-  public long transformValue(Client client, @Builder.XCom(task = "extract") long extracted) {
+  public long transformValue(Client client, long extracted) {
     log.log(INFO, "Got XCom from extract: {0}", extracted);
 
     var variable = client.getVariable("my_variable");
@@ -68,12 +71,30 @@ public class AnnotationExample {
   // RetryTask (instead of a terminal FAILED) when ti_context.should_retry is
   // set. The retry then runs this task again and it returns normally.
   @Builder.Task
-  public void load(Context context, @Builder.XCom(task = "transform") long transformed) {
+  public void load(Context context, long transformed) {
     log.log(INFO, "Got XCom from transform: {0}", transformed);
     if (context.ti.tryNumber == 1) {
       throw new RuntimeException("I failed");
     }
     log.log(INFO, "Recovered on retry, try number {0}", context.ti.tryNumber);
+  }
+
+  // Keyword arguments bind by name instead of by position, through a TaskInput
+  // bundle: the tagged boundary where the stub's snake_case argument names
+  // cross into camelCase Java fields.
+  public static class ReportInput implements TaskInput {
+    @ArgName("run_label")
+    public String runLabel;
+
+    public long transformed;
+  }
+
+  @Builder.Task(id = "report")
+  public void report(ReportInput input) {
+    log.log(INFO, "Report {0} for transformed value {1}", input.runLabel, input.transformed);
+    if (!"nightly".equals(input.runLabel)) {
+      throw new RuntimeException("expected run label 'nightly' but got " + input.runLabel);
+    }
   }
 
   // Verify one supervisor channel can handle client calls across threads.

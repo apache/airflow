@@ -17,26 +17,24 @@
  * under the License.
  */
 
-package org.apache.airflow.example;
+package org.apache.airflow.sdk
 
-import java.util.List;
-import org.apache.airflow.sdk.*;
-import org.jetbrains.annotations.NotNull;
-
-public class ExampleBundleBuilder implements BundleBuilder {
-  @NotNull
-  @Override
-  public Iterable<DagDef> getDags() {
-    return List.of(
-        InterfaceExampleBuilder.build(),
-        AnnotationExampleBuilder.build(),
-        XComCastingExampleBuilder.build(),
-        org.apache.airflow.example.nativedag.AnnotationExampleBuilder.build(),
-        org.apache.airflow.example.nativedag.InterfaceExample.build());
-  }
-
-  public static void main(String[] args) {
-    var bundle = new ExampleBundleBuilder().build();
-    Server.create(args).serve(bundle);
-  }
-}
+/**
+ * Declares the wire name of a [TaskInput] field explicitly, for when the
+ * Python stub signature's argument name is not a valid (or desirable) Java
+ * field name — typically `snake_case` arguments crossing into `camelCase`
+ * fields.
+ *
+ * ```java
+ * @ArgName("region_code") public String region;
+ * ```
+ *
+ * Fields without the annotation bind their verbatim field name.
+ *
+ * @param value Argument name as declared in the stub task's signature.
+ */
+@Target(AnnotationTarget.FIELD)
+@MustBeDocumented
+annotation class ArgName(
+  val value: String,
+)

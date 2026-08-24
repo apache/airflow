@@ -93,10 +93,7 @@ Java implementation
       }
 
       @Builder.Task(id = "transform")
-      public long transform(
-        Client client,
-        @Builder.XCom(task = "extract") long recordCount
-      ) {
+      public long transform(Client client, long recordCount) {
         var threshold = (String) client.getVariable("transform_threshold");
         // ... process data ...
         return transformedCount;
@@ -105,8 +102,11 @@ Java implementation
 
 .. note::
 
-  See how both ``transform`` in Python and Java need to have an argument to accept upstream XCom. The
-  Python one is needed to declare dependency, and the Java one is needed to actually retrieve the value.
+  The graph is declared once, in the Python Dag file: ``transform(extract())`` feeds the upstream's
+  return value into the downstream's parameter by calling tasks like functions. The supervisor sends
+  the resulting *argument bindings* to the Java runtime, and each Java data parameter receives
+  whatever the Python call site bound at its position — an upstream task's XCom or an inline
+  literal. See :ref:`java-sdk/arg-binding`.
 
 Java entry point
 ~~~~~~~~~~~~~~~~
@@ -160,16 +160,29 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
    * - Annotation
      - Purpose
    * - ``@Builder.Dag(id = "...")``
-     - Marks the class as a task container.  The ``id`` must match the ``dag_id`` in the Python Dag.
+     - Marks the class as a task container.  For a stub-backed Dag the ``id`` must match the
+       ``dag_id`` in the Python Dag.  Further attributes (``schedule``, ``description``, ``tags``,
+       ``catchup``, …) mirror the Dag serialization schema and configure the Dag itself; only
+       attributes written explicitly are applied.  See :ref:`java-sdk/native-dags`.
    * - ``@Builder.Task(id = "...")``
-     - Marks a method as a task implementation.  The ``id`` must match the ``@task.stub`` function
-       name in the Python Dag.  If ``id`` is omitted the method name is used.
-   * - ``@Builder.XCom(task = "...")``
-     - Injects the ``return_value`` XCom from the named upstream task as a method parameter.
-       The parameter type must be compatible with the stored value (see :ref:`java-sdk/types`).
+     - Marks a method as a task implementation.  For a stub-backed Dag the ``id`` must match the
+       ``@task.stub`` function name in the Python Dag.  If ``id`` is omitted the method name is
+       used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) mirror the Dag
+       serialization schema; only attributes written explicitly are applied.
+   * - ``@Wiring``
+     - Marks the static method that declares the task graph in Java, TaskFlow-style.  Only needed
+       for a Dag that has no Python stub file.  See :ref:`java-sdk/native-dags`.
+   * - ``TaskInput`` / ``@ArgName("...")``
+     - Marks a class as a task's input bundle, so keyword arguments bind by name instead of by
+       position: each public field receives the binding whose name matches it (the ``@ArgName``
+       value, or the verbatim field name).  See :ref:`java-sdk/arg-binding`.
+
+Besides the annotations, a task method may declare a ``Client`` and a ``Context`` parameter in any
+position; the SDK injects both.  Every other parameter is a *data parameter* and receives an
+argument bound by the Python ``@task.stub`` call site.
 
 The annotation processor generates a ``<ClassName>Builder`` class that wires up the task
-registry and handles XCom injection automatically.
+registry and resolves data parameters and XCom pushes automatically.
 
 .. code-block:: java
 
@@ -184,10 +197,7 @@ registry and handles XCom injection automatically.
       }
 
       @Builder.Task(id = "process")
-      public long process(
-        Client client,
-        @Builder.XCom(task = "fetch") String fetched
-      ) {
+      public long process(Client client, String fetched) {
         var threshold = (String) client.getVariable("process_threshold");
         // implement task logic
         return count;
@@ -203,7 +213,9 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``; both carry a fluent
+``config(key, value)`` whose keys are Dag serialization schema property names, and ``TaskDef`` also
+carries ``dependsOn(...)`` for declaring edges between task definitions.
 
 .. code-block:: java
 
@@ -218,6 +230,20 @@ read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
       }
     }
 
+Implement ``InputTask<I>`` instead when the Python Dag calls the stub with TaskFlow arguments: the SDK
+resolves them and passes them in.  The type argument declares what the task expects — a ``TaskInput``
+bundle to bind by name, or ``TaskArgs`` to read by position.  See :ref:`java-sdk/arg-binding`.
+
+.. code-block:: java
+
+    public class ProcessTask implements InputTask<TaskArgs> {
+      @Override
+      public void execute(Context context, Client client, TaskArgs args) throws Exception {
+        var fetched = args.require(0, String.class);
+        // implement task logic
+      }
+    }
+
 Register tasks manually in a ``BundleBuilder``:
 
 .. code-block:: java
@@ -225,14 +251,196 @@ Register tasks manually in a ``BundleBuilder``:
     public class MyBundle implements BundleBuilder {
       @Override
       public Iterable<DagDef> getDags() {
+        var fetch = new TaskDef("fetch", FetchTask.class).config("retries", 2);
+        var process = new TaskDef("process", ProcessTask.class).dependsOn(fetch);
         var dag = new DagDef("my_dag")
-            .addTask("fetch", FetchTask.class)
-            .addTask("process", ProcessTask.class);
+            .config("schedule", "@daily")
+            .addTask(fetch)
+            .addTask(process);
         return List.of(dag);
       }
     }
 
 See the `Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ for more details.
+
+.. _java-sdk/arg-binding:
+
+Binding stub arguments
+~~~~~~~~~~~~~~~~~~~~~~
+
+Calling a ``@task.stub`` TaskFlow-style in the Python Dag is what declares the graph, and the
+supervisor delivers the resulting argument bindings to the Java runtime with every task run.  A
+binding carries either an upstream task's ``return_value`` XCom or an inline literal written at the
+call site.
+
+Positional binding
+^^^^^^^^^^^^^^^^^^
+
+A task method's data parameters bind **by position**, in declaration order — the injected ``Client``
+and ``Context`` parameters do not take up a position.  Java parameter names are not part of the API,
+so renaming one in an IDE never rebinds an input.
+
+.. code-block:: python
+
+    @task.stub(queue="java")
+    def score(rows, threshold): ...
+
+
+    score(load_rows(), 0.75)
+
+.. code-block:: java
+
+    @Builder.Task(id = "score")
+    public long score(Client client, long rows, double threshold) {
+      // rows      <- the load_rows XCom (position 0)
+      // threshold <- the literal 0.75   (position 1)
+    }
+
+A primitive parameter cannot hold ``null``, so the task fails with ``MissingXComException`` when its
+binding resolves to nothing; declare a boxed type (``Long``, ``Double``, …) to receive ``null``
+instead.  Declaring more data parameters than the call site bound also fails the task, rather than
+running it with missing inputs.
+
+Named binding with a ``TaskInput`` bundle
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To bind keyword arguments by name, declare a bundle: a class implementing ``TaskInput`` whose public
+non-final fields each receive the binding named by their ``@ArgName`` value, or by the verbatim field
+name — the deliberate, tagged boundary where the stub's ``snake_case`` argument names cross into
+``camelCase`` Java fields.  The class needs a public no-argument constructor.  A reference field the
+call site did not bind stays ``null``, so a bundle need not cover every argument; a primitive field
+fails the task instead, since it cannot hold ``null``.
+
+.. code-block:: python
+
+    @task.stub(queue="java")
+    def score(region_code, threshold): ...
+
+
+    score(region_code="emea", threshold=load_threshold())
+
+.. code-block:: java
+
+    public static class ScoreInput implements TaskInput {
+      @ArgName("region_code")
+      public String region;
+
+      public double threshold;
+    }
+
+    @Builder.Task(id = "score")
+    public long score(Client client, ScoreInput input) { ... }
+
+A task method declares flat data parameters **or** one ``TaskInput`` bundle, never both, so field names
+and flat positions cannot shift each other.  Mixing them, or declaring two bundles, fails the build.
+
+Binding in the interface-based API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A task written against the interface has no parameter list to bind, so it declares its input as the
+type argument of ``InputTask<I>`` instead.  Both shapes above are available, and bind exactly as they
+do for an annotated task:
+
+.. code-block:: java
+
+    // Named: one bundle, same class as an annotated task would declare.
+    public class ScoreTask implements InputTask<ScoreInput> {
+      @Override
+      public void execute(Context context, Client client, ScoreInput input) throws Exception {
+        // input.region, input.threshold
+      }
+    }
+
+    // Positional: for a call site not worth a bundle class of its own.
+    public class RowCountTask implements InputTask<TaskArgs> {
+      @Override
+      public void execute(Context context, Client client, TaskArgs args) throws Exception {
+        var rows = args.require(0, List.class);        // fails if it resolves to nothing
+        var threshold = args.get(1, Double.class);     // null when it resolves to nothing
+      }
+    }
+
+``TaskArgs`` addresses arguments only by position — ``size()`` reports how many the call site bound —
+so argument names stay confined to the ``@ArgName``-tagged bundle fields.
+
+An ``InputTask`` whose type argument is not a concrete, supported ``TaskInput`` fails when the
+``Bundle`` is built, rather than mid-run.  Plain ``Task`` remains the right interface for a task the
+Dag file calls with no arguments.
+
+.. _java-sdk/native-dags:
+
+Native Java Dags
+----------------
+
+A Dag can also be authored entirely in Java, with no Python stub file: the annotations (or the
+``TaskDef`` / ``DagDef`` objects) carry the configuration, and Java declares the graph.
+
+Wiring the graph with ``@Wiring``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The annotation processor generates a ``<ClassName>Ref`` twin class whose methods mirror the
+``@Builder.Task`` methods: the injected ``Client`` and ``Context`` parameters are dropped, each data
+parameter takes an ``In<T>`` input, and the return value becomes a ``TaskRef<T>``.  A static
+``@Wiring`` method receives the twin and calls it — calling a twin registers the task, and passing
+one twin's result into another feeds the upstream's output into the downstream's parameter *and*
+wires the dependency edge.  The call graph is the task graph, and ``javac`` type-checks it:
+
+.. code-block:: java
+
+    @Builder.Dag(
+        id = "java_etl",
+        schedule = "@daily",
+        description = "Pure-Java Dag, no Python stub file",
+        tags = {"example", "java-sdk"})
+    public class EtlPipeline {
+
+      @Builder.Task(id = "extract", retries = 2)
+      public long extract() {
+        return 42L;
+      }
+
+      @Builder.Task(id = "transform")
+      public long transform(long extracted) {
+        return extracted * 2;
+      }
+
+      @Builder.Task(id = "load")
+      public void load(long transformed) {
+        // implement task logic
+      }
+
+      @Wiring
+      static void depends(EtlPipelineRef f) {
+        f.load(f.transform(f.extract()));
+      }
+    }
+
+Every ``@Builder.Task`` method must be invoked in the wiring method; a task the wiring missed fails
+at Dag-parse time.  ``In.value(...)`` wires an inline literal where no upstream feeds a parameter.
+The wiring method is optional — a class without one registers every task with no Java-side edges,
+which is the shape for stub-backed tasks whose graph the Python Dag file owns.
+
+.. note::
+
+   Runtime argument bindings win over Java-declared wiring.  When the supervisor delivers bindings
+   for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
+   task receives, because for a stub task the Python call site is the graph the scheduler ordered
+   the run by.  Wired inputs are the fallback, which is what a native Java Dag always uses.
+
+Configuration attributes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``@Builder.Dag`` and ``@Builder.Task`` configuration attributes, and the keys accepted by
+``DagDef.config`` and ``TaskDef.config``, are generated from Airflow's Dag serialization schema, so
+they carry the same names and types as their Python counterparts.  Annotation attributes are
+``camelCase`` (``retryDelay``); ``config`` keys are the verbatim schema names (``"retry_delay"``).
+Only attributes written explicitly at the use site are applied, so Airflow's own defaults still
+apply to everything left out.
+
+Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT5M"``,
+``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
+``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
+fails the build (annotations) or Dag parsing (``config``).
 
 .. _java-sdk/logging:
 
@@ -428,7 +636,7 @@ represented as Java objects when read back via ``getXCom``.
 
 .. note::
 
-   An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
+   A data parameter whose binding resolves to a value that was never pushed receives
    ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
    safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
    ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a
