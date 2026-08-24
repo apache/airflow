@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Arrow",
                 "external-doc-url": "https://arrow.apache.org/",
+                "how-to-guide": ["/docs/apache-airflow-providers-apache-arrow/operators.rst"],
                 "logo": "/docs/integration-logos/apache-arrow.png",
                 "tags": ["apache"],
             }
