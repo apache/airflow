@@ -535,8 +535,6 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
 
         resource = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = resource.get("metadata", {}).get("status", {}).get("state")
-        if status == "FAILED":
-            raise AirflowException(f"Report {self.report_id} for query {self.query_id} failed execution.")
         if status != "DONE":
             raise AirflowException(
                 f"Report {self.report_id} for query {self.query_id} is in state '{status}'. Expected 'DONE'."

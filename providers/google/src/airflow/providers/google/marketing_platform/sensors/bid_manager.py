@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowFailException
 from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.marketing_platform.hooks.bid_manager import GoogleBidManagerHook
 
@@ -85,7 +85,7 @@ class GoogleBidManagerRunQuerySensor(BaseSensorOperator):
         status = response.get("metadata", {}).get("status", {}).get("state")
         self.log.info("STATUS OF THE REPORT %s FOR QUERY %s: %s", self.report_id, self.query_id, status)
         if status == "FAILED":
-            raise AirflowException(f"Report {self.report_id} for query {self.query_id} failed execution.")
+            raise AirflowFailException(f"Report {self.report_id} for query {self.query_id} failed execution.")
         if status == "DONE":
             return True
         return False
