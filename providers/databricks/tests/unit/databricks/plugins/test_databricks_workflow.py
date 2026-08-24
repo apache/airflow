@@ -274,6 +274,43 @@ def test_workflow_job_repair_single_failed_link_airflow2():
             assert result.startswith("http://localhost/repair_databricks_job")
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
+@pytest.mark.skipif(
+    RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Web plugin test doesn't work when not against sources"
+)
+@pytest.mark.db_test
+def test_workflow_job_repair_single_failed_link_airflow2_standalone_task_renders_no_url():
+    """A standalone Databricks task (no launch task in its group) renders no URL instead of raising.
+
+    Declaring ``operators`` attaches this link to non-workflow tasks too; on Airflow 2 an unguarded
+    ``get_launch_task_id`` raise surfaces as a 500 behind the button.
+    """
+    from airflow.www.app import create_app
+
+    app = create_app(testing=True)
+    app.config["SERVER_NAME"] = "localhost"
+    with app.app_context():
+        link = WorkflowJobRepairSingleTaskLink()
+        operator = Mock()
+        operator.task_group = Mock(group_id="root")
+        ti_key = Mock(dag_id="dag_id", task_id="standalone_task", run_id="run_id", try_number=1)
+
+        with (
+            patch(
+                "airflow.providers.databricks.plugins.databricks_workflow.get_task_instance"
+            ) as mock_get_task_instance,
+            patch("airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag") as mock_get_dag,
+            patch(
+                "airflow.providers.databricks.plugins.databricks_workflow.get_launch_task_id",
+                side_effect=AirflowException("No launch task can be found in the task group."),
+            ),
+        ):
+            mock_get_task_instance.return_value = Mock(key=ti_key)
+            mock_get_dag.return_value.get_task = Mock(return_value=Mock(task_id="standalone_task"))
+
+            assert link.get_link(operator, ti_key=ti_key) == ""
+
+
 @pytest.fixture
 def plugin():
     return DatabricksWorkflowPlugin()
