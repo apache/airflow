@@ -27,6 +27,11 @@ import { type CrumbShape, crumbButtonStyles, getSegmentStyles, getWedgePadding }
 
 type CrumbStackProps = {
   readonly caption: string;
+  /**
+   * Whether this level reports a state at all. Levels that do keep the badge's room reserved from
+   * the first paint, so the bar does not change width when the value arrives a moment later.
+   */
+  readonly hasState?: boolean;
   readonly isCurrent?: boolean;
   readonly state?: TaskInstanceState | null;
   readonly value: string;
@@ -36,7 +41,13 @@ type CrumbStackProps = {
  * A level's caption and value. Everything is a span: a crumb sits inside a link or a button, where
  * only phrasing content is legal.
  */
-export const CrumbStack = ({ caption, isCurrent = false, state, value }: CrumbStackProps) => (
+export const CrumbStack = ({
+  caption,
+  hasState = false,
+  isCurrent = false,
+  state,
+  value,
+}: CrumbStackProps) => (
   <>
     <Box as="span" color="fg.muted" fontSize="xs" lineHeight="1.3">
       {caption}
@@ -45,7 +56,9 @@ export const CrumbStack = ({ caption, isCurrent = false, state, value }: CrumbSt
       <Box as="span" fontSize="sm" fontWeight={isCurrent ? "medium" : "normal"} minW={0} truncate>
         {value}
       </Box>
-      {state === undefined ? undefined : (
+      {hasState ? (
+        // Rendered but hidden until the state loads: `display: none` would collapse the badge's
+        // width and shift the whole bar. `state ?? null` keeps StateBadge off an undefined palette.
         <StateBadge
           boxSize={4}
           css={{ "& svg": { height: "10px", width: "10px" } }}
@@ -54,9 +67,10 @@ export const CrumbStack = ({ caption, isCurrent = false, state, value }: CrumbSt
           minH={0}
           minW={0}
           p={0}
-          state={state}
+          state={state ?? null}
+          visibility={state === undefined ? "hidden" : "visible"}
         />
-      )}
+      ) : undefined}
     </Box>
   </>
 );

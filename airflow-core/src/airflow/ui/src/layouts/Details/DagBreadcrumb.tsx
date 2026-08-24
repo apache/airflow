@@ -34,6 +34,8 @@ import { DagSwitcherButton } from "./DagSwitcherButton";
 
 type Crumb = {
   readonly caption: string;
+  /** Set alongside `state` so the badge keeps its room while the value is still loading. */
+  readonly hasState?: boolean;
   readonly key: string;
   readonly state?: TaskInstanceState | null;
   readonly to?: string;
@@ -52,7 +54,13 @@ const BreadcrumbItem = ({
   readonly shape: CrumbShape;
 }) => {
   const content = (
-    <CrumbStack caption={crumb.caption} isCurrent={isLast} state={crumb.state} value={crumb.value} />
+    <CrumbStack
+      caption={crumb.caption}
+      hasState={crumb.hasState}
+      isCurrent={isLast}
+      state={crumb.state}
+      value={crumb.value}
+    />
   );
 
   if (crumb.key === "dag") {
@@ -134,6 +142,7 @@ export const DagBreadcrumb = () => {
   if (runId !== undefined) {
     crumbs.push({
       caption: translate("dagRun_one"),
+      hasState: true,
       key: "dagRun",
       state: dagRun?.state,
       to: `/dags/${dagId}/runs/${runId}`,
@@ -172,6 +181,7 @@ export const DagBreadcrumb = () => {
     } else {
       crumbs.push({
         caption: translate("taskInstance_one"),
+        hasState: true,
         key: "task",
         state: taskInstance?.state,
         value: task?.task_display_name ?? taskId,
@@ -196,6 +206,7 @@ export const DagBreadcrumb = () => {
   if (mapIndex !== "-1") {
     crumbs.push({
       caption: translate("mapIndex"),
+      hasState: true,
       key: "mapIndex",
       state: mappedTaskInstance?.state,
       value: mappedTaskInstance?.rendered_map_index ?? mapIndex,

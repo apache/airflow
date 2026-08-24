@@ -83,6 +83,26 @@ describe("DagBreadcrumb", () => {
     expect(screen.getByTestId("switch-dag")).toBeInTheDocument();
   });
 
+  it("keeps the state badge's room while the state is still loading", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(`/dags/${DAG_ID}/runs/run_1`, "/dags/:dagId/runs/:runId"),
+    });
+
+    await screen.findByRole("link", { name: new RegExp(DAG_ID, "u") });
+
+    // Nothing resolves this run, so its state never arrives. The badge still has to be in the DOM,
+    // or the bar would change width the moment it did.
+    expect(screen.getAllByTestId("state-badge")).toHaveLength(1);
+  });
+
+  it("gives no badge room to levels that have no state", async () => {
+    render(<DagBreadcrumb />, { wrapper: createWrapper(`/dags/${DAG_ID}`, "/dags/:dagId") });
+
+    await screen.findByRole("link", { name: new RegExp(DAG_ID, "u") });
+
+    expect(screen.queryByTestId("state-badge")).toBeNull();
+  });
+
   it("switches Dag from the chevron dropdown", async () => {
     render(<DagBreadcrumb />, { wrapper: createWrapper(`/dags/${DAG_ID}`, "/dags/:dagId") });
 
