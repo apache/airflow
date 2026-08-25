@@ -1387,6 +1387,7 @@ DAGS_COMMANDS = (
             "Execute one single DagRun for a given DAG and logical date.\n"
             "\n"
             "You can test a DAG in three ways:\n"
+            "\n"
             "1. Using default bundle:\n"
             "   airflow dags test <DAG_ID>\n"
             "\n"
