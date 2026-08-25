@@ -1475,6 +1475,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '404':
           description: Not Found
           content:
@@ -2121,6 +2127,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -2270,8 +2282,11 @@ paths:
         **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
         from the response).
 
-        When `cursor` is provided, `offset` is ignored and `total_entries` is not
-        returned.
+        When `cursor` is provided, `offset` is ignored and `total_entries` is capped
+        at
+
+        `total_entries_limit` (a value equal to that limit means at least that many
+        runs match).
 
         ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
         is ``null``
@@ -2762,6 +2777,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -4248,6 +4269,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           content:
             application/json:
@@ -6021,12 +6048,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -6067,6 +6088,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: all_map_indices
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: All Map Indices
       - name: map_index
         in: query
         required: false
@@ -6075,13 +6103,6 @@ paths:
           minimum: -1
           default: -1
           title: Map Index
-      - name: all_map_indices
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: All Map Indices
       responses:
         '204':
           description: Successful Response
@@ -6120,6 +6141,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6138,12 +6165,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -6193,6 +6214,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6211,12 +6238,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -6268,6 +6289,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6286,12 +6313,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -6347,6 +6368,12 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
       - name: dag_id
         in: path
         required: true
@@ -6365,12 +6392,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Key
       - name: map_index
         in: query
         required: false
@@ -8181,13 +8202,16 @@ paths:
         **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
         from the response).
 
-        When `cursor` is provided, `offset` is ignored and `total_entries` is not
-        returned.
+        When `cursor` is provided, `offset` is ignored and `total_entries` is capped
+        at
 
-        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
-        is ``null``
+        `total_entries_limit` (a value equal to that limit means at least that many
+        task instances
 
-        on the first page.'
+        match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is
+
+        ``null`` on the first page.'
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
@@ -9082,6 +9106,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -10445,6 +10475,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -13105,6 +13141,11 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -13411,8 +13452,16 @@ components:
           - type: integer
           - type: 'null'
           title: Total Entries
-          description: Total number of matching items. Populated for offset pagination,
-            ``null`` when using cursor pagination.
+          description: Number of matching items. For offset pagination this is the
+            exact total. For cursor pagination it is capped at ``total_entries_limit``;
+            a value equal to that limit means at least that many items match.
+        total_entries_limit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Total Entries Limit
+          description: Cap applied to ``total_entries`` under cursor pagination. ``null``
+            for offset pagination, where ``total_entries`` is exact.
         next_cursor:
           anyOf:
           - type: string
@@ -13891,8 +13940,10 @@ components:
           - type: 'null'
           title: Logical Date
         start_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Start Date
         end_date:
           anyOf:
@@ -13920,6 +13971,12 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        triggering:
+          type: boolean
+          title: Triggering
+          description: Whether this asset event triggered the referenced dag run.
+            Only a run's most recent consumed asset event triggers it; earlier consumed
+            events are included in the run but did not trigger it.
       additionalProperties: false
       type: object
       required:
@@ -13932,6 +13989,7 @@ components:
       - data_interval_start
       - data_interval_end
       - partition_key
+      - triggering
       title: DagRunAssetReference
       description: DagRun serializer for asset responses.
     DagRunMutableStates:
@@ -13995,6 +14053,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -14313,6 +14376,10 @@ components:
           - type: 'null'
           title: Nav Top Level
           default: false
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
         href:
           type: string
           title: Href
@@ -14887,6 +14954,47 @@ components:
       type: object
       title: PatchTaskInstanceBody
       description: Request body for patching task instance state.
+    PluginAppliesToResponse:
+      properties:
+        dag_tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Dag Tags
+        dag_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Dag Ids
+        task_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Task Ids
+        operators:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operators
+        operator_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Operator Names
+      additionalProperties: false
+      type: object
+      title: PluginAppliesToResponse
+      description: Serializer for the optional Dag/task scoping criteria of a UI plugin.
     PluginCollectionResponse:
       properties:
         plugins:
@@ -15275,6 +15383,10 @@ components:
           - type: 'null'
           title: Nav Top Level
           default: false
+        applies_to:
+          anyOf:
+          - $ref: '#/components/schemas/PluginAppliesToResponse'
+          - type: 'null'
         bundle_url:
           type: string
           title: Bundle Url
@@ -15423,8 +15535,16 @@ components:
           - type: integer
           - type: 'null'
           title: Total Entries
-          description: Total number of matching items. Populated for offset pagination,
-            ``null`` when using cursor pagination.
+          description: Number of matching items. For offset pagination this is the
+            exact total. For cursor pagination it is capped at ``total_entries_limit``;
+            a value equal to that limit means at least that many items match.
+        total_entries_limit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Total Entries Limit
+          description: Cap applied to ``total_entries`` under cursor pagination. ``null``
+            for offset pagination, where ``total_entries`` is exact.
         next_cursor:
           anyOf:
           - type: string
@@ -16053,6 +16173,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:

@@ -27,12 +27,67 @@
 Changelog
 ---------
 
+15.0.0
+......
+
+.. warning::
+  The ``AzureBatchHook`` and ``AzureBatchOperator`` have been migrated to the ``azure-batch`` 15.x
+  SDK (track 2). This is a breaking change and requires ``azure-batch>=15.0.0``.
+
+  The following changes were introduced:
+
+  * Hooks
+
+    * ``AzureBatchHook.get_conn`` and ``AzureBatchHook.connection`` now return an ``azure.batch.BatchClient``
+      instead of an ``azure.batch.BatchServiceClient``.
+    * Shared key authentication now uses ``azure.core.credentials.AzureNamedKeyCredential`` instead of
+      ``azure.batch.batch_auth.SharedKeyCredentials``.
+    * Managed identity / workload identity authentication now uses
+      ``azure.identity.DefaultAzureCredential`` (via ``get_sync_default_azure_credential``) instead of
+      ``AzureIdentityCredentialAdapter``, since the track 2 client requires a credential implementing
+      ``get_token()``.
+    * ``AzureBatchHook.configure_pool`` no longer accepts the ``os_family`` and ``os_version`` parameters.
+      Cloud service configuration is not supported by the track 2 SDK; use a virtual machine configuration
+      (``vm_publisher``, ``vm_offer``, ``vm_sku``, ``vm_version`` or ``use_latest_image_and_sku``) instead.
+    * The Batch model classes were renamed by the SDK: ``PoolAddParameter`` is now ``BatchPoolCreateOptions``,
+      ``JobAddParameter`` is now ``BatchJobCreateOptions``, ``TaskAddParameter`` is now ``BatchTaskCreateOptions``,
+      and ``CloudTask`` is now ``BatchTask``.
+
+  * Operators
+
+    * ``AzureBatchOperator`` no longer accepts the ``os_family`` parameter. A ``vm_publisher`` must now be
+      provided to configure the pool's virtual machine image.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate 'AzureBatchHook' and 'AzureBatchOperator' to the azure-batch 15.x SDK (#71071)``
+
+Features
+~~~~~~~~
+
+* ``Support certificate auth for Microsoft Graph filesystem (#71362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph request configuration across paginated pages (#71649)``
+* ``Fix Microsoft Graph filesystem auth by defaulting OAuth2 scope (#70879)``
+* ``Check GCSToAzureBlobStorageOperator match_glob support after template… (#70574)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
 14.1.0
 ......
 
 Features
 ~~~~~~~~
 
+* ``Add certificate-based authentication support to Microsoft Graph filesystem (#69335)``
 * ``Add WasbRemoteLogIO.from_config and register wasb remote logging scheme (#70301)``
 
 Bug Fixes

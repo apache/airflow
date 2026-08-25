@@ -380,7 +380,7 @@ We have the following Groups of files for CI that determine which tests are run:
 * `UI files` - those are files for the new full React UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
-  [System Test Dashbards](https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards)
+  [System Test Dashboards](https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards)
 * `Kubernetes files` - determine if any of Kubernetes related tests should be run
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
@@ -467,8 +467,8 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
   the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
-  several criteria: if any of the airflow core, charts, docker-stack, providers files or docs have changed,
-  then corresponding packages are build (including cross-dependent providers). If any of the core files
+  several criteria: if any of the airflow core, charts, docker-stack, Apache Airflow Mypy, providers files or
+  docs have changed, then corresponding packages are built (including cross-dependent providers). If any of the core files
   changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
   build python files changed or when build is "canary" type in main - all docs packages are built.
 
@@ -595,7 +595,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
-| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
+| run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |

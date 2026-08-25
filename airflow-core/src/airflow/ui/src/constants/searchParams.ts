@@ -93,6 +93,7 @@ export enum SearchParamsKeys {
   RUN_AFTER_RANGE = "run_after_range",
   RUN_ID = "run_id",
   RUN_ID_PATTERN = "run_id_pattern",
+  RUN_STATE = "run_state",
   RUN_TYPE = "run_type",
   SORT = "sort",
   SOURCE = "log_source",
