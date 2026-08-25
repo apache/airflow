@@ -37,7 +37,7 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from itertools import chain
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
@@ -104,6 +104,12 @@ class KubernetesExecutor(BaseExecutor):
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
+    # Pre-assign a durable launch token (external_executor_id) atomically with the
+    # QUEUED transition so a scheduler crash can't lose it. Unlike Celery (which
+    # reuses external_executor_id as its task_id), Kubernetes does not consume this
+    # field for pod identity — adoption is label-based (airflow-worker=<job_id>) — so
+    # opting in is safe and arms the durable-launch fence for KubernetesExecutor.
+    pre_assigns_external_executor_id: ClassVar[bool] = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.

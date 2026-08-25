@@ -106,6 +106,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_instance_launch import TaskInstanceLaunch, TaskInstanceLaunchState
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
@@ -1134,6 +1135,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.external_executor_id = id_map.get(ti.id)
             else:
                 session.execute(queued_update)
+
+            # Bulk insert TaskInstanceLaunch records for active launches with non-null tokens.
+            # This happens after external_executor_ids have been synced into executable_tis in-memory.
+            # The DB-stored external_executor_id values will be read back in the next query if needed.
+            launch_records = []
+            for ti in executable_tis:
+                token = ti.external_executor_id
+                if token:
+                    launch_records.append(
+                        TaskInstanceLaunch(
+                            token=token,
+                            task_instance_id=str(ti.id),
+                            dag_id=ti.dag_id,
+                            task_id=ti.task_id,
+                            run_id=ti.run_id,
+                            map_index=ti.map_index if ti.map_index is not None else -1,
+                            try_number=ti.try_number,
+                            executor=ti.executor or "default",
+                            state=TaskInstanceLaunchState.ACTIVE,
+                        )
+                    )
+            if launch_records:
+                session.add_all(launch_records)
+                session.flush()
 
             for ti in executable_tis:
                 ti.emit_state_change_metric(TaskInstanceState.QUEUED)
@@ -3230,6 +3255,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         filter_for_tis = TI.filter_for_tis([ti])
         if filter_for_tis is None:
             return
+
+        # Supersede any active launch record before rescheduling, so the old token
+        # cannot be reused if the old executor manages to come back.
+        if ti.external_executor_id:
+            TaskInstanceLaunch.mark_superseded(
+                token=ti.external_executor_id,
+                session=session,
+            )
+
         session.execute(
             update(TI)
             .where(filter_for_tis)
@@ -3238,6 +3272,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 queued_dttm=None,
                 queued_by_job_id=None,
                 scheduled_dttm=timezone.utcnow(),
+                external_executor_id=None,  # Clear so next queue cycle assigns fresh token
             )
             .execution_options(synchronize_session=False)
         )
@@ -3446,6 +3481,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
+                        # Mark the current launch token as superseded before resetting the TI
+                        # so the old executor cannot re-adopt this task if it comes back
+                        if ti.external_executor_id:
+                            TaskInstanceLaunch.mark_superseded(
+                                token=ti.external_executor_id,
+                                session=session,
+                            )
                         # If we reset a TI, it will be eligible to be scheduled again.
                         # This can cause the scheduler to increase the try_number on the TI.
                         # Record the current try to TaskInstanceHistory first so users have an audit trail for

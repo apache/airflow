@@ -25,6 +25,7 @@ from sqlalchemy import func, select, update
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.task_instance_launch import TaskInstanceLaunch, TaskInstanceLaunchState
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
@@ -112,6 +113,18 @@ class TestClearTasks:
 
         with create_session() as session:
             session.add(ti0)
+            session.add(
+                TaskInstanceLaunch(
+                    token="some_external_executor_id",
+                    task_instance_id=str(ti0.id),
+                    dag_id=ti0.dag_id,
+                    task_id=ti0.task_id,
+                    run_id=ti0.run_id,
+                    map_index=ti0.map_index,
+                    try_number=ti0.try_number,
+                    executor="executor",
+                )
+            )
             session.commit()
 
             # we use order_by(task_id) here because for the test DAG structure of ours
@@ -125,6 +138,8 @@ class TestClearTasks:
 
             assert ti0.state is None
             assert ti0.external_executor_id is None
+            launch = session.get(TaskInstanceLaunch, "some_external_executor_id")
+            assert launch.state == TaskInstanceLaunchState.SUPERSEDED
 
     def test_clear_task_instances_next_method(self, dag_maker, session):
         with dag_maker(

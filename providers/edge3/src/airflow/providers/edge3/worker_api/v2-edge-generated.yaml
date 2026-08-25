@@ -1314,6 +1314,11 @@ components:
             type: object
           - type: 'null'
           title: Context Carrier
+        external_executor_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Executor Id
         queue:
           type: string
           title: Queue

@@ -90,7 +90,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError, TaskInstanceSupersededError
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     CreateHITLDetailPayload,
@@ -253,21 +253,40 @@ class TaskInstanceOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def start(self, id: uuid.UUID, pid: int, when: datetime) -> TIRunContext:
+    def start(
+        self, id: uuid.UUID, pid: int, when: datetime, external_executor_id: str | None = None
+    ) -> TIRunContext:
         """Tell the API server that this TI has started running."""
-        body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
+        body = TIEnterRunningPayload(
+            pid=pid,
+            hostname=get_hostname(),
+            unixname=getuser(),
+            start_date=when,
+            external_executor_id=external_executor_id,
+        )
 
         try:
             resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 detail = e.detail
-                if (
-                    isinstance(detail, dict)
-                    and detail.get("reason") == "invalid_state"
-                    and detail.get("previous_state") == "running"
-                ):
-                    raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
+                if isinstance(detail, dict):
+                    reason = detail.get("reason")
+                    if reason == "invalid_state" and detail.get("previous_state") == "running":
+                        raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
+                    if reason in ("stale_executor_launch", "executor_id_mismatch"):
+                        raise TaskInstanceSupersededError(
+                            f"Task executor token is stale or superseded for {id}"
+                        ) from e
+            elif e.response.status_code == HTTPStatus.NOT_FOUND:
+                # 404 not_found with a token means the TI is gone but we have a record
+                # This indicates a stale executor trying to restart a consumed/cancelled task
+                if external_executor_id:
+                    detail = e.detail
+                    if isinstance(detail, dict) and detail.get("reason") == "not_found":
+                        raise TaskInstanceSupersededError(
+                            f"Task instance {id} not found (stale executor token)"
+                        ) from e
             raise
         return TIRunContext.model_validate_json(resp.read())
 

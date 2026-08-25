@@ -50,6 +50,7 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.log import Log
+from airflow.models.task_instance_launch import TaskInstanceLaunch, TaskInstanceLaunchState
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -213,6 +214,88 @@ class TestTIRunState:
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
+
+    @pytest.mark.parametrize(
+        ("token", "known", "status_code", "reason"),
+        [
+            pytest.param("stale-token", True, 409, "stale_executor_launch", id="known-terminal"),
+            pytest.param("unknown-token", False, 404, "not_found", id="unknown"),
+        ],
+    )
+    def test_ti_run_missing_task_instance_uses_launch_record(
+        self, client, session, token, known, status_code, reason
+    ):
+        if known:
+            session.add(
+                TaskInstanceLaunch(
+                    token=token,
+                    task_instance_id="deleted-ti",
+                    dag_id="dag",
+                    task_id="task",
+                    run_id="run",
+                    map_index=-1,
+                    try_number=1,
+                    executor="executor",
+                    state=TaskInstanceLaunchState.SUPERSEDED,
+                )
+            )
+            session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{uuid4()}/run",
+            json={
+                "state": "running",
+                "hostname": "host",
+                "unixname": "user",
+                "pid": 1,
+                "start_date": "2024-09-30T12:00:00Z",
+                "external_executor_id": token,
+            },
+        )
+
+        assert response.status_code == status_code
+        assert response.json()["detail"]["reason"] == reason
+
+    def test_ti_run_consumes_launch_and_duplicate_remains_idempotent(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_run_consumes_launch",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+        )
+        ti.external_executor_id = "live-token"
+        launch = TaskInstanceLaunch(
+            token="live-token",
+            task_instance_id=str(ti.id),
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            try_number=ti.try_number,
+            executor="executor",
+        )
+        session.add(launch)
+        session.commit()
+        payload = {
+            "state": "running",
+            "hostname": "host",
+            "unixname": "user",
+            "pid": 1,
+            "start_date": "2024-09-30T12:00:00Z",
+            "external_executor_id": "live-token",
+        }
+
+        first = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+        second = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+        session.refresh(launch)
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert second.json() == first.json()
+        assert launch.state == TaskInstanceLaunchState.CONSUMED
+        assert launch.consumed_at is not None
 
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),
@@ -1794,6 +1877,7 @@ class TestTIUpdateState:
                             next_kwargs=None,
                             logical_date=timezone.utcnow(),
                             owners="test_owner",
+                            external_executor_id=None,
                         )
                     )
                 ),
