@@ -261,8 +261,10 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 
 # Per persistence call, and per Dag in the file. A call leaves the serialized Dag alone while the
 # content is unchanged; once the hash has moved and [core] min_serialized_dag_update_interval has
-# lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call.
-FIXED_PER_CALL = 10
+# lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
+# per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
+# of them are already recorded.
+FIXED_PER_CALL = 9
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 
