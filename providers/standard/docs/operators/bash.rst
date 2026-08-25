@@ -31,7 +31,7 @@ determined by:
 2. If using the TaskFlow decorator, ``@task.bash``, a non-empty string value returned from the decorated callable.
 
 
-.. tip::
+.. note::
 
     The ``@task.bash`` decorator is the Taskflow equivalent of ``BashOperator`` to execute Bash commands.
 

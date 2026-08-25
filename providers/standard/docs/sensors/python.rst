@@ -25,7 +25,7 @@ PythonSensor
 The :class:`~airflow.providers.standard.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
 value to be True.
 
-.. tip::
+.. note::
     The ``@task.sensor`` decorator is the Taskflow equivalent of ``PythonSensor``
     to execute Python callables to check for True condition.
 
