@@ -774,6 +774,7 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("wait_for_past_depends_before_skipping", True, False),
         ("wait_for_downstream", True, False),
         ("retries", 3, 5),
+        ("infra_retries", 2, 4),
         ("queue", "old_queue", "new_queue"),
         ("pool", "old_pool", "new_pool"),
         ("pool_slots", 1, 10),

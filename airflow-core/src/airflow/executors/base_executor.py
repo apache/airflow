@@ -229,7 +229,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
-        self.task_failure_info: dict[WorkloadKey, tuple[TaskFailureKind, str | None]] = {}
+        self.task_failure_info: dict[WorkloadKey, tuple[TaskFailureKind | None, str | None]] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
 
@@ -497,13 +497,24 @@ class BaseExecutor(LoggingMixin):
                 self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
-    def fail(self, key: WorkloadKey, info=None) -> None:
+    def fail(
+        self,
+        key: WorkloadKey,
+        info: Any = None,
+        *,
+        failure_kind: TaskFailureKind | None = None,
+        reason: str | None = None,
+    ) -> None:
         """
         Set fail state for the event.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
+        :param failure_kind: Cause of the failure, when the executor can identify it
+        :param reason: Short executor-owned reason token, with or without a failure kind
         """
+        if failure_kind is not None or reason is not None:
+            self.task_failure_info[key] = failure_kind, reason
         self.change_state(key, state_class_for_key(key).FAILED, info)
 
     def success(self, key: WorkloadKey, info=None) -> None:
@@ -555,12 +566,8 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    def get_task_failure_info(self, key: WorkloadKey) -> tuple[TaskFailureKind, str | None] | None:
-        """
-        Return and clear the ``(failure_kind, reason)`` this executor classified for ``key``.
-
-        None unless the executor can read the real cause, as the Kubernetes executor does.
-        """
+    def get_task_failure_info(self, key: WorkloadKey) -> tuple[TaskFailureKind | None, str | None] | None:
+        """Return and clear the failure cause reported for ``key``."""
         return self.task_failure_info.pop(key, None)
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:

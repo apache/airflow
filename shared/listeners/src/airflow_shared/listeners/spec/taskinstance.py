@@ -57,26 +57,13 @@ def on_task_instance_failed(
     reason: str | None,
 ):
     """
-    Execute when task state changes to FAIL. previous_state can be None.
+    Execute when a task instance fails.
 
     :param previous_state: Previous state of the task instance (can be None)
     :param task_instance: The task instance object
-    :param error: The exception that caused the failure (or human-readable
-        message string for API-driven manual transitions)
-    :param failure_kind: What caused the failure: a :class:`TaskFailureKind`
-        (``INFRA`` / ``APPLICATION`` / ``TIMEOUT`` / ``MANUAL``), or ``None`` when
-        the cause was not classified.
-    :param reason: For an ``INFRA`` failure, the executor's short token for what
-        happened (e.g. ``Evicted``, ``PodDeleted``), since the worker left no
-        ``error``. ``None`` otherwise, and never persisted.
-
-        Pluggy dispatches by parameter name, so a ``hookimpl`` that doesn't declare
-        ``failure_kind`` / ``reason`` keeps working. One that does must declare it
-        *without* a default, since pluggy treats an impl-side default as authoritative
-        and overrides the caller's value::
-
-            @hookimpl
-            def on_task_instance_failed(self, previous_state, task_instance, error, failure_kind, reason): ...
+    :param error: The exception or message associated with the failure
+    :param failure_kind: Classified cause, or ``None`` when Airflow cannot establish one
+    :param reason: Short producer-owned reason token, which may be present without a kind
     """
 
 

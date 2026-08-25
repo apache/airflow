@@ -936,6 +936,24 @@ def test_operator_retries_conversion(retries, expected):
     assert op.retries == expected
 
 
+@pytest.mark.parametrize(
+    ("infra_retries", "expected_exception"),
+    [
+        pytest.param(-1, ValueError, id="negative"),
+        pytest.param("1", TypeError, id="string"),
+    ],
+)
+def test_operator_infra_retries_validation(infra_retries, expected_exception):
+    with pytest.raises(expected_exception):
+        BaseOperator(task_id="test_infra_retries", infra_retries=infra_retries)
+
+
+def test_operator_infra_retries():
+    op = BaseOperator(task_id="test_infra_retries", infra_retries=3)
+
+    assert op.infra_retries == 3
+
+
 def test_default_retry_delay():
     task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
 

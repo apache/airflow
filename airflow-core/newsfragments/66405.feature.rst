@@ -1,1 +1,0 @@
-Add an opt-in infrastructure retry budget (``[core] infra_failure_refund_retries``, bounded by ``max_infra_refunds``) so a failure an executor classifies as infrastructure — a Kubernetes pod ``Evicted`` or preempted by the node — does not spend a task's ``retries``. Disabled by default; a failure the executor cannot positively classify as infra spends the retry as before.

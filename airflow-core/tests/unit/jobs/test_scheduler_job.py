@@ -97,6 +97,7 @@ from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import (
@@ -558,41 +559,66 @@ class TestSchedulerJob:
             any_order=True,
         )
 
-    @conf_vars({("core", "infra_failure_refund_retries"): "True", ("core", "max_infra_refunds"): "3"})
-    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
-    def test_process_executor_events_infra_classification(self, mock_task_callback, dag_maker):
-        """Only a positively-classified infra failure refunds; an unclassified
-        state-mismatch death (no executor bridge) spends the retry, and a bridge 'user'
-        classification (e.g. an app OOM) does not refund."""
+    def test_process_executor_events_infra_classification(self, dag_maker):
         session = settings.Session()
 
-        def _run(dag_id: str, stashed: tuple[TaskFailureKind, str | None] | None) -> TaskInstance:
+        def _run(
+            dag_id: str,
+            failure_info: tuple[TaskFailureKind | None, str | None] | None,
+        ) -> TaskInstance:
             with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}/"):
-                task = EmptyOperator(task_id="t", retries=1)
+                task = EmptyOperator(task_id="t", retries=0, infra_retries=1)
             ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
             ti.state = State.QUEUED
+            ti.queued_by_job_id = 1
             session.merge(ti)
             session.commit()
             executor = MockExecutor(do_update=False)
-            job_runner = SchedulerJobRunner(job=Job(), executors=[executor])
+            self.job_runner = SchedulerJobRunner(job=Job(), executors=[executor])
             executor.event_buffer[ti.key] = State.FAILED, None
-            if stashed is not None:
-                executor.task_failure_info[ti.key] = stashed
-            job_runner._process_executor_events(executor=executor, session=session)
+            if failure_info is not None:
+                executor.task_failure_info[ti.key] = failure_info
+            SchedulerJobRunner.process_executor_events(
+                executor=executor,
+                job_id=1,
+                scheduler_dag_bag=self.job_runner.scheduler_dag_bag,
+                session=session,
+            )
             ti.refresh_from_db(session=session)
             return ti
 
-        # Unclassified: no refund, exactly as today.
-        ti = _run("aip97_unclassified", stashed=None)
-        assert ti.max_tries == 1
+        ti = _run("aip97_unclassified", failure_info=None)
+        assert (ti.state, ti.max_tries) == (TaskInstanceState.FAILED, 0)
 
-        # Classified infra (a pod Evicted): refunded.
-        ti = _run("aip97_infra", stashed=(TaskFailureKind.INFRA, "Evicted"))
-        assert ti.max_tries == 2
+        ti = _run("aip97_infra", failure_info=(TaskFailureKind.INFRA, "Evicted"))
+        assert (ti.state, ti.max_tries) == (TaskInstanceState.UP_FOR_RETRY, 1)
 
-        # Classified application (an OOM against its own limit): no refund.
-        ti = _run("aip97_app_oom", stashed=(TaskFailureKind.APPLICATION, "OOMKilled"))
-        assert ti.max_tries == 1
+        ti = _run("aip97_app_oom", failure_info=(TaskFailureKind.APPLICATION, "OOMKilled"))
+        assert (ti.state, ti.max_tries) == (TaskInstanceState.FAILED, 0)
+
+        ti = _run("aip97_reason_only", failure_info=(None, "WorkerLost"))
+        assert (ti.state, ti.max_tries) == (TaskInstanceState.FAILED, 0)
+
+    def test_process_executor_events_discards_failure_info_without_task_instance(self):
+        executor = MockExecutor(do_update=False)
+        runner = SchedulerJobRunner(job=Job(), executors=[executor])
+        key = TaskInstanceKey(
+            dag_id="missing",
+            task_id="missing",
+            run_id="missing",
+            try_number=1,
+            map_index=-1,
+        )
+        executor.running.add(key)
+        executor.fail(
+            key=key,
+            failure_kind=TaskFailureKind.INFRA,
+            reason="Evicted",
+        )
+
+        runner._process_executor_events(executor=executor, session=settings.Session())
+
+        assert executor.task_failure_info == {}
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
     def test_process_executor_events_restarting_cleared_task(self, mock_task_callback, dag_maker):
@@ -9403,21 +9429,45 @@ class TestSchedulerJob:
         assert dispatched_callback == expected_dispatched_callback
 
     @pytest.mark.parametrize(
-        ("retries", "callback_kind", "expected"),
+        ("retries", "infra_retries", "failure_info", "callback_kind", "expected"),
         [
-            (1, "retry", TaskInstanceState.UP_FOR_RETRY),
-            (0, "failure", TaskInstanceState.FAILED),
+            (1, 0, None, "retry", TaskInstanceState.UP_FOR_RETRY),
+            (0, 0, None, "failure", TaskInstanceState.FAILED),
+            (
+                0,
+                1,
+                (TaskFailureKind.INFRA, "Evicted"),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+            ),
         ],
     )
     def test_external_kill_sets_callback_type_param(
-        self, dag_maker, session, retries, callback_kind, expected
+        self,
+        dag_maker,
+        session,
+        retries,
+        infra_retries,
+        failure_info,
+        callback_kind,
+        expected,
     ):
         """External kill should mark callback type based on retry eligibility."""
         with dag_maker(dag_id=f"ext_kill_{callback_kind}", fileloc="/test_path1/"):
             if callback_kind == "retry":
-                EmptyOperator(task_id="t1", retries=retries, on_retry_callback=lambda ctx: None)
+                EmptyOperator(
+                    task_id="t1",
+                    retries=retries,
+                    infra_retries=infra_retries,
+                    on_retry_callback=lambda ctx: None,
+                )
             else:
-                EmptyOperator(task_id="t1", retries=retries, on_failure_callback=lambda ctx: None)
+                EmptyOperator(
+                    task_id="t1",
+                    retries=retries,
+                    infra_retries=infra_retries,
+                    on_failure_callback=lambda ctx: None,
+                )
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         ti = dr.get_task_instance(task_id="t1")
 
@@ -9431,6 +9481,8 @@ class TestSchedulerJob:
 
         # Executor reports task finished (FAILED) while TI still QUEUED -> external kill path
         executor.event_buffer[ti.key] = State.FAILED, None
+        if failure_info is not None:
+            executor.task_failure_info[ti.key] = failure_info
 
         self.job_runner._process_executor_events(executor=executor, session=session)
 
@@ -9438,6 +9490,13 @@ class TestSchedulerJob:
         request = self.job_runner.executor.callback_sink.send.call_args[0][0]
         assert isinstance(request, TaskCallbackRequest)
         assert request.task_callback_type == expected
+        assert request.context_from_server.max_tries == (1 if failure_info else retries)
+        assert request.context_from_server.failure_kind == (
+            failure_info[0].value if failure_info and failure_info[0] is not None else None
+        )
+        assert request.context_from_server.failure_reason == (
+            failure_info[1] if failure_info is not None else None
+        )
 
     @pytest.mark.parametrize(
         ("dag_run_bv", "dag_version_bv", "expected_bv"),

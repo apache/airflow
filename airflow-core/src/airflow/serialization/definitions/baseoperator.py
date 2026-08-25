@@ -126,6 +126,7 @@ class SerializedBaseOperator(DAGNode):
     render_template_as_native_obj: bool | None = None
     resources: dict[str, Any] | None = None
     retries: int = 0
+    infra_retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
     retry_exponential_backoff: float = 0
     has_retry_policy: bool = False
@@ -219,6 +220,7 @@ class SerializedBaseOperator(DAGNode):
                 "render_template_as_native_obj",
                 "resources",
                 "retries",
+                "infra_retries",
                 "retry_delay",
                 "retry_exponential_backoff",
                 "run_as_user",

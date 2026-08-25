@@ -35,26 +35,18 @@ pytestmark = pytest.mark.skipif(
 
 
 class TestClassifyPodFailure:
-    """The K8s bridge maps a pod/container failure to a (failure_kind, infra_reason) the retry decision can trust."""
-
     @pytest.mark.parametrize(
         ("pod_reason", "container_reason", "expected_kind"),
         [
-            # Node/platform ended the pod -> infra.
             ("Evicted", None, "infra"),
             ("Preempting", None, "infra"),
-            ("NodeShutdown", None, "infra"),
             ("NodeLost", None, "infra"),
-            # Graceful node shutdown killing an already-running pod: the node-drain case.
             ("Terminated", None, "infra"),
-            # Pod taken while the task ran (drain, preempt, spot reclaim, force-delete).
-            ("PodDeleted", None, "infra"),
-            # Container ended on its own -> application. An OOM against the container's OWN
-            # limit is the app's memory problem, not a disruption.
-            (None, "OOMKilled", "application"),
-            (None, "Error", "application"),
-            (None, "ContainerCannotRun", "application"),
-            # A node eviction that also shows a container OOM is still infra: the node acted.
+            ("NodeShutdown", None, None),
+            ("PodDeleted", None, None),
+            (None, "OOMKilled", None),
+            (None, "Error", None),
+            (None, "ContainerCannotRun", None),
             ("Evicted", "OOMKilled", "infra"),
         ],
     )
@@ -70,9 +62,7 @@ class TestClassifyPodFailure:
         assert classify_pod_failure(None) is None
         assert classify_pod_failure({}) is None
 
-    def test_end_to_end_oomkilled_pod_is_application(self):
-        # Mirrors the live kind result: a real OOMKilled container (exit 137) classifies as
-        # application, so an app OOM earns no refund.
+    def test_oomkilled_pod_keeps_reason_without_infra_kind(self):
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name="aip97-oom"),
             status=k8s.V1PodStatus(
@@ -97,13 +87,10 @@ class TestClassifyPodFailure:
         assert details["exit_code"] == 137
 
         failure_kind, infra_reason = classify_pod_failure(details)
-        assert failure_kind == "application"
+        assert failure_kind is None
         assert infra_reason == "OOMKilled"
 
     def test_end_to_end_evicted_pod_is_infra(self):
-        # A real node-pressure eviction: the kubelet sets phase=Failed with reason=Evicted and
-        # the pod object persists. This is the positive-infra path the conservative default
-        # requires, since an unclassified death does not refund.
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name="aip97-evicted"),
             status=k8s.V1PodStatus(
@@ -118,28 +105,12 @@ class TestClassifyPodFailure:
         assert failure_kind == "infra"
         assert infra_reason == "Evicted"
 
-    def test_pod_deleted_while_running_is_infra(self):
-        # Force-delete / drain / preempt leaves no container-exit status, so the watcher emits
-        # {pod_reason: PodDeleted}. The scheduler still gates on the TI being non-terminal, so an
-        # Airflow-initiated stop is excluded upstream.
+    def test_generic_pod_deletion_is_unclassified(self):
         failure_kind, infra_reason = classify_pod_failure(
             {"pod_status": "Running", "pod_reason": "PodDeleted"}
         )
-        assert failure_kind == "infra"
+        assert failure_kind is None
         assert infra_reason == "PodDeleted"
-
-    """The executor stashes a (failure_kind, infra_reason); the scheduler reads it once."""
-
-    def test_base_executor_failure_info_round_trips_once(self):
-        from airflow.executors.local_executor import LocalExecutor
-
-        ex = LocalExecutor()
-        key = ("dag", "task", "run", 1, -1)
-        classified = classify_pod_failure({"pod_status": "Failed", "pod_reason": "Evicted"})
-        ex.task_failure_info[key] = classified
-        # first read returns it, and clears it so a later event can't reuse stale context
-        assert ex.get_task_failure_info(key) is classified
-        assert ex.get_task_failure_info(key) is None
 
 
 class TestDisruptionTargetCondition:
@@ -147,7 +118,13 @@ class TestDisruptionTargetCondition:
 
     @pytest.mark.parametrize(
         "disruption_reason",
-        ["PreemptionByScheduler", "DeletionByTaintManager", "TerminationByKubelet", "DeletionByPodGC"],
+        [
+            "PreemptionByScheduler",
+            "DeletionByTaintManager",
+            "TerminationByKubelet",
+            "DeletionByPodGC",
+            "DeletionByDeviceTaintManager",
+        ],
     )
     def test_disruption_condition_is_infra(self, disruption_reason):
         details = {
@@ -160,19 +137,17 @@ class TestDisruptionTargetCondition:
         assert failure_kind == "infra"
         assert infra_reason == disruption_reason
 
-    def test_unrelated_condition_reason_stays_application(self):
+    def test_unrelated_condition_reason_stays_unclassified(self):
         details = {"pod_status": "Failed", "container_reason": "Error", "disruption_reason": "SomethingElse"}
-        failure_kind, _ = classify_pod_failure(details)
-        assert failure_kind == "application"
+        failure_kind, reason = classify_pod_failure(details)
+        assert failure_kind is None
+        assert reason == "SomethingElse"
 
     @pytest.mark.parametrize(
         ("disruption_reason", "pod_name"),
         [("DeletionByTaintManager", "aip97-victim"), ("PreemptionByScheduler", "aip97-victim2")],
     )
     def test_end_to_end_live_shape_is_infra(self, disruption_reason, pod_name):
-        # The exact object observed on a real k8s v1.35.0 cluster: a node-drain taint eviction
-        # and a scheduler preemption both land on phase=Failed with reason empty and the
-        # container reading only Error/143, so without the condition both look like an app crash.
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=pod_name, deletion_timestamp="2026-07-29T19:21:36Z"),
             status=k8s.V1PodStatus(
@@ -230,4 +205,4 @@ class TestDisruptionTargetCondition:
         details = collect_pod_failure_details(pod, logging.getLogger("test"))
         assert details is not None
         assert details["disruption_reason"] is None
-        assert classify_pod_failure(details)[0] != "infra"
+        assert classify_pod_failure(details) is None

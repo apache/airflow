@@ -440,6 +440,12 @@ class TIRunContext(BaseModel):
     always reflects when the task *first* started, not when it was rescheduled/resumed.
     """
 
+    failure_kind: str | None = None
+    """Classified cause supplied to a failure callback."""
+
+    failure_reason: str | None = None
+    """Short producer-owned reason supplied to a failure callback."""
+
     arg_bindings: list[TaskArgBinding] | None = None
     """
     Ordered positional-argument binding spec for stub (foreign-runtime) tasks.

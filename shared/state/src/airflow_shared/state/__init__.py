@@ -71,19 +71,11 @@ class AssetScope:
 
 StoreScope = TaskScope | AssetScope
 
+INFRA_RETRIES_USED_STATE_KEY = "__airflow_infra_retries_used"
+
 
 class TaskFailureKind(str, Enum):
-    """
-    What caused a task instance to fail.
-
-    Set on ``on_task_instance_failed`` so a listener can act on the cause without
-    parsing the error.
-
-    - ``INFRA``: an infrastructure disruption (eviction, preemption, node loss).
-    - ``APPLICATION``: the task's own code, including an OOM against its own limit.
-    - ``TIMEOUT``: the task exceeded its ``execution_timeout``.
-    - ``MANUAL``: an operator set it failed (mark task or dag run failed).
-    """
+    """Cause of a task failure, when Airflow can establish it."""
 
     INFRA = "infra"
     APPLICATION = "application"

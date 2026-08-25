@@ -1600,6 +1600,15 @@ class TestStringifiedDAGs:
 
         assert serialized_op.do_xcom_push is False
 
+    def test_infra_retries_round_trip(self):
+        op = BaseOperator(task_id="infra_retry", infra_retries=3)
+
+        blob = OperatorSerialization.serialize_operator(op)
+        serialized_op = OperatorSerialization.deserialize_operator(blob)
+
+        assert blob["infra_retries"] == 3
+        assert serialized_op.infra_retries == 3
+
     def test_no_new_fields_added_to_base_operator(self):
         """
         This test verifies that there are no new fields added to BaseOperator. And reminds that
@@ -1644,6 +1653,7 @@ class TestStringifiedDAGs:
             "has_on_success_callback": False,
             "has_retry_policy": False,
             "ignore_first_depends_on_past": False,
+            "infra_retries": 0,
             "is_setup": False,
             "is_teardown": False,
             "inlets": [],
@@ -3492,6 +3502,23 @@ def test_python_callable_in_partial_kwargs():
     deserialized = OperatorSerialization.deserialize_operator(serialized)
     assert "python_callable" not in deserialized.partial_kwargs
     assert deserialized.partial_kwargs["python_callable_name"] == "empty_function"
+
+
+def test_mapped_infra_retries_round_trip():
+    from airflow.api_fastapi.core_api.datamodels.tasks import TaskResponse
+
+    class MappedOperator(BaseOperator):
+        def __init__(self, value, **kwargs):
+            super().__init__(**kwargs)
+            self.value = value
+
+    operator = MappedOperator.partial(task_id="task", infra_retries=3).expand(value=[1])
+
+    serialized = OperatorSerialization.serialize_mapped_operator(operator)
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
+
+    assert deserialized.infra_retries == 3
+    assert TaskResponse.model_validate(deserialized, from_attributes=True).infra_retries == 3
 
 
 def test_python_callable_name_uses_qualname_exclude_module():

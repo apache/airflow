@@ -27,6 +27,7 @@ from fastapi import Request
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
+from airflow._shared.state import INFRA_RETRIES_USED_STATE_KEY
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -220,6 +221,15 @@ class TestPutTaskState:
         assert response.status_code == 204
         assert client.get(_api_url(ti.id, "spark/job_id")).json() == {"value": "spark_001"}
 
+    def test_put_rejects_airflow_owned_key(
+        self, client: TestClient, create_task_instance: CreateTaskInstance
+    ):
+        ti = create_task_instance()
+
+        response = client.put(_api_url(ti.id, INFRA_RETRIES_USED_STATE_KEY), json={"value": 0})
+
+        assert response.status_code == 400
+
 
 class TestDeleteTaskState:
     def test_delete_removes_key(self, client: TestClient, create_task_instance: CreateTaskInstance):
@@ -257,6 +267,15 @@ class TestDeleteTaskState:
         assert response.status_code == 204
         assert client.get(_api_url(ti.id, "spark/job_id")).status_code == 404
 
+    def test_delete_rejects_airflow_owned_key(
+        self, client: TestClient, create_task_instance: CreateTaskInstance
+    ):
+        ti = create_task_instance()
+
+        response = client.delete(_api_url(ti.id, INFRA_RETRIES_USED_STATE_KEY))
+
+        assert response.status_code == 400
+
 
 class TestClearTaskState:
     def test_clear_removes_all_keys(self, client: TestClient, create_task_instance: CreateTaskInstance):
@@ -282,6 +301,37 @@ class TestClearTaskState:
         response = client.delete(_api_url(ti.id))
 
         assert response.status_code == 204
+
+    def test_clear_preserves_airflow_owned_key(
+        self, client: TestClient, create_task_instance: CreateTaskInstance
+    ):
+        ti = create_task_instance()
+        client.put(_api_url(ti.id, "job_id"), json={"value": "a"})
+        with create_session() as session:
+            session.add(
+                TaskStateStoreModel(
+                    dag_run_id=ti.dag_run.id,
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    map_index=ti.map_index,
+                    key=INFRA_RETRIES_USED_STATE_KEY,
+                    value="1",
+                    updated_at=timezone.utcnow(),
+                )
+            )
+
+        response = client.delete(_api_url(ti.id))
+
+        assert response.status_code == 204
+        with create_session() as session:
+            remaining = session.scalars(
+                select(TaskStateStoreModel.key).where(
+                    TaskStateStoreModel.dag_id == ti.dag_id,
+                    TaskStateStoreModel.task_id == ti.task_id,
+                )
+            ).all()
+            assert remaining == [INFRA_RETRIES_USED_STATE_KEY]
 
     def _seed_fleet_rows(self, ti, indices: tuple[int, ...]) -> None:
         with create_session() as session:

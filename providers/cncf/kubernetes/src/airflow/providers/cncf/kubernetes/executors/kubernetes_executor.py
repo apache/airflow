@@ -75,6 +75,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
+    from airflow._shared.state import TaskFailureKind
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
@@ -684,6 +685,8 @@ class KubernetesExecutor(BaseExecutor):
         failure_details = results.failure_details
 
         termination_reason: str | None = None
+        failure_kind: TaskFailureKind | None = None
+        reason: str | None = None
 
         if state == TaskInstanceState.FAILED:
             # Use pre-collected failure details from the watcher to avoid additional API calls
@@ -719,15 +722,13 @@ class KubernetesExecutor(BaseExecutor):
                     exit_code,
                 )
 
-                # The scheduler reads this back via get_task_failure_info() when it
-                # processes the failure event.
                 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
                     classify_pod_failure,
                 )
 
-                task_failure_kind = classify_pod_failure(failure_details)
-                if task_failure_kind is not None:
-                    self.task_failure_info[key] = task_failure_kind
+                failure_info = classify_pod_failure(failure_details)
+                if failure_info is not None:
+                    failure_kind, reason = failure_info
             else:
                 task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}"
                 self.log.warning(
@@ -809,9 +810,7 @@ class KubernetesExecutor(BaseExecutor):
 
         self.pod_launch_attempts.pop(key, None)
 
-        try:
-            self.running.remove(key)
-        except KeyError:
+        if key not in self.running:
             self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
             return
 
@@ -819,7 +818,19 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             state = self._get_task_instance_state(key, session=session)
 
-        self.event_buffer[key] = state, termination_reason
+        if state == TaskInstanceState.FAILED:
+            if failure_kind is None and reason is None:
+                self.fail(key=key, info=termination_reason)
+            else:
+                self.fail(
+                    key=key,
+                    info=termination_reason,
+                    failure_kind=failure_kind,
+                    reason=reason,
+                )
+        else:
+            self.running.remove(key)
+            self.event_buffer[key] = state, termination_reason
 
     def _get_task_instance_state(self, key: TaskInstanceKey, *, session: Session) -> TaskInstanceState | None:
         """Look up the current task instance state from the metadata database."""

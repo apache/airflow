@@ -21,15 +21,10 @@ from airflow.listeners.listener import get_listener_manager
 
 
 class TestOnTaskInstanceFailedAcceptsFailureKind:
-    """The on_task_instance_failed hookspec accepts the optional ``failure_kind``
-    argument (AIP-97) so listener authors can opt in to the failure source
-    (``infra`` / ``application`` / ``timeout`` / ``manual``) without parsing the error."""
-
     def test_listener_with_failure_kind_receives_it(self, listener_manager):
         received: dict[str, str | None] = {"failure_kind": None, "reason": None}
 
-        # Must be declared WITHOUT a default: pluggy treats an impl-side default as
-        # authoritative and silently overrides the caller's value.
+        # An implementation-side default overrides the caller's value in pluggy.
         class InfraListener:
             @hookimpl
             def on_task_instance_failed(
@@ -56,8 +51,6 @@ class TestOnTaskInstanceFailedAcceptsFailureKind:
         assert received == {"failure_kind": "infra", "reason": "Evicted"}
 
     def test_listener_without_failure_kind_param_keeps_working(self, listener_manager):
-        """Pluggy dispatches by parameter name, so existing hookimpls that
-        don't declare ``failure_kind`` continue to work unchanged."""
         called = {"count": 0}
 
         class LegacyListener:

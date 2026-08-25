@@ -2236,6 +2236,17 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
+    def test_failure_context_from_server(self, create_runtime_ti):
+        task = BaseOperator(task_id="failure_context")
+        runtime_ti = create_runtime_ti(task=task, dag_id="failure_context")
+        runtime_ti._ti_context_from_server.failure_kind = TaskFailureKind.INFRA.value
+        runtime_ti._ti_context_from_server.failure_reason = "Evicted"
+
+        context = runtime_ti.get_template_context()
+
+        assert context["failure_kind"] == TaskFailureKind.INFRA.value
+        assert context["failure_reason"] == "Evicted"
+
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
 
@@ -5941,15 +5952,16 @@ class TestTaskInstanceMetrics:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
+            failure_tags = {**stats_tags, "failure_kind": TaskFailureKind.APPLICATION.value}
 
             # verify operator_failures in legacy format
-            backend.incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
+            backend.incr.assert_any_call("operator_failures_PythonOperator", tags=failure_tags)
             # verify operator_failures in tagged format
             backend.incr.assert_any_call(
                 "operator_failures",
-                tags={**stats_tags, "operator_name": "PythonOperator"},
+                tags={**failure_tags, "operator_name": "PythonOperator"},
             )
-            backend.incr.assert_any_call("ti_failures", tags=stats_tags)
+            backend.incr.assert_any_call("ti_failures", tags=failure_tags)
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags_extra"),
@@ -6004,11 +6016,14 @@ class TestTaskInstanceMetrics:
                 "run_type": "manual",
                 "team_name": "team_a",
             }
+            failure_tags = (
+                {"failure_kind": TaskFailureKind.APPLICATION.value} if ti_metric == "ti_failures" else {}
+            )
             backend.incr.assert_any_call(
                 operator_metric,
-                tags={**stats_tags, "operator_name": "PythonOperator"},
+                tags={**stats_tags, "operator_name": "PythonOperator", **failure_tags},
             )
-            backend.incr.assert_any_call(ti_metric, tags=stats_tags)
+            backend.incr.assert_any_call(ti_metric, tags={**stats_tags, **failure_tags})
 
 
 class TestDetailSpan:

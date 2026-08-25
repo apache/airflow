@@ -24,7 +24,7 @@ from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Path, Security, status
 from sqlalchemy.orm import Session
 
-from airflow._shared.state import TaskScope
+from airflow._shared.state import INFRA_RETRIES_USED_STATE_KEY, TaskScope
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.task_state_store import (
     TaskStateStorePutBody,
@@ -33,6 +33,7 @@ from airflow.api_fastapi.execution_api.datamodels.task_state_store import (
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state import get_state_backend
+from airflow.state.metastore import MetastoreBackend
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -56,6 +57,14 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
             },
         )
     return TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+
+
+def _reject_airflow_owned_key(key: str) -> None:
+    if key == INFRA_RETRIES_USED_STATE_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Task state store key {key!r} is managed by Airflow",
+        )
 
 
 @router.get("/{task_instance_id}/{key:path}")
@@ -86,6 +95,7 @@ def set_task_state_store(
     session: SessionDep,
 ) -> None:
     """Set a task state store key, creating or updating the row."""
+    _reject_airflow_owned_key(key)
     scope = _get_task_scope_for_ti(task_instance_id, session)
     get_state_backend().set(scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session)
 
@@ -97,6 +107,7 @@ def delete_task_state_store(
     session: SessionDep,
 ) -> None:
     """Delete a single task state store key."""
+    _reject_airflow_owned_key(key)
     scope = _get_task_scope_for_ti(task_instance_id, session)
     get_state_backend().delete(scope, key, session=session)
 
@@ -108,4 +119,8 @@ def clear_task_state_store(
 ) -> None:
     """Delete all task state store keys for this task instance."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().clear(scope, session=session)
+    backend = get_state_backend()
+    if isinstance(backend, MetastoreBackend):
+        backend.clear_user_task_state(scope, session=session)
+    else:
+        backend.clear(scope, session=session)

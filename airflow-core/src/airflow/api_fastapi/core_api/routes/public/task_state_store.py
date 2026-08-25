@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Annotated, Literal
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 
-from airflow._shared.state import TaskScope
+from airflow._shared.state import INFRA_RETRIES_USED_STATE_KEY, TaskScope
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
@@ -116,6 +116,14 @@ def _validate_clear_scope(
 
 
 ValidatedClearTaskScopeDep = Annotated[TaskScope, Depends(_validate_clear_scope)]
+
+
+def _reject_airflow_owned_key(key: str) -> None:
+    if key == INFRA_RETRIES_USED_STATE_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Task state store key {key!r} is managed by Airflow",
+        )
 
 
 def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> datetime | None:
@@ -231,6 +239,7 @@ def set_task_state_store(
     session: SessionDep,
 ) -> None:
     """Set a task state store value. Creates or overwrites the key."""
+    _reject_airflow_owned_key(key)
     expires_at = _resolve_expires_at(body.expires_at)
     try:
         _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
@@ -251,6 +260,7 @@ def patch_task_state_store(
     session: SessionDep,
 ) -> None:
     """Update the value of an existing task state store key."""
+    _reject_airflow_owned_key(key)
     existing = session.execute(
         select(TaskStateStoreModel.expires_at).where(
             TaskStateStoreModel.dag_id == scope.dag_id,
@@ -282,6 +292,7 @@ def delete_task_state_store(
     session: SessionDep,
 ) -> None:
     """Delete a single task state store key. No-op if the key does not exist."""
+    _reject_airflow_owned_key(key)
     _get_db_backend().delete(scope, key, session=session)
 
 
@@ -302,4 +313,8 @@ def clear_task_state_store(
     When ``all_map_indices=true``, state store is cleared for every map index of the task and
     the ``map_index`` parameter is ignored.
     """
-    _get_db_backend().clear(scope, all_map_indices=all_map_indices, session=session)
+    _get_db_backend().clear_user_task_state(
+        scope,
+        all_map_indices=all_map_indices,
+        session=session,
+    )

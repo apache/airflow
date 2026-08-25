@@ -43,6 +43,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EMAIL_ON_FAILURE,
     DEFAULT_EMAIL_ON_RETRY,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    DEFAULT_INFRA_RETRIES,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
     DEFAULT_POOL_SLOTS,
@@ -260,6 +261,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "priority_weight": DEFAULT_PRIORITY_WEIGHT,
     "queue": DEFAULT_QUEUE,
     "retries": DEFAULT_RETRIES,
+    "infra_retries": DEFAULT_INFRA_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": 0,
     "retry_policy": None,
@@ -292,6 +294,7 @@ if TYPE_CHECKING:
         wait_for_past_depends_before_skipping: bool = ...,
         wait_for_downstream: bool = ...,
         retries: int | None = ...,
+        infra_retries: int = ...,
         queue: str = ...,
         pool: str = ...,
         pool_slots: int = ...,
@@ -679,6 +682,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         a task failed (deprecated)
     :param retries: the number of retries that should be performed before
         failing the task
+    :param infra_retries: additional retries available when an executor reports
+        a confirmed infrastructure failure
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
         ``float`` seconds, which will be converted into ``timedelta``,
         the default is ``timedelta(seconds=300)``.
@@ -869,6 +874,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY
     email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE
     retries: int | None = DEFAULT_RETRIES
+    infra_retries: int = DEFAULT_INFRA_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
@@ -1035,6 +1041,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY,
         email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE,
         retries: int | None = DEFAULT_RETRIES,
+        infra_retries: int = DEFAULT_INFRA_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
@@ -1153,6 +1160,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # TODO:
         # self.retries = parse_retries(retries)
         self.retries = retries
+        if type(infra_retries) is not int:
+            raise TypeError(f"'infra_retries' type must be int, not {type(infra_retries).__name__}")
+        if infra_retries < 0:
+            raise ValueError("infra_retries must be greater than or equal to 0")
+        self.infra_retries = infra_retries
         self.queue = queue
         self.pool = DEFAULT_POOL_NAME if pool is None else pool
         self.pool_slots = pool_slots
