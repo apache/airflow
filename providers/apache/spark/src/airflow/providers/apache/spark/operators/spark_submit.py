@@ -149,6 +149,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     :param durable: When ``True`` (the default), the external job ID is persisted to task state
         store before polling begins so that a worker crash and retry reconnects to the existing job
         instead of submitting a fresh one. Set to ``False`` to always submit a new job on retry.
+    :param driver_container_name: Name of the Spark driver container used for identification to track status
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -223,6 +224,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
         reconnect_on_retry: bool | None = None,
+        driver_container_name: str | None = None,
         **kwargs: Any,
     ) -> None:
         if reconnect_on_retry is not None:
@@ -272,6 +274,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._track_driver_via_k8s_api = track_driver_via_k8s_api
         self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self._openlineage_inject_transport_info = openlineage_inject_transport_info
+        self.driver_container_name = driver_container_name
 
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
@@ -509,4 +512,5 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             track_driver_via_k8s_api=self._track_driver_via_k8s_api,
             yarn_track_via_rm_api=self._yarn_track_via_rm_api,
             yarn_rm_auth=self._yarn_rm_auth,
+            kubernetes_driver_container=self.driver_container_name,
         )

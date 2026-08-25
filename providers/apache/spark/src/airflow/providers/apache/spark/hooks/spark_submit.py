@@ -139,6 +139,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         ``keytab`` and ``principal`` configured use ``requests-kerberos``
         automatically. Defaults to ``None`` (no auth for non-Kerberos
         connections).
+    :param kubernetes_driver_container: Name of the Spark driver container used for identification to track status
     """
 
     conn_name_attr = "conn_id"
@@ -269,6 +270,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
+        kubernetes_driver_container: str | None = None,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
@@ -327,6 +329,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # `_track_yarn_application` does not re-fetch the Spark connection
         # (and re-hit any configured Secrets Backend) on every iteration.
         self._yarn_rm_base_url: str | None = None
+        self.kubernetes_driver_container = kubernetes_driver_container
 
     def _resolve_should_track_driver_status(self) -> bool:
         """
@@ -1147,6 +1150,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Raises ``RuntimeError`` on failure phases or unrecoverable API errors.
         """
         pod_name = self._kubernetes_driver_pod
+        driver_container_name = self.kubernetes_driver_container
         namespace = self._connection["namespace"]
         app_id = self._kubernetes_application_id or pod_name
 
@@ -1200,13 +1204,25 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 driver_container = None
 
                 for container in pod.spec.containers:
-                    if "spark" in container.name.lower() or "driver" in container.name.lower():
+                    if driver_container_name:
+                        if driver_container_name.lower() == container.name.lower():
+                            driver_container = container
+                            break
+                        continue
+                    if "driver" in container.name.lower():
                         driver_container = container
                         break
+                    if "spark" in container.name.lower():
+                        driver_container = container
                     if len(pod.spec.containers) == 1:
                         driver_container = container
+                if driver_container_name and not driver_container:
+                    raise ValueError(
+                        f"The driver container name provided does not match any of the containers in pod {pod_name}"
+                    )
                 container_completed = False
                 if driver_container:
+                    self.log.info("%s has been identified as the driver container", driver_container.name)
                     for status in pod.status.container_statuses or []:
                         if status.name == driver_container.name:
                             if status.state and status.state.terminated:
@@ -1252,6 +1268,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         if cs.state and cs.state.terminated:
                             container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
+                if phase == "Failed" and container_completed:
+                    self.log.warning(
+                        "Driver pod %s reported phase=Failed, but driver container %s exited 0; "
+                        "treating the Spark application as succeeded.",
+                        pod_name,
+                        driver_container.name,
+                    )
                 if phase == "Pending":
                     consecutive_pending += 1
                     if consecutive_pending == waiting_or_pending_warn_threshold:
