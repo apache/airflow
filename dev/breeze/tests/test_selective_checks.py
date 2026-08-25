@@ -27,13 +27,15 @@ from rich.console import Console
 from airflow_breeze.global_constants import (
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    CI_AMD_PLATFORM,
+    CI_ARM_PLATFORM,
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     JAVA_SDK_VERSION,
     NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
-    PUBLIC_AMD_RUNNERS,
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -55,6 +57,9 @@ ALL_KUBERNETES_VERSIONS_AS_STRING = " ".join(ALLOWED_KUBERNETES_VERSIONS)
 ALL_KUBERNETES_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_KUBERNETES_VERSIONS]) + "]"
 ALL_PYTHON_VERSIONS_AS_STRING = " ".join(ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS)
 ALL_PYTHON_VERSIONS_AS_LIST = "[" + ", ".join([f"'{v}'" for v in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
+CURRENT_PYTHON_VERSIONS_AS_LIST = (
+    "[" + ", ".join([f"'{v}'" for v in CURRENT_PYTHON_MAJOR_MINOR_VERSIONS]) + "]"
+)
 
 DEFAULT_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[0].lstrip("v")
 LAST_HELM_K8S_VERSION = ALLOWED_KUBERNETES_VERSIONS[-1].lstrip("v")
@@ -113,6 +118,18 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
 )
 
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
+
+ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
+    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
+    "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,"
+    "mypy-airflow-e2e-tests,mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,"
+    "mypy-kubernetes-tests,mypy-scripts,mypy-shared-configuration,mypy-shared-dagnode,"
+    "mypy-shared-listeners,mypy-shared-logging,mypy-shared-module_loading,"
+    "mypy-shared-observability,mypy-shared-plugins_manager,mypy-shared-providers_discovery,"
+    "mypy-shared-secrets_backend,mypy-shared-secrets_masker,mypy-shared-serialization,"
+    "mypy-shared-state,mypy-shared-template_rendering,mypy-shared-timezones,mypy-task-sdk,"
+    "mypy-task-sdk-integration-tests,update-uv-lock"
+)
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
@@ -812,6 +829,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("ts-sdk/src/coordinator/runtime.ts",),
+                {
+                    "prod-image-build": "true",
+                    "run-unit-tests": "false",
+                    "run-task-sdk-tests": "false",
+                    "run-task-sdk-integration-tests": "false",
+                    "run-ts-sdk-e2e-tests": "true",
+                    "run-go-sdk-e2e-tests": "false",
+                    "full-tests-needed": "false",
+                },
+                id="TypeScript SDK files changed - TS SDK e2e tests and prod image build should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("ts-sdk/README.md",),
+                {
+                    "prod-image-build": "false",
+                    "run-ts-sdk-e2e-tests": "false",
+                    "full-tests-needed": "false",
+                },
+                id="TypeScript SDK README-only change - TS SDK e2e tests should be skipped",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow-ctl/src/airflowctl/random.py",),
                 {
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1083,7 +1126,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1109,7 +1152,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1155,7 +1198,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1178,7 +1221,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,exasol,ftp,http,imap,"
+                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
                             "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
                             "Providers[google]",
                         }
@@ -1443,15 +1486,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Skip java unit and e2e tests for java-sdk README-only change",
         ),
         pytest.param(
-            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
-            {
-                "run-java-sdk-tests": "false",
-                "run-java-sdk-e2e-tests": "false",
-                "prod-image-build": "false",
-            },
-            id="Skip java unit and e2e tests for java-sdk ADR-only change",
-        ),
-        pytest.param(
             ("airflow-e2e-tests/docker/java.yml",),
             {
                 "run-java-sdk-tests": "false",
@@ -1459,6 +1493,60 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run java e2e tests when java compose override changes",
+        ),
+        pytest.param(
+            ("ts-sdk/src/sdk/client.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/index.md",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Build ts-sdk docs for a docs-only Markdown change that skips ts-sdk tests",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Build only ts-sdk docs when a TypeDoc category entry point changes",
+        ),
+        pytest.param(
+            ("ts-sdk/tsconfig.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when tsconfig.json changes since docs/tsconfig.json extends it",
+        ),
+        pytest.param(
+            ("ts-sdk/package.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when package.json changes since it pins @msgpack/msgpack",
+        ),
+        pytest.param(
+            ("ts-sdk/README.md",),
+            {
+                "run-ts-sdk-docs": "false",
+            },
+            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when the java test-fixture bundle changes",
         ),
         pytest.param(
             ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
@@ -1476,6 +1564,33 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run go unit and e2e tests for go-sdk source change",
+        ),
+        pytest.param(
+            ("go-sdk/go.mod",),
+            {
+                "run-go-sdk-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run go unit and e2e tests for go-sdk dependency change",
+        ),
+        pytest.param(
+            ("go-sdk/README.md",),
+            {
+                "run-go-sdk-tests": "false",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip go unit and e2e tests for go-sdk README-only change",
+        ),
+        pytest.param(
+            ("go-sdk/adr/0001-bundle-packing-options.md",),
+            {
+                "run-go-sdk-tests": "false",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Skip go unit and e2e tests for go-sdk ADR-only change",
         ),
         pytest.param(
             ("airflow-e2e-tests/docker/go.yml",),
@@ -1723,11 +1838,6 @@ def test_expected_output_pull_request_main(
             True,
             id="ktlint skipped when only java-sdk docs change",
         ),
-        pytest.param(
-            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
-            True,
-            id="ktlint skipped when only java-sdk ADR docs change",
-        ),
     ],
 )
 def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktlint_skipped: bool):
@@ -1760,6 +1870,31 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
             ("SECURITY.md",),
             True,
             id="skipped when no ts-sdk files change",
+        ),
+        pytest.param(
+            ("ts-sdk/README.md",),
+            True,
+            id="skipped when only ts-sdk docs change",
+        ),
+        pytest.param(
+            ("ts-sdk/example/README.md",),
+            True,
+            id="skipped when only nested ts-sdk docs change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            True,
+            id="skipped when only the docs toolchain's package.json changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package-lock.json",),
+            True,
+            id="skipped when only the docs toolchain's lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            True,
+            id="skipped when only a TypeDoc category entry point changes",
         ),
     ],
 )
@@ -1962,6 +2097,64 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        pytest.param(
+            ("scripts/ci/prek/check_provider_yaml_files.py",),
+            id="provider yaml check script changed",
+        ),
+        pytest.param(
+            ("providers/.pre-commit-config.yaml",),
+            id="providers prek config changed",
+        ),
+        pytest.param(
+            (
+                "scripts/ci/prek/check_provider_yaml_files.py",
+                "providers/.pre-commit-config.yaml",
+            ),
+            id="provider yaml check script and providers prek config changed together",
+        ),
+    ],
+)
+def test_provider_yaml_check_not_skipped_when_check_scripts_change(files: tuple[str, ...]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    skip_prek_hooks = str(stderr).split("skip-prek-hooks=")[1].split("\n")[0]
+    assert "check-provider-yaml-valid" not in skip_prek_hooks.split(",")
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/_private_ui.yaml",),
+            id="private UI spec changed",
+        ),
+        pytest.param(
+            (
+                "airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml",
+            ),
+            id="simple auth manager spec changed",
+        ),
+    ],
+)
+def test_ui_compile_hooks_not_skipped_when_ui_openapi_spec_changes(files: tuple[str, ...]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    skip_prek_hooks = str(stderr).split("skip-prek-hooks=")[1].split("\n")[0]
+    assert "ts-compile-lint-ui" not in skip_prek_hooks.split(",")
+    assert "ts-compile-lint-simple-auth-manager-ui" not in skip_prek_hooks.split(",")
 
 
 @pytest.mark.parametrize(
@@ -2476,26 +2669,12 @@ def test_expected_output_pull_request_v2_7(
         ),
     ],
 )
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
 def test_expected_output_push(
-    mock_get,
     files: tuple[str, ...],
     pr_labels: tuple[str, ...],
     default_branch: str,
     expected_outputs: dict[str, str],
 ):
-    # Mock GitHub API calls for runner_type property (used in PUSH events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -2669,6 +2848,27 @@ def test_expected_output_push(
             id="OpenAPI spec change still forces the full matrix",
         ),
         pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/_private_ui.yaml",),
+            {
+                # Rationale on the UI_OPENAPI_FILES group in selective_checks.py. One param per
+                # spec directory so each pattern of the group is pinned individually - with both
+                # files in one param, dropping either pattern would still pass via the other file.
+                "full-tests-needed": "false",
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED,
+            },
+            id="Private UI OpenAPI spec change runs the UI compile hooks without the full matrix",
+        ),
+        pytest.param(
+            (
+                "airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml",
+            ),
+            {
+                "full-tests-needed": "false",
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED,
+            },
+            id="Simple auth manager OpenAPI spec change runs the UI compile hooks",
+        ),
+        pytest.param(
             (
                 "airflow-core/src/airflow/assets/",
                 "airflow-core/src/airflow/models/assets/",
@@ -2731,20 +2931,7 @@ def test_expected_output_pull_request_target(
         GithubEvents.SCHEDULE,
     ],
 )
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
-def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
-    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
+def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     stderr = SelectiveChecks(
         files=(),
         commit_ref="",
@@ -2770,6 +2957,23 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, gith
     )
 
 
+# The image cache is pushed for `python-versions`, so a narrowed list leaves the remaining
+# versions with no cache and they build from scratch on every run. `refresh-image-registry-cache.yml`
+# forces the label below for exactly that reason; this pins the behaviour it relies on.
+
+
+def test_all_python_versions_with_all_versions_label():
+    """Set on the event that would otherwise narrow: a text-only push."""
+    stderr = SelectiveChecks(
+        files=("INTHEWILD.md",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        pr_labels=("all versions",),
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"python-versions": CURRENT_PYTHON_VERSIONS_AS_LIST}, str(stderr))
+
+
 @pytest.mark.parametrize(
     "github_event",
     [
@@ -2777,20 +2981,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, gith
         GithubEvents.SCHEDULE,
     ],
 )
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-@patch("requests.get")
-def test_files_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
-    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
-    }
-    mock_get.side_effect = [workflow_response, jobs_response]
-
+def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     stderr = SelectiveChecks(
         files=(
             "airflow-core/src/airflow/ui/src/pages/Run/Details.tsx",
@@ -2883,9 +3074,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
+                "docs-list-as-string": "amazon apache.arrow apache.drill apache.druid apache.hive apache.iceberg "
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google informatica jdbc microsoft.mssql mysql odbc openlineage "
+                "exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
@@ -2921,6 +3112,13 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
+        ),
+        pytest.param(
+            ("dev/mypy/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow-mypy",
+            },
+            id="Only Apache Airflow Mypy docs changed",
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),
@@ -3192,270 +3390,116 @@ def test_mypy_matches(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result == "ubuntu-22.04"
-
-
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label_not_found(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests (ubuntu-22.04)", "labels": []},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result is None
-
-
 @pytest.mark.parametrize(
-    ("workflow_status", "jobs_status", "expected_result"),
-    [
-        pytest.param(504, 200, None, id="workflow_api_504_error"),
-        pytest.param(200, 503, None, id="jobs_api_503_error"),
-        pytest.param(200, 200, "ubuntu-22.04", id="both_apis_200_success"),
-    ],
-)
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_get_job_label_api_status_codes(
-    mock_get, workflow_status, jobs_status, expected_result, json_decode_error
-):
-    """Test that get_job_label handles various HTTP status codes correctly."""
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.PULL_REQUEST,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = workflow_status
-    if workflow_status == 200:
-        workflow_response.json.return_value = {
-            "workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]
-        }
-    else:
-        workflow_response.json.side_effect = json_decode_error
-        workflow_response.text = "<html>Gateway Timeout</html>"
-
-    jobs_response = Mock()
-    jobs_response.status_code = jobs_status
-    if jobs_status == 200:
-        jobs_response.json.return_value = {
-            "jobs": [
-                {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-                {"name": "Other job", "labels": ["ubuntu-22.04"]},
-            ]
-        }
-    else:
-        jobs_response.json.side_effect = json_decode_error
-        jobs_response.text = "<html>Service Unavailable</html>"
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.get_job_label("push", "main")
-
-    assert result == expected_result
-
-
-def test_runner_type_pr():
-    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
-
-    result = selective_checks.runner_type
-
-    assert result == PUBLIC_AMD_RUNNERS
-
-
-@patch("requests.get")
-@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
-def test_runner_type_schedule(mock_get):
-    selective_checks = SelectiveChecks(
-        files=(),
-        github_event=GithubEvents.SCHEDULE,
-        github_repository="apache/airflow",
-        github_context_dict={},
-    )
-
-    workflow_response = Mock()
-    workflow_response.status_code = 200
-    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
-
-    jobs_response = Mock()
-    jobs_response.status_code = 200
-    jobs_response.json.return_value = {
-        "jobs": [
-            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
-            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
-            {"name": "Other job", "labels": ["ubuntu-22.04"]},
-        ]
-    }
-
-    mock_get.side_effect = [workflow_response, jobs_response]
-
-    result = selective_checks.runner_type
-
-    assert result == '["ubuntu-22.04-arm"]'
-
-
-@pytest.mark.parametrize(
-    ("integration", "runner_type", "expected_result"),
+    ("integration", "platform", "expected_result"),
     [
         # Test integrations disabled for all CI environments
         pytest.param(
             "mssql",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             True,
             id="mssql_disabled_on_amd",
         ),
         pytest.param(
             "localstack",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="localstack_disabled_on_arm",
         ),
         # Test integrations disabled only for ARM runners
         pytest.param(
             "kerberos",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="kerberos_disabled_on_arm",
         ),
         pytest.param(
             "drill",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="drill_disabled_on_arm",
         ),
         pytest.param(
             "tinkerpop",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="tinkerpop_disabled_on_arm",
         ),
         pytest.param(
             "pinot",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="pinot_disabled_on_arm",
         ),
         pytest.param(
             "trino",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="trino_disabled_on_arm",
         ),
         pytest.param(
             "ydb",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             True,
             id="ydb_disabled_on_arm",
         ),
         # Test integrations that are NOT disabled on AMD runners
         pytest.param(
             "kerberos",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="kerberos_enabled_on_amd",
         ),
         pytest.param(
             "drill",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="drill_enabled_on_amd",
         ),
         pytest.param(
             "tinkerpop",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="tinkerpop_enabled_on_amd",
         ),
         # Test an integration that is not in any disabled list
         pytest.param(
             "postgres",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="postgres_enabled_on_amd",
         ),
         pytest.param(
             "postgres",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             False,
             id="postgres_enabled_on_arm",
         ),
         pytest.param(
             "redis",
-            PUBLIC_AMD_RUNNERS,
+            CI_AMD_PLATFORM,
             False,
             id="redis_enabled_on_amd",
         ),
         pytest.param(
             "redis",
-            '["ubuntu-22.04-arm"]',
+            CI_ARM_PLATFORM,
             False,
             id="redis_enabled_on_arm",
         ),
     ],
 )
-def test_is_disabled_integration(integration: str, runner_type: str, expected_result: bool):
+def test_is_disabled_integration(integration: str, platform: str, expected_result: bool):
     """Test that _is_disabled_integration correctly identifies disabled integrations."""
     selective_checks = SelectiveChecks(
         files=(),
         github_event=GithubEvents.PULL_REQUEST,
         github_repository="apache/airflow",
         github_context_dict={},
+        platform=platform,
     )
 
-    # Mock the runner_type property
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: runner_type)
-    ):
-        result = selective_checks._is_disabled_integration(integration)
-        assert result == expected_result
+    assert selective_checks._is_disabled_integration(integration) == expected_result
 
 
 def test_testable_core_integrations_excludes_disabled():
@@ -3469,14 +3513,10 @@ def test_testable_core_integrations_excludes_disabled():
             files=("airflow-core/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
+            platform=CI_AMD_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_amd.testable_core_integrations
             assert "postgres" in result
@@ -3493,16 +3533,10 @@ def test_testable_core_integrations_excludes_arm_disabled_on_arm():
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.SCHEDULE,
             github_context_dict={"ref_name": "main"},
+            platform=CI_ARM_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks,
-                "runner_type",
-                new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]'),
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_arm.testable_core_integrations
             assert "postgres" in result
@@ -3521,14 +3555,10 @@ def test_testable_providers_integrations_excludes_disabled():
             files=("providers/amazon/tests/test_example.py",),
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
+            platform=CI_AMD_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_amd.testable_providers_integrations
             assert "postgres" in result
@@ -3546,16 +3576,10 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
             commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.SCHEDULE,
             github_context_dict={"ref_name": "main"},
+            platform=CI_ARM_PLATFORM,
         )
-        with (
-            patch.object(
-                SelectiveChecks,
-                "runner_type",
-                new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]'),
-            ),
-            patch.object(
-                SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
-            ),
+        with patch.object(
+            SelectiveChecks, "full_tests_needed", new_callable=lambda: property(lambda self: True)
         ):
             result = selective_checks_arm.testable_providers_integrations
             assert "postgres" in result
@@ -3579,12 +3603,9 @@ def test_testable_core_integrations_gated_by_source(changed_file, expected_integ
         files=(changed_file,),
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        result = selective_checks.testable_core_integrations
-        assert result == [expected_integration]
+    assert selective_checks.testable_core_integrations == [expected_integration]
 
 
 def test_testable_core_integrations_empty_when_unrelated_source():
@@ -3593,11 +3614,9 @@ def test_testable_core_integrations_empty_when_unrelated_source():
         files=("airflow-core/src/airflow/models/taskinstance.py",),
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        assert selective_checks.testable_core_integrations == []
+    assert selective_checks.testable_core_integrations == []
 
 
 def test_testable_providers_integrations_gated_by_affected_provider():
@@ -3606,15 +3625,13 @@ def test_testable_providers_integrations_gated_by_affected_provider():
         files=("providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py",),
         commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        result = selective_checks.testable_providers_integrations
-        assert "cassandra" in result
-        # Unrelated integrations whose providers are not affected must be absent.
-        assert "mongo" not in result
-        assert "ydb" not in result
+    result = selective_checks.testable_providers_integrations
+    assert "cassandra" in result
+    # Unrelated integrations whose providers are not affected must be absent.
+    assert "mongo" not in result
+    assert "ydb" not in result
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
@@ -3628,14 +3645,11 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
         github_context_dict={"ref_name": "main"},
         default_branch="main",
         pr_labels=("full tests needed",),
+        platform=CI_ARM_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
-    ):
-        assert arm_checks.platform == "linux/arm64"
-        arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
-        assert arm_output is not None
-        assert "Providers[ibm.mq]" not in arm_output
+    arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
+    assert arm_output is not None
+    assert "Providers[ibm.mq]" not in arm_output
 
     amd_checks = SelectiveChecks(
         files=("airflow-core/tests/test_example.py",),
@@ -3644,14 +3658,11 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
         github_context_dict={"ref_name": "main"},
         default_branch="main",
         pr_labels=("full tests needed",),
+        platform=CI_AMD_PLATFORM,
     )
-    with patch.object(
-        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
-    ):
-        assert amd_checks.platform == "linux/amd64"
-        amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
-        assert amd_output is not None
-        assert "Providers[ibm.mq]" in amd_output
+    amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
+    assert amd_output is not None
+    assert "Providers[ibm.mq]" in amd_output
 
 
 def test_run_kubernetes_tests_forced_by_label():
@@ -3678,6 +3689,19 @@ def test_run_kubernetes_tests_forced_by_label_with_no_changed_files():
         pr_labels=("area:kubernetes-tests",),
     )
     assert checks.run_kubernetes_tests is True
+    assert checks.full_tests_needed is False
+
+
+@pytest.mark.parametrize("files", [("INTHEWILD.md",), ()], ids=["unrelated-file", "no-files"])
+def test_prod_image_build_forced_by_e2e_tests_label(files):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+        pr_labels=("area:e2e-tests",),
+    )
+    assert checks.prod_image_build is True
     assert checks.full_tests_needed is False
 
 

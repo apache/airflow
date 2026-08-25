@@ -69,7 +69,19 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
-BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]
+BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
+
+
+class PluginAppliesToResponse(BaseModel):
+    """Serializer for the optional Dag/task scoping criteria of a UI plugin."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dag_tags: list[str] | None = None
+    dag_ids: list[str] | None = None
+    task_ids: list[str] | None = None
+    operators: list[str] | None = None
+    operator_names: list[str] | None = None
 
 
 class BaseUIResponse(BaseModel):
@@ -83,6 +95,12 @@ class BaseUIResponse(BaseModel):
     url_route: str | None = None
     category: str | None = None
     nav_top_level: bool | None = False
+    # Optional visibility scoping, evaluated client-side. Criteria are OR-ed within a
+    # key and AND-ed across keys, but only across keys the current destination can
+    # actually evaluate (a `task_ids` criterion cannot be judged on a Dag-level page,
+    # so it is skipped there rather than failing the match). Omitting `applies_to`
+    # shows the item everywhere. Display gating only, not an authorization boundary.
+    applies_to: PluginAppliesToResponse | None = None
 
 
 class ExternalViewResponse(BaseUIResponse):
@@ -100,13 +118,14 @@ class ReactAppResponse(BaseUIResponse):
     model_config = ConfigDict(extra="allow")
 
     bundle_url: str
-    destination: Literal[BaseDestinationLiteral, "dashboard"] = "nav"
+    destination: Literal[BaseDestinationLiteral, "dashboard", "dag_overview", "task_overview"] = "nav"
 
 
 class PluginResponse(BaseModel):
     """Plugin serializer."""
 
     name: str
+    team_name: str | None = None
     macros: list[str]
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]

@@ -33,7 +33,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.serialization.serde import deserialize, serialize
+from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 

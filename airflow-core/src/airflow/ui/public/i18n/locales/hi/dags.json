@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "सभी रन प्रकार",
     "allStates": "सभी स्थितियां",
+    "anyRunState": "कोई भी रन",
     "favorite": {
       "all": "सभी",
       "favorite": "पसंदीदा",
       "unfavorite": "गैर-पसंदीदा"
     },
+    "lastRunState": "अंतिम रन",
     "paused": {
       "active": "सक्रिय",
       "all": "सभी",
@@ -75,6 +77,11 @@
       "runOnLatestVersion": "नवीनतम बंडल संस्करण के साथ चलाएं",
       "upstream": "अपस्ट्रीम"
     }
+  },
+  "runStateCounts": {
+    "label": "रन स्थितियां",
+    "loading": "रन स्थिति गणना लोड हो रही है",
+    "tooltip": "{{state}}: {{formattedCount}} — रन फ़िल्टर करने के लिए क्लिक करें"
   },
   "search": {
     "advanced": "उन्नत खोज",

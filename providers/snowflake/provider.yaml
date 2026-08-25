@@ -23,12 +23,14 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1783356304
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.16.1
+  - 6.16.0
   - 6.15.0
   - 6.14.0
   - 6.13.0
@@ -120,6 +122,7 @@ integrations:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst
+      - /docs/apache-airflow-providers-snowflake/operators/snowflake_cortex_agent.rst
     logo: /docs/integration-logos/Snowflake.png
     tags: [service]
 
@@ -129,6 +132,7 @@ operators:
       - airflow.providers.snowflake.operators.snowflake
       - airflow.providers.snowflake.operators.snowpark
       - airflow.providers.snowflake.operators.snowpark_containers
+      - airflow.providers.snowflake.operators.snowflake_cortex_agent
 
 task-decorators:
   - class-name: airflow.providers.snowflake.decorators.snowpark.snowpark_task
@@ -252,6 +256,12 @@ connection-types:
             - string
             - 'null'
           format: password
+      workload_identity_provider:
+        label: Workload Identity Provider
+        schema:
+          type:
+            - string
+            - 'null'
       insecure_mode:
         label: Insecure Mode
         schema:

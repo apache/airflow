@@ -20,6 +20,7 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
+import json
 import platform
 import re
 from enum import Enum
@@ -32,18 +33,16 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
+    MYPY_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 
-# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
-RUNNERS_TYPE_CROSS_MAPPING = {
-    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
-    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
-    "windows-2022": '["windows-2022"]',
-    "windows-2025": '["windows-2025"]',
-}
+# Platform the tests of a CI run execute on.
+CI_AMD_PLATFORM = "linux/amd64"
+CI_ARM_PLATFORM = "linux/arm64"
+CI_PLATFORMS = [CI_AMD_PLATFORM, CI_ARM_PLATFORM]
 
 ANSWER = ""
 
@@ -225,22 +224,23 @@ ALLOWED_EXECUTORS = [
 SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
-GOLANG_WORKER = "go"
-
 JAVA_SDK = "java"
-ALLOWED_SDKS = [JAVA_SDK]
+TYPESCRIPT_SDK = "typescript"
+ALLOWED_SDKS = [JAVA_SDK, TYPESCRIPT_SDK]
 
 # JDK version used to build the Java SDK and its example bundles (e.g. the lang-SDK k8s system test).
 # Keep in sync with the toolchain the Java SDK Gradle build targets.
 JAVA_SDK_VERSION = "17"
+
+# Node image used to build the TypeScript SDK docs. Keep in sync with the ``engines.node``
+# requirement in ts-sdk/package.json.
+TYPESCRIPT_SDK_NODE_VERSION = "22"
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
-ALLOWED_WORKER_TYPES = [GOLANG_WORKER]
-
 CONSTRAINTS_SOURCE_PROVIDERS = "constraints-source-providers"
 CONSTRAINTS = "constraints"
 CONSTRAINTS_NO_PROVIDERS = "constraints-no-providers"
@@ -300,8 +300,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.1.2"
-UV_VERSION = "0.11.26"
+PIP_VERSION = "26.2.1"
+UV_VERSION = "0.12.5"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -311,7 +311,9 @@ REGULAR_DOC_PACKAGES = [
     "apache-airflow-providers",
     "java-sdk",
     "task-sdk",
+    "ts-sdk",
     "apache-airflow-ctl",
+    "apache-airflow-mypy",
 ]
 
 
@@ -505,6 +507,7 @@ RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 RABBITMQ_HOST_PORT = "25672"
 SSH_PORT = "12322"
+SIMPLE_AUTH_MANAGER_VITE_DEV_PORT = "5174"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
 BREEZE_DEBUG_SCHEDULER_PORT = "50231"
@@ -706,6 +709,19 @@ def get_airflowctl_version():
     return airflowctl_version
 
 
+def get_airflow_mypy_version():
+    mypy_init_py_file = MYPY_SOURCES_PATH / "airflow_mypy" / "__init__.py"
+    mypy_version = "unknown"
+    with open(mypy_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                mypy_version = line.split()[2][1:-1]
+                break
+    if mypy_version == "unknown":
+        raise RuntimeError("Unable to determine Apache Airflow Mypy version")
+    return mypy_version
+
+
 def get_airflow_version():
     airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
@@ -739,6 +755,15 @@ def get_java_sdk_version() -> str:
         if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
             return match.group(1)
     raise RuntimeError(f"Java SDK version not found in {props_path}")
+
+
+def get_ts_sdk_version() -> str:
+    """Read the TypeScript SDK version from 'ts-sdk/package.json'."""
+    package_json_path = AIRFLOW_ROOT_PATH / "ts-sdk" / "package.json"
+    version = json.loads(package_json_path.read_text()).get("version")
+    if not version:
+        raise RuntimeError(f"TypeScript SDK version not found in {package_json_path}")
+    return version
 
 
 @clearable_cache
@@ -775,6 +800,9 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
+
+# Hash of FILES_FOR_REBUILD_CHECK contents, set on CI images so other checkouts can detect identical sources
+CI_IMAGE_SOURCES_HASH_LABEL = "org.apache.airflow.ci.sources-hash"
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
 CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
@@ -866,17 +894,17 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.3.0",
+        "airflow-version": "3.3.1",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.20",
-    "3.11": "3.11.15",
-    "3.12": "3.12.13",
-    "3.13": "3.13.14",
+    "3.10": "3.10.21",
+    "3.11": "3.11.16",
+    "3.12": "3.12.14",
+    "3.13": "3.13.15",
     "3.14": "3.14.3",
 }
 

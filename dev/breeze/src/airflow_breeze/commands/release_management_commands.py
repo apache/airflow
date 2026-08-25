@@ -44,7 +44,7 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
@@ -102,9 +102,11 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
     SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
+    get_airflow_mypy_version,
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -255,7 +257,8 @@ MY_DIR_PATH = os.path.dirname(__file__)
 # always correct regardless of how breeze is launched.
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)(?![0-9])")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
 # exclude them (the release tooling parks them in the changelog's excluded section). Match
@@ -284,13 +287,13 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.1.2"
-AIRFLOW_UV_VERSION = "0.11.26"
+AIRFLOW_PIP_VERSION = "26.2.1"
+AIRFLOW_UV_VERSION = "0.12.5"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.50"
+GITPYTHON_VERSION = "3.1.59"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.4.6"
-HATCH_VERSION = "1.17.0"
+PREK_VERSION = "0.4.14"
+HATCH_VERSION = "1.18.0"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -1252,6 +1255,14 @@ def _build_provider_distributions(
     help="Skip checking if the tag already exists in the remote repository",
 )
 @click.option(
+    "--skip-git-fetch",
+    default=False,
+    is_flag=True,
+    help="Skip recreating and fetching the 'apache-https-for-providers' remote, and check tags against "
+    "the state already in the local repository. Useful when building several batches in a row - the "
+    "fetch pulls the full history and all tags, which is slow and flaky on an unreliable network.",
+)
+@click.option(
     "--skip-deleting-generated-files",
     default=False,
     is_flag=True,
@@ -1289,6 +1300,7 @@ def prepare_provider_distributions(
     distributions_list_file: IO | None,
     provider_distributions: tuple[str, ...],
     skip_deleting_generated_files: bool,
+    skip_git_fetch: bool,
     skip_tag_check: bool,
     version_suffix: str,
 ):
@@ -1323,7 +1335,7 @@ def prepare_provider_distributions(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    if not skip_tag_check and not is_local_package_version(version_suffix):
+    if not skip_tag_check and not is_local_package_version(version_suffix) and not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -1547,6 +1559,7 @@ def tag_providers(
 @option_debug_resources
 @option_python_versions
 @option_airflow_constraints_mode_ci
+@option_allow_pre_releases
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1554,6 +1567,7 @@ def tag_providers(
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    allow_pre_releases: bool,
     debug_resources: bool,
     github_repository: str,
     parallelism: int,
@@ -1598,6 +1612,7 @@ def generate_constraints(
         shell_params_list = [
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
+                allow_pre_releases=allow_pre_releases,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1616,6 +1631,7 @@ def generate_constraints(
     else:
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
+            allow_pre_releases=allow_pre_releases,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
@@ -1772,7 +1788,7 @@ def install_provider_distributions(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     if run_in_parallel:
         list_of_all_providers = get_all_providers_in_dist(
             distribution_format=distribution_format, install_selected_providers=install_selected_providers
@@ -1911,7 +1927,7 @@ def verify_provider_distributions(
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
         shell_params,
         project_name="breeze-providers",
@@ -2029,8 +2045,14 @@ def get_package_version_possibly_from_stable_txt(package_name: str) -> str | Non
     if package_name == "apache-airflow-ctl":
         return get_airflowctl_version()
 
+    if package_name == "apache-airflow-mypy":
+        return get_airflow_mypy_version()
+
     if package_name == "task-sdk":
         return get_task_sdk_version()
+
+    if package_name == "ts-sdk":
+        return get_ts_sdk_version()
 
     if package_name == "helm-chart":
         return chart_version()
@@ -2611,8 +2633,8 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
 
 
 def get_prs_for_package(provider_id: str, current_release_version: str | None = None) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    prs = []
+    prs: list[int] = []
+    seen_prs: set[int] = set()
     if current_release_version is None:
         provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
         if not provider_yaml_dict:
@@ -2636,9 +2658,12 @@ def get_prs_for_package(provider_id: str, current_release_version: str | None = 
             if line.startswith(".. Below changes are excluded from the changelog"):
                 # The reminder of PRs is not important skipping it
                 break
-            match_result = pr_matcher.match(line.strip())
-            if match_result:
-                prs.append(int(match_result.group(1)))
+            if line.lstrip().startswith("*"):
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    pr_number = int(pr_match)
+                    if pr_number not in seen_prs:
+                        seen_prs.add(pr_number)
+                        prs.append(pr_number)
     return prs
 
 
@@ -2732,7 +2757,6 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
     Returns list of PRs that are commented out in the changelog.
     :return: list of PR numbers that appear only in comments in changelog.rst files in "providers" dir
     """
-    pr_matcher = re.compile(r".*\(#([0-9]+)\).*")
     commented_prs = set()
 
     # Get all provider distributions
@@ -2770,9 +2794,8 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
 
             # Extract PRs from excluded sections
             if in_excluded_section and line.strip().startswith("*"):
-                match_result = pr_matcher.search(line)
-                if match_result:
-                    commented_prs.add(int(match_result.group(1)))
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    commented_prs.add(int(pr_match))
 
     return sorted(commented_prs)
 
@@ -3965,7 +3988,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.23.0"
+OPENAPI_GENERATOR_CLI_VER = "7.24.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",
@@ -4970,7 +4993,7 @@ def version_check(
         python=python,
         builder=builder,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     if os.environ.get("CI", "false") == "true":
         # Show output outside the group in CI
         print("::endgroup::")

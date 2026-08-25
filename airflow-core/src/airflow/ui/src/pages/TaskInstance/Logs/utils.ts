@@ -27,6 +27,8 @@ import {
 } from "src/components/renderStructuredLog";
 import { parseStreamingLogContent } from "src/utils/logs";
 
+export const getGroupHeaderMarker = (isExpanded: boolean): string => (isExpanded ? "▼" : "▶");
+
 type GetDownloadTextOptions = {
   fetchedData: TaskInstancesLogResponse | undefined;
   logLevelFilters: Array<string>;
@@ -182,4 +184,17 @@ export const scrollToBottom = ({ element, virtualizer }: ScrollToBottomOptions):
 
   virtualizer.scrollToOffset(offset);
   element.scrollTop = offset;
+};
+
+/**
+ * Whether a non-empty text selection currently sits inside `container`.
+ * Used to pause following new log lines while the user is selecting text, so
+ * auto-scrolling does not move the text out from under the cursor.
+ */
+export const isSelectionWithin = (selection: Selection | null, container: HTMLElement | null): boolean => {
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !container) {
+    return false;
+  }
+
+  return container.contains(selection.anchorNode) || container.contains(selection.focusNode);
 };

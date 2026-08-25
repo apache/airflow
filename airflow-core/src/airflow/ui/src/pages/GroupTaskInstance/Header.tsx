@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineTask } from "react-icons/md";
+import { AiOutlineGroup } from "react-icons/ai";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
@@ -53,20 +52,24 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   ];
 
   return (
-    <Box>
-      <HeaderCard
-        actions={
-          <>
-            <ClearTaskInstanceButton groupTaskInstance={taskInstance} isHotkeyEnabled />
-            <MarkTaskGroupAsButton groupTaskInstance={taskInstance} isHotkeyEnabled />
-          </>
-        }
-        icon={<MdOutlineTask />}
-        state={taskInstance.state}
-        stats={stats}
-        subTitle={<Time datetime={taskInstance.min_start_date} />}
-        title={taskInstance.task_display_name}
-      />
-    </Box>
+    <HeaderCard
+      actions={
+        <>
+          <ClearTaskInstanceButton
+            bg="bg"
+            groupTaskInstance={taskInstance}
+            isHotkeyEnabled
+            variant="outline"
+          />
+          <MarkTaskGroupAsButton bg="bg" groupTaskInstance={taskInstance} isHotkeyEnabled variant="outline" />
+        </>
+      }
+      icon={<AiOutlineGroup />}
+      state={taskInstance.state}
+      stats={stats}
+      subTitle={<Time datetime={taskInstance.min_start_date} />}
+      title={taskInstance.task_display_name}
+      type="taskGroup"
+    />
   );
 };

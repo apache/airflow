@@ -16,7 +16,7 @@
 # under the License.
 
 [build-system]
-requires = ["flit_core==3.12.0"]
+requires = ["flit_core==4.0.2"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -34,7 +34,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.20",
+    "ruff==0.16.3",
     "semver>=3.0.2",
     "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",
@@ -77,6 +77,7 @@ dependencies = [
     "astroid>=4",
     "rich-click>=1.9.7",
     "click>=8.3.0",
+    "tabulate>=0.9.0",
     "docutils>=0.21",
     "pagefind>=1.5.0",
     "pagefind-bin>=1.5.0",
@@ -109,7 +110,7 @@ dependencies = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     "apache-airflow-mypy",
-    "mypy==2.1.0",
+    "mypy==2.3.1",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -118,7 +119,7 @@ dependencies = [
     "types-certifi>=2021.10.8.3",
     "types-croniter>=2.0.0.20240423",
     "types-docutils>=0.21.0.20240704",
-    "types-paramiko>=4.0.0.20260402,<5.0.0",
+    "types-paramiko>=4.0.0.20260402",
     "types-protobuf>=5.26.0.20240422",
     "types-python-dateutil>=2.9.0.20240316",
     "types-python-slugify>=8.0.2.20240310",

@@ -33,6 +33,9 @@ labelPRBasedOnFilePath:
   provider:anthropic:
     - providers/anthropic/**
 
+  provider:apache-arrow:
+    - providers/apache/arrow/**
+
   provider:apache-beam:
     - providers/apache/beam/**
 
@@ -131,6 +134,8 @@ labelPRBasedOnFilePath:
 
   provider:datadog:
     - providers/datadog/**
+  provider:ibm-db2:
+    - providers/ibm/db2/**
 
   provider:dbt-cloud:
     - providers/dbt/cloud/**
@@ -566,7 +571,7 @@ labelPRBasedOnFilePath:
   area:ts-sdk:
     - ts-sdk/**/*
 
-  "AIP-108: Coordinator":
+  area:coordinator:
     - task-sdk/src/airflow/sdk/coordinators/**/*
     - task-sdk/src/airflow/sdk/execution_time/coordinator.py
     - task-sdk/tests/task_sdk/coordinators/**/*
@@ -595,6 +600,9 @@ labelPRBasedOnFilePath:
 
   area:docker-tests:
     - docker-tests/**/*
+
+  area:e2e-tests:
+    - airflow-e2e-tests/**/*
 
   area:kubernetes-tests:
     - kubernetes-tests/**/*

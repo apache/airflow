@@ -63,6 +63,34 @@ coordinator scans.
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
 **separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
 
+## Which SDK sources get built
+
+`breeze k8s setup-lang-sdk-test` (and `run-complete-tests --lang-sdk-test`) resolves them in
+`_lang_sdk_resolve_sdk_sources()` in `kubernetes_commands.py`:
+
+| Checkout | Go/Java SDK sources |
+| --- | --- |
+| has `go-sdk/` and `java-sdk/` | its own copies |
+| has neither (or only one) | upstream `main`, fetched fresh via `_lang_sdk_fetch_upstream_sdk_sources()` |
+
+The checkout's own copies win because they are the ones that pair with the Airflow this test
+deploys. A packed bundle declares a dated `supervisor_schema_version` and the task-SDK supervisor
+rejects a bundle whose version it does not know, so a release branch's Airflow cannot run an SDK
+built from a later `main` — the Go task fails with `cannot find executable bundle with usable
+supervisor_schema_version`. Building the checkout's own SDK is also what makes the k8s test exercise
+a PR's SDK changes: `go_example`/`java_example` are harness fixtures that track the checked-out
+branch, so compiling them against a *different* SDK means any SDK rename in the PR fails to build.
+
+The upstream-`main` fallback is only for a branch cut before `go-sdk`/`java-sdk` existed. When it
+kicks in, that copy and the branch's `go_example` can diverge (upstream may change go-sdk's
+dependency graph while `go_example`'s committed `go.sum` is tidied against the in-repo go-sdk), so
+the Go bundle build re-runs `go mod tidy` in its scratch workspace before packing and reconciles to
+whichever `go-sdk` it is compiled against. The committed `go_example` `go.sum` is untouched and
+stays guarded by the `check-go-example-mod-tidy` prek hook.
+
+Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, and this directory's own
+`go_example`/`java_example` fixtures — always comes from the checked-out branch.
+
 ## Running it
 
 The artifacts, localstack, config, and Helm release are provisioned by a single breeze

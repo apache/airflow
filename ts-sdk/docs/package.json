@@ -1,0 +1,20 @@
+{
+  "name": "ts-sdk-docs-toolchain",
+  "version": "0.1.0-beta1",
+  "private": true,
+  "description": "Documentation toolchain for the Apache Airflow TypeScript SDK (ts-sdk). TypeDoc renders the API reference straight to HTML with the clean-jsdoc-theme; it is kept in its own package so the docs-only dependencies stay out of the SDK's runtime and build toolchain.",
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/prepare-readme.mjs",
+    "build": "typedoc",
+    "prestart": "node scripts/prepare-readme.mjs",
+    "start": "typedoc --watch"
+  },
+  "devDependencies": {
+    "@clean-jsdoc-theme/typedoc": "^5.1.1",
+    "@msgpack/msgpack": "^3.1.2",
+    "@types/node": "^26.1.2",
+    "typedoc": "^0.28.20",
+    "typescript": "^6.0.2"
+  }
+}

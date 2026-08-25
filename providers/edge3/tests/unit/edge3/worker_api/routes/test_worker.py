@@ -45,6 +45,7 @@ from airflow.providers.edge3.worker_api.routes.worker import (
 )
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -423,7 +424,21 @@ class TestWorkerApiRoutes:
             tags={**expected_worker_tags, "queues": ",".join(queues)},
         )
         mock_stats_gauge.assert_any_call("edge_worker.disk_usage", 42.5, tags=expected_worker_tags)
-        assert mock_stats_gauge.call_count == 8
+        if AIRFLOW_V_3_3_PLUS:
+            assert mock_stats_gauge.call_count == 8
+        else:
+            mock_stats_gauge.assert_any_call(
+                "edge_worker.status.test2_worker",
+                self.MOCK_SYSINFO["status"],
+            )
+            mock_stats_gauge.assert_any_call("edge_worker.connected.test2_worker", 1)
+            mock_stats_gauge.assert_any_call("edge_worker.maintenance.test2_worker", 0)
+            mock_stats_gauge.assert_any_call("edge_worker.jobs_active.test2_worker", 1)
+            mock_stats_gauge.assert_any_call("edge_worker.concurrency.test2_worker", 8)
+            mock_stats_gauge.assert_any_call("edge_worker.free_concurrency.test2_worker", 8)
+            mock_stats_gauge.assert_any_call("edge_worker.num_queues.test2_worker", len(queues))
+            mock_stats_gauge.assert_any_call("edge_worker.disk_usage.test2_worker", 42.5)
+            assert mock_stats_gauge.call_count == 16
 
     def test_set_state_returns_concurrency(self, session: Session, cli_worker: EdgeWorker):
         """set_state includes the DB-stored concurrency override in its response."""

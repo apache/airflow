@@ -115,7 +115,7 @@ Java entry point
 
     public class Main implements BundleBuilder {
       @Override
-      public Iterable<Dag> getDags() {
+      public Iterable<DagDef> getDags() {
         return List.of(SalesPipelineBuilder.build());  // SalesPipelineBuilder generated at compile time
       }
 
@@ -203,7 +203,18 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
+
+The runner creates a fresh instance of the task class through reflection for every task-instance run,
+which puts four constraints on the class:
+
+* The task class itself must be ``public``.
+* It must be concrete: not abstract and not an interface.
+* It must declare a public no-argument constructor.
+* If nested inside another class, it must be a ``static`` nested class.
+
+A class that violates any of these fails at runtime with a ``Cannot instantiate task class`` error in the
+task log.
 
 .. code-block:: java
 
@@ -218,16 +229,26 @@ read.
       }
     }
 
-Register tasks manually in a ``BundleBuilder``:
+Register tasks manually in a ``BundleBuilder``. A task class can be top-level like ``FetchTask``, or
+nested ``static`` class like ``ProcessTask``:
 
 .. code-block:: java
 
     public class MyBundle implements BundleBuilder {
+      public static class ProcessTask implements Task {
+        @Override
+        public void execute(Context context, Client client) throws Exception {
+          var fetched = (String) client.getXCom("fetch");
+          // implement task logic
+          client.setXCom(fetched);
+        }
+      }
+
       @Override
-      public Iterable<Dag> getDags() {
-        var dag = new Dag("my_dag");
-        dag.addTask("fetch", FetchTask.class);
-        dag.addTask("process", ProcessTask.class);
+      public Iterable<DagDef> getDags() {
+        var dag = new DagDef("my_dag")
+            .addTask("fetch", FetchTask.class)
+            .addTask("process", ProcessTask.class);
         return List.of(dag);
       }
     }
@@ -425,6 +446,14 @@ represented as Java objects when read back via ``getXCom``.
    * - ``dict``
      - object
      - ``Map<String, Object>``
+
+.. note::
+
+   An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
+   ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
+   safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
+   ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a
+   boxed type when the upstream XCom may be absent.
 
 .. _java-sdk/build:
 

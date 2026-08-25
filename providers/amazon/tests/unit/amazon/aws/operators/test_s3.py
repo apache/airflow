@@ -55,20 +55,15 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.timezone import datetime, utcnow
-else:
-    from airflow.utils.timezone import datetime, utcnow  # type: ignore[attr-defined,no-redef]
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -959,8 +954,8 @@ class TestS3DeleteObjectsOperator:
         for k in keys:
             conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
-        logical_date = utcnow()
-        dag = DAG("test_dag", start_date=datetime(2020, 1, 1), schedule=timedelta(days=1))
+        logical_date = timezone.utcnow()
+        dag = DAG("test_dag", start_date=timezone.datetime(2020, 1, 1), schedule=timedelta(days=1))
         # use macros.ds_add since it returns a string, not a date
         op = S3DeleteObjectsOperator(
             task_id="XXXXXXXXXXXXXXXXXXXXXXX",
@@ -984,7 +979,7 @@ class TestS3DeleteObjectsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
-                run_after=utcnow(),
+                run_after=timezone.utcnow(),
             )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
@@ -1015,7 +1010,7 @@ class TestS3DeleteObjectsOperator:
         assert len(objects_in_dest_bucket["Contents"]) == n_keys
         assert sorted(x["Key"] for x in objects_in_dest_bucket["Contents"]) == sorted(keys)
 
-        now = utcnow()
+        now = timezone.utcnow()
         from_datetime = now.replace(year=now.year - 1)
         to_datetime = now.replace(year=now.year + 1)
 
@@ -1104,15 +1099,15 @@ class TestS3DeleteObjectsOperator:
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
                 None,
                 id="keys-prefix-and-from_datetime",
             ),
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
-                datetime(1993, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1993, 3, 8, 18, 52, 51),
                 id="keys-prefix-and-from-to_datetime",
             ),
             pytest.param(None, None, None, None, id="all-none"),
@@ -1120,7 +1115,7 @@ class TestS3DeleteObjectsOperator:
     )
     def test_validate_keys_and_filters_in_constructor(self, keys, prefix, from_datetime, to_datetime):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match=r"Either keys or at least one of prefix, from_datetime, to_datetime should be set.",
         ):
             S3DeleteObjectsOperator(
@@ -1140,15 +1135,15 @@ class TestS3DeleteObjectsOperator:
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
                 None,
                 id="keys-prefix-and-from_datetime",
             ),
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
-                datetime(1993, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1993, 3, 8, 18, 52, 51),
                 id="keys-prefix-and-from-to_datetime",
             ),
             pytest.param(None, None, None, None, id="all-none"),

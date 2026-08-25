@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box } from "@chakra-ui/react";
+import { Box, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 
@@ -28,11 +28,13 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
-import NotePreview from "src/components/NotePreview";
+import { NotePreview } from "src/components/NotePreview";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
 import { useDagRunNote } from "src/queries/useDagRunNote";
 import { getDuration } from "src/utils";
@@ -42,6 +44,7 @@ import { DeadlineStatus } from "./DeadlineStatus";
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
+  const showTeam = useShowTeam(dagRun.team_name);
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -50,14 +53,14 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
 
   return (
-    <Box>
+    <Box display="flex" flexDirection="column" gap={2}>
       <HeaderCard
         actions={
           <>
             <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
-            <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
-            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
-            <DeleteRunButton dagRun={dagRun} />
+            <ClearRunButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
+            <MarkRunAsButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
+            <DeleteRunButton bg="bg" dagRun={dagRun} variant="outline" />
           </>
         }
         icon={<FiBarChart />}
@@ -75,7 +78,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             ? []
             : [
                 {
-                  label: translate("dagRun.mappedPartitionKey"),
+                  label: translate("dagRun.partitionKey"),
                   value: dagRun.partition_key,
                 },
               ]),
@@ -105,6 +108,14 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
                   ),
                 },
               ]),
+          ...(showTeam
+            ? [
+                {
+                  label: translate("dagDetails.team"),
+                  value: <TeamName teamName={dagRun.team_name} />,
+                },
+              ]
+            : []),
           {
             label: translate("dagRun.dagVersions"),
             value: (
@@ -126,6 +137,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             : []),
         ]}
         title={dagRun.dag_run_id}
+        type="dagRun"
       />
       <NotePreview
         header={translate("note.dagRun")}

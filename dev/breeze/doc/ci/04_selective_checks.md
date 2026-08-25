@@ -227,6 +227,15 @@ The same matched-file approach drives the **prek hook skip list** (`skip_prek_ho
 compile / lint hook is skipped when nothing in its area changed. See
 [Skipping prek hooks](#skipping-prek-hooks-static-checks).
 
+#### The run's platform (`--platform`)
+
+Some integrations and providers only work on one CPU architecture, so the selection above is filtered
+by the platform the run's tests will execute on:
+
+* **Integrations** in `DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM` are dropped on ARM.
+* **Providers** that declare `excluded-platforms` in their `provider.yaml` (e.g. `ibm.mq` excludes
+  `linux/arm64`) are removed from the providers test-type matrix on that platform.
+
 ## Individually simple rules
 
 The list of rules is long, but each rule is a one-liner you can reason about in isolation. A few
@@ -243,6 +252,7 @@ representative examples (file → effect):
 | `.github/workflows/codeql-analysis.yml` (non-test workflow) | **basic checks only**                                           | non-test workflow → cannot affect tests (env-files carve-out) |
 | `scripts/ci/prek/check_*.py` (static-check hook)       | CI image + static checks, **no full matrix**                         | prek hooks are static checks → `Prek files` carve-out |
 | the generated OpenAPI spec                             | **full matrix**                                                      | the API *contract* ripples to UI codegen + every client |
+| `core_api/openapi/_private_ui.yaml` (UI-only spec)     | UI compile/lint prek hooks, **no full matrix**                       | matches `UI OpenAPI files`; the UI codegen input must be type-checked, but the public contract is unchanged |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
 | `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
@@ -310,7 +320,7 @@ all versions), the cause is almost always a single rule that fired. To find it:
 2. **Reproduce locally** with Breeze, pointing at the squashed commit of your change:
 
    ```bash
-   breeze selective-checks --commit-ref <commit_sha>
+   breeze ci selective-check --commit-ref <commit_sha>
    ```
 
    It prints the same outputs and the same `[warning]` reasons CI uses, so you can iterate without
@@ -354,6 +364,11 @@ We have the following Groups of files for CI that determine which tests are run:
 * `Always test files` - Files that belong to "Always" run tests.
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
+* `UI OpenAPI files` - the OpenAPI spec yamls under `core_api/openapi/` and under the simple
+  auth manager's `openapi/` that are the inputs of the UI client codegen. Membership in this
+  group does not force full tests (a generated spec still does, via `Codegen test files`); it
+  only keeps the UI compile/lint prek hooks from being skipped
+  (see [Skipping prek hooks](#skipping-prek-hooks-static-checks)).
 * `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder (which contains the chart sources and tests under `chart/tests/`).
 * `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
   build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
@@ -363,10 +378,9 @@ We have the following Groups of files for CI that determine which tests are run:
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
   and airflow documentation)
 * `UI files` - those are files for the new full React UI (useful to determine if UI tests should run)
-* `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
-  [System Test Dashbards](https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards)
+  [System Test Dashboards](https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards)
 * `Kubernetes files` - determine if any of Kubernetes related tests should be run
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
@@ -427,6 +441,13 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
+* `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
+  `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
+  Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
+  files (`airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/`,
+  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), or the Java
+  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`) change. Like the
+  other deployed e2e suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -453,8 +474,8 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
   the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
-  several criteria: if any of the airflow core, charts, docker-stack, providers files or docs have changed,
-  then corresponding packages are build (including cross-dependent providers). If any of the core files
+  several criteria: if any of the airflow core, charts, docker-stack, Apache Airflow Mypy, providers files or
+  docs have changed, then corresponding packages are built (including cross-dependent providers). If any of the core files
   changed, also providers docs are built because all providers depend on airflow docs. If any of the docs
   build python files changed or when build is "canary" type in main - all docs packages are built.
 
@@ -488,8 +509,11 @@ when some files are not changed. Those are the rules implemented:
     `mypy-task-sdk-integration-tests`, `mypy-docker-tests`, `mypy-kubernetes-tests`)
   * for each `shared/<dist>` workspace member, `mypy-shared-<dist>` is skipped when no
     file under `shared/<dist>/` changed (enumerated at runtime)
-  * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
-  * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
+  * if neither `UI files` nor `UI OpenAPI files` changed - the `ts-compile-lint-ui` and
+    `ts-compile-lint-simple-auth-manager-ui` checks are skipped. The `UI OpenAPI files` group
+    covers the union of those hooks' own openapi `files:` triggers, so a spec-only change
+    (e.g. `_private_ui.yaml`) still runs them - otherwise a stale committed client can mask
+    type errors (see #68919)
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
@@ -499,8 +523,11 @@ when some files are not changed. Those are the rules implemented:
     skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
     wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
     the ts-sdk follow-up PR's job, not the schema author's)
-  * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
-    `check-provider-yaml-valid` check is skipped
+  * `check-provider-yaml-valid` is skipped unless at least one of these changed:
+    `All Providers Python files`, `All Providers Distribution Config files`
+    (which includes `provider.yaml`, `pyproject.toml`, and `providers/.pre-commit-config.yaml`),
+    or `Prek files` (`scripts/ci/prek/`). The last condition ensures the check runs
+    when the check script itself is modified.
 
 ## Suspended providers
 
@@ -575,6 +602,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
+| run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
@@ -642,6 +671,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
 | all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
 | allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| area:e2e-tests                   | prod-image-build                 | If set, the Airflow E2E tests are run regardless of changed files (does not force the full test matrix). |
 | area:kubernetes-tests            | run-kubernetes-tests             | If set, the Kubernetes tests job is run regardless of changed files (does not force the full test matrix). |
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |

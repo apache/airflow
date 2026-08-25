@@ -24,7 +24,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { useGroups } from "src/context/groups";
-import { useHover } from "src/context/hover";
 import { useTimezone } from "src/context/timezone";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import {
@@ -49,6 +48,7 @@ type Props = {
   readonly offset?: number;
   readonly runAfterGte?: string | undefined;
   readonly runAfterLte?: string | undefined;
+  readonly runIdPattern?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
   readonly triggeringUser?: string | undefined;
@@ -60,6 +60,7 @@ export const Gantt = ({
   offset,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   sharedScrollContainerRef,
   triggeringUser,
@@ -73,7 +74,6 @@ export const Gantt = ({
   const [searchParams] = useSearchParams();
   const { openGroupIds, toggleGroupId } = useGroups();
   const { selectedTimezone } = useTimezone();
-  const { setHoveredTaskId } = useHover();
 
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
@@ -87,6 +87,7 @@ export const Gantt = ({
     offset,
     runAfterGte,
     runAfterLte,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -97,6 +98,7 @@ export const Gantt = ({
     includeUpstream,
     limit,
     root: filterRoot,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -153,10 +155,6 @@ export const Gantt = ({
     return undefined;
   }
 
-  const handleStandaloneMouseLeave = () => {
-    setHoveredTaskId(undefined);
-  };
-
   const timeline =
     Boolean(selectedRun) && dagId ? (
       <GanttTimeline
@@ -184,15 +182,7 @@ export const Gantt = ({
 
   return (
     <Flex flex={1} flexDirection="column" maxW="100%" minH={0} minW={0} overflow="hidden">
-      <Box
-        flex={1}
-        minH={0}
-        minW={0}
-        onMouseLeave={handleStandaloneMouseLeave}
-        overflowX="hidden"
-        overflowY="auto"
-        ref={standaloneScrollRef}
-      >
+      <Box flex={1} minH={0} minW={0} overflowX="hidden" overflowY="auto" ref={standaloneScrollRef}>
         {timeline}
       </Box>
     </Flex>

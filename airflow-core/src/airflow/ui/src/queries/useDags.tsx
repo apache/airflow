@@ -17,12 +17,8 @@
  * under the License.
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { DagRunState } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-export type DagWithLatest = {
-  last_run_start_date: string;
-} & DAGWithLatestDagRunsResponse;
 
 export const useDags = ({
   advancedSearch = false,
@@ -41,6 +37,8 @@ export const useDags = ({
   pendingHitl,
   tags,
   tagsMatchMode,
+  teams,
+  timetableType,
 }: {
   advancedSearch?: boolean;
   dagDisplayNamePattern?: string;
@@ -58,8 +56,10 @@ export const useDags = ({
   pendingHitl?: boolean;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
+  teams?: Array<string>;
+  timetableType?: Array<string>;
 }) => {
-  const refetchInterval = useAutoRefresh({});
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
 
   const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
     {
@@ -79,15 +79,21 @@ export const useDags = ({
       paused,
       tags,
       tagsMatchMode,
+      teams,
+      timetableType,
     },
     undefined,
     {
+      // Filter changes swap the query key, which would otherwise drop the list to skeletons
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        query.state.data?.dags.some(
-          (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
-        )
-          ? refetchInterval
-          : false,
+        refetchInterval === false
+          ? false
+          : query.state.data?.dags.some(
+                (dag) => !dag.is_paused && dag.latest_dag_runs.some((dr) => isStatePending(dr.state)),
+              )
+            ? refetchInterval
+            : refetchInterval * 10,
     },
   );
 

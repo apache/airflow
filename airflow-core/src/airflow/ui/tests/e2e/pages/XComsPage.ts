@@ -18,6 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export class XComsPage extends BasePage {
   public static get xcomsUrl(): string {
@@ -36,7 +37,7 @@ export class XComsPage extends BasePage {
     this.collapseAllButton = page.getByTestId("collapse-all-button");
     this.expandAllButton = page.getByTestId("expand-all-button");
     this.xcomsTable = page.getByTestId("table-list");
-    this.tableRows = this.xcomsTable.locator("tbody tr");
+    this.tableRows = this.xcomsTable.locator(DATA_ROWS);
   }
 
   public async applyFilter(filterName: string, value: string): Promise<void> {
@@ -82,7 +83,7 @@ export class XComsPage extends BasePage {
       await expect(firstLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    const rows = this.xcomsTable.locator("tbody tr");
+    const rows = this.xcomsTable.locator(DATA_ROWS);
 
     await expect(rows).not.toHaveCount(0);
 
@@ -116,7 +117,7 @@ export class XComsPage extends BasePage {
       await expect(firstKeyCell).toContainText(keyPattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    const rows = this.xcomsTable.locator("tbody tr");
+    const rows = this.xcomsTable.locator(DATA_ROWS);
 
     await expect(rows).not.toHaveCount(0);
 

@@ -39,6 +39,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -605,6 +606,14 @@ class DagScheduleAssetReference(Base):
     asset = relationship("AssetModel", back_populates="scheduled_dags")
     dag = relationship("DagModel", back_populates="schedule_asset_references")
 
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning the Dag scheduled by this asset, or ``None``."""
+        # Gate before touching ``dag``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag.team_name if self.dag else None
+
     queue_records = relationship(
         "AssetDagRunQueue",
         primaryjoin="""and_(
@@ -661,6 +670,15 @@ class TaskOutletAssetReference(Base):
     )
 
     asset = relationship("AssetModel", back_populates="producing_tasks")
+    dag = relationship("DagModel", viewonly=True)
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning the Dag producing this asset, or ``None``."""
+        # Gate before touching ``dag``: single-team deployments must not pay for the load.
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+        return self.dag.team_name if self.dag else None
 
     __tablename__ = "task_outlet_asset_reference"
     __table_args__ = (
@@ -749,19 +767,26 @@ class TaskInletAssetReference(Base):
 class AssetDagRunQueue(Base):
     """Model for storing asset events that need processing."""
 
-    asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     target_dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    asset_event_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     asset: Mapped[AssetModel] = relationship("AssetModel", viewonly=True)
     dag_model: Mapped[DagModel] = relationship("DagModel", viewonly=True)
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(asset_id, target_dag_id, name="assetdagrunqueue_pkey"),
+        PrimaryKeyConstraint(target_dag_id, asset_event_id, name="assetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (asset_id,),
             ["asset.id"],
             name="adrq_asset_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (asset_event_id,),
+            ["asset_event.id"],
+            name="adrq_asset_event_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -770,12 +795,12 @@ class AssetDagRunQueue(Base):
             name="adrq_dag_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_asset_dag_run_queue_target_dag_id", target_dag_id),
+        Index("idx_adrq_asset_id", asset_id),
     )
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            return self.asset_id == other.asset_id and self.target_dag_id == other.target_dag_id
+            return self.target_dag_id == other.target_dag_id and self.asset_event_id == other.asset_event_id
         return NotImplemented
 
     def __hash__(self):
@@ -828,6 +853,7 @@ class AssetEvent(Base):
     __tablename__ = "asset_event"
     __table_args__ = (
         Index("idx_asset_id_timestamp", asset_id, timestamp),
+        Index("idx_asset_event_asset_id_partition_key", asset_id, partition_key),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -913,9 +939,15 @@ class AssetPartitionDagRun(Base):
     We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
     with the PartitionedAssetKeyLog mapping table.
 
-    Where dag_run_id is null, the dag run has not yet been created.
-    We should not allow more than one like this. But to guard against
-    an accident, we should always work on the latest one.
+    Rows are never deleted from this table, so multiple records with the same
+    target_dag_id / partition_key are expected in general; each dag run that
+    gets created leaves its APDR record behind.
+
+    Where created_dag_run_id is null, the dag run has not yet been created.
+    We should not allow more than one row with the same target_dag_id /
+    partition_key where created_dag_run_id is null, and this is what the
+    `_lock_asset_model` mutex control is for. In case a duplicate somehow
+    gets created, we always work on the latest matching APDR record.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

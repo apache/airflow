@@ -27,6 +27,55 @@
 Changelog
 ---------
 
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'return_apply_function_results' to ConsumeFromTopicOperator to return apply_function results (#69740)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+1.15.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kafka consumer not being closed on error in ConsumeFromTopicOperator (#69641)``
+* ``Fix AwaitMessageTrigger crash on tombstone messages when apply_function is unset (#69665)``
+* ``Fix KafkaBaseHook.test_connection missing oauth_cb for managed Kafka (#69507)``
+* ``Fix AwaitMessageTriggerFunctionSensor not honoring timeout (#69639)``
+* ``Validate ProduceToTopicOperator topic after rendering (#70333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Kafka Event Producer publishing DagRun and TaskInstance state-change events (#68082, #70014)``
+* ``Add Amazon MSK IAM (OAUTHBEARER) support to Apache Kafka provider (#69427)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document 'apply_function' dot notation requirement for Kafka message queues (#68414)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky KubernetesPodOperator log-timestamp test (#69563)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 1.14.0
 ......
 

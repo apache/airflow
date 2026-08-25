@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import sys
 from datetime import datetime, timezone as dt_timezone
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -196,6 +197,22 @@ class TestClient:
         assert unpickled.detail == {"message": "Invalid input"}
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
+
+    @pytest.mark.skipif(sys.version_info < (3, 11), reason="Exception notes (PEP 678) require Python 3.11")
+    def test_server_error_detail_added_as_note(self):
+        """Notes survive uncaught propagation, handled sites still log detail directly."""
+        responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        assert err.args == ("Server returned error",)
+        assert any(
+            note.startswith("Server error detail:") and "Invalid input" in note
+            for note in getattr(err, "__notes__", [])
+        ), err.__notes__
 
     def test_retry_handling_unrecoverable_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
@@ -1127,6 +1144,12 @@ class TestConnectionOperations:
                     json={
                         "conn_id": "test_conn",
                         "conn_type": "mysql",
+                        "host": None,
+                        "schema": None,
+                        "login": None,
+                        "password": None,
+                        "port": None,
+                        "extra": None,
                     },
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
@@ -1179,7 +1202,30 @@ class TestAssetEventOperations:
             ({"alias_name": "this_asset_alias"}),
         ],
     )
-    def test_by_name_get_success(self, request_params):
+    @pytest.mark.parametrize(
+        ("created_dagruns", "expected_created_dagruns"),
+        [
+            pytest.param([], 0, id="without-created-dagrun"),
+            pytest.param(
+                [
+                    {
+                        "dag_id": "created_dag",
+                        "run_id": "queued_run",
+                        "logical_date": "2023-01-01T00:00:00Z",
+                        "start_date": None,
+                        "end_date": None,
+                        "state": "queued",
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "partition_key": None,
+                    }
+                ],
+                1,
+                id="queued-created-dagrun-without-start-date",
+            ),
+        ],
+    )
+    def test_by_name_get_success(self, request_params, created_dagruns, expected_created_dagruns):
         def handle_request(request: httpx.Request) -> httpx.Response:
             params = request.url.params
             if request.url.path == "/asset-events/by-asset":
@@ -1201,7 +1247,7 @@ class TestAssetEventOperations:
                                 "uri": "s3://bucket/key",
                                 "group": "asset",
                             },
-                            "created_dagruns": [],
+                            "created_dagruns": created_dagruns,
                             "timestamp": "2023-01-01T00:00:00Z",
                         }
                     ]
@@ -1215,6 +1261,98 @@ class TestAssetEventOperations:
         assert len(result.asset_events) == 1
         assert result.asset_events[0].asset.name == "this_asset"
         assert result.asset_events[0].asset.uri == "s3://bucket/key"
+        assert len(result.asset_events[0].created_dagruns) == expected_created_dagruns
+        if expected_created_dagruns:
+            assert result.asset_events[0].created_dagruns[0].start_date is None
+
+    def test_partition_key_exact_match_param_passed(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert params.get("partition_key") == "2024-01-01"
+            assert "partition_key_regexp_pattern" not in params
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {
+                                "name": "this_asset",
+                                "uri": "s3://bucket/key",
+                                "group": "asset",
+                            },
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                            "partition_key": "2024-01-01",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="this_asset", partition_key="2024-01-01")
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+
+    def test_partition_key_regexp_pattern_param_passed(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert params.get("partition_key_regexp_pattern") == "^2024-01-"
+            assert "partition_key" not in params
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="this_asset", partition_key_regexp_pattern="^2024-01-")
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 0
+
+    def test_partition_key_regexp_pattern_with_other_params(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert params.get("partition_key_regexp_pattern") == r"^us\|2024-.*"
+            assert "partition_key" not in params
+            assert params.get("after") == "2023-06-01T00:00:00+00:00"
+            assert params.get("limit") == "5"
+            assert params.get("ascending") == "false"
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(
+            name="this_asset",
+            partition_key_regexp_pattern=r"^us\|2024-.*",
+            after=datetime(2023, 6, 1, tzinfo=dt_timezone.utc),
+            limit=5,
+            ascending=False,
+        )
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 0
+
+    def test_partition_key_with_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/asset-events/by-asset-alias"
+            params = request.url.params
+            assert params.get("name") == "my_alias"
+            assert params.get("partition_key") == "us-east|2024-01-01"
+            assert "partition_key_regexp_pattern" not in params
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(alias_name="my_alias", partition_key="us-east|2024-01-01")
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 0
 
     def test_extra_dict_param_passed(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1542,6 +1680,10 @@ class TestDagRunOperations:
                         "run_type": "scheduled",
                         "state": "success",
                         "consumed_asset_events": [],
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "end_date": None,
+                        "partition_key": None,
                     },
                 )
             return httpx.Response(status_code=422)
@@ -1577,6 +1719,10 @@ class TestDagRunOperations:
                         "run_type": "scheduled",
                         "state": "success",
                         "consumed_asset_events": [],
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "end_date": None,
+                        "partition_key": None,
                     },
                 )
             return httpx.Response(status_code=422)
@@ -1893,6 +2039,19 @@ class TestTaskStateOperations:
         assert isinstance(result, TaskStateStoreResponse)
         assert result.value == "spark_app_001"
 
+    def test_get_url_encodes_key_with_slash(self):
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(status_code=200, json={"value": "spark_app_001"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_state_store.get(ti_id=self.TI_ID, key="spark/job_id")
+
+        assert b"%2F" in requests_seen[0].url.raw_path
+        assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
+
     def test_get_returns_error_response_on_404(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             return httpx.Response(
@@ -1919,6 +2078,21 @@ class TestTaskStateOperations:
             ti_id=self.TI_ID, key="job_id", value="spark_app_001", expires_at=expires
         )
         assert result == OKResponse(ok=True)
+
+    def test_set_url_encodes_key_with_slash(self):
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_state_store.set(
+            ti_id=self.TI_ID, key="spark/job_id", value="spark_app_001", expires_at=None
+        )
+
+        assert b"%2F" in requests_seen[0].url.raw_path
+        assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_set_with_expires_at_sends_field(self):
         """expires_at is forwarded as an ISO datetime string in the request body."""
@@ -1962,6 +2136,19 @@ class TestTaskStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_state_store.delete(ti_id=self.TI_ID, key="job_id")
         assert result == OKResponse(ok=True)
+
+    def test_delete_url_encodes_key_with_slash(self):
+        requests_seen = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests_seen.append(request)
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.task_state_store.delete(ti_id=self.TI_ID, key="spark/job_id")
+
+        assert b"%2F" in requests_seen[0].url.raw_path
+        assert requests_seen[0].url.raw_path == f"/store/ti/{self.TI_ID}/spark%2Fjob_id".encode()
 
     def test_clear_sends_delete_request(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
