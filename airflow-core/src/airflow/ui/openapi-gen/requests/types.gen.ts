@@ -1295,6 +1295,7 @@ export type EventLogResponse = {
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -3735,6 +3736,7 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: number | null;
 };
 
