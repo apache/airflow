@@ -387,11 +387,9 @@ def _update_import_errors(
 ):
     from airflow.listeners.listener import get_listener_manager
 
-    # Check existing import errors BEFORE deleting, so we can determine if we should update or create.
-    # Only the rows about to be written are needed, so scope the lookup to those keys instead of
-    # loading the whole table into memory on each parse result. The table is not indexed on
-    # (bundle_name, filename), so this still scans; what it saves is building a Row object and a
-    # set entry for every import error the deployment is carrying.
+    # Read before the delete below, so an error still present is updated rather than recreated.
+    # Scoped to the keys being written: the table is not indexed on (bundle_name, filename) so this
+    # still scans, but it no longer builds a row per import error the deployment is carrying.
     existing_import_error_files: set[tuple[str | None, str | None]] = set()
     if import_errors:
         existing_import_error_files = {

@@ -1540,8 +1540,6 @@ class TestUpdateImportErrors:
             f"import_error must never be scanned unfiltered, got: {selects}"
         )
 
-        # A list, not a dict: import_error has no unique constraint on (bundle_name, filename), so
-        # keying by it would silently collapse a duplicate row the lookup failed to match.
         rows = sorted(
             (err.bundle_name, err.filename, err.stacktrace)
             for err in session.scalars(select(ParseImportError))

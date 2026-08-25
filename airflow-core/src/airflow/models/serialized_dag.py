@@ -351,15 +351,12 @@ class SerializedDagModel(Base):
         """
         Build a serialized Dag row.
 
-        :param _dag_hash: hash of ``dag.data`` when the caller has already computed it, used by
-            ``write_dag`` to avoid hashing the same data twice. Hashing re-sorts and re-encodes
-            the whole structure, so it is worth skipping. It must describe ``dag.data`` as it
-            stands now — recompute it first if the data was mutated after hashing, or change
-            detection on the next parse silently misbehaves.
+        :param _dag_hash: hash of ``dag.data``, when the caller has already computed one. It has to
+            match the data as it stands, or the next parse misreads whether the Dag changed.
         """
         self.dag_id = dag.dag_id
         dag_data = dag.data
-        self.dag_hash = SerializedDagModel.hash(dag_data) if _dag_hash is None else _dag_hash
+        self.dag_hash = _dag_hash or SerializedDagModel.hash(dag_data)
 
         if _COMPRESS_SERIALIZED_DAGS:
             # partially ordered json data
