@@ -1208,6 +1208,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         consecutive_waiting = 0
         waiting_or_pending_warn_threshold = 10
         terminal_phase: str | None = None
+        driver_container_logged = False
 
         try:
             if not pod_name:
@@ -1259,7 +1260,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     )
                 container_completed = False
                 if driver_container:
-                    self.log.info("%s has been identified as the driver container", driver_container.name)
+                    if not driver_container_logged:
+                        self.log.info("%s has been identified as the driver container", driver_container.name)
+                        driver_container_logged = True
                     for status in pod.status.container_statuses or []:
                         if status.name == driver_container.name:
                             if status.state and status.state.terminated:

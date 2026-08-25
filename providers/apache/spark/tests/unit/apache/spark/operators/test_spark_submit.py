@@ -934,6 +934,9 @@ class TestSparkSubmitOperatorK8sTracking:
 
         assert hook.kubernetes_driver_container == "custom-driver"
 
+    def test_driver_container_name_is_templatable(self):
+        assert "driver_container_name" in SparkSubmitOperator.template_fields
+
     def test_execute_calls_submit_then_poll_when_flag_set(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         hook = self._make_k8s_hook()

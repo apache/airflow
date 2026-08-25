@@ -370,6 +370,7 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         "env_vars",
         "post_submit_commands",
         "properties_file",
+        "driver_container_name",
     )
 
     def __init__(
