@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import ast
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,6 +68,16 @@ METRICS_REGISTRY_PATH = (
     AIRFLOW_ROOT_PATH / "shared/observability/src/airflow_shared/observability/metrics/metrics_template.yaml"
 )
 
+EXCLUDED_TESTS_PATTERN = re.compile(r"(^|/)tests/")
+
+# Registry metrics emitted through a variable that the AST scan cannot resolve back to a
+# string literal, e.g. names built by BaseExecutor._get_metric_name.
+INDIRECTLY_EMITTED_METRICS = {
+    "executor.open_slots",
+    "executor.queued_tasks",
+    "executor.running_tasks",
+}
+
 
 def load_metrics_registry_yaml() -> dict[str, dict[str, Any]]:
     """Load the metrics registry YAML and return a dict keyed by metric name."""
@@ -83,13 +94,50 @@ def normalize_metric_name(registry_metric_name: str) -> str:
         "{job_name}_start"             →  "*_start"
         "pool.open_slots"              →  "pool.open_slots"
     """
-    return re.sub(r"\{[^}]+\}", "*", registry_metric_name)
+    return _VARIABLE_RE.sub("*", registry_metric_name)
 
 
-# Sentinel returned when a dynamic metric name is partially matched based on a common prefix.
+# Sentinel returned when a dynamic metric name is structurally matched against registry entries.
 # For dynamic metric names that include variables, the check can't find an exact match with a registry
-# entry or its type. So, a partially matched prefix is good enough and type checking is skipped.
-_PREFIX_MATCHED = "__prefix_matched__"
+# entry or its type. So, a structural match is good enough and type checking is skipped.
+_PATTERN_MATCHED = "__pattern_matched__"
+
+# A ``{variable}`` stands for one or more dot-separated segments, so one pattern covers both a
+# single-segment substitution (``{state}`` -> ``running``) and a multi-segment one
+# (``{stats_prefix}`` -> ``api_server.dag_bag``).
+_VARIABLE_SEGMENTS = r"[^.]+(?:\.[^.]+)*"
+
+# The ``{variable}`` placeholder itself, shared by name normalization and pattern compilation.
+_VARIABLE_RE = re.compile(r"\{[^}]+\}")
+
+
+def compile_dynamic_metric_pattern(metric_name: str) -> re.Pattern[str]:
+    """Compile a ``{variable}``-containing metric name into a regex over its static parts.
+
+    Matching on the whole shape rather than only the prefix before the first variable means a
+    variable may sit anywhere in the name, including at the start or between static parts::
+
+        "ti.{state}"                     matches "ti.running"
+        "{stats_prefix}.cache_hit"       matches "api_server.dag_bag.cache_hit"
+        "{prefix}.foo.{state}.duration"  matches "a.b.foo.success.duration"
+    """
+    literals = _VARIABLE_RE.split(metric_name)
+    return re.compile(_VARIABLE_SEGMENTS.join(re.escape(literal) for literal in literals))
+
+
+def find_pattern_matched_registry_entries(metric_name: str, metrics_registry: dict[str, dict]) -> list[str]:
+    """Return the registry entry names a dynamic metric name structurally matches."""
+    literals = _VARIABLE_RE.split(metric_name)
+    if len(literals) == 1:
+        # Static name: the exact and normalized lookups already had their chance.
+        return []
+    if not any(literals):
+        # Nothing but variables, e.g. ``{name}`` or ``{prefix}{suffix}``. The pattern would be a
+        # bare "any segments" regex matching every entry, which marks the whole registry used and
+        # silently disables the unused-entry check. Match nothing so the name is reported missing.
+        return []
+    pattern = compile_dynamic_metric_pattern(metric_name)
+    return [name for name in metrics_registry if pattern.fullmatch(name)]
 
 
 def find_registry_match(metric_name: str, metrics_registry: dict[str, dict]) -> str | None:
@@ -109,16 +157,11 @@ def find_registry_match(metric_name: str, metrics_registry: dict[str, dict]) -> 
             return registry_metric_name
 
     # Dynamic metric name.
-    if "{" in metric_name:
-        base = metric_name.split("{")[0].rstrip(".")
-        for registry_metric_name in metrics_registry:
-            if registry_metric_name == base or registry_metric_name.startswith(base + "."):
-                # Metric prefix matches the prefix of a dynamic registry entry.
-                # If the static part before the first variable, matches an exact registry entry name,
-                # or a dotted-prefix of one, then τηε name is considered covered and
-                # _PREFIX_MATCHED is returned. The type check must be skipped because
-                # the resulting metric name with all variables expanded, cannot be determined.
-                return _PREFIX_MATCHED
+    if find_pattern_matched_registry_entries(metric_name, metrics_registry):
+        # The name's static parts line up with at least one registry entry, so it is considered
+        # covered and _PATTERN_MATCHED is returned. The type check must be skipped because the
+        # resulting metric name with all variables expanded cannot be determined.
+        return _PATTERN_MATCHED
 
     # All checks for matching failed.
     return None
@@ -177,6 +220,22 @@ def extract_metric_name_from_ast_node(name_node: ast.expr) -> str | None:
     return None
 
 
+def extract_metric_names_from_ast_node(name_node: ast.expr) -> list[str]:
+    """Resolve a metric name AST node to all names it can produce.
+
+    A conditional expression like ``"a.success" if ok else "a.failed"`` yields both names.
+    Returns an empty list when the expression is too dynamic to resolve.
+    """
+    if isinstance(name_node, ast.IfExp):
+        return [
+            name
+            for branch in (name_node.body, name_node.orelse)
+            for name in extract_metric_names_from_ast_node(branch)
+        ]
+    metric_name = extract_metric_name_from_ast_node(name_node)
+    return [metric_name] if metric_name is not None else []
+
+
 @dataclass
 class MetricCall:
     file_path: str
@@ -232,8 +291,16 @@ def scan_file_for_metrics(file_path: Path) -> list[MetricCall]:
     """Return all Stats metric calls found in the provided file_path."""
     try:
         source = file_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+
+    # Cheap text pre-filter to avoid parsing the vast majority of files that emit no metrics.
+    if "Stats." not in source and "stats." not in source:
+        return []
+
+    try:
         tree = ast.parse(source, filename=str(file_path))
-    except (OSError, UnicodeDecodeError, SyntaxError):
+    except SyntaxError:
         return []
 
     metrics_found: list[MetricCall] = []
@@ -251,22 +318,22 @@ def scan_file_for_metrics(file_path: Path) -> list[MetricCall]:
             if name_node is None:
                 continue
 
-            metric_name = extract_metric_name_from_ast_node(name_node)
-            if metric_name is None:
+            if not (metric_names := extract_metric_names_from_ast_node(name_node)):
                 # Metric name is unresolvable. Probably has too many variables.
                 continue
 
             stats_obj = get_stats_obj_name(node.func.value)
-            metrics_found.append(
-                MetricCall(
-                    file_path=str(file_path),
-                    line_num=node.lineno,
-                    metric_name=metric_name,
-                    method=method,
-                    stats_obj=stats_obj or "",
-                    is_dynamic="{" in metric_name,
+            for metric_name in metric_names:
+                metrics_found.append(
+                    MetricCall(
+                        file_path=str(file_path),
+                        line_num=node.lineno,
+                        metric_name=metric_name,
+                        method=method,
+                        stats_obj=stats_obj or "",
+                        is_dynamic="{" in metric_name,
+                    )
                 )
-            )
 
     return metrics_found
 
@@ -318,6 +385,43 @@ def scan_file_for_direct_stats_imports(file_path: Path) -> list[DirectStatsImpor
     return violations
 
 
+def list_repository_python_files() -> list[Path]:
+    """Return all git-tracked, non-test Python files in the repository."""
+    result = subprocess.run(
+        ["git", "ls-files", "*.py"],
+        cwd=AIRFLOW_ROOT_PATH,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [
+        AIRFLOW_ROOT_PATH / line
+        for line in result.stdout.splitlines()
+        if not EXCLUDED_TESTS_PATTERN.search(line)
+    ]
+
+
+def compute_unused_registry_entries(
+    code_metric_names: set[str], metrics_registry: dict[str, dict]
+) -> list[str]:
+    """Return the registry entry names that no code metric name matches."""
+    used_entries = set(INDIRECTLY_EMITTED_METRICS)
+    for metric_name in code_metric_names:
+        registry_metric_name = find_registry_match(metric_name, metrics_registry)
+        if registry_metric_name is None:
+            continue
+        if registry_metric_name is _PATTERN_MATCHED:
+            used_entries.update(find_pattern_matched_registry_entries(metric_name, metrics_registry))
+        else:
+            used_entries.add(registry_metric_name)
+    return sorted(set(metrics_registry) - used_entries)
+
+
+def find_stale_indirectly_emitted_metrics(metrics_registry: dict[str, dict]) -> list[str]:
+    """Return the ``INDIRECTLY_EMITTED_METRICS`` names that no longer exist in the registry."""
+    return sorted(INDIRECTLY_EMITTED_METRICS - set(metrics_registry))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Check that metrics in the codebase are in sync with the metrics registry YAML file."
@@ -364,9 +468,9 @@ def main() -> None:
     metrics_with_type_mismatch: dict[str, list[tuple[MetricCall, str, str]]] = {}
     for name, calls in code_metrics.items():
         registry_metric_name = find_registry_match(name, metrics_registry)
-        if registry_metric_name is None or registry_metric_name is _PREFIX_MATCHED:
+        if registry_metric_name is None or registry_metric_name is _PATTERN_MATCHED:
             # If None, then it's reported as missing, no need for type check.
-            # If _PREFIX_MATCHED, then the exact entry can't be determined. Skip the type check.
+            # If _PATTERN_MATCHED, then the exact entry can't be determined. Skip the type check.
             continue
         registry_type = metrics_registry[registry_metric_name].get("type", "").lower()
         mismatched = [
@@ -377,12 +481,24 @@ def main() -> None:
         if mismatched:
             metrics_with_type_mismatch[name] = mismatched
 
-    # There is no point in checking whether the metrics exist in the YAML but not in the code,
-    # because the script is comparing the entire YAML against certain files at a time.
-    # For that to work, the script would have to run against all project files EVERY TIME.
+    # Violation 3: the metric exists in the registry but nowhere in the code. The hook only
+    # receives the changed files, so this check scans all git-tracked Python files itself.
+    all_code_metric_names = {
+        call.metric_name
+        for repo_file_path in list_repository_python_files()
+        for call in scan_file_for_metrics(repo_file_path)
+    }
+    unused_registry_entries = compute_unused_registry_entries(all_code_metric_names, metrics_registry)
+
+    # Violation 4: this script exempts a metric from the check above, but the registry no longer has it.
+    stale_indirectly_emitted_metrics = find_stale_indirectly_emitted_metrics(metrics_registry)
 
     total_violations = (
-        len(metrics_not_in_registry) + len(metrics_with_type_mismatch) + len(direct_stats_imports)
+        len(metrics_not_in_registry)
+        + len(metrics_with_type_mismatch)
+        + len(direct_stats_imports)
+        + len(stale_indirectly_emitted_metrics)
+        + len(unused_registry_entries)
     )
 
     if total_violations:
@@ -433,6 +549,29 @@ def main() -> None:
             )
             console.print(
                 "    [yellow]Imports inside a `try` block that catches `ImportError` are exempt (back-compat checks).[/yellow]"
+            )
+            console.print()
+
+        if unused_registry_entries:
+            console.print(
+                f"    [red]-> {len(unused_registry_entries)} metric(s) found in the registry YAML but not emitted anywhere in the code:[/red]"
+            )
+            for metric_name in unused_registry_entries:
+                console.print(f"        [green]{metric_name}[/green]")
+            console.print(
+                "    [yellow]Remove them from the registry, or if they are emitted through a variable "
+                "the scan cannot resolve, add them to INDIRECTLY_EMITTED_METRICS in this script.[/yellow]"
+            )
+            console.print()
+
+        if stale_indirectly_emitted_metrics:
+            console.print(
+                f"    [red]-> {len(stale_indirectly_emitted_metrics)} metric(s) in INDIRECTLY_EMITTED_METRICS that no longer exist in the registry YAML:[/red]"
+            )
+            for metric_name in stale_indirectly_emitted_metrics:
+                console.print(f"        [green]{metric_name}[/green]")
+            console.print(
+                "    [yellow]Update INDIRECTLY_EMITTED_METRICS in this script to match the registry.[/yellow]"
             )
             console.print()
 

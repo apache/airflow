@@ -32,10 +32,12 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => {
       actions={
         task.doc_md === null ? undefined : (
           <DisplayMarkdownButton
+            bg="bg"
             header={translate("task.documentation")}
             icon={<FiBookOpen />}
             mdContent={task.doc_md}
             text={translate("docs.documentation")}
+            variant="outline"
           />
         )
       }
@@ -45,6 +47,7 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => {
         { label: translate("task.triggerRule"), value: task.trigger_rule },
       ]}
       title={`${task.task_display_name}${task.is_mapped ? " [ ]" : ""}`}
+      type="task"
     />
   );
 };

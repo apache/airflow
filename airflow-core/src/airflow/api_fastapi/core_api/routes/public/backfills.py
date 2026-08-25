@@ -306,7 +306,7 @@ def create_backfill(
             max_active_runs=backfill_request.max_active_runs,
             reverse=backfill_request.run_backwards,
             dag_run_conf=backfill_request.dag_run_conf,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
         )
@@ -346,6 +346,7 @@ def create_backfill(
     path="/dry_run",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
             status.HTTP_503_SERVICE_UNAVAILABLE,

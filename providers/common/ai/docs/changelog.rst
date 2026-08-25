@@ -25,6 +25,133 @@
 Changelog
 ---------
 
+0.8.0
+.....
+
+.. note::
+    The ``query`` tool of ``SQLToolset`` and ``DataFusionToolset`` returns a different
+    shape. Rows were a dict per row alongside a ``count`` of every matching row:
+    ``{"rows": [{"id": 1, "name": "a"}], "count": 900}``. They are now columnar, and
+    ``row_count`` counts the rows actually returned:
+    ``{"columns": ["id", "name"], "rows": [[1, "a"]], "row_count": 1}``. A truncated
+    result also carries ``truncated_by`` -- ``max_rows`` or the new ``max_result_bytes``
+    -- and ``total_rows`` appears only when the driver reports a trustworthy query
+    total. The tool's own description states the new shape, so agents adapt without
+    changes; update any system prompt that describes the old shape, and any code
+    calling ``toolset.call_tool("query", ...)`` directly.
+
+Features
+~~~~~~~~
+
+* ``Add SandboxToolset for sandboxed agent shell and file access (#68847)``
+* ``Support require_approval in LLMSchemaCompareOperator (#71051)``
+* ``Bound SQL toolset query results by size, not just row count (#71317)``
+* ``Support custom redaction and message length cap in LLMRetryPolicy (#70830)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Let the agent retry on a rejected DataFusion query instead of failing the task (#71445)``
+
+Misc
+~~~~
+
+* ``Show which LLM providers each Common AI connection type reaches (#70497)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the dedicated pydantic-ai vendor connection types (#71774)``
+* ``Document the common-ai MCPHook (#71817)``
+* ``Document the common-ai LangChain and LlamaIndex connection types (#71818)``
+* ``Fix and expand the common-ai provider's When to use guidance (#71820)``
+* ``Add LLMSchemaCompareOperator to the common-ai operator index table (#71738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``Require a lower bound on every dependency in pyproject.toml (#71378)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
+0.7.0
+.....
+
+.. note::
+    The ``skills`` extra now requires ``pydantic-ai-skills>=1.2.0`` (previously ``>=0.11.0``);
+    the file-exclusion support added in #69924 relies on the 1.x API. Every 0.x release is
+    excluded, so environments that pin ``pydantic-ai-skills`` below 1.2.0 will fail to resolve
+    ``apache-airflow-providers-common-ai[skills]``. To migrate, upgrade ``pydantic-ai-skills``
+    to 1.2.0 or newer; if you cannot, stay on ``common.ai`` 0.6.0. Installations that do not use
+    the ``skills`` extra are unaffected.
+
+.. note::
+    ``SQLToolset(allowed_tables=...)`` now fails closed: ``COPY`` in any form, and any function
+    sqlglot cannot type, are refused before the query runs. This closes a bypass where
+    ``pg_read_file()``, ``query_to_xml()`` and ``COPY ... FROM PROGRAM`` reached data and files
+    outside ``allowed_tables``. Project UDFs and a few common builtins such as
+    ``json_build_object`` are also not recognized; pass them in the new ``allowed_functions``
+    argument to permit them. The database role remains the real security boundary.
+
+Features
+~~~~~~~~
+
+* ``Add pydantic-ai capability matrix references doc to Common AI (#69887)``
+* ``Support excluding files from 'common.ai' Agent Skills discovery (#69924)``
+* ``Use task state store for 'common.ai' durable execution on Airflow 3.3+ (#68926)``
+* ``Support '.txt' files in 'LLMFileAnalysisOperator' (#70431)``
+* ``Support cloud URI globs in DocumentLoaderOperator (#70299)``
+* ``Support require_approval in LLMBranchOperator (#70651)``
+* ``Render multi-branch review choices as a multi-select (#71046)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow Common AI SQL imports without DataFusion (#69990)``
+* ``Fix HITL review showing altered agent output to reviewers (#70070)``
+* ``Fix 'LLMSQLQueryOperator' not stripping single-line markdown code fences (#70137)``
+* ``Harden common.ai SQLToolset allowed_tables against function/COPY bypass (#70134)``
+* ``Preserve output_type through human approval in LLM operators (#70075)``
+* ``Fix DocumentLoaderOperator ignoring unknown parser on byte input (#70071)``
+* ``Reject unsupported require_approval in LLM branch and schema compare operators (#70069)``
+* ``Fix '@task.llm_branch' import failure on Task SDK-only workers (#70068)``
+* ``Fix common.ai durable execution skipping Toolset-capability tools (#69881)``
+* ``Redact secrets from LLMRetryPolicy classification prompts (#70229)``
+* ``Validate common AI tool-call arguments to enable pydantic-ai retries (#70096)``
+* ``Validate template fields after rendering in common.ai operators (#70338)``
+
+Misc
+~~~~
+
+* ``Add dataclasses-json floor to common.ai llamaindex extra (#69755)``
+* ``Add a Retry Policies category to the provider registry (#70499)``
+* ``Mark asserts under 'TYPE_CHECKING' in 'DocumentLoaderOperator' (#70378)``
+* ``Mark KubernetesPodOperator and AgentOperator as durable capable (#70289)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add self-hosted model guide for the common.ai provider (#69867)``
+* ``Update retired model ids and fill doc gaps in common.ai provider docs (#69711)``
+* ``Add quick start guide to common.ai provider docs (#69552)``
+* ``Document the dynamic 'system_prompt' pattern for common-ai agents (#69636)``
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+* ``Add an Examples entry point to the common.ai provider docs (#69650)``
+* ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+* ``Document the sql extra required for LLMSQLQueryOperator (#70564)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix toolsets python-modules check for common.ai provider (#70181)``
+   * ``Add toolset as a provider module category (#70122)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Guard code_mode example DAG on SQLToolset import (#69677)``
+   * ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
+   * ``Fix flaky secrets masking test in LLMRetryPolicy (#70823)``
+   * ``Revert AWS services toolset for common AI provider (#70695)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Mark common.ai provider as not ready for release (#70481)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+
 0.6.0
 .....
 

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import textwrap
 import time
-from datetime import datetime as dt, timedelta, timezone
+from datetime import datetime as dt, timedelta, timezone as std_timezone
 from pathlib import Path
 from unittest import mock
 from unittest.mock import ANY, call
@@ -42,8 +43,8 @@ from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
     CloudwatchTaskHandler,
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
@@ -54,7 +55,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 
 def get_time_str(time_in_milliseconds):
-    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=timezone.utc)
+    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=std_timezone.utc)
     return dt_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -82,6 +83,107 @@ def _cleanup_cloudwatch_handlers():
             with contextlib.suppress(Exception):
                 handler.close()
             logging._removeHandlerRef(handler_ref)
+
+
+class TestCloudWatchRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "delete_local_logs"): "True",
+        }
+    )
+    def test_from_config(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert (
+            subject.remote_base == "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+        )
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.log_group_arn == "arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+        assert subject.log_group == "log_group_name"
+        assert subject.region_name == "us-west-2"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): (
+                '{"log_stream_name": "custom-stream", "max_bytes": 1024}'
+            ),
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert subject.log_stream_name == "custom-stream"
+        assert subject.delete_local_copy is False
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            CloudWatchRemoteLogIO.from_config()
+
+    @conf_vars({("logging", "remote_base_log_folder"): "cloudwatch://"})
+    def test_from_config_rejects_remote_base_without_log_group_arn(self):
+        with pytest.raises(ValueError, match="log group ARN"):
+            CloudWatchRemoteLogIO.from_config()
+
+    def test_provider_registers_cloudwatch_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("cloudwatch")
+
+        assert info is not None
+        assert (
+            info.classpath == "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudWatchRemoteLogIO"
+        )
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "remote_log_conn_id"): "aws_default",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with mock.patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, conn_id = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, CloudWatchRemoteLogIO)
+        assert remote_task_log.log_group_arn == "arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+        assert conn_id == "aws_default"
+        legacy_discover.assert_not_called()
 
 
 # We only test this directly on Airflow 3
@@ -214,7 +316,7 @@ class TestCloudRemoteLogIO:
         dag_dir = self.local_log_location / "dag_id=a"
         assert dag_dir.exists()
 
-    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message(self):
         # Use a context instead of a decorator on the test method because we need access to self to
         # get the path from the setup method.
@@ -243,7 +345,7 @@ class TestCloudRemoteLogIO:
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
-    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message_after_handler_closed_by_dictconfig(self):
         # configure_logging() ends in logging.config.dictConfig(), whose
         # _clearExistingHandlers closes every handler in logging._handlerList,
@@ -309,7 +411,7 @@ class TestCloudwatchTaskHandler:
                 f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             )
 
-        date = datetime(2020, 1, 1)
+        date = timezone.datetime(2020, 1, 1)
         dag_id = "dag_for_testing_cloudwatch_task_handler"
         task_id = "task_for_testing_cloudwatch_log_handler"
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
@@ -377,7 +479,7 @@ class TestCloudwatchTaskHandler:
 
     # TODO: Remove when we stop testing for 2.11 compatibility
     @conf_vars({("core", "use_historical_filename_templates"): "True"})
-    @time_machine.travel(datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
+    @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_read(self, monkeypatch):
         # Confirmed via AWS Support call:
         # CloudWatch events must be ordered chronologically otherwise
@@ -450,8 +552,8 @@ class TestCloudwatchTaskHandler:
         [
             (None, None),
             (
-                datetime(2020, 1, 2),
-                datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
+                timezone.datetime(2020, 1, 2),
+                datetime_to_epoch_utc_ms(timezone.datetime(2020, 1, 2) + timedelta(seconds=30)),
             ),
         ],
     )
@@ -532,7 +634,7 @@ class TestCloudwatchTaskHandler:
                 args=None,
                 exc_info=None,
                 msg={
-                    "datetime": datetime(2023, 1, 1),
+                    "datetime": timezone.datetime(2023, 1, 1),
                     "customObject": ToSerialize(),
                 },
             )

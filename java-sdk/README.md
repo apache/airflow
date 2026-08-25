@@ -38,6 +38,28 @@ development tools may have further requirements (see the toolchain in
 ./gradlew build
 ```
 
+### Reviewing dependency changes
+
+`gradle/verification-metadata.xml` pins SHA-256 checksums for dependencies, plugins, and their metadata. Gradle enables verification automatically whenever that file exists and defaults to `strict`, so a plain `./gradlew build` already verifies. Strict mode fails both on a checksum mismatch and on an artifact with no entry at all — the latter is what you will usually hit, and it means the build resolved something the metadata does not describe.
+
+Repositories are centralized in `settings.gradle.kts`, and dynamic and changing versions are rejected for project dependency configurations (not for plugin markers or detached configurations — pin those by hand). `buildSrc/` declares its own repositories, but its dependencies *are* covered by this metadata.
+
+To update a dependency or plugin, regenerate from a trusted network. The task list must cover everything CI runs, since only what the invoked tasks resolve gets recorded:
+
+```bash
+./gradlew --write-verification-metadata sha256 --refresh-dependencies \
+  build \
+  :sdk:dokkaGeneratePublicationHtml :sdk:dokkaGeneratePublicationJavadoc \
+  sourceTarball checksumSourceTarball \
+  publishToMavenLocal -PskipSigning=true
+```
+
+Without `-PskipSigning=true` the signing tasks fail and Gradle still writes metadata from the partial run. Regeneration only appends, so delete superseded entries by hand after a version bump.
+
+Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
+
+Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, the JDK auto-provisioned by the foojay resolver, and the Supervisor Schema fetched by `:sdk:syncSupervisorSchema`.
+
 ## Building documentation
 
 ```bash
@@ -558,6 +580,58 @@ Close the vote, **drop** the staging repository in Nexus, remove the `dist/dev`
 candidate, fix the issue, and cut the next RC (`...-rc2`). The released version
 stays the same (e.g. `<VERSION>`); only the RC counter in the tag increments.
 
+## Compatibility matrix
+
+Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
+[`capabilities.yaml`](capabilities.yaml); the conformance dimensions are defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+Do not edit the table by hand — edit `capabilities.yaml` and let the `update-java-sdk-readme-matrix`
+prek hook regenerate it.
+
+<!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
+*Min. Airflow version: 3.3 · supervisor schema: 2026-06-16*
+
+| Dimension | Tier | Supported | Since | Notes |
+|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.3 |  |
+| state: `failed` | MUST | ✓ | 3.3 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
+| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
+| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.3 |  |
+| **Runtime capabilities** |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `task-logging` | MUST | ✓ | 3.3 | SLF4J + JPL bridged to the task log |
+| capability: `xcom-read-write` | MUST | ✓ | 3.3 |  |
+| capability: `connection-read` | MUST | ✓ | 3.3 |  |
+| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
+| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
+| **Native-Dag authoring** |  |  |  |  |
+| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
+| capability: `task-args` | MUST † | n/a | – |  |
+| capability: `dag-params` | MUST † | n/a | – |  |
+| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
+| capability: `branching` | SHOULD † | n/a | – |  |
+| capability: `dag-test` | SHOULD † | n/a | – |  |
+| capability: `task-group` | MAY † | n/a | – |  |
+| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
+| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
+| capability: `asset-scheduling` | MAY † | n/a | – |  |
+| capability: `object-store` | MAY † | n/a | – |  |
+
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
+
+<!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
 ## Contributing
 
 The user implements a Java application containing task methods annotated (or
@@ -590,7 +664,8 @@ The wire protocol is defined in
 requires changes in **both** `schema.json` (Python side) and
 `execution/Comm.kt` + `execution/Client.kt` (JVM side).
 
-See [Architectural Design Records](./adr) in the `adr` directory to learn more.
+See the [Architectural Decision Records](../airflow-core/adr/lang-sdk) in `airflow-core/adr/lang-sdk` to learn more — they
+cover the coordinator architecture and core integration surfaces shared by all language SDKs.
 
 ### Repository layout
 
@@ -609,7 +684,6 @@ java-sdk/
 │                 #   calls to the Airflow log store
 ├── log4j2/       # Log4j 2 appender; routes Log4j 2 events to the Airflow log store
 ├── example/      # End-to-end example bundle (annotation + interface APIs, Java source)
-├── adr/          # Architectural Decision Records for the Java SDK
 └── buildSrc/     # Shared Gradle convention plugins (Java version, lint, etc.)
 ```
 

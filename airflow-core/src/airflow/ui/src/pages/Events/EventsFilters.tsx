@@ -18,6 +18,7 @@
  */
 import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 type EventsFiltersProps = {
@@ -27,6 +28,7 @@ type EventsFiltersProps = {
 };
 
 export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersProps) => {
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.EVENT_DATE_RANGE,
     SearchParamsKeys.EVENT_TYPE,
@@ -34,6 +36,10 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     SearchParamsKeys.MAP_INDEX,
     SearchParamsKeys.TRY_NUMBER,
   ];
+
+  if (multiTeamEnabled) {
+    searchParamKeys.push(SearchParamsKeys.TEAMS);
+  }
 
   // Only add Dag ID filter if not in URL context
   if (urlDagId === undefined) {

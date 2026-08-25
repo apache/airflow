@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Spinner, useToken } from "@chakra-ui/react";
-import { ReactFlow, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
+import { Background, MiniMap, ReactFlow, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -25,14 +25,14 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
 import type { Direction } from "src/components/Graph/DirectionDropdown";
-import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
-import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
+import { getGatePathEdgeIdsForSelection, type CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
-import { dependenciesKey, directionKey } from "src/constants/localStorage";
+import { SHOW_ALL_DEPENDENCIES_KEY, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useGroups } from "src/context/groups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useDefaultGraphDirection } from "src/hooks/useUserSettings";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
@@ -70,15 +70,15 @@ export const Graph = () => {
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
-  const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
+  const [showAllDependencies] = useLocalStorage<boolean>(SHOW_ALL_DEPENDENCIES_KEY, false);
+  const [defaultDirection] = useDefaultGraphDirection();
+  const [direction] = useLocalStorage<Direction>(directionKey(dagId), defaultDirection);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
       depth,
-      externalDependencies: dependencies === "immediate",
       includeDownstream,
       includeUpstream,
       root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
@@ -100,17 +100,17 @@ export const Graph = () => {
   }, [allGroupIds, graphData.nodes, setAllGroupIds]);
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
-    enabled: dependencies === "all",
+    enabled: showAllDependencies,
   });
 
-  const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
-  const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
+  const dagDepEdges = showAllDependencies ? dagDependencies.edges : [];
+  const dagDepNodes = showAllDependencies ? dagDependencies.nodes : [];
 
   const layoutEdges = [...graphData.edges, ...dagDepEdges];
   const layoutNodes = dagDepNodes.length
     ? dagDepNodes.map((node) => (node.id === `dag:${dagId}` ? { ...node, children: graphData.nodes } : node))
     : graphData.nodes;
-  const layoutOpenGroupIds = [...openGroupIds, ...(dependencies === "all" ? [`dag:${dagId}`] : [])];
+  const layoutOpenGroupIds = [...openGroupIds, ...(showAllDependencies ? [`dag:${dagId}`] : [])];
 
   const { data, isPending } = useGraphLayout({
     direction,
@@ -131,6 +131,9 @@ export const Graph = () => {
   });
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
+  const isNodeSelected = (nodeId: string) =>
+    nodeId === taskId || nodeId === groupId || nodeId === `dag:${dagId}`;
+
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodesWithTI = data?.nodes.map((node) => {
     const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
@@ -139,7 +142,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
+        isSelected: isNodeSelected(node.id),
         taskInstance,
       },
     };
@@ -147,13 +150,25 @@ export const Graph = () => {
 
   const baseFilteredNodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
 
-  const { edges, nodes } = useFilteredNodesAndEdges({
+  const { edges: filteredEdges, nodes } = useFilteredNodesAndEdges({
     baseFilteredNodes,
     dagId,
     groupId,
     layoutEdges: data?.edges ?? [],
     taskId,
   });
+
+  const gatePathEdgeIds = data
+    ? getGatePathEdgeIdsForSelection(data.nodes, data.edges, isNodeSelected)
+    : new Set<string>();
+  const edges =
+    gatePathEdgeIds.size > 0
+      ? filteredEdges.map((edge) =>
+          gatePathEdgeIds.has(edge.id)
+            ? { ...edge, data: { ...edge.data, rest: { ...edge.data?.rest, isSelected: true } } }
+            : edge,
+        )
+      : filteredEdges;
 
   const selectedNodeId = taskId ?? groupId;
 
@@ -195,7 +210,7 @@ export const Graph = () => {
             fitView prop, which re-fires on every re-mount even when nodes are
             served from the React Query cache. */}
         <FitViewOnLayout layoutData={data} />
-        <GraphControls selectedNodeId={selectedNodeId} />
+        <GraphControls dagId={dagId} selectedNodeId={selectedNodeId} />
         {/* Hide the MiniMap for large graphs — it processes all nodes even when
             onlyRenderVisibleElements is set, adding meaningful paint cost with
             little benefit at 500+ nodes where the map is a near-solid blob. */}
@@ -217,7 +232,6 @@ export const Graph = () => {
             zoomable
           />
         ) : undefined}
-        <DownloadButton name={dagId} />
       </ReactFlow>
     </Box>
   );

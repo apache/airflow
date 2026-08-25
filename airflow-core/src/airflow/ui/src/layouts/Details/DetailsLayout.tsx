@@ -18,16 +18,16 @@
  */
 import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
 import {
-  type ImperativePanelGroupHandle,
   Panel,
   PanelGroup,
   PanelResizeHandle,
+  type ImperativePanelGroupHandle,
 } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -40,7 +40,7 @@ import {
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
-import { SearchDagsButton } from "src/components/SearchDags";
+import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { IconButton, ProgressBar, Toaster } from "src/components/ui";
 import type { DagView } from "src/constants/dagView";
@@ -89,7 +89,7 @@ type Props = {
 } & PropsWithChildren;
 
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
@@ -134,6 +134,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
   const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
   const triggeringUserFilter = searchParams.get(SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN) ?? undefined;
+  const runIdPatternFilter = searchParams.get(SearchParamsKeys.RUN_ID_PATTERN) ?? undefined;
   const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
@@ -164,6 +165,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { data: initialGridRuns } = useGridRuns({
     dagRunState: dagRunStateFilter,
     limit,
+    runIdPattern: runIdPatternFilter,
     runType: runTypeFilter,
     triggeringUser: triggeringUserFilter,
   });
@@ -220,21 +222,28 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   return (
     <GroupsProvider dagId={dagId}>
       <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
-        <HStack justifyContent="space-between" mb={2}>
-          <Flex alignItems="center" gap={1}>
-            <DagBreadcrumb />
-          </Flex>
-          <Flex gap={1}>
-            <SearchDagsButton />
+        <HStack justifyContent="space-between" mb={3} mx={-3} px={3}>
+          <DagBreadcrumb />
+          <Flex gap={2}>
             {dag === undefined ? undefined : (
-              <TriggerDAGButton
-                allowedRunTypes={dag.allowed_run_types}
-                dagDisplayName={dag.dag_display_name}
-                dagId={dag.dag_id}
-                isPaused={dag.is_paused}
-                variant="outline"
-                withText
-              />
+              <>
+                {dag.is_stale ? undefined : (
+                  <TogglePause
+                    dagDisplayName={dag.dag_display_name}
+                    dagId={dag.dag_id}
+                    isPaused={dag.is_paused}
+                    size="md"
+                  />
+                )}
+                <TriggerDAGButton
+                  allowedRunTypes={dag.allowed_run_types}
+                  dagDisplayName={dag.dag_display_name}
+                  dagId={dag.dag_id}
+                  isPaused={dag.is_paused}
+                  variant="outline"
+                  withText
+                />
+              </>
             )}
           </Flex>
         </HStack>
@@ -266,22 +275,43 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
             ref={panelGroupRef}
           >
             <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
-              <Flex flexDirection="column" height="100%">
-                <PanelButtons
-                  dagView={dagView}
-                  limit={limit}
-                  panelGroupRef={panelGroupRef}
-                  setDagView={setDagView}
-                  setLimit={setLimit}
-                  setShowVersionIndicatorMode={setShowVersionIndicatorMode}
-                  showVersionIndicatorMode={showVersionIndicatorMode}
-                />
+              <Flex
+                bg={dagView === "graph" ? undefined : "bg.muted"}
+                borderColor="bg.muted"
+                borderRadius="md"
+                borderWidth="2px"
+                flexDirection="column"
+                height="calc(100% - 12px)" // 12px = 3units of padding
+                overflow="hidden"
+                position="relative"
+              >
+                <Box left={0} p={2} position={dagView === "graph" ? "absolute" : undefined} right={0} top={0}>
+                  <PanelButtons
+                    dagView={dagView}
+                    limit={limit}
+                    panelGroupRef={panelGroupRef}
+                    setDagView={setDagView}
+                    setLimit={setLimit}
+                    setShowVersionIndicatorMode={setShowVersionIndicatorMode}
+                    showVersionIndicatorMode={showVersionIndicatorMode}
+                  />
+                </Box>
                 <Box flex={1} minH={0} overflow="hidden" ref={gridHoverRootRef}>
                   {dagView === "graph" ? (
                     <Graph />
                   ) : dagView === "gantt" && Boolean(runId) ? (
                     <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
-                      <Flex alignItems="flex-start" gap={0} maxW="100%" minW={0} overflow="clip" w="100%">
+                      <Flex
+                        alignItems="flex-start"
+                        bg="bg"
+                        borderTopRadius="md"
+                        gap={0}
+                        maxW="100%"
+                        minH="100%"
+                        minW={0}
+                        overflow="clip"
+                        w="100%"
+                      >
                         <Grid
                           dagRunState={dagRunStateFilter}
                           limit={limit}
@@ -289,6 +319,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                           onJumpToLatest={handleJumpToLatest}
                           runAfterGte={runAfterGte}
                           runAfterLte={runAfterLte}
+                          runIdPattern={runIdPatternFilter}
                           runType={runTypeFilter}
                           setOffset={setOffset}
                           sharedScrollContainerRef={sharedGridGanttScrollRef}
@@ -302,6 +333,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                           offset={offset}
                           runAfterGte={runAfterGte}
                           runAfterLte={runAfterLte}
+                          runIdPattern={runIdPatternFilter}
                           runType={runTypeFilter}
                           sharedScrollContainerRef={sharedGridGanttScrollRef}
                           triggeringUser={triggeringUserFilter}
@@ -325,6 +357,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                         onJumpToLatest={handleJumpToLatest}
                         runAfterGte={runAfterGte}
                         runAfterLte={runAfterLte}
+                        runIdPattern={runIdPatternFilter}
                         runType={runTypeFilter}
                         setOffset={setOffset}
                         showVersionIndicatorMode={showVersionIndicatorMode}
@@ -348,17 +381,18 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   }}
                 >
                   <Box
+                    _hover={{ bg: "info.solid" }}
                     alignItems="center"
-                    bg="border.emphasized"
+                    borderRadius="full"
                     cursor="col-resize"
                     display="flex"
-                    h="100%"
+                    height="calc(100% - 12px)" // 12px = 3units of padding
                     justifyContent="center"
                     position="relative"
-                    w={0.5}
+                    w={1}
                   >
                     <IconButton
-                      bg="fg.subtle"
+                      bg="bg.muted"
                       borderRadius="full"
                       boxShadow="md"
                       cursor="pointer"
@@ -381,7 +415,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     display="flex"
                     flexDirection="column"
                     h="100%"
-                    paddingInlineStart={4}
+                    paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
                     position="relative"
                   >
                     {children}
@@ -409,7 +443,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     ) : undefined}
                     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                     <NavTabs tabs={tabs} />
-                    <Box flexGrow={1} overflow="auto" px={2}>
+                    <Box flexGrow={1} overflow="auto" pb={3} px={2}>
                       <Outlet context={outletContext} />
                     </Box>
                   </Box>

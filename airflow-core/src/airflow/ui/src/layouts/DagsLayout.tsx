@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { NavTabs } from "./Details/NavTabs";
 
 export const DagsLayout = ({ children }: PropsWithChildren) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const tabs = [
     { label: translate("nav.dags"), value: "/dags" },

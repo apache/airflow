@@ -96,7 +96,7 @@ export const Nav = () => {
   const { data } = useVersionServiceGetVersion();
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
   const { data: pluginData } = usePluginServiceGetPlugins();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { selectedTimezone } = useTimezone();
   const offset = getTimezoneOffsetString(selectedTimezone);
@@ -176,6 +176,7 @@ export const Nav = () => {
           data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}
           icon={DagIcon}
+          matchPaths={["dag_runs", "task_instances"]}
           title={translate("nav.dags")}
           to="dags"
         />

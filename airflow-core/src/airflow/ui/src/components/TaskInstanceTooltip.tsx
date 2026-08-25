@@ -42,7 +42,7 @@ type Props = {
 } & Omit<TooltipProps, "content">;
 
 const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const hasTooltip = tooltip !== undefined && tooltip !== null;
 

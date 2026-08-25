@@ -20,12 +20,16 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { HeaderCard } from "src/components/HeaderCard";
 
 import { DependencyPopover } from "../AssetsList/DependencyPopover";
 
 export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { t: translate } = useTranslation("assets");
+
+  const aliases = asset?.aliases ?? [];
+  const watchers = asset?.watchers ?? [];
 
   const stats = [
     { label: translate("group"), value: asset?.group },
@@ -41,7 +45,12 @@ export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
       label: translate("scheduledDags"),
       value: <DependencyPopover dependencies={asset?.scheduled_dags ?? []} type="Dag" />,
     },
+    // Only assets that actually have them — unlike the dependency stats above, most assets have neither.
+    ...(aliases.length ? [{ label: translate("aliases"), value: <AliasesPopover aliases={aliases} /> }] : []),
+    ...(watchers.length
+      ? [{ label: translate("watchers"), value: <WatchersPopover watchers={watchers} /> }]
+      : []),
   ];
 
-  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} />;
+  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} type="asset" />;
 };

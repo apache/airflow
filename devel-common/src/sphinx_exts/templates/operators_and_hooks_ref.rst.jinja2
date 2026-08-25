@@ -29,6 +29,9 @@
 {%- if "sensors" in item %}
 :Sensors: {% for python_module in item["sensors"]["python-modules"] %}:mod:`{{ python_module }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
 {%- endif %}
+{%- if "triggers" in item %}
+:Triggers: {% for python_module in item["triggers"]["python-modules"] %}:mod:`{{ python_module }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
+{%- endif %}
 {%- if 'how-to-guide' in item["integration"] %}
 :Guides: {% for guide in item["integration"]['how-to-guide'] %}:doc:`{{ guide }}`{% if not loop.last %}, {% else %}.{% endif %}{%- endfor %}
 {%- endif %}

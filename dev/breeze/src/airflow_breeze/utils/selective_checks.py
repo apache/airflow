@@ -117,6 +117,7 @@ class FileGroupForCi(Enum):
     DOC_FILES = auto()
     TEXT_NON_DOC_FILES = auto()
     UI_FILES = auto()
+    UI_OPENAPI_FILES = auto()
     SYSTEM_TEST_FILES = auto()
     KUBERNETES_FILES = auto()
     TASK_SDK_FILES = auto()
@@ -124,6 +125,7 @@ class FileGroupForCi(Enum):
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
@@ -243,6 +245,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.JAVA_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
+            r"^airflow-e2e-tests/java-test-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
@@ -274,7 +277,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
         ],
         FileGroupForCi.TS_SDK_E2E_FILES: [
-            r"^ts-sdk/(?!.*\.md$).*",
+            # API documentation entry points and Markdown do not affect runtime e2e tests.
+            r"^ts-sdk/(?!api-docs/)(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
@@ -364,6 +368,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-ctl/docs",
             r"^airflow-ctl/src/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+            r"^dev/mypy/docs/",
+            r"^dev/mypy/src/.*\.py$",
+            r"^dev/mypy/RELEASE_NOTES\.rst$",
+            r"^dev/mypy/pyproject\.toml$",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.rst",
@@ -378,6 +386,17 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/",
+        ],
+        # The OpenAPI spec yamls that are inputs of the UI client codegen. Must cover the UNION of
+        # the openapi `files:` triggers of `ts-compile-lint-ui` and
+        # `ts-compile-lint-simple-auth-manager-ui` in `airflow-core/.pre-commit-config.yaml` —
+        # selective checks skip the two hooks as one unit, so this group is a strict superset of
+        # the first hook's triggers; do not "re-sync" it down to a single hook. A spec-only change
+        # (e.g. `_private_ui.yaml`) must not skip those hooks, otherwise a stale committed client
+        # masks type errors in CI (https://github.com/apache/airflow/pull/68919).
+        FileGroupForCi.UI_OPENAPI_FILES: [
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/.*\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml",
         ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
@@ -399,6 +418,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES: [
             r"^providers/.*/pyproject\.toml$",
             r"^providers/.*/provider\.yaml$",
+            r"^providers/\.pre-commit-config\.yaml$",
         ],
         FileGroupForCi.ALL_DEV_PYTHON_FILES: [
             r"^dev/.*\.py$",
@@ -471,9 +491,24 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.TS_SDK_DOCS_FILES: [
+            # TypeDoc renders the reference from the SDK sources and category entry points,
+            # and the landing page is authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md`
+            # counts here. tsconfig.json and package.json are included too: docs/tsconfig.json
+            # `extends` the former, and the latter pins the `@msgpack/msgpack` version the
+            # checked program depends on.
+            r"^ts-sdk/api-docs/.*",
+            r"^ts-sdk/docs/.*",
+            r"^ts-sdk/src/.*",
+            r"^ts-sdk/tsconfig\.json$",
+            r"^ts-sdk/package\.json$",
+        ],
         FileGroupForCi.TS_SDK_FILES: [
-            # `.md` excluded — doc-only edits do not affect the generated supervisor schema.
-            r"^ts-sdk/(?!.*\.md$).*",
+            # Documentation entry points and `.md` files do not affect the generated
+            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
+            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
+            # build.
+            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1119,6 +1154,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
+    def run_ts_sdk_docs(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
+
+    @cached_property
     def run_airflow_ctl_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
@@ -1636,6 +1675,8 @@ class SelectiveChecks:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
+        if any(file.startswith("dev/mypy/") for file in self._files):
+            packages.append("apache-airflow-mypy")
         if providers_affected:
             suspended = set(get_suspended_provider_ids())
             for provider in providers_affected:
@@ -1670,7 +1711,9 @@ class SelectiveChecks:
             return ",".join(sorted(prek_hooks_to_skip))
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
-            or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
+            # An API_CODEGEN_FILES disjunct would be unreachable here — matching that group
+            # forces full_tests_needed, and skip_prek_hooks returns early above in that case.
+            or self._matching_files(FileGroupForCi.UI_OPENAPI_FILES, CI_FILE_GROUP_MATCHES)
         ):
             prek_hooks_to_skip.add("ts-compile-lint-ui")
             prek_hooks_to_skip.add("ts-compile-lint-simple-auth-manager-ui")
@@ -1696,9 +1739,12 @@ class SelectiveChecks:
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
             )
             or self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+            or self._matching_files(FileGroupForCi.PREK_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            # only skip provider validation if none of the provider.yaml and provider
-            # python files changed because validation also walks through all the provider python files
+            # Skip provider validation only when none of these changed:
+            # - provider.yaml / pyproject.toml / providers/.pre-commit-config.yaml
+            # - provider Python files (validation walks all provider Python files)
+            # - prek scripts (the check script itself may have changed)
             prek_hooks_to_skip.add("check-provider-yaml-valid")
         # Non-provider mypy checks run as prek hooks in static checks.
         # Skip them when their relevant files haven't changed, unless devel-common

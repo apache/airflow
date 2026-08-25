@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add new task_instance field scheduled_dttm.
+Add new task_instance field scheduled_dttm.
 
 Revision ID: 33b04e4bfa19
 Revises: 8ea135928435

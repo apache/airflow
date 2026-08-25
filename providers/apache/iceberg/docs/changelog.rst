@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add IcebergTableSnapshotTrigger for event-driven scheduling (#71387)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 2.0.3
 .....
 

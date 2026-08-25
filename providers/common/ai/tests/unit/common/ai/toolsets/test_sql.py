@@ -21,11 +21,35 @@ import json
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.toolsets.abstract import ToolsetTool
+from pydantic_core import ValidationError
+from sqlalchemy.engine.reflection import Inspector
 
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+
+class _FakeCursor:
+    """
+    Minimal DBAPI cursor over canned records.
+
+    The toolset fetches through ``DbApiHook.run``'s handler protocol rather than
+    ``get_records``, so the mock hook drives the real handler over this instead of
+    returning a canned list -- that keeps ``fetchmany``'s bounded-fetch behaviour
+    under test rather than mocked away.
+    """
+
+    def __init__(self, records: list[tuple], description: list[tuple] | None, rowcount: int) -> None:
+        self.description = description
+        self.rowcount = rowcount
+        self._remaining = list(records)
+
+    def fetchmany(self, size: int) -> list[tuple]:
+        chunk, self._remaining = self._remaining[:size], self._remaining[size:]
+        return chunk
 
 
 def _make_mock_db_hook(
@@ -33,18 +57,38 @@ def _make_mock_db_hook(
     table_schema: list[dict[str, str]] | None = None,
     records: list[tuple] | None = None,
     last_description: list[tuple] | None = None,
+    rowcount: int = -1,
 ):
     """Create a mock DbApiHook with sensible defaults."""
     mock = MagicMock(spec=DbApiHook)
-    mock.inspector = MagicMock()
+    mock.inspector = MagicMock(spec=Inspector)
     mock.inspector.get_table_names.return_value = table_names or ["users", "orders"]
     mock.get_table_schema.return_value = table_schema or [
         {"name": "id", "type": "INTEGER"},
         {"name": "name", "type": "VARCHAR"},
     ]
-    mock.get_records.return_value = records or [(1, "Alice"), (2, "Bob")]
-    type(mock).last_description = PropertyMock(return_value=last_description or [("id",), ("name",)])
+    rows = [(1, "Alice"), (2, "Bob")] if records is None else records
+    description = last_description or [("id",), ("name",)]
+    # -1 is what a driver reports when it has no row count for a SELECT (SQLite);
+    # get_row_count normalises that to None, so total_rows is absent by default.
+    mock.strip_sql_string.side_effect = DbApiHook.strip_sql_string
+    mock.run.side_effect = lambda sql, handler, **kwargs: handler(_FakeCursor(rows, description, rowcount))
+    type(mock).last_description = PropertyMock(return_value=description)
     return mock
+
+
+def _assert_executed(hook, sql: str) -> None:
+    """Assert the toolset ran exactly *sql* (the handler is an implementation detail)."""
+    assert hook.run.call_count == 1
+    assert hook.run.call_args.args[0] == sql
+
+
+def _query(ts: SQLToolset, sql: str) -> dict:
+    """Run the ``query`` tool and decode its JSON result."""
+    result = asyncio.run(
+        ts.call_tool("query", {"sql": sql}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+    )
+    return json.loads(result)
 
 
 class TestSQLToolsetInit:
@@ -64,6 +108,23 @@ class TestSQLToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         for tool in tools.values():
             assert tool.tool_def.description
+
+    @pytest.mark.parametrize(
+        ("name", "valid_args"),
+        [
+            ("get_schema", {"table_name": "users"}),
+            ("query", {"sql": "SELECT 1"}),
+            ("check_query", {"sql": "SELECT 1"}),
+        ],
+    )
+    def test_args_validator_enforces_required_keys(self, name, valid_args):
+        ts = SQLToolset("pg_default")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        validator = tools[name].args_validator
+
+        assert validator.validate_python(valid_args) == valid_args
+        with pytest.raises(ValidationError):
+            validator.validate_python({})
 
     @pytest.mark.skipif(
         not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"
@@ -145,19 +206,30 @@ class TestSQLToolsetGetSchema:
 
 
 class TestSQLToolsetQuery:
-    def test_returns_rows_as_json(self):
+    def test_returns_rows_columnar(self):
+        """Column names are named once, not repeated per row -- on a wide table the
+        repeated names, not the values, dominate the payload."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook(
             records=[(1, "Alice"), (2, "Bob")],
             last_description=[("id",), ("name",)],
         )
 
-        result = asyncio.run(
-            ts.call_tool("query", {"sql": "SELECT id, name FROM users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
-        assert data["rows"] == [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-        assert data["count"] == 2
+        data = _query(ts, "SELECT id, name FROM users")
+        assert data["columns"] == ["id", "name"]
+        assert data["rows"] == [[1, "Alice"], [2, "Bob"]]
+        assert data["row_count"] == 2
+        assert "truncated" not in data
+
+    def test_duplicate_column_names_are_preserved(self):
+        """A dict per row silently dropped one of two same-named columns; positional
+        rows keep both."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(records=[(1, 2)], last_description=[("id",), ("id",)])
+
+        data = _query(ts, "SELECT o.id, c.id FROM orders o JOIN customers c ON o.id = c.id")
+        assert data["columns"] == ["id", "id"]
+        assert data["rows"] == [[1, 2]]
 
     def test_truncates_at_max_rows(self):
         ts = SQLToolset("pg_default", max_rows=1)
@@ -166,13 +238,158 @@ class TestSQLToolsetQuery:
             last_description=[("id",), ("name",)],
         )
 
-        result = asyncio.run(
-            ts.call_tool("query", {"sql": "SELECT id, name FROM users"}, ctx=MagicMock(), tool=MagicMock())
-        )
-        data = json.loads(result)
-        assert len(data["rows"]) == 1
+        data = _query(ts, "SELECT id, name FROM users")
+        assert data["rows"] == [[1, "Alice"]]
+        assert data["row_count"] == 1
         assert data["truncated"] is True
-        assert data["count"] == 3
+        assert data["truncated_by"] == "max_rows"
+
+    def test_fetches_only_one_row_beyond_max_rows(self):
+        """The rows past the cap are never pulled out of the cursor. Fetching them all
+        and then slicing pays the full transfer cost for data the agent never sees."""
+        cursor = _FakeCursor([(i, "x") for i in range(1000)], [("id",), ("name",)], -1)
+        ts = SQLToolset("pg_default", max_rows=2)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(cursor)
+
+        _query(ts, "SELECT id, name FROM users")
+        # 1000 rows matched; 3 left the cursor (max_rows plus the one that proves
+        # there are more), so 997 were never transferred.
+        assert len(cursor._remaining) == 997
+
+    def test_reports_total_rows_when_the_driver_provides_one(self):
+        ts = SQLToolset("pg_default", max_rows=1)
+        ts._hook = _make_mock_db_hook(
+            records=[(1, "Alice"), (2, "Bob")],
+            last_description=[("id",), ("name",)],
+            rowcount=4_200_000,
+        )
+
+        assert _query(ts, "SELECT id, name FROM users")["total_rows"] == 4_200_000
+
+    def test_omits_total_rows_when_the_driver_counts_rows_fetched_so_far(self):
+        """python-oracledb documents rowcount for SELECT as rows fetched *so far*, so
+        after a capped fetch it equals the cap, not the query total. Reporting it would
+        tell an agent it saw 50 of 51 rows when the table holds millions."""
+        ts = SQLToolset("pg_default", max_rows=50)
+        ts._hook = _make_mock_db_hook(
+            records=[(i, f"name_{i}") for i in range(500)],
+            last_description=[("id",), ("name",)],
+            # Fetching max_rows + 1 leaves an incremental driver reporting exactly 51.
+            rowcount=51,
+        )
+
+        data = _query(ts, "SELECT id, name FROM big")
+        assert data["row_count"] == 50
+        assert data["truncated"] is True
+        assert "total_rows" not in data
+
+    def test_omits_total_rows_when_the_driver_has_none(self):
+        """SQLite and several warehouse drivers report -1 for a SELECT. Absent beats
+        inventing a count the agent would treat as authoritative."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(records=[(1, "Alice")], rowcount=-1)
+
+        assert "total_rows" not in _query(ts, "SELECT id, name FROM users")
+
+    def test_wide_rows_are_capped_by_byte_budget_before_max_rows(self):
+        """max_rows says nothing about size. A handful of very wide rows must still be
+        bounded, or the result dominates the context for the rest of the run."""
+        ts = SQLToolset("pg_default", max_rows=50, max_result_bytes=16_384)
+        ts._hook = _make_mock_db_hook(
+            records=[tuple(f"value_{i}" for i in range(200))] * 50,
+            last_description=[(f"col_{i}",) for i in range(200)],
+        )
+
+        data = _query(ts, "SELECT * FROM wide")
+        # 50 rows are under max_rows, so only the byte budget can have stopped this.
+        assert 0 < data["row_count"] < 50
+        assert len(json.dumps(data, separators=(",", ":"))) <= 16_384 + 512  # budget + envelope
+        assert data["truncated"] is True
+        assert data["truncated_by"] == "max_result_bytes"
+
+    def test_row_too_wide_to_fit_tells_the_agent_to_narrow_the_projection(self):
+        ts = SQLToolset("pg_default", max_result_bytes=200)
+        ts._hook = _make_mock_db_hook(records=[("x" * 500,)], last_description=[("blob",)])
+
+        data = _query(ts, "SELECT blob FROM docs")
+        assert data["rows"] == []
+        assert data["truncated_by"] == "max_result_bytes"
+        assert "max_result_bytes" in data["hint"]
+
+    def test_column_names_alone_over_budget_report_the_shape_instead(self):
+        """When even the header does not fit, returning it would spend the whole budget
+        on column names and leave no room for data."""
+        ts = SQLToolset("pg_default", max_result_bytes=256)
+        ts._hook = _make_mock_db_hook(
+            records=[tuple(range(3000))],
+            last_description=[(f"column_name_{i}",) for i in range(3000)],
+        )
+
+        data = _query(ts, "SELECT * FROM very_wide")
+        assert "columns" not in data
+        assert data["column_count"] == 3000
+        assert data["rows"] == []
+        assert "3000 columns" in data["hint"]
+
+    def test_no_rows_matched(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(records=[], last_description=[("id",), ("name",)])
+
+        data = _query(ts, "SELECT id, name FROM users WHERE 1=0")
+        assert data == {"columns": ["id", "name"], "rows": [], "row_count": 0}
+
+    def test_statement_returning_no_result_set(self):
+        """A DBAPI cursor reports description=None for DDL and for DML without
+        RETURNING; that is not an error, just no rows."""
+        ts = SQLToolset("pg_default", allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(_FakeCursor([], None, -1))
+
+        assert _query(ts, "INSERT INTO users VALUES (3, 'Eve')")["row_count"] == 0
+
+    def test_non_dbapi_cursor_falls_back_to_a_full_fetch(self):
+        """ExasolHook hands its handler a pyexasol statement, which has no
+        ``description``. Bounding the fetch needs driver-specific knowledge, so those
+        fall back to fetching everything -- as the toolset did before -- rather than
+        failing the query. The payload is still bounded."""
+
+        class _NonDbapiStatement:
+            def __init__(self, records):
+                self._records = records
+
+            def fetchall(self):
+                return self._records
+
+        ts = SQLToolset("pg_default", max_rows=2)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(
+            _NonDbapiStatement([(i, f"name_{i}") for i in range(10)])
+        )
+
+        data = _query(ts, "SELECT id, name FROM users")
+        assert data["rows"] == [[0, "name_0"], [1, "name_1"]]
+        assert data["truncated_by"] == "max_rows"
+        # A full fetch left nothing behind, so the count is exact and worth reporting.
+        assert data["total_rows"] == 10
+
+    def test_cursor_that_can_neither_describe_nor_fetch_is_an_error(self):
+        """Returning an empty result would read to the agent as 'the table is empty'."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = lambda sql, handler, **kwargs: handler(object())
+
+        with pytest.raises(ModelRetry, match="DBAPI 2.0"):
+            _query(ts, "SELECT id FROM users")
+
+    def test_trailing_semicolon_is_stripped(self):
+        """get_records did this for the hooks that override it -- Trino rejects a
+        trailing semicolon -- so fetching through run() has to keep doing it."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        _query(ts, "SELECT id FROM users;")
+        _assert_executed(ts._hook, "SELECT id FROM users")
 
     def test_unsafe_sql_raises_model_retry(self):
         """An unsafe statement is surfaced to the agent as a retry so it can switch to a SELECT."""
@@ -214,7 +431,7 @@ class TestSQLToolsetQuery:
         max_retries bounds the loop, so an unrecoverable error still fails the task."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.get_records.side_effect = error
+        ts._hook.run.side_effect = error
 
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(
@@ -430,7 +647,7 @@ class TestSQLToolsetMetadataStatements:
         )
         data = json.loads(result)
         assert "rows" in data
-        ts._hook.get_records.assert_called_once_with("DESCRIBE TABLE users")
+        _assert_executed(ts._hook, "DESCRIBE TABLE users")
 
     def test_show_allowed_with_snowflake_dialect(self):
         """SHOW parses to a metadata statement once the hook's dialect is passed through."""
@@ -441,7 +658,7 @@ class TestSQLToolsetMetadataStatements:
         result = asyncio.run(ts.call_tool("query", {"sql": "SHOW TABLES"}, ctx=MagicMock(), tool=MagicMock()))
         data = json.loads(result)
         assert "rows" in data
-        ts._hook.get_records.assert_called_once_with("SHOW TABLES")
+        _assert_executed(ts._hook, "SHOW TABLES")
 
     @pytest.mark.parametrize(
         "sql",
@@ -459,7 +676,7 @@ class TestSQLToolsetMetadataStatements:
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(ts.call_tool("query", {"sql": sql}, ctx=MagicMock(), tool=MagicMock()))
         assert "not allowed" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_check_query_accepts_describe(self):
         ts = SQLToolset("pg_default")
@@ -500,7 +717,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         result = _run_query(ts, "SELECT id FROM orders")
 
         assert "rows" in json.loads(result)
-        ts._hook.get_records.assert_called_once_with("SELECT id FROM orders")
+        _assert_executed(ts._hook, "SELECT id FROM orders")
 
     def test_query_blocks_table_off_the_list(self):
         """The headline escape: querying a table that is not on the allow-list is refused."""
@@ -512,7 +729,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
 
         assert "not in the allowed tables list" in exc_info.value.message
         assert "secret_salaries" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     @pytest.mark.parametrize(
         "sql",
@@ -533,7 +750,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, sql)
 
         assert "secret_salaries" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_blocks_catalog_enumeration(self):
         """information_schema/pg_catalog are ordinary tables, so the allow-list blocks them too."""
@@ -544,7 +761,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "SELECT table_name FROM information_schema.tables")
 
         assert "information_schema.tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_allows_cte_reference_not_mistaken_for_table(self):
         """A CTE whose name is not on the list is fine as long as its body stays allowed."""
@@ -565,7 +782,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)")
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     @pytest.mark.parametrize(
         "sql",
@@ -590,7 +807,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, sql)
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_blocks_copy_from_program_under_allow_writes(self):
         """COPY ... FROM PROGRAM is OS command execution. Even with allow_writes=True (only
@@ -604,7 +821,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "COPY orders FROM PROGRAM 'id > /tmp/x'")
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_check_query_reports_data_reaching_function_invalid(self):
         """check_query surfaces the same rejection so the agent learns before executing."""
@@ -626,7 +843,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         result = _run_query(ts, "SELECT count(*), lower(name) FROM orders")
 
         assert "rows" in json.loads(result)
-        ts._hook.get_records.assert_called_once_with("SELECT count(*), lower(name) FROM orders")
+        _assert_executed(ts._hook, "SELECT count(*), lower(name) FROM orders")
 
     def test_query_blocks_unrecognized_function_by_default(self):
         """Fail-closed: a legit-but-unrecognized builtin (json_build_object) is refused
@@ -639,7 +856,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "SELECT json_build_object('id', id) FROM orders")
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_allows_function_named_in_allowed_functions(self):
         """allowed_functions is the opt-in escape hatch for a safe unrecognized function."""
@@ -650,7 +867,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         result = _run_query(ts, "SELECT json_build_object('id', id) FROM orders")
 
         assert "rows" in json.loads(result)
-        ts._hook.get_records.assert_called_once_with("SELECT json_build_object('id', id) FROM orders")
+        _assert_executed(ts._hook, "SELECT json_build_object('id', id) FROM orders")
 
     def test_allowed_functions_does_not_permit_a_dangerous_sibling(self):
         """Permitting one function does not open the door to another unlisted one."""
@@ -662,7 +879,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "SELECT json_build_object('x', pg_read_file('/etc/passwd')) FROM orders")
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_blocks_show_when_allowlist_active(self):
         ts = SQLToolset("sf_default", allowed_tables=["orders"])
@@ -673,7 +890,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "SHOW TABLES")
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_blocks_describe_of_disallowed_table(self):
         ts = SQLToolset("sf_default", allowed_tables=["orders"])
@@ -684,7 +901,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "DESCRIBE TABLE secret_salaries")
 
         assert "secret_salaries" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_query_allows_describe_of_allowed_table(self):
         ts = SQLToolset("sf_default", allowed_tables=["orders"])
@@ -694,7 +911,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         result = _run_query(ts, "DESCRIBE TABLE orders")
 
         assert "rows" in json.loads(result)
-        ts._hook.get_records.assert_called_once_with("DESCRIBE TABLE orders")
+        _assert_executed(ts._hook, "DESCRIBE TABLE orders")
 
     def test_query_allows_schema_qualified_table_on_list(self):
         ts = SQLToolset("sf", allowed_tables=["MODEL_CRM.SF_ASTRO_ORGS"])
@@ -722,7 +939,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
         result = _run_query(ts, "SELECT * FROM anything_at_all")
 
         assert "rows" in json.loads(result)
-        ts._hook.get_records.assert_called_once_with("SELECT * FROM anything_at_all")
+        _assert_executed(ts._hook, "SELECT * FROM anything_at_all")
 
     def test_check_query_reports_disallowed_table_as_invalid(self):
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
@@ -746,14 +963,14 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
 
         # An allowed target is written.
         _run_query(ts, "INSERT INTO orders (id) VALUES (1)")
-        ts._hook.get_records.assert_called_once_with("INSERT INTO orders (id) VALUES (1)")
+        _assert_executed(ts._hook, "INSERT INTO orders (id) VALUES (1)")
 
         # A disallowed target is refused before execution.
-        ts._hook.get_records.reset_mock()
+        ts._hook.run.reset_mock()
         with pytest.raises(ModelRetry) as exc_info:
             _run_query(ts, "INSERT INTO secret_salaries (id) VALUES (1)")
         assert "secret_salaries" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_writes_reject_dynamic_sql_the_parser_cannot_inspect(self):
         """allow_writes skips the read-only validator, so the allow-list must still
@@ -766,7 +983,7 @@ class TestSQLToolsetAllowedTablesQueryEnforcement:
             _run_query(ts, "EXEC sp_who")
 
         assert "cannot be checked against allowed_tables" in exc_info.value.message
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
 
 class TestSQLToolsetAllowedTablesBypassRegressions:
@@ -836,7 +1053,7 @@ class TestSQLToolsetAllowedTablesBypassRegressions:
 
         with pytest.raises(ModelRetry):
             _run_query(ts, sql)
-        ts._hook.get_records.assert_not_called()
+        ts._hook.run.assert_not_called()
 
     def test_legit_cte_over_allowed_table_still_runs(self):
         """The scope-aware fix must not false-reject a genuine CTE over an allowed table."""
@@ -846,7 +1063,7 @@ class TestSQLToolsetAllowedTablesBypassRegressions:
         result = _run_query(ts, "WITH ranked AS (SELECT * FROM orders) SELECT * FROM ranked")
 
         assert "rows" in json.loads(result)
-        ts._hook.get_records.assert_called_once()
+        assert ts._hook.run.call_count == 1
 
     def test_dml_with_cte_source_over_allowed_table_runs(self):
         """A CTE used as a DML source must not be mistaken for a disallowed base table."""
@@ -856,4 +1073,4 @@ class TestSQLToolsetAllowedTablesBypassRegressions:
         sql = "WITH src AS (SELECT * FROM orders) INSERT INTO orders SELECT * FROM src"
         _run_query(ts, sql)
 
-        ts._hook.get_records.assert_called_once_with(sql)
+        _assert_executed(ts._hook, sql)

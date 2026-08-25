@@ -1657,7 +1657,8 @@ TEAMS_COMMANDS = (
         name="create",
         help="Create a team",
         description=(
-            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+            "Create a team. Team names must be 3-50 characters long and contain only lower case letters, "
+            "digits, hyphens and underscores, with no two consecutive underscores.\n"
         ),
         func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
         args=(ARG_TEAM_NAME, ARG_VERBOSE),
@@ -1679,6 +1680,13 @@ TEAMS_COMMANDS = (
         help="Sync teams",
         description=("Sync missing teams from the dag bundle config into the database.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
+        args=(ARG_VERBOSE,),
+    ),
+    ActionCommand(
+        name="verify",
+        help="Verify multi-team configuration",
+        description=("Verify that the multi-team configuration is internally consistent.\n"),
+        func=lazy_load_command("airflow.cli.commands.team_command.team_verify"),
         args=(ARG_VERBOSE,),
     ),
 )
