@@ -16,14 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, createListCollection, Flex, HStack, Text } from "@chakra-ui/react";
+import { Box, Button, createListCollection, Flex, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { FilterBar } from "src/components/FilterBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { Select } from "src/components/ui/Select";
-import { TagFilter } from "src/pages/DagsList/DagsFilters/TagFilter";
-import { TimetableTypeFilter } from "src/pages/DagsList/DagsFilters/TimetableTypeFilter";
 
 import {
   DAG_RUN_LIMITS,
@@ -39,18 +37,6 @@ type TimeScheduleControlsProps = {
   readonly filterConfigs: Parameters<typeof FilterBar>[0]["configs"];
   readonly initialValues: Parameters<typeof FilterBar>[0]["initialValues"];
   readonly onFiltersChange: Parameters<typeof FilterBar>[0]["onFiltersChange"];
-  readonly onSelectTagsChange: (tags: Array<string>) => void;
-  readonly onTagFilterModeChange: ({ checked }: { checked: boolean }) => void;
-  readonly onTagInputChange: (value: string) => void;
-  readonly onTagMenuScrollToBottom: () => void;
-  readonly onTimetableTypeChange: (timetableTypes: Array<string>) => void;
-  readonly onTimetableTypeInputChange: (value: string) => void;
-  readonly onTimetableTypeMenuScrollToBottom: () => void;
-  readonly selectedTags: Array<string>;
-  readonly selectedTimetableTypes: Array<string>;
-  readonly tagFilterMode: "all" | "any";
-  readonly tags: Array<string>;
-  readonly timetableTypes: Array<string>;
 };
 
 type TimeScheduleViewControlsProps = {
@@ -73,18 +59,6 @@ export const TimeScheduleControls = ({
   filterConfigs,
   initialValues,
   onFiltersChange,
-  onSelectTagsChange,
-  onTagFilterModeChange,
-  onTagInputChange,
-  onTagMenuScrollToBottom,
-  onTimetableTypeChange,
-  onTimetableTypeInputChange,
-  onTimetableTypeMenuScrollToBottom,
-  selectedTags,
-  selectedTimetableTypes,
-  tagFilterMode,
-  tags,
-  timetableTypes,
 }: TimeScheduleControlsProps) => (
   <Flex align="flex-start" gap={4} justify="space-between" wrap="wrap">
     <Box flex="0 1 auto" maxW="100%" width="fit-content">
@@ -95,35 +69,6 @@ export const TimeScheduleControls = ({
         showPresetFilters={false}
       />
     </Box>
-    <HStack
-      alignItems="flex-start"
-      flex="0 1 auto"
-      gap={2}
-      marginStart="auto"
-      maxW="100%"
-      position="relative"
-      wrap="wrap"
-      zIndex={10}
-    >
-      <TimetableTypeFilter
-        onChange={onTimetableTypeChange}
-        onInputChange={onTimetableTypeInputChange}
-        onMenuScrollToBottom={onTimetableTypeMenuScrollToBottom}
-        onMenuScrollToTop={() => undefined}
-        timetableTypes={timetableTypes}
-        values={selectedTimetableTypes}
-      />
-      <TagFilter
-        onMenuScrollToBottom={onTagMenuScrollToBottom}
-        onMenuScrollToTop={() => undefined}
-        onSelectTagsChange={onSelectTagsChange}
-        onTagModeChange={onTagFilterModeChange}
-        onUpdate={onTagInputChange}
-        selectedTags={selectedTags}
-        tagFilterMode={tagFilterMode}
-        tags={tags}
-      />
-    </HStack>
   </Flex>
 );
 

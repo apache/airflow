@@ -24,8 +24,6 @@ import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import type { TimeScheduleBatch, TimeScheduleItem } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
-import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
-import { useDagTimetableTypesInfinite } from "src/queries/useDagTimetableTypesInfinite";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 import { buildTimelineRows } from "./timelineUtils";
@@ -64,20 +62,14 @@ export const useTimeScheduleData = ({
   timeScale,
   viewMode,
 }: UseTimeScheduleDataProps) => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [streamTimeScale] = useDebounce(timeScale, 200);
-  const [tagPattern, setTagPattern] = useState("");
-  const [timetableTypePattern, setTimetableTypePattern] = useState("");
   const [timelineItems, setTimelineItems] = useState<Array<TimelineItem>>([]);
   const [dagRunCount, setDagRunCount] = useState(0);
   const [error, setError] = useState<Error>();
   const [isLoading, setIsLoading] = useState(true);
   const previousNonZoomStreamQueryRef = useRef<string | undefined>(undefined);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const selectedTags = searchParams.getAll(SearchParamsKeys.TAGS).filter(Boolean);
-  const selectedTimetableTypes = searchParams.getAll(SearchParamsKeys.TIMETABLE_TYPE).filter(Boolean);
-  const tagFilterMode: "all" | "any" =
-    searchParams.get(SearchParamsKeys.TAGS_MATCH_MODE) === "all" ? "all" : "any";
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.DAG_ID_PATTERN,
     SearchParamsKeys.STATE,
@@ -86,41 +78,14 @@ export const useTimeScheduleData = ({
     SearchParamsKeys.START_DATE_RANGE,
     SearchParamsKeys.DURATION_GTE,
     SearchParamsKeys.DURATION_LTE,
+    SearchParamsKeys.TAGS,
+    SearchParamsKeys.TIMETABLE_TYPE,
   ];
 
   if (multiTeamEnabled) {
     searchParamKeys.push(SearchParamsKeys.TEAMS);
   }
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
-  const { data: tagData, fetchNextPage: fetchNextTagPage } = useDagTagsInfinite({
-    limit: 10,
-    orderBy: ["name"],
-    tagNamePattern: tagPattern,
-  });
-  const { data: timetableTypeData, fetchNextPage: fetchNextTimetableTypePage } = useDagTimetableTypesInfinite(
-    { limit: 10, timetableTypePrefixPattern: timetableTypePattern },
-  );
-
-  const updateSearchParamValues = (key: string, values: Array<string>) => {
-    setSearchParams((previousSearchParams) => {
-      const nextSearchParams = new URLSearchParams(previousSearchParams);
-
-      nextSearchParams.delete(key);
-      values.forEach((value) => nextSearchParams.append(key, value));
-
-      return nextSearchParams;
-    });
-  };
-
-  const handleTagFilterModeChange = ({ checked }: { checked: boolean }) => {
-    setSearchParams((previousSearchParams) => {
-      const nextSearchParams = new URLSearchParams(previousSearchParams);
-
-      nextSearchParams.set(SearchParamsKeys.TAGS_MATCH_MODE, checked ? "all" : "any");
-
-      return nextSearchParams;
-    });
-  };
 
   const streamQuery = useMemo(() => {
     const query = new URLSearchParams();
@@ -267,19 +232,6 @@ export const useTimeScheduleData = ({
       filterConfigs,
       initialValues,
       onFiltersChange: handleFiltersChange,
-      onSelectTagsChange: (tags: Array<string>) => updateSearchParamValues(SearchParamsKeys.TAGS, tags),
-      onTagFilterModeChange: handleTagFilterModeChange,
-      onTagInputChange: setTagPattern,
-      onTagMenuScrollToBottom: () => void fetchNextTagPage(),
-      onTimetableTypeChange: (types: Array<string>) =>
-        updateSearchParamValues(SearchParamsKeys.TIMETABLE_TYPE, types),
-      onTimetableTypeInputChange: setTimetableTypePattern,
-      onTimetableTypeMenuScrollToBottom: () => void fetchNextTimetableTypePage(),
-      selectedTags,
-      selectedTimetableTypes,
-      tagFilterMode,
-      tags: tagData?.pages.flatMap((response) => response.tags) ?? [],
-      timetableTypes: timetableTypeData?.pages.flatMap((response) => response.timetable_types) ?? [],
     },
     dagRunCount,
     dayRows,
