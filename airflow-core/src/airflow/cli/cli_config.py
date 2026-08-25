@@ -1657,7 +1657,8 @@ TEAMS_COMMANDS = (
         name="create",
         help="Create a team",
         description=(
-            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+            "Create a team. Team names must be 3-50 characters long and contain only lower case letters, "
+            "digits, hyphens and underscores, with no two consecutive underscores.\n"
         ),
         func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
         args=(ARG_TEAM_NAME, ARG_VERBOSE),
