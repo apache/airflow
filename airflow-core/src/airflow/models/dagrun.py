@@ -855,7 +855,7 @@ class DagRun(Base, LoggingMixin):
                 # don't set paused dag runs as running, but a completed backfill's
                 # is_paused flag is stale: a run cleared after the backfill was
                 # cancelled (cancel sets is_paused=True and completed_at) must still
-                # be schedulable, otherwise it is stuck in queued forever. See #69658.
+                # be schedulable, otherwise it is stuck in queued forever.
                 or_(
                     Backfill.completed_at.isnot(None),
                     not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
