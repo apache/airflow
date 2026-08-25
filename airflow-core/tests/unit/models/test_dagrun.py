@@ -2206,6 +2206,61 @@ def test_mapped_expansion_defers_some_tis_with_non_positive_tis_query_limit(dag_
     assert indices == [("task_2", 1)]
 
 
+def test_revise_map_indexes_defers_some_tis_to_later_scheduler_pass(dag_maker, session):
+    @task
+    def task_1(): ...
+
+    with dag_maker(session=session):
+
+        @task
+        def task_2(arg2): ...
+
+        task_2.expand(arg2=task_1())
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    ti.state = TaskInstanceState.SUCCESS
+
+    # Establish an initial mapped length to create one existing mapped TI instance.
+    session.add(TaskMap.from_task_instance_xcom(ti, [1]))
+    session.flush()
+
+    with conf_vars({("scheduler", "max_tis_per_query"): "2"}):
+        dr.task_instance_scheduling_decisions(session=session)
+
+    # Increase the mapped length significantly. Revision adds four new indexes, but only two should be
+    # returned in the first scheduler pass.
+    session.merge(TaskMap.from_task_instance_xcom(ti, [1, 2, 3, 4, 5]))
+    session.flush()
+
+    with conf_vars({("scheduler", "max_tis_per_query"): "2"}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+    indices = [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert indices == [("task_2", 1), ("task_2", 2)]
+    for ti in decision.schedulable_tis:
+        ti.state = TaskInstanceState.SCHEDULED
+
+    existing_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == dr.dag_id,
+            TI.task_id == "task_2",
+            TI.run_id == dr.run_id,
+            TI.map_index == 0,
+        )
+    )
+    assert existing_ti
+    existing_ti.state = TaskInstanceState.SCHEDULED
+    session.flush()
+
+    with conf_vars({("scheduler", "max_tis_per_query"): "2"}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+    indices = [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert indices == [("task_2", 3), ("task_2", 4)]
+
+
 def test_revise_map_indexes_if_mapped_uses_bulk_insert_when_mutation_hook_is_noop(dag_maker, session) -> None:
     dag, mapped, dr = _make_mapped_dag_for_expansion(
         dag_maker, session, dag_id="test_revise_map_indexes_bulk"
