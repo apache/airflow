@@ -1305,7 +1305,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         if cs.state and cs.state.terminated:
                             container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
-                if phase == "Failed" and container_completed:
+                if phase == "Failed" and container_completed and driver_container:
                     self.log.warning(
                         "Driver pod %s reported phase=Failed, but driver container %s exited 0; "
                         "treating the Spark application as succeeded.",
