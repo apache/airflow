@@ -35,12 +35,15 @@ from airflow.sdk.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
-    TaskDeferralError,
     TaskDeferralTimeout,
 )
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+
+# soft_fail turns these into a skip whether they surface from poke() or after resuming from a
+# trigger; every other error fails the sensor. Both paths share the tuple so they cannot drift.
+_SOFT_FAIL_EXCEPTIONS = (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException)
 
 
 class PokeReturnValue:
@@ -69,8 +72,8 @@ class BaseSensorOperator(BaseOperator):
     Sensor operators keep executing at a time interval and succeed when
     a criteria is met and fail if and when they time out.
 
-    :param soft_fail: Set to true to mark the task as SKIPPED on failure.
-           Mutually exclusive with never_fail.
+    :param soft_fail: Set to true to mark the task as SKIPPED when it times out or raises
+           ``AirflowFailException``. Mutually exclusive with never_fail.
     :param poke_interval: Time that the job should wait in between each try.
         Can be ``timedelta`` or ``float`` seconds.
     :param timeout: Time elapsed before the task times out and fails.
@@ -205,11 +208,7 @@ class BaseSensorOperator(BaseOperator):
         while True:
             try:
                 poke_return = self.poke(context)
-            except (
-                AirflowSensorTimeout,
-                AirflowTaskTimeout,
-                AirflowFailException,
-            ) as e:
+            except _SOFT_FAIL_EXCEPTIONS as e:
                 if self.soft_fail:
                     raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
                 if self.never_fail:
@@ -251,16 +250,25 @@ class BaseSensorOperator(BaseOperator):
         return xcom_value
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        # Use nested try/except to convert TaskDeferralTimeout to AirflowSensorTimeout
-        # while still allowing soft_fail/never_fail to handle both exception types.
+        # Nested try/except so a trigger timeout becomes AirflowSensorTimeout before soft_fail
+        # and never_fail are applied to it.
         try:
             try:
                 return super().resume_execution(next_method, next_kwargs, context)
             except TaskDeferralTimeout as e:
                 raise AirflowSensorTimeout(*e.args) from e
-        except (AirflowException, TaskDeferralError) as e:
+        except _SOFT_FAIL_EXCEPTIONS as e:
             if self.soft_fail:
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+            if self.never_fail:
+                raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
+            raise
+        except AirflowSkipException:
+            raise
+        except AirflowException as e:
+            # execute() only skips the exceptions handled above; anything else here (a crashed
+            # trigger, an error event raised by execute_complete) is a real failure, and soft_fail
+            # must not hide it behind a skip.
             if self.never_fail:
                 raise AirflowSkipException("Skipping due to never_fail is set to True.") from e
             raise

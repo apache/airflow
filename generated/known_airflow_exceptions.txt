@@ -418,5 +418,4 @@ task-sdk/src/airflow/sdk/definitions/connection.py::4
 task-sdk/src/airflow/sdk/definitions/decorators/setup_teardown.py::4
 task-sdk/src/airflow/sdk/definitions/xcom_arg.py::1
 task-sdk/src/airflow/sdk/execution_time/task_runner.py::1
-task-sdk/tests/task_sdk/bases/test_sensor.py::1
 task-sdk/tests/task_sdk/execution_time/test_task_runner.py::2
