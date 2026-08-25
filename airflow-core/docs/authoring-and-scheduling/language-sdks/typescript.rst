@@ -261,8 +261,9 @@ Building and packaging
 
 ``airflow-ts-pack`` (shipped with the SDK) bundles the entry module and all of its imports with esbuild into
 a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the ``dag_id`` and ``task_id``
-map plus the supervisor schema version) as a leading ``//# airflowMetadata=<base64>`` comment — one file to
-deploy, with no separate manifest or ``node_modules``.
+map plus the supervisor schema version) after a leading ``//# airflowBundle=<base64>`` layout header. The
+layout records the byte ranges and SHA-256 digests of the manifest and executable code — one file to deploy,
+with no separate manifest or ``node_modules``.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
@@ -280,7 +281,8 @@ Deploying
 
 Copy or mount ``bundle.mjs`` into a directory listed in the coordinator's ``bundles_root``.
 :class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order and
-launches the first usable bundle with ``node``.
+launches the first integrity-verified bundle whose metadata declares the task instance's Dag. If multiple
+bundles declare the same Dag, the first configured match wins.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -299,8 +301,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``bundles_root``
      - *(required)*
-     - One or more directories searched, in order, for a ``bundle.mjs`` with embedded metadata. Accepts a
-       string, a path, or a list of strings/paths.
+     - One or more directories searched, in order, for an integrity-verified ``bundle.mjs`` that declares
+       the requested Dag. Accepts a string, a path, or a list of strings/paths.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -316,8 +318,5 @@ Limitations
   languages, so task names and dependencies are declared in Python with
   :func:`@task.stub <airflow.sdk.task.stub>`.
 * **Beta status.** The SDK API may change in incompatible ways between releases.
-* **One bundle per coordinator.** :class:`~airflow.sdk.coordinators.node.NodeCoordinator` launches the first
-  usable bundle found in ``bundles_root``; it does not yet route different Dags or tasks to different
-  bundles. To serve multiple bundles, register multiple coordinators on separate queues.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.

@@ -18,20 +18,30 @@
 
 from __future__ import annotations
 
-import base64
+import json
 import pathlib
+from unittest import mock
 
 import pytest
+from task_sdk.coordinators.node._bundle_test_utils import (
+    mutate_byte,
+    read_layout,
+    write_bundle,
+)
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.coordinators.node.coordinator import (
-    EMBEDDED_METADATA_MAX_BYTES,
-    NodeCoordinator,
-    _find_bundle,
-)
+from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle
+from airflow.sdk.coordinators.node import _bundle_reader as _reader
+from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
+from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _select_bundle
 
 SCHEMA_VERSION = "2026-06-16"
+
+
+@pytest.fixture(autouse=True)
+def clear_digest_cache():
+    _digest_cache.clear()
 
 
 def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
@@ -45,31 +55,6 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
         map_index=-1,
         queue=queue,
     )
-
-
-def _metadata_yaml(schema_version: str) -> str:
-    return f"""\
-airflow_bundle_metadata_version: "1.0"
-sdk:
-  language: typescript
-  version: "0.1.0"
-  supervisor_schema_version: "{schema_version}"
-source: src/airflow.ts
-dags:
-  test_dag:
-    tasks:
-      - test_task
-"""
-
-
-def write_bundle(
-    root: pathlib.Path, schema_version: str = SCHEMA_VERSION, payload: str | None = None
-) -> pathlib.Path:
-    if payload is None:
-        payload = base64.b64encode(_metadata_yaml(schema_version).encode("utf-8")).decode("ascii")
-    bundle = root / "bundle.mjs"
-    bundle.write_text(f"//# airflowMetadata={payload}\nexport {{}};\n", encoding="utf-8")
-    return bundle
 
 
 class TestNodeCoordinatorAttributes:
@@ -99,125 +84,184 @@ class TestNodeCoordinatorAttributes:
             NodeCoordinator(bundles_root=None)
 
 
-class TestNodeCoordinatorBundleSelection:
-    def test_find_bundle_returns_bundle_mjs(self, tmp_path):
-        bundle = write_bundle(tmp_path)
+class TestNodeCoordinatorExecuteTaskCommand:
+    @mock.patch("airflow.sdk.coordinators.node.coordinator._select_bundle", autospec=True)
+    def test_selects_bundle_by_dag_id(self, select_bundle, tmp_path):
+        selected = tmp_path / "selected" / "bundle.mjs"
+        select_bundle.return_value = ResolvedBundle(path=selected, schema_version=SCHEMA_VERSION)
+        coordinator = NodeCoordinator(
+            node_executable="/opt/node/bin/node",
+            bundles_root=tmp_path,
+        )
 
-        found = _find_bundle([tmp_path])
+        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
 
-        assert found.path == bundle
-        assert found.schema_version == SCHEMA_VERSION
+        select_bundle.assert_called_once_with([tmp_path], "sales")
+        assert command == ["/opt/node/bin/node", str(selected)]
+        assert schema_version == SCHEMA_VERSION
 
-    @pytest.mark.parametrize(
-        ("payload", "message"),
-        [
-            ("not-base64!", "cannot parse embedded airflow metadata"),
-            (base64.b64encode(b"[not-a-mapping]").decode("ascii"), "must contain a mapping"),
-            (base64.b64encode(b"sdk: [not-a-mapping]").decode("ascii"), "missing sdk metadata mapping"),
-            (
-                base64.b64encode(b"sdk:\n  language: typescript").decode("ascii"),
-                "missing or invalid sdk.supervisor_schema_version",
-            ),
-        ],
-    )
-    def test_find_bundle_rejects_invalid_embedded_metadata(self, tmp_path, payload, message):
-        write_bundle(tmp_path, payload=payload)
 
-        with pytest.raises(FileNotFoundError, match=message):
-            _find_bundle([tmp_path])
+class TestBundleSelection:
+    def test_ignores_roots_without_bundle_mjs(self, tmp_path):
+        (tmp_path / "tasks.mjs").write_bytes(b"export {};\n")
 
-    def test_find_bundle_rejects_oversized_embedded_metadata(self, tmp_path):
-        write_bundle(tmp_path, payload="A" * EMBEDDED_METADATA_MAX_BYTES)
+        with pytest.raises(FileNotFoundError, match="dag_id='sales'"):
+            _select_bundle([tmp_path], "sales")
 
-        with pytest.raises(FileNotFoundError, match="embedded airflow metadata exceeds"):
-            _find_bundle([tmp_path])
-
-    def test_find_bundle_rejects_empty_marker(self, tmp_path):
-        (tmp_path / "bundle.mjs").write_text("//# airflowMetadata=\nexport {};\n", encoding="utf-8")
-
-        with pytest.raises(FileNotFoundError, match="must contain a mapping"):
-            _find_bundle([tmp_path])
-
-    def test_find_bundle_checks_multiple_roots(self, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        bundle = write_bundle(second)
-
-        found = _find_bundle([first, second])
-
-        assert found.path == bundle
-        assert found.schema_version == SCHEMA_VERSION
-
-    def test_find_bundle_ignores_other_mjs_names(self, tmp_path):
-        (tmp_path / "tasks.mjs").write_text("export {};\n")
-
-        with pytest.raises(FileNotFoundError, match="Cannot find bundle.mjs"):
-            _find_bundle([tmp_path])
-
-    def test_find_bundle_rejects_bundle_without_metadata(self, tmp_path):
-        (tmp_path / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
-
-        with pytest.raises(FileNotFoundError, match="no embedded airflow metadata"):
-            _find_bundle([tmp_path])
-
-    def test_find_bundle_reports_unreadable_bundle(self, tmp_path, monkeypatch):
-        write_bundle(tmp_path)
+    def test_reports_unreadable_bundle(self, tmp_path, monkeypatch):
+        write_bundle(tmp_path, "sales")
+        original_open = pathlib.Path.open
 
         def raise_os_error(self, *args, **kwargs):
             if self.name == "bundle.mjs":
                 raise PermissionError("denied")
             return original_open(self, *args, **kwargs)
 
-        original_open = pathlib.Path.open
         monkeypatch.setattr(pathlib.Path, "open", raise_os_error)
 
         with pytest.raises(FileNotFoundError, match="cannot read bundle.mjs"):
-            _find_bundle([tmp_path])
+            _select_bundle([tmp_path], "sales")
 
-    def test_find_bundle_rejects_invalid_schema_version(self, tmp_path):
-        write_bundle(tmp_path, schema_version="banana")
-
-        with pytest.raises(FileNotFoundError, match="Version 'banana' not found"):
-            _find_bundle([tmp_path])
-
-    def test_find_bundle_skips_rejected_bundle_metadata(self, tmp_path):
+    def test_skips_root_when_bundle_probe_fails(self, tmp_path, monkeypatch):
         first = tmp_path / "first"
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
-        (first / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
-        bundle = write_bundle(second)
+        write_bundle(first, "sales")
+        expected = write_bundle(second, "sales")
+        original_is_file = pathlib.Path.is_file
 
-        found = _find_bundle([first, second])
+        def fail_first_probe(self):
+            if self.parent == first:
+                raise PermissionError("denied")
+            return original_is_file(self)
 
-        assert found.path == bundle
-        assert found.schema_version == SCHEMA_VERSION
+        monkeypatch.setattr(pathlib.Path, "is_file", fail_first_probe)
 
-    def test_find_bundle_raises_with_searched_roots(self, tmp_path):
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_skips_rejected_bundle_when_path_resolution_fails(self, tmp_path, monkeypatch):
         first = tmp_path / "first"
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
+        (first / "bundle.mjs").write_bytes(b"export {};\n")
+        expected = write_bundle(second, "sales")
+        original_resolve = pathlib.Path.resolve
+
+        def fail_first_resolve(self, *args, **kwargs):
+            if self.parent == first:
+                raise PermissionError("denied")
+            return original_resolve(self, *args, **kwargs)
+
+        monkeypatch.setattr(pathlib.Path, "resolve", fail_first_resolve)
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_selects_later_bundle_containing_requested_dag(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        write_bundle(first, "inventory")
+        expected = write_bundle(second, "sales")
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_first_configured_match_wins_for_duplicate_dag(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        expected = write_bundle(first, "sales", code=b'console.log("first");\n')
+        write_bundle(second, "sales", code=b'console.log("second");\n')
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_skips_corrupt_candidate_and_selects_later_match(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        corrupt = write_bundle(first, "sales")
+        layout = read_layout(corrupt)
+        mutate_byte(corrupt, int(layout["code"]["start"], 16))  # type: ignore[index, call-overload]
+        expected = write_bundle(second, "sales")
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_skips_deeply_nested_metadata_and_selects_later_match(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        deeply_nested_json = b'{"nested":' + (b"[" * 10_000) + b"0" + (b"]" * 10_000) + b"}"
+        write_bundle(first, "sales", metadata_payload=deeply_nested_json)
+        expected = write_bundle(second, "sales")
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_skips_layout_decoder_recursion_and_selects_later_match(self, tmp_path, monkeypatch):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        write_bundle(first, "sales")
+        expected = write_bundle(second, "sales")
+        original_loads = json.loads
+        call_count = 0
+
+        def recurse_once(payload):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RecursionError("test recursion")
+            return original_loads(payload)
+
+        monkeypatch.setattr(_reader.json, "loads", recurse_once)
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_skips_matching_bundle_with_invalid_schema_version(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        write_bundle(first, "sales", schema_version="banana")
+        expected = write_bundle(second, "sales")
+
+        found = _select_bundle([first, second], "sales")
+
+        assert found.path == expected
+
+    def test_error_names_dag_roots_and_rejected_candidates(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        (first / "bundle.mjs").write_bytes(b"export {};\n")
+        write_bundle(second, "inventory")
 
         with pytest.raises(FileNotFoundError) as exc_info:
-            _find_bundle([first, second])
+            _select_bundle([first, second], "sales")
 
-        msg = str(exc_info.value)
-        assert str(first.resolve()) in msg
-        assert str(second.resolve()) in msg
-
-
-class TestNodeCoordinatorExecuteTaskCommand:
-    def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
-        bundle = write_bundle(tmp_path)
-        coordinator = NodeCoordinator(
-            node_executable="/opt/node/bin/node",
-            bundles_root=tmp_path,
-        )
-
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
-
-        assert command == ["/opt/node/bin/node", str(bundle)]
-        assert schema_version == SCHEMA_VERSION
+        message = str(exc_info.value)
+        assert "dag_id='sales'" in message
+        assert str(first) in message
+        assert str(second) in message
+        assert "rejected candidates" in message
+        assert "matching bundles were rejected" not in message

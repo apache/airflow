@@ -173,7 +173,7 @@ uses a Python stub Dag.
 
 ## Packing bundles
 
-`airflow-ts-pack` produces everything `NodeCoordinator` needs in one command.
+`airflow-ts-pack` produces a single self-contained bundle in one command.
 Packing is build-time only, so `esbuild` is an optional peer dependency the
 runtime install skips:
 
@@ -185,9 +185,13 @@ airflow-ts-pack src/main.ts --outdir dist
 It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
 bundle with `--airflow-metadata` so the bundle reports its own registered
 Dag/task pairs and supervisor schema version, and embeds that manifest in the
-bundle as a leading `//# airflowMetadata=<base64>` comment. The result is a
-single deployable file whose metadata cannot drift from its code; no
-hand-written sidecar is needed.
+bundle as a compact JSON `//# airflowMetadata=...` comment after a leading
+`//# airflowBundle=<base64>` layout descriptor. The descriptor records
+fixed-width byte ranges and SHA-256 digests for the metadata and bundled code,
+allowing a coordinator reader to detect corruption before using either region.
+These in-bundle digests do not authenticate who produced the bundle because
+someone who can replace the content can also replace its digests. The result is
+one deployable file with no hand-written metadata sidecar.
 
 Options:
 

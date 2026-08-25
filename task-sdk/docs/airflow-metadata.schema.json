@@ -37,7 +37,7 @@
     },
     "source": {
       "type": "string",
-      "description": "Original filename of the primary DAG source file (e.g. 'example.go'). The file's bytes are embedded in the bundle's source region; this field is a display name used by the Airflow UI.",
+      "description": "Original filename of the primary Dag source file (e.g. 'example.go'). Bundle formats with an embedded source region use this as its display name; other formats treat it as the logical authoring name.",
       "minLength": 1
     },
     "dags": {
