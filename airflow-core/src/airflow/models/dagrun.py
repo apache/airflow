@@ -1689,6 +1689,9 @@ class DagRun(Base, LoggingMixin):
         if max_tis_per_query <= 0:
             max_tis_per_query = airflow_conf.getint("core", "parallelism")
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
+            if len(ready_tis) >= max_tis_per_query:
+                break
+
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, Operator)
             old_state = schedulable.state
@@ -1708,7 +1711,7 @@ class DagRun(Base, LoggingMixin):
                     expanded_tis = list(new_tis)
                     # Avoid evaluating a huge number of newly expanded TIs in the same pass.
                     # They are persisted already and picked up in subsequent loops.
-                    remaining_budget = max(max_tis_per_query - len(additional_tis), 0)
+                    remaining_budget = max(max_tis_per_query - len(ready_tis) - len(additional_tis), 0)
                     if remaining_budget:
                         additional_tis.extend(expanded_tis[:remaining_budget])
                     dropped_tis = len(expanded_tis) - remaining_budget
@@ -1732,8 +1735,17 @@ class DagRun(Base, LoggingMixin):
                     revised_tis = self._revise_map_indexes_if_mapped(
                         schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
                     )
-                    ready_tis.extend(revised_tis)
-                    revised_map_index_task_ids.add(schedulable.task.task_id)
+                    remaining_budget = max(max_tis_per_query - len(ready_tis), 0)
+                    ready_tis.extend(revised_tis[:remaining_budget])
+                    if remaining_budget < len(revised_tis):
+                        self.log.debug(
+                            "Deferring dependency checks for revised mapped TIs to a later scheduler pass",
+                            task_id=schedulable.task_id,
+                            dag_id=self.dag_id,
+                            run_id=self.run_id,
+                            deferred_count=len(revised_tis) - remaining_budget,
+                        )
+                    revised_map_index_task_ids.add(schedulable.task_id)
                     if revised_tis:
                         # Revising a mapped task can add new instances, growing its instance count
                         # the same way expansion does. Drop the upstream-count memo so a downstream
@@ -1743,8 +1755,10 @@ class DagRun(Base, LoggingMixin):
                 # _revise_map_indexes_if_mapped might mark the current task as REMOVED
                 # after calculating mapped task length, so we need to re-check
                 # the task state to ensure it's still schedulable
-                if schedulable.state in SCHEDULEABLE_STATES:
+                if schedulable.state in SCHEDULEABLE_STATES and len(ready_tis) < max_tis_per_query:
                     ready_tis.append(schedulable)
+                    if len(ready_tis) == max_tis_per_query:
+                        break
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)

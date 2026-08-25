@@ -518,7 +518,12 @@ def test_expand_mapped_task_uses_bulk_insert_when_mutation_hook_is_noop(dag_make
 
     with (
         mock.patch("airflow.settings.task_instance_mutation_hook", noop_hook),
-        mock.patch.object(session, "bulk_insert_mappings", wraps=session.bulk_insert_mappings) as bulk_insert,
+        mock.patch.object(
+            session,
+            "bulk_insert_mappings",
+            wraps=session.bulk_insert_mappings,
+            spec=session.bulk_insert_mappings,
+        ) as bulk_insert,
     ):
         expand_mapped_task(
             dag.task_dict[mapped.task_id],
