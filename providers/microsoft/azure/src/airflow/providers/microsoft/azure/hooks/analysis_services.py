@@ -27,8 +27,6 @@ from azure.identity.aio import ClientSecretCredential
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
-    from urllib.parse import SplitResult
-
     from azure.core.credentials_async import AsyncTokenCredential
 
     from airflow.sdk import Connection
@@ -158,8 +156,10 @@ class AzureAnalysisServicesHook(BaseHook):
 
     async def aclose(self) -> None:
         """Release the HTTP client and the credential."""
-        client, self._client = self._client, None
-        credential, self._credential = self._credential, None
+        client = self._client
+        credential = self._credential
+        self._client = None
+        self._credential = None
         try:
             if client is not None:
                 await client.aclose()
@@ -235,7 +235,8 @@ class AzureAnalysisServicesHook(BaseHook):
             )
         return unquote(location_parts[-1])
 
-    def _assert_host(self, host: str, parsed_host: SplitResult) -> None:
+    def _assert_host(self, host: str) -> None:
+        parsed_host = urlsplit(f"//{host}")
         # netloc, not .username/.port: those miss "@host" and ":0", and raise on ":abc".
         if (
             not host
@@ -253,7 +254,7 @@ class AzureAnalysisServicesHook(BaseHook):
 
     def _get_base_url(self) -> str:
         host = (self.connection.host or "").strip().rstrip("/")
-        self._assert_host(host, urlsplit(f"//{host}"))
+        self._assert_host(host)
         return f"https://{host}"
 
     async def _get_headers(self) -> dict[str, str]:
