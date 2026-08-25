@@ -21,7 +21,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
-import { TabEntity, TabName } from "src/constants/tab";
+import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { Asset } from "src/pages/Asset";
@@ -81,21 +81,21 @@ const pluginRoute = {
 
 export const taskInstanceRoutes = [
   { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
-  { element: <Logs />, path: "logs" },
-  { element: <Events />, path: "events" },
+  { element: <Logs />, path: TaskInstanceTab.Logs },
+  { element: <Events />, path: TaskInstanceTab.Events },
   {
     children: [
-      { element: <TaskStateStore />, path: "task-state-store" },
-      { element: <XCom />, path: "xcom" },
+      { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
+      { element: <XCom />, path: TaskInstanceTab.XCom },
     ],
     element: <StorageLayout />,
   },
-  { element: <Code />, path: "code" },
-  { element: <TaskInstanceDetails />, path: "details" },
-  { element: <RenderedTemplates />, path: "rendered_templates" },
-  { element: <TaskInstances />, path: "task_instances" },
-  { element: <TaskInstanceAssetEvents />, path: "asset_events" },
-  { element: <HITLResponse />, path: "required_actions" },
+  { element: <Code />, path: TaskInstanceTab.Code },
+  { element: <TaskInstanceDetails />, path: TaskInstanceTab.Details },
+  { element: <RenderedTemplates />, path: TaskInstanceTab.RenderedTemplates },
+  { element: <TaskInstances />, path: TaskInstanceTab.TaskInstances },
+  { element: <TaskInstanceAssetEvents />, path: TaskInstanceTab.AssetEvents },
+  { element: <HITLResponse />, path: TaskInstanceTab.RequiredActions },
   pluginRoute,
 ];
 

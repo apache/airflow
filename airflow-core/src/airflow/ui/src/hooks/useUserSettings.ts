@@ -28,10 +28,7 @@ import {
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
-
-/** Tabs offered as the default landing tab when opening a task instance. */
-export type TaskInstanceTab =
-  "asset_events" | "code" | "details" | "events" | "logs" | "rendered_templates" | "xcom";
+import type { DefaultTaskInstanceTab } from "src/constants/tab";
 
 /** Page shown at the app root. */
 export type LandingPageOption = "dags" | "dashboard";
@@ -64,7 +61,7 @@ export const useMarkTaskInstanceDefaultOptions = () =>
 
 /** Tab shown first when a task instance is opened without an explicit tab in the URL. */
 export const useDefaultTaskInstanceTab = () =>
-  useLocalStorage<TaskInstanceTab>(DEFAULT_TASK_INSTANCE_TAB_KEY, "logs");
+  useLocalStorage<DefaultTaskInstanceTab>(DEFAULT_TASK_INSTANCE_TAB_KEY, "logs");
 
 /** Page the app root ("/") lands on: the dashboard or the Dags list. */
 export const useDefaultLandingPage = () =>

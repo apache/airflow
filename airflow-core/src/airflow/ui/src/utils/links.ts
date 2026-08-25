@@ -17,19 +17,12 @@
  * under the License.
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import {
+  DEFAULT_TASK_INSTANCE_TAB_PATHS,
+  type DefaultTaskInstanceTab,
+  type TaskInstanceTabValue,
+} from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
-
-export type TaskInstanceTab =
-  | "asset_events"
-  | "code"
-  | "details"
-  | "events"
-  | "logs"
-  | "rendered_templates"
-  | "required_actions"
-  | "task_instances"
-  | "task-state-store"
-  | "xcom";
 
 export const getTaskInstanceLink = (
   tiOrParams:
@@ -40,7 +33,7 @@ export const getTaskInstanceLink = (
         mapIndex?: number;
         taskId: string;
       },
-  tab?: TaskInstanceTab,
+  tab?: TaskInstanceTabValue,
 ): string => {
   const tabPath = tab === undefined ? "" : `/${tab}`;
 
@@ -110,19 +103,12 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   return "";
 };
 
-const TASK_INSTANCE_DEFAULT_TAB_PATHS = new Set([
-  "asset_events",
-  "code",
-  "details",
-  "events",
-  "rendered_templates",
-  "xcom",
-]);
-
-// Resolve a stored default-tab preference to a route path. "logs" and any unknown
-// value map to "" so the index route keeps rendering Logs, matching legacy behavior.
+// Resolve a stored default-tab preference to a route path. Logs maps to "" (the index
+// route), and any unknown value falls back to "" so the index keeps rendering in place.
 export const getDefaultTaskInstanceTabPath = (value: unknown): string =>
-  typeof value === "string" && TASK_INSTANCE_DEFAULT_TAB_PATHS.has(value) ? value : "";
+  typeof value === "string" && value in DEFAULT_TASK_INSTANCE_TAB_PATHS
+    ? DEFAULT_TASK_INSTANCE_TAB_PATHS[value as DefaultTaskInstanceTab]
+    : "";
 
 const SAFE_EXTERNAL_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 

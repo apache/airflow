@@ -24,6 +24,7 @@ import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { Select } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { Switch } from "src/components/ui/Switch";
+import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
@@ -33,7 +34,6 @@ import {
   useDefaultTaskInstanceTab,
   useMarkTaskInstanceDefaultOptions,
   type LandingPageOption,
-  type TaskInstanceTab,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
 import type { Option } from "src/utils/option";
@@ -176,7 +176,7 @@ export const Settings = () => {
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
 
-  const taskInstanceTabOptions: Array<SelectOption<TaskInstanceTab>> = [
+  const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
     { label: translate("dag:tabs.logs"), value: "logs" },
     { label: translate("dag:tabs.details"), value: "details" },
     { label: translate("dag:tabs.renderedTemplates"), value: "rendered_templates" },
