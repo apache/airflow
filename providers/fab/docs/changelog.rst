@@ -20,13 +20,8 @@
 Changelog
 ---------
 
-3.9.0
+3.8.1
 .....
-
-Features
-~~~~~~~~
-
-* ``Make the FAB roles PATCH endpoint replace permissions, not just add them (#71933)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -35,6 +30,7 @@ Bug Fixes
 * ``Support Azure national clouds in FAB Azure AD id_token validation (#72010)``
 * ``Fix Azure AD tenant identifier canonicalization in FAB auth manager (#71920)``
 * ``Fix FAB SSO guide's non-working OAuth configuration instructions (#71852)``
+* ``Make the FAB roles PATCH endpoint replace permissions, not just add them (#71933)``
 
 Misc
 ~~~~
