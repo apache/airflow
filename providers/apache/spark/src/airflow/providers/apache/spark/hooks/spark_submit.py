@@ -55,7 +55,25 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
-_SENSITIVE_FIELD_RE = re.compile(r"secret|password", re.IGNORECASE)
+# Values to mask are anchored at a token boundary so the scan stays linear: without
+# the lookbehind the leading \S*? retries at every offset, which is the quadratic
+# backtracking this pattern replaces. A quote only closes the value when whitespace
+# or the end of the string follows it, so quoted values may themselves contain quotes.
+_SENSITIVE_VALUE_RE = re.compile(
+    r"(?<!\S)(\S*?(?:secret|password)\S*?(?:=|\s+))"
+    r"(?:'((?:[^']|'(?!\s|$))*)'|\"((?:[^\"]|\"(?!\s|$))*)\"|(\S*))",
+    re.IGNORECASE,
+)
+
+
+def _mask_sensitive_value(match: re.Match) -> str:
+    key = match.group(1)
+    if match.group(2) is not None:
+        return f"{key}'******'"
+    if match.group(3) is not None:
+        return f'{key}"******"'
+    return f"{key}******"
+
 
 # The JVM's default uncaught-exception handler always prints this exact shape.
 _EXCEPTION_START_RE = re.compile(r'Exception in thread "[^"]*"')
@@ -518,58 +536,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
-        #
-        # A single regex is not used here: nested lazy quantifiers behind a lookahead
-        # backtrack quadratically, and this also runs over arbitrary spark-submit log
-        # lines, so a long line without a sensitive keyword could stall the worker.
-        # Splitting on runs of whitespace and keeping the separators makes the scan
-        # linear while preserving the original spacing of the line.
-        parts = re.split(r"(\s+)", " ".join(connection_cmd))
-        tokens = parts[::2]
-        separators = parts[1::2]
-        result: list[str] = []
-        i = 0
-
-        def _append(value: str, last_consumed: int) -> None:
-            result.append(value)
-            if last_consumed < len(separators):
-                result.append(separators[last_consumed])
-
-        def _find_closing_quote(start: int, quote: str) -> int:
-            # A quoted value may span several tokens, e.g. HivePassword='multi word pass'
-            end = start
-            while end < len(tokens) and not tokens[end].endswith(quote):
-                end += 1
-            return min(end, len(tokens) - 1)
-
-        while i < len(tokens):
-            token = tokens[i]
-            key, separator, value = token.partition("=")
-
-            if separator and _SENSITIVE_FIELD_RE.search(key):
-                if value[:1] in ("'", '"'):
-                    quote = value[0]
-                    end = i if len(value) > 1 and value.endswith(quote) else _find_closing_quote(i + 1, quote)
-                    _append(f"{key}={quote}******{quote}", end)
-                    i = end
-                else:
-                    _append(f"{key}=******", i)
-            elif _SENSITIVE_FIELD_RE.search(token) and i + 1 < len(tokens):
-                _append(token, i)
-                i += 1
-                value = tokens[i]
-                if value[:1] in ("'", '"'):
-                    quote = value[0]
-                    end = i if len(value) > 1 and value.endswith(quote) else _find_closing_quote(i + 1, quote)
-                    _append(f"{quote}******{quote}", end)
-                    i = end
-                else:
-                    _append("******", i)
-            else:
-                _append(token, i)
-            i += 1
-
-        return "".join(result)
+        return _SENSITIVE_VALUE_RE.sub(_mask_sensitive_value, " ".join(connection_cmd))
 
     @property
     def _submit_log_tail(self) -> str:
