@@ -285,7 +285,7 @@ for the full list of supported flags and examples.
 Legacy configuration options (deprecated)
 -----------------------------------------
 
-.. deprecated:: 2.18.0
+.. deprecated:: 2.19.0
 
     The legacy options ``disabled_for_operators``, ``disable_source_code``,
     ``include_full_task_info``, and ``selective_enable`` are superseded by

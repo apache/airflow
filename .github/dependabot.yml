@@ -75,6 +75,42 @@ updates:
         patterns:
           - "*"
 
+  - package-ecosystem: gradle
+    directories:
+      - /java-sdk
+      - /java-sdk/example
+      - /java-sdk/scala_spark_example
+    cooldown:
+      default-days: 14
+    schedule:
+      interval: weekly
+    groups:
+      java-sdk-dependency-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      java-sdk-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+      # Pinned to the last release that supports Java 11. Ignore minor/patch
+      # bumps too, not just majors, until the SDK's Java 11 support requirement
+      # is dropped. See also: java-sdk/sdk/build.gradle.kts
+      - dependency-name: "com.gradleup.shadow:shadow-gradle-plugin"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-name: "org.jsonschema2pojo"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
+
   - package-ecosystem: npm
     cooldown:
       default-days: 4
@@ -371,25 +407,23 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  - package-ecosystem: "gomod"
+  - package-ecosystem: npm
     cooldown:
-      # Longer than other ecosystems: distributed Go releases are not pre-scanned by a
-      # central registry, so we give any malicious release more time to be flagged.
-      default-days: 14
-    directory: "/go-sdk"
+      default-days: 7
+    directory: /ts-sdk
     schedule:
       interval: "weekly"
-    target-branch: v3-3-test
     groups:
-      3-3-go-sdk-dependency-updates:
+      ts-sdk-package-updates:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+      ts-sdk-security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: "uv"
     cooldown:
@@ -422,6 +456,20 @@ updates:
     open-pull-requests-limit: 0
     groups:
       go-sdk-security-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+
+  - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 14
+    directory: "/go-sdk"
+    schedule:
+      interval: "weekly"
+    target-branch: v3-3-test
+    open-pull-requests-limit: 0
+    groups:
+      3-3-go-sdk-security-updates:
         patterns:
           - "*"
         applies-to: security-updates

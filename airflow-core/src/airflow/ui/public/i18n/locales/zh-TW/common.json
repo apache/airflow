@@ -88,8 +88,6 @@
   "dagRunId": "Dag 執行 ID",
   "dagRunState": "Dag 執行狀態",
   "dagWarnings": "Dag 警告 / 錯誤",
-  "defaultToGraphView": "預設使用圖形檢視",
-  "defaultToGridView": "預設使用網格檢視",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -191,6 +189,8 @@
     "write": "撰寫"
   },
   "overallStatus": "整體狀態",
+  "partition_one": "資源分區",
+  "partition_other": "資源分區",
   "partitionedDagRun_one": "分區的 Dag 執行",
   "partitionedDagRun_other": "分區的 Dag 執行",
   "partitionedDagRunDetail": {
@@ -246,6 +246,39 @@
   },
   "selectLanguage": "選擇語言",
   "selected": "已選取",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "清除任務實例時，跳過目前正在執行中的任務。",
+        "label": "防止清除執行中的任務"
+      },
+      "runSelection": {
+        "helper": "清除 Dag 執行時，預設選取的選項。",
+        "label": "預設 Dag 執行清除選項"
+      },
+      "taskSelection": {
+        "helper": "清除任務實例時，預設選取的選項。",
+        "label": "預設任務清除選項"
+      },
+      "title": "清除"
+    },
+    "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
+    "graph": {
+      "defaultDirection": {
+        "helper": "尚未個別設定的 Dag 與資源圖形版面配置方向。",
+        "label": "預設圖形方向"
+      },
+      "title": "圖形"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "標記任務實例狀態時，預設選取的選項。",
+        "label": "預設標記選項"
+      },
+      "title": "標記"
+    },
+    "title": "設定"
+  },
   "shortcuts": {
     "categories": {
       "code": "程式碼",

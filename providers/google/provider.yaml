@@ -30,12 +30,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1785633505
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 22.4.0
   - 22.3.0
   - 22.2.2
   - 22.2.1
@@ -1385,6 +1386,7 @@ extra-links:
   - airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink
   - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink
+  - airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink

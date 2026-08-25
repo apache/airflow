@@ -26,13 +26,38 @@
 Changelog
 ---------
 
+7.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks SQL warehouse lifecycle operators (#70088)``
+* ``Add performance_target parameter to DatabricksSubmitRunOperator (#71374)``
+* ``Add Databricks-native retry settings to task operators (#69182)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
 7.18.1
 ......
 
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Review and update constraint dependencies (#70652)``
 * ``Validate DatabricksSQLStatementsSensor statement fields after rendering (#70340)``
 * ``Validate DatabricksCopyIntoOperator template fields after rendering (#70339)``
@@ -47,6 +72,8 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Restore Dag-parse-time validation for Databricks Repos operator arguments (#70551)``
    * ``Validate Databricks Repos operators' template fields after rendering (#70341)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 7.18.0
 ......
@@ -705,7 +732,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 7.1.0
 .....

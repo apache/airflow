@@ -27,14 +27,17 @@ import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTask
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
-import NotePreview from "src/components/NotePreview";
+import { NotePreview } from "src/components/NotePreview";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const showTeam = useShowTeam(taskInstance.team_name);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -56,6 +59,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           },
         ]
       : []),
+    ...(showTeam
+      ? [
+          {
+            label: translate("dagDetails.team"),
+            value: <TeamName teamName={taskInstance.team_name} />,
+          },
+        ]
+      : []),
     {
       label: translate("taskInstance.dagVersion"),
       value: <DagVersion version={taskInstance.dag_version} />,
@@ -66,22 +77,25 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   const [clearOpen, setClearOpen] = useState(false);
 
   return (
-    <Box>
+    <Box display="flex" flexDirection="column" gap={3}>
       <HeaderCard
         actions={
           <>
             <ClearTaskInstanceButton
+              bg="bg"
               isHotkeyEnabled
               onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
+              variant="outline"
             />
-            <MarkTaskInstanceAsButton isHotkeyEnabled taskInstance={taskInstance} />
+            <MarkTaskInstanceAsButton bg="bg" isHotkeyEnabled taskInstance={taskInstance} variant="outline" />
           </>
         }
         icon={<MdOutlineTask />}
         state={taskInstance.state}
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
+        type="taskInstance"
       />
       <NotePreview
         header={translate("note.taskInstance")}

@@ -17,12 +17,12 @@
  * under the License.
  */
 import { RadioCard } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 type RadioCardItemProps = {
-  readonly description?: React.ReactNode;
+  readonly description?: ReactNode;
   readonly indicatorPlacement?: "end" | "start";
-  readonly label?: React.ReactNode;
+  readonly label?: ReactNode;
 } & RadioCard.ItemProps;
 
 export const RadioCardItem = forwardRef<HTMLInputElement, RadioCardItemProps>((props, ref) => {

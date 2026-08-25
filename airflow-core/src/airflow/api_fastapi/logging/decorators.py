@@ -20,17 +20,31 @@ import itertools
 import json
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pendulum
 from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
+from sqlalchemy import select
 
 from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
-from airflow.models import Log
+from airflow.configuration import conf
+from airflow.models import Connection, Log, Pool, Variable
+from airflow.models.team import find_invalid_team_names
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
+# Request parameter identifying a team-scoped resource, and the columns to read its team from.
+_TEAM_SCOPED_RESOURCES = {
+    "pool_name": (Pool.team_name, Pool.pool),
+    "variable_key": (Variable.team_name, Variable.key),
+    "connection_id": (Connection.team_name, Connection.conn_id),
+}
 
 
 def _sanitize_for_stdlib_log(value: str) -> str:
@@ -138,6 +152,35 @@ def _mask_variable_entity(extra_fields):
     return result
 
 
+def _resolve_team_name(params: dict, *, session: Session) -> str | None:
+    """
+    Return the team the audited action belongs to, for the resources that own no Dag.
+
+    A Dag-scoped event has its team stamped from ``dag_id`` when the row is inserted, and a request
+    that names a team carries it directly. What is left is an action on a team-scoped resource that
+    names no team -- a deletion, or a patch that does not touch ``team_name`` -- where the team can
+    only come from the resource being acted on. It is read here rather than in the routes because
+    this dependency runs before the endpoint, so the row is still there to read even when the action
+    is about to delete it.
+    """
+    team_name = params.get("team_name")
+    if isinstance(team_name, str):
+        # The endpoint's own validation rejects a name that is too long or malformed, but this row
+        # is committed before that runs, so recording it would fail the insert on a backend that
+        # enforces the column width. The value stays visible in ``extra`` either way.
+        return None if find_invalid_team_names([team_name]) else team_name
+    if params.get("dag_id"):
+        # Left to the insert-time hook on ``Log``, which covers every writer of an audit row rather
+        # than only this one, and resolves a Dag's team through its bundle instead of a column.
+        return None
+    if not conf.getboolean("core", "multi_team"):
+        return None
+    for param, (team_column, resource_column) in _TEAM_SCOPED_RESOURCES.items():
+        if (resource_id := params.get(param)) is not None:
+            return session.scalar(select(team_column).where(resource_column == resource_id))
+    return None
+
+
 def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
@@ -216,6 +259,7 @@ def action_logging(event: str | None = None):
             task_id=params.get("task_id"),
             dag_id=params.get("dag_id"),
             run_id=params.get("run_id") or params.get("dag_run_id"),
+            team_name=_resolve_team_name(params, session=session),
         )
 
         if "logical_date" in request.query_params:

@@ -85,6 +85,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    alias_association_table,
     association_table,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
@@ -99,10 +100,11 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion, _resolve_version_data
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -154,6 +156,18 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+SCHEDULER_DAG_CACHE_SIZE = 512
+"""
+Max deserialized Dag versions the scheduler keeps in memory.
+
+The scheduler reaches its DagBag through the Dag version of each active Dag run, so an
+unbounded cache retains every version the process has ever seen and grows for the life of
+the process. Sized to sit above the versions-with-runs-in-flight working set of a typical
+deployment, so eviction costs a re-fetch only where that working set is genuinely larger.
+
+:meta private:
+"""
 
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
@@ -370,7 +384,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False)
+        self.scheduler_dag_bag = CachedDBDagBag(
+            load_op_links=False,
+            cache_size=SCHEDULER_DAG_CACHE_SIZE,
+            cache_ttl=0,
+            stats_prefix="scheduler.dag_bag",
+        )
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
@@ -457,6 +476,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Ensure all requested dag_ids are in the result (with None for those not found)
         return {dag_id: self._dag_id_to_team_name.get(dag_id) for dag_id in dag_ids}
+
+    def _stamp_team_names(self, dag_runs: Collection[DagRun], session: Session) -> None:
+        """
+        Stamp ``_team_name`` on each DagRun.
+
+        Team names are resolved via ``_get_team_names_for_dag_ids``, which caches results in
+        ``self._dag_id_to_team_name`` for the duration of the current scheduler loop.  In
+        practice this means the first call per loop issues one batched query; subsequent calls
+        for the same dag_ids are pure dict reads with no DB round-trip.
+        """
+        if not self._multi_team:
+            return
+        if not dag_runs:
+            return
+        team_map = self._get_team_names_for_dag_ids({dr.dag_id for dr in dag_runs}, session)
+        for dr in dag_runs:
+            if team := team_map.get(dr.dag_id):
+                dr._team_name = team
 
     def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
         """
@@ -1284,7 +1321,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
-        objects = (log_records.popleft() for _ in range(len(log_records)))
+        objects = [log_records.popleft() for _ in range(len(log_records))]
+        # A bulk insert skips the ORM hook that would stamp this from ``dag_id``. One flush carries
+        # a record per task event, so resolve each Dag once rather than once per record.
+        teams_by_dag_id = {
+            dag_id: resolve_team_name(dag_id, session=session)
+            for dag_id in {log_record.dag_id for log_record in objects}
+        }
+        for log_record in objects:
+            log_record.team_name = teams_by_dag_id[log_record.dag_id]
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
     @staticmethod
@@ -1734,12 +1779,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
-            if self._multi_team and paused_runs:
-                paused_dag_ids = {dr.dag_id for dr in paused_runs}
-                paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
-                for dr in paused_runs:
-                    if team := paused_team_mapping.get(dr.dag_id):
-                        dr._team_name = team
+            # Team name should be added before listeners are called in update_state()
+            self._stamp_team_names(paused_runs, session)
             for dag_run in paused_runs:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
@@ -1828,6 +1869,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._remove_unreferenced_triggers,
+            non_fatal=True,
         )
 
         if any(x.is_local for x in self.executors):
@@ -1845,6 +1887,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
+            non_fatal=True,
         )
 
         idle_count = 0
@@ -1996,12 +2039,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
-            if self._multi_team and dag_runs:
-                unique_dag_ids = {dr.dag_id for dr in dag_runs}
-                dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
-                for dr in dag_runs:
-                    if team := dr_team_mapping.get(dr.dag_id):
-                        dr._team_name = team
+            # Team name should be added before listeners are called in _schedule_all_dag_runs()
+            self._stamp_team_names(dag_runs, session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -2827,6 +2866,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
+        # Team name should be added before listeners are called in notify_dagrun_state_changed()
+        self._stamp_team_names(dag_runs, session)
+
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
@@ -2964,6 +3006,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 execute=False,
             )
 
+            # Team name should be added before listeners are called in notify_dagrun_state_changed()
+            self._stamp_team_names([dag_run], session)
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:
                 duration = dag_run.end_date - dag_run.start_date
@@ -3814,8 +3858,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Check assets orphanization and update their active entry.
 
         An orphaned asset is no longer referenced in any DAG schedule parameters,
-        task outlets, or task inlets. Active assets (non-orphaned) have entries in
-        AssetActive and must have unique names and URIs.
+        task outlets, task inlets, or alias associations. Active assets (non-orphaned)
+        have entries in AssetActive and must have unique names and URIs.
 
         :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
         """
@@ -3825,6 +3869,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.count(DagScheduleAssetReference.dag_id)
                 + func.count(TaskOutletAssetReference.dag_id)
                 + func.count(TaskInletAssetReference.dag_id)
+                # An asset materialized from an ``AssetAlias`` outlet is referenced only through
+                # the alias association, not the schedule/outlet/inlet tables. Count it so it is
+                # activated (and shown in the UI) instead of being treated as orphaned. See #58058.
+                + func.count(alias_association_table.c.alias_id)
             )
             == 0
         ).label("orphaned")
@@ -3833,6 +3881,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
             .outerjoin(TaskInletAssetReference)
+            .outerjoin(alias_association_table, alias_association_table.c.asset_id == AssetModel.id)
             .group_by(AssetModel.id)
         )
 

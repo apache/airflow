@@ -35,7 +35,7 @@ const SANDBOX = "allow-scripts allow-same-origin allow-forms";
 
 export const Security = () => {
   const { page } = useParams();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   useDocumentTitle(translate("nav.security"));
 

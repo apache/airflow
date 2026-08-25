@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { QueryClient } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
-import type { AssetResponse, DAGDetailsResponse } from "openapi/requests/types.gen";
+import type { AssetEventResponse, AssetResponse, DAGDetailsResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import type * as Ui from "src/components/ui";
 import { Wrapper } from "src/utils/Wrapper";
@@ -42,23 +43,27 @@ const materializeSubmitParams = vi.hoisted<DagRunTriggerParams>(() => ({
 
 vi.mock("src/components/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
-  // Must stay inside the factory: vitest hoists vi.mock above module scope, so an outer-scope
-  // component cannot be referenced here.
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {
     ...actual,
-    Dialog: {
-      ...actual.Dialog,
-      Body: DialogPart,
-      CloseTrigger: () => undefined,
-      Content: DialogPart,
-      Footer: DialogPart,
-      Header: DialogPart,
-      Root: ({ children, open }: { readonly children?: ReactNode; readonly open?: boolean }) =>
-        open ? <div>{children}</div> : undefined,
-    },
+    Modal: ({
+      children,
+      footerActions,
+      open,
+      title,
+    }: {
+      readonly children?: ReactNode;
+      readonly footerActions?: ReactNode;
+      readonly open?: boolean;
+      readonly title?: ReactNode;
+    }) =>
+      open ? (
+        <div>
+          {title}
+          {children}
+          {footerActions}
+        </div>
+      ) : undefined,
   };
 });
 
@@ -90,6 +95,7 @@ vi.mock("openapi/queries", async (importOriginal) => {
 
 const {
   useAssetServiceCreateAssetEvent,
+  useAssetServiceGetAssetsUiKey,
   useAssetServiceMaterializeAsset,
   useDagServiceGetDagDetails,
   useDependenciesServiceGetDependencies,
@@ -167,6 +173,19 @@ describe("CreateAssetEventModal", () => {
     expect(createAssetEvent).toHaveBeenCalledWith({
       requestBody: expect.objectContaining({ partition_key: null }) as unknown,
     });
+  });
+
+  it("invalidates the assets list cache after creating an event", async () => {
+    const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries").mockResolvedValue();
+
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    const onSuccess = vi.mocked(useAssetServiceCreateAssetEvent).mock.calls.at(-1)?.[0]?.onSuccess as
+      ((data: AssetEventResponse) => Promise<void>) | undefined;
+
+    await onSuccess?.({ id: 1 } as unknown as AssetEventResponse);
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: [useAssetServiceGetAssetsUiKey] });
   });
 
   it("sends the entered manual partition key as-is", () => {
