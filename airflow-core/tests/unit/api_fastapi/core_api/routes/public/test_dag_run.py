@@ -401,7 +401,7 @@ class TestGetDagRun:
             ),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_get_dag_run(self, test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
         assert response.status_code == 200
@@ -414,7 +414,7 @@ class TestGetDagRun:
         assert body["note"] == dag_run_note
 
     @conf_vars({("core", "multi_team"): "True"})
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_get_dag_run_includes_team_name(self, test_client, session):
         original_bundle_name = _attach_dag_to_team(
             session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"
@@ -452,7 +452,7 @@ class TestGetDagRuns:
         ("dag_id", "total_entries"),
         [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/dags/{dag_id}/dagRuns")
         assert response.status_code == 200
@@ -464,7 +464,7 @@ class TestGetDagRuns:
             ).one()
             assert each == get_dag_run_dict(run)
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_get_dag_runs_not_found(self, test_client):
         response = test_client.get("/dags/invalid/dagRuns")
         assert response.status_code == 404
@@ -487,7 +487,7 @@ class TestGetDagRuns:
         )
 
     @conf_vars({("core", "multi_team"): "True"})
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_get_dag_runs_includes_team_name(self, test_client, session):
         original_bundle_name = _attach_dag_to_team(
             session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"
@@ -508,7 +508,7 @@ class TestGetDagRuns:
             )
 
     @conf_vars({("core", "multi_team"): "True"})
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_get_dag_runs_filtered_by_team(self, test_client, session):
         original_bundle_name = _attach_dag_to_team(
             session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"
@@ -566,7 +566,7 @@ class TestGetDagRuns:
             pytest.param("duration", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_duration"),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
 
@@ -597,7 +597,7 @@ class TestGetDagRuns:
             ({"limit": 1, "offset": 2}, []),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_limit_and_offset(self, test_client, query_params, expected_dag_id_order):
         response = test_client.get("/dags/test_dag1/dagRuns", params=query_params)
         assert response.status_code == 200
@@ -667,7 +667,7 @@ class TestGetDagRuns:
             "-run_after",
         ],  # test with multiple ordering fields (alias, non-alias, datetime, non-datetime)
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_cursor_pagination_first_two_page(self, test_client, order_by):
         """First page with cursor='' and second page fetched via the returned next_cursor."""
         response = test_client.get(
@@ -700,7 +700,7 @@ class TestGetDagRuns:
         "order_by",
         ["id", "dag_run_id", "logical_date", "-run_after"],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_cursor_pagination_returns_cursor_response(self, test_client, order_by):
         """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         response1 = test_client.get(
@@ -731,7 +731,7 @@ class TestGetDagRuns:
         "order_by",
         ["id", "dag_run_id", "logical_date", "-run_after"],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_cursor_pagination_forward_and_backward_consistency(self, test_client, order_by):
         """Walk all pages forward via next_cursor, then backward via previous_cursor, and compare."""
         total_runs = 4  # 4 dag runs are created by the setup fixture
@@ -785,7 +785,7 @@ class TestGetDagRuns:
         assert all_backward == forward_ids
 
     @mock.patch("airflow.api_fastapi.common.db.common.EXACT_COUNT_LIMIT", 2)
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_cursor_pagination_total_entries_capped(self, test_client):
         """With more matching runs than the cap, total_entries is reported as the cap."""
         response = test_client.get(
@@ -798,7 +798,7 @@ class TestGetDagRuns:
         assert body["total_entries"] == 2
         assert body["total_entries_limit"] == 2
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_cursor_pagination_invalid_token(self, test_client):
         response = test_client.get(
             "/dags/~/dagRuns",
@@ -806,7 +806,7 @@ class TestGetDagRuns:
         )
         assert response.status_code == 400
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
         """Cursor pagination sorted by a nullable column must not silently drop rows.
 
@@ -1137,14 +1137,14 @@ class TestGetDagRuns:
             ("~", {"partition_key_prefix_pattern": "2026"}, [DAG1_RUN1_ID]),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_filters(self, test_client, dag_id, query_params, expected_dag_id_list):
         response = test_client.get(f"/dags/{dag_id}/dagRuns", params=query_params)
         assert response.status_code == 200
         body = response.json()
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_partition_date_day_filters_use_timetable_timezone(self, test_client, dag_maker, session):
         dag_id = "test_partition_date_local_day"
         with dag_maker(
@@ -1293,7 +1293,7 @@ class TestGetDagRuns:
 
 
 class TestListDagRunsBatch:
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_list_dag_runs_return_200(self, test_client, session):
         with assert_queries_count(5):
             response = test_client.post("/dags/~/dagRuns/list", json={})
@@ -1335,7 +1335,7 @@ class TestListDagRunsBatch:
             [["invalid"], 200, []],
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
         with assert_queries_count(5):
             response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
@@ -1368,7 +1368,7 @@ class TestListDagRunsBatch:
             pytest.param("conf", DAG_RUNS_LIST, id="order_by_conf"),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_dag_runs_ordering(self, test_client, order_by, expected_order):
         # Test ascending order
         response = test_client.post("/dags/~/dagRuns/list", json={"order_by": order_by})
@@ -1396,7 +1396,7 @@ class TestListDagRunsBatch:
             ({"page_limit": 1, "page_offset": 2}, DAG_RUNS_LIST[2:3]),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_limit_and_offset(self, test_client, post_body, expected_dag_id_order):
         response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 200
@@ -1516,7 +1516,7 @@ class TestListDagRunsBatch:
             ),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_filters(self, test_client, post_body, expected_dag_id_list):
         response = test_client.post("/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 200
@@ -1677,7 +1677,7 @@ class TestPatchDagRun:
             ),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body, note_data, session):
         response = test_client.patch(f"/dags/{dag_id}/dagRuns/{run_id}", json=patch_body)
         assert response.status_code == 200
@@ -1745,7 +1745,7 @@ class TestPatchDagRun:
             ),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run_with_update_mask(
         self, test_client, query_params, patch_body, response_body, expected_status_code, note_data, session
     ):
@@ -1783,7 +1783,7 @@ class TestPatchDagRun:
             ("failed", [DagRunState.FAILED], "Dag Run's state was manually set to `failed`."),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run_notifies_listeners(
         self, test_client, state, expected_dagrun_state, expected_msg, listener_manager
     ):
@@ -1796,7 +1796,7 @@ class TestPatchDagRun:
             assert listener.dag_run_msg == expected_msg
             assert listener.dag_run_has_dag_attr is True
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run_listener_sees_note_when_note_and_state_both_patched(
         self, test_client, listener_manager
     ):
@@ -1816,7 +1816,7 @@ class TestPatchDagRun:
             ("failed", TaskInstanceState.FAILED),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run_notifies_ti_listeners_for_running_tasks(
         self,
         test_client,
@@ -1852,7 +1852,7 @@ class TestPatchDagRun:
         assert listener.state[1] is DagRunState(dag_run_state)
         assert len(listener.state) == 2
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run_does_not_notify_ti_listeners_for_non_running_tasks(
         self,
         test_client,
@@ -1886,7 +1886,7 @@ class TestPatchDagRun:
         # The list length check distinguishes "only dagrun fired" from "both fired".
         assert listener.state == [DagRunState.SUCCESS]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_patch_dag_run_does_not_notify_ti_listeners_for_running_teardown_tasks(
         self,
         test_client,
@@ -1964,7 +1964,7 @@ class TestDeleteDagRun:
 
 
 class TestGetDagRunAssetTriggerEvents:
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     @pytest.mark.parametrize(
         "partition_key",
         ["test_partition_key", None],
@@ -2069,7 +2069,7 @@ class TestGetDagRunAssetTriggerEvents:
         }
         assert response.json() == expected_response
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     @pytest.mark.parametrize("num_events", [1, 5])
     def test_query_count_does_not_scale_with_consumed_events(
         self, num_events, test_client, dag_maker, session
@@ -2145,7 +2145,7 @@ class TestGetDagRunAssetTriggerEvents:
 
 
 class TestClearDagRun:
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run(self, test_client, session):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
@@ -2163,7 +2163,7 @@ class TestClearDagRun:
             logical_date=None,
         )
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_whose_dag_version_was_deleted(self, test_client, session):
         """A run that kept its bundle version after ``airflow db clean`` removed its Dag version."""
         session.execute(
@@ -2209,7 +2209,7 @@ class TestClearDagRun:
             "omit-leaves-existing",
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_applies_note(self, test_client, session, body, expected_note):
         """``note`` in the clear body writes to the Dag Run; ``None`` / unset leaves it alone."""
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
@@ -2220,7 +2220,7 @@ class TestClearDagRun:
         )
         assert dag_run.note == expected_note
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_dry_run_does_not_apply_note(self, test_client, session):
         """``note`` is ignored on dry-run (no side effects)."""
         response = test_client.post(
@@ -2242,7 +2242,7 @@ class TestClearDagRun:
             [{"only_failed": True}, DAG1_RUN2_ID, ["failed"]],
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_dry_run(self, test_client, session, body, dag_run_id, expected_state):
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns/{dag_run_id}/clear", json=body)
         assert response.status_code == 200
@@ -2262,7 +2262,7 @@ class TestClearDagRun:
         )
         assert logs == 0
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_dry_run_response_has_full_task_instance_fields(self, test_client):
         """Regression test: dry-run response must include all TaskInstanceResponse fields.
 
@@ -2290,7 +2290,7 @@ class TestClearDagRun:
             # rendered_fields must be present (defaults to {})
             assert "rendered_fields" in ti
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_dry_run_only_failed_returns_only_failed_tasks_with_full_fields(self, test_client):
         """Regression test: only_failed=True dry-run must return only failed TIs with full fields.
 
@@ -2328,7 +2328,7 @@ class TestClearDagRun:
         assert body["detail"][0]["msg"] == "Field required"
         assert body["detail"][0]["loc"][0] == "body"
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_only_new_dry_run(self, test_client, session):
         """Test that only_new dry_run returns 0 new tasks when all tasks already have TIs.
 
@@ -2352,7 +2352,7 @@ class TestClearDagRun:
         assert logs == 0
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_dag_run_only_new_non_dry_run(self, mock_clear, test_client, session):
         """Test that only_new non-dry_run clears and returns a DAGRunResponse."""
         mock_clear.return_value = 2
@@ -2389,7 +2389,7 @@ class TestClearDagRun:
 
 
 class TestBulkClearDagRuns:
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_specific_dag(self, test_client, session):
         """Specific dag_id in URL, dag_run_id in body — clears both runs and queues them."""
         response = test_client.post(
@@ -2408,7 +2408,7 @@ class TestBulkClearDagRuns:
             assert run["state"] == "queued"
             assert run["dag_id"] == DAG1_ID
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_wildcard_across_dags(self, test_client, session):
         """``~`` URL with per-entity dag_id — clears runs across Dags in one call."""
         response = test_client.post(
@@ -2429,7 +2429,7 @@ class TestBulkClearDagRuns:
         for run in body["dag_runs"]:
             assert run["state"] == "queued"
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_dry_run_collects_affected_tis_across_runs(self, test_client, session):
         """Dry-run returns the union of affected TIs across the listed runs without mutating state."""
         response = test_client.post(
@@ -2451,7 +2451,7 @@ class TestBulkClearDagRuns:
         )
         assert dag_run.state == DAG1_RUN1_STATE
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_dry_run_only_failed_filters(self, test_client):
         """``only_failed=True`` shrinks the dry-run preview to failed TIs only."""
         response = test_client.post(
@@ -2467,7 +2467,7 @@ class TestBulkClearDagRuns:
         assert all(ti["state"] == "failed" for ti in body["task_instances"])
         assert body["total_entries"] == 1
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_applies_note_to_each_run(self, test_client, session):
         """``note`` in the body is applied to every cleared run in the same transaction."""
         response = test_client.post(
@@ -2483,7 +2483,7 @@ class TestBulkClearDagRuns:
             dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == run_id))
             assert dag_run.note == "bulk cleared by test"
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_wildcard_rejects_missing_dag_id(self, test_client):
         """``~`` URL requires every entry to carry a concrete dag_id; 400 otherwise."""
         response = test_client.post(
@@ -2496,7 +2496,7 @@ class TestBulkClearDagRuns:
         assert response.status_code == 400
         assert DAG1_RUN1_ID in response.json()["detail"]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_specific_url_rejects_mismatched_dag_id(self, test_client):
         """When the URL has a specific dag_id, mismatched per-entity dag_id is rejected."""
         response = test_client.post(
@@ -2508,7 +2508,7 @@ class TestBulkClearDagRuns:
         )
         assert response.status_code == 400
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_missing_run_returns_404(self, test_client):
         response = test_client.post(
             f"/dags/{DAG1_ID}/clearDagRuns",
@@ -2519,7 +2519,7 @@ class TestBulkClearDagRuns:
         )
         assert response.status_code == 404
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_rejects_only_new_with_only_failed(self, test_client):
         """``only_new`` and ``only_failed`` are mutually exclusive at the body validator level."""
         response = test_client.post(
@@ -2547,7 +2547,7 @@ class TestBulkClearDagRuns:
         )
         assert response.status_code == 403
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_bulk_clear_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
         """A 403 at the route level if any entry references a Dag the user can't access; nothing is cleared."""
         restricted_bundle_name = "restricted-bundle-clear"
@@ -2609,7 +2609,7 @@ class TestClearDagRunOnlyNew:
     """
 
     @pytest.fixture
-    def dag_two_versions(self, dag_maker, configure_git_connection_for_dag_bundle, session):
+    def dag_two_versions(self, dag_maker, configure_dag_bundles_with_view_url, session):
         """
         Two-version DAG with one run on v1.
 
@@ -2721,7 +2721,7 @@ class TestBulkClearDagRunsPartitionSelector:
     """
 
     @pytest.fixture
-    def partition_dag(self, dag_maker, configure_git_connection_for_dag_bundle, session):
+    def partition_dag(self, dag_maker, configure_dag_bundles_with_view_url, session):
         """Dag with two runs carrying partition_key and partition_date."""
         with dag_maker(
             PARTITION_DAG_ID,
@@ -2960,7 +2960,7 @@ class TestClearPartitions:
     """
 
     @pytest.fixture
-    def partitioned_dag_with_runs(self, dag_maker, configure_git_connection_for_dag_bundle, session):
+    def partitioned_dag_with_runs(self, dag_maker, configure_dag_bundles_with_view_url, session):
         """Dag with three runs carrying partition fields and task instances."""
         dag_id = "clear_partitions_test_dag"
         with dag_maker(
@@ -3227,7 +3227,7 @@ class TestClearPartitions:
                 assert run.partition_key is not None
 
     def test_cross_dag_run_id_collision_does_not_clear_other_dag(
-        self, test_client, session, dag_maker, configure_git_connection_for_dag_bundle
+        self, test_client, session, dag_maker, configure_dag_bundles_with_view_url
     ):
         """Clearing by run_id only affects the target Dag; a second Dag with the same run_id is untouched."""
         shared_run_id = "shared_run_id"
@@ -3315,7 +3315,7 @@ class TestClearPartitions:
         assert ti_b_after.state == State.SUCCESS
 
     def test_cross_dag_run_id_collision_dry_run_counts_only_target_dag(
-        self, test_client, session, dag_maker, configure_git_connection_for_dag_bundle
+        self, test_client, session, dag_maker, configure_dag_bundles_with_view_url
     ):
         """dry_run=True TI count only includes the target Dag's TIs, not a bystander sharing the same run_id."""
         shared_run_id = "shared_dry_run_id"
@@ -3451,7 +3451,7 @@ class TestTriggerDagRun:
             (None, None, None, None, None),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200(
         self, test_client, dag_run_id, note, data_interval_start, data_interval_end, note_data, session
     ):
@@ -3713,7 +3713,7 @@ class TestTriggerDagRun:
         assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_response_409_for_duplicate_logical_date(self, test_client):
         RUN_ID_1 = "random_1"
         RUN_ID_2 = "random_2"
@@ -3813,7 +3813,7 @@ class TestTriggerDagRun:
         assert "detail" in response_json
         assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_with_null_logical_date(self, test_client):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns",
@@ -3846,7 +3846,7 @@ class TestTriggerDagRun:
             "team_name": None,
         }
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_generate_unique_run_id_for_scheduled_dag(self, dag_maker, test_client, session):
         "Ensure manual triggers on scheduled DAGs don't conflict on run_id"
         scheduled_dag_id = "test_scheduled_dag"
@@ -3938,7 +3938,7 @@ class TestTriggerDagRun:
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_trigger_dag_run_with_bundle_version(self, test_client, session, dag_maker):
         """Test triggering a DAG run with a specific bundle version."""
         from tests_common.test_utils.dag import sync_dag_to_db
@@ -4052,7 +4052,7 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_trigger_dag_run_bundle_version_uses_v1_timetable(self, test_client, session, dag_maker):
         """Triggering with bundle_version='v1' must derive data_interval from v1's timetable, not v2's."""
         from tests_common.test_utils.dag import sync_dag_to_db
@@ -4092,7 +4092,7 @@ class TestTriggerDagRun:
         assert data["data_interval_start"] == "2023-12-31T00:00:00Z"
         assert data["data_interval_end"] == "2024-01-01T00:00:00Z"
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_trigger_dag_run_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
         """allowed_run_types is enforced from the requested bundle version, not the latest."""
         from tests_common.test_utils.dag import sync_dag_to_db
@@ -4151,7 +4151,7 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert "not a partitioned Dag" in response.json()["detail"]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_when_partition_key_given_for_partitioned_dag(
         self, dag_maker, test_client, session
     ):
@@ -4178,7 +4178,7 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_when_partition_key_given_for_partitioned_at_runtime_dag(
         self, dag_maker, test_client, session
     ):
@@ -4218,7 +4218,7 @@ class TestTriggerDagRun:
             == "Dag 'test_dag1' is not a partitioned Dag and does not accept a partition_key."
         )
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_400_when_over_length_partition_key(self, dag_maker, test_client, session):
         """A partition_key exceeding 250 characters must return 400, not 500."""
         partitioned_dag_id = "test_over_length_partition_key"
@@ -4240,7 +4240,7 @@ class TestTriggerDagRun:
         assert response.status_code == 400
         assert "at most 250 characters" in response.json()["detail"]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_when_exactly_max_length_partition_key(self, dag_maker, test_client, session):
         """A partition_key of exactly 250 characters must be accepted."""
         partitioned_dag_id = "test_max_length_partition_key"
@@ -4261,7 +4261,7 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 200
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_trigger_partitioned_dag_populates_partition_date(self, dag_maker, test_client, session):
         """Triggering a CronPartitionTimetable Dag with a valid key populates partition_date on the run.
 
@@ -4292,7 +4292,7 @@ class TestTriggerDagRun:
         assert dag_run.partition_key == "2025-06-01T00:00:00"
         assert dag_run.partition_date == datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_trigger_partitioned_dag_invalid_key_returns_400(self, dag_maker, test_client, session):
         """An invalid partition_key for a CronPartitionTimetable Dag must return HTTP 400."""
         partitioned_dag_id = "test_trigger_invalid_partition_key"
@@ -4313,7 +4313,7 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 400
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_trigger_partitioned_at_runtime_dag_leaves_partition_date_none(
         self, dag_maker, test_client, session
     ):
@@ -4405,7 +4405,7 @@ class TestResolveRunOnLatestVersion:
         result = resolve_run_on_latest_version(None, "test_resolver_dag_false", session, fallback=True)
         assert result is False
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_clear_endpoint_invokes_resolver_when_field_omitted(self, test_client):
         """Clearing without run_on_latest_version triggers the server-side resolver."""
         with mock.patch(
