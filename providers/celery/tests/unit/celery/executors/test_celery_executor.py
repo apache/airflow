@@ -70,11 +70,12 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 if AIRFLOW_V_3_2_PLUS:
     from airflow.executors.base_executor import ExecutorConf
+from airflow.providers.common.compat.sdk import timezone
+
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseOperator, timezone
+    from airflow.sdk import BaseOperator
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[attr-defined,no-redef]
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
