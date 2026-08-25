@@ -55,6 +55,8 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
+_SENSITIVE_FIELD_RE = re.compile(r"secret|password", re.IGNORECASE)
+
 # The JVM's default uncaught-exception handler always prints this exact shape.
 _EXCEPTION_START_RE = re.compile(r'Exception in thread "[^"]*"')
 
@@ -518,59 +520,57 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
         #
-        # The original single-regex approach used nested lazy quantifiers with a
-        # lookahead that caused quadratic backtracking (ReDoS) on large inputs.
-        # This token-based approach is O(n): split into whitespace-delimited tokens,
-        # identify sensitive keys, then mask the associated value.
-        cmd_str = " ".join(connection_cmd)
-        sensitive_re = re.compile(r"(?:secret|password)", re.I)
-        tokens = cmd_str.split(" ")
+        # A single regex is not used here: nested lazy quantifiers behind a lookahead
+        # backtrack quadratically, and this also runs over arbitrary spark-submit log
+        # lines, so a long line without a sensitive keyword could stall the worker.
+        # Splitting on runs of whitespace and keeping the separators makes the scan
+        # linear while preserving the original spacing of the line.
+        parts = re.split(r"(\s+)", " ".join(connection_cmd))
+        tokens = parts[::2]
+        separators = parts[1::2]
         result: list[str] = []
         i = 0
 
+        def _append(value: str, last_consumed: int) -> None:
+            result.append(value)
+            if last_consumed < len(separators):
+                result.append(separators[last_consumed])
+
+        def _find_closing_quote(start: int, quote: str) -> int:
+            # A quoted value may span several tokens, e.g. HivePassword='multi word pass'
+            end = start
+            while end < len(tokens) and not tokens[end].endswith(quote):
+                end += 1
+            return min(end, len(tokens) - 1)
+
         while i < len(tokens):
             token = tokens[i]
+            key, separator, value = token.partition("=")
 
-            # Check for key=value form (e.g. HivePassword='abc' or secret_key=val)
-            eq_pos = token.find("=")
-            if eq_pos != -1 and sensitive_re.search(token[:eq_pos]):
-                key_part = token[: eq_pos + 1]
-                val_part = token[eq_pos + 1 :]
-
-                if val_part and val_part[0] in ("'", '"'):
-                    quote = val_part[0]
-                    # Quoted value may span multiple tokens
-                    if val_part.endswith(quote) and len(val_part) > 1:
-                        result.append(key_part + quote + "******" + quote)
-                    else:
-                        # Consume tokens until closing quote
-                        while i + 1 < len(tokens) and not tokens[i + 1].endswith(quote):
-                            i += 1
-                        i += 1  # skip the token with the closing quote
-                        result.append(key_part + quote + "******" + quote)
+            if separator and _SENSITIVE_FIELD_RE.search(key):
+                if value[:1] in ("'", '"'):
+                    quote = value[0]
+                    end = i if len(value) > 1 and value.endswith(quote) else _find_closing_quote(i + 1, quote)
+                    _append(f"{key}={quote}******{quote}", end)
+                    i = end
                 else:
-                    result.append(key_part + "******")
-            # Check for key value form (e.g. --password mypass)
-            elif sensitive_re.search(token) and i + 1 < len(tokens):
-                result.append(token)
-                i += 1  # skip the next token (the value)
-                next_token = tokens[i]
-                if next_token and next_token[0] in ("'", '"'):
-                    quote = next_token[0]
-                    if next_token.endswith(quote) and len(next_token) > 1:
-                        result.append(quote + "******" + quote)
-                    else:
-                        while i + 1 < len(tokens) and not tokens[i + 1].endswith(quote):
-                            i += 1
-                        i += 1
-                        result.append(quote + "******" + quote)
+                    _append(f"{key}=******", i)
+            elif _SENSITIVE_FIELD_RE.search(token) and i + 1 < len(tokens):
+                _append(token, i)
+                i += 1
+                value = tokens[i]
+                if value[:1] in ("'", '"'):
+                    quote = value[0]
+                    end = i if len(value) > 1 and value.endswith(quote) else _find_closing_quote(i + 1, quote)
+                    _append(f"{quote}******{quote}", end)
+                    i = end
                 else:
-                    result.append("******")
+                    _append("******", i)
             else:
-                result.append(token)
+                _append(token, i)
             i += 1
 
-        return " ".join(result)
+        return "".join(result)
 
     @property
     def _submit_log_tail(self) -> str:

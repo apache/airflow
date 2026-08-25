@@ -1327,6 +1327,22 @@ class TestSparkSubmitHook:
                 ("spark-submit", "--password"),
                 "spark-submit --password",
             ),
+            (
+                ("spark-submit", "--password", "", "hunter2"),
+                "spark-submit --password  ******",
+            ),
+            (
+                ("Using  password  hunter2",),
+                "Using  password  ******",
+            ),
+            (
+                ("spark-submit --password\thunter2",),
+                "spark-submit --password\t******",
+            ),
+            (
+                ("spark-submit\t--conf\tHivePassword='abc'",),
+                "spark-submit\t--conf\tHivePassword='******'",
+            ),
         ],
     )
     @pytest.mark.db_test
