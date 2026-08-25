@@ -192,6 +192,36 @@ class TestDagVersion:
         assert retrieved.version_data is None
         assert retrieved.bundle_version == "abc123"
 
+    @pytest.mark.parametrize(
+        ("view_url_kwargs", "expected"),
+        [
+            pytest.param(
+                {"return_value": "https://example.com/tree/abc"},
+                "https://example.com/tree/abc",
+                id="bundle-still-configured",
+            ),
+            pytest.param(
+                {"side_effect": ValueError("Bundle not configured")},
+                None,
+                id="bundle-no-longer-configured",
+            ),
+        ],
+    )
+    @mock.patch("airflow.models.dag_version.DagBundlesManager", autospec=True)
+    def test_bundle_url_falls_back_to_manager_without_a_bundle_row(
+        self, mock_manager, view_url_kwargs, expected
+    ):
+        """Without a dag_bundle row the deprecated manager lookup is the only path left."""
+        mock_manager.return_value.view_url.configure_mock(**view_url_kwargs)
+        # Never persisted, so ``bundle`` resolves to None -- the same state a Dag version
+        # whose bundle row is missing ends up in.
+        dag_version = DagVersion(
+            dag_id="dag_without_bundle_row", bundle_name="removed-bundle", bundle_version="abc"
+        )
+
+        assert dag_version.bundle_url == expected
+        mock_manager.return_value.view_url.assert_called_once_with("removed-bundle", "abc")
+
 
 class TestResolveVersionData:
     """Unit tests for the _resolve_version_data pin-guard helper."""

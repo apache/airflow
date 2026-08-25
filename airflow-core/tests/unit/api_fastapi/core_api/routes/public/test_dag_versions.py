@@ -177,13 +177,16 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         assert response.json() == expected_response
 
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.models.dag_version.DagBundlesManager.view_url")
-    @mock.patch("airflow.models.dagbundle.DagBundleModel.render_url", return_value=None)
-    def test_get_dag_version_with_unconfigured_bundle(self, mock_render_url, mock_view_url, test_client):
+    @mock.patch("airflow.models.dag_version.DagBundlesManager.view_url", autospec=True)
+    @mock.patch("airflow.models.dagbundle.DagBundleModel.render_url", autospec=True, return_value=None)
+    def test_get_dag_version_with_bundle_without_url_template(
+        self, mock_render_url, mock_view_url, test_client
+    ):
         """A bundle row with no URL template yields an empty bundle_url without the deprecated fallback."""
         response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/1")
         assert response.status_code == 200
         assert not response.json()["bundle_url"]
+        mock_render_url.assert_called_once()
         mock_view_url.assert_not_called()
 
     def test_get_dag_version_404(self, test_client):

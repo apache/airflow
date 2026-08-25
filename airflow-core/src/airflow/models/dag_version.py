@@ -90,7 +90,7 @@ class DagVersion(Base):
 
     @property
     def bundle_url(self) -> str | None:
-        """Render the bundle URL using the joined bundle metadata if available."""
+        """Render the bundle URL from the bundle metadata row, when there is one."""
         # When a bundle row exists, use it (render_url returns None if it has no URL template).
         # Only when there is no bundle row do we fall back to the deprecated manager lookup -- doing
         # so for an empty template would hit the deprecated path (and its warning) on every call.
@@ -229,7 +229,8 @@ class DagVersion(Base):
         Get the version of the DAG.
 
         :param dag_id: The DAG ID.
-        :param version_number: The version number.
+        :param version_number: The version number to look up. When ``None``, the latest
+            version is returned; any other value -- ``0`` included -- is used as a filter.
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
