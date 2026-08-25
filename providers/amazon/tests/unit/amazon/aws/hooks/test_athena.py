@@ -40,6 +40,10 @@ MOCK_DATA = {
     "query_execution_id": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
     "next_token_id": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
     "max_items": 1000,
+    "code_block": "print('hello spark')",
+    "calculation_execution_id": "calc-123456",
+    "session_id": "session-123456",
+    "description": "spark-calc",
 }
 
 mock_query_context = {"Database": MOCK_DATA["database"]}
@@ -57,6 +61,11 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
         "Status": {"StateChangeReason": "Terminated by user."},
     }
 }
+
+MOCK_CALCULATION_EXECUTION = {"CalculationExecutionId": MOCK_DATA["calculation_execution_id"]}
+
+MOCK_RUNNING_CALC_EXECUTION = {"Status": {"State": "RUNNING"}}
+MOCK_SUCCEEDED_CALC_EXECUTION = {"Status": {"State": "COMPLETED"}}
 
 
 @mock_aws
@@ -314,3 +323,128 @@ class TestAthenaHook:
         assert result.count("\n") == len(params.keys()) + num_query_lines
         # All lines except the first line of the multiline query log message get the double prefix/indent.
         assert result.count(MULTI_LINE_QUERY_LOG_PREFIX) == (num_query_lines * 2) - 1
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    @pytest.mark.parametrize(
+        ("optional_kwargs", "expected_optional_params"),
+        [
+            ({}, {}),
+            (
+                {
+                    "description": MOCK_DATA["description"],
+                    "calculation_configuration": {"CodeBlock": MOCK_DATA["code_block"]},
+                    "client_request_token": MOCK_DATA["client_request_token"],
+                },
+                {
+                    "Description": MOCK_DATA["description"],
+                    "CalculationConfiguration": {"CodeBlock": MOCK_DATA["code_block"]},
+                    "ClientRequestToken": MOCK_DATA["client_request_token"],
+                },
+            ),
+        ],
+    )
+    def test_hook_start_spark_calculation(self, mock_conn, optional_kwargs, expected_optional_params):
+        mock_conn.return_value.start_calculation_execution.return_value = MOCK_CALCULATION_EXECUTION
+
+        result = self.athena.start_spark_calculation(
+            session_id=MOCK_DATA["session_id"],
+            code_block=MOCK_DATA["code_block"],
+            **optional_kwargs,
+        )
+
+        mock_conn.return_value.start_calculation_execution.assert_called_once_with(
+            SessionId=MOCK_DATA["session_id"],
+            CodeBlock=MOCK_DATA["code_block"],
+            **expected_optional_params,
+        )
+        assert result == MOCK_DATA["calculation_execution_id"]
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_spark_calculation_info(self, mock_conn):
+        mock_conn.return_value.get_calculation_execution.return_value = MOCK_SUCCEEDED_CALC_EXECUTION
+
+        result = self.athena.get_spark_calculation_info(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"]
+        )
+
+        mock_conn.return_value.get_calculation_execution.assert_called_once_with(
+            CalculationExecutionId=MOCK_DATA["calculation_execution_id"]
+        )
+        assert result == MOCK_SUCCEEDED_CALC_EXECUTION
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_spark_calculation_info_uses_cache(self, mock_conn):
+        mock_conn.return_value.get_calculation_execution.return_value = MOCK_SUCCEEDED_CALC_EXECUTION
+
+        self.athena.get_spark_calculation_info(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"],
+            use_cache=True,
+        )
+        result = self.athena.get_spark_calculation_info(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"],
+            use_cache=True,
+        )
+
+        mock_conn.return_value.get_calculation_execution.assert_called_once_with(
+            CalculationExecutionId=MOCK_DATA["calculation_execution_id"]
+        )
+        assert result == MOCK_SUCCEEDED_CALC_EXECUTION
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    @pytest.mark.parametrize(
+        ("response", "expected_state"),
+        [
+            ({"Status": {"State": "RUNNING"}}, "RUNNING"),
+            ({"Status": {"State": "COMPLETED"}}, "COMPLETED"),
+            (None, None),
+            ({}, None),
+            ({"Status": None}, None),
+            ({"Status": {}}, None),
+        ],
+    )
+    def test_hook_check_spark_calculation_status(self, mock_conn, response, expected_state):
+        mock_conn.return_value.get_calculation_execution.return_value = response
+
+        state = self.athena.check_spark_calculation_status(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"]
+        )
+
+        assert state == expected_state
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    @pytest.mark.parametrize(
+        ("response", "expected_reason"),
+        [
+            (
+                {
+                    "Status": {
+                        "State": "FAILED",
+                        "StateChangeReason": "Calculation failed",
+                    }
+                },
+                "Calculation failed",
+            ),
+            ({"Status": {"State": "FAILED"}}, None),
+            ({"Status": {"State": "COMPLETED"}}, None),
+            (None, None),
+            ({}, None),
+            ({"Status": None}, None),
+            ({"Status": {}}, None),
+        ],
+    )
+    def test_hook_get_spark_calculation_state_change_reason(self, mock_conn, response, expected_reason):
+        mock_conn.return_value.get_calculation_execution.return_value = response
+
+        reason = self.athena.get_spark_calculation_state_change_reason(
+            calculation_execution_id=MOCK_DATA["calculation_execution_id"]
+        )
+
+        assert reason == expected_reason
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_stop_spark_calculation(self, mock_conn):
+        self.athena.stop_spark_calculation(calculation_execution_id=MOCK_DATA["calculation_execution_id"])
+
+        mock_conn.return_value.stop_calculation_execution.assert_called_once_with(
+            CalculationExecutionId=MOCK_DATA["calculation_execution_id"]
+        )
