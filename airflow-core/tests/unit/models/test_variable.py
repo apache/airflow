@@ -42,6 +42,27 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 
+class _SessionUnawareMetastoreBackend(MetastoreBackend):
+    """A custom backend whose ``get_variable`` override predates the ``session`` keyword."""
+
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
+        return "from_subclass"
+
+
+class _SessionAwareMetastoreBackend(MetastoreBackend):
+    """A custom backend whose ``get_variable`` override does accept ``session``."""
+
+    def __init__(self):
+        super().__init__()
+        self.received_session: Session | None = None
+
+    def get_variable(
+        self, key: str, team_name: str | None = None, *, session: Session | None = None
+    ) -> str | None:
+        self.received_session = session
+        return "from_subclass"
+
+
 class TestVariable:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
@@ -221,6 +242,22 @@ class TestVariable:
 
         assert Variable.get("some_key", session=session) == "from_backend"
         assert "session" not in mock_backend.get_variable.call_args.kwargs
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_omits_session_for_session_unaware_metastore_subclass(self, mock_ensure_secrets, session):
+        """Forwarding a session to an override that predates it would read as a missing Variable."""
+        mock_ensure_secrets.return_value = [_SessionUnawareMetastoreBackend()]
+
+        assert Variable.get("some_key", session=session) == "from_subclass"
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_forwards_session_to_session_aware_metastore_subclass(self, mock_ensure_secrets, session):
+        """A subclass that does accept a session still receives it, so it reuses the transaction."""
+        backend = _SessionAwareMetastoreBackend()
+        mock_ensure_secrets.return_value = [backend]
+
+        assert Variable.get("some_key", session=session) == "from_subclass"
+        assert backend.received_session is session
 
     def test_get_with_session_does_not_commit_under_prohibit_commit(self, session):
         """

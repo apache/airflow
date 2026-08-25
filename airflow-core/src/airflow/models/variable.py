@@ -28,7 +28,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, 
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
-from airflow._shared.secrets_backend.base import call_secrets_backend_method
+from airflow._shared.secrets_backend.base import accepts_kwarg, call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
@@ -515,10 +515,16 @@ class Variable(Base, LoggingMixin):
         var_val = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
-            # Only the metastore Variable backend touches the metadata database, and it is the only
-            # one whose signature accepts a session.
+            # Only the metastore Variable backend touches the metadata database, so it is the only
+            # one offered a session, and only when its own override accepts one.  A subclass that
+            # overrides get_variable without the parameter raises TypeError, which the handler
+            # below swallows into a false "not found" that then gets cached.
             session_kwargs: dict[str, Session] = {}
-            if session is not None and isinstance(secrets_backend, MetastoreBackend):
+            if (
+                session is not None
+                and isinstance(secrets_backend, MetastoreBackend)
+                and accepts_kwarg(secrets_backend.get_variable, "session")
+            ):
                 session_kwargs["session"] = session
             try:
                 var_val = call_secrets_backend_method(
