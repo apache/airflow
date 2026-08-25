@@ -852,8 +852,14 @@ class DagRun(Base, LoggingMixin):
                 # capacity for 1.  this could be improved.
                 coalesce(running_drs.c.num_running, text("0"))
                 < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
-                # don't set paused dag runs as running
-                not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
+                # don't set paused dag runs as running, but a completed backfill's
+                # is_paused flag is stale: a run cleared after the backfill was
+                # cancelled (cancel sets is_paused=True and completed_at) must still
+                # be schedulable, otherwise it is stuck in queued forever. See #69658.
+                or_(
+                    Backfill.completed_at.isnot(None),
+                    not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
+                ),
             )
             .order_by(
                 # ordering by backfill sort ordinal first ensures that backfill dag runs
