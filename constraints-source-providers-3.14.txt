@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-23T10:36:39.062833
+# This constraints file was automatically generated on 2026-08-25T09:47:08.802817
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -43,6 +43,7 @@ WTForms==3.2.2
 Werkzeug==3.1.8
 a2wsgi==1.10.10
 adal==1.2.7
+adbc-driver-manager==1.12.0
 adlfs==2026.8.0
 aenum==3.1.17
 aiobotocore==3.9.0
