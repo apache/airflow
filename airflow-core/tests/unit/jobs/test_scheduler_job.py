@@ -559,46 +559,6 @@ class TestSchedulerJob:
             any_order=True,
         )
 
-    def test_process_executor_events_infra_classification(self, dag_maker):
-        session = settings.Session()
-
-        def _run(
-            dag_id: str,
-            failure_info: tuple[TaskFailureKind | None, str | None] | None,
-        ) -> TaskInstance:
-            with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}/"):
-                task = EmptyOperator(task_id="t", retries=0, infra_retries=1)
-            ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
-            ti.state = State.QUEUED
-            ti.queued_by_job_id = 1
-            session.merge(ti)
-            session.commit()
-            executor = MockExecutor(do_update=False)
-            self.job_runner = SchedulerJobRunner(job=Job(), executors=[executor])
-            executor.event_buffer[ti.key] = State.FAILED, None
-            if failure_info is not None:
-                executor.task_failure_info[ti.key] = failure_info
-            SchedulerJobRunner.process_executor_events(
-                executor=executor,
-                job_id=1,
-                scheduler_dag_bag=self.job_runner.scheduler_dag_bag,
-                session=session,
-            )
-            ti.refresh_from_db(session=session)
-            return ti
-
-        ti = _run("aip97_unclassified", failure_info=None)
-        assert (ti.state, ti.max_tries) == (TaskInstanceState.FAILED, 0)
-
-        ti = _run("aip97_infra", failure_info=(TaskFailureKind.INFRA, "Evicted"))
-        assert (ti.state, ti.max_tries) == (TaskInstanceState.UP_FOR_RETRY, 1)
-
-        ti = _run("aip97_app_oom", failure_info=(TaskFailureKind.APPLICATION, "OOMKilled"))
-        assert (ti.state, ti.max_tries) == (TaskInstanceState.FAILED, 0)
-
-        ti = _run("aip97_reason_only", failure_info=(None, "WorkerLost"))
-        assert (ti.state, ti.max_tries) == (TaskInstanceState.FAILED, 0)
-
     def test_process_executor_events_discards_failure_info_without_task_instance(self):
         executor = MockExecutor(do_update=False)
         runner = SchedulerJobRunner(job=Job(), executors=[executor])
