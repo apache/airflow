@@ -264,6 +264,220 @@ class TestDagEndpoint:
 class TestGetDags(TestDagEndpoint):
     """Unit tests for Get DAGs."""
 
+    def _update_and_assert_dag_fields(self, session, expected_fields):
+        """Persist DAG controls and query them back before exercising the API."""
+        for dag_id, fields in expected_fields.items():
+            dag_model = session.get(DagModel, dag_id)
+            for field, value in fields.items():
+                setattr(dag_model, field, value)
+        session.commit()
+        session.expire_all()
+
+        persisted = {
+            dag_model.dag_id: dag_model
+            for dag_model in session.scalars(
+                select(DagModel).where(DagModel.dag_id.in_(expected_fields))
+            ).all()
+        }
+        assert set(persisted) == set(expected_fields)
+        for dag_id, fields in expected_fields.items():
+            for field, value in fields.items():
+                assert getattr(persisted[dag_id], field) == value
+
+    def test_get_dags_filter_is_scheduled_combines_with_paused(self, session, test_client):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": "NullTimetable", "is_paused": True},
+                DAG2_ID: {"timetable_type": "NullTimetable", "is_paused": False},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable", "is_paused": True},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": False, "paused": True, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    @pytest.mark.parametrize(
+        "query_params",
+        [
+            pytest.param({}, id="no-other-parameters"),
+            pytest.param({"limit": 100}, id="with-unrelated-parameter"),
+        ],
+    )
+    def test_get_dags_without_is_scheduled_returns_all_dags(self, test_client, query_params):
+        query_params = {**query_params, "exclude_stale": False}
+
+        response = test_client.get("/dags", params=query_params)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID, DAG3_ID]
+
+    @pytest.mark.parametrize(
+        ("timetable_type", "is_scheduled", "other_timetable_type"),
+        [
+            pytest.param("NullTimetable", False, "CronTriggerTimetable", id="null"),
+            pytest.param(
+                "PartitionedAtRuntime",
+                False,
+                "CronTriggerTimetable",
+                id="partitioned-at-runtime",
+            ),
+            pytest.param("CronTriggerTimetable", True, "NullTimetable", id="cron"),
+            pytest.param("OnceTimetable", True, "NullTimetable", id="once"),
+            pytest.param("my_plugin.timetables.Custom", True, "NullTimetable", id="plugin"),
+        ],
+    )
+    def test_get_dags_filter_is_scheduled_by_timetable_type(
+        self,
+        session,
+        test_client,
+        timetable_type,
+        is_scheduled,
+        other_timetable_type,
+    ):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": timetable_type},
+                DAG2_ID: {"timetable_type": other_timetable_type},
+                DAG3_ID: {"timetable_type": other_timetable_type},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": is_scheduled, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    @pytest.mark.parametrize(
+        "timetable_summary",
+        [
+            pytest.param("None", id="None"),
+            pytest.param(None, id="NoneValue"),
+            pytest.param("", id="empty"),
+            pytest.param("2 2 * * *", id="cron-summary"),
+        ],
+    )
+    def test_get_dags_filter_is_scheduled_ignores_summary(self, session, test_client, timetable_summary):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {
+                    "timetable_type": "NullTimetable",
+                    "timetable_summary": timetable_summary,
+                },
+                DAG2_ID: {"timetable_type": "CronTriggerTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": False, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    def test_get_dags_filter_is_scheduled_true(self, session, test_client):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": "NullTimetable"},
+                DAG2_ID: {"timetable_type": "NullTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": True, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG3_ID]
+
+    def test_get_dags_filter_is_scheduled_combines_with_asset_filter(self, session, test_client):
+        self._create_asset_test_data(session)
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                ASSET_DEP_DAG_ID: {"timetable_type": "AssetTriggeredTimetable"},
+                ASSET_DEP_DAG2_ID: {"timetable_type": "AssetTriggeredTimetable"},
+                ASSET_SCHEDULED_DAG_ID: {"timetable_type": "AssetTriggeredTimetable"},
+                DAG1_ID: {"timetable_type": "NullTimetable"},
+                DAG2_ID: {"timetable_type": "NullTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={
+                "is_scheduled": True,
+                "has_asset_schedule": False,
+                "exclude_stale": False,
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG3_ID]
+
+    def test_get_dags_filter_is_scheduled_preserves_total_when_paginated(self, session, test_client):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": "NullTimetable"},
+                DAG2_ID: {"timetable_type": "NullTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": False, "exclude_stale": False, "limit": 1},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    def test_get_dags_filter_is_scheduled_rejects_invalid_boolean(self, test_client):
+        response = test_client.get("/dags", params={"is_scheduled": "not-a-boolean"})
+
+        assert response.status_code == 422
+
+    def test_get_dags_filter_is_scheduled_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags", params={"is_scheduled": False})
+
+        assert response.status_code == 401
+
+    def test_get_dags_filter_is_scheduled_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags", params={"is_scheduled": False})
+
+        assert response.status_code == 403
+
     @pytest.mark.parametrize(
         ("query_params", "expected_total_entries", "expected_ids"),
         [

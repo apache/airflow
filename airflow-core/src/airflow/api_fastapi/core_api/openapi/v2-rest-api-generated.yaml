@@ -3641,6 +3641,17 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: is_scheduled
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by whether their timetable can create scheduled
+            runs.
+          title: Is Scheduled
+        description: Filter Dags by whether their timetable can create scheduled runs.
       - name: limit
         in: query
         required: false
@@ -4771,6 +4782,14 @@ paths:
           title: Event Prefix Pattern
         description: Case-sensitive, index-friendly prefix match. See "Filtering with
           pattern parameters".
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       responses:
         '200':
           description: Successful Response
@@ -14319,6 +14338,11 @@ components:
           - type: string
           - type: 'null'
           title: Task Display Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - event_log_id

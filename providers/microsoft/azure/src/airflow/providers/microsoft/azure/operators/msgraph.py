@@ -341,6 +341,7 @@ class MSGraphAsyncOperator(BaseOperator):
                     trigger=MSGraphTrigger(
                         url=url,
                         method=self.method,
+                        path_parameters=self.path_parameters,
                         query_parameters=query_parameters,
                         headers=self.headers,
                         data=self.data,
