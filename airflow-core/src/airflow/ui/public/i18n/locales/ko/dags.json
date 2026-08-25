@@ -29,7 +29,7 @@
     },
     "pausedPlaceholder": "일시 중지 상태 선택…",
     "pausedState": "일시 중지 상태",
-    "requiresHitlAction": "응답 대기 중",
+    "requiresHitlAction": "필수 작업",
     "runIdPatternFilter": "Dag 실행 검색",
     "timetableType": "타임테이블 유형"
   },

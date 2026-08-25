@@ -121,7 +121,7 @@
   },
   "passwordToggle": {
     "hide": "값 숨기기",
-    "show": "값 표시"
+    "show": "값 보기"
   },
   "reparseDag": "Dag 재구문 분석",
   "slowestTaskInstances": {

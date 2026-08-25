@@ -371,7 +371,7 @@
     "noResultsFound": "결과를 찾을 수 없습니다",
     "noTagsFound": "태그를 찾을 수 없습니다.",
     "noTeamsFound": "팀을 찾을 수 없습니다.",
-    "ownerPlaceholder": "소유자 검색",
+    "ownerPlaceholder": "소유자로 필터링",
     "tagMode": {
       "all": "모두",
       "any": "하나 이상"
