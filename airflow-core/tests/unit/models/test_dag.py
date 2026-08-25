@@ -100,7 +100,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1178,7 +1177,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=[],
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))

@@ -72,7 +72,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG
-from airflow.sdk.importers import DagSourceCode
+from airflow.sdk.importers import DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -135,6 +135,13 @@ def encode_mtime_in_filename(val):
         addition = f"ss={str(mtime)}"
         out.append(f"{f.stem}-{addition}{f.suffix}")
     return out
+
+
+def _make_bundle(path: Path) -> MagicMock:
+    bundle = MagicMock(spec=BaseDagBundle)
+    bundle.name = "testing"
+    bundle.path = path
+    return bundle
 
 
 def _create_zip_bundle_with_valid_and_broken_dags(zip_path: Path) -> None:
@@ -400,18 +407,11 @@ class TestDagFileProcessorManager:
         )
         session.flush()
 
+        bundle = _make_bundle(tmp_path)
         manager = DagFileProcessorManager(max_runs=1)
         manager.clear_orphaned_import_errors(
             bundle_name="testing",
-            observed_filelocs=manager._get_observed_filelocs(
-                {
-                    DagFileInfo(
-                        bundle_name="testing",
-                        rel_path=Path("test_zip.zip"),
-                        bundle_path=tmp_path,
-                    )
-                }
-            ),
+            observed_filelocs=manager._get_observed_filelocs(manager._find_files_in_bundle(bundle)),
             session=session,
         )
         session.flush()
@@ -420,24 +420,60 @@ class TestDagFileProcessorManager:
         assert len(import_errors) == 1
         assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
 
-    def test_get_observed_filelocs_expands_zip_inner_paths(self, tmp_path):
+    def test_find_files_in_bundle_parses_zip_once_and_observes_its_members(self, tmp_path):
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_valid_and_broken_dags(zip_path)
+        bundle = _make_bundle(tmp_path)
 
         manager = DagFileProcessorManager(max_runs=1)
-        observed_filelocs = manager._get_observed_filelocs(
-            {
-                DagFileInfo(
-                    bundle_name="testing",
-                    rel_path=Path("test_zip.zip"),
-                    bundle_path=tmp_path,
-                )
-            }
-        )
+        found_files = manager._find_files_in_bundle(bundle)
 
-        assert observed_filelocs == {
+        assert found_files == {
+            DagFileInfo(bundle_name="testing", rel_path=Path("test_zip.zip"), bundle_path=tmp_path)
+        }
+        assert manager._get_observed_filelocs(found_files) == {
+            "test_zip.zip",
             "test_zip.zip/valid_dag.py",
             "test_zip.zip/broken_dag.py",
+        }
+
+    @pytest.mark.parametrize("absolute", [False, True], ids=["relative", "absolute"])
+    @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
+    def test_find_files_in_bundle_makes_discovery_errors_bundle_relative(
+        self, mock_get_registry, tmp_path, absolute
+    ):
+        (tmp_path / "broken.dag").write_text("")
+        source_reference = os.fspath(tmp_path / "broken.dag") if absolute else "broken.dag"
+        mock_get_registry.return_value.list_dag_definitions.return_value = [
+            (mock.sentinel.importer, DagImportError(source_reference=source_reference, message="boom"))
+        ]
+        bundle = _make_bundle(tmp_path)
+
+        found_files = DagFileProcessorManager(max_runs=1)._find_files_in_bundle(bundle)
+
+        assert [file.definition_locs for file in found_files] == [frozenset({"broken.dag"})]
+        assert found_files == {
+            DagFileInfo(bundle_name="testing", rel_path=Path("broken.dag"), bundle_path=tmp_path)
+        }
+
+    @conf_vars(
+        {
+            (
+                "dag_processor",
+                "dag_importer_configs",
+            ): '[{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".dag"]}]'
+        }
+    )
+    def test_find_files_in_bundle_uses_configured_importers(self, tmp_path):
+        (tmp_path / "custom.dag").write_text("from airflow.sdk import DAG\n")
+        bundle = _make_bundle(tmp_path)
+
+        manager = DagFileProcessorManager(max_runs=1)
+        found_files = manager._find_files_in_bundle(bundle)
+
+        assert [file.definition_locs for file in found_files] == [frozenset({"custom.dag"})]
+        assert found_files == {
+            DagFileInfo(bundle_name="testing", rel_path=Path("custom.dag"), bundle_path=tmp_path)
         }
 
     def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
@@ -464,9 +500,7 @@ class TestDagFileProcessorManager:
     def test_find_files_in_bundle_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
         (tmp_path / "with_keywords.py").write_text("from airflow.sdk import DAG\n")
         (tmp_path / "no_keywords.py").write_text("from mycompany.pipelines import flow\n")
-        bundle = MagicMock(spec=BaseDagBundle)
-        bundle.name = "testing"
-        bundle.path = tmp_path
+        bundle = _make_bundle(tmp_path)
 
         with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
             manager = DagFileProcessorManager(max_runs=1)
@@ -474,7 +508,8 @@ class TestDagFileProcessorManager:
         expected = {Path("with_keywords.py")}
         if not safe_mode:
             expected.add(Path("no_keywords.py"))
-        assert set(manager._find_files_in_bundle(bundle)) == expected
+        found_files = manager._find_files_in_bundle(bundle)
+        assert {file.rel_path for file in found_files} == expected
 
     @pytest.mark.parametrize(
         "safe_mode",
@@ -483,7 +518,7 @@ class TestDagFileProcessorManager:
             pytest.param(True, id="safe-mode-on-filters-keywordless"),
         ],
     )
-    def test_get_observed_filelocs_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
+    def test_find_files_in_bundle_observed_zip_members_respect_safe_mode(self, tmp_path, safe_mode):
         """ZIP-member discovery used for deactivation must honor the configured safe_mode.
 
         With ``dag_discovery_safe_mode=False`` a keyword-less (wrapped) zip member is parsed and
@@ -493,13 +528,13 @@ class TestDagFileProcessorManager:
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_keywordless_dag(zip_path)
 
+        bundle = _make_bundle(tmp_path)
+
         with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
             manager = DagFileProcessorManager(max_runs=1)
-        observed_filelocs = manager._get_observed_filelocs(
-            {DagFileInfo(bundle_name="testing", rel_path=Path("test_zip.zip"), bundle_path=tmp_path)}
-        )
+        observed_filelocs = manager._get_observed_filelocs(manager._find_files_in_bundle(bundle))
 
-        expected = {"test_zip.zip/with_keywords.py"}
+        expected = {"test_zip.zip", "test_zip.zip/with_keywords.py"}
         if not safe_mode:
             expected.add("test_zip.zip/no_keywords.py")
         assert observed_filelocs == expected
@@ -2090,6 +2125,25 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag1").is_stale is False
         # and the DAG from test_dag2.py is deactivated
         assert session.get(DagModel, "test_dag2").is_stale is True
+
+    def test_deactivate_deleted_dags_keeps_dags_of_observed_definitions(self, dag_maker, session):
+        with dag_maker("zipped_dag") as dag:
+            dag.relative_fileloc = "dags.zip/zipped_dag.py"
+        dag_maker.sync_dagbag_to_db()
+
+        DagFileProcessorManager(max_runs=1).deactivate_deleted_dags(
+            "dag_maker",
+            {
+                DagFileInfo(
+                    bundle_name="dag_maker",
+                    rel_path=Path("dags.zip"),
+                    bundle_path=TEST_DAGS_FOLDER,
+                    definition_locs=frozenset({"dags.zip/zipped_dag.py"}),
+                )
+            },
+        )
+
+        assert session.get(DagModel, "zipped_dag").is_stale is False
 
     @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
     def test_persist_parsing_result_passes_parsed_definitions_and_source_codes(self, mock_update):
@@ -3696,7 +3750,7 @@ class TestDagFileProcessorManager:
         with (
             mock_get as patched_get,
             mock_update as patched_update,
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3775,7 +3829,7 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
             ),
             mock.patch.object(manager, "update_bundle_state", side_effect=Exception("DB error")),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]) as mock_find,
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()) as mock_find,
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3844,7 +3898,7 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
             ),
             mock.patch.object(manager, "update_bundle_state"),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3871,7 +3925,7 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
             ),
             mock.patch.object(manager, "update_bundle_state", side_effect=Exception("API error")),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3886,6 +3940,32 @@ class TestDagFileProcessorManager:
         # _bundle_versions must NOT advance — DB still holds the old version, so the next
         # iteration will see a version mismatch and re-refresh rather than skip incorrectly
         assert "mock_bundle" not in manager._bundle_versions
+
+    def test_refresh_dag_bundles_discovery_failure_keeps_known_files_and_dags(self):
+        """A failed listing must not be treated as an empty bundle, which would deactivate its Dags."""
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle()
+        manager._dag_bundles = [bundle]
+        known = {DagFileInfo(bundle_name="mock_bundle", rel_path=Path("dag.py"), bundle_path=bundle.path)}
+        known_files = {"mock_bundle": known}
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", side_effect=OSError("listing failed")),
+            mock.patch.object(manager, "deactivate_deleted_dags") as mock_deactivate,
+            mock.patch.object(manager, "clear_orphaned_import_errors") as mock_clear,
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles(known_files)
+
+        mock_deactivate.assert_not_called()
+        mock_clear.assert_not_called()
+        assert known_files == {"mock_bundle": known}
 
     def test_unpack_bundle_version_with_bundle_version_dataclass(self):
         from airflow.dag_processing.bundles.base import BundleVersion, unpack_bundle_version
