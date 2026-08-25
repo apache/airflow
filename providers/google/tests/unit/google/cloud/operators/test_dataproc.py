@@ -2521,6 +2521,21 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         assert op.start_from_trigger is True
         assert op.start_trigger_args.trigger_kwargs == {}
 
+    def test_start_from_trigger_stores_templated_fields_verbatim(self):
+        job = {"placement": {"cluster_name": "{{ params.cluster }}"}}
+        project_id = "{{ var.value.gcp_project }}"
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=project_id,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+            start_from_trigger=True,
+        )
+        assert op.start_trigger_args.trigger_kwargs["job"] == job
+        assert op.start_trigger_args.trigger_kwargs["project_id"] == project_id
+
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
