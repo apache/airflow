@@ -68,8 +68,8 @@ export const NavTabs = ({ tabs }: Props) => {
 
               return (
                 <Center
-                  _hover={{ color: active ? "fg" : "brand.solid" }}
                   _focus={{ color: active ? "fg" : "brand.solid" }}
+                  _hover={{ color: active ? "fg" : "brand.solid" }}
                   borderBottomColor={active ? "brand.solid" : "transparent"}
                   borderBottomWidth={INDICATOR_HEIGHT}
                   color={active ? "fg" : "fg.muted"}
@@ -80,7 +80,7 @@ export const NavTabs = ({ tabs }: Props) => {
                   px={4}
                   transition="all 0.2s ease"
                 >
-                  {containerWidth > 600 || !icon ? label : icon}
+                  {containerWidth > 600 || !Boolean(icon) ? label : icon}
                 </Center>
               );
             }}
