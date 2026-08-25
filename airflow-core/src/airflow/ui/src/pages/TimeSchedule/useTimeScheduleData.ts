@@ -216,7 +216,15 @@ export const useTimeScheduleData = ({
         const decoder = new TextDecoder();
         let buffer = "";
 
-        for (let result = await reader.read(); !result.done; result = await reader.read()) {
+        for (;;) {
+          // Each chunk depends on the previous buffer remainder.
+          // eslint-disable-next-line no-await-in-loop
+          const result = await reader.read();
+
+          if (result.done) {
+            break;
+          }
+
           buffer += decoder.decode(result.value, { stream: true });
           const lines = buffer.split("\n");
 

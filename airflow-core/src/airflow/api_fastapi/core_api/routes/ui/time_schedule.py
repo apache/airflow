@@ -96,7 +96,7 @@ def _build_selected_dags_query(
     return query
 
 
-def _build_selected_run_ids_query(
+def _build_selected_runs_query(
     *,
     dag_ids_query: Select[tuple[DagModel]],
     duration_range: RangeFilter,
@@ -105,8 +105,10 @@ def _build_selected_run_ids_query(
     run_type: QueryDagRunRunTypesFilter,
     start_date_range: RangeFilter,
     state: QueryDagRunStateFilter,
-) -> Select[tuple[int]]:
-    query = select(DagRun.id).where(DagRun.dag_id.in_(dag_ids_query.with_only_columns(DagModel.dag_id)))
+) -> Select[tuple[int, str]]:
+    query = select(DagRun.id, DagRun.dag_id).where(
+        DagRun.dag_id.in_(dag_ids_query.with_only_columns(DagModel.dag_id))
+    )
     query = apply_filters_to_select(
         statement=query,
         filters=[run_after, start_date_range, duration_range, run_type, state],
@@ -183,7 +185,7 @@ def get_time_schedule_stream(
         teams=teams,
         timetable_type=timetable_type,
     )
-    selected_run_ids_query = _build_selected_run_ids_query(
+    selected_runs_query = _build_selected_runs_query(
         dag_ids_query=dag_ids_query,
         duration_range=duration_range,
         limit=limit,
@@ -197,9 +199,7 @@ def get_time_schedule_stream(
         # Release each database connection before yielding so a slow client does not
         # hold one for the lifetime of the stream.
         with create_session(scoped=False) as session:
-            selected_runs = session.execute(
-                select(DagRun.id, DagRun.dag_id).where(DagRun.id.in_(selected_run_ids_query))
-            ).all()
+            selected_runs = session.execute(selected_runs_query).all()
         run_ids_by_dag: dict[str, list[int]] = {}
         for run_id, dag_id in selected_runs:
             run_ids_by_dag.setdefault(dag_id, []).append(run_id)
@@ -210,7 +210,7 @@ def get_time_schedule_stream(
             run_id_batch = [run_id for dag_id in dag_id_batch for run_id in run_ids_by_dag[dag_id]]
             with create_session(scoped=False) as session:
                 rows = session.execute(
-                    select(DagRun, DagModel.dag_display_name, DagModel.timetable_periodic)
+                    select(DagRun, DagModel)
                     .join(DagModel, DagModel.dag_id == DagRun.dag_id)
                     .where(DagRun.id.in_(run_id_batch))
                     .order_by(DagRun.dag_id, func.coalesce(DagRun.start_date, DagRun.run_after).desc())
@@ -220,8 +220,12 @@ def get_time_schedule_stream(
             for _, dag_rows_iterator in groupby(rows, key=lambda row: row[0].dag_id):
                 dag_rows = list(dag_rows_iterator)
                 run_items = [
-                    _build_run_item(dag_run, label=label, is_time_scheduled=is_periodic)
-                    for dag_run, label, is_periodic in dag_rows
+                    _build_run_item(
+                        dag_run,
+                        label=dag.dag_display_name,
+                        is_time_scheduled=dag.timetable_periodic,
+                    )
+                    for dag_run, dag in dag_rows
                 ]
                 batch_items.extend(
                     aggregate_time_schedule_items(

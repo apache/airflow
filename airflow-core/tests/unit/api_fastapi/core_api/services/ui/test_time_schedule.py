@@ -24,6 +24,7 @@ import pytest
 
 from airflow.api_fastapi.core_api.datamodels.ui.time_schedule import TimeScheduleItem
 from airflow.api_fastapi.core_api.services.ui.time_schedule import aggregate_time_schedule_items
+from airflow.utils.state import DagRunState
 
 
 def _make_item(*, start: pendulum.DateTime, duration_minutes: int, run_id: str) -> TimeScheduleItem:
@@ -38,7 +39,7 @@ def _make_item(*, start: pendulum.DateTime, duration_minutes: int, run_id: str) 
         label="example_dag",
         run_count=1,
         start_date=start,
-        state="success",
+        state=DagRunState.SUCCESS,
     )
 
 
