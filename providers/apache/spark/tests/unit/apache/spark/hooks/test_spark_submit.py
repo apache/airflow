@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from io import StringIO
 from pathlib import Path
 from types import ModuleType
@@ -1302,6 +1303,30 @@ class TestSparkSubmitHook:
                 ("spark-submit",),
                 "spark-submit",
             ),
+            (
+                ("spark-submit", "foo", "--secret", "topsecret", "--bar"),
+                "spark-submit foo --secret ****** --bar",
+            ),
+            (
+                ("spark-submit", "--conf", "spark.mySecret=abc"),
+                "spark-submit --conf spark.mySecret=******",
+            ),
+            (
+                ("spark-submit", "--PASSWORD=abc"),
+                "spark-submit --PASSWORD=******",
+            ),
+            (
+                ("spark-submit", "--conf", "HivePassword='multi word pass'", "--after"),
+                "spark-submit --conf HivePassword='******' --after",
+            ),
+            (
+                ("spark-submit", "--password", "'multi word pass'", "--bar", "baz"),
+                "spark-submit --password '******' --bar baz",
+            ),
+            (
+                ("spark-submit", "--password"),
+                "spark-submit --password",
+            ),
         ],
     )
     @pytest.mark.db_test
@@ -1314,6 +1339,20 @@ class TestSparkSubmitHook:
 
         # Then
         assert command_masked == expected
+
+    @pytest.mark.db_test
+    def test_masks_passwords_is_linear_on_large_input(self) -> None:
+        # The previous regex backtracked quadratically on long inputs without a sensitive
+        # keyword, taking ~57s for this payload and blocking the worker slot.
+        hook = SparkSubmitHook()
+        payload = ("spark-submit", "--arg", "x " * 25_000)
+
+        start = time.monotonic()
+        command_masked = hook._mask_cmd(payload)
+        elapsed = time.monotonic() - start
+
+        assert command_masked == " ".join(payload)
+        assert elapsed < 5
 
     @pytest.mark.db_test
     def test_submit_log_tail_empty_when_no_lines_captured(self) -> None:
