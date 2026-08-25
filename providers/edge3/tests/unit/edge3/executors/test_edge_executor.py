@@ -662,6 +662,41 @@ class TestQueueWorkload:
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteTask"' in job.command or '"type": "ExecuteTask"' in job.command
 
+    def test_queue_workload_occupies_an_executor_slot(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+
+        assert workload.ti.key in executor.running
+        assert executor.slots_available == executor.parallelism - 1
+
+        # The slot stays taken while the job waits in the queue for a worker to pick it up.
+        executor.sync()
+
+        assert workload.ti.key in executor.running
+        assert executor.slots_available == executor.parallelism - 1
+
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
+    def test_sync_reports_state_of_queued_workload(self, state):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+        executor.sync()
+
+        with create_session() as session:
+            session.scalar(select(EdgeJobModel)).state = state
+            session.commit()
+
+        executor.sync()
+
+        assert executor.get_event_buffer() == {workload.ti.key: (state, None)}
+
     def test_queue_workload_execute_task_existing_job(self):
         executor = EdgeExecutor()
         workload = self._make_execute_task()
