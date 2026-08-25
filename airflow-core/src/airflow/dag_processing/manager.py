@@ -29,7 +29,6 @@ import selectors
 import signal
 import sys
 import time
-import zipfile
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -72,9 +71,10 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
+from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
-from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -91,7 +91,7 @@ from airflow.utils.sqlalchemy import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
+    from collections.abc import Callable, Collection, Iterable, Sequence
     from socket import socket
 
     from sqlalchemy.orm import Session
@@ -140,6 +140,7 @@ class DagFileInfo:
     bundle_name: str
     bundle_path: Path | None = field(compare=False, default=None)
     bundle_version: str | None = None
+    definition_locs: frozenset[str] = field(compare=False, default=frozenset())
 
     @property
     def absolute_path(self) -> Path:
@@ -976,10 +977,12 @@ class DagFileProcessorManager(LoggingMixin):
                 self._bundle_versions[bundle.name] = version_after_refresh
                 self._bundle_version_data[bundle.name] = version_data_after_refresh
 
-            found_files = {
-                DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
-                for p in self._find_files_in_bundle(bundle)
-            }
+            try:
+                found_files = self._find_files_in_bundle(bundle)
+            except Exception:
+                # Treating a failed listing as an empty bundle would deactivate all of its Dags.
+                self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
+                continue
 
             known_files[bundle.name] = found_files
 
@@ -996,56 +999,43 @@ class DagFileProcessorManager(LoggingMixin):
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
 
-    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
-        """Get relative paths for dag files from bundle dir."""
-        # Build up a list of Python files that could contain DAGs
-        self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        rel_paths = [
-            Path(x).relative_to(bundle.path)
-            for x in list_py_file_paths(bundle.path, safe_mode=self.dag_discovery_safe_mode)
-        ]
+    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> set[DagFileInfo]:
+        """
+        List the files to parse in a bundle through its importers.
+
+        A file holding several Dag definitions (a zip archive, for instance) is parsed as one.
+        """
+        self.log.info("Searching for Dag definitions in %s at %s", bundle.name, bundle.path)
+        registry = get_importer_registry(bundle.name)
+        definition_locs: defaultdict[Path, set[str]] = defaultdict(set)
+        for _, item in registry.list_dag_definitions(bundle, safe_mode=self.dag_discovery_safe_mode):
+            if isinstance(item, DagImportError):
+                # Importers report a source either absolutely or relative to the bundle.
+                rel_fileloc = os.path.relpath(bundle.path / item.source_reference, bundle.path)
+            else:
+                rel_fileloc = item.get_relative_loc(bundle.path)
+            if (path := find_enclosing_file(bundle.path / rel_fileloc)) is not None:
+                definition_locs[path.relative_to(bundle.path)].add(rel_fileloc)
         self.log.info(
             "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
-            len(rel_paths),
+            len(definition_locs),
             bundle.name,
             self.dag_discovery_safe_mode,
         )
+        return {
+            DagFileInfo(
+                rel_path=rel_path,
+                bundle_name=bundle.name,
+                bundle_path=bundle.path,
+                definition_locs=frozenset(locs),
+            )
+            for rel_path, locs in definition_locs.items()
+        }
 
-        return rel_paths
-
-    def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
-        """
-        Return observed DAG source paths for bundle entries.
-
-        For regular files this includes the relative file path.
-        For ZIP archives this includes DAG-like inner paths such as
-        ``archive.zip/dag.py``.
-        """
-
-        def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
-            """Yield absolute paths for DAG-like files inside a ZIP archive."""
-            try:
-                with zipfile.ZipFile(abs_path) as z:
-                    for info in z.infolist():
-                        # Use the configured discovery safe mode
-                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z, conf=conf):
-                            yield os.path.join(abs_path, info.filename)
-            except zipfile.BadZipFile:
-                self.log.exception("There was an error accessing ZIP file %s", abs_path)
-
-        observed_filelocs: set[str] = set()
-        for info in present:
-            abs_path = str(info.absolute_path)
-            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
-                observed_filelocs.add(str(info.rel_path))
-            else:
-                if TYPE_CHECKING:
-                    assert info.bundle_path
-                for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
-                    rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
-                    observed_filelocs.add(str(rel_sub_path))
-
-        return observed_filelocs
+    @staticmethod
+    def _get_observed_filelocs(present: set[DagFileInfo]) -> set[str]:
+        """Return the bundle-relative locations of the files and of the definitions found in them."""
+        return {loc for file in present for loc in (str(file.rel_path), *file.definition_locs)}
 
     def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
         """Deactivate DAGs that come from files that are no longer present in bundle."""
