@@ -728,9 +728,7 @@ class TestPostgresHookConnPPG3:
         self.connection.extra = '{"cursor": "realdictcursor"}'
         mocker.patch("psycopg.AsyncConnection.connect", new_callable=mock.AsyncMock)
 
-        from airflow.providers.common.compat.sdk import AirflowException
-
-        with pytest.raises(AirflowException, match="realdictcursor is not supported with psycopg3"):
+        with pytest.raises(ValueError, match="realdictcursor is not supported with psycopg3"):
             await self.db_hook.aget_conn()
 
     @pytest.mark.asyncio
