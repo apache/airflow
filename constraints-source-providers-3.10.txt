@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-25T09:48:59.397167
+# This constraints file was automatically generated on 2026-08-25T15:34:08.146415
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -28,7 +28,7 @@ Mako==1.4.1
 Markdown==3.10.3
 MarkupSafe==3.0.3
 PyAthena==3.35.4
-PyGithub==2.9.1
+PyGithub==2.10.0
 PyHive==0.7.0
 PyJWT==2.13.0
 PyMySQL==1.1.3
@@ -63,21 +63,23 @@ airbyte-api==1.0.1
 akeyless==5.0.28
 alabaster==1.0.0
 alembic==1.19.1
-alibabacloud-adb20211201==4.1.1
+alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.1
-alibabacloud-credentials==1.0.11
+alibabacloud-credentials==1.0.12
 alibabacloud-gateway-spi==0.0.4
+alibabacloud-openapi-util==0.2.4
 alibabacloud-oss-v2==1.3.2
 alibabacloud-tea-openapi==0.4.6
 alibabacloud-tea-util==0.3.15
 alibabacloud-tea==0.4.3
+alibabacloud_endpoint_util==0.0.4
 amqp==5.3.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
-anthropic==0.122.0
+anthropic==1.0.0
 anyio==4.14.2
 apispec==6.10.0
-apprise==1.12.0
+apprise==1.13.0
 argcomplete==3.7.2
 arro3-core==0.8.1
 arrow==1.4.0
@@ -104,7 +106,7 @@ azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.1
 azure-kusto-data==6.0.4
-azure-mgmt-compute==38.2.0
+azure-mgmt-compute==38.3.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==15.0.0
 azure-mgmt-core==1.6.0
@@ -159,9 +161,9 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.4.2
-clickhouse-connect==1.7.1
+clickhouse-connect==1.7.2
 cloudpickle==3.1.1
-cohere==7.0.8
+cohere==7.0.9
 colorama==0.4.6
 colorful==0.5.8
 colorlog==6.12.0
@@ -211,7 +213,7 @@ facebook_business==26.0.0
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.2.12
+fastcore==2.2.13
 fastjsonschema==2.22.2
 fastmcp-slim==3.4.7
 fastuuid==0.14.0
@@ -229,14 +231,14 @@ gcloud-aio-auth==5.5.0
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.8.0
-genai-prices==0.1.3
+genai-prices==0.1.4
 geomet==1.1.0
 gevent==26.8.0
 gitdb==4.0.12
-google-ads==31.3.0
+google-ads==31.4.0
 google-analytics-admin==0.30.1
 google-api-core==2.34.0
-google-api-python-client==2.198.0
+google-api-python-client==2.199.0
 google-auth-httplib2==0.4.1
 google-auth-oauthlib==1.4.0
 google-auth==2.56.3
@@ -249,7 +251,7 @@ google-cloud-batch==0.22.2
 google-cloud-bigquery-datatransfer==3.23.0
 google-cloud-bigquery-storage==2.40.0
 google-cloud-bigquery==3.43.0
-google-cloud-bigtable==2.41.0
+google-cloud-bigtable==2.42.0
 google-cloud-build==3.38.1
 google-cloud-compute==1.50.0
 google-cloud-container==2.65.0
@@ -286,7 +288,7 @@ google-cloud-videointelligence==2.20.0
 google-cloud-vision==3.15.0
 google-cloud-workflows==1.23.0
 google-crc32c==1.8.0
-google-genai==2.18.1
+google-genai==2.19.0
 google-resumable-media==2.10.1
 googleapis-common-protos==1.75.1
 graphql-core==3.2.11
@@ -305,7 +307,7 @@ grpcio-status==1.83.0
 grpcio-tools==1.81.1
 grpcio==1.83.0
 gssapi==1.11.1
-gunicorn==26.0.0
+gunicorn==26.1.0
 h11==0.16.0
 h2==4.4.1
 hatch==1.18.0
@@ -314,15 +316,15 @@ hdfs==2.7.3
 hf-xet==1.6.0
 hmsclient==0.1.1
 hpack==4.2.0
-httpcore2==2.10.0
+httpcore2==2.12.0
 httpcore==1.0.9
 httplib2==0.32.0
 httpr==0.6.0
 httptools==0.8.0
 httpx-sse==0.4.3
-httpx2==2.10.0
+httpx2==2.12.0
 httpx==0.28.1
-huggingface_hub==1.27.0
+huggingface_hub==1.28.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -331,11 +333,11 @@ ibm-cloud-sdk-core==3.26.0
 ibm_db==3.3.0
 ibm_db_sa==0.4.4
 ibmcloudant==0.11.10
-icalendar==7.2.2
+icalendar==7.3.0
 icdiff==2.0.10
 id==1.6.1
 identify==2.6.19
-idna==3.18
+idna==3.19
 ijson==3.4.0.post0
 imagesize==2.0.0
 immutabledict==4.3.1
@@ -384,29 +386,29 @@ krb5==0.9.0
 kubernetes==36.0.3
 kubernetes_asyncio==36.1.0
 kylinpy==2.8.4
-langchain-core==1.5.6
+langchain-core==1.6.0
 langchain-protocol==0.0.18
-langchain==1.3.15
+langchain==1.3.16
 langgraph-checkpoint==4.2.0
 langgraph-prebuilt==1.1.0
-langgraph-sdk==0.4.2
+langgraph-sdk==0.4.3
 langgraph==1.2.11
-langsmith==0.11.0
+langsmith==0.11.1
 lazy-object-proxy==1.12.0
 libcst==1.9.0
 librt==0.15.0
 limits==5.8.0
 linkify-it-py==2.1.0
 litellm==1.85.7
-llama-index-core==0.14.23
+llama-index-core==0.14.24
 llama-index-embeddings-openai==0.6.0
 llama-index-instrumentation==0.5.0
 llama-index-llms-openai==0.7.10
 llama-index-workflows==2.23.2
 lockfile==0.12.2
-logfire-api==4.40.0
+logfire-api==4.41.0
 looker_sdk==26.12.0
-lxml==6.1.1
+lxml==6.1.2
 lz4==4.4.5
 markdown-it-py==4.2.0
 marshmallow-sqlalchemy==1.5.0
@@ -547,9 +549,9 @@ pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-skills==1.2.0
-pydantic-ai-slim==2.31.0
+pydantic-ai-slim==2.31.1
 pydantic-extra-types==2.11.1
-pydantic-graph==2.31.0
+pydantic-graph==2.31.1
 pydantic-settings==2.15.0
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -601,7 +603,7 @@ pytokens==0.4.1
 pytz==2026.3.post1
 pyvespa==1.2.4
 pywinrm==0.5.0
-pyzmq==27.1.0
+pyzmq==27.2.0
 qdrant-client==1.19.0
 ray==2.57.0
 reactivex==5.1.0
@@ -656,7 +658,7 @@ snowflake-snowpark-python==1.54.0
 snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
 soupsieve==2.9.2
-sphinx-argparse==0.6.0
+sphinx-argparse==0.6.1
 sphinx-autoapi==3.8.0
 sphinx-autobuild==2024.10.3
 sphinx-copybutton==0.5.2
@@ -692,7 +694,7 @@ sympy==1.14.0
 tableauserverclient==0.41
 tabulate==0.10.0
 tenacity==9.1.4
-teradatasql==20.0.0.65
+teradatasql==20.0.0.66
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 testcontainers==4.15.0
@@ -713,7 +715,7 @@ tornado==6.5.8
 towncrier==25.8.0
 tqdm==4.70.0
 traitlets==5.16.1
-trino==0.338.0
+trino==0.339.0
 trove-classifiers==2026.6.1.19
 truststore==0.10.4
 twine==7.0.0
@@ -729,7 +731,7 @@ types-cffi==2.0.0.20260518
 types-croniter==6.2.4.20260711
 types-docutils==0.22.3.20260724
 types-paramiko==5.0.0.20260724
-types-protobuf==7.34.1.20260816
+types-protobuf==7.35.1.20260821
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20260807
 types-python-slugify==8.0.2.20240310
@@ -752,7 +754,7 @@ userpath==1.9.2
 uuid6==2025.0.1
 uuid_utils==0.17.0
 uv==0.12.5
-uvicorn==0.52.3
+uvicorn==0.52.4
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
@@ -764,7 +766,7 @@ wcwidth==0.8.2
 weaviate-client==4.16.2
 webencodings==0.6.1
 websocket-client==1.8.0
-websockets==15.0.1
+websockets==16.1.1
 wirerope==1.0.0
 wrapt==2.3.0
 xmlsec==1.3.17
@@ -780,5 +782,5 @@ zeep==4.3.3
 zenpy==2.0.57
 zipp==4.1.0
 zope.event==6.2
-zope.interface==8.5
+zope.interface==8.6
 zstandard==0.25.0
