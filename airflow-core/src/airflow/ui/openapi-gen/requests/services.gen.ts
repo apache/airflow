@@ -1663,6 +1663,7 @@ export class DagService {
      * Get Dags
      * Get all Dags.
      * @param data The data for the request.
+     * @param data.isScheduled Filter Dags by whether their timetable can create scheduled runs.
      * @param data.limit
      * @param data.offset
      * @param data.tags
@@ -1700,6 +1701,7 @@ export class DagService {
             method: 'GET',
             url: '/api/v2/dags',
             query: {
+                is_scheduled: data.isScheduled,
                 limit: data.limit,
                 offset: data.offset,
                 tags: data.tags,
