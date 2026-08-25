@@ -291,6 +291,82 @@ class Connection:
             cls._handle_connection_error(e, conn_id)
 
     @property
+    async def aextra_dejson(self) -> dict:
+        """Async version: Returns the extra property by deserializing json and masking secrets."""
+        from airflow.sdk.log import amask_secret
+
+        extra = {}
+        if self.extra:
+            try:
+                import json
+                extra = json.loads(self.extra)
+            except Exception:
+                log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
+            else:
+                await amask_secret(extra)
+        return extra
+
+    async def aget_uri(self) -> str:
+        """Async version: Generate and return connection in URI format."""
+        from urllib.parse import parse_qsl, quote, urlencode
+
+        if self.conn_type:
+            uri = f"{self.conn_type.lower().replace('_', '-')}://"
+        else:
+            uri = "//"
+        host_to_use: str | None
+        if self.host and "://" in self.host:
+            protocol, host = self.host.split("://", 1)
+            # If the protocol in host matches the connection type, don't add it again
+            if protocol == self.conn_type:
+                host_to_use = self.host
+                protocol_to_add = None
+            else:
+                # Different protocol, add it to the URI
+                host_to_use = host
+                protocol_to_add = protocol
+        else:
+            host_to_use = self.host
+            protocol_to_add = None
+
+        if protocol_to_add:
+            uri += f"{protocol_to_add}://"
+
+        authority_block = ""
+        if self.login is not None:
+            authority_block += quote(self.login, safe="")
+        if self.password is not None:
+            authority_block += ":" + quote(self.password, safe="")
+        if authority_block > "":
+            authority_block += "@"
+            uri += authority_block
+
+        host_block = ""
+        if host_to_use:
+            host_block += quote(host_to_use, safe="")
+        if self.port:
+            if host_block == "" and authority_block == "":
+                host_block += f"@:{self.port}"
+            else:
+                host_block += f":{self.port}"
+        if self.schema:
+            host_block += f"/{quote(self.schema, safe='')}"
+        uri += host_block
+
+        if self.extra:
+            try:
+                extra_dejson = await self.aextra_dejson()
+                query: str | None = urlencode(extra_dejson)
+            except TypeError:
+                query = None
+            if query and extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += ("?" if self.schema else "/?") + query
+            else:
+                uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+
+        return uri
+
+    @property
     def extra_dejson(self) -> dict:
         """Returns the extra property by deserializing json."""
         from airflow.sdk.log import mask_secret
