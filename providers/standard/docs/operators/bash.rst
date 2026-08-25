@@ -31,9 +31,9 @@ determined by:
 2. If using the TaskFlow decorator, ``@task.bash``, a non-empty string value returned from the decorated callable.
 
 
-.. tip::
+.. note::
 
-    The ``@task.bash`` decorator is recommended over the classic ``BashOperator`` to execute Bash commands.
+    The ``@task.bash`` decorator is the Taskflow equivalent of ``BashOperator`` to execute Bash commands.
 
 
 .. tab-set::
