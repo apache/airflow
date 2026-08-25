@@ -1540,6 +1540,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Skip ts-sdk docs build for a ts-sdk README-only change",
         ),
         pytest.param(
+            ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when the java test-fixture bundle changes",
+        ),
+        pytest.param(
             ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
             {
                 "run-java-sdk-e2e-tests": "true",
@@ -3065,7 +3074,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
+                "docs-list-as-string": "amazon apache.arrow apache.drill apache.druid apache.hive apache.iceberg "
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
                 "exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
