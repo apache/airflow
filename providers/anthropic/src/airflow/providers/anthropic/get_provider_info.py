@@ -85,7 +85,7 @@ def get_provider_info():
                     "aws_region": {
                         "label": "AWS Region",
                         "schema": {"type": ["string", "null"]},
-                        "description": "AWS region for the bedrock platform (for example us-east-1).",
+                        "description": "AWS region for the bedrock and aws platforms. Defaults to us-east-1.",
                     },
                     "project_id": {
                         "label": "GCP Project ID",

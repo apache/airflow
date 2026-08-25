@@ -70,6 +70,8 @@ if TYPE_CHECKING:
 #: a provider release when this model ID is retired.
 DEFAULT_MODEL = "claude-opus-4-8"
 
+DEFAULT_AWS_REGION = "us-east-1"
+
 #: Platforms that serve the first-party-only endpoints (Message Batches, token
 #: counting, the Models API). Amazon Bedrock, Google Vertex AI and Microsoft
 #: Foundry do not serve these, so the hook fails fast rather than surfacing a
@@ -295,7 +297,8 @@ class AnthropicHook(BaseHook):
     - ``platform``: one of ``anthropic`` (default), ``bedrock``, ``vertex``, ``aws``, ``foundry``.
     - ``model``: default model id used when an operator/hook call omits ``model`` (lets you
       change the model without editing Dags); falls back to :data:`DEFAULT_MODEL`.
-    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms.
+    - ``aws_region``: region for the ``bedrock`` and ``aws`` platforms; defaults to
+      :data:`DEFAULT_AWS_REGION` when omitted.
     - ``project_id`` / ``region``: project and region for the ``vertex`` platform.
     - ``resource``: Azure resource name for the ``foundry`` platform.
     - ``anthropic_client_kwargs``: extra keyword arguments forwarded to the client
@@ -349,14 +352,15 @@ class AnthropicHook(BaseHook):
         client_kwargs = dict(extras.get("anthropic_client_kwargs", {}))
         platform = self.platform
         self.log.debug("Building Anthropic client for platform %r (conn_id=%s)", platform, self.conn_id)
+        aws_region = extras.get("aws_region") or DEFAULT_AWS_REGION
         if platform == "bedrock":
-            return AnthropicBedrock(aws_region=extras.get("aws_region"), **client_kwargs)
+            return AnthropicBedrock(aws_region=aws_region, **client_kwargs)
         if platform == "vertex":
             return AnthropicVertex(
                 project_id=extras.get("project_id"), region=extras.get("region"), **client_kwargs
             )
         if platform == "aws":
-            return AnthropicAWS(aws_region=extras.get("aws_region"), **client_kwargs)
+            return AnthropicAWS(aws_region=aws_region, **client_kwargs)
         if platform == "foundry":
             api_key = client_kwargs.pop("api_key", None) or conn.password
             return AnthropicFoundry(api_key=api_key, resource=extras.get("resource"), **client_kwargs)

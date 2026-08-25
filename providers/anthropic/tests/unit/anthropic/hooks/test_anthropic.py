@@ -31,6 +31,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicTriggerEventError,
 )
 from airflow.providers.anthropic.hooks.anthropic import (
+    DEFAULT_AWS_REGION,
     DEFAULT_MODEL,
     MAX_CONSECUTIVE_POLL_FAILURES,
     AnthropicHook,
@@ -45,7 +46,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
-import httpx
+import httpx2
 from anthropic import BadRequestError
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
@@ -283,8 +284,8 @@ class TestBuildBudget:
 
 def _make_bad_request(message="cannot be archived while its status is running") -> BadRequestError:
     """A real SDK BadRequestError -- archive_session only interrupts on this, not on any error."""
-    request = httpx.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
-    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)
+    request = httpx2.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
+    return BadRequestError(message, response=httpx2.Response(400, request=request), body=None)
 
 
 class TestArchiveSession:
@@ -660,6 +661,13 @@ class TestAnthropicHookGetConn:
         mock_bedrock.assert_called_once_with(aws_region="us-east-1")
         assert client is mock_bedrock.return_value
 
+    @mock.patch(f"{HOOK_PATH}.AnthropicBedrock")
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_bedrock_platform_without_region(self, mock_get_connection, mock_bedrock):
+        mock_get_connection.return_value = _conn(extra={"platform": "bedrock"})
+        AnthropicHook().get_conn()
+        mock_bedrock.assert_called_once_with(aws_region=DEFAULT_AWS_REGION)
+
     @mock.patch(f"{HOOK_PATH}.AnthropicVertex")
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_vertex_platform(self, mock_get_connection, mock_vertex):
@@ -679,10 +687,9 @@ class TestAnthropicHookGetConn:
     @mock.patch(f"{HOOK_PATH}.AnthropicAWS", autospec=True)
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_aws_platform_without_region(self, mock_get_connection, mock_aws):
-        # No aws_region configured -> pass None so the SDK falls back to its own resolution.
         mock_get_connection.return_value = _conn(extra={"platform": "aws"})
         AnthropicHook().get_conn()
-        mock_aws.assert_called_once_with(aws_region=None)
+        mock_aws.assert_called_once_with(aws_region=DEFAULT_AWS_REGION)
 
     @mock.patch(f"{HOOK_PATH}.AnthropicFoundry")
     @mock.patch.object(AnthropicHook, "get_connection")
