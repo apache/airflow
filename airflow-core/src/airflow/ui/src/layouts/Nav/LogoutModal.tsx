@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
-import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { ConfirmationModal } from "src/components/ConfirmationModal";
@@ -28,8 +27,8 @@ type LogoutModalProps = {
   readonly onClose: () => void;
 };
 
-const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
-  const { t: translate } = useTranslation("common");
+const LogoutModal = ({ isOpen, onClose }: LogoutModalProps) => {
+  const { t: translate } = useTranslation();
 
   return (
     <ConfirmationModal

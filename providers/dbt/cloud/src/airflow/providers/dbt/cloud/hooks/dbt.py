@@ -782,7 +782,7 @@ class DbtCloudHook(HttpHook):
         Retrieve metadata for a specific run of a dbt Cloud job.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
-        :param paylod: Optional. Query Parameters
+        :param payload: Optional. Query Parameters
         :return: The request response.
         """
         return self._run_and_get_response(

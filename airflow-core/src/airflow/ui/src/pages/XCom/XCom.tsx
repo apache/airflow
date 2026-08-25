@@ -236,21 +236,18 @@ export const XCom = () => {
 
   return (
     <>
-      <Flex alignItems="center" justifyContent="space-between">
-        <XComFilters />
-        {isTaskInstancePage ? (
-          <AddXComButton
-            dagId={dagId}
-            mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
-            runId={runId}
-            taskId={taskId}
-          />
-        ) : undefined}
-      </Flex>
-
       <ErrorAlert error={error} />
       <DataTable
-        actions={
+        columns={columns}
+        data={xcomEntries}
+        displayMode="table"
+        filterActions={<XComFilters />}
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="browse:xcom.entry"
+        onStateChange={setTableURLState}
+        presentationActions={
           xcomEntries.length > 0 ? (
             <ExpandCollapseButtons
               collapseLabel={translate("common:collapseAllExtra")}
@@ -261,14 +258,16 @@ export const XCom = () => {
             />
           ) : undefined
         }
-        columns={columns}
-        data={xcomEntries}
-        displayMode="table"
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="browse:xcom.entry"
-        onStateChange={setTableURLState}
+        primaryActions={
+          isTaskInstancePage ? (
+            <AddXComButton
+              dagId={dagId}
+              mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
+              runId={runId}
+              taskId={taskId}
+            />
+          ) : undefined
+        }
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />

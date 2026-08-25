@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, VStack } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -41,17 +41,19 @@ import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/t
 import { IconButton, Pagination, ProgressBar, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
-  /**
-   * Table-level controls (sort selects, expand/collapse) rendered at the start of the header row's
-   * right-hand group, before the columns menu and the display toggle. Pass `undefined` rather than
-   * an empty fragment when there is nothing to show, otherwise the header row renders empty.
-   */
-  readonly actions?: ReactNode;
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
   readonly errorMessage?: ReactNode | string;
+  /**
+   * Controls that change *which* rows the table returns — a `SearchBar`, a `FilterBar`, or both
+   * stacked in a `VStack`. Rendered on the left of the header row under the row count heading,
+   * wrapping onto further lines as filters accumulate.
+   *
+   * Anything that changes how already-returned rows are drawn belongs in `presentationActions`.
+   */
+  readonly filterActions?: ReactNode;
   /** Rendered next to the row count heading, and on its own when the heading is hidden. */
   readonly headingExtra?: ReactNode;
   readonly hideRowCountHeading?: boolean;
@@ -74,7 +76,25 @@ type DataTableProps<TData> = {
   readonly noRowsMessage?: ReactNode;
   readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
+  /**
+   * Controls that change how the returned rows are presented rather than which rows they are —
+   * sort selects, expand/collapse toggles. Rendered on the right of the header row immediately
+   * before the columns menu and the display toggle, which do the same kind of job.
+   *
+   * Pass `undefined` rather than an empty fragment when there is nothing to show; an empty
+   * fragment still counts as present and reserves space in the row.
+   */
+  readonly presentationActions?: ReactNode;
   readonly previousCursor?: string | null;
+  /**
+   * The page's calls to action, which create or import records — "Add Variable", "Add Pool".
+   * Rendered on the right of the header row level with the heading, above `presentationActions`,
+   * so the primary action stays the most prominent control.
+   *
+   * Only for actions on the collection as a whole: per-row actions belong in a column, and
+   * actions over a selection belong in the `ActionBar` below the table.
+   */
+  readonly primaryActions?: ReactNode;
   /** Defaults to showing the column visibility menu only when there are many columns. */
   readonly showColumnsMenu?: boolean;
   readonly showDisplayToggle?: boolean;
@@ -84,12 +104,12 @@ type DataTableProps<TData> = {
 };
 
 export const DataTable = <TData,>({
-  actions,
   cardDef,
   columns,
   data,
   displayMode = "table",
   errorMessage,
+  filterActions,
   headingExtra,
   hideRowCountHeading,
   initialState,
@@ -100,7 +120,9 @@ export const DataTable = <TData,>({
   noRowsMessage,
   onDisplayToggleChange,
   onStateChange,
+  presentationActions,
   previousCursor,
+  primaryActions,
   showColumnsMenu,
   showDisplayToggle,
   skeletonCount = 10,
@@ -184,8 +206,6 @@ export const DataTable = <TData,>({
     (pageIndex !== 0 || rows.length !== rowTotal);
 
   const translateModelName = (count: number) => translate(modelName, { count });
-  // During the initial load there is nothing to count yet
-  const showRowCount = !Boolean(hideRowCountHeading) && !Boolean(isLoading);
   const noRowsNode = noRowsMessage ?? translate("noItemsFound", { modelName: translateModelName(0) });
   // i18next derives the plural form from the count, but in some languages (Russian) no integer count
   // ever selects `_other`, so read the count-free plural key directly instead of passing a stand-in.
@@ -199,17 +219,24 @@ export const DataTable = <TData,>({
     display === "table" &&
     (showColumnsMenu ?? columns.length > 5) &&
     table.getAllLeafColumns().some((column) => column.getCanHide());
-  const headingNode = showRowCount ? (
-    <Heading size="md">
-      {total === undefined
-        ? pluralModelName
-        : `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`}
+  const hasRowCount = total !== undefined && !Boolean(isLoading);
+  // `filterActions` sits directly below this heading, so unmounting it while the count is unknown
+  // drags the filter controls up and drops them back once results arrive.
+  const headingNode = Boolean(hideRowCountHeading) ? undefined : (
+    <Heading py={1} size="md">
+      {hasRowCount
+        ? `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
+        : pluralModelName}
     </Heading>
-  ) : undefined;
+  );
+  // Every slot has to be listed here, or its content disappears whenever nothing else occupies
+  // the row — including tables that hide the row count heading entirely.
   const renderHeaderRow =
     headingNode !== undefined ||
     headingExtra !== undefined ||
-    actions !== undefined ||
+    presentationActions !== undefined ||
+    filterActions !== undefined ||
+    primaryActions !== undefined ||
     renderColumnsMenu ||
     (Boolean(showDisplayToggle) && onDisplayToggleChange !== undefined);
 
@@ -218,25 +245,36 @@ export const DataTable = <TData,>({
       <Toaster />
       {renderHeaderRow ? (
         <Flex
-          alignItems="center"
+          alignItems="flex-end"
           data-testid="data-table-header"
           gap={2}
           justifyContent="space-between"
           minH={10}
           mt={2} // This offsets the spacing below created by the ProgressBar
         >
-          <HStack gap={2}>
-            {headingNode}
-            {headingExtra}
-          </HStack>
-          {/* Margin keeps the group right-aligned when nothing renders on the left */}
-          <HStack gap={2} ms="auto">
-            {actions}
-            {renderColumnsMenu ? <FilterMenuButton table={table} /> : undefined}
-            {showDisplayToggle && onDisplayToggleChange ? (
-              <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
-            ) : undefined}
-          </HStack>
+          <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
+            {headingNode === undefined && headingExtra === undefined ? undefined : (
+              <HStack gap={2}>
+                {headingNode}
+                {headingExtra}
+              </HStack>
+            )}
+            {filterActions === undefined ? undefined : (
+              <HStack gap={2} minW={0} w="100%" wrap="wrap">
+                {filterActions}
+              </HStack>
+            )}
+          </VStack>
+          <VStack alignItems="flex-end" gap={2}>
+            {primaryActions === undefined ? undefined : <HStack gap={2}>{primaryActions}</HStack>}
+            <HStack gap={2}>
+              {presentationActions}
+              {renderColumnsMenu ? <FilterMenuButton table={table} /> : undefined}
+              {showDisplayToggle && onDisplayToggleChange ? (
+                <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
+              ) : undefined}
+            </HStack>
+          </VStack>
         </Flex>
       ) : undefined}
       {errorMessage}

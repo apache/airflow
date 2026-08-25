@@ -28,8 +28,8 @@ from airflow.secrets.environment_variables import (
 
 from tests_common.test_utils.config import conf_vars
 
-# A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain
-# underscores (they are validated against ``^[a-zA-Z0-9_-]{3,50}$``), so both shapes are exercised.
+# A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain a
+# single underscore (they are validated against ``TEAM_NAME_PATTERN``), so both shapes are exercised.
 TEAM_NAMES = ["team_a", "teama"]
 OTHER_TEAM_NAME = "team_b"
 SECRET_ID = "dbconn"
