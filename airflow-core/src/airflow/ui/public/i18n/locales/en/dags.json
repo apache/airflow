@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
-    "anyRunState": "Any run",
-    "anyRunStatePlaceholder": "Select any run state…",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Favorite state",
     "favoriteStatePlaceholder": "Select favorite state…",
-    "lastRunState": "Last run",
-    "lastRunStatePlaceholder": "Select last run state…",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Active",

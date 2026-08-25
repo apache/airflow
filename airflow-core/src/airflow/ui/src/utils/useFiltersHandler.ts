@@ -65,7 +65,6 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
-  | SearchParamsKeys.DAG_RUN_STATE
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DEADLINE_TIME_RANGE
   | SearchParamsKeys.DURATION_GTE
@@ -81,7 +80,6 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
-  | SearchParamsKeys.LAST_DAG_RUN_STATE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.MISSED

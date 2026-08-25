@@ -162,13 +162,6 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
-    [SearchParamsKeys.DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.anyRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.anyRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
-    },
     [SearchParamsKeys.DAG_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdHistory />,
@@ -274,13 +267,6 @@ export const useFilterConfigs = () => {
       label: translate("assets:filters.lastEventDateRange"),
       startKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE,
       type: FilterTypes.DATERANGE,
-    },
-    [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.lastRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.lastRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
       endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
