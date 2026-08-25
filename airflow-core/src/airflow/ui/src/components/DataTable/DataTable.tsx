@@ -206,8 +206,6 @@ export const DataTable = <TData,>({
     (pageIndex !== 0 || rows.length !== rowTotal);
 
   const translateModelName = (count: number) => translate(modelName, { count });
-  // During the initial load there is nothing to count yet
-  const showRowCount = !Boolean(hideRowCountHeading) && !Boolean(isLoading);
   const noRowsNode = noRowsMessage ?? translate("noItemsFound", { modelName: translateModelName(0) });
   // i18next derives the plural form from the count, but in some languages (Russian) no integer count
   // ever selects `_other`, so read the count-free plural key directly instead of passing a stand-in.
@@ -221,15 +219,18 @@ export const DataTable = <TData,>({
     display === "table" &&
     (showColumnsMenu ?? columns.length > 5) &&
     table.getAllLeafColumns().some((column) => column.getCanHide());
-  const headingNode = showRowCount ? (
+  const hasRowCount = total !== undefined && !Boolean(isLoading);
+  // `filterActions` sits directly below this heading, so unmounting it while the count is unknown
+  // drags the filter controls up and drops them back once results arrive.
+  const headingNode = Boolean(hideRowCountHeading) ? undefined : (
     <Heading py={1} size="md">
-      {total === undefined
-        ? pluralModelName
-        : `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`}
+      {hasRowCount
+        ? `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
+        : pluralModelName}
     </Heading>
-  ) : undefined;
+  );
   // Every slot has to be listed here, or its content disappears whenever nothing else occupies
-  // the row — including every render where the row count is hidden while loading.
+  // the row — including tables that hide the row count heading entirely.
   const renderHeaderRow =
     headingNode !== undefined ||
     headingExtra !== undefined ||
