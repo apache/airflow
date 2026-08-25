@@ -515,8 +515,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Assume that spark-submit is present in the path to the executing user
         return [self._connection["spark_binary"]]
 
-    @staticmethod
-    def _mask_cmd(connection_cmd: str | list[str]) -> str:
+    def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
         #
