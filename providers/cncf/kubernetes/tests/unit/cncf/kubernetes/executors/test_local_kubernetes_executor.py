@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow._shared.state import TaskFailureKind
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import (
@@ -30,21 +29,6 @@ from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor impor
 from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-
-def test_failure_info_is_drained_from_delegated_executors():
-    local_executor = mock.MagicMock()
-    kubernetes_executor = mock.MagicMock()
-    local_executor.get_task_failure_info.return_value = None
-    kubernetes_executor.get_task_failure_info.return_value = (TaskFailureKind.INFRA, "Evicted")
-    executor = object.__new__(LocalKubernetesExecutor)
-    executor.local_executor = local_executor
-    executor.kubernetes_executor = kubernetes_executor
-    key = mock.sentinel.key
-
-    assert executor.get_task_failure_info(key) == (TaskFailureKind.INFRA, "Evicted")
-    local_executor.get_task_failure_info.assert_called_once_with(key)
-    kubernetes_executor.get_task_failure_info.assert_called_once_with(key)
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 does not support this executor anymore")

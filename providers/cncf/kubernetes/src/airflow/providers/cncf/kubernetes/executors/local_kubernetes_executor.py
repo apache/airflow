@@ -29,7 +29,6 @@ from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     from airflow._shared.logging.remote import StreamingLogResponse
-    from airflow._shared.state import TaskFailureKind
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
@@ -236,12 +235,6 @@ class LocalKubernetesExecutor(BaseExecutor):
         cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
 
         return {**cleared_events_from_local, **cleared_events_from_kubernetes}  # type: ignore[dict-item]
-
-    def get_task_failure_info(self, key: TaskInstanceKey) -> tuple[TaskFailureKind | None, str | None] | None:
-        """Return failure information from either delegated executor."""
-        local_info = self.local_executor.get_task_failure_info(key)
-        kubernetes_info = self.kubernetes_executor.get_task_failure_info(key)
-        return local_info if local_info is not None else kubernetes_info
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

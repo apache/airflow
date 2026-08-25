@@ -2276,6 +2276,8 @@ class TestRuntimeTaskInstance:
             },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
+            "failure_kind": None,
+            "failure_reason": None,
             "inlets": task.inlets,
             "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
