@@ -429,18 +429,15 @@ For a bare-metal or custom Docker image, add it at build time:
 
     RUN pip install pysocks
 
-In a Kubernetes / Helm deployment, add it to ``values.yaml`` so it survives pod restarts:
+In a Kubernetes / Helm deployment, bake ``pysocks`` into your custom worker image the same way as
+above, then point the chart at that image in ``values.yaml``:
 
 .. code-block:: yaml
 
-    workers:
-      extraEnv:
-        - name: _PIP_ADDITIONAL_REQUIREMENTS
-          value: "pysocks"
-
-.. warning::
-   Running ``pip install pysocks`` inside a running container is **not** sufficient for
-   Kubernetes deployments — the package will be lost on the next pod restart.
+    images:
+      airflow:
+        repository: your-registry/airflow-with-pysocks
+        tag: "3.x.x"
 
 Why PySocks is required even for an HTTP proxy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
