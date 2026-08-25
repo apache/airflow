@@ -198,6 +198,8 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "partition_one": "Partition",
+  "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
