@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { runStateFromSearchParams, runStateToSearchParams } from "./runStateFilter";
+import { runStateFromSearchParams, runStateToSearchParams } from "./runStateParams";
 
 describe("runStateToSearchParams", () => {
   it("maps the latest lookback onto the latest-run param only", () => {

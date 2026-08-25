@@ -49,7 +49,7 @@ import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableT
 import {
   runStateFromSearchParams,
   runStateToSearchParams,
-} from "src/components/FilterBar/filters/runStateFilter";
+} from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import {

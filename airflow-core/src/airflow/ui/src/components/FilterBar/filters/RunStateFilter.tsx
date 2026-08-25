@@ -25,7 +25,7 @@ import { Select } from "src/components/ui";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterConfig, FilterPluginProps } from "../types";
-import { RUN_STATE_LOOKBACKS, isRunStateValue, type RunStateLookback } from "./runStateFilter";
+import { RUN_STATE_LOOKBACKS, isRunStateValue, type RunStateLookback } from "./runStateParams";
 
 const LOOKBACK_LABEL_KEYS: Record<RunStateLookback, string> = {
   "24": "last24Hours",
