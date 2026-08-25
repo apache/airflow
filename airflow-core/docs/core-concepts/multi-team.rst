@@ -269,6 +269,11 @@ Use the ``--team-name`` option with ``airflow pools set`` to assign a pool to a 
     The ``--team-name`` option is rejected when ``core.multi_team`` is disabled.
     The specified team must exist in the database (create it first with ``airflow teams create``).
 
+    When ``core.multi_team`` is enabled, ``airflow teams create`` automatically
+    creates a default pool named ``default_pool_<team_name>``. By default, tasks
+    in Dag bundles associated with that team are automatically assigned to
+    the team's default pool unless another pool is explicitly configured.
+
 Creating Team-scoped Pools via the REST API
 """""""""""""""""""""""""""""""""""""""""""
 
@@ -486,7 +491,7 @@ is uppercase.
     export AIRFLOW__TEAM_B___CELERY__BROKER_URL="redis://team-b-redis:6379/0"
 
     # team_b's Celery result backend
-    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql://team-b-db/celery_results"
+    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql+psycopg://team-b-db/celery_results"
 
 Via Config File
 """""""""""""""
@@ -499,17 +504,17 @@ name followed by an equals sign:
     # Global celery settings (used by the global executor, NOT as a fallback for teams)
     [celery]
     broker_url = redis://default-redis:6379/0
-    result_backend = db+postgresql://default-db/celery_results
+    result_backend = db+postgresql+psycopg://default-db/celery_results
 
     # team_a overrides
     [team_a=celery]
     broker_url = redis://team-a-redis:6379/0
-    result_backend = db+postgresql://team-a-db/celery_results
+    result_backend = db+postgresql+psycopg://team-a-db/celery_results
 
     # team_b overrides
     [team_b=celery]
     broker_url = redis://team-b-redis:6379/0
-    result_backend = db+postgresql://team-b-db/celery_results
+    result_backend = db+postgresql+psycopg://team-b-db/celery_results
 
 Dag Bundle to Team Association
 ------------------------------
@@ -1058,27 +1063,37 @@ Dags, and global components emit the same metrics without a ``team_name`` tag.
     When Multi-Team mode is disabled, metrics are emitted with no ``team_name`` tag whatsoever, exactly
     as they have always been emitted for a single-team Airflow environment.
 
-The ``team_name`` tag is applied to metrics across the following components:
+The ``team_name`` tag is applied to metrics across the following components. The metrics named are
+examples only, not a complete list:
 
-- **Triggerer**: heartbeat, capacity, and trigger-outcome metrics (for example, ``triggerer_heartbeat``,
-  ``triggers.running``, ``triggers.succeeded``).
-- **Executors**: executor slot gauges (for example, ``executor.open_slots``, ``executor.queued_tasks``).
-- **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters (for
-  example, ``pool.open_slots``, ``scheduler.tasks.killed_externally``, ``asset.triggered_dagruns``).
-- **Dag runs**: dag run timing and lifecycle metrics (for example, ``dagrun.duration.<state>``,
-  ``dagrun.first_task_scheduling_delay``, ``dag.callback_exceptions``).
-- **Task instances**: task start, finish, and outcome counters (for example, ``ti.start``, ``ti.finish``,
-  ``ti_successes``, ``ti_failures``).
-- **Dag processing**: per-file parsing and callback metrics (for example, ``dag_processing.processes``,
-  ``dag_processing.processor_timeouts``, ``dag_processing.callback_only_count``).
-- **Callbacks**: callback execution counters (``callback_success`` / ``callback_failure``, optionally
-  prefixed).
+- **Triggerer**: heartbeat, capacity, blocked-main-thread, trigger-queue delay, and trigger-outcome
+  metrics (``triggerer_heartbeat``, ``triggers.running``, etc.).
+- **Executors**: executor slot gauges and scheduler-observed executor heartbeat timing
+  (``executor.open_slots``, ``executor.queued_tasks``, etc.).
+- **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters
+  (``pool.open_slots``, ``scheduler.tasks.killed_externally``, etc.).
+- **Dag runs**: dag run timing and lifecycle metrics (``dagrun.duration.<state>``,
+  ``dagrun.first_task_scheduling_delay``, etc.).
+- **Task instances**: task start, finish, and outcome counters (``ti.start``, ``ti.finish``, etc.).
+- **Dag processing**: per-file parsing and callback metrics (``dag_processing.processes``,
+  ``dag_processing.processor_timeouts``, etc.).
+- **Callbacks**: callback execution counters (``callback_<state>``, optionally prefixed).
+- **Connection tests**: per-request worker and reaper metrics for team-owned connection tests
+  (``connection_test.success``, ``connection_test.failed``, etc.). Instance-wide connection-test queue
+  gauges remain untagged.
 
 .. note::
 
-    Only metrics emitted by Airflow core carry the ``team_name`` tag in 3.3; provider-specific metrics
-    were not updated for this release. Provider executors are an exception: their ``executor.*`` slot
-    gauges are tagged because they inherit them from the core base executor.
+    Provider-specific metrics are also tagged where the provider carries a team identity (for example,
+    team-scoped executor and worker metrics). Provider executors additionally inherit core
+    ``executor.*`` slot gauges from the base executor. Check individual provider change logs for the
+    minimum Airflow version that includes ``team_name`` tagging.
+
+.. note::
+
+    This list is not exhaustive and may lag behind the code. Use it to see which areas of Airflow
+    carry the ``team_name`` tag; the metric emission sites in the Airflow source are the
+    authoritative reference for individual metric names.
 
 Important Considerations
 ------------------------

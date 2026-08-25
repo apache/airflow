@@ -166,7 +166,7 @@ While both Dag constructors get called when the file is accessed, only ``dag_1``
 
     When searching for Dags inside the Dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
 
-    To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
+    To consider all Python files instead, set the ``[core] dag_discovery_safe_mode`` configuration flag to ``False``. This is the setting to use when your Dags are defined through a wrapper or abstraction whose source does not contain those strings. The flag is read by the Dag file processor, so set it on that component (and on anything that runs ``airflow dags reserialize``) and restart it for the change to take effect -- otherwise Dags may appear after a manual reserialize and then disappear again on the next processor scan.
 
 You can also provide an ``.airflowignore`` file inside your Dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
@@ -674,6 +674,7 @@ doc_rst     reStructuredText
 ==========  ================
 
 Please note that for Dags and TaskGroups, ``doc_md`` is the only attribute interpreted. It can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+Dag documentation is rendered as Markdown, so fenced code blocks, tables, and other common Markdown constructs are supported. Fenced code blocks whose language is ``math`` are rendered with KaTeX, and Mermaid diagrams are rendered from fenced code blocks whose language is ``mermaid``.
 If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or Dag parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during Dag parsing, changes to the markdown content take one Dag parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:

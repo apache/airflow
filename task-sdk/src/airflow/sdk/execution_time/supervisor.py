@@ -25,6 +25,7 @@ import functools
 import io
 import logging
 import os
+import pkgutil
 import selectors
 import signal
 import sys
@@ -417,8 +418,6 @@ def _fork_main(
     - Catch un-handled exceptions and attempt to show _something_ in case of error
     - Finally, run the actual task runner code (``target`` argument, defaults to ``.task_runner:main`)
     """
-    # TODO: Make this process a session leader
-
     # Store original stderr for last-chance exception handling
     last_chance_stderr = _get_last_chance_stderr()
 
@@ -498,42 +497,63 @@ runtime detects the corrupted state and crashes with SIGABRT.
 
 Calling ``os.execv`` immediately after ``os.fork`` replaces the child's address
 space, giving it clean ObjC state.  Before exec, the supervisor ``dup2``s the
-socketpairs onto FDs 0 (requests/stdin), 1 (stdout), 2 (stderr).  The duplicated
-FDs survive the upcoming exec because ``os.dup2(inheritable=True)`` (the default)
-clears ``FD_CLOEXEC`` on the destination FDs.  The log channel is obtained after
-startup via the existing ``ResendLoggingFD`` mechanism.
+socketpairs onto fixed FDs the exec'd child reconstructs: 0 (requests/stdin),
+1 (stdout), 2 (stderr), 3 (structured logs).  ``os.set_inheritable`` clears
+``FD_CLOEXEC`` on those FDs so they survive the upcoming exec.
 
-Currently only task execution opts in (via ``ActivitySubprocess.start``).  DAG
-processor and triggerer can also hit this crash and will need the same treatment
-as a follow-up (see https://github.com/apache/airflow/issues/65691).
+Task execution (``ActivitySubprocess``), the DAG processor
+(``DagFileProcessorProcess``) and the triggerer (``TriggerRunnerSupervisor``)
+all opt in -- each runs a different child entry point, named by ``module:qualname``
+in the ``_AIRFLOW_CHILD_TARGET`` env var and rehydrated by :func:`_child_exec_main`.
 
 See: https://github.com/python/cpython/issues/105912
      https://github.com/apache/airflow/discussions/24463
+     https://github.com/apache/airflow/issues/65691
 """
+
+
+def _should_use_exec() -> bool:
+    """Whether forked children should ``exec`` a fresh interpreter on this platform."""
+    return sys.platform in _FORK_EXEC_PLATFORMS
+
+
+def _resolve_child_target(dotted: str) -> Callable[[], None]:
+    """
+    Resolve a ``module:qualname`` string to the callable the exec'd child runs.
+
+    Empty input falls back to :func:`_subprocess_main` (task execution).  The
+    qualname may name a nested attribute (e.g. ``ClassName.classmethod``) so
+    classmethod entry points like ``TriggerRunnerSupervisor.run_in_process``
+    rehydrate correctly across ``execv``.
+    """
+    if not dotted:
+        return _subprocess_main
+    return pkgutil.resolve_name(dotted)
 
 
 def _child_exec_main():
     """
     Entry point for the child process when using fork+exec (macOS).
 
-    After exec, FDs 0/1/2 are already the requests/stdout/stderr sockets
-    (dup2'd by the parent before exec).  The log channel is NOT inherited;
-    instead, the task runner requests it from the supervisor via the existing
-    ``ResendLoggingFD`` mechanism after startup.
+    After exec, FDs 0/1/2/3 are the requests/stdout/stderr/log sockets the parent
+    placed there via dup2.  The target to run is named in ``_AIRFLOW_CHILD_TARGET``
+    (``module:qualname``); it is rehydrated and handed to :func:`_fork_main`, which
+    sets up the structured log channel from FD 3 exactly as the bare-fork path does.
     """
     # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
     child_requests = socket(fileno=0)
     child_stdout = socket(fileno=1)
     child_stderr = socket(fileno=2)
 
+    target = _resolve_child_target(os.environ.pop("_AIRFLOW_CHILD_TARGET", ""))
+
     # _fork_main always exits via os._exit(), so the socket objects above are
     # never GC'd (which would close their underlying FDs). This is safe but
     # depends on that invariant -- do not refactor _fork_main to return.
     #
-    # log_fd=0 tells _fork_main to skip structured log channel setup.
-    # Signal to the task runner to request it via ResendLoggingFD after startup.
-    os.environ["_AIRFLOW_FORK_EXEC"] = "1"
-    _fork_main(child_requests, child_stdout, child_stderr, 0, _subprocess_main)
+    # FD 3 is the inherited structured-log socket; _fork_main configures logging
+    # over it just as it would with the FD inherited across a bare fork.
+    _fork_main(child_requests, child_stdout, child_stderr, 3, target)
 
 
 class NeverRaised(Exception):
@@ -651,6 +671,9 @@ class WatchedSubprocess:
     subprocess_logs_to_stdout: bool = False
     """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
+    _new_process_group: bool = False
+    """Whether the child was placed in its own process group at fork time (see ``start``)."""
+
     start_time: float = attrs.field(factory=time.monotonic)
     """The start time of the child process."""
 
@@ -661,6 +684,7 @@ class WatchedSubprocess:
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
         use_exec: bool = False,
+        new_process_group: bool = False,
         **constructor_kwargs,
     ) -> Self:
         """
@@ -669,15 +693,20 @@ class WatchedSubprocess:
         :param use_exec: If True, on platforms that need it (currently macOS),
             immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
             This avoids macOS fork-safety issues with Objective-C frameworks.
-            Task execution opts in; DAG processor and triggerer do not.
-
-        The exec'd child always runs ``_subprocess_main``, so ``use_exec=True``
-        is only valid when ``target is _subprocess_main``.
+            ``target`` is rehydrated in the exec'd child from its ``module:qualname``,
+            so any importable entry point (task execution, DAG processor, triggerer)
+            is supported.
+        :param new_process_group: If True, place the child in its own process
+            group (PGID == its PID, like
+            ``airflow.utils.process_utils.set_new_process_group``) so signals
+            can be delivered to the child's whole process tree via
+            ``os.killpg``. Task execution opts in; DAG processor and triggerer
+            keep the supervisor's process group and are signalled directly.
         """
-        if use_exec and target is not _subprocess_main:
-            raise ValueError(
-                f"use_exec=True is only supported with target=_subprocess_main; got target={target!r}"
-            )
+        if use_exec and "<" in getattr(target, "__qualname__", "<"):
+            # Closures/lambdas (``<locals>`` / ``<lambda>`` in the qualname) and
+            # objects without a qualname can't be named for the exec'd child.
+            raise ValueError(f"use_exec=True requires a top-level importable target, got {target!r}")
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
         child_stdout, read_stdout = socketpair()
         child_stderr, read_stderr = socketpair()
@@ -690,6 +719,19 @@ class WatchedSubprocess:
 
         pid = os.fork()
         if pid == 0:
+            if new_process_group:
+                # Put the task-runner into its own process group so its PGID
+                # equals its own PID. The supervisor can then deliver signals
+                # to the whole tree via os.killpg(), reaching every subprocess
+                # the task-runner spawned (e.g. venv children from
+                # PythonVirtualenvOperator). Without this, a SIGTERM from
+                # kill() only hits the task-runner and any Popen children are
+                # reparented to PID 1 and leak as orphans. Also set from the
+                # parent below so the group exists no matter which side of the
+                # fork runs first. See issue #65505.
+                with suppress(OSError):
+                    os.setpgid(0, 0)
+
             # Close and delete of the parent end of the sockets.
             cls._close_unused_sockets(read_requests, read_stdout, read_stderr, read_logs)
 
@@ -700,14 +742,22 @@ class WatchedSubprocess:
 
             try:
                 if use_exec:
-                    # macOS: exec a fresh Python interpreter to replace the
-                    # inherited ObjC/CoreFoundation state that is not fork-safe.
-                    # dup2 copies the socketpairs onto FDs 0/1/2; os.dup2 clears
-                    # FD_CLOEXEC on the destination FDs, so they survive exec.
-                    # The log channel is requested later via ResendLoggingFD.
+                    # macOS: exec a fresh Python interpreter to drop the inherited
+                    # ObjC/CoreFoundation state that is not fork-safe. Redirect the
+                    # socketpairs onto the fixed FDs the exec'd child reconstructs:
+                    # 0 (requests/stdin), 1 (stdout), 2 (stderr), 3 (structured logs).
+                    # The source fds are always >= 3 (0/1/2 stay open in every launch
+                    # path), so no dup2 clobbers a not-yet-placed source. set_inheritable
+                    # guarantees FD_CLOEXEC is clear on all four (dup2 leaves it set when
+                    # a source already equals its target), so they survive execv. The
+                    # entry point is passed to the child by name.
+                    os.environ["_AIRFLOW_CHILD_TARGET"] = f"{target.__module__}:{target.__qualname__}"
                     os.dup2(child_requests.fileno(), 0)
                     os.dup2(child_stdout.fileno(), 1)
                     os.dup2(child_stderr.fileno(), 2)
+                    os.dup2(child_logs.fileno(), 3)
+                    for fd in (0, 1, 2, 3):
+                        os.set_inheritable(fd, True)
                     os.execv(
                         sys.executable,
                         [
@@ -733,6 +783,15 @@ class WatchedSubprocess:
             # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
             os._exit(124)
 
+        if new_process_group:
+            # Mirror of the child-side setpgid, so the group is guaranteed to
+            # exist once start() returns. Without this, kill() invoked before
+            # the child is first scheduled (e.g. task_instances.start()
+            # failing synchronously in _on_child_started) would resolve the
+            # child's PGID to the supervisor's own group and killpg it.
+            with suppress(OSError):
+                os.setpgid(pid, pid)
+
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
         cls._close_unused_sockets(child_stdout, child_stderr, child_logs)
@@ -744,6 +803,7 @@ class WatchedSubprocess:
             process=PsutilTracker(psutil.Process(pid)),
             process_log=logger,
             start_time=time.monotonic(),
+            new_process_group=new_process_group,
             **constructor_kwargs,
         )
 
@@ -978,6 +1038,30 @@ class WatchedSubprocess:
         self.selector.close()
         self.stdin.close()
 
+    def _signal_subprocess(self, sig: signal.Signals) -> None:
+        """
+        Deliver ``sig`` to the child process, or to its whole process group when it has its own.
+
+        When ``new_process_group`` was set at ``start()`` time, the signal is sent with
+        ``os.killpg`` so subprocesses spawned by the child (venv children, bash shells, etc.)
+        are reached too (see issue #65505). Falls back to signalling the child PID alone when
+        the group cannot be resolved or signalled -- and, critically, when the child still
+        shares the supervisor's own process group (``setpgid`` failed), because ``killpg`` on
+        our own group would signal the supervisor itself and its siblings.
+        """
+        if self._new_process_group:
+            try:
+                pgid = os.getpgid(self._process.pid)
+            except (ProcessLookupError, PermissionError):
+                pgid = None
+            if pgid is not None and pgid != os.getpgid(0):
+                try:
+                    os.killpg(pgid, sig)
+                    return
+                except (ProcessLookupError, PermissionError):
+                    pass
+        self._process.send_signal(sig)
+
     def kill(
         self,
         signal_to_send: signal.Signals = signal.SIGINT,
@@ -987,11 +1071,13 @@ class WatchedSubprocess:
         """
         Attempt to terminate the subprocess with a given signal.
 
-        If the process does not exit within `escalation_delay` seconds, escalate to SIGTERM and eventually SIGKILL if necessary.
+        Only `signal_to_send` is sent unless `force` is set. With `force=True`, if the process does not exit
+        within `escalation_delay` seconds, escalate along SIGINT -> SIGTERM -> SIGKILL, starting from
+        `signal_to_send`.
 
         :param signal_to_send: The signal to send initially (default is SIGINT).
-        :param escalation_delay: Time in seconds to wait before escalating to a stronger signal.
-        :param force: If True, ensure escalation through all signals without skipping.
+        :param escalation_delay: Time in seconds to wait for the process to exit after each signal.
+        :param force: If True, escalate through the remaining signals instead of sending only `signal_to_send`.
         """
         if self._exit_code is not None:
             return
@@ -1007,7 +1093,7 @@ class WatchedSubprocess:
 
         for sig in escalation_path:
             try:
-                self._process.send_signal(sig)
+                self._signal_subprocess(sig)
 
                 start = time.monotonic()
                 end = start + escalation_delay
@@ -1329,9 +1415,15 @@ class ActivitySubprocess(WatchedSubprocess):
         # Opt in to fork+exec on platforms that need it (currently macOS).
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and sys.platform in _FORK_EXEC_PLATFORMS
+        use_exec = target is _subprocess_main and _should_use_exec()
         proc: Self = super().start(
-            id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
+            id=what.id,
+            client=client,
+            target=target,
+            logger=logger,
+            use_exec=use_exec,
+            new_process_group=True,
+            **kwargs,
         )
         # Tell the task process what it needs to do!
         proc._on_child_started(
@@ -1392,31 +1484,10 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code is not None:
             return self._exit_code
 
-        # Forward termination signals to the task subprocess so the operator's
-        # on_kill() hook runs on graceful shutdown (e.g. K8s pod SIGTERM).
-        # Without this the supervisor exits on SIGTERM without notifying the
-        # child, leaving spawned resources (pods, subprocesses, etc.) running.
-        prev_sigterm = signal.getsignal(signal.SIGTERM)
-        prev_sigint = signal.getsignal(signal.SIGINT)
-
-        def _forward_signal(signum, frame):
-            log.info(
-                "Received signal, forwarding to task subprocess",
-                signal=signal.Signals(signum).name,
-                pid=self.pid,
-            )
-            with suppress(ProcessLookupError):
-                os.kill(self.pid, signum)
-
-        signal.signal(signal.SIGTERM, _forward_signal)
-        signal.signal(signal.SIGINT, _forward_signal)
-
         try:
             self._monitor_subprocess()
         finally:
             self.selector.close()
-            signal.signal(signal.SIGTERM, prev_sigterm)
-            signal.signal(signal.SIGINT, prev_sigint)
 
         # self._monitor_subprocess() will set the exit code when the process has finished
         # If it hasn't, assume it's failed
@@ -1445,9 +1516,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self._replay_pending_terminal_state_msg()
             return
 
-        # If the process has finished a non-directly-patched state (e.g.
-        # FAILED, UP_FOR_RETRY without RetryTask), `finish()` is the
-        # dedicated endpoint for those transitions. For states already in
+        # If the process has finished in a non-directly-patched state (e.g.
+        # FAILED, or SKIPPED reported via a TaskState message), `finish()` is
+        # the dedicated endpoint for those transitions. For states already in
         # STATES_SENT_DIRECTLY whose direct API call succeeded, no further
         # action is needed.
         if self.final_state not in STATES_SENT_DIRECTLY:
@@ -1729,7 +1800,15 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, SetRenderedFields):
-            self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+            try:
+                self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+            except ServerResponseError as e:
+                # On retry/clear the server replaces the TI id (archiving the old one), so a late RTIF
+                # overwrite from finalize() lands on an id that no longer exists. Supervisor kills such
+                # a worker when handling 410 heartbeat response. We only need to skip this stale overwrite here.
+                if e.response.status_code != HTTPStatus.GONE:
+                    raise
+                log.debug("Skipping RTIF overwrite; task instance archived on retry/clear", ti_id=self.id)
         elif isinstance(msg, SetRenderedMapIndex):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
@@ -1758,6 +1837,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 before=msg.before,
                 ascending=msg.ascending,
                 limit=msg.limit,
+                partition_key=msg.partition_key,
+                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
+                extra=msg.extra,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
@@ -1769,6 +1851,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 before=msg.before,
                 ascending=msg.ascending,
                 limit=msg.limit,
+                partition_key=msg.partition_key,
+                partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
+                extra=msg.extra,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
@@ -2252,6 +2337,9 @@ def length_prefixed_frame_reader(
     gen: Generator[None, _RequestFrame, None], on_close: Callable[[socket], None]
 ):
     length_needed: int | None = None
+    # Accumulates the 4-byte length header across selector callbacks; stream
+    # sockets may return fewer than the requested 4 bytes in a single recv.
+    header_buffer = bytearray()
     # This will hold our accumulated/partial binary frame if it doesn't come in a single read
     buffer: memoryview | None = None
     # position in the buffer to store next read
@@ -2262,16 +2350,19 @@ def length_prefixed_frame_reader(
     next(gen)
 
     def cb(sock: socket):
-        nonlocal buffer, length_needed, pos
+        nonlocal buffer, length_needed, pos, header_buffer
 
         if length_needed is None:
-            # Read the 32bit length of the frame
-            bytes = sock.recv(4)
-            if bytes == b"":
+            chunk = sock.recv(4 - len(header_buffer))
+            if not chunk:
                 return False
+            header_buffer.extend(chunk)
+            if len(header_buffer) < 4:
+                return True
 
-            length_needed = int.from_bytes(bytes, byteorder="big")
+            length_needed = int.from_bytes(header_buffer, byteorder="big")
             buffer = memoryview(bytearray(length_needed))
+            header_buffer = bytearray()
         if length_needed and buffer:
             n = sock.recv_into(buffer[pos:])
             if n == 0:

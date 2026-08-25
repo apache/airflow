@@ -80,13 +80,20 @@ class GKEClusterConnection:
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
-        configuration.api_key = {"authorization": self._get_token(self._credentials)}
+        configuration.api_key = self._bearer_api_key(self._get_token(self._credentials))
+
+    @staticmethod
+    def _bearer_api_key(token: str) -> dict[str, str]:
+        # kubernetes-client 36.x renamed the bearer auth key 'authorization' -> 'BearerToken'
+        # (https://github.com/kubernetes-client/python/issues/2582). Register both so the 'Bearer'
+        # prefix is applied on client 35.x and 36.x alike; otherwise 36.x sends the raw token -> 401.
+        return {"authorization": token, "BearerToken": token}
 
     def _get_config(self) -> client.configuration.Configuration:
         configuration = client.Configuration(
             host=self._cluster_url,
-            api_key_prefix={"authorization": "Bearer"},
-            api_key={"authorization": self._get_token(self._credentials)},
+            api_key_prefix={"authorization": "Bearer", "BearerToken": "Bearer"},
+            api_key=self._bearer_api_key(self._get_token(self._credentials)),
         )
         if not self.use_dns_endpoint:
             configuration.ssl_ca_cert = FileOrData(

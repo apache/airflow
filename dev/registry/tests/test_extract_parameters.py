@@ -18,19 +18,25 @@
 
 from __future__ import annotations
 
+import abc
+import builtins
 import json
 import types
 from unittest.mock import patch
 
 import pytest
+import yaml
 from extract_parameters import (
     Module,
     _get_source_line,
     _parse_requested_providers,
+    _resolve_dotted_path,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
     get_category,
+    is_durable_capable,
+    load_resumable_job_mixin,
 )
 
 
@@ -102,10 +108,170 @@ class TestGetSourceLine:
 
 
 # ---------------------------------------------------------------------------
+# load_resumable_job_mixin
+# ---------------------------------------------------------------------------
+class TestLoadResumableJobMixin:
+    def test_returns_none_when_airflow_sdk_unavailable(self):
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "airflow.sdk":
+                raise ImportError("no airflow.sdk here")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            assert load_resumable_job_mixin() is None
+
+
+# ---------------------------------------------------------------------------
+# is_durable_capable
+# ---------------------------------------------------------------------------
+class FakeResumableJobMixin(abc.ABC):
+    """Stand-in for airflow.sdk.ResumableJobMixin's abstract-method contract."""
+
+    @abc.abstractmethod
+    def submit_job(self, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_status(self, external_id, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_job_active(self, status):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def is_job_succeeded(self, status):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def poll_until_complete(self, external_id, context):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_job_result(self, external_id, context):
+        raise NotImplementedError
+
+    def execute_resumable(self, context):
+        raise NotImplementedError
+
+
+class FullyImplementedResumableOperator(FakeResumableJobMixin):
+    def execute(self, context):
+        return self.execute_resumable(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return status == "RUNNING"
+
+    def is_job_succeeded(self, status):
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class PartiallyImplementedResumableOperator(FakeResumableJobMixin):
+    """Retry-path methods left unoverridden -- would only blow up on an actual crash-recovery retry."""
+
+    def execute(self, context):
+        return self.execute_resumable(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class UnwiredResumableOperator(FakeResumableJobMixin):
+    """execute() never calls execute_resumable -- dead capability, never exercised."""
+
+    def execute(self, context):
+        return self.submit_job(context)
+
+    def submit_job(self, context):
+        return "job-1"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return status == "RUNNING"
+
+    def is_job_succeeded(self, status):
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id, context):
+        return None
+
+    def get_job_result(self, external_id, context):
+        return None
+
+
+class PlainOperator:
+    def execute(self, context):
+        return None
+
+
+class ManuallyDurableOperator:
+    """Implements durable execution directly (e.g. via task_state_store), without
+    ResumableJobMixin -- mirrors KubernetesPodOperator/AgentOperator."""
+
+    __supports_durable_execution = True
+
+    def execute(self, context):
+        return None
+
+
+class ManuallyDurableSubclass(ManuallyDurableOperator):
+    """Overrides execute() itself -- must NOT inherit the parent's declaration,
+    since nothing here verifies it preserves the reconnect behavior."""
+
+    def execute(self, context):
+        return "something else entirely"
+
+
+class TestIsDurableCapable:
+    def test_fully_implemented_and_wired_qualifies(self):
+        assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
+
+    def test_missing_retry_path_overrides_disqualifies(self):
+        assert is_durable_capable(PartiallyImplementedResumableOperator, FakeResumableJobMixin) is False
+
+    def test_implemented_but_not_called_from_execute_disqualifies(self):
+        assert is_durable_capable(UnwiredResumableOperator, FakeResumableJobMixin) is False
+
+    def test_no_mixin_in_mro_disqualifies(self):
+        assert is_durable_capable(PlainOperator, FakeResumableJobMixin) is False
+
+    def test_mixin_unavailable_disqualifies(self):
+        assert is_durable_capable(FullyImplementedResumableOperator, None) is False
+
+    def test_manual_durable_marker_qualifies_without_mixin(self):
+        assert is_durable_capable(ManuallyDurableOperator, None) is True
+
+    def test_subclass_not_redeclaring_marker_disqualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclass, FakeResumableJobMixin) is False
+
+
+# ---------------------------------------------------------------------------
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_11_fields(self):
+    def test_has_all_12_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -118,6 +284,7 @@ class TestModuleDataclass:
             category="amazon-s3",
             provider_id="amazon",
             provider_name="Amazon",
+            supports_durable_execution=False,
         )
         assert m.id == "amazon-s3-S3Hook"
         assert m.provider_name == "Amazon"
@@ -204,6 +371,18 @@ class FakeSecretBackend:
     __module__ = "airflow.providers.amazon.aws.secrets.secrets_manager"
 
 
+class FakePlugin:
+    """S3 plugin."""
+
+    __module__ = "airflow.providers.amazon.aws.plugins.s3"
+
+
+class FakeDialect:
+    """Redshift dialect."""
+
+    __module__ = "airflow.providers.amazon.aws.dialects.redshift"
+
+
 def _make_module(name: str, members: dict) -> types.ModuleType:
     """Create a fake module with given members."""
     mod = types.ModuleType(name)
@@ -244,6 +423,20 @@ FAKE_PROVIDER_YAML = {
     ],
     "executors": [
         "airflow.providers.amazon.aws.executors.ecs.FakeExecutor",
+    ],
+    "plugins": [
+        {
+            "name": "AmazonS3Plugin",
+            "plugin-class": "airflow.providers.amazon.aws.plugins.s3.FakePlugin",
+        },
+        "not-a-dict-entry",
+    ],
+    "dialects": [
+        {
+            "dialect-type": "redshift",
+            "dialect-class-name": "airflow.providers.amazon.aws.dialects.redshift.FakeDialect",
+        },
+        "not-a-dict-entry",
     ],
     "task-decorators": [],
 }
@@ -307,6 +500,14 @@ class TestDiscoverClassesFromProvider:
                 "airflow.providers.amazon.aws.executors.ecs",
                 {"FakeExecutor": FakeExecutor},
             ),
+            "airflow.providers.amazon.aws.plugins.s3": _make_module(
+                "airflow.providers.amazon.aws.plugins.s3",
+                {"FakePlugin": FakePlugin},
+            ),
+            "airflow.providers.amazon.aws.dialects.redshift": _make_module(
+                "airflow.providers.amazon.aws.dialects.redshift",
+                {"FakeDialect": FakeDialect},
+            ),
         }
         if module_name in modules:
             return modules[module_name]
@@ -346,6 +547,42 @@ class TestDiscoverClassesFromProvider:
         hooks = [r for r in result if r["type"] == "hook"]
         assert len(hooks) == 1
         assert hooks[0]["name"] == "FakeHook"
+
+    def test_discovers_plugin(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        plugins = [r for r in result if r["type"] == "plugin"]
+        assert len(plugins) == 1
+        assert plugins[0]["name"] == "FakePlugin"
+        assert plugins[0]["category"] == "plugins"
+
+    def test_discovers_dialect(self, provider_yaml_path, base_classes):
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        dialects = [r for r in result if r["type"] == "dialect"]
+        assert len(dialects) == 1
+        assert dialects[0]["name"] == "FakeDialect"
+        assert dialects[0]["category"] == "dialects"
+
+    def test_skips_non_dict_plugin_and_dialect_entries(self, provider_yaml_path, base_classes):
+        """FAKE_PROVIDER_YAML's plugins/dialects each carry a bare-string entry
+        alongside the valid dict entry; it must be skipped, not raise."""
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes)
+
+        assert len([r for r in result if r["type"] == "plugin"]) == 1
+        assert len([r for r in result if r["type"] == "dialect"]) == 1
 
     def test_filters_reexported_classes(self, provider_yaml_path, base_classes):
         """Classes where cls.__module__ != the module being scanned should be excluded."""
@@ -532,6 +769,85 @@ class TestSensorNotClassifiedAsOperator:
         assert len(result) == 1
         assert result[0]["type"] == "sensor"
         assert result[0]["name"] == "MySensor"
+
+
+# ---------------------------------------------------------------------------
+# TestDiscoverClassesFromProvider: supports_durable_execution wiring
+# ---------------------------------------------------------------------------
+class TestDiscoverClassesFromProviderDurableExecution:
+    def test_marks_durable_capable_and_plain_operators(self, tmp_path):
+        class ResumableOperator(FullyImplementedResumableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "ResumableOperator": ResumableOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(
+                yaml_path, base_classes={}, resumable_mixin=FakeResumableJobMixin
+            )
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["ResumableOperator"]["supports_durable_execution"] is True
+        assert by_name["PlainProviderOperator"]["supports_durable_execution"] is False
+
+    def test_defaults_to_false_when_mixin_unavailable(self, tmp_path):
+        class ResumableOperator(FullyImplementedResumableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {"ResumableOperator": ResumableOperator},
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        assert result[0]["supports_durable_execution"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -841,3 +1157,31 @@ class TestParseRequestedProviders:
 
     def test_duplicate_providers_collapsed(self):
         assert _parse_requested_providers("amazon amazon google") == {"amazon", "google"}
+
+
+class TestResolveDottedPath:
+    @pytest.mark.parametrize(
+        "class_path",
+        (
+            "no_dot_here",
+            "this.module.does.not.exist.at.all.Foo",
+        ),
+    )
+    def test__resolve_dotted_path_returns_none(self, class_path: str):
+        assert _resolve_dotted_path(class_path) is None
+
+    @pytest.mark.parametrize(
+        ("class_path", "expected"),
+        (
+            (
+                "extract_parameters.ThisAttrDoesNotExist",
+                ("extract_parameters", "ThisAttrDoesNotExist", None),
+            ),
+            (
+                "extract_parameters.get_category",
+                ("extract_parameters", "get_category", get_category),
+            ),
+        ),
+    )
+    def test__resolve_dotted_path(self, class_path: str, expected: tuple[str, str, object]):
+        assert _resolve_dotted_path(class_path) == expected

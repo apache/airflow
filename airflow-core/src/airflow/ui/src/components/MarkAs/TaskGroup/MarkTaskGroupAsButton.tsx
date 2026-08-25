@@ -18,7 +18,6 @@
  */
 import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
@@ -26,6 +25,8 @@ import { LuCheck } from "react-icons/lu";
 import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { IconButton, Menu, Tooltip } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import { allowedStates } from "../utils";
 import MarkTaskGroupAsDialog from "./MarkTaskGroupAsDialog";
@@ -40,23 +41,23 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
   const { t: translate } = useTranslation();
   const [state, setState] = useState<TaskInstanceState>("success");
 
-  useHotkeys(
-    "shift+f",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.markTaskGroupFailed,
+    callback: () => {
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
-  useHotkeys(
-    "shift+s",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.markTaskGroupSuccess,
+    callback: () => {
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
   const label = translate("dags:runAndTaskActions.markAs.button", {
     type: translate("taskGroup_one"),

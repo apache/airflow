@@ -110,6 +110,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.waitForDagList();
     await dagsPage.switchToTableView();
 
+    await dagsPage.openAddFilterMenu();
     await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
     await dagsPage.needsReviewFilter.click();
 
@@ -131,6 +132,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.waitForDagList();
     await dagsPage.switchToCardView();
 
+    await dagsPage.openAddFilterMenu();
     await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
     await dagsPage.needsReviewFilter.click();
 
@@ -192,15 +194,12 @@ test.describe("Dags Search", () => {
 });
 
 test.describe("Dags Status Filtering", () => {
-  test("should display status filter buttons", async ({ dagsPage }) => {
+  test("should filter Dags by run state", async ({ dagsPage }) => {
     test.slow();
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
 
-    await expect(dagsPage.successFilter).toBeVisible();
-    await expect(dagsPage.failedFilter).toBeVisible();
-    await expect(dagsPage.runningFilter).toBeVisible();
-    await expect(dagsPage.queuedFilter).toBeVisible();
+    await expect(dagsPage.addFilterButton).toBeVisible();
 
     await dagsPage.filterByStatus("success");
     await dagsPage.waitForDagList();

@@ -132,7 +132,6 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/utils/serve_logs.py",
     "airflow-core/src/airflow/utils/session.py",
     "airflow-core/src/airflow/utils/setup_teardown.py",
-    "airflow-core/src/airflow/utils/span_status.py",
     "airflow-core/src/airflow/utils/sqlalchemy.py",
     "airflow-core/src/airflow/utils/state.py",
     "airflow-core/src/airflow/utils/strings.py",

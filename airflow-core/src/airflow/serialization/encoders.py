@@ -70,8 +70,8 @@ from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
@@ -183,6 +183,7 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     if isinstance(trigger, dict):
         classpath = trigger["classpath"]
         kwargs = trigger["kwargs"]
+        queue = trigger.get("queue")
         # unwrap any kwargs that are themselves serialized objects, to avoid double-serialization in the trigger's own serialize() method.
         unwrapped = {}
         for k, v in kwargs.items():
@@ -193,10 +194,14 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
         kwargs = unwrapped
     else:
         classpath, kwargs = trigger.serialize()
-    return {
+        queue = getattr(trigger, "queue", None)
+    encoded = {
         "classpath": classpath,
         "kwargs": {k: _ensure_serialized(v) for k, v in kwargs.items()},
     }
+    if queue is not None:
+        encoded["queue"] = queue
+    return encoded
 
 
 def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
@@ -277,9 +282,10 @@ def encode_deadline_reference(ref) -> dict[str, Any]:
 
     serialized = ref.serialize_reference()
 
-    # Custom types (not built-in) need __class_path so the decoder can import them.
+    # Custom types (not built-in) need __class_path so the decoder can look them up.
     # Unlike built-in types which are looked up in SerializedReferenceModels,
-    # custom types are discovered via import_string(__class_path) at deserialization time.
+    # custom types are resolved at deserialization time from the classes registered
+    # via the `deadline_references` attribute on an AirflowPlugin.
     module = type(ref).__module__
     if module not in _BUILTIN_DEADLINE_MODULES:
         serialized["__class_path"] = qualname(ref)
@@ -329,7 +335,7 @@ class _Serializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
-        PartitionAtRuntime: "airflow.timetables.simple.PartitionAtRuntime",
+        PartitionedAtRuntime: "airflow.timetables.simple.PartitionedAtRuntime",
         PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
@@ -355,9 +361,9 @@ class _Serializer:
     @serialize_timetable.register(ContinuousTimetable)
     @serialize_timetable.register(NullTimetable)
     @serialize_timetable.register(OnceTimetable)
-    @serialize_timetable.register(PartitionAtRuntime)
+    @serialize_timetable.register(PartitionedAtRuntime)
     def _(
-        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionAtRuntime
+        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionedAtRuntime
     ) -> dict[str, Any]:
         return {}
 
@@ -481,7 +487,10 @@ class _Serializer:
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: FixedKeyMapper) -> dict[str, Any]:
-        return {"downstream_key": partition_mapper.downstream_key}
+        data: dict[str, Any] = {"downstream_key": partition_mapper.downstream_key}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register(StartOfHourMapper)
     @serialize_partition_mapper.register(StartOfDayMapper)

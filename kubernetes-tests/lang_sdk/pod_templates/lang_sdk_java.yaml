@@ -1,0 +1,115 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Worker pod template for the "java" queue (JavaCoordinator).
+#
+# An init container stages the Java jar from the localstack ``java-artifacts``
+# bucket into a shared emptyDir at /opt/airflow/artifacts via the DagBundle
+# interface (stage_artifacts.py). That path is the coordinator's jars_root. The
+# base image is the prod image plus a headless JRE (built from Dockerfile.java)
+# so the JavaCoordinator can exec ``java`` -- distinct from the Go queue's plain
+# prod image. Image placeholders are rendered by ``breeze k8s setup-lang-sdk-test``.
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: placeholder-name-dont-delete
+  namespace: placeholder-name-dont-delete
+spec:
+  initContainers:
+    - name: stage-java-jar
+      image: __LANG_SDK_JAVA_IMAGE__
+      imagePullPolicy: IfNotPresent
+      command: ["python", "/opt/airflow/lang_sdk/stage_artifacts.py"]
+      env:
+        - name: AIRFLOW_HOME
+          value: /opt/airflow
+        - name: ARTIFACT_BUNDLE_NAME
+          value: java-artifacts
+        - name: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH
+          value: /opt/airflow/artifacts
+        - name: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST
+          value: >-
+            [{"name": "java-artifacts",
+              "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
+              "kwargs": {"bucket_name": "java-artifacts", "aws_conn_id": "aws_localstack"}}]
+        - name: AIRFLOW_CONN_AWS_LOCALSTACK
+          valueFrom:
+            secretKeyRef:
+              name: lang-sdk-aws-conn
+              key: uri
+      volumeMounts:
+        - name: lang-sdk-artifacts
+          mountPath: /opt/airflow/artifacts
+        - name: lang-sdk-scripts
+          readOnly: true
+          mountPath: /opt/airflow/lang_sdk
+  containers:
+    - name: base
+      image: __LANG_SDK_JAVA_IMAGE__
+      env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: LocalExecutor
+        - name: AIRFLOW_HOME
+          value: /opt/airflow
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: /opt/airflow/dags
+        - name: AIRFLOW__CORE__FERNET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: airflow-fernet-key
+              key: fernet-key
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-metadata
+              key: connection
+      volumeMounts:
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+        - name: lang-sdk-artifacts
+          mountPath: /opt/airflow/artifacts
+        - name: airflow-config
+          readOnly: true
+          mountPath: /opt/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: airflow-config
+          readOnly: true
+          mountPath: /opt/airflow/config/airflow_local_settings.py
+          subPath: airflow_local_settings.py
+      imagePullPolicy: IfNotPresent
+  volumes:
+    - name: airflow-logs
+      emptyDir: {}
+    - name: lang-sdk-artifacts
+      emptyDir: {}
+    - name: lang-sdk-scripts
+      configMap:
+        name: lang-sdk-scripts
+        defaultMode: 420
+    - name: airflow-config
+      configMap:
+        name: airflow-config
+        defaultMode: 420
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 30
+  serviceAccountName: airflow-worker-kubernetes
+  serviceAccount: airflow-worker-kubernetes
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 50000
+  schedulerName: default-scheduler

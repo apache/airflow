@@ -22,7 +22,7 @@ from shutil import copyfile, copytree
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 
 
 @pytest.fixture(scope="class")
@@ -355,6 +355,39 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) == "dummy_image:latest"
         assert jmespath.search("spec.containers[0].imagePullPolicy", docs[0]) == "Always"
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
+
+    @pytest.mark.parametrize(
+        ("expected_image", "tag", "digest"),
+        [
+            ("dummy_image:user-tag", "user-tag", None),
+            ("dummy_image@user-digest", None, "user-digest"),
+            ("dummy_image@user-digest", "user-tag", "user-digest"),
+        ],
+    )
+    def test_should_use_correct_pod_template_image(self, expected_image, tag, digest):
+        docs = render_chart(
+            values={
+                "images": {
+                    "pod_template": {"repository": "dummy_image", "tag": tag, "digest": digest},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].image", docs[0]) == expected_image
+
+    def test_should_use_default_airflow_digest_in_pod_template(self):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "test-repo",
+                "defaultAirflowDigest": "user-digest",
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].image", docs[0]) == "test-repo@user-digest"
 
     def test_mount_airflow_cfg(self):
         docs = render_chart(
@@ -1111,6 +1144,17 @@ class TestPodTemplateFile:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.containers[0].env", docs[0])
 
+    def test_should_set_dumb_init_setsid_for_warm_shutdown(self):
+        """Pod-termination signals must reach only the supervisor so a running task can warm-shut-down."""
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "DUMB_INIT_SETSID", "value": "0"} in jmespath.search(
+            "spec.containers[0].env", docs[0]
+        )
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -1298,6 +1342,74 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[1].securityContext", docs[0]) == {
             "allowPrivilegeEscalation": False
         }
+
+    @pytest.mark.parametrize(
+        ("override", "expected"),
+        [
+            (
+                {},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 5,
+                    "initialDelaySeconds": 0,
+                    "periodSeconds": 10,
+                    "failureThreshold": 6,
+                },
+            ),
+            (
+                {
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 12,
+                    "periodSeconds": 13,
+                    "failureThreshold": 14,
+                },
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 12,
+                    "periodSeconds": 13,
+                    "failureThreshold": 14,
+                },
+            ),
+            ({"enabled": False}, None),
+        ],
+        ids=["default", "custom", "disabled"],
+    )
+    def test_kerberos_sidecar_startup_probe(self, override, expected):
+        docs = render_chart(
+            values={
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True, "startupProbe": override}}}
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert (
+            jmespath.search("spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0])
+            == expected
+        )
+
+    @pytest.mark.parametrize(
+        "override",
+        [
+            {"timeoutSeconds": 0},
+            {"initialDelaySeconds": -1},
+            {"periodSeconds": 0},
+            {"failureThreshold": 0},
+        ],
+        ids=["timeout", "initial-delay", "period", "failure-threshold"],
+    )
+    def test_kerberos_sidecar_startup_probe_rejects_invalid_values(self, override):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={
+                    "workers": {
+                        "kubernetes": {"kerberosSidecar": {"enabled": True, "startupProbe": override}}
+                    }
+                },
+                show_only=["templates/pod-template-file.yaml"],
+                chart_dir=self.temp_chart_dir,
+            )
 
     def test_kerberos_init_container_default(self):
         docs = render_chart(

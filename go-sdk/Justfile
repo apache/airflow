@@ -22,12 +22,8 @@ set shell := ["bash", "-uc"]
 default:
   @just --list
 
-# Build all components
-build: build-edge build-examples
-
-# Build the worker binary
-build-edge:
-  go build -o bin/airflow-go-edge-worker ./cmd/airflow-go-edge-worker
+# Build all deployable example bundles
+build: build-examples
 
 # Build all example bundles
 build-examples:
@@ -43,6 +39,6 @@ docs port="6060":
   @echo "Serving Go docs at http://localhost:{{port}}/github.com/apache/airflow/go-sdk"
   go run golang.org/x/pkgsite/cmd/pkgsite@v0.1.0 -http=localhost:{{port}} .
 
-# Generate protocol buffers
-protoc:
-  @prek run -a protoc
+# Regenerate the coordinator-protocol data models from the task-sdk supervisor schema
+generate-models:
+  go generate ./pkg/execution/genmodels/...

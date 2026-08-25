@@ -704,6 +704,6 @@ class TestResolveStoreBackend:
 
     @conf_vars({("state_store", "backend"): "airflow.models.dagrun.DagRun"})
     def test_invalid_backend_raises_type_error(self):
-        """resolve_state_backend() raises TypeError when the configured class is not a BaseStateBackend subclass."""
+        """resolve_state_backend() raises TypeError when the configured class is not a BaseStoreBackend subclass."""
         with pytest.raises(TypeError, match="not a subclass of `BaseStoreBackend`"):
             resolve_state_backend()

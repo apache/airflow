@@ -52,7 +52,6 @@ from airflow.sdk.execution_time.schema.migrator import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
 )
-from airflow.sdk.execution_time.schema.versions import bundle
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -117,6 +116,18 @@ def resolve_body_class(body: Any) -> type[BaseModel] | None:
     if not isinstance(name, str):
         return None
     return registered_models_by_name().get(name)
+
+
+def __getattr__(name: str) -> Any:
+    # Re-export ``bundle`` lazily so importing this package does not import ``cadwyn`` (-> FastAPI/
+    # Starlette) until something actually accesses ``schema.bundle``. The Task SDK supervisor imports
+    # this package on every worker, but only the foreign-language-SDK migration path touches the
+    # bundle, so a pure-Python worker never pays the cadwyn import.
+    if name == "bundle":
+        from airflow.sdk.execution_time.schema.versions import get_bundle
+
+        return get_bundle()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

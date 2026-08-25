@@ -339,8 +339,8 @@ class TestProviderManager:
     def test_dialects(self):
         provider_manager = ProvidersManager()
         dialect_class_names = list(provider_manager.dialects)
-        assert len(dialect_class_names) == 3
-        assert dialect_class_names == ["default", "mssql", "postgresql"]
+        assert len(dialect_class_names) == 4
+        assert dialect_class_names == ["default", "db2", "mssql", "postgresql"]
 
     def test_object_storage_providers(self):
         provider_manager = ProvidersManager()

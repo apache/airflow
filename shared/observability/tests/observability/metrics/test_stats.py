@@ -34,6 +34,7 @@ from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import datadog_logger, statsd_logger
 from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
+from airflow_shared.observability.metrics.stats import build_dag_metric_tags
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow_shared.observability.metrics.validators import (
     PatternAllowListValidator,
@@ -53,7 +54,7 @@ def get_statsd_logger_factory(
     metrics_block_list: str | None = None,
     stat_name_handler: Callable[[str], str] | None = None,
 ):
-    return lambda: statsd_logger.get_statsd_logger(
+    return lambda: statsd_logger.get_udp_statsd_logger(
         stats_class=stats_class,
         host="localhost",
         port="1234",
@@ -62,6 +63,32 @@ def get_statsd_logger_factory(
         metrics_block_list=metrics_block_list,
         stat_name_handler=stat_name_handler,
     )
+
+
+class TestGetStatsdLogger:
+    def test_passes_ipv6_as_keyword(self):
+        with mock.patch.object(statsd.StatsClient, "__init__", return_value=None) as mock_init:
+            statsd_logger.get_udp_statsd_logger(stats_class=statsd.StatsClient, host="h", port=1, ipv6=True)
+        assert mock_init.call_args.kwargs["ipv6"] is True
+
+    def test_socket_path_constructs_stats_class_with_socket_path(self):
+        with mock.patch.object(statsd.UnixSocketStatsClient, "__init__", return_value=None) as mock_init:
+            statsd_logger.get_socket_statsd_logger(
+                stats_class=statsd.UnixSocketStatsClient,
+                socket_path="/var/run/datadog/dsd.socket",
+                prefix="airflow",
+            )
+        mock_init.assert_called_once_with(socket_path="/var/run/datadog/dsd.socket", prefix="airflow")
+
+    def test_no_stats_class_with_socket_path_uses_unix_client(self):
+        with mock.patch.object(statsd.UnixSocketStatsClient, "__init__", return_value=None):
+            result = statsd_logger.get_socket_statsd_logger(socket_path="/var/run/datadog/dsd.socket")
+        assert isinstance(result.statsd, statsd.UnixSocketStatsClient)
+
+    def test_no_stats_class_without_socket_path_uses_stats_client(self):
+        with mock.patch.object(statsd.StatsClient, "__init__", return_value=None):
+            result = statsd_logger.get_udp_statsd_logger(host="localhost", port=8125)
+        assert isinstance(result.statsd, statsd.StatsClient)
 
 
 class TestStats:
@@ -258,6 +285,20 @@ class TestDogStats:
         self.dogstatsd_client.decrement.assert_called_once_with(
             metric="empty", sample_rate=1, value=1, tags=[]
         )
+
+    @pytest.mark.parametrize(
+        ("tags", "expected"),
+        [
+            ({"env": "prod"}, {"env:prod"}),
+            ({"production": ""}, {"production"}),
+            ({"production": "", "env": "staging"}, {"production", "env:staging"}),
+        ],
+    )
+    def test_key_value_and_standalone_tags(self, tags, expected):
+        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
+        dogstatsd.incr("my_metric", tags=tags)
+        call_kwargs = self.dogstatsd_client.increment.call_args
+        assert set(call_kwargs.kwargs["tags"]) == expected
 
 
 class TestStatsAllowAndBlockLists:
@@ -457,23 +498,35 @@ class TestStatsWithInfluxDBEnabled:
         )
         self.statsd_client.incr.assert_called_once_with("test_stats_run.delay", 1, 1)
 
-    def test_increment_counter_with_tags(self):
-        self.stats.incr(
-            "test_stats_run.delay",
-            tags={"key0": 0, "key1": "val1", "key2": "val2"},
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
-
-    def test_increment_counter_with_tags_and_forward_slash(self):
-        self.stats.incr("test_stats_run.dag", tags={"path": "/some/path/dag.py"})
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.dag,path=/some/path/dag.py", 1, 1)
-
-    def test_does_not_increment_counter_drops_invalid_tags(self):
-        self.stats.incr(
-            "test_stats_run.delay",
-            tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
+    @pytest.mark.parametrize(
+        ("stat", "tags", "expected"),
+        [
+            (
+                "test_stats_run.delay",
+                {"key0": 0, "key1": "val1", "key2": "val2"},
+                "test_stats_run.delay,key0=0,key1=val1",
+            ),
+            (
+                "test_stats_run.dag",
+                {"path": "/some/path/dag.py"},
+                "test_stats_run.dag,path=/some/path/dag.py",
+            ),
+            (
+                "test_stats_run.delay",
+                {"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
+                "test_stats_run.delay,key1=val1",
+            ),
+            # Empty value renders as `=true` in influxdb line protocol.
+            (
+                "test_stats_run.delay",
+                {"production": "", "key1": "val1"},
+                "test_stats_run.delay,production=true,key1=val1",
+            ),
+        ],
+    )
+    def test_increment_counter_with_tags(self, stat, tags, expected):
+        self.stats.incr(stat, tags=tags)
+        self.statsd_client.incr.assert_called_once_with(expected, 1, 1)
 
 
 def always_invalid(stat_name):
@@ -706,17 +759,20 @@ class TestLegacyExport:
 
 class TestCustomStatsName:
     def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self):
-        with mock.patch("statsd.StatsClient") as mock_statsd:
+        with (
+            mock.patch.object(statsd.StatsClient, "__init__", return_value=None),
+            mock.patch.object(statsd.StatsClient, "incr") as mock_incr,
+        ):
             importlib.reload(airflow_shared.observability.metrics.stats)
             airflow_shared.observability.metrics.stats.initialize(
                 factory=get_statsd_logger_factory(
-                    stats_class=mock_statsd,
+                    stats_class=statsd.StatsClient,
                     stat_name_handler=always_invalid,
                 ),
                 export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
-            mock_statsd.return_value.assert_not_called()
+        mock_incr.assert_not_called()
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self):
@@ -734,18 +790,33 @@ class TestCustomStatsName:
             airflow_shared.observability.metrics.stats.incr("empty_key")
             mock_dogstatsd.return_value.assert_not_called()
 
+    @skip_if_force_lowest_dependencies_marker
+    def test_dogstatsd_socket_path_passed_and_host_port_omitted(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            datadog_logger.get_dogstatsd_logger(
+                socket_path="unix:///var/run/datadog/dsd.socket",
+                namespace="airflow",
+            )
+            _, kwargs = mock_dogstatsd.call_args
+            assert kwargs["socket_path"] == "unix:///var/run/datadog/dsd.socket"
+            assert "host" not in kwargs
+            assert "port" not in kwargs
+
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self):
-        with mock.patch("statsd.StatsClient") as mock_statsd:
+        with (
+            mock.patch.object(statsd.StatsClient, "__init__", return_value=None),
+            mock.patch.object(statsd.StatsClient, "incr") as mock_incr,
+        ):
             importlib.reload(airflow_shared.observability.metrics.stats)
             airflow_shared.observability.metrics.stats.initialize(
                 factory=get_statsd_logger_factory(
-                    stats_class=mock_statsd,
+                    stats_class=statsd.StatsClient,
                     stat_name_handler=always_valid,
                 ),
                 export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
-            mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
+        mock_incr.assert_called_once_with("empty_key", 1, 1)
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self):
@@ -769,3 +840,26 @@ class TestCustomStatsName:
     def teardown_method(self) -> None:
         # To avoid side-effect
         importlib.reload(airflow_shared.observability.metrics.stats)
+
+
+@pytest.mark.parametrize(
+    ("tag_names", "expected"),
+    [
+        pytest.param([], {}, id="empty"),
+        pytest.param(["production"], {"production": ""}, id="standalone"),
+        pytest.param(["env:prod"], {"env": "prod"}, id="key-value"),
+        pytest.param(
+            ["production", "env:prod", "team:data"],
+            {"production": "", "env": "prod", "team": "data"},
+            id="mixed",
+        ),
+        pytest.param(["a:b:c"], {"a": "b:c"}, id="value-with-colon"),
+        pytest.param(["env:"], {"env": ""}, id="trailing-colon-is-standalone"),
+    ],
+)
+def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -> None:
+    assert build_dag_metric_tags(tag_names) == expected
+
+
+def test_build_dag_metric_tags_accepts_generator() -> None:
+    assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}

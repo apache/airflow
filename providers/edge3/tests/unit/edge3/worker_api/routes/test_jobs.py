@@ -98,6 +98,7 @@ class TestJobsApiRoutes:
                 queue=QUEUE,
                 concurrency_slots=1,
                 command="execute",
+                team_name="team_a",
             )
             session.add(job)
             session.commit()
@@ -130,6 +131,7 @@ class TestJobsApiRoutes:
                     "queue": QUEUE,
                     "state": TaskInstanceState.SUCCESS,
                     "task_id": TASK_ID,
+                    "team_name": "team_a",
                 },
             )
             assert mock_stats_incr.call_count == 1
@@ -138,7 +140,45 @@ class TestJobsApiRoutes:
             assert db_job is not None
             assert db_job.state == TaskInstanceState.SUCCESS
 
-    def test_fetch_filters_by_worker_team_name(self, session: Session):
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_state_finish_metric_omits_team_name_for_global_job(self, mock_stats_incr, session: Session):
+        with create_session() as session:
+            job = EdgeJobModel(
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=RUN_ID,
+                try_number=1,
+                map_index=-1,
+                state=TaskInstanceState.RUNNING,
+                queue=QUEUE,
+                concurrency_slots=1,
+                command="execute",
+            )
+            session.add(job)
+            session.commit()
+
+            state(
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=RUN_ID,
+                try_number=1,
+                map_index=-1,
+                state=TaskInstanceState.SUCCESS,
+                session=session,
+            )
+
+            mock_stats_incr.assert_called_once_with(
+                "edge_worker.ti.finish",
+                tags={
+                    "dag_id": DAG_ID,
+                    "queue": QUEUE,
+                    "state": TaskInstanceState.SUCCESS,
+                    "task_id": TASK_ID,
+                },
+            )
+
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_filters_by_worker_team_name(self, mock_stats_incr, session: Session):
         with create_session() as session:
             session.add(
                 EdgeWorkerModel(
@@ -177,6 +217,15 @@ class TestJobsApiRoutes:
             assert result is not None
             assert result.dag_id == "dag_a"
             assert result.task_id == "task_a"
+            mock_stats_incr.assert_called_once_with(
+                "edge_worker.ti.start",
+                tags={
+                    "dag_id": "dag_a",
+                    "queue": QUEUE,
+                    "task_id": "task_a",
+                    "team_name": "team_a",
+                },
+            )
 
     def test_fetch_unknown_worker_raises_404(self, session: Session):
         body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
@@ -187,7 +236,8 @@ class TestJobsApiRoutes:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert exc_info.value.detail == "Worker not found"
 
-    def test_fetch_without_team_name_returns_any_team(self, session: Session):
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_without_team_name_returns_any_team(self, mock_stats_incr, session: Session):
         """When a worker has no team_name, no team filter is applied so any queued job can be returned."""
         with create_session() as session:
             session.add(
@@ -232,6 +282,15 @@ class TestJobsApiRoutes:
             assert result3 is None
             fetched_dag_ids = {result1.dag_id, result2.dag_id}
             assert fetched_dag_ids == {"dag_a", "dag_b"}
+            mock_stats_incr.assert_any_call(
+                "edge_worker.ti.start",
+                tags={"dag_id": "dag_a", "queue": QUEUE, "task_id": "task_a", "team_name": "team_a"},
+            )
+            mock_stats_incr.assert_any_call(
+                "edge_worker.ti.start",
+                tags={"dag_id": "dag_b", "queue": QUEUE, "task_id": "task_b"},
+            )
+            assert mock_stats_incr.call_count == 2
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The tests should be skipped for Airflow < 3.3")

@@ -30,10 +30,16 @@ scheduling remain in Python; individual tasks delegate to a JVM subprocess that 
    :local:
    :depth: 2
 
+API reference
+-------------
+
+The generated API reference for the Java SDK is published with the Airflow documentation at
+`Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__.
+
 Prerequisites
 -------------
 
-* JRE 17 or later must be available on the Airflow worker nodes.
+* JRE 11 or later must be available on the Airflow worker nodes.
 * The compiled task JAR(s) and JVM dependencies must be accessible from the worker.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator;
   no additional Python packages are needed.
@@ -109,7 +115,7 @@ Java entry point
 
     public class Main implements BundleBuilder {
       @Override
-      public Iterable<Dag> getDags() {
+      public Iterable<DagDef> getDags() {
         return List.of(SalesPipelineBuilder.build());  // SalesPipelineBuilder generated at compile time
       }
 
@@ -197,7 +203,18 @@ Interface-based API
 ~~~~~~~~~~~~~~~~~~~
 
 Implement the ``Task`` interface directly for full control over how tasks are registered and how XComs are
-read.
+read.  Each task is registered as a ``TaskDef`` on a ``DagDef``.
+
+The runner creates a fresh instance of the task class through reflection for every task-instance run,
+which puts four constraints on the class:
+
+* The task class itself must be ``public``.
+* It must be concrete: not abstract and not an interface.
+* It must declare a public no-argument constructor.
+* If nested inside another class, it must be a ``static`` nested class.
+
+A class that violates any of these fails at runtime with a ``Cannot instantiate task class`` error in the
+task log.
 
 .. code-block:: java
 
@@ -212,23 +229,31 @@ read.
       }
     }
 
-Register tasks manually in a ``BundleBuilder``:
+Register tasks manually in a ``BundleBuilder``. A task class can be top-level like ``FetchTask``, or
+nested ``static`` class like ``ProcessTask``:
 
 .. code-block:: java
 
     public class MyBundle implements BundleBuilder {
+      public static class ProcessTask implements Task {
+        @Override
+        public void execute(Context context, Client client) throws Exception {
+          var fetched = (String) client.getXCom("fetch");
+          // implement task logic
+          client.setXCom(fetched);
+        }
+      }
+
       @Override
-      public Iterable<Dag> getDags() {
-        var dag = new Dag("my_dag");
-        dag.addTask("fetch", FetchTask.class);
-        dag.addTask("process", ProcessTask.class);
+      public Iterable<DagDef> getDags() {
+        var dag = new DagDef("my_dag")
+            .addTask("fetch", FetchTask.class)
+            .addTask("process", ProcessTask.class);
         return List.of(dag);
       }
     }
 
-See the Java SDK's published JavaDoc for more details.
-
-.. TODO: (AIP-108) Put a link here once we publish the JavaDoc.
+See the `Java SDK API Reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ for more details.
 
 .. _java-sdk/logging:
 
@@ -340,13 +365,15 @@ Add the artifact:
 
     implementation("org.apache.airflow:airflow-sdk-jul:${version}")
 
-and call ``AirflowJulHandler.install()`` on startup to attach the handler to the
-JUL root logger before any task runs:
+and call ``AirflowJulHandler.setup()`` on startup, before any task runs. It clears the JUL root
+logger's existing handlers (including the default ``ConsoleHandler``, whose stderr output Airflow
+would otherwise capture as ``task.stderr`` at ERROR level, duplicating each record and mislabeling
+its level) and installs ``AirflowJulHandler`` in their place:
 
 .. code-block:: java
 
     public static void main(String[] args) {
-        AirflowJulHandler.install();
+        AirflowJulHandler.setup();
         Server.create(args).serve(new MyBundle());
     }
 
@@ -419,6 +446,14 @@ represented as Java objects when read back via ``getXCom``.
    * - ``dict``
      - object
      - ``Map<String, Object>``
+
+.. note::
+
+   An ``@Builder.XCom`` parameter that reads a value which was never pushed resolves to
+   ``null``.  A boxed parameter (``Integer``, ``Long``, ``Boolean``, …) receives ``null``
+   safely, but a primitive parameter (``int``, ``long``, ``boolean``, …) cannot represent
+   ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a
+   boxed type when the upstream XCom may be absent.
 
 .. _java-sdk/build:
 
@@ -668,6 +703,40 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
        JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+
+.. note::
+
+  The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
+  ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
+  scheduler (or ``airflow standalone``). A rebuilt bundle JAR, by contrast, is picked up on the next
+  task launch without a restart, because a fresh JVM is spawned per task instance.
+
+.. _java-sdk/java-executable:
+
+Pinning the Java executable
+---------------------------
+
+As a general recommendation, set ``java_executable`` to an absolute path rather than relying on
+``java`` resolving from ``$PATH``. This pins tasks to a known JDK, which matters most in production or
+corporate environments where the Airflow admin may not control the system-wide ``java`` (the same
+reasoning behind pinning a Python version).
+
+For example, if you install the JDK with Homebrew on macOS, its ``java`` is not on ``$PATH``, so
+point ``java_executable`` at it explicitly:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-jdk17": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {
+          "jars_root": ["/opt/airflow/jars"],
+          "java_executable": "/opt/homebrew/opt/openjdk@17/bin/java"
+        }
+      }
+    }
+    queue_to_coordinator = {"java": "java-jdk17"}
 
 .. _java-sdk/limitations:
 

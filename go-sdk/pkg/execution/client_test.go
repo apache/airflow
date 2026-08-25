@@ -28,13 +28,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // TestCoordinatorClientGetVariableEnvOverride verifies that an
 // AIRFLOW_VAR_<UPPER(key)> environment override short-circuits the comm
-// socket, matching the HTTP-backed sdk.client behaviour.
+// socket.
 func TestCoordinatorClientGetVariableEnvOverride(t *testing.T) {
 	t.Setenv("AIRFLOW_VAR_MY_KEY", "env_value")
 
@@ -75,8 +74,7 @@ func TestCoordinatorClientGetVariableNoEnvOverride(t *testing.T) {
 
 // TestCoordinatorClientErrorTranslation verifies that GetVariable,
 // GetConnection, and GetXCom translate the supervisor's *_NOT_FOUND error
-// codes into the SDK sentinel errors so call-site `errors.Is` checks behave
-// the same in coordinator and HTTP mode.
+// codes into the SDK sentinel errors used by task code.
 func TestCoordinatorClientErrorTranslation(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -119,7 +117,7 @@ func TestCoordinatorClientErrorTranslation(t *testing.T) {
 			responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 				"type":   "ErrorResponse",
 				"error":  tc.errorCode,
-				"detail": "supervisor said no",
+				"detail": map[string]any{"msg": "supervisor said no"},
 			})
 			var responseBuf bytes.Buffer
 			require.NoError(t, writeFrame(&responseBuf, responsePayload))
@@ -145,7 +143,7 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
 		"error":  "API_SERVER_ERROR",
-		"detail": "boom",
+		"detail": map[string]any{"msg": "boom"},
 	})
 	var responseBuf bytes.Buffer
 	require.NoError(t, writeFrame(&responseBuf, responsePayload))
@@ -217,6 +215,7 @@ func TestCoordinatorClientGetConnectionAbsentCredentials(t *testing.T) {
 // silently treated as a separate map element by the supervisor.
 func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	mapped := -1
+	zero := 0
 	dynamic := 3
 
 	tests := []struct {
@@ -227,6 +226,14 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	}{
 		{name: "nil map_index is omitted", mapIndex: nil, wantHasMapIndex: false},
 		{name: "-1 map_index is omitted", mapIndex: &mapped, wantHasMapIndex: false},
+		{
+			// Regression: map_index 0 is a real mapped index, not "unset". A plain
+			// deref into the interface{} field would let omitempty drop it.
+			name:            "map_index 0 is sent",
+			mapIndex:        &zero,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 0,
+		},
 		{
 			name:            "non-negative map_index is sent",
 			mapIndex:        &dynamic,
@@ -246,24 +253,87 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 			client := NewCoordinatorClient(comm)
 
-			ti := api.TaskInstance{
-				DagId:    "d",
-				RunId:    "r",
-				TaskId:   "t",
+			ti := sdk.TaskInstance{
+				DagID:    "d",
+				RunID:    "r",
+				TaskID:   "t",
 				MapIndex: tc.mapIndex,
 			}
 			require.NoError(t, client.PushXCom(context.Background(), ti, "k", "v"))
 
 			sent, err := readFrame(&requestBuf)
 			require.NoError(t, err)
-			assert.Equal(t, "SetXCom", sent.Body["type"])
+			sentMap := rawToMap(t, sent.Body)
+			assert.Equal(t, "SetXCom", sentMap["type"])
 			if tc.wantHasMapIndex {
-				require.Contains(t, sent.Body, "map_index")
+				require.Contains(t, sentMap, "map_index")
 				// msgpack decodes small ints as int8.
-				assert.EqualValues(t, tc.wantMapIndexVal, sent.Body["map_index"])
+				assert.EqualValues(t, tc.wantMapIndexVal, sentMap["map_index"])
 			} else {
-				assert.NotContains(t, sent.Body, "map_index",
+				assert.NotContains(t, sentMap, "map_index",
 					"map_index must be omitted for unmapped task instances")
+			}
+		})
+	}
+}
+
+// TestCoordinatorClientGetXComMapIndex verifies the GetXCom frame omits
+// map_index when none is supplied and propagates a real index otherwise,
+// including index 0: a plain deref into the nullable interface{} field would let
+// omitempty drop the 0 and the supervisor would resolve the unmapped XCom.
+func TestCoordinatorClientGetXComMapIndex(t *testing.T) {
+	zero := 0
+	dynamic := 5
+
+	tests := []struct {
+		name            string
+		mapIndex        *int
+		wantHasMapIndex bool
+		wantMapIndexVal int
+	}{
+		{name: "nil map_index is omitted", mapIndex: nil, wantHasMapIndex: false},
+		{
+			name:            "map_index 0 is sent",
+			mapIndex:        &zero,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 0,
+		},
+		{
+			name:            "non-negative map_index is sent",
+			mapIndex:        &dynamic,
+			wantHasMapIndex: true,
+			wantMapIndexVal: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{
+				"type":  "XComResult",
+				"key":   "k",
+				"value": "v",
+			}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+			client := NewCoordinatorClient(comm)
+
+			_, err := client.GetXCom(context.Background(), "d", "r", "t", tc.mapIndex, "k", nil)
+			require.NoError(t, err)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			assert.Equal(t, "GetXCom", sentMap["type"])
+			if tc.wantHasMapIndex {
+				require.Contains(t, sentMap, "map_index")
+				assert.EqualValues(t, tc.wantMapIndexVal, sentMap["map_index"])
+			} else {
+				assert.NotContains(t, sentMap, "map_index",
+					"map_index must be omitted when no index is supplied")
 			}
 		})
 	}

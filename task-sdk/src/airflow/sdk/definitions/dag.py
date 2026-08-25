@@ -392,6 +392,9 @@ class DAG:
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit', 'can_delete'}}"
         or it can specify the resource name if there is a DAGs Run resource, e.g.,
         "{'role1': {'DAG Runs': {'can_create'}}, 'role2': {'DAGs': {'can_read', 'can_edit', 'can_delete'}}"
+        Deprecated, and only read when the configured auth manager is the FAB auth manager. Under any
+        other auth manager this argument is ignored and grants no access. See
+        https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
         is not specified, the global config setting will be used.
@@ -550,6 +553,8 @@ class DAG:
 
     fileloc: str = attrs.field(init=False, factory=_default_fileloc)
     relative_fileloc: str | None = attrs.field(init=False, default=None)
+    bundle_name: str | None = attrs.field(init=False, default=None)
+
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)
@@ -586,7 +591,9 @@ class DAG:
             self.default_args["end_date"] = timezone.convert_to_utc(end_date)
         if self.access_control is not None:
             warnings.warn(
-                "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
+                "DAG.access_control is deprecated and is only read when the configured auth manager is the "
+                "FAB auth manager; under any other auth manager it is ignored and grants no access. See "
+                "https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
@@ -1404,8 +1411,23 @@ class DAG:
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
                 scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
-                ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
-                if not scheduled_tis and ids_unrunnable:
+                awaiting_input_tis = {x for x in all_tis if x.state == TaskInstanceState.AWAITING_INPUT}
+                ids_unrunnable = (
+                    {x for x in all_tis if x.state not in FINISHED_STATES}
+                    - scheduled_tis
+                    - awaiting_input_tis
+                )
+                if not scheduled_tis and awaiting_input_tis:
+                    # Human-in-the-loop tasks stay parked in AWAITING_INPUT: dag.test() never
+                    # resolves them itself. Keep the run alive until a response recorded from
+                    # outside -- the Required Actions UI or the HITL REST API of an api-server
+                    # sharing this metadata DB -- flips them back to SCHEDULED.
+                    log.info(
+                        "Waiting for Human-in-the-loop input for tasks: %s",
+                        sorted(x.task_id for x in awaiting_input_tis),
+                    )
+                    time.sleep(1)
+                elif not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                     time.sleep(1)
 
@@ -1527,7 +1549,16 @@ def _run_task(
                 trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
+                # Add the trigger event to the kwargs the task passed to defer(), instead of
+                # discarding them, so the resume method still receives those kwargs.
+                if event:
+                    next_kwargs = deserialize(msg.next_kwargs) if msg.next_kwargs else {}
+                    if TYPE_CHECKING:
+                        assert isinstance(next_kwargs, dict)
+                    next_kwargs["event"] = event.payload
+                    ti.next_kwargs = serialize(next_kwargs)
+                else:
+                    ti.next_kwargs = msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
                 # Set the state to SCHEDULED so that the task can be resumed.

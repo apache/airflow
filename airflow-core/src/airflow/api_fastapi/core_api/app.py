@@ -170,13 +170,6 @@ def init_config(app: FastAPI) -> None:
     app.state.secret_key = get_signing_key("api", "secret_key")
 
 
-def init_error_handlers(app: FastAPI) -> None:
-    from airflow.api_fastapi.common.exceptions import ERROR_HANDLERS
-
-    for handler in ERROR_HANDLERS:
-        app.add_exception_handler(handler.exception_cls, handler.exception_handler)
-
-
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware

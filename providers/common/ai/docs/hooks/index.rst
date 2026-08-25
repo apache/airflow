@@ -47,6 +47,10 @@ Choosing a hook
        by default). For non-OpenAI vendors, pass a pre-built
        ``BaseEmbedding`` / ``LLM`` instance straight to the operator and
        bypass the hook.
+   * - :class:`~airflow.providers.common.ai.hooks.mcp.MCPHook`
+     - Backs ``MCPToolset`` (see :doc:`../toolsets`) for agent tasks that call
+       tools on a remote MCP server. Configure the connection via
+       :doc:`../connections/mcp`.
 
 Hook guides
 -----------

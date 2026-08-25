@@ -33,7 +33,6 @@ import functools
 from typing import TYPE_CHECKING, Any, cast
 
 import attrs
-from cadwyn import generate_versioned_models
 
 if TYPE_CHECKING:
     from cadwyn import VersionBundle
@@ -103,6 +102,11 @@ class SchemaVersionMigrator:
 
     def _versioned_class(self, version: str, model: type[BaseModel]) -> type[BaseModel]:
         """Get the Cadwyn-generated class for *model* at *version*."""
+        # Imported here, not at module scope, so importing this module (and the parent ``schema``
+        # package the Task SDK supervisor pulls in) does not import ``cadwyn`` -> FastAPI/Starlette.
+        # Only the foreign-language-SDK migration path reaches this; a pure-Python worker never does.
+        from cadwyn import generate_versioned_models
+
         if self._versioned_models is None:
             self._versioned_models = generate_versioned_models(self._bundle)
         return self._versioned_models[version][model]
@@ -207,8 +211,9 @@ def get_schema_version_migrator() -> SchemaVersionMigrator:
     no per-call state, so concurrent callers can share a single
     instance safely.
     """
-    from airflow.sdk.execution_time.schema.versions import bundle
+    from airflow.sdk.execution_time.schema.versions import get_bundle
 
+    bundle = get_bundle()
     return SchemaVersionMigrator(bundle=bundle, supervisor_version=bundle.versions[0].value)
 
 

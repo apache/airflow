@@ -1,0 +1,172 @@
+<svg class="rich-terminal" viewBox="0 0 1482 733.1999999999999" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .breeze-k8s-smoke-test-overlay-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .breeze-k8s-smoke-test-overlay-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .breeze-k8s-smoke-test-overlay-r1 { fill: #c5c8c6 }
+.breeze-k8s-smoke-test-overlay-r2 { fill: #d0b344 }
+.breeze-k8s-smoke-test-overlay-r3 { fill: #c5c8c6;font-weight: bold }
+.breeze-k8s-smoke-test-overlay-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-k8s-smoke-test-overlay-r5 { fill: #868887 }
+.breeze-k8s-smoke-test-overlay-r6 { fill: #98a84b;font-weight: bold }
+.breeze-k8s-smoke-test-overlay-r7 { fill: #8d7b39 }
+    </style>
+
+    <defs>
+    <clipPath id="breeze-k8s-smoke-test-overlay-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="682.1999999999999" />
+    </clipPath>
+    <clipPath id="breeze-k8s-smoke-test-overlay-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-14">
+    <rect x="0" y="343.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-15">
+    <rect x="0" y="367.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-16">
+    <rect x="0" y="391.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-17">
+    <rect x="0" y="416.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-18">
+    <rect x="0" y="440.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-19">
+    <rect x="0" y="465.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-20">
+    <rect x="0" y="489.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-21">
+    <rect x="0" y="513.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-22">
+    <rect x="0" y="538.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-23">
+    <rect x="0" y="562.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-24">
+    <rect x="0" y="587.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-25">
+    <rect x="0" y="611.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-k8s-smoke-test-overlay-line-26">
+    <rect x="0" y="635.9" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="731.2" rx="8"/><text class="breeze-k8s-smoke-test-overlay-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;k8s&#160;smoke-test-overlay</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#breeze-k8s-smoke-test-overlay-clip-terminal)">
+    
+    <g class="breeze-k8s-smoke-test-overlay-matrix">
+    <text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-0)">
+</text><text class="breeze-k8s-smoke-test-overlay-r2" x="12.2" y="44.4" textLength="73.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">Usage:</text><text class="breeze-k8s-smoke-test-overlay-r3" x="97.6" y="44.4" textLength="353.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">breeze&#160;k8s&#160;smoke-test-overlay</text><text class="breeze-k8s-smoke-test-overlay-r1" x="463.6" y="44.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">[</text><text class="breeze-k8s-smoke-test-overlay-r4" x="475.8" y="44.4" textLength="85.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">OPTIONS</text><text class="breeze-k8s-smoke-test-overlay-r1" x="561.2" y="44.4" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">]&#160;</text><text class="breeze-k8s-smoke-test-overlay-r4" x="585.6" y="44.4" textLength="146.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">OVERLAY_NAME</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-1)">
+</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-2)">
+</text><text class="breeze-k8s-smoke-test-overlay-r1" x="12.2" y="93.2" textLength="1378.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-3)">Apply&#160;a&#160;kustomize&#160;overlay&#160;to&#160;the&#160;current&#160;KinD&#160;cluster,&#160;wait&#160;for&#160;its&#160;STATUS.yaml&#160;`verify:`&#160;resources,&#160;and&#160;run&#160;the&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-3)">
+</text><text class="breeze-k8s-smoke-test-overlay-r1" x="12.2" y="117.6" textLength="427" clip-path="url(#breeze-k8s-smoke-test-overlay-line-4)">optional&#160;per-overlay&#160;pytest&#160;module.</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-4)">
+</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-5)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="166.4" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-6)">╭─</text><text class="breeze-k8s-smoke-test-overlay-r5" x="24.4" y="166.4" textLength="317.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-6)">&#160;Overlay&#160;smoke-test&#160;flags&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="341.6" y="166.4" textLength="1098" clip-path="url(#breeze-k8s-smoke-test-overlay-line-6)">──────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1439.6" y="166.4" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-6)">─╮</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-6)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="190.8" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">--python&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r6" x="292.8" y="190.8" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">-p</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="190.8" textLength="744.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">Python&#160;major/minor&#160;version&#160;used&#160;in&#160;Airflow&#160;image&#160;for&#160;images.&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1085.8" y="190.8" textLength="183" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">[default:&#160;3.10]</text><text class="breeze-k8s-smoke-test-overlay-r7" x="1281" y="190.8" textLength="122" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">(&gt;3.10&lt;&#160;|&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-7)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-8)">│</text><text class="breeze-k8s-smoke-test-overlay-r7" x="341.6" y="215.2" textLength="317.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-8)">3.11&#160;|&#160;3.12&#160;|&#160;3.13&#160;|&#160;3.14)</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-8)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-8)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="239.6" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">--kubernetes-version</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="239.6" textLength="671" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">Kubernetes&#160;version&#160;used&#160;to&#160;create&#160;the&#160;KinD&#160;cluster&#160;of.&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1012.6" y="239.6" textLength="231.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">[default:&#160;v1.30.13]</text><text class="breeze-k8s-smoke-test-overlay-r7" x="1256.6" y="239.6" textLength="170.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">(&gt;v1.30.13&lt;&#160;|&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-9)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-10)">│</text><text class="breeze-k8s-smoke-test-overlay-r7" x="341.6" y="264" textLength="597.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-10)">v1.31.12&#160;|&#160;v1.32.8&#160;|&#160;v1.33.4&#160;|&#160;v1.34.0&#160;|&#160;v1.35.0)</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-10)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-10)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="288.4" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">--executor&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="288.4" textLength="512.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">Executor&#160;to&#160;use&#160;for&#160;a&#160;kubernetes&#160;cluster.&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="854" y="288.4" textLength="292.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">[default:&#160;LocalExecutor]</text><text class="breeze-k8s-smoke-test-overlay-r7" x="1159" y="288.4" textLength="231.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">(&gt;LocalExecutor&lt;&#160;|&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-11)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-12)">│</text><text class="breeze-k8s-smoke-test-overlay-r7" x="341.6" y="312.8" textLength="951.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-12)">KubernetesExecutor&#160;|&#160;CeleryExecutor&#160;|&#160;CeleryKubernetesExecutor&#160;|&#160;EdgeExecutor)</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-12)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-12)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="337.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="337.2" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">--release-name&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="337.2" textLength="732" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">Substitute&#160;for&#160;the&#160;RELEASE-NAME&#160;placeholder&#160;in&#160;the&#160;overlay.&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1073.6" y="337.2" textLength="219.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">[default:&#160;airflow]</text><text class="breeze-k8s-smoke-test-overlay-r7" x="1305.4" y="337.2" textLength="73.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">(TEXT)</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="337.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="337.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-13)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="361.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-14)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="361.6" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-14)">--namespace&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="361.6" textLength="854" clip-path="url(#breeze-k8s-smoke-test-overlay-line-14)">Namespace&#160;to&#160;apply&#160;into&#160;and&#160;substitute&#160;for&#160;the&#160;NAMESPACE&#160;placeholder.&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1195.6" y="361.6" textLength="219.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-14)">[default:&#160;airflow]</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="361.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-14)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="361.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-14)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="386" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-15)">│</text><text class="breeze-k8s-smoke-test-overlay-r7" x="341.6" y="386" textLength="73.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-15)">(TEXT)</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="386" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-15)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="386" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-15)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-16)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="410.4" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-16)">--skip-cleanup&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="410.4" textLength="768.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-16)">Leave&#160;the&#160;overlay&#160;applied&#160;after&#160;the&#160;run&#160;(useful&#160;for&#160;debugging).</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-16)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="410.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-16)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-17)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="434.8" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-17)">--no-pytest&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="434.8" textLength="646.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-17)">Skip&#160;the&#160;per-overlay&#160;pytest&#160;module&#160;even&#160;if&#160;it&#160;exists.</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-17)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="434.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-17)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="459.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-18)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="459.2" textLength="244" clip-path="url(#breeze-k8s-smoke-test-overlay-line-18)">--promote-status&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="459.2" textLength="1098" clip-path="url(#breeze-k8s-smoke-test-overlay-line-18)">If&#160;the&#160;run&#160;is&#160;green&#160;(verify&#160;block&#160;+&#160;per-overlay&#160;pytest&#160;both&#160;pass),&#160;rewrite&#160;the&#160;overlay&#x27;s&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-18)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="459.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-18)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="483.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-19)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="483.6" textLength="1098" clip-path="url(#breeze-k8s-smoke-test-overlay-line-19)">STATUS.yaml&#160;in&#160;place&#160;to&#160;`status:&#160;tested`&#160;with&#160;chart-version&#160;from&#160;chart/Chart.yaml&#160;and&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="483.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-19)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="483.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-19)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="508" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-20)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="508" textLength="1098" clip-path="url(#breeze-k8s-smoke-test-overlay-line-20)">today&#x27;s&#160;date&#160;as&#160;last-verified.&#160;Opt-in&#160;because&#160;it&#160;modifies&#160;a&#160;checked-in&#160;file;&#160;review&#160;with&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="508" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-20)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="508" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-20)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="532.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-21)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="341.6" y="532.4" textLength="1098" clip-path="url(#breeze-k8s-smoke-test-overlay-line-21)">`git&#160;diff`&#160;and&#160;commit.&#160;Refused&#160;when&#160;CI=true.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="532.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-21)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="532.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-21)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="556.8" textLength="1464" clip-path="url(#breeze-k8s-smoke-test-overlay-line-22)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="556.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-22)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="581.2" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-23)">╭─</text><text class="breeze-k8s-smoke-test-overlay-r5" x="24.4" y="581.2" textLength="195.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-23)">&#160;Common&#160;options&#160;</text><text class="breeze-k8s-smoke-test-overlay-r5" x="219.6" y="581.2" textLength="1220" clip-path="url(#breeze-k8s-smoke-test-overlay-line-23)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1439.6" y="581.2" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-23)">─╮</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="581.2" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-23)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="605.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-24)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="605.6" textLength="109.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-24)">--verbose</text><text class="breeze-k8s-smoke-test-overlay-r6" x="158.6" y="605.6" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-24)">-v</text><text class="breeze-k8s-smoke-test-overlay-r1" x="207.4" y="605.6" textLength="585.6" clip-path="url(#breeze-k8s-smoke-test-overlay-line-24)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="605.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-24)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="605.6" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-24)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="630" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-25)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="630" textLength="109.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-25)">--dry-run</text><text class="breeze-k8s-smoke-test-overlay-r6" x="158.6" y="630" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-25)">-D</text><text class="breeze-k8s-smoke-test-overlay-r1" x="207.4" y="630" textLength="719.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-25)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="630" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-25)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="630" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-25)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="654.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-26)">│</text><text class="breeze-k8s-smoke-test-overlay-r4" x="24.4" y="654.4" textLength="109.8" clip-path="url(#breeze-k8s-smoke-test-overlay-line-26)">--help&#160;&#160;&#160;</text><text class="breeze-k8s-smoke-test-overlay-r6" x="158.6" y="654.4" textLength="24.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-26)">-h</text><text class="breeze-k8s-smoke-test-overlay-r1" x="207.4" y="654.4" textLength="329.4" clip-path="url(#breeze-k8s-smoke-test-overlay-line-26)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-k8s-smoke-test-overlay-r5" x="1451.8" y="654.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-26)">│</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="654.4" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-26)">
+</text><text class="breeze-k8s-smoke-test-overlay-r5" x="0" y="678.8" textLength="1464" clip-path="url(#breeze-k8s-smoke-test-overlay-line-27)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-k8s-smoke-test-overlay-r1" x="1464" y="678.8" textLength="12.2" clip-path="url(#breeze-k8s-smoke-test-overlay-line-27)">
+</text>
+    </g>
+    </g>
+</svg>

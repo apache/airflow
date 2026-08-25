@@ -341,6 +341,13 @@
                 "type": "string"
             }
         },
+        "email-backends": {
+            "type": "array",
+            "description": "Email backend function names",
+            "items": {
+                "type": "string"
+            }
+        },
         "logging": {
             "type": "array",
             "description": "Logging Task Handlers class names",
@@ -449,11 +456,16 @@
             "type": "array",
             "description": "Apply custom decorators to the TaskFlow API. Can be accessed by users via '@task.<name>'",
             "items": {
-                "name": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "Name the decorator is exposed under, following '@task.'",
+                        "type": "string"
+                    },
+                    "class-name": {
+                        "description": "Class name that implements the decorator",
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -461,27 +473,22 @@
             "type": "array",
             "description": "Plugins provided by the provider",
             "items": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the plugin"
-                },
-                "plugin-class": {
-                    "type": "string",
-                    "description": "Class to instantiate the plugin"
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the plugin"
+                    },
+                    "plugin-class": {
+                        "type": "string",
+                        "description": "Class to instantiate the plugin"
+                    }
                 }
             }
         },
         "queues": {
             "type": "array",
-            "description": "Message Queues exposed by the provider",
-            "items": {
-                "name": {
-                    "type": "string"
-                },
-                "message-queue-class": {
-                    "type": "string"
-                }
-            }
+            "description": "Message queue provider class names"
         }
     },
     "definitions": {

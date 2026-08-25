@@ -115,6 +115,8 @@ body:
         - akeyless
         - alibaba
         - amazon
+        - anthropic
+        - apache-arrow
         - apache-beam
         - apache-cassandra
         - apache-drill
@@ -142,6 +144,7 @@ body:
         - cohere
         - common-ai
         - common-compat
+        - common-dataquality
         - common-io
         - common-messaging
         - common-sql
@@ -163,6 +166,7 @@ body:
         - grpc
         - hashicorp
         - http
+        - ibm-db2
         - ibm-mq
         - imap
         - influxdb

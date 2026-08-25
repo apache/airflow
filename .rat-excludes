@@ -158,6 +158,7 @@ PKG-INFO
 
 # checksum files
 .*\.md5sum
+last-eval-hash.txt
 
 # Openapi files
 .openapi-generator-ignore

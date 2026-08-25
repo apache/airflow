@@ -21,17 +21,20 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select, update
 
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -137,7 +140,17 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://scheduled_asset"}]},
+            asset_expression={
+                "any": [
+                    {
+                        "asset": {
+                            "uri": "test://scheduled_asset",
+                            "name": "scheduled_asset",
+                            "group": "test-group",
+                        }
+                    }
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -156,7 +169,9 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "test://asset1"}]},
+            asset_expression={
+                "any": [{"asset": {"uri": "test://asset1", "name": "test_asset_1", "group": "test-group"}}]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -174,7 +189,11 @@ class TestDagEndpoint:
             is_stale=False,
             is_paused=False,
             owners="airflow",
-            asset_expression={"any": [{"uri": "s3://bucket/dataset"}]},
+            asset_expression={
+                "any": [
+                    {"asset": {"uri": "s3://bucket/dataset", "name": "dataset_asset", "group": "test-group"}}
+                ]
+            },
             max_active_tasks=16,
             max_active_runs=16,
             max_consecutive_failed_dag_runs=0,
@@ -1066,6 +1085,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
+            "team_name": None,
         }
         assert res_json == expected
 
@@ -1168,6 +1188,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_partitioned": False,
             "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
+            "team_name": None,
         }
         assert res_json == expected
 
@@ -1202,6 +1223,19 @@ class TestDagDetails(TestDagEndpoint):
         assert "is_favorite" in body
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
+
+    def test_dag_details_serves_legacy_asset_expression_as_null(self, session, test_client):
+        """A pre-3.0 dataset-format ``asset_expression`` that the typed model cannot describe is
+        served as ``null`` instead of 500ing the endpoint (handled by ``MaybeAssetExpression``)."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        # The 2.x dataset scheduler stored bare-string leaves; the 3.0 column rename kept them verbatim.
+        dag_model.asset_expression = {"any": ["s3://legacy-a", "s3://legacy-b"]}
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] is None
 
     def test_dag_details_includes_active_runs_count(self, session, test_client):
         """Test that DAG details include the active_runs_count field."""
@@ -1249,7 +1283,7 @@ class TestDagDetails(TestDagEndpoint):
         # Verify active_runs_count field is present and correct
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
-        assert body["active_runs_count"] == 2  # 1 running + 1 queued
+        assert body["active_runs_count"] == 1  # only running counts, queued does not
 
         # Test with DAG that has no active runs
         response = test_client.get(f"/dags/{DAG1_ID}/details")
@@ -1259,6 +1293,35 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+    def test_dag_details_team_name_none_without_multi_team(self, test_client):
+        """Without multi-team enabled, ``team_name`` stays ``None`` and no lookup happens."""
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        assert response.json()["team_name"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_dag_details_includes_team_name(self, session, test_client):
+        original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == DAG1_ID))
+        bundle = DagBundleModel(name="team-bundle-details")
+        bundle.teams.append(Team(name="team-details"))
+        session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG1_ID).values(bundle_name="team-bundle-details")
+        )
+        session.commit()
+        try:
+            response = test_client.get(f"/dags/{DAG1_ID}/details")
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-details"
+        finally:
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == DAG1_ID).values(bundle_name=original_bundle_name)
+            )
+            session.execute(delete(DagBundleModel).where(DagBundleModel.name == "team-bundle-details"))
+            session.execute(delete(Team).where(Team.name == "team-details"))
+            session.commit()
 
 
 class TestGetDag(TestDagEndpoint):
@@ -1361,6 +1424,26 @@ class TestGetDag(TestDagEndpoint):
     def test_get_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
+
+
+class TestDagWithoutFileloc(TestDagEndpoint):
+    def _make_dag_without_fileloc(self, dag_maker, session, dag_id="test_dag_no_fileloc"):
+        with dag_maker(dag_id=dag_id, schedule=None):
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        dag_maker.sync_dagbag_to_db()
+        dag_model = session.get(DagModel, dag_id)
+        dag_model.fileloc = None
+        dag_model.relative_fileloc = None
+        session.commit()
+        return dag_id
+
+    @pytest.mark.parametrize("path_suffix", ["", "/details"])
+    def test_detail_endpoints_serve_dag_with_null_fileloc(self, session, test_client, dag_maker, path_suffix):
+        dag_id = self._make_dag_without_fileloc(dag_maker, session)
+        response = test_client.get(f"/dags/{dag_id}{path_suffix}")
+        assert response.status_code == 200
+        assert response.json()["fileloc"] is None
 
 
 class TestDeleteDAG(TestDagEndpoint):

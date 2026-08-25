@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "קטגוריה"
-    },
-    "title": "תצורת Airflow"
+    }
   },
   "connections": {
     "add": "הוסף חיבור חדש",
@@ -184,6 +183,7 @@
           "title": "דלג"
         }
       },
+      "parsingFile": "מנתח קובץ...",
       "title": "ייבא משתנים",
       "upload": "העלה קובץ JSON",
       "uploadPlaceholder": "העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...})"

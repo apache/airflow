@@ -8,6 +8,7 @@
     "Variables": "Variables"
   },
   "allOperators": "All Operators",
+  "allTeams": "All Teams",
   "appearance": {
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
@@ -16,8 +17,8 @@
   },
   "asset_one": "Asset",
   "asset_other": "Assets",
-  "assetEvent_one": "Asset Event",
-  "assetEvent_other": "Asset Events",
+  "assetEvent_one": "$t(common:asset_one) Event",
+  "assetEvent_other": "$t(common:asset_one) Events",
   "assetInactive": {
     "tooltip": "Upstream asset has been deactivated; the scheduler is holding partition evaluation until it is reactivated."
   },
@@ -33,8 +34,8 @@
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "consumingAsset": "Consuming Asset",
-  "createdAssetEvent_one": "Created Asset Event",
-  "createdAssetEvent_other": "Created Asset Events",
+  "createdAssetEvent_one": "Created $t(common:assetEvent_one)",
+  "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
@@ -57,7 +58,8 @@
     "owner": "Owner",
     "params": "Params",
     "schedule": "Schedule",
-    "tags": "Tags"
+    "tags": "Tags",
+    "team": "Team"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -71,8 +73,9 @@
     },
     "expectedDuration": "Expected Duration",
     "lastSchedulingDecision": "Last Scheduling Decision",
-    "mappedPartitionKey": "Mapped Partition key",
-    "partitionKey": "Partition key",
+    "mappedPartitionKey": "Mapped Partition Key",
+    "partitionDate": "Partition Date",
+    "partitionKey": "Partition Key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
@@ -83,9 +86,8 @@
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
+  "dagRunState": "Dag Run State",
   "dagWarnings": "Dag warnings/errors",
-  "defaultToGraphView": "Default to graph view",
-  "defaultToGridView": "Default to grid view",
   "delete": "Delete",
   "diff": "Diff",
   "diffCompareWith": "Compare with",
@@ -119,6 +121,8 @@
       "title": "Access Denied"
     }
   },
+  "event_one": "Event",
+  "event_other": "Events",
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -134,21 +138,27 @@
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Add Filter",
+    "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
+    "removeFilter": "Remove Filter",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
     "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
-    "startTime": "Start Time"
+    "selectDateTime": "Select date and time",
+    "startTime": "Start Time",
+    "time": "Time"
   },
   "fullscreen": {
     "tooltip": "Press {{hotkey}} for fullscreen"
   },
   "generateToken": "Generate Token",
+  "includedIn": "Included in",
   "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -187,6 +197,8 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "partition_one": "Partition",
+  "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
@@ -194,6 +206,23 @@
   },
   "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
+  "presetFilters": {
+    "deleteTitle": "Delete preset filter",
+    "deleteWarning": "Preset filters are stored in this browser only.",
+    "duplicate": "The preset filter \"{{name}}\" already saves this exact setup.",
+    "empty": "No preset filters yet",
+    "info": {
+      "default": "Pin a preset filter as the default and it is applied automatically when you land on this page with no filters applied.",
+      "save": "Save the current filters and sorting as a named preset filter, then switch back to it anytime.",
+      "storage": "Preset filters are stored in this browser."
+    },
+    "namePlaceholder": "Preset filter name",
+    "nothingToSave": "Nothing to save. Apply filters or sorting to save a preset filter.",
+    "save": "Save",
+    "setDefault": "Set as default",
+    "title": "Preset Filters",
+    "unsetDefault": "Unset default"
+  },
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -225,15 +254,92 @@
   },
   "selectLanguage": "Select Language",
   "selected": "Selected",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Skip tasks that are currently running when clearing task instances.",
+        "label": "Prevent clearing running tasks"
+      },
+      "runSelection": {
+        "helper": "Options selected by default when clearing a Dag run.",
+        "label": "Default run clear selection"
+      },
+      "taskSelection": {
+        "helper": "Options selected by default when clearing task instances.",
+        "label": "Default task clear selection"
+      },
+      "title": "Clearing"
+    },
+    "description": "These preferences are saved in this browser only and apply across the whole app.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
+        "label": "Default graph direction"
+      },
+      "title": "Graph"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Options selected by default when marking a task instance's state.",
+        "label": "Default mark selection"
+      },
+      "title": "Marking"
+    },
+    "title": "Settings"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Dag View",
+      "filters": "Filters",
+      "global": "Global",
+      "logs": "Logs",
+      "navigation": "Navigation",
+      "runActions": "Run & Task Actions",
+      "search": "Search"
+    },
+    "descriptions": {
+      "clearRun": "Clear $t(dagRun_one)",
+      "clearTaskInstance": "Clear $t(taskInstance_one)",
+      "downloadLogs": "Download logs",
+      "focusFilterSearch": "Focus filter search",
+      "focusLogSearch": "Search logs",
+      "focusSearch": "Focus search",
+      "markRunFailed": "Mark $t(dagRun_one) as failed",
+      "markRunSuccess": "Mark $t(dagRun_one) as success",
+      "markTaskFailed": "Mark $t(task_one) as failed",
+      "markTaskGroupFailed": "Mark $t(taskGroup_one) as failed",
+      "markTaskGroupSuccess": "Mark $t(taskGroup_one) as success",
+      "markTaskSuccess": "Mark $t(task_one) as success",
+      "navigateTasks": "Navigate $t(task_other)",
+      "openGraphFilters": "Open graph filters",
+      "scrollBottom": "Scroll to bottom",
+      "scrollTop": "Scroll to top",
+      "searchDags": "Search $t(dag_other)",
+      "showHelp": "Show $t(shortcuts.title)",
+      "toggleExpand": "Expand or collapse all groups",
+      "toggleFullscreen": "Toggle fullscreen",
+      "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleSource": "Toggle source",
+      "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
+      "toggleTimestamp": "Toggle timestamps",
+      "toggleWrap": "Toggle $t(wrap.wrap)"
+    },
+    "empty": "No keyboard shortcuts are available on this page.",
+    "title": "Keyboard Shortcuts"
+  },
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
+  "slot": "Slot",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",
     "show": "Show Source"
   },
-  "sourceAssetEvent_one": "Source Asset Event",
-  "sourceAssetEvent_other": "Source Asset Events",
+  "sourceAssetEvent_one": "Source $t(common:assetEvent_one)",
+  "sourceAssetEvent_other": "Source $t(common:assetEvent_other)",
   "startDate": "Start Date",
   "state": "State",
   "states": {
@@ -264,7 +370,10 @@
     "filterReset_other": "Reset filters",
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
+    "noResultsFound": "No results found",
     "noTagsFound": "No tags found",
+    "noTeamsFound": "No teams found",
+    "ownerPlaceholder": "Filter by owner",
     "tagMode": {
       "all": "All",
       "any": "Any"
@@ -320,6 +429,12 @@
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
+  "teams": {
+    "more_one": "and {{count}} more",
+    "more_other": "and {{count}} more",
+    "none": "No team",
+    "title": "Teams"
+  },
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",

@@ -19,74 +19,80 @@ package bundlev1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
 	"runtime"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
+// Task is one registered task that the coordinator runtime can execute. Bundle
+// authors do not implement this directly; Dag.AddTask wraps a plain Go
+// function into a Task.
+type Task interface {
+	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
+}
+
+// Bundle is the execution-time view of a registry. It looks up a task by
+// dag_id and task_id.
+type Bundle interface {
+	LookupTask(dagId, taskId string) (Task, bool)
+}
+
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string
+	plan     *binding.Plan
 }
 
 var _ Task = (*taskFunction)(nil)
 
-// NewTaskFunction wraps a plain Go function as a Task, validating its signature
-// (injectable parameters, and a return of error or (result, error)). Bundle
-// authors normally use Dag.AddTask, which calls this for them; use it directly
-// only when building a Task outside the registry.
+// NewTaskFunction validates and wraps a Go function as a Task.
 func NewTaskFunction(fn any) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
-	f := &taskFunction{v, fullName}
-	return f, f.validateFn(v.Type())
+	f := &taskFunction{fn: v, fullName: fullName}
+	if err := f.validateFn(v.Type()); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
-func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
-	fnType := f.fn.Type()
-	var sdkClient sdk.Client
-	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
-		sdkClient = injected
-	} else {
-		sdkClient = sdk.NewClient()
+// Execute binds the supplied TaskFlow arguments and runs the task.
+func (f *taskFunction) Execute(
+	ctx context.Context,
+	logger *slog.Logger,
+	args []binding.Arg,
+) error {
+	sdkClient, err := clientFrom(ctx)
+	if err != nil {
+		return err
 	}
-
-	reflectArgs := make([]reflect.Value, fnType.NumIn())
-	for i := range reflectArgs {
-		in := fnType.In(i)
-
-		switch {
-		case isTIRunContext(in):
-			// sdk.TIRunContext embeds context.Context, so it also satisfies
-			// isContext - this case must come first. The runtime stores the
-			// identifiers/timestamps under RuntimeContextKey; rebuild the
-			// value around the live task context here.
-			var ti sdk.TaskInstance
-			var dagRun sdk.DagRun
-			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
-				ti, dagRun = stored.TaskInstance(), stored.DagRun()
-			}
-			reflectArgs[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
-		case isContext(in):
-			// Plain context.Context injection is retained for the Edge Worker
-			// runtime path, which does not populate the task runtime context
-			// (TI/DagRun) that sdk.TIRunContext carries. New tasks should
-			// declare sdk.TIRunContext instead.
-			reflectArgs[i] = reflect.ValueOf(ctx)
-		case isLogger(in):
-			reflectArgs[i] = reflect.ValueOf(logger)
-		case isClient(in):
-			reflectArgs[i] = reflect.ValueOf(sdkClient)
-		default:
-			// TODO: deal with other value types. For now they will all be Zero values unless it's a context
-			reflectArgs[i] = reflect.Zero(in)
-		}
+	reflectArgs, err := f.plan.Resolve(ctx, logger, sdkClient, args)
+	if err != nil {
+		return err
 	}
+	return f.call(ctx, sdkClient, reflectArgs, logger)
+}
+
+func clientFrom(ctx context.Context) (sdk.Client, error) {
+	client, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client)
+	if !ok {
+		return nil, errors.New("coordinator SDK client is missing from task context")
+	}
+	return client, nil
+}
+
+func (f *taskFunction) call(
+	ctx context.Context,
+	sdkClient sdk.Client,
+	reflectArgs []reflect.Value,
+	logger *slog.Logger,
+) error {
 	slog.Debug("Attempting to call fn", "fn", f.fn, "args", reflectArgs)
 	retValues := f.fn.Call(reflectArgs)
 
@@ -114,8 +120,18 @@ func (f *taskFunction) sendXcom(
 	c sdk.XComClient,
 	logger *slog.Logger,
 ) {
-	workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
-	err := c.PushXCom(ctx, workload.TI, api.XComReturnValueKey, value)
+	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
+		return
+	}
+	ti := runtimeContext.TaskInstance()
+	err := c.PushXCom(ctx, sdk.TaskInstance{
+		DagID:    ti.DagID,
+		RunID:    ti.RunID,
+		TaskID:   ti.TaskID,
+		MapIndex: ti.MapIndex,
+	}, sdk.XComReturnValueKey, value)
 	if err != nil {
 		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
 	}
@@ -149,6 +165,12 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 			fnType.Out(fnType.NumOut()-1).Kind(),
 		)
 	}
+
+	plan, err := binding.Analyze(fnType, f.fullName)
+	if err != nil {
+		return err
+	}
+	f.plan = plan
 	return nil
 }
 
@@ -162,35 +184,8 @@ func isValidResultType(inType reflect.Type) bool {
 	return true
 }
 
-var (
-	errorType        = reflect.TypeFor[error]()
-	contextType      = reflect.TypeFor[context.Context]()
-	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
-	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
-
-	connClientType = reflect.TypeFor[sdk.ConnectionClient]()
-	varClientType  = reflect.TypeFor[sdk.VariableClient]()
-	clientType     = reflect.TypeFor[sdk.Client]()
-)
+var errorType = reflect.TypeFor[error]()
 
 func isError(inType reflect.Type) bool {
 	return inType != nil && inType.Implements(errorType)
-}
-
-func isContext(inType reflect.Type) bool {
-	return inType != nil && inType.Implements(contextType)
-}
-
-func isTIRunContext(inType reflect.Type) bool {
-	return inType == tiRunContextType
-}
-
-func isLogger(inType reflect.Type) bool {
-	return inType != nil && inType.AssignableTo(slogLoggerType)
-}
-
-func isClient(inType reflect.Type) bool {
-	return inType != nil && (inType.AssignableTo(clientType) ||
-		inType.AssignableTo(connClientType) ||
-		inType.AssignableTo(varClientType))
 }

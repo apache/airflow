@@ -683,6 +683,34 @@ def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     return get_provider_dependencies()[provider_id]["cross-providers-deps"]
 
 
+def get_cross_provider_dependencies_for_extras(provider_id: str) -> list[str]:
+    """Return cross-provider dependencies that can be rendered as installable extras.
+
+    ``cross-providers-deps`` is an import-level graph. Some entries are already
+    required dependencies, so they should not be documented as ``pkg[extra]``.
+    This mirrors the filtering used when generating provider ``pyproject.toml``.
+    """
+    cross_provider_dependencies = get_cross_provider_dependent_packages(provider_id)
+    if not cross_provider_dependencies:
+        return []
+
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+
+    suspended_provider_ids = get_suspended_provider_ids()
+    required_package_names = {
+        canonicalize_name(Requirement(requirement).name)
+        for requirement in get_provider_requirements(provider_id)
+    }
+
+    return [
+        cross_provider_id
+        for cross_provider_id in cross_provider_dependencies
+        if cross_provider_id not in suspended_provider_ids
+        and canonicalize_name(get_pip_package_name(cross_provider_id)) not in required_package_names
+    ]
+
+
 def get_license_files(provider_id: str) -> str:
     if provider_id == "fab":
         return str(["LICENSE", "NOTICE", "3rd-party-licenses/LICENSES-*"]).replace('"', "'")
@@ -700,7 +728,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
+    cross_providers_dependencies = get_cross_provider_dependencies_for_extras(provider_id)
 
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
@@ -729,7 +757,7 @@ def get_provider_jinja_context(
         "MIN_AIRFLOW_VERSION": get_min_airflow_version(provider_id),
         "PROVIDER_REMOVED": provider_details.removed,
         "PROVIDER_INFO": get_provider_info_dict(provider_id),
-        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": convert_cross_package_dependencies_to_table(
             cross_providers_dependencies, markdown=False
         ),
@@ -794,6 +822,8 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
     * check if the local repo is shallow, mark it to un-shallow in this case
     * fetch from the remote including all tags and overriding local tags in case
       they are set differently
+    * fetch branch refs so that remote-tracking refs like
+      apache-https-for-providers/main are available for git log range queries
 
     """
     try:
@@ -822,7 +852,14 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
         text=True,
     )
     is_shallow_repo = result.stdout.strip() == "true"
-    fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
+    fetch_command = [
+        "git",
+        "fetch",
+        "--tags",
+        "--force",
+        HTTPS_REMOTE,
+        "+refs/heads/*:refs/remotes/apache-https-for-providers/*",
+    ]
     if is_shallow_repo:
         fetch_command.append("--unshallow")
     try:

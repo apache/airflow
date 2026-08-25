@@ -80,12 +80,12 @@ back from the LLM instead of a plain string. The model instance is pushed to
 XCom unchanged so downstream tasks can type-hint the class directly. The
 declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for deserialization by the
-worker when it loads the DAG. Define the class at **module scope** and bind it to
+worker when it loads the Dag. Define the class at **module scope** and bind it to
 an attribute matching its ``__name__``: nested-in-function and dynamically-built
 classes cannot be re-imported, so they are skipped at worker startup and fail to
-deserialize at the consumer. Same-DAG downstream tasks need no configuration; the
+deserialize at the consumer. Same-Dag downstream tasks need no configuration; the
 UI XCom viewer renders the value
-via the ``stringify`` path (no configuration needed). Cross-DAG ``xcom_pull``
+via the ``stringify`` path (no configuration needed). Cross-Dag ``xcom_pull``
 consumers still need the class ``qualname`` added to
 ``[core] allowed_deserialization_classes`` (see the ``LLMOperator`` guide for
 details).
@@ -110,6 +110,18 @@ returns the prompt string; file settings are passed to the decorator:
     :language: python
     :start-after: [START howto_decorator_llm_file_analysis]
     :end-before: [END howto_decorator_llm_file_analysis]
+
+Human-in-the-Loop Approval
+---------------------------
+
+Set ``require_approval=True`` to pause the task after the analysis and wait
+for a human reviewer to approve the output before it is returned.
+When ``allow_modifications=True``, the reviewer can also edit the output:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_file_analysis.py
+    :language: python
+    :start-after: [START howto_operator_llm_file_analysis_approval]
+    :end-before: [END howto_operator_llm_file_analysis_approval]
 
 Parameters
 ----------
@@ -140,14 +152,23 @@ Parameters
   ``BaseModel`` for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
+  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
+  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
+  downstream consumer needs the dict shape.
+
+This operator also inherits ``LLMOperator``'s HITL review parameters --
+``require_approval``, ``approval_timeout``, and ``allow_modifications`` -- see
+:doc:`llm` for details.
 
 Supported Formats
 -----------------
 
-- Text-like: ``.log``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
+- Text-like: ``.log``, ``.txt``, ``.md``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
 - Multimodal: ``.png``, ``.jpg``, ``.jpeg``, ``.pdf`` when ``multi_modal=True``
 - Gzip-compressed text inputs are supported for ``.log.gz``, ``.json.gz``, and
-  ``.csv.gz``.
+  ``.csv.gz``, ``.txt.gz``, and ``.md.gz``.
 - Gzip is not supported for ``.parquet``, ``.avro``, image, or PDF inputs.
 
 Parquet and Avro readers require their corresponding optional extras:

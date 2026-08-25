@@ -26,6 +26,197 @@
 Changelog
 ---------
 
+9.35.0
+......
+
+.. warning::
+  On Airflow 3.3+, ``GlueJobOperator``'s ``durable`` parameter now defaults to ``True``: the Glue
+  job run id is persisted to task state store, and a worker crash on retry reconnects to the
+  existing run instead of starting a duplicate. Pass ``durable=False`` to restore the previous
+  behavior of always starting a fresh run on retry.
+
+  On Airflow versions below 3.3, ``durable`` still defaults to ``False`` -- upgrading the provider
+  alone does not change behavior there. Set ``durable=True`` explicitly (or the now-deprecated
+  ``resume_glue_job_on_retry=True``) to opt in to the same reconnect behavior via an older,
+  scan-based mechanism.
+
+Features
+~~~~~~~~
+
+* ``Replace 'resume_glue_job_on_retry' with durable execution for 'GlueJobOperator' (#71211)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent a broken job from stalling AWS Batch executor sync (#71380)``
+* ``Fail Glue job tasks promptly when a verbose job run errors (#71570)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+* ``Fail Glue job tasks stopped mid-run in deferrable verbose mode (#71495)``
+* ``Include Bedrock ingestion job failure reasons in the error message (#71124)``
+
+Misc
+~~~~
+
+* ``Narrow AirflowException to specific exceptions in DataSync operator (#70152)``
+* ``Move SendGrid and SES email backend setup docs to their providers (#71571)``
+* ``Add type annotations to sql hooks (#70815)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix incorrect documented defaults for MwaaTriggerDagRunOperator waiter params (#71740)``
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Probe AOSS index readiness as the Knowledge Base role in Bedrock RAG system test (#71745)``
+   * ``Make DMS system-test databases non-public (#71733)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix dynamic glue rule set recommendations sensor config (#71117)``
+   * ``Eliminate trust policy race by migrating emr_eks test to Pod Identity (#71207)``
+   * ``Update changelog with better wording (#71161)``
+
+9.34.0
+......
+
+Features
+~~~~~~~~
+
+* ``Cancel the Redshift statement when a user kills the deferred task (#69676)``
+* ``Support setting an S3 object ACL for remote task logs (#70394)``
+* ``Add 'DmsReloadTablesOperator' (#70569)``
+* ``Add deferrable mode to DynamoDBValueSensor (#69799)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse the team agnostic fall-through for a team scoped AWS secret name (#70878)``
+* ``Retry EKS resource deletion on transient ResourceInUseException (#70260)``
+* ``Apply SageMaker operator template-field checks after rendering (#70485)``
+* ``Resolve S3ToRedshiftOperator connection and kwargs after template rendering (#70486)``
+* ``Move AwsToAwsBaseOperator fallback out of init (#70445)``
+* ``Fix EcsRunTaskOperator deferred logs read from the wrong region (#70474)``
+* ``Allow templated fields in AppFlow operators (#70440)``
+* ``Fix EcsRunTaskOperator deferred-logs region and template field init (#70464)``
+* ``Fix MongoToS3Operator aggregate-pipeline detection before rendering (#70330)``
+* ``Strip GlueDataQualityOperator ruleset after rendering (#70331)``
+* ``Move template-field validation/transformation out of init for Amazon Bedrock operators (#70306)``
+* ``Move template-field validation out of init for Amazon DataSync operator (#70324)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
+
+Misc
+~~~~
+
+* ``Keep S3DeleteObjectsOperator validation in __init__, narrow to ValueError (#70359)``
+* ``Rename StepFunctionStartExecutionOperator's input field to match its constructor argument (#70544)``
+* ``Fix mypy arg-type error in Redshift Data get_primary_keys (#70677)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+* ``Tighten the DMS operator cdc-start checks to 'is not None' and raise ValueError (#70450, #70634)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Remove hard-coded deferrable crawler run from example_glue (#70206)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Assert the refusal log with getMessage so the compat tests pass (#70905)``
+   * ``Don't fail on dynamic glue rule set reccomendations (#70801)``
+   * ``Raise the datamodel-code-generator floor for the codegen toolchain (#70670)``
+   * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#70705)``
+   * ``Wait for vector index to stabilize in 'example_bedrock_retrieve_and_generate' (#70649)``
+   * ``Fix flaky Glue OpenLineage test that calls the real AWS endpoint (#70500)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+   * ``Add support for pandas 3 based xcoms in airflow (#71103)``
+   * ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
+
+9.33.0
+......
+
+.. note::
+    ``RedshiftSQLHook.get_sqlalchemy_engine()``, used for the SQLAlchemy engine backing
+    lineage/reflection, now resolves an explicit Postgres DB-API driver for a bare
+    ``postgresql://`` URL, preferring ``psycopg`` (v3) when importable and falling back to
+    ``psycopg2``. Where both drivers are installed, this engine now uses ``psycopg`` (v3),
+    matching the sync Postgres driver default change in ``apache-airflow-providers-postgres``.
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
+* ``Add S3RemoteLogIO.from_config and register s3 remote logging scheme (#69817)``
+* ``Add CloudWatchRemoteLogIO.from_config and register cloudwatch scheme (#69816)``
+* ``Add Amazon ECR repository operators (#69886)``
+* ``Add dedicated Glue crawler lifecycle operators (#69930)``
+* ``Allow 'AthenaOperator' queries without a 'database' argument (#69846)``
+* ``Add durable execution to 'RedshiftDataOperator' (#69530)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make RedshiftDeleteClusterOperator delete reliably during cluster transitions (#69574)``
+* ``Fix Amazon provider log messages to show actual values (#69967)``
+* ``Secure AWS auth cookies behind TLS proxies (#69898)``
+* ``Generate a fresh EmrContainerOperator request token on each task attempt (#69625)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+* ``Warn for bad combination of parameters for RedshiftDataOperator (#69524)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+* ``Fix documentation misusing previous/next for task relationships (#69179)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)" (#70259)``
+   * ``Pin task bundle manifest to the dagrun's version (#69941)``
+   * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)``
+   * ``Consume external role ARN in Neptune Analytics system test (#69682)``
+   * ``Update 'example_bedrock_agentcore' system test to use 'codeConfiguration' instead of ECR image (#69576)``
+
+
+9.32.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add CRUD methods to DynamoDBHook (#69142)``
+* ``Add Amazon Provider Neptune Analytics (#64274)``
+* ``Add team_name tags to Amazon executor metrics (#69072)``
+* ``Add S3CopyPrefixOperator to copy all objects under a prefix (#68946)``
+* ``Add output_files_to_xcom parameter to SageMakerProcessingOperator (#69002)``
+* ``Propagate AWS hook parameters through RedshiftClusterTrigger (#68925)``
+* ``Propagate verify and botocore_config through EC2StateSensorTrigger (#68921)``
+* ``Adds Airflow 3 compatibility in 'try_adopt_task_instances' for BatchExec (#68027)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent path traversal in s3 to sftp/ftp transfer destinations (#68984)``
+* ``Fix SageMakerTransformOperator succeeding on a failed deferred job (#69042)``
+* ``Close S3 download_file handle once the download finishes or fails (#69084)``
+* ``Make Amazon SageMaker triggers inherit AWS base classes (#68927)``
+* ``Persist BatchOperator deferrable xcom links (#64745)``
+* ``Standardize ECS TaskDoneTrigger on region_name and AWS hook parameters (#68923)``
+* ``Fix CloudWatch remote logging for ephemeral lifecycle executor (#68779)``
+* ``Fix Cloudwatch remote logging crash API server if ResourceNotFoundException (#68781)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Thread version_data through BundleInfo to worker-side bundle initialization (#67217)``
+   * ``Fix mypy type errors in DynamoDB example system test (#68849)``
+   * ``Fix AwsBatchExecutor test_try_adopt_task_instances after TaskInstanceDTO hostname requirement (#68871)``
+
 9.31.0
 ......
 
@@ -1187,7 +1378,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 9.3.0
 .....

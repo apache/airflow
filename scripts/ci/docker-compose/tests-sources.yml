@@ -43,6 +43,8 @@ services:
       - ../../../providers/akeyless/tests:/opt/airflow/providers/akeyless/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/amazon/tests:/opt/airflow/providers/amazon/tests
+      - ../../../providers/anthropic/tests:/opt/airflow/providers/anthropic/tests
+      - ../../../providers/apache/arrow/tests:/opt/airflow/providers/apache/arrow/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
       - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
@@ -70,6 +72,7 @@ services:
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/ai/tests:/opt/airflow/providers/common/ai/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
+      - ../../../providers/common/dataquality/tests:/opt/airflow/providers/common/dataquality/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/messaging/tests:/opt/airflow/providers/common/messaging/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
@@ -91,6 +94,7 @@ services:
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
+      - ../../../providers/ibm/db2/tests:/opt/airflow/providers/ibm/db2/tests
       - ../../../providers/ibm/mq/tests:/opt/airflow/providers/ibm/mq/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests

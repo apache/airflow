@@ -24,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -31,6 +32,14 @@ import (
 
 type TaskSuite struct {
 	suite.Suite
+}
+
+type taskTestClient struct {
+	sdk.Client
+}
+
+func withTaskClient(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(&taskTestClient{}))
 }
 
 func TestTaskSuite(t *testing.T) {
@@ -105,6 +114,13 @@ func (s *TaskSuite) TestArgumentBinding() {
 				return nil
 			},
 		},
+		"xcom-client": {
+			func(client sdk.XComClient) error {
+				s.NotNil(client)
+
+				return nil
+			},
+		},
 	}
 
 	for name, tt := range cases {
@@ -112,10 +128,123 @@ func (s *TaskSuite) TestArgumentBinding() {
 			task, err := NewTaskFunction(tt.fn)
 			s.Require().NoError(err)
 
-			ctx := context.WithValue(context.Background(), "abc", "def")
+			ctx := context.WithValue(withTaskClient(context.Background()), "abc", "def")
 			logger := slog.New(logging.NewTeeLogger())
-			task.Execute(ctx, logger)
+			task.Execute(ctx, logger, nil)
 		})
+	}
+}
+
+// TestClientSubsetInjection checks any subset of sdk.Client is injected, even
+// an unnamed one.
+func (s *TaskSuite) TestClientSubsetInjection() {
+	task, err := NewTaskFunction(func(client interface {
+		GetVariable(ctx context.Context, key string) (string, error)
+	},
+	) error {
+		s.NotNil(client)
+		return nil
+	})
+	s.Require().NoError(err)
+	s.Require().
+		NoError(task.Execute(withTaskClient(context.Background()), slog.New(logging.NewTeeLogger()), nil))
+}
+
+func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
+	cases := map[string]struct {
+		fn          any
+		errContains string
+	}{
+		"non-client-method": {
+			func(x interface{ NotAClientMethod() }) error { return nil },
+			"sdk.Client has no method NotAClientMethod",
+		},
+		"wrong-signature": {
+			func(x interface {
+				GetVariable(key string) (string, error)
+			},
+			) error {
+				return nil
+			},
+			"method GetVariable is func(context.Context, string) (string, error) on sdk.Client",
+		},
+		"func-param": {
+			func(cb func()) error { return nil },
+			"cannot receive a task argument",
+		},
+		"context-with-extra-methods": {
+			func(x interface {
+				context.Context
+				TaskInstance() sdk.TaskInstance
+			},
+			) error {
+				return nil
+			},
+			"adds methods on top of context.Context",
+		},
+	}
+
+	for name, tt := range cases {
+		s.Run(name, func() {
+			_, err := NewTaskFunction(tt.fn)
+			if s.Assert().Error(err) {
+				s.Assert().Contains(err.Error(), "parameter 0")
+				s.Assert().Contains(err.Error(), tt.errContains)
+			}
+		})
+	}
+}
+
+func (s *TaskSuite) TestExecuteBindsDataParameters() {
+	var gotCountry string
+	var gotMeta map[string]any
+	task, err := NewTaskFunction(func(log *slog.Logger, country string, meta map[string]any) error {
+		gotCountry = country
+		gotMeta = meta
+		return nil
+	})
+	s.Require().NoError(err)
+
+	err = task.Execute(
+		withTaskClient(context.Background()),
+		slog.New(logging.NewTeeLogger()),
+		[]binding.Arg{
+			binding.LiteralArg{Value: "uk"},
+			binding.LiteralArg{Value: map[string]any{"k": "v"}},
+		},
+	)
+	s.Require().NoError(err)
+	s.Equal("uk", gotCountry)
+	s.Equal(map[string]any{"k": "v"}, gotMeta)
+}
+
+func (s *TaskSuite) TestExecuteWithoutSpecFailsForDataParameters() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.Execute(
+		withTaskClient(context.Background()), slog.New(logging.NewTeeLogger()), nil,
+	)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+	}
+}
+
+func (s *TaskSuite) TestExecuteArityMismatch() {
+	task, err := NewTaskFunction(func(country string) error { return nil })
+	s.Require().NoError(err)
+
+	err = task.Execute(
+		withTaskClient(context.Background()),
+		slog.New(logging.NewTeeLogger()),
+		[]binding.Arg{
+			binding.LiteralArg{Value: "uk"},
+			binding.LiteralArg{Value: "de"},
+		},
+	)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "argument count mismatch")
+		s.Contains(err.Error(), "passes 2 positional argument(s)")
 	}
 }
 
@@ -148,9 +277,13 @@ func (s *TaskSuite) TestTIRunContextInjection() {
 	})
 	s.Require().NoError(err)
 
-	ctx := context.WithValue(context.Background(), sdkcontext.RuntimeContextKey, stored)
+	ctx := context.WithValue(
+		withTaskClient(context.Background()),
+		sdkcontext.RuntimeContextKey,
+		stored,
+	)
 	ctx = context.WithValue(ctx, probeKey, "probe-value")
-	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger())))
+	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil))
 
 	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
 	s.Equal(ti, got.TaskInstance())
@@ -162,35 +295,12 @@ func (s *TaskSuite) TestTIRunContextInjection() {
 	)
 }
 
-// TestTIRunContextInjectionWithoutRuntimeContext covers the Edge Worker path:
-// the runtime does not populate RuntimeContextKey, so a task declaring
-// sdk.TIRunContext gets zero TaskInstance/DagRun but is still backed by the
-// live task context, leaving it usable as a context.Context.
-func (s *TaskSuite) TestTIRunContextInjectionWithoutRuntimeContext() {
-	var got sdk.TIRunContext
-	task, err := NewTaskFunction(func(ctx sdk.TIRunContext) error {
-		got = ctx
-		return nil
-	})
+func (s *TaskSuite) TestExecuteRequiresCoordinatorClient() {
+	task, err := NewTaskFunction(func() error { return nil })
 	s.Require().NoError(err)
 
-	ctx := context.WithValue(context.Background(), probeKey, "probe-value")
-	s.Require().NoError(task.Execute(ctx, slog.New(logging.NewTeeLogger())))
-
-	s.Require().NotNil(got, "the task must receive a non-nil TIRunContext")
-	s.Equal(
-		sdk.TaskInstance{},
-		got.TaskInstance(),
-		"TaskInstance must be zero when no runtime context is present",
-	)
-	s.Equal(
-		sdk.DagRun{},
-		got.DagRun(),
-		"DagRun must be zero when no runtime context is present",
-	)
-	s.Equal(
-		"probe-value",
-		got.Value(probeKey),
-		"the injected context must be backed by the one passed to Execute",
-	)
+	err = task.Execute(context.Background(), slog.New(logging.NewTeeLogger()), nil)
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "coordinator SDK client is missing")
+	}
 }

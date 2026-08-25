@@ -37,14 +37,12 @@ type LightGridTaskInstanceSummaryWithWhen = {
 type Props = {
   readonly runId?: string | null;
   readonly taskInstance?:
-    | LightGridTaskInstanceSummaryWithWhen
-    | TaskInstanceHistoryResponse
-    | TaskInstanceResponse;
+    LightGridTaskInstanceSummaryWithWhen | TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly tooltip?: string | null;
 } & Omit<TooltipProps, "content">;
 
 const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const hasTooltip = tooltip !== undefined && tooltip !== null;
 

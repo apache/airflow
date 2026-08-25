@@ -22,12 +22,12 @@ Task and Asset State Store Overview
 
 .. versionadded:: 3.3
 
-Airflow has always modeled tasks as stateless, idempotent units of work. A growing class of workloads, however, require some amount of data to be persisted outside of a task's return value, like a submitted job ID that must survive a worker crash, a watermark that advances run-by-run, or a row counter exposed for observability. Task store and Asset store fill that gap without touching the XCom or Variable systems.
+Airflow has always modeled tasks as stateless, idempotent units of work. A growing class of workloads, however, require some amount of data to be persisted outside of a task's return value, like a submitted job ID that must survive a worker crash, a watermark that advances run-by-run, or a row counter exposed for observability. Task state store and Asset state store fill that gap without touching the XCom or Variable systems.
 
 Task and Asset State Store
 --------------------------
 
-Task and Asset store provide two key/value stores to persist data like a job ID, watermark, or row count. These two stores are differentiated by *what* they are scoped to:
+Task and Asset state store provide two key/value stores to persist data like a job ID, watermark, or row count. These two state stores are differentiated by *what* they are scoped to:
 
 .. list-table::
    :header-rows: 1
@@ -37,11 +37,11 @@ Task and Asset store provide two key/value stores to persist data like a job ID,
      - Scope
      - Default lifetime
      - Primary use case
-   * - **Task store**
-     - A single task Instance (dag_id + run_id + task_id + map_index)
+   * - **Task state store**
+     - A single task Instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``)
      - Configurable retention; cleared on task success when ``clear_on_success = True``
      - Survive retries, track in-flight jobs, checkpoint progress within a run, resume progress from checkpoint set by a past run
-   * - **Asset store**
+   * - **Asset state store**
      - An asset (independent of any particular run)
      - Persists indefinitely; removed only when the asset is deactivated
      - Cross-run watermarks, incremental-load cursors, per-asset metadata
@@ -63,14 +63,14 @@ Use this table to choose the right mechanism for your use case.
      - Pass data *between tasks* within a single Dag run (e.g. the output of one task consumed by a downstream task) or across different multiple Dag runs (referencing the data persisted from another run). XComs are cleared on retry, and should NOT be used to persist data across task retries or across runs.
    * - **Variables**
      - Deployment-wide or installation-wide configuration that changes infrequently and is set by operators rather than by tasks themselves.
-   * - **Task store**
+   * - **Task state store**
      - Data that must survive a worker crash or data that must survive across retries within the **same run**. An external job ID written before a long-running job completes is a perfect use case for task state store.
-   * - **Asset store**
+   * - **Asset state store**
      - Data that must persist **across asset events** or while asset "watching" and is logically owned by an asset rather than a task. For example, a watermark that advances each time a file lands in an object store.
 
 .. note::
 
-   If your current implementation already leverages an XCom-based pattern successfully, there's **no need to migrate** to task state store. Task store is meant to solve problems that XCom was never designed for.
+   If your current implementation already leverages an XCom-based pattern successfully, there's **no need to migrate** to task state store. Task state store is meant to solve problems that XCom was never designed for.
 
 Further reading
 ---------------

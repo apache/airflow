@@ -25,9 +25,74 @@
 ``apache-airflow-providers-apache-spark``
 
 
-
 Changelog
 ---------
+
+6.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make SparkSubmitOperator durable execution inert below Airflow 3.3 (#71534)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
+
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Anchor spark-submit log trail on actual exception instead of lines (#70513)``
+* ``Spark: Fix missing space in YARN waitAppCompletion error message (#71055)``
+
+Misc
+~~~~
+
+* ``Decouple SparkSubmitOperator resumable deployment backends (#68679)``
+* ``Drop unused post_submit_commands copy from SparkSubmitOperator init (#70323)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Surface YARN diagnostics for spark on yarn clusters (#70183)``
+
+Misc
+~~~~
+
+* ``Include spark submit canonical logs in failure exceptions (#70178)``
+* ``Better log when spark k8s driver remains in Unknown Phase (#70176)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+
 
 6.2.0
 .....
@@ -35,6 +100,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add a standard toggle for resumability to ResumableJobMixin (#68623)``
 * ``Add crash recovery ability to SparkSubmitOperator against Kubernetes (#68067)``
 * ``Crash recovery for YARN cluster mode in SparkSubmitOperator built on AIP-103 (#67473)``
 

@@ -28,6 +28,11 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
 
+# Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
+# ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
+# do not auto-enable it either").
+_UNSET: Any = object()
+
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
@@ -48,10 +53,10 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5.3"}``
+        - **extra** JSON: ``{"model": "openai:gpt-5.6-sol"}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
-    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.3"``).
+    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.6-sol"``).
         Overrides the model stored in the connection's extra field.
     """
 
@@ -85,7 +90,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1  (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5.3"}',
+                "extra": '{"model": "openai:gpt-5.6-sol"}',
             },
         }
 
@@ -196,10 +201,10 @@ class PydanticAIHook(BaseHook):
     @overload
     def create_agent(
         self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
-    ) -> Agent[None, OutputT]: ...
+    ) -> Agent[object, OutputT]: ...
 
     @overload
-    def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
+    def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[object, str]: ...
 
     @overload
     def create_agent(
@@ -209,7 +214,7 @@ class PydanticAIHook(BaseHook):
         spec_file: str | Path,
         instructions: str | None = ...,
         **agent_kwargs,
-    ) -> Agent[None, OutputT]: ...
+    ) -> Agent[object, OutputT]: ...
 
     @overload
     def create_agent(
@@ -218,7 +223,7 @@ class PydanticAIHook(BaseHook):
         spec_file: str | Path,
         instructions: str | None = ...,
         **agent_kwargs,
-    ) -> Agent[None, str]: ...
+    ) -> Agent[object, str]: ...
 
     def create_agent(
         self,
@@ -227,7 +232,7 @@ class PydanticAIHook(BaseHook):
         instructions: str | None = None,
         spec_file: str | Path | None = None,
         **agent_kwargs,
-    ) -> Agent[None, Any]:
+    ) -> Agent[object, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
@@ -247,6 +252,14 @@ class PydanticAIHook(BaseHook):
             the spec file's ``model`` is used.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
+        # ``instrument`` is no longer an ``Agent()`` / ``Agent.from_file()``
+        # constructor argument in pydantic-ai 2.x; it is configured through the
+        # ``agent.instrument`` property (which is unchanged across the 2.x line).
+        # Pop any caller-supplied value out of the constructor kwargs and apply
+        # it after construction so a caller that passes its own ``instrument``
+        # still wins over the provider's auto-instrumentation.
+        caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
         if spec_file is not None:
             from_file_kwargs = dict(agent_kwargs)
             model = self._get_conn_if_model_configured()
@@ -264,13 +277,10 @@ class PydanticAIHook(BaseHook):
             if instructions is None:
                 raise ValueError("instructions is required when spec_file is not provided.")
             agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
-        if "instrument" not in agent_kwargs:
-            # Set the public ``agent.instrument`` surface rather than the
-            # ``Agent(instrument=...)`` constructor kwarg, which is deprecated in
-            # current pydantic-ai. Assigning ``agent.instrument`` works across the
-            # provider's ``pydantic-ai-slim>=1.71`` floor (a plain instance
-            # attribute on older versions, a property on newer ones). A caller
-            # that passed its own ``instrument`` wins.
+
+        if caller_instrument is not _UNSET:
+            agent.instrument = caller_instrument
+        else:
             settings = genai_instrumentation_settings()
             if settings is not None:
                 agent.instrument = settings
@@ -345,9 +355,10 @@ class PydanticAIBedrockHook(PydanticAIHook):
 
     Credentials are resolved in order:
 
-    1. IAM keys from ``extra`` (``aws_access_key_id`` + ``aws_secret_access_key``,
+    1. Bearer token in ``extra`` (``api_key``, maps to env ``AWS_BEARER_TOKEN_BEDROCK``).
+       Takes precedence over IAM keys if both are set.
+    2. IAM keys from ``extra`` (``aws_access_key_id`` + ``aws_secret_access_key``,
        optionally ``aws_session_token``).
-    2. Bearer token in ``extra`` (``api_key``, maps to env ``AWS_BEARER_TOKEN_BEDROCK``).
     3. Environment-variable / instance-role chain (``AWS_PROFILE``, IAM role, …)
        when no explicit keys are provided.
 
@@ -448,21 +459,22 @@ class PydanticAIVertexHook(PydanticAIHook):
         - **extra** JSON::
 
             {
-                "model": "google-vertex:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.0-flash",
                 "project": "my-gcp-project",
                 "location": "us-central1",
                 "service_account_info": {...},
-                "vertexai": true,
             }
 
         Use ``"service_account_info"`` to embed the service-account JSON directly
         (as an object, not a string path).
 
-        Set ``"vertexai": true`` to force Vertex AI mode when only ``api_key`` is
-        provided.  Omit ``vertexai`` for the Generative Language API (GLA).
+        ``"vertexai"`` is accepted for backward compatibility but has no effect:
+        pydantic-ai now selects Vertex AI vs. the Generative Language API from the
+        model prefix (``google-cloud:`` vs. ``google:``) rather than a
+        constructor flag, so there is nothing left for this field to control.
 
     :param llm_conn_id: Airflow connection ID.
-    :param model_id: Model identifier, e.g. ``"google-vertex:gemini-2.0-flash"``.
+    :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``.
     """
 
     conn_type = "pydanticai-vertex"
@@ -477,8 +489,8 @@ class PydanticAIVertexHook(PydanticAIHook):
             "relabeling": {},
             "placeholders": {
                 "extra": (
-                    '{"model": "google-vertex:gemini-2.0-flash", '
-                    '"project": "my-project", "location": "us-central1", "vertexai": true}'
+                    '{"model": "google-cloud:gemini-2.0-flash", '
+                    '"project": "my-project", "location": "us-central1"}'
                     "  — add service_account_info (object) for SA auth;"
                     " omit both to use Application Default Credentials"
                 ),
@@ -499,10 +511,18 @@ class PydanticAIVertexHook(PydanticAIHook):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
 
-        # Optional vertexai bool flag (force Vertex AI mode for API-key auth).
-        _vertexai = extra.get("vertexai")
-        if _vertexai is not None:
-            kwargs["vertexai"] = bool(_vertexai)
+        # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
+        # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
+        # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
+        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
+        # swallow by falling back to env-var auth with *all* other kwargs discarded — silently
+        # authenticating as the wrong identity. Accept the field for backward compatibility but
+        # never forward it: which API is used is now controlled by the model prefix.
+        if extra.get("vertexai") is not None:
+            self.log.warning(
+                "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
+                "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
+            )
 
         # Service-account credentials — loaded lazily to avoid importing
         # google-auth on non-Vertex code paths (optional heavy dependency).

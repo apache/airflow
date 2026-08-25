@@ -28,7 +28,7 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
@@ -89,6 +89,14 @@ class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
     name: str | None = None
+
+    # The team that owns this plugin when multi-team mode is enabled.
+    # ``None`` means the plugin is global: its listeners, macros, API endpoints, and
+    # UI views are available to all teams (the default, backwards-compatible behavior).
+    # When set, the plugin's behavior is scoped to the named team. Set at code/build
+    # time in the plugin definition; there is no deployment-time override.
+    team_name: str | None = None
+
     source: AirflowPluginSource | None = None
     macros: list[Any] = []
     admin_views: list[Any] = []
@@ -177,7 +185,9 @@ def is_valid_plugin(plugin_obj) -> bool:
     )
 
     if is_airflow_plugin and plugin_obj.__name__ != "AirflowPlugin":
-        plugin_obj.validate()
+        # The MRO check above establishes this by name; `inspect.isclass` only narrows to
+        # `type[object]`, which does not carry `validate`.
+        cast("type[AirflowPlugin]", plugin_obj).validate()
         return True
     return False
 

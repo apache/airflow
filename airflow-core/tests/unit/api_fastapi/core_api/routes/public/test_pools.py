@@ -73,10 +73,10 @@ class TestPoolsEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         clear_db_pools()
-        clear_db_teams()
 
     def teardown_method(self) -> None:
         clear_db_pools()
+        clear_db_teams()
 
     def create_pools(self):
         _create_team()

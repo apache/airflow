@@ -170,6 +170,12 @@ def execution_timeout() -> int:
 
 
 @cache
+def execute_in_thread() -> bool:
+    """[openlineage] execute_in_thread."""
+    return conf.getboolean(_CONFIG_SECTION, "execute_in_thread", fallback="False")
+
+
+@cache
 def include_full_task_info() -> bool:
     """[openlineage] include_full_task_info."""
     return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")
@@ -179,3 +185,12 @@ def include_full_task_info() -> bool:
 def debug_mode() -> bool:
     """[openlineage] debug_mode."""
     return conf.getboolean(_CONFIG_SECTION, "debug_mode", fallback="False")
+
+
+@cache
+def emission_policy() -> list[dict]:
+    """[openlineage] emission_policy."""
+    option = conf.getjson(_CONFIG_SECTION, "emission_policy", fallback=[])
+    if not isinstance(option, list):
+        raise ValueError(f"[openlineage] emission_policy must be a JSON array, got: {type(option).__name__}")
+    return option

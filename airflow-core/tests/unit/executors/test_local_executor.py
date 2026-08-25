@@ -35,6 +35,7 @@ from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.callback import CallbackFetchMethod
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -88,6 +89,13 @@ def _make_task_workload():
         token="test_token",
         log_path=None,
     )
+
+
+def _write_large_results_to_queue(result_queue, result_count, payload_size):
+    payload = RuntimeError("x" * payload_size)
+    for index in range(result_count):
+        key = TaskInstanceKey("test_dag", f"test_task_{index}", "test_run")
+        result_queue.put((key, State.SUCCESS, payload))
 
 
 class TestLocalExecutor:
@@ -273,6 +281,93 @@ class TestLocalExecutor:
             pass
         finally:
             executor.end()
+
+    def test_end_drains_results_while_joining_workers(self):
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor.result_queue = mock.MagicMock()
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.side_effect = [True, True, True, False]
+        executor.workers = {1: proc}
+
+        with mock.patch.object(executor, "_read_results") as mock_read_results:
+            executor.end()
+
+        executor.activity_queue.put.assert_called_once_with(None)
+        assert proc.join.call_args_list == [mock.call(timeout=0.05), mock.call(timeout=0.05)]
+        assert mock_read_results.call_count == 3
+        proc.close.assert_called_once()
+        executor.activity_queue.close.assert_called_once()
+        executor.result_queue.close.assert_called_once()
+
+    def test_end_terminates_workers_and_closes_resources_on_interrupt(self):
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor.result_queue = mock.MagicMock()
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.side_effect = [True, True]
+        executor.workers = {1: proc}
+
+        with (
+            mock.patch.object(executor, "_read_results", side_effect=[KeyboardInterrupt, None]),
+            mock.patch.object(executor, "_terminate_worker_process") as mock_terminate_worker_process,
+            pytest.raises(KeyboardInterrupt),
+        ):
+            executor.end()
+
+        mock_terminate_worker_process.assert_called_once_with(proc)
+        proc.close.assert_called_once()
+        executor.activity_queue.close.assert_called_once()
+        executor.result_queue.close.assert_called_once()
+
+    def test_terminate_joins_worker_after_sigterm(self):
+        executor = LocalExecutor(parallelism=1)
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.is_alive.side_effect = [True, False]
+        executor.workers = {1: proc}
+
+        executor.terminate()
+
+        proc.terminate.assert_called_once_with()
+        proc.join.assert_called_once_with(timeout=0.2)
+        proc.kill.assert_not_called()
+
+    def test_terminate_kills_worker_that_ignores_sigterm(self):
+        executor = LocalExecutor(parallelism=1)
+        proc = mock.MagicMock(spec=multiprocessing.Process)
+        proc.pid = 123
+        proc.is_alive.side_effect = [True, True]
+        executor.workers = {1: proc}
+
+        executor.terminate()
+
+        proc.terminate.assert_called_once_with()
+        proc.kill.assert_called_once_with()
+        assert proc.join.call_args_list == [mock.call(timeout=0.2), mock.call(timeout=0.2)]
+
+    @pytest.mark.execution_timeout(10)
+    def test_end_drains_result_queue_to_avoid_join_deadlock(self):
+        # Pin the worker to "fork": the drain logic under test is start-method-agnostic, but under the
+        # "forkserver" default (Python 3.14+ on Linux) each spawned worker re-imports the whole airflow
+        # stack before it can write a result, which intermittently exceeds the execution_timeout and
+        # makes this test flaky. Forking inherits the already-imported parent, so the worker writes
+        # immediately and reliably reproduces the full-result_queue scenario this test guards.
+        ctx = multiprocessing.get_context("fork")
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = ctx.SimpleQueue()
+        executor.result_queue = ctx.SimpleQueue()
+        result_count = 8
+        payload_size = 128 * 1024
+        proc = ctx.Process(
+            target=_write_large_results_to_queue,
+            args=(executor.result_queue, result_count, payload_size),
+        )
+        proc.start()
+        executor.workers = {proc.pid: proc}
+
+        executor.end()
+
+        assert len(executor.event_buffer) == result_count
 
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),

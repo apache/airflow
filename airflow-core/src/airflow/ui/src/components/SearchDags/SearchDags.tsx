@@ -16,49 +16,68 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field } from "@chakra-ui/react";
+import { Field, Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import React from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
-import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
+import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
-import type { DAGCollectionResponse, DAGResponse } from "openapi/requests/types.gen";
-import type { Option } from "src/utils/option";
+import type {
+  DAGWithLatestDagRunsCollectionResponse,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
+import { TabEntity } from "src/constants/tab";
+import type { DagSearchOption } from "src/utils/option";
+import { getTabPath } from "src/utils/tab";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
 
-export const SearchDags = ({
-  setIsOpen,
-}: {
-  readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}) => {
+const formatOptionLabel = (option: DagSearchOption) => (
+  <Flex alignItems="center" gap={2}>
+    <StateBadge state={option.state} />
+    <Text>{option.label}</Text>
+  </Flex>
+);
+
+export const SearchDags = ({ setIsOpen }: { readonly setIsOpen: Dispatch<SetStateAction<boolean>> }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
+  const matches = useMatches();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
 
-  const onSelect = (selected: SingleValue<Option>) => {
+  const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
+      const additionalPath = getTabPath(matches, TabEntity.Dag);
+      const targetPath = additionalPath === "/backfills" && !selected.isBackfillable ? "" : additionalPath;
+
       setIsOpen(false);
-      void Promise.resolve(navigate(`/dags/${selected.value}`));
+      void Promise.resolve(navigate(`/dags/${selected.value}${targetPath}`));
     }
   };
 
   const searchDagDebounced = useDebouncedCallback(
-    (inputValue: string, callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void) => {
+    (
+      inputValue: string,
+      callback: (options: OptionsOrGroups<DagSearchOption, GroupBase<DagSearchOption>>) => void,
+    ) => {
       void queryClient.fetchQuery({
         queryFn: () =>
-          DagService.getDags({
+          DagService.getDagsUi({
             dagDisplayNamePrefixPattern: inputValue,
+            dagRunsLimit: 1,
             limit: SEARCH_LIMIT,
-          }).then((data: DAGCollectionResponse) => {
-            const options = data.dags.map((dag: DAGResponse) => ({
+          }).then((data: DAGWithLatestDagRunsCollectionResponse) => {
+            const options = data.dags.map((dag: DAGWithLatestDagRunsResponse) => ({
+              isBackfillable: dag.is_backfillable,
               label: dag.dag_display_name || dag.dag_id,
+              state: dag.latest_dag_runs[0]?.state ?? null,
               value: dag.dag_id,
             }));
 
@@ -66,8 +85,9 @@ export const SearchDags = ({
 
             return options;
           }),
-        queryKey: UseDagServiceGetDagsKeyFn({
+        queryKey: UseDagServiceGetDagsUiKeyFn({
           dagDisplayNamePrefixPattern: inputValue,
+          dagRunsLimit: 1,
         }),
         staleTime: 0,
       });
@@ -82,6 +102,7 @@ export const SearchDags = ({
         components={{ DropdownIndicator }}
         defaultOptions
         filterOption={undefined}
+        formatOptionLabel={formatOptionLabel}
         loadOptions={searchDagDebounced}
         menuIsOpen
         onChange={onSelect}

@@ -416,9 +416,26 @@ configuration option:
 * ``error`` — Treats detected issues as Dag import errors, preventing the Dag from loading.
 
 Additionally, you can catch these issues earlier in your development workflow by using the
-`AIR302 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
+`AIR304 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
 dynamic values in Dag and Task constructors as part of static linting. See
 :ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
+
+.. _faq:duplicate-dag-id-warning:
+
+Why do I see a "duplicate dag id" warning?
+------------------------------------------
+
+The Dag processor recognizes each Dag by its ``dag_id``, not by its file path. If two files define a
+Dag with the same ``dag_id``, only one of them is shown in the UI at a time — whichever file was parsed
+most recently — and Airflow records a **Dag warning** naming the other, overwritten file.
+
+This is expected in one common case: you renamed or moved a Dag file. The old file's row is not removed
+from the database until it goes unobserved for
+:ref:`stale_dag_threshold <config:dag_processor__stale_dag_threshold>`, so the warning briefly
+appears for both the old and new paths and then clears on its own once the old file stops being parsed.
+
+If the warning does not clear, two files with the same ``dag_id`` genuinely coexist. Which one "wins" is
+not guaranteed to stay stable across parses, so rename one of them to give each Dag a unique ``dag_id``.
 
 
 Dag construction
@@ -700,16 +717,22 @@ The API server caches serialized Dag objects in memory. Over time, as Dag versio
 
 There are two complementary approaches:
 
-**1. Bounded DAG caching (available since Airflow 3.3.0)**
+**1. Dag cache eviction (available since Airflow 3.2.2)**
 
-The API server supports LRU+TTL caching that bounds how many serialized Dag versions are kept
-in memory. Configure this in the ``[api]`` section:
+The API server can evict cached serialized Dag versions by size, by age, or both. Configure
+this in the ``[api]`` section:
 
 .. code-block:: ini
 
     [api]
-    dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
-    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
+    dag_cache_size = 64    ; max cached versions (0 = no size limit)
+    dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = no TTL)
+
+``dag_cache_size`` is the only hard ceiling on memory. An entry's TTL is refreshed only when the
+entry is checked against the database after ``[core] min_serialized_dag_update_interval``, not on
+every request. With a shorter TTL, even frequently requested entries can expire and reload
+between checks. Setting both options to 0 uses an unbounded dict with no eviction, matching the
+behavior before 3.2.2.
 
 The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
 previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
@@ -741,7 +764,7 @@ See :ref:`config:api__server_type`, :ref:`config:api__worker_refresh_interval`, 
 .. note::
 
     Worker recycling handles memory growth from *any* source, not just the Dag cache.
-    For production deployments, using both bounded caching and gunicorn worker recycling
+    For production deployments, using both cache eviction and gunicorn worker recycling
     provides the best results.
 
 

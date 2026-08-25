@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Generator
 from functools import cache, partial
-from multiprocessing import Pool
+from multiprocessing import get_context
 from pathlib import Path
 from threading import Lock
 from typing import NamedTuple
@@ -41,6 +41,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.github import (
     download_constraints_file,
+    format_github_token_scope_guidance,
     get_active_airflow_versions,
     get_tag_date,
     retrieve_github_token,
@@ -178,24 +179,30 @@ def _calculate_provider_deps_hash():
 def get_provider_dependencies() -> dict:
     if not PROVIDER_DEPENDENCIES_JSON_PATH.exists():
         calculated_hash = _calculate_provider_deps_hash()
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash + "\n")
         # We use regular print there as rich console might not be initialized yet here
         print("Regenerating provider dependencies file")
         regenerate_provider_dependencies_once()
+        # Only record the hash once regeneration succeeded, otherwise a failed run would
+        # leave a sidecar claiming that a missing/stale file is up to date.
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash + "\n")
     return json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
+
+
+def _force_regenerate_provider_dependencies() -> None:
+    # get_provider_dependencies() only regenerates when the JSON is absent, so the file has
+    # to be removed for it to pick up changed provider.yaml/pyproject.toml contents.
+    PROVIDER_DEPENDENCIES_JSON_PATH.unlink(missing_ok=True)
+    get_provider_dependencies.cache_clear()
+    get_provider_dependencies()
 
 
 def generate_provider_dependencies_if_needed():
     if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSON_HASH_PATH.exists():
-        get_provider_dependencies.cache_clear()
-        get_provider_dependencies()
+        _force_regenerate_provider_dependencies()
     else:
         calculated_hash = _calculate_provider_deps_hash()
         if calculated_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
-            # Force re-generation
-            PROVIDER_DEPENDENCIES_JSON_PATH.unlink(missing_ok=True)
-            get_provider_dependencies.cache_clear()
-            get_provider_dependencies()
+            _force_regenerate_provider_dependencies()
 
 
 def get_related_providers(
@@ -252,15 +259,16 @@ def get_all_constraint_files_and_airflow_releases(
         shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     if not CONSTRAINTS_CACHE_PATH.exists():
         if not github_token:
-            github_token = retrieve_github_token()
+            github_token = retrieve_github_token(
+                description="airflow-refresh-constraints", scopes="public_repo"
+            )
             if github_token:
                 console_print("\n[info]Resolved GitHub token for constraints refresh[/]\n")
             else:
                 console_print(
                     "[error]You need to provide GITHUB_TOKEN to generate providers metadata.[/]\n\n"
-                    "You can generate it with this URL: "
-                    "Please set it to a valid GitHub token with public_repo scope. You can create one by clicking "
-                    "the URL:\n\n"
+                    f"{format_github_token_scope_guidance(description='airflow-refresh-constraints', scopes='public_repo')} "
+                    "You can create one by clicking the URL:\n\n"
                     "https://github.com/settings/tokens/new?scopes=public_repo&description=airflow-refresh-constraints\n\n"
                     "Once you have the token you can prepend prek command with GITHUB_TOKEN='<your token>' or"
                     "set it in your environment with export GITHUB_TOKEN='<your token>'\n\n"
@@ -274,7 +282,12 @@ def get_all_constraint_files_and_airflow_releases(
         airflow_release_dates_path.write_text(json.dumps(airflow_release_dates, indent=2))
         console_print(f"[info]Airflow release dates saved in: {airflow_release_dates_path}[/]")
         with ci_group("Downloading constraints for all Airflow versions for all historical Python versions"):
-            with Pool() as pool:
+            # Use the "spawn" start method rather than the platform default: GitPython
+            # (used in the workers via get_tag_date) opens persistent `git cat-file --batch`
+            # subprocesses and is not fork-safe, and the parent already holds open network
+            # sockets from the version/constraints downloads. Forking that state into workers
+            # deadlocks; spawn gives each worker a clean interpreter.
+            with get_context("spawn").Pool() as pool:
                 # We use partial to pass the common parameters to the function
                 get_constraints_for_python_version_partial = partial(
                     get_constraints_for_python_version,

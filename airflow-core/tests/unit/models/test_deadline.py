@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -133,10 +134,6 @@ def deadline_orm(dagrun, session):
 @pytest.mark.db_test
 class TestDeadline:
     @staticmethod
-    def setup_method():
-        _clean_db()
-
-    @staticmethod
     def teardown_method():
         _clean_db()
 
@@ -212,6 +209,23 @@ class TestDeadline:
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
 
+    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
+        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
+
+        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
+        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
+        that raised AttributeError here would break log lines, tracebacks, and debugger displays
+        exactly when something is already going wrong. The repr falls back to an id-only form.
+        """
+        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
+        deadline_orm.dagrun = None
+        assert deadline_orm.dagrun_id is not None
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[DagRun Deadline]" in repr_str
+        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
+        assert "Dag: <unknown>" in repr_str
+
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
         """The bundle name is forwarded to the callback so the triggerer can resolve its team."""
@@ -252,17 +266,76 @@ class TestDeadline:
         context = callback_kwargs.pop("context")
         assert callback_kwargs == TEST_CALLBACK_KWARGS
 
-        assert context["deadline"]["id"] == deadline_orm.id
+        assert context["deadline"]["id"] == str(deadline_orm.id)
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
         assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+
+    @pytest.mark.db_test
+    def test_handle_miss_persists_triggerer_callback_context(self, dagrun, session):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        callback_id = deadline_orm.callback.id
+        deadline_id = deadline_orm.id
+        deadline_time = deadline_orm.deadline_time
+        expected_dag_run = DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        assert callback.id == callback_id
+
+        callback_kwargs = callback.data["kwargs"]
+        context = callback_kwargs["context"]
+        assert {
+            key: value for key, value in callback_kwargs.items() if key != "context"
+        } == TEST_CALLBACK_KWARGS
+        assert context["deadline"]["id"] == str(deadline_id)
+        assert context["deadline"]["deadline_time"].timestamp() == deadline_time.timestamp()
+        assert context["dag_run"] == expected_dag_run
+
+        callback.trigger = None
+        session.commit()
+
+    @pytest.mark.db_test
+    def test_handle_miss_persists_executor_callback_routing_data(self, dagrun, session):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=SyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        callback_id = deadline_orm.callback.id
+        deadline_id = deadline_orm.id
+        dagrun_id = dagrun.id
+        dag_id = dagrun.dag_id
+
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        assert callback.id == callback_id
+        assert callback.data["dag_run_id"] == str(dagrun_id)
+        assert callback.data["dag_id"] == dag_id
+        assert callback.data["deadline_id"] == str(deadline_id)
 
 
 @pytest.mark.db_test
 class TestCalculatedDeadlineDatabaseCalls:
-    @staticmethod
-    def setup_method():
-        _clean_db()
-
     @staticmethod
     def teardown_method():
         _clean_db()
@@ -857,6 +930,44 @@ class TestDeadlineReferenceDecorator:
                 return timezone.datetime(DEFAULT_DATE)
 
         mock_register.assert_called_once_with(DecoratedCustomRef, timing)
+
+    def test_deadline_reference_decorator_without_parentheses(self):
+        @deadline_reference
+        class BareDecoratedRef(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        # The decorated name must still be the class, not the inner decorator function.
+        assert isinstance(BareDecoratedRef, type)
+        assert issubclass(BareDecoratedRef, BaseDeadlineReference)
+
+        assert hasattr(DeadlineReference, BareDecoratedRef.__name__)
+        assert getattr(DeadlineReference, BareDecoratedRef.__name__).__class__ is BareDecoratedRef
+
+        assert_correct_timing(BareDecoratedRef, DeadlineReference.TYPES.DAGRUN_CREATED)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
+
+    def test_deadline_reference_decorator_without_parentheses_invalid_class(self):
+        """Test that the bare form must inherit the base class."""
+        with pytest.raises(ValueError, match="InvalidBareRef must inherit from BaseDeadlineReference"):
+
+            @deadline_reference
+            class InvalidBareRef:
+                pass
+
+    def test_deadline_reference_requiring_arguments_raises_helpful_error(self):
+        """Test that a reference which cannot be instantiated with no arguments explains itself."""
+        with pytest.raises(TypeError, match="must be constructible with no arguments"):
+
+            @deadline_reference()
+            @dataclass
+            class RefWithRequiredField(BaseDeadlineReference):
+                required_field: str
+
+                def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                    return timezone.datetime(DEFAULT_DATE)
 
 
 @pytest.mark.db_test

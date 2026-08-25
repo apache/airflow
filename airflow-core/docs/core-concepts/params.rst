@@ -145,6 +145,11 @@ This way, the :class:`~airflow.sdk.definitions.param.Param`'s type is respected 
         ),
     )
 
+Because ``render_template_as_native_obj=True`` uses Jinja's native rendering, values that look like
+Python literals can also be converted. For example, a string value of ``"42"`` may be rendered as the
+integer ``42``. Leave native rendering disabled, use a callable template field, or quote the value
+explicitly when the task must receive a string.
+
 Another way to access your param is via a task's ``context`` kwarg.
 
 .. code-block::
@@ -248,6 +253,11 @@ The following features are supported in the Trigger UI Form:
             * ``format="multiline"``: Generate a multi-line textarea
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.
+              | If the choices come from an external config file,
+              | read that file while the Dag is parsed and pass the
+              | resulting list to ``enum``; the trigger form reads
+              | the serialized Dag Params and does not call dynamic
+              | choice providers when the form opens.
               | As of JSON validation, a value must be
               | selected or the field must be marked as
               | optional explicit. See also details inside

@@ -110,7 +110,7 @@ def upgrade():
         batch_op.create_unique_constraint(batch_op.f("connection_conn_id_uq"), ["conn_id"])
 
     max_cons = sa.table("dag", sa.column("max_consecutive_failed_dag_runs"))
-    op.execute(max_cons.update().values(max_consecutive_failed_dag_runs=literal("0")))
+    op.execute(max_cons.update().values(max_consecutive_failed_dag_runs=literal(0)))
     with op.batch_alter_table("dag") as batch_op:
         batch_op.alter_column("max_consecutive_failed_dag_runs", existing_type=sa.Integer(), nullable=False)
 

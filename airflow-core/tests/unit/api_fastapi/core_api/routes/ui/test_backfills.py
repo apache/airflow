@@ -53,7 +53,6 @@ def _clean_db():
 
 @pytest.fixture(autouse=True)
 def clean_db():
-    _clean_db()
     yield
     _clean_db()
 

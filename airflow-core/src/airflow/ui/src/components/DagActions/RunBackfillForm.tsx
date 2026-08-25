@@ -46,7 +46,6 @@ type RunBackfillFormProps = {
   readonly onClose: () => void;
 };
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
-const today = new Date().toISOString().slice(0, 16);
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
@@ -140,12 +139,19 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
   const affectedTasks = data ?? { backfills: [], total_entries: 0 };
+  const isPartitioned = dag.timetable_partitioned;
 
   // Check if the dry run error is a permission error (403)
   const isPermissionError =
     dryRunError !== undefined && dryRunError !== null && (dryRunError as ExpandedApiError).status === 403;
 
-  const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
+  const inlineMessage = getInlineMessage({
+    backfills: affectedTasks.backfills,
+    isPartitioned,
+    isPendingDryRun,
+    totalEntries: affectedTasks.total_entries,
+    translate,
+  });
 
   return (
     <>
@@ -158,7 +164,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Alert status="info">{translate("backfill.schedulerPriorityHint")}</Alert>
         <Box>
           <Text fontSize="md" fontWeight="semibold" mb={3}>
-            {translate("backfill.dateRange")}
+            {isPartitioned ? translate("backfill.partitionRange") : translate("backfill.dateRange")}
           </Text>
           <HStack alignItems="flex-start" w="full">
             <Controller
@@ -167,7 +173,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("common:table.from")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput {...field} onBlur={resetDateError} />
                   <Field.ErrorText>{translate("backfill.errorStartDateBeforeEndDate")}</Field.ErrorText>
                 </Field.Root>
               )}
@@ -178,7 +184,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
               render={({ field }) => (
                 <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} required>
                   <Field.Label>{translate("common:table.to")}</Field.Label>
-                  <DateTimeInput {...field} max={today} onBlur={resetDateError} size="sm" />
+                  <DateTimeInput {...field} endOfDay onBlur={resetDateError} />
                 </Field.Root>
               )}
             />

@@ -47,7 +47,7 @@ type PartitionScheduleProps = {
 };
 
 const PartitionSchedule = ({ dagId, hasInactiveAsset, isLoading, pendingCount }: PartitionScheduleProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -259,7 +259,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
         <Popover.Body>
           <AssetExpression
             events={popoverEvents}
-            expression={(nextRun?.asset_expression ?? assetExpression) as ExpressionType | undefined}
+            expression={nextRun?.asset_expression ?? assetExpression ?? undefined}
           />
         </Popover.Body>
       </Popover.Content>

@@ -25,7 +25,7 @@ import zipfile
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from rich.markup import escape
 
@@ -85,9 +85,25 @@ def run_gh_command(
     return subprocess.run(command, env=command_env, check=check, **kwargs)
 
 
-def retrieve_github_token(token: str | None = None, *, env: Mapping[str, str] | None = None) -> str | None:
+def format_github_token_scope_guidance(*, description: str | None = None, scopes: str | None = None) -> str:
+    purpose = f" for {description}" if description else ""
+    if scopes:
+        return f"If creating a token manually{purpose}, it needs {scopes} scope."
+    return f"If creating a token manually{purpose}, make sure it has the permissions required by the command."
+
+
+def retrieve_github_token(
+    token: str | None = None,
+    *,
+    description: str | None = None,
+    scopes: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> str | None:
     """
     Resolve a GitHub token for local Breeze commands.
+
+    ``description`` and ``scopes`` document what the caller needs from the token. Retrieval itself
+    does not validate scopes.
 
     Non-empty token arguments are preserved when they do not match ``GH_TOKEN`` or
     ``GITHUB_TOKEN`` from the environment. Matching values are treated as ambient env input because
@@ -237,7 +253,9 @@ def get_active_airflow_versions(
     repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", remote_name).splitlines()
+        # `git.ls_remote` is typed as returning the full union of git-command return shapes;
+        # with plain args it is always the command output.
+        ref_tags = cast("str", repo.git.ls_remote("--tags", remote_name)).splitlines()
     except GitCommandError as ex:
         console_print(
             f"[error]Could not fetch tags from `{remote_name}` remote! Make sure to have it configured.\n"

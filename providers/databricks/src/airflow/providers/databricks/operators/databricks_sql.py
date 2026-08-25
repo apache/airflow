@@ -38,30 +38,13 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.databricks.utils.query_tags import build_query_tags
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DISALLOWED_SQL_TOKENS = (";", "--", "/*", "*/")
-
-
-def _get_airflow_query_tags(context: Context) -> dict[str, str | None]:
-    """Return Airflow context metadata as a query-tags dict."""
-    task_instance = context.get("ti")
-    if task_instance is None:
-        return {}
-
-    def _as_str(value: Any) -> str | None:
-        return None if value is None else str(value)
-
-    return {
-        "airflow_dag_id": _as_str(task_instance.dag_id),
-        "airflow_task_id": _as_str(task_instance.task_id),
-        "airflow_run_id": _as_str(task_instance.run_id),
-        "airflow_try_number": _as_str(task_instance.try_number),
-        "airflow_map_index": _as_str(task_instance.map_index),
-    }
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -329,14 +312,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         return list(zip(descriptions, results))
 
     def _get_query_tags(self, context: Context) -> dict[str, str | None] | None:
-        query_tags: dict[str, str | None] = {}
-
-        if self.include_airflow_query_tags and context is not None:
-            query_tags.update(_get_airflow_query_tags(context))
-
-        query_tags.update(self.query_tags)
-
-        return query_tags or None
+        return build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
 
     def execute(self, context: Context) -> Any:
         self.get_db_hook().query_tags = self._get_query_tags(context)
@@ -429,12 +405,6 @@ class DatabricksCopyIntoOperator(BaseOperator):
     ) -> None:
         """Create a new ``DatabricksCopyIntoOperator``."""
         super().__init__(**kwargs)
-        if files is not None and pattern is not None:
-            raise AirflowException("Only one of 'pattern' or 'files' should be specified")
-        if table_name == "":
-            raise AirflowException("table_name shouldn't be empty")
-        if file_location == "":
-            raise AirflowException("file_location shouldn't be empty")
         if file_format not in COPY_INTO_APPROVED_FORMATS:
             raise AirflowException(f"file_format '{file_format}' isn't supported")
         self.files = files
@@ -561,16 +531,16 @@ FILEFORMAT = {self._file_format}
         return sql.strip()
 
     def _get_query_tags(self, context: Context) -> dict[str, str | None] | None:
-        query_tags: dict[str, str | None] = {}
-
-        if self.include_airflow_query_tags and context is not None:
-            query_tags.update(_get_airflow_query_tags(context))
-
-        query_tags.update(self.query_tags)
-
-        return query_tags or None
+        return build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
 
     def execute(self, context: Context) -> Any:
+        # files/table_name/file_location are template fields; validate after rendering.
+        if self.files is not None and self._pattern is not None:
+            raise AirflowException("Only one of 'pattern' or 'files' should be specified")
+        if self.table_name == "":
+            raise AirflowException("table_name shouldn't be empty")
+        if self.file_location == "":
+            raise AirflowException("file_location shouldn't be empty")
         self._sql = self._create_sql_query()
         self.log.info("Executing: %s", self._sql)
         hook = self._get_hook()

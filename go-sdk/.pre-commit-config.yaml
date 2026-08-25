@@ -20,7 +20,7 @@ minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
-  golang: 1.24.0
+  golang: 1.25.0
 repos:
   - repo: meta
     hooks:
@@ -66,22 +66,3 @@ repos:
         additional_dependencies: [github.com/segmentio/golines@latest, mvdan.cc/gofumpt@v0.8.0]
         types: [go]
         language: golang
-      - id: go-mockery
-        name: Generate mocks for go
-        entry: vektra/mockery:3
-        exclude: mocks/.*\.go$
-        types: [go]
-        pass_filenames: false
-        language: docker_image
-      - id: protoc
-        name: Compile protobuf
-        language: docker_image
-        types: [file, proto]
-        entry: >-
-          rvolosatovs/protoc:v7.0.0
-          --go_out=.
-          --go_opt=paths=source_relative
-          --go-grpc_out=.
-          --go-grpc_opt=paths=source_relative
-          -I.
-        require_serial: true
