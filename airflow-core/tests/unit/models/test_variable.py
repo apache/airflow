@@ -48,7 +48,9 @@ class _TeamUnawareVariableBackend(BaseSecretsBackend):
     def __init__(self):
         self.was_called = False
 
-    def get_variable(self, key: str) -> str | None:
+    # The signature mismatch with the base class is the point of this fixture, so mypy's
+    # override check has to be waived here rather than fixed.
+    def get_variable(self, key: str) -> str | None:  # type: ignore[override]
         self.was_called = True
         return "secret_val"
 
