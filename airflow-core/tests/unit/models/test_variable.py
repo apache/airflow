@@ -45,7 +45,9 @@ pytestmark = pytest.mark.db_test
 class _SessionUnawareMetastoreBackend(MetastoreBackend):
     """A custom backend whose ``get_variable`` override predates the ``session`` keyword."""
 
-    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
+    # The signature mismatch with the base class is the point of this fixture, so mypy's
+    # override check has to be waived here rather than fixed.
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:  # type: ignore[override]
         return "from_subclass"
 
 
