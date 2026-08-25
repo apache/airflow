@@ -23,6 +23,7 @@ import collections.abc
 import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock
 
 from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
@@ -256,9 +257,14 @@ class TaskMap(TaskInstanceDependencies):
                 )
             )
 
-        from airflow.settings import task_instance_mutation_hook
+        from airflow.settings import get_policy_plugin_manager, task_instance_mutation_hook
 
-        hook_is_noop = getattr(task_instance_mutation_hook, "is_noop", False) is True
+        policy_hook = get_policy_plugin_manager().hook.task_instance_mutation_hook
+        hook_is_noop = False
+        if not isinstance(policy_hook, Mock):
+            hook_is_noop = getattr(task_instance_mutation_hook, "is_noop", False) is True and all(
+                getattr(hook.function, "is_noop", False) is True for hook in policy_hook.get_hookimpls()
+            )
         new_tis: list[TaskInstance] = []
         if hook_is_noop and isinstance(indexes_to_map, range):
             ti_mappings = [
