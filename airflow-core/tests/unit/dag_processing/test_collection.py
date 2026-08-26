@@ -204,7 +204,7 @@ class TestDagModelOperation:
 
         locks = [q for q in statements if "dag_id IN" in q]
         assert locks, statements
-        assert all("ORDER BY" in q for q in locks), f"dag rows are locked in plan order:\n{locks}"
+        assert all("ORDER BY dag.dag_id" in q for q in locks), f"dag rows are locked in plan order:\n{locks}"
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_new_dag_rows_are_created_in_a_stable_order(self, dag_maker, session):
@@ -290,14 +290,22 @@ class TestAssetModelOperation:
         assert forwards == (["a_asset", "b_asset", "c_asset"], ["a_alias", "z_alias"])
         assert forwards == backwards, "the order the Dags arrived in reached the insert"
 
+    @staticmethod
+    def _dags_for(assets: list[Asset]) -> dict:
+        return {
+            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[asset]))
+            for i, asset in enumerate(assets)
+        }
+
+    def _active(self, session) -> list[tuple[str, str]]:
+        return sorted((a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive)))
+
     def test_activation_rows_are_inserted_in_a_stable_order(self, session):
         """``asset_active`` is unique on both its columns, so its insert needs one order too."""
         clear_db_assets()
-        dags = {
-            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[Asset(name)]))
-            for i, name in enumerate(("c_asset", "a_asset", "b_asset"))
-        }
-        op = AssetModelOperation.collect(dags)
+        op = AssetModelOperation.collect(
+            self._dags_for([Asset("c_asset"), Asset("a_asset"), Asset("b_asset")])
+        )
         orm_assets = op.sync_assets(session=session)
         session.flush()
 
@@ -309,16 +317,6 @@ class TestAssetModelOperation:
             "b_asset",
             "c_asset",
         ]
-
-    @staticmethod
-    def _dags_for(assets: list[Asset]) -> dict:
-        return {
-            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[asset]))
-            for i, asset in enumerate(assets)
-        }
-
-    def _active(self, session) -> list[tuple[str, str]]:
-        return sorted((a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive)))
 
     def test_a_candidate_the_insert_would_reject_does_not_take_the_claim(self, session):
         """
@@ -346,19 +344,26 @@ class TestAssetModelOperation:
 
         assert self._active(session) == [("n1", "s3://u2"), ("n9", "s3://u1")]
 
-    def test_collection_order_decides_the_winner_among_assets_that_already_exist(self, session):
+    @pytest.mark.parametrize(
+        "seeded",
+        [
+            pytest.param(False, id="all-new"),
+            pytest.param(True, id="already-in-the-asset-table"),
+        ],
+    )
+    def test_collection_order_decides_which_asset_is_activated(self, seeded, session):
         """
-        The read-back in ``sync_assets`` returns existing rows in the query's order, so collection
-        order has to be put back before activation -- otherwise which of two assets sharing a name
-        wins depends on the database rather than on the Dags.
+        ``asset_active`` is unique on name and on uri separately, so of two assets sharing a name
+        only one is activated, and the Dags decide which. Neither sorting the rows for insertion nor
+        the order the read-back returns rows already in ``asset`` may move that.
         """
 
         def activate(assets: list[Asset]) -> list[tuple[str, str]]:
             clear_db_assets()
-            # Written but not activated, so the second pass reads them back as existing rows.
-            seeded = AssetModelOperation.collect(self._dags_for(assets))
-            seeded.sync_assets(session=session)
-            session.commit()
+            if seeded:
+                # Written but not activated, so the pass below reads them back as existing rows.
+                AssetModelOperation.collect(self._dags_for(assets)).sync_assets(session=session)
+                session.commit()
 
             op = AssetModelOperation.collect(self._dags_for(assets))
             orm_assets = op.sync_assets(session=session)
@@ -371,34 +376,7 @@ class TestAssetModelOperation:
 
         assert activate(pair) == [("dup", "s3://zzz")]
         assert activate(list(reversed(pair))) == [("dup", "s3://aaa")], (
-            "the winner came from the read-back's order, not the Dags'"
-        )
-
-    def test_collection_order_decides_which_asset_is_activated(self, session):
-        """
-        ``asset_active`` is unique on name and on uri separately, so of two assets sharing a name
-        only one is activated. Sorting the rows for insertion must not move which one: a sweep has
-        to land where writing its files one at a time would, and that is collection order.
-        """
-
-        def activate(assets: list[Asset]):
-            clear_db_assets()
-            dags = {
-                f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[asset]))
-                for i, asset in enumerate(assets)
-            }
-            op = AssetModelOperation.collect(dags)
-            orm_assets = op.sync_assets(session=session)
-            session.flush()
-            op.activate_assets_if_possible(orm_assets.values(), session=session)
-            session.flush()
-            return [(a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive))]
-
-        zulu_first = [Asset(name="dup", uri="s3://zzz"), Asset(name="dup", uri="s3://aaa")]
-
-        assert activate(zulu_first) == [("dup", "s3://zzz")]
-        assert activate(list(reversed(zulu_first))) == [("dup", "s3://aaa")], (
-            "the winner is lexicographic, not the one the Dags defined first"
+            "the winner came from the sort or the read-back, not from the Dags"
         )
 
     @pytest.mark.usefixtures("testing_dag_bundle")

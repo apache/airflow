@@ -28,6 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
+from operator import itemgetter
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
@@ -614,7 +615,11 @@ class DagModelOperation(NamedTuple):
                 bundle_name=self.bundle_name,
                 bundle_version=self.bundle_version,
                 # Sorted for the same reason the lock above is: insertion order is lock order.
-                dags=(dag for dag_id, dag in sorted(self.dags.items()) if dag_id not in orm_dags),
+                dags=(
+                    dag
+                    for dag_id, dag in sorted(self.dags.items(), key=itemgetter(0))
+                    if dag_id not in orm_dags
+                ),
                 session=session,
             )
         )
