@@ -30,7 +30,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunConte
 
 
 class AddXComBatchEndpoint(VersionChange):
-    """Add a batch XCom lookup endpoint that resolves multiple XComs in one request."""
+    """Add a batch XCom lookup endpoint that resolves multiple XComs in one request, capped at MAX_XCOM_BATCH_ITEMS items per request."""
 
     description = __doc__
 

@@ -703,6 +703,53 @@ class TestXComsBatchEndpoint:
         assert response.status_code == 200, response.json()
         assert response.json() == {"items": []}
 
+    def test_batch_rejects_too_many_items(self, client, create_task_instance):
+        """A request over MAX_XCOM_BATCH_ITEMS is rejected before touching the database."""
+        from airflow.api_fastapi.execution_api.datamodels.xcom import MAX_XCOM_BATCH_ITEMS
+
+        ti = create_task_instance()
+        items = [{"task_id": ti.task_id, "key": f"k{i}"} for i in range(MAX_XCOM_BATCH_ITEMS + 1)]
+
+        response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/batch", json={"items": items})
+
+        assert response.status_code == 422, response.json()
+
+    def test_batch_non_default_map_index(self, client, dag_maker, session):
+        """A batch item with an explicit map_index resolves the matching mapped-task-instance XCom."""
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=[1, 2, 3])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+
+        for map_index in (0, 1, 2):
+            session.add(
+                XComModel(
+                    key="k",
+                    value=f"value_{map_index}",
+                    dag_run_id=dag_run.id,
+                    run_id=dag_run.run_id,
+                    task_id="task",
+                    dag_id="dag",
+                    map_index=map_index,
+                )
+            )
+        session.commit()
+
+        response = client.post(
+            "/execution/xcoms/dag/runid/batch",
+            json={"items": [{"task_id": "task", "key": "k", "map_index": 1}]},
+        )
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {
+            "items": [{"task_id": "task", "key": "k", "map_index": 1, "found": True, "value": "value_1"}]
+        }
+
 
 class TestXComTeamAccess:
     """Multi-team isolation for the Execution API XCom routes (no cross-team sharing)."""

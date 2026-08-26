@@ -24,11 +24,12 @@ import pytest
 import structlog
 
 from airflow.sdk import TaskInstanceState
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
-from airflow.sdk.exceptions import AirflowSkipException, ErrorType
+from airflow.sdk.exceptions import AirflowSkipException, ErrorType, XComNotFound
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetXCom,
@@ -39,6 +40,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.sdk.serde import deserialize, serialize
 
 log = structlog.get_logger(__name__)
@@ -568,18 +570,28 @@ class TestDictOfListsExpandInputBatching:
     """Unit-level tests for _batch_resolve_plain_xcom_args, below the full task-run scaffold."""
 
     @staticmethod
-    def _make_plain_arg(task_id: str, *, mapped_task_group: bool = False) -> PlainXComArg:
-        operator = mock.MagicMock()
+    def _make_plain_arg(
+        task_id: str, *, key: str = BaseXCom.XCOM_RETURN_KEY, mapped_task_group: bool = False
+    ) -> PlainXComArg:
+        operator = mock.create_autospec(BaseOperator, instance=True)
         operator.is_mapped = False
         operator.task_id = task_id
         operator.dag_id = "test_dag"
-        operator.get_closest_mapped_task_group.return_value = mock.MagicMock() if mapped_task_group else None
-        return PlainXComArg(operator=operator, key=BaseXCom.XCOM_RETURN_KEY)
+        operator.multiple_outputs = False
+        # Only the None-ness matters to is_batchable, so a plain sentinel object is enough.
+        operator.get_closest_mapped_task_group.return_value = object() if mapped_task_group else None
+        return PlainXComArg(operator=operator, key=key)
+
+    @staticmethod
+    def _make_ti() -> mock.MagicMock:
+        ti = mock.create_autospec(RuntimeTaskInstance, instance=True)
+        ti.dag_id = "test_dag"
+        return ti
 
     def test_single_eligible_arg_is_not_batched(self):
         """Nothing to batch with, so the caller's normal per-item path handles it instead."""
         expand_input = DictOfListsExpandInput({"x": self._make_plain_arg("push_a")})
-        ti = mock.MagicMock(dag_id="test_dag")
+        ti = self._make_ti()
         ti.xcom_pull_batch.side_effect = AssertionError("should not batch a single kwarg")
 
         assert expand_input._batch_resolve_plain_xcom_args({"ti": ti}) == {}
@@ -593,7 +605,7 @@ class TestDictOfListsExpandInputBatching:
                 "z": self._make_plain_arg("push_c", mapped_task_group=True),
             }
         )
-        ti = mock.MagicMock(dag_id="test_dag")
+        ti = self._make_ti()
         ti.xcom_pull_batch.return_value = XComBatchResult(
             items=[
                 XComBatchResultItem(
@@ -610,3 +622,50 @@ class TestDictOfListsExpandInputBatching:
         assert results == {"x": "a", "y": "b"}
         ti.xcom_pull_batch.assert_called_once()
         assert len(ti.xcom_pull_batch.call_args.args[0]) == 2
+
+    def test_not_found_return_value_key_resolves_to_none(self):
+        """A missing return_value XCom resolves to None, matching the per-item xcom_pull path."""
+        expand_input = DictOfListsExpandInput(
+            {
+                "x": self._make_plain_arg("push_a"),
+                "y": self._make_plain_arg("push_b"),
+            }
+        )
+        ti = self._make_ti()
+        ti.xcom_pull_batch.return_value = XComBatchResult(
+            items=[
+                XComBatchResultItem(
+                    task_id="push_a", key=BaseXCom.XCOM_RETURN_KEY, map_index=-1, found=True, value="a"
+                ),
+                XComBatchResultItem(
+                    task_id="push_b", key=BaseXCom.XCOM_RETURN_KEY, map_index=-1, found=False, value=None
+                ),
+            ]
+        )
+
+        results = expand_input._batch_resolve_plain_xcom_args({"ti": ti})
+
+        assert results == {"x": "a", "y": None}
+
+    def test_not_found_other_key_raises_xcom_not_found(self):
+        """A missing non-return_value XCom raises, matching the per-item xcom_pull path."""
+        expand_input = DictOfListsExpandInput(
+            {
+                "x": self._make_plain_arg("push_a"),
+                "y": self._make_plain_arg("push_b", key="custom_key"),
+            }
+        )
+        ti = self._make_ti()
+        ti.xcom_pull_batch.return_value = XComBatchResult(
+            items=[
+                XComBatchResultItem(
+                    task_id="push_a", key=BaseXCom.XCOM_RETURN_KEY, map_index=-1, found=True, value="a"
+                ),
+                XComBatchResultItem(
+                    task_id="push_b", key="custom_key", map_index=-1, found=False, value=None
+                ),
+            ]
+        )
+
+        with pytest.raises(XComNotFound):
+            expand_input._batch_resolve_plain_xcom_args({"ti": ti})
