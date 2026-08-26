@@ -49,7 +49,9 @@ log = structlog.get_logger(logger_name=__name__)
 class CalendarService:
     """Service class for calendar-related operations."""
 
-    MAX_PLANNED_RUNS: int = 2000
+    # High enough to cover a full year of hourly runs (8784); the iteration cost per
+    # request stays bounded well below a second even for seconds-resolution crons.
+    MAX_PLANNED_RUNS: int = 10000
 
     def get_calendar_data(
         self,
@@ -82,12 +84,15 @@ class CalendarService:
             granularity,
         )
 
-        planned_data = self._get_planned_dag_runs(dag, raw_dag_states, date_filter, granularity)
+        planned_data, planned_capped = self._get_planned_dag_runs(
+            dag, raw_dag_states, date_filter, granularity
+        )
 
         all_data = historical_data + planned_data
         return CalendarTimeRangeCollectionResponse(
             total_entries=len(all_data),
             dag_runs=all_data,
+            planned_runs_capped=planned_capped,
         )
 
     def _get_historical_dag_runs(
@@ -139,10 +144,10 @@ class CalendarService:
         raw_dag_states: Sequence[Row],
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeResponse]:
-        """Get planned Dag runs based on the Dag's timetable."""
+    ) -> tuple[list[CalendarTimeRangeResponse], bool]:
+        """Get planned Dag runs based on the Dag's timetable, and whether the cap cut them off."""
         if not self._should_calculate_planned_runs(dag, raw_dag_states):
-            return []
+            return [], False
 
         last_state = raw_dag_states[-1]
 
@@ -150,7 +155,7 @@ class CalendarService:
             last_run_after = timezone.coerce_datetime(last_state.run_after)
             last_partition_date = timezone.coerce_datetime(last_state.partition_date)
             if not last_run_after or not last_partition_date:
-                return []
+                return [], False
             year = last_partition_date.year
             last_info = DagRunInfo(
                 run_after=last_run_after,
@@ -161,7 +166,7 @@ class CalendarService:
         else:
             last_data_interval = self._get_last_data_interval(raw_dag_states)
             if not last_data_interval:
-                return []
+                return [], False
             year = last_data_interval.end.year
             if isinstance(dag.timetable, CronMixin):
                 return self._calculate_cron_planned_runs(
@@ -212,9 +217,10 @@ class CalendarService:
         year: int,
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeResponse]:
+    ) -> tuple[list[CalendarTimeRangeResponse], bool]:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
+        capped = False
 
         dates_iter: Iterator[datetime | None] = croniter(
             cast("CronMixin", dag.timetable)._expression,
@@ -234,10 +240,14 @@ class CalendarService:
                 continue
 
             dates[self._truncate_datetime_for_granularity(dt, granularity)] += 1
+        else:
+            # croniter iterates forever, so exhausting the islice means the cap cut the scan
+            # short of the year boundary.
+            capped = True
 
         return [
             CalendarTimeRangeResponse(date=dt, state="planned", count=count) for dt, count in dates.items()
-        ]
+        ], capped
 
     def _calculate_timetable_planned_runs(
         self,
@@ -247,7 +257,7 @@ class CalendarService:
         restriction: TimeRestriction,
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> list[CalendarTimeRangeResponse]:
+    ) -> tuple[list[CalendarTimeRangeResponse], bool]:
         """Calculate planned runs for generic timetables."""
         dates: dict[datetime, int] = collections.Counter()
         prev_run_after = last_info.run_after
@@ -284,7 +294,7 @@ class CalendarService:
 
         return [
             CalendarTimeRangeResponse(date=dt, state="planned", count=count) for dt, count in dates.items()
-        ]
+        ], total_planned >= self.MAX_PLANNED_RUNS
 
     def _get_time_truncation_expression(
         self,

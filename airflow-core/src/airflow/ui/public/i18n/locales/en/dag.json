@@ -22,6 +22,7 @@
     "noData": "No data available",
     "noFailedRuns": "No failed runs",
     "noRuns": "No runs",
+    "plannedRunsCapped": "This Dag has too many planned runs to display; only the earliest are shown.",
     "totalRuns": "Total Runs",
     "week": "Week {{weekNumber}}",
     "weekdays": {
