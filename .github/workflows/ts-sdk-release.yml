@@ -123,6 +123,9 @@ jobs:
           pnpm run format:check
           pnpm run typecheck
           pnpm test
+      - name: Verify package contents
+        working-directory: ts-sdk
+        run: pnpm run verify:package
       - name: Create package tarball
         id: package
         working-directory: ts-sdk
