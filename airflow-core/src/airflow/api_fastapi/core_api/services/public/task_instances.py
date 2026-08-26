@@ -59,10 +59,16 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(__name__)
 
 
-def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> None:
-    """Clear task state store rows for each TI if clear_on_success is enabled."""
-    if not conf.getboolean("state_store", "clear_on_success", fallback=False):
-        return
+def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str) -> None:
+    """
+    Discard the task state store entries of each task instance.
+
+    A failure to discard one task instance is logged and skipped rather than raised: the caller has
+    already performed the operation this accompanies, and failing it afterwards would leave that
+    operation half-applied.
+
+    :param event: what prompted the discard, used as the log event name.
+    """
     backend = _get_db_backend()
     for ti in tis:
         scope = TaskScope(
@@ -74,7 +80,7 @@ def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> N
         try:
             backend.clear(scope=scope, session=session)
             log.info(
-                "Cleared task state on success",
+                event,
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 task_id=ti.task_id,
@@ -82,11 +88,19 @@ def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> N
             )
         except Exception:
             log.warning(
-                "Failed to clear task state on success",
+                "Failed to discard task state",
+                event=event,
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 task_id=ti.task_id,
             )
+
+
+def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> None:
+    """Discard task state store entries for each TI if clear_on_success is enabled."""
+    if not conf.getboolean("state_store", "clear_on_success", fallback=False):
+        return
+    _discard_task_state_store(tis, session, event="Cleared task state on success")
 
 
 def _validate_patch_task_instance_body(

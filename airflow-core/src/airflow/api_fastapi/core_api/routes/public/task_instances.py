@@ -107,6 +107,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    _discard_task_state_store,
     _get_task_group_task_instances,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -985,6 +986,12 @@ def post_clear_task_instances(
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
+
+        # Clearing means "run this again", so the next attempt starts over rather than resuming from
+        # progress recorded by the attempt the user just discarded. Only after the clear has
+        # succeeded, so a failed clear cannot take the task state with it.
+        if not body.keep_task_state:
+            _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
         if body.note is not None:
             _patch_task_instance_note(

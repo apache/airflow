@@ -90,6 +90,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [keepTaskState, setKeepTaskState] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
@@ -208,6 +209,12 @@ const ClearTaskInstanceDialog = (props: Props) => {
             >
               <CgRedo /> {translate("modal.confirm")}
             </Button>
+            <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
             <Checkbox
               checked={preventRunningTask}
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
@@ -339,6 +346,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                     only_failed: onlyFailed,
                     run_on_latest_version: runOnLatestVersion,
                     task_ids: taskIds,
+                    ...(keepTaskState ? { keep_task_state: true } : {}),
                     ...(preventRunningTask ? { prevent_running_task: true } : {}),
                   },
                 });
@@ -361,6 +369,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
                 task_ids: allMapped ? [taskId] : [[taskId, mapIndex as number]],
+                ...(keepTaskState ? { keep_task_state: true } : {}),
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });

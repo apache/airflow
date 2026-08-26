@@ -64,6 +64,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [keepTaskState, setKeepTaskState] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -152,6 +153,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
                   include_past: past,
                   include_upstream: upstream,
                   ...(note === null ? {} : { note }),
+                  ...(keepTaskState ? { keep_task_state: true } : {}),
                   only_failed: onlyFailed,
                   run_on_latest_version: runOnLatestVersion,
                   task_ids: groupTaskIds,
@@ -161,6 +163,12 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
           >
             <CgRedo /> {translate("modal.confirm")}
           </Button>
+          <Checkbox
+            checked={keepTaskState}
+            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+          >
+            {translate("dags:runAndTaskActions.options.keepTaskState")}
+          </Checkbox>
           {shouldShowRunOnLatestOption ? (
             <Checkbox
               checked={runOnLatestVersionForced || runOnLatestVersion}
