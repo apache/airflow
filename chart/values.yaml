@@ -47,6 +47,11 @@ gid: 0
 securityContexts:
   pod: {}
   containers: {}
+  # If `true`, the chart will not set any default `securityContext` values when
+  # `securityContexts.pod` / `securityContexts.containers` (or the equivalent per-component
+  # overrides) are left empty (default `false` is deprecated and will change to `true`
+  # in a future release).
+  disableDefaults: false
 
 # Global container lifecycle hooks for Airflow containers
 containerLifecycleHooks: {}
@@ -2935,6 +2940,12 @@ pgbouncer:
       exec:
         # Allow existing queries clients to complete within 120 seconds
         command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+
+  # Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.
+  # Matches the default preStop hook above, which needs up to 120 seconds to
+  # drain client connections; with a shorter grace period the pod is killed
+  # mid-drain and in-flight connections are cut.
+  terminationGracePeriodSeconds: 120
 
   metricsExporterSidecar:
     resources: {}

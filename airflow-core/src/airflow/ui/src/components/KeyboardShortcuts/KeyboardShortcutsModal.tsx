@@ -20,10 +20,10 @@ import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react"
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/components/ui";
 import {
-  SHORTCUT_CATEGORIES,
   SHORTCUTS,
+  SHORTCUT_CATEGORIES,
   type ShortcutEntry,
   useShortcutRegistry,
 } from "src/context/keyboardShortcuts";
@@ -52,7 +52,7 @@ const buildGroups = (shortcuts: ReadonlyArray<ShortcutEntry>) =>
   }).filter((group) => group.items.length > 0);
 
 export const KeyboardShortcutsModal = () => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { shortcuts } = useShortcutRegistry();
   const [open, setOpen] = useState(false);
   const metaKey = getMetaKey();
@@ -67,40 +67,40 @@ export const KeyboardShortcutsModal = () => {
   const groups = buildGroups(shortcuts);
 
   return (
-    <Dialog.Root lazyMount onOpenChange={(event) => setOpen(event.open)} open={open} size="md">
-      <Dialog.Content backdrop>
-        <Dialog.Header>{translate("shortcuts.title")}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          {groups.length === 0 ? (
-            <Text color="fg.muted">{translate("shortcuts.empty")}</Text>
-          ) : (
-            <VStack align="stretch" gap={4}>
-              {groups.map(({ category, items }) => (
-                <Box key={category}>
-                  <Heading color="fg.muted" mb={2} size="xs" textTransform="uppercase">
-                    {translate(`shortcuts.categories.${category}`)}
-                  </Heading>
-                  <VStack align="stretch" gap={1}>
-                    {items.map((entry) => (
-                      <Flex alignItems="center" gap={4} justifyContent="space-between" key={entry.id}>
-                        <Text fontSize="sm">{entry.description}</Text>
-                        <HStack gap={1}>
-                          {entry.keys.map((combo) => (
-                            <Kbd key={combo} size="sm">
-                              {formatShortcutCombo(combo, metaKey)}
-                            </Kbd>
-                          ))}
-                        </HStack>
-                      </Flex>
-                    ))}
-                  </VStack>
-                </Box>
-              ))}
-            </VStack>
-          )}
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal
+      lazyMount
+      onOpenChange={(event) => setOpen(event.open)}
+      open={open}
+      size="md"
+      title={translate("shortcuts.title")}
+    >
+      {groups.length === 0 ? (
+        <Text color="fg.muted">{translate("shortcuts.empty")}</Text>
+      ) : (
+        <VStack align="stretch" gap={4}>
+          {groups.map(({ category, items }) => (
+            <Box key={category}>
+              <Heading color="fg.muted" mb={2} size="xs" textTransform="uppercase">
+                {translate(`shortcuts.categories.${category}`)}
+              </Heading>
+              <VStack align="stretch" gap={1}>
+                {items.map((entry) => (
+                  <Flex alignItems="center" gap={4} justifyContent="space-between" key={entry.id}>
+                    <Text fontSize="sm">{entry.description}</Text>
+                    <HStack gap={1}>
+                      {entry.keys.map((combo) => (
+                        <Kbd key={combo} size="sm">
+                          {formatShortcutCombo(combo, metaKey)}
+                        </Kbd>
+                      ))}
+                    </HStack>
+                  </Flex>
+                ))}
+              </VStack>
+            </Box>
+          ))}
+        </VStack>
+      )}
+    </Modal>
   );
 };

@@ -117,14 +117,15 @@ jobs:
       "bugraoz93",
       "eladkal",
       "ephraimbuddy",
+      "hussein-awala",
       "jedcunningham",
       "jscheffl",
       "kaxil",
+      "o-nikolas",
       "pierrejeambrun",
       "shahar1",
       "potiuk",
       "uranusjr",
-      "utkarsharma2",
       "vincbeck",
       "vatsrahul1001",
       ]'), github.event.sender.login)
@@ -152,7 +153,7 @@ jobs:
         run: |
           # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
           # dev/registry/derive_wave_providers.py.
-          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "task-sdk" "helm-chart" "docker-stack")
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "apache-airflow-mypy" "task-sdk" "helm-chart" "docker-stack")
           has_provider=false
           for token in $INCLUDE_DOCS; do
             is_non_provider=false
@@ -344,7 +345,8 @@ jobs:
             ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
             secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        # yamllint disable-line rule:line-length
+        uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -375,7 +377,7 @@ jobs:
             breeze build-docs ${SPHINX_INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
           fi
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@e0a5f64438492ea3ee6cbe06336b2d8e25f5d222
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         if: >-
           steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' &&
           steps.build-sphinx-docs.outputs.sphinx-build-skipped != 'true'

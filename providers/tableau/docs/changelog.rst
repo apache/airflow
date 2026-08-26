@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip Tableau refresh/task run on 409093 resource conflict (#69382)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 5.6.0
 .....
 

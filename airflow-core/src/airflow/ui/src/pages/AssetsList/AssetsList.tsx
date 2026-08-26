@@ -152,15 +152,19 @@ export const AssetsList = () => {
     value: searchParams.get(SearchParamsKeys.GROUP_PATTERN),
   });
 
-  const { data, error, isLoading } = useAssetServiceGetAssetsUi({
-    ...groupArg,
-    lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
-    lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
-    limit: pagination.pageSize,
-    ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-  });
+  const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
+    {
+      ...groupArg,
+      lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
+      lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
+      limit: pagination.pageSize,
+      ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+    },
+    undefined,
+    { placeholderData: (prev) => prev },
+  );
 
   const columns = createColumns(translate);
   const totalEntries = data?.total_entries ?? 0;
@@ -180,31 +184,31 @@ export const AssetsList = () => {
   };
 
   return (
-    <>
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={namePattern}
-          onChange={handleSearchChange}
-          placeholder={translate("searchPlaceholder")}
-        />
-
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
-      <DataTable
-        columns={columns}
-        data={data?.assets ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:asset"
-        onStateChange={setTableURLState}
-        total={totalEntries}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      data={data?.assets ?? []}
+      errorMessage={<ErrorAlert error={error} />}
+      filterActions={
+        <VStack alignItems="flex-start" gap={2} w="100%">
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={namePattern}
+            onChange={handleSearchChange}
+            placeholder={translate("searchPlaceholder")}
+          />
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        </VStack>
+      }
+      initialState={tableURLState}
+      isFetching={isFetching}
+      isLoading={isLoading}
+      modelName="common:asset"
+      onStateChange={setTableURLState}
+      total={totalEntries}
+    />
   );
 };

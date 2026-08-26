@@ -17,12 +17,10 @@
  * under the License.
  */
 import { CloseButton, Popover as ChakraPopover } from "@chakra-ui/react";
-import * as React from "react";
+import { forwardRef } from "react";
 
-export const CloseTrigger = React.forwardRef<HTMLButtonElement, ChakraPopover.CloseTriggerProps>(
-  (props, ref) => (
-    <ChakraPopover.CloseTrigger insetEnd="1" position="absolute" top="1" {...props} asChild ref={ref}>
-      <CloseButton size="sm" />
-    </ChakraPopover.CloseTrigger>
-  ),
-);
+export const CloseTrigger = forwardRef<HTMLButtonElement, ChakraPopover.CloseTriggerProps>((props, ref) => (
+  <ChakraPopover.CloseTrigger insetEnd="1" position="absolute" top="1" {...props} asChild ref={ref}>
+    <CloseButton size="sm" />
+  </ChakraPopover.CloseTrigger>
+));
