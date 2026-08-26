@@ -672,7 +672,7 @@ Airflow to KinD cluster.
 
 10. Dumping logs
 
-Sometimes You want to see the logs of the clister. This can be done with ``breeze k8s logs``.
+Sometimes You want to see the logs of the cluster. This can be done with ``breeze k8s logs``.
 
 .. code-block:: bash
 

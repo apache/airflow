@@ -27,8 +27,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
 )
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 TEST_VALID_RESOURCE_YAML = """
 apiVersion: v1

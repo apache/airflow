@@ -139,25 +139,26 @@ export const TaskStateStore = () => {
 
   return (
     <>
-      <Flex gap={2} justifyContent="flex-end" mb={2}>
-        <AddTaskStateStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
-        {(data?.total_entries ?? 0) > 0 ? (
-          <ClearAllTaskStateStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
-        ) : undefined}
-      </Flex>
-
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}
         data={data?.task_state_store ?? []}
         displayMode="table"
+        hideRowCountHeading
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="dag:taskStateStore.title"
+        modelName="dag:taskStateStore.entry"
         noRowsMessage={translate("taskStateStore.emptyStore")}
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
+        primaryActions={
+          <>
+            {(data?.total_entries ?? 0) > 0 ? (
+              <ClearAllTaskStateStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+            ) : undefined}
+            <AddTaskStateStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+          </>
+        }
         total={data?.total_entries ?? 0}
       />
     </>

@@ -49,12 +49,14 @@ SUPPORTED_FILE_FORMATS: tuple[str, ...] = (
     "jpg",
     "json",
     "log",
+    "md",
     "parquet",
     "pdf",
     "png",
+    "txt",
 )
 
-_TEXT_LIKE_FORMATS = frozenset({"csv", "json", "log", "avro", "parquet"})
+_TEXT_LIKE_FORMATS = frozenset({"csv", "json", "log", "avro", "parquet", "txt", "md"})
 _MULTI_MODAL_FORMATS = frozenset({"jpeg", "jpg", "pdf", "png"})
 _COMPRESSION_SUFFIXES = {
     "bz2": "bzip2",
@@ -63,7 +65,7 @@ _COMPRESSION_SUFFIXES = {
     "xz": "xz",
     "zst": "zstd",
 }
-_GZIP_SUPPORTED_FORMATS = frozenset({"csv", "json", "log"})
+_GZIP_SUPPORTED_FORMATS = frozenset({"csv", "json", "log", "txt", "md"})
 _TEXT_SAMPLE_HEAD_CHARS = 8_000
 _TEXT_SAMPLE_TAIL_CHARS = 2_000
 _MEDIA_TYPES = {

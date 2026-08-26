@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -31,10 +32,12 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
+    _DURABLE_UNSET,
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
     SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils.types import DagRunType
@@ -967,3 +970,22 @@ class TestSnowflakeSqlApiOperatorDurable:
         assert operator.is_job_active("success") is False
         assert operator.is_job_succeeded("success") is True
         assert operator.is_job_succeeded("running") is False
+
+    def test_default_args_durable_reaches_operator(self):
+        operator = self._make_operator(default_args={"durable": False})
+        assert operator.durable is False
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False

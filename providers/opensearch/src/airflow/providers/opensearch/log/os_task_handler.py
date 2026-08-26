@@ -64,10 +64,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -104,11 +101,11 @@ def _format_error_detail(error_detail: Any) -> str | None:
 
 def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter an OpenSearch hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
-    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS}
 
-    # Map @timestamp to timestamp
-    if "@timestamp" in fields and "timestamp" not in fields:
-        fields["timestamp"] = fields.pop("@timestamp")
+    # Map @timestamp to timestamp but not include `@timestamp` in log fields
+    if "@timestamp" in hit_dict and "timestamp" not in fields:
+        fields["timestamp"] = hit_dict["@timestamp"]
 
     # Map levelname to level
     if "levelname" in fields and "level" not in fields:
@@ -872,6 +869,44 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     )
 
     processors = ()
+
+    @classmethod
+    def from_config(cls) -> OpensearchRemoteLogIO:
+        """
+        Build the remote log IO from Airflow logging and ``[opensearch]`` configuration.
+
+        The ``opensearch://`` value in ``[logging] remote_base_log_folder`` is only a routing
+        marker, so every connection and behaviour parameter is read from the ``[opensearch]``
+        section here.
+
+        This does not merge ``[logging] remote_task_handler_kwargs`` IO-kwargs, matching the
+        legacy behavior for OpenSearch.
+        """
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # ``[opensearch] port`` declares an empty-string default, so the key is always present and
+        # ``conf.getint`` raises on ``int("")`` instead of falling back to 9200.
+        port = conf.get("opensearch", "port", fallback="")
+        return cls(
+            base_log_folder=os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            host=conf.get("opensearch", "host", fallback=""),
+            port=int(port) if port else 9200,
+            username=conf.get_mandatory_value("opensearch", "username"),
+            password=conf.get_mandatory_value("opensearch", "password"),
+            write_stdout=conf.getboolean("opensearch", "write_stdout"),
+            write_to_opensearch=conf.getboolean("opensearch", "write_to_os"),
+            json_format=conf.getboolean("opensearch", "json_format"),
+            target_index=conf.get_mandatory_value("opensearch", "target_index"),
+            host_field=conf.get_mandatory_value("opensearch", "host_field"),
+            offset_field=conf.get_mandatory_value("opensearch", "offset_field"),
+            log_id_template=conf.get("opensearch", "log_id_template", fallback="")
+            or "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
 
     def __attrs_post_init__(self):
         self.host = _format_url(self.host)
