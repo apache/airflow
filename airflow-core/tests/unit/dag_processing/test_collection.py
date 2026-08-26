@@ -310,6 +310,70 @@ class TestAssetModelOperation:
             "c_asset",
         ]
 
+    @staticmethod
+    def _dags_for(assets: list[Asset]) -> dict:
+        return {
+            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[asset]))
+            for i, asset in enumerate(assets)
+        }
+
+    def _active(self, session) -> list[tuple[str, str]]:
+        return sorted((a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive)))
+
+    def test_a_candidate_the_insert_would_reject_does_not_take_the_claim(self, session):
+        """
+        The claim has to start from what is already active, not from the batch alone.
+
+        With ``n9`` holding ``s3://u1``, ``("n1", "s3://u1")`` cannot be activated whatever happens
+        -- its uri is taken. Were it to claim the name anyway, ``("n1", "s3://u2")`` would be passed
+        over and the insert would then drop the claimer too, leaving neither active.
+        """
+        clear_db_assets()
+        blocker = AssetModelOperation.collect(self._dags_for([Asset(name="n9", uri="s3://u1")]))
+        blocked = blocker.sync_assets(session=session)
+        session.flush()
+        blocker.activate_assets_if_possible(blocked.values(), session=session)
+        session.flush()
+        assert self._active(session) == [("n9", "s3://u1")]
+
+        op = AssetModelOperation.collect(
+            self._dags_for([Asset(name="n1", uri="s3://u1"), Asset(name="n1", uri="s3://u2")])
+        )
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+        op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        assert self._active(session) == [("n1", "s3://u2"), ("n9", "s3://u1")]
+
+    def test_collection_order_decides_the_winner_among_assets_that_already_exist(self, session):
+        """
+        The read-back in ``sync_assets`` returns existing rows in the query's order, so collection
+        order has to be put back before activation -- otherwise which of two assets sharing a name
+        wins depends on the database rather than on the Dags.
+        """
+
+        def activate(assets: list[Asset]) -> list[tuple[str, str]]:
+            clear_db_assets()
+            # Written but not activated, so the second pass reads them back as existing rows.
+            seeded = AssetModelOperation.collect(self._dags_for(assets))
+            seeded.sync_assets(session=session)
+            session.commit()
+
+            op = AssetModelOperation.collect(self._dags_for(assets))
+            orm_assets = op.sync_assets(session=session)
+            session.flush()
+            op.activate_assets_if_possible(orm_assets.values(), session=session)
+            session.flush()
+            return self._active(session)
+
+        pair = [Asset(name="dup", uri="s3://zzz"), Asset(name="dup", uri="s3://aaa")]
+
+        assert activate(pair) == [("dup", "s3://zzz")]
+        assert activate(list(reversed(pair))) == [("dup", "s3://aaa")], (
+            "the winner came from the read-back's order, not the Dags'"
+        )
+
     def test_collection_order_decides_which_asset_is_activated(self, session):
         """
         ``asset_active`` is unique on name and on uri separately, so of two assets sharing a name

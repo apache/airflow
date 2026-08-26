@@ -31,7 +31,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -890,13 +890,13 @@ class AssetModelOperation(NamedTuple):
             (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
             key=lambda asset: (asset.name, asset.uri),
         )
-        created = {
-            (model.name, model.uri): model
+        orm_assets.update(
+            ((model.name, model.uri), model)
             for model in asset_manager.create_assets(to_create, session=session)
-        }
-        # Back in collection order, which is what decides the activation below.
-        orm_assets.update((key, created[key]) for key in self.assets if key in created)
-        return orm_assets
+        )
+        # In collection order, which is what decides the activation below. The rows that already
+        # existed came back in whatever order the query returned them.
+        return {key: orm_assets[key] for key in self.assets if key in orm_assets}
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
@@ -947,14 +947,27 @@ class AssetModelOperation(NamedTuple):
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
-        # Of two assets sharing a name or a uri only the one offered first is activated. Choosing
-        # that here rather than leaving it to the insert means the rows can then be sorted, which
-        # they must be: ``asset_active`` is unique on both columns, so two writers inserting them
-        # in opposite orders deadlock on the index.
-        claimed_names: set[str] = set()
-        claimed_uris: set[str] = set()
+        candidates = list(models)
+        if not candidates:
+            return
+        # Of two assets sharing a name or a uri only one can be active, and deciding which here
+        # rather than leaving it to the insert is what lets the rows be sorted -- ``asset_active``
+        # is unique on both columns, so two writers inserting in opposite orders deadlock on the
+        # index. The claim starts from what is already active, the way the scheduler's
+        # ``_activate_referenced_assets`` does: a candidate the insert would reject anyway must not
+        # take a name or uri from one that would have gone in.
+        active = session.execute(
+            select(AssetActive.name, AssetActive.uri).where(
+                or_(
+                    AssetActive.name.in_({model.name for model in candidates}),
+                    AssetActive.uri.in_({model.uri for model in candidates}),
+                )
+            )
+        ).all()
+        claimed_names = {name for name, _ in active}
+        claimed_uris = {uri for _, uri in active}
         values = []
-        for model in models:
+        for model in candidates:
             if model.name in claimed_names or model.uri in claimed_uris:
                 continue
             claimed_names.add(model.name)
