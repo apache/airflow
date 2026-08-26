@@ -72,6 +72,12 @@ describe("validateReleaseInputs", () => {
     );
   });
 
+  it("rejects a next-channel prerelease without duplicating the next dist-tag", () => {
+    expect(() =>
+      validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-next1", npmTag: "beta" }),
+    ).toThrow("Prerelease 1.0.0-next1 must use the next npm dist-tag");
+  });
+
   it("rejects malformed npm tags", () => {
     for (const npmTag of ["", "1.0.0", "Beta", "bad tag", "-beta"]) {
       expect(() => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag })).toThrow(

@@ -109,7 +109,8 @@ export function validateReleaseInputs({ releaseTag, npmTag, currentDistTagVersio
   if (parsedVersion.prerelease.length > 0) {
     const channel = getPrereleaseChannel(parsedVersion.prerelease);
     if (npmTag !== "next" && npmTag !== channel) {
-      const allowedTags = channel === undefined ? "next" : `${channel} or next`;
+      const allowedTags =
+        channel === undefined || channel === "next" ? "next" : `${channel} or next`;
       throw new Error(`Prerelease ${version} must use the ${allowedTags} npm dist-tag`);
     }
   }
