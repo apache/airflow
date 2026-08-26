@@ -5830,7 +5830,7 @@ dependencies = [
     { name = "google-cloud-workflows" },
     { name = "google-genai" },
     { name = "grpcio-gcp" },
-    { name = "httpx" },
+    { name = "httpx2" },
     { name = "immutabledict" },
     { name = "looker-sdk" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -6025,7 +6025,7 @@ requires-dist = [
     { name = "google-cloud-workflows", specifier = ">=1.10.0" },
     { name = "google-genai", specifier = ">=2.8.0" },
     { name = "grpcio-gcp", specifier = ">=0.2.2" },
-    { name = "httpx", specifier = ">=0.25.0" },
+    { name = "httpx2", specifier = ">=2.0.0" },
     { name = "immutabledict", specifier = ">=4.2.0" },
     { name = "looker-sdk", specifier = ">=22.4.0,!=24.18.0" },
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
@@ -7360,7 +7360,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "pagerduty", specifier = ">=2.3.0" },
+    { name = "pagerduty", specifier = ">=7.0.0" },
 ]
 
 [package.metadata.requires-dev]
