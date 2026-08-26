@@ -2160,6 +2160,7 @@ export type XComResponse = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2176,6 +2177,7 @@ export type XComResponseNative = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: unknown;
 };
 
@@ -2193,6 +2195,7 @@ export type XComResponseString = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: string | null;
 };
 
@@ -4512,6 +4515,7 @@ export type GetXcomEntriesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     xcomKey?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".

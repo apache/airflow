@@ -8682,6 +8682,17 @@ export const $XComResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Run After'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -8741,6 +8752,17 @@ export const $XComResponseNative = {
             type: 'string',
             format: 'date-time',
             title: 'Run After'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         },
         value: {
             title: 'Value'
@@ -8803,6 +8825,17 @@ export const $XComResponseString = {
             type: 'string',
             format: 'date-time',
             title: 'Run After'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         },
         value: {
             anyOf: [
