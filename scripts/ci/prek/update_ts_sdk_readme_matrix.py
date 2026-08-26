@@ -52,6 +52,8 @@ SCHEMA_VERSION_PATTERN = re.compile(r'^export const SUPERVISOR_API_VERSION = "(?
 
 def read_ts_schema_version() -> str | None:
     """Read ``SUPERVISOR_API_VERSION`` from the generated TypeScript runtime source."""
+    if not TS_SUPERVISOR.exists():
+        return None
     for line in TS_SUPERVISOR.read_text().splitlines():
         if match := SCHEMA_VERSION_PATTERN.fullmatch(line):
             return match["version"]
@@ -62,12 +64,21 @@ def check_schema_version(doc: CapabilitiesDoc) -> bool:
     """Whether the manifest agrees with the generated TypeScript supervisor schema version.
 
     Unlike the Java sibling hook (which treats an unreadable gradle property as an implicit pass),
-    a ``None`` read here — the generated source is missing or its format no longer matches
-    ``SCHEMA_VERSION_PATTERN`` — is deliberately treated as a mismatch: silently skipping the check
-    would let capabilities.yaml drift from the runtime undetected.
+    an unreadable constant here is deliberately treated as a failure: silently skipping the check
+    would let capabilities.yaml drift from the runtime undetected. It is reported separately from a
+    genuine mismatch because editing capabilities.yaml cannot fix a missing constant.
     """
     ts_version = read_ts_schema_version()
     declared = doc["supervisor_schema_version"]
+    if ts_version is None:
+        console.print(
+            "[red]Could not read SUPERVISOR_API_VERSION from ts-sdk/src/generated/supervisor.ts: "
+            "the file is missing, or the generated declaration no longer matches this hook's "
+            "pattern. Regenerate it with 'pnpm run generate:supervisor' in ts-sdk/ (or update "
+            "SCHEMA_VERSION_PATTERN if scripts/generate-supervisor.mjs changed its output). "
+            "Editing ts-sdk/capabilities.yaml cannot fix this.[/]"
+        )
+        return False
     if ts_version == declared:
         return True
     console.print(
