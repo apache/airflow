@@ -26,6 +26,12 @@ class AddXComBatchMessages(VersionChange):
     """
     Add the ``GetXComBatch``/``XComBatchResult`` message pair to the task-execution channel.
 
+    Also wired into the Dag-processing channel (``ToManager``/``ToDagProcessor`` in
+    ``airflow.dag_processing.processor``), the same way the DAG File Processor already
+    forwards ``GetXCom``/``GetXComCount``/``GetXComSequenceItem``/``GetXComSequenceSlice``.
+    Not wired into the Triggerer channel -- deferred triggers never resolve ``expand()``
+    kwargs.
+
     A wholly new discriminated-union member, not a field change on an existing one, so
     there is nothing for older schema consumers to migrate away from -- the head shape
     already is the schema for this body (see schema/AGENTS.md). This entry exists only

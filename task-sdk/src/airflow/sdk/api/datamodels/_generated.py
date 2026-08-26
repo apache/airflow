@@ -540,7 +540,7 @@ class XComBatchRequestBody(BaseModel):
     Body for a batch XCom lookup, scoped to a single dag_id/run_id.
     """
 
-    items: Annotated[list[XComBatchItemRequest], Field(title="Items")]
+    items: Annotated[list[XComBatchItemRequest], Field(max_length=1000, title="Items")]
 
 
 class XComBatchResponse(BaseModel):

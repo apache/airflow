@@ -68,7 +68,13 @@ from airflow.dag_processing.processor import (
 from airflow.models import DagRun
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
+from airflow.sdk.api.datamodels._generated import (
+    ConnectionResponse,
+    DagRunState,
+    VariableResponse,
+    XComBatchItemResponse,
+    XComBatchResponse,
+)
 from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
@@ -76,6 +82,8 @@ from airflow.sdk.execution_time.comms import (
     GetTICount,
     GetVariable,
     GetXCom,
+    GetXComBatch,
+    GetXComBatchItem,
     GetXComSequenceSlice,
     TaskStatesResult,
     TICount,
@@ -2426,6 +2434,47 @@ class TestDagFileProcessorProcess:
             "key": "test_key",
             "value": "super-secret-value",
             "type": "VariableResult",
+        }
+
+    def test_handle_request_get_xcom_batch(self, proc):
+        proc.client.xcoms.get_batch.return_value = XComBatchResponse(
+            items=[
+                XComBatchItemResponse(
+                    task_id="test_task", key="return_value", map_index=-1, found=True, value="test_value"
+                )
+            ]
+        )
+
+        with patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg:
+            proc._handle_request(
+                GetXComBatch(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    items=[GetXComBatchItem(task_id="test_task", key="return_value")],
+                ),
+                structlog.get_logger(),
+                req_id=789,
+            )
+
+        proc.client.xcoms.get_batch.assert_called_once()
+
+        mock_send_msg.assert_called_once()
+        _, args, kwargs = mock_send_msg.mock_calls[0]
+        assert args[0] is proc
+        msg = args[1]
+        assert kwargs["request_id"] == 789
+        assert kwargs["error"] is None
+        assert msg.model_dump() == {
+            "items": [
+                {
+                    "task_id": "test_task",
+                    "key": "return_value",
+                    "map_index": -1,
+                    "found": True,
+                    "value": "test_value",
+                }
+            ],
+            "type": "XComBatchResult",
         }
 
 
