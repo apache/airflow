@@ -283,6 +283,11 @@ class BaseDatabricksHook(BaseHook):
         # In this case, host = xx.cloud.databricks.com
         return host
 
+    async def _a_get_connection_attr(self, attr_name: str):
+        if not (attr := getattr(await self.adatabricks_conn(), attr_name)):
+            raise AirflowException(f"{attr_name} shouldn't be empty")
+        return attr
+
     def _get_connection_attr(self, attr_name: str) -> str:
         if not (attr := getattr(self.databricks_conn, attr_name)):
             raise ValueError(f"`{attr_name}` must be present in Connection")
@@ -398,7 +403,7 @@ class BaseDatabricksHook(BaseHook):
                     async with self._session.post(
                         resource,
                         auth=aiohttp.BasicAuth(
-                            self._get_connection_attr("login"), (await self.adatabricks_conn()).password
+                            await self._a_get_connection_attr("login"), (await self.adatabricks_conn()).password
                         ),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
@@ -515,7 +520,7 @@ class BaseDatabricksHook(BaseHook):
                             token = await credential.get_token(f"{resource}/.default")
                     else:
                         async with AsyncClientSecretCredential(
-                            client_id=self._get_connection_attr("login"),
+                            client_id=await self._a_get_connection_attr("login"),
                             client_secret=(await self.adatabricks_conn()).password,
                             tenant_id=(await self.adatabricks_conn()).extra_dejson["azure_tenant_id"],
                             **self._get_azure_credential_kwargs(),
@@ -930,6 +935,12 @@ class BaseDatabricksHook(BaseHook):
             )
         raise RuntimeError("Failed to get JWT token")
 
+    async def _a_get_required_client_id(self) -> str:
+        client_id = (await self.adatabricks_conn()).extra_dejson.get("client_id")
+        if not client_id:
+            raise AirflowException("`client_id` is required for Kubernetes OIDC token federation")
+        return client_id
+
     def _get_required_client_id(self) -> str:
         """
         Get and validate client_id for Kubernetes OIDC token federation.
@@ -992,12 +1003,17 @@ class BaseDatabricksHook(BaseHook):
             loop = asyncio.get_running_loop()
             subject_token = await loop.run_in_executor(None, self._resolve_supplied_subject_token, provider)
             return subject_token, (await self.adatabricks_conn()).extra_dejson.get("client_id")
-        if self._is_aws_federation():
+        if await self._a_is_aws_federation():
             loop = asyncio.get_running_loop()
             subject_token = await loop.run_in_executor(None, self._get_aws_subject_token)
             return subject_token, (await self.adatabricks_conn()).extra_dejson.get("client_id")
-        client_id = self._get_required_client_id()
+        client_id = await self._a_get_required_client_id()
         return await self._a_get_k8s_jwt_token(), client_id
+
+    async def _a_is_aws_federation(self) -> bool:
+        return (await self.adatabricks_conn()).login == "federated_aws" or (await self.adatabricks_conn()).extra_dejson.get(
+            "federated_aws", False
+        )
 
     def _is_aws_federation(self) -> bool:
         """Return whether the connection is configured for AWS IAM OIDC token federation."""
@@ -1302,7 +1318,7 @@ class BaseDatabricksHook(BaseHook):
         if (await self.adatabricks_conn()).extra_dejson.get("federated_token_provider"):
             self.log.debug("Using OIDC token federation with a supplied token provider.")
             return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
-        if self._is_aws_federation():
+        if await self._a_is_aws_federation():
             self.log.debug("Using AWS IAM OIDC token federation.")
             return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
         if (await self.adatabricks_conn()).login == "federated_k8s" or (await self.adatabricks_conn()).extra_dejson.get(
@@ -1432,7 +1448,7 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = aiohttp.BasicAuth(self._get_connection_attr("login"), (await self.adatabricks_conn()).password)
+            auth = aiohttp.BasicAuth(await self._a_get_connection_attr("login"), (await self.adatabricks_conn()).password)
 
         request_func: Any
         if method == "GET":
