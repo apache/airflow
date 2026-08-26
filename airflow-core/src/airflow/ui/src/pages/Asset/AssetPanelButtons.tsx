@@ -23,7 +23,7 @@ import { MdSettings } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
-import { IconButton } from "src/components/ui";
+import { IconButton, Tooltip } from "src/components/ui";
 
 type Props = {
   readonly dependencyType: "data" | "scheduling";
@@ -35,9 +35,9 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
   const { assetId } = useParams();
 
   return (
-    <Box borderRadius="md" position="absolute" px={2} py={1} right={2} top={1} zIndex={1}>
+    <Box left={0} p={2} position="absolute" right={0} top={0} zIndex={1}>
       <Flex justifyContent="space-between">
-        <ButtonGroup attached variant="outline">
+        <ButtonGroup attached size="sm" variant="outline">
           <Button
             bg={dependencyType === "scheduling" ? "brand.500" : "bg.subtle"}
             color={dependencyType === "scheduling" ? "white" : "fg.default"}
@@ -54,15 +54,21 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
           </Button>
         </ButtonGroup>
         <Popover.Root positioning={{ placement: "bottom-end" }}>
-          <Popover.Trigger asChild>
-            <IconButton label={translate("dag:panel.buttons.options")}>
-              <MdSettings />
-            </IconButton>
-          </Popover.Trigger>
+          {/* Tooltip and popover each need their own element: both triggers set an `id` on whatever
+                they wrap, and zag resolves a trigger by id, so sharing one element leaves the loser
+                unable to find its anchor and positioning at the viewport origin. */}
+          <Tooltip content={translate("dag:panel.buttons.options")} portalled>
+            <Box display="flex">
+              <Popover.Trigger asChild>
+                <IconButton aria-label={translate("dag:panel.buttons.options")} bg="bg" variant="outline">
+                  <MdSettings />
+                </IconButton>
+              </Popover.Trigger>
+            </Box>
+          </Tooltip>
           <Portal>
             <Popover.Positioner>
               <Popover.Content>
-                <Popover.Arrow />
                 <Popover.Body
                   display="flex"
                   flexDirection="column"
