@@ -28,7 +28,7 @@ type LogoutModalProps = {
 };
 
 const LogoutModal = ({ isOpen, onClose }: LogoutModalProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <ConfirmationModal

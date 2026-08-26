@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { TbLogicAnd } from "react-icons/tb";
 
 export const AndGateNode = ({ children }: PropsWithChildren) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Box

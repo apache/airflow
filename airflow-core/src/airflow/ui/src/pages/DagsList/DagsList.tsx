@@ -309,7 +309,7 @@ export const DagsList = () => {
     pendingHitl = false;
   }
 
-  const { data, error, isLoading } = useDags({
+  const { data, error, isFetching, isLoading } = useDags({
     advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
@@ -377,6 +377,7 @@ export const DagsList = () => {
           }
           headingExtra={<DagImportErrors iconOnly />}
           initialState={tableURLState}
+          isFetching={isFetching}
           isLoading={isLoading}
           modelName="common:dag"
           onDisplayToggleChange={setDisplay}
