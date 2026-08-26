@@ -485,15 +485,11 @@ class TestAssetModelOperation:
             ),
         ],
     )
-    def test_a_candidate_the_insert_would_reject_does_not_take_the_claim(
-        self, blocker, batch, expected, session
-    ):
+    def test_the_database_activates_the_candidate_that_fits(self, blocker, batch, expected, session):
         """
-        The claim has to start from what is already active, not from the batch alone.
-
         The first candidate cannot be activated whatever happens -- the blocker holds one of its
-        two columns. Were it to claim the other anyway, the candidate behind it would be passed
-        over and the insert would then drop the claimer too, leaving neither active.
+        two columns -- and the one behind it can. Deciding that in Python instead got it wrong
+        twice, so this pins the outcome rather than the mechanism.
         """
         held = AssetModelOperation.collect(self._build_dags_scheduled_on([blocker]))
         orm_held = held.sync_assets(session=session)
