@@ -26,6 +26,10 @@ on:  # yamllint disable-line rule:truthy
       - 'providers/*/provider.yaml'
       - 'providers/*/*/provider.yaml'
       - '.github/workflows/registry-tests.yml'
+      # test_derive_wave_providers.py pins NON_PROVIDER_TOKENS to the copies in
+      # these two files, so a PR touching only them still has to run the guard.
+      - '.github/workflows/publish-docs-to-s3.yml'
+      - 'dev/breeze/src/airflow_breeze/global_constants.py'
   push:
     branches: [main]
     paths:
