@@ -284,7 +284,11 @@ class TestBuildBudget:
 def _make_bad_request(message="cannot be archived while its status is running") -> BadRequestError:
     """A real SDK BadRequestError -- archive_session only interrupts on this, not on any error."""
     request = httpx.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
-    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)
+    # anthropic>=1.0.0 types `response` as httpx2.Response, but BadRequestError only ever
+    # duck-types the response (status_code, headers.get, request), so a plain httpx.Response
+    # works at runtime against anthropic>=0.121.0 too -- the SDK's still-supported lower bound,
+    # which depends on httpx, not httpx2.
+    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)  # type: ignore[arg-type]
 
 
 class TestArchiveSession:
