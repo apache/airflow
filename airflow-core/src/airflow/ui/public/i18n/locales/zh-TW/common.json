@@ -189,6 +189,8 @@
     "write": "撰寫"
   },
   "overallStatus": "整體狀態",
+  "partition_one": "資源分區",
+  "partition_other": "資源分區",
   "partitionedDagRun_one": "分區的 Dag 執行",
   "partitionedDagRun_other": "分區的 Dag 執行",
   "partitionedDagRunDetail": {

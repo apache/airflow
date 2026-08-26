@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,4 +17,17 @@
  * under the License.
  */
 
-export { default } from "./ClearTaskInstanceButton";
+// Route the plugin lookup to the SDK build published to the local Maven
+// repository by conftest._setup_java_sdk_integration.
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+}
+
+rootProject.name = "airflow-e2e-java-test-bundle"

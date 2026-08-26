@@ -87,6 +87,8 @@ export const useDags = ({
     },
     undefined,
     {
+      // Filter changes swap the query key, which would otherwise drop the list to skeletons
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         refetchInterval === false
           ? false

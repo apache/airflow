@@ -18,12 +18,26 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { delay, http, HttpResponse } from "msw";
+import { setupServer, type SetupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
+import { handlers } from "src/mocks/handlers";
 import { AppWrapper } from "src/utils/AppWrapper";
 
-afterEach(() => localStorage.clear());
+let server: SetupServer;
+
+beforeAll(() => {
+  server = setupServer(...handlers);
+  server.listen({ onUnhandledRequest: "bypass" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+  localStorage.clear();
+});
+afterAll(() => server.close());
 
 describe("Dag Filters", () => {
   it("Filter by selected run state, matching the latest run by default", async () => {
@@ -65,6 +79,32 @@ describe("Dag Filters", () => {
     const pill = await screen.findByTestId("run_state-pill");
 
     expect(pill).toHaveTextContent("filters.runState");
+  });
+
+  it("keeps the listed Dags on screen while a newly added filter is still loading", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+
+    server.use(
+      http.get("/ui/dags", async () => {
+        await delay("infinite");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-run_state"));
+    await waitFor(() => screen.getByTestId("run_state-filter-success").click());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("run_state-pill")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeVisible();
+    });
+
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
   });
 });
 

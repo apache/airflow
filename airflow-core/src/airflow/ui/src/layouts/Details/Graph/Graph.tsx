@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Spinner, useToken } from "@chakra-ui/react";
-import { ReactFlow, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
+import { Background, MiniMap, ReactFlow, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -25,7 +25,6 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
 import type { Direction } from "src/components/Graph/DirectionDropdown";
-import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import { getGatePathEdgeIdsForSelection, type CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
@@ -211,7 +210,7 @@ export const Graph = () => {
             fitView prop, which re-fires on every re-mount even when nodes are
             served from the React Query cache. */}
         <FitViewOnLayout layoutData={data} />
-        <GraphControls selectedNodeId={selectedNodeId} />
+        <GraphControls dagId={dagId} selectedNodeId={selectedNodeId} />
         {/* Hide the MiniMap for large graphs — it processes all nodes even when
             onlyRenderVisibleElements is set, adding meaningful paint cost with
             little benefit at 500+ nodes where the map is a near-solid blob. */}
@@ -233,7 +232,6 @@ export const Graph = () => {
             zoomable
           />
         ) : undefined}
-        <DownloadButton name={dagId} />
       </ReactFlow>
     </Box>
   );

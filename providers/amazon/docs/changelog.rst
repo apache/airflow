@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+9.35.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use the operator's AWS settings for deferred SageMaker tasks (#71857)``
+* ``Use the configured region for deferred Neptune cluster tasks (#71646)``
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.35.0
 ......
 
