@@ -634,7 +634,7 @@ class TestPostgresHookConnPPG3:
 
 
 class TestPostgresHookSqlalchemyScheme:
-    """Tests for overriding the SQLAlchemy drivername via the sqlalchemy_scheme extra/parameter."""
+    """Tests for overriding the SQLAlchemy ``drivername`` via the sqlalchemy_scheme extra/parameter."""
 
     @staticmethod
     def get_hook(extra: dict | None = None, **hook_kwargs) -> PostgresHook:

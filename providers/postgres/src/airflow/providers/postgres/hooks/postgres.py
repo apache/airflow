@@ -135,7 +135,7 @@ class PostgresHook(DbApiHook):
     :param options: Optional. Specifies command-line options to send to the server
         at connection start. For example, setting this to ``-c search_path=myschema``
         sets the session's value of the ``search_path`` to ``myschema``.
-    :param sqlalchemy_scheme: Optional. The SQLAlchemy drivername used for the URLs the hook
+    :param sqlalchemy_scheme: Optional. The SQLAlchemy ``drivername`` used for the URLs the hook
         builds (``get_uri``, ``get_sqlalchemy_engine``), e.g. ``postgresql+psycopg2``. Must be
         ``postgresql`` or ``postgresql+<driver>``. Defaults to ``postgresql+psycopg`` when
         psycopg (v3) serves SQLAlchemy 2.x and to ``postgresql`` otherwise. Can also be set via
@@ -189,7 +189,7 @@ class PostgresHook(DbApiHook):
 
     @property
     def sqlalchemy_scheme(self) -> str:
-        """SQLAlchemy drivername used for the URLs built by this hook."""
+        """SQLAlchemy ``drivername`` used for the URLs built by this hook."""
         scheme = self._sqlalchemy_scheme or self.connection.extra_dejson.get("sqlalchemy_scheme")
         if not scheme:
             return "postgresql+psycopg" if USE_PSYCOPG3 else "postgresql"
