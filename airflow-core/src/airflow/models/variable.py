@@ -459,7 +459,7 @@ class Variable(Base, LoggingMixin):
         return None
 
     @staticmethod
-    def get_variable_from_secrets(key: str, team_name: str | None = None) -> str | None:
+    def get_variable_from_secrets(key: str, team_name: str | None = None, *, session: Session | None = None) -> str | None:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
@@ -480,8 +480,12 @@ class Variable(Base, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
+                kwargs = {"team_name": team_name, "key": key}
+                if type(secrets_backend).__name__ == "MetastoreBackend" and session is not None:
+                    kwargs["session"] = session
+
                 var_val = call_secrets_backend_method(
-                    secrets_backend.get_variable, team_name=team_name, key=key
+                    secrets_backend.get_variable, **kwargs
                 )
                 if var_val is not None:
                     break
