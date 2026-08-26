@@ -350,8 +350,11 @@ gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta
 ```
 
 Use `latest` for stable releases and a non-`latest` tag such as `alpha`,
-`beta`, or `rc` for prereleases. The workflow rejects a release that would move
-the selected npm dist-tag backward. Both publication paths use short-lived npm
-OIDC credentials and automatically publish provenance. After verifying the
-trusted-publisher setup, disable token-based publishing and revoke obsolete npm
-automation tokens.
+`beta`, or `rc` for prereleases. The workflow rejects a dispatch that would
+move the selected npm dist-tag backward as of when it runs. For a staged
+release, the dist-tag only actually moves later, at `npm stage approve` time,
+which is not re-validated — approve staged versions in the order they were
+requested so the dist-tag does not regress. Both publication paths use
+short-lived npm OIDC credentials and automatically publish provenance. After
+verifying the trusted-publisher setup, disable token-based publishing and
+revoke obsolete npm automation tokens.

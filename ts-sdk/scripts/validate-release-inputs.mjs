@@ -19,11 +19,13 @@
  */
 
 import console from "node:console";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
+import { URL, pathToFileURL } from "node:url";
 
-const PACKAGE_NAME = "apache-airflow-ts-sdk";
+const PACKAGE_NAME = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).name;
 const SEMVER_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?$/;
 const NPM_TAG_PATTERN = /^[a-z][a-z0-9._-]*$/;
@@ -88,7 +90,7 @@ function compareVersions(left, right) {
 }
 
 function getPrereleaseChannel(prerelease) {
-  return prerelease[0]?.match(/^[A-Za-z-]+/)?.[0].toLowerCase();
+  return prerelease[0]?.match(/^[A-Za-z]+/)?.[0].toLowerCase();
 }
 
 export function validateReleaseInputs({ releaseTag, npmTag, currentDistTagVersion = "" }) {
@@ -107,9 +109,8 @@ export function validateReleaseInputs({ releaseTag, npmTag, currentDistTagVersio
   if (parsedVersion.prerelease.length > 0) {
     const channel = getPrereleaseChannel(parsedVersion.prerelease);
     if (npmTag !== "next" && npmTag !== channel) {
-      throw new Error(
-        `Prerelease ${version} must use the ${channel ?? "next"} or next npm dist-tag`,
-      );
+      const allowedTags = channel === undefined ? "next" : `${channel} or next`;
+      throw new Error(`Prerelease ${version} must use the ${allowedTags} npm dist-tag`);
     }
   }
 

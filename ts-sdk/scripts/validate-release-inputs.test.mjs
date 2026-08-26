@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,78 +24,77 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { validateReleaseInputs } from "./validate-release-inputs.mjs";
 
 describe("validateReleaseInputs", () => {
   it("accepts stable and prerelease channels", () => {
-    assert.deepEqual(validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0", npmTag: "latest" }), {
+    expect(validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0", npmTag: "latest" })).toEqual({
       version: "1.0.0",
       packageFile: "apache-airflow-ts-sdk-1.0.0.tgz",
     });
-    assert.equal(
+    expect(
       validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag: "beta" }).version,
-      "1.0.0-beta1",
-    );
-    assert.equal(
+    ).toBe("1.0.0-beta1");
+    expect(
       validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta.2", npmTag: "next" }).version,
-      "1.0.0-beta.2",
+    ).toBe("1.0.0-beta.2");
+    expect(validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-rc-1", npmTag: "rc" }).version).toBe(
+      "1.0.0-rc-1",
     );
   });
 
   it("rejects invalid versions", () => {
     for (const releaseTag of ["1.0.0", "ts-sdk/01.0.0", "ts-sdk/1.0.0-01", "ts-sdk/1.0"]) {
-      assert.throws(
-        () => validateReleaseInputs({ releaseTag, npmTag: "latest" }),
+      expect(() => validateReleaseInputs({ releaseTag, npmTag: "latest" })).toThrow(
         /Release tag|not valid SemVer/,
       );
     }
   });
 
   it("rejects mismatched npm tags", () => {
-    assert.throws(
-      () => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0", npmTag: "beta" }),
+    expect(() => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0", npmTag: "beta" })).toThrow(
       /Stable releases must use the latest/,
     );
-    assert.throws(
-      () => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag: "latest" }),
-      /must use the beta or next/,
-    );
-    assert.throws(
-      () => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag: "alpha" }),
-      /must use the beta or next/,
+    expect(() =>
+      validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag: "latest" }),
+    ).toThrow(/must use the beta or next/);
+    expect(() =>
+      validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag: "alpha" }),
+    ).toThrow(/must use the beta or next/);
+  });
+
+  it("rejects a numeric-only prerelease identifier without duplicating the next dist-tag", () => {
+    expect(() => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-0", npmTag: "beta" })).toThrow(
+      "Prerelease 1.0.0-0 must use the next npm dist-tag",
     );
   });
 
   it("rejects malformed npm tags", () => {
     for (const npmTag of ["", "1.0.0", "Beta", "bad tag", "-beta"]) {
-      assert.throws(
-        () => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag }),
+      expect(() => validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0-beta1", npmTag })).toThrow(
         /npm tag|must use/,
       );
     }
   });
 
   it("requires a release to advance the selected dist-tag", () => {
-    assert.equal(
+    expect(
       validateReleaseInputs({
         releaseTag: "ts-sdk/1.0.0-beta.2",
         npmTag: "beta",
         currentDistTagVersion: "1.0.0-beta.1",
       }).version,
-      "1.0.0-beta.2",
-    );
+    ).toBe("1.0.0-beta.2");
     for (const releaseTag of ["ts-sdk/1.0.0-beta.1", "ts-sdk/1.0.0-beta.0"]) {
-      assert.throws(
-        () =>
-          validateReleaseInputs({
-            releaseTag,
-            npmTag: "beta",
-            currentDistTagVersion: "1.0.0-beta.1",
-          }),
-        /must be newer/,
-      );
+      expect(() =>
+        validateReleaseInputs({
+          releaseTag,
+          npmTag: "beta",
+          currentDistTagVersion: "1.0.0-beta.1",
+        }),
+      ).toThrow(/must be newer/);
     }
   });
 
@@ -117,9 +115,8 @@ describe("validateReleaseInputs", () => {
           },
         },
       );
-      assert.equal(result.status, 0, result.stderr);
-      assert.equal(
-        readFileSync(outputFile, "utf8"),
+      expect(result.status, result.stderr).toBe(0);
+      expect(readFileSync(outputFile, "utf8")).toBe(
         "version=1.0.0-beta1\npackage_file=apache-airflow-ts-sdk-1.0.0-beta1.tgz\n",
       );
     } finally {
