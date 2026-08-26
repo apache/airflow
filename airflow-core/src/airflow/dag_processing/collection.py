@@ -32,7 +32,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -937,9 +937,6 @@ class AssetModelOperation(NamedTuple):
         there's a conflict. The scheduler makes a more comprehensive pass
         through all assets in ``_update_asset_orphanage``.
         """
-        candidates = list(models)
-        if not candidates:
-            return
         if (dialect_name := get_dialect_name(session)) == "postgresql":
             from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
@@ -954,28 +951,11 @@ class AssetModelOperation(NamedTuple):
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
-        # ``asset_active`` is unique on name and on uri separately, so choosing the winner here
-        # rather than leaving it to the insert is what lets these rows be sorted. The read is a
-        # snapshot; a row deactivated meanwhile is missed until the next orphanage pass.
-        active = session.execute(
-            select(AssetActive.name, AssetActive.uri).where(
-                or_(
-                    AssetActive.name.in_({model.name for model in candidates}),
-                    AssetActive.uri.in_({model.uri for model in candidates}),
-                )
-            )
-        ).all()
-        claimed_names = {name for name, _ in active}
-        claimed_uris = {uri for _, uri in active}
-        values = []
-        for model in candidates:
-            if model.name in claimed_names or model.uri in claimed_uris:
-                continue
-            claimed_names.add(model.name)
-            claimed_uris.add(model.uri)
-            values.append({"name": model.name, "uri": model.uri})
-        if values:
-            session.execute(stmt, sorted(values, key=itemgetter("name", "uri")))
+        # Left to the insert: ``asset_active`` is unique on name and on uri separately, and no
+        # single order can be consistent for both, so choosing a winner here would only narrow
+        # what the database already arbitrates.
+        if values := [{"name": model.name, "uri": model.uri} for model in models]:
+            session.execute(stmt, values)
 
     def add_dag_asset_references(
         self,

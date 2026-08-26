@@ -468,44 +468,6 @@ class TestAssetModelOperation:
     def _read_active_assets(session) -> list[tuple[str, str]]:
         return sorted((a.name, a.uri) for a in session.scalars(select(AssetActive)))
 
-    def test_activation_rows_are_inserted_in_a_stable_order(self, session):
-        """``asset_active`` is unique on both its columns, so its insert needs one order too."""
-        op = AssetModelOperation.collect(
-            self._build_dags_scheduled_on([Asset("c_asset"), Asset("a_asset"), Asset("b_asset")])
-        )
-        orm_assets = op.sync_assets(session=session)
-        session.flush()
-
-        with mock.patch.object(session, "execute", autospec=True) as execute:
-            op.activate_assets_if_possible(orm_assets.values(), session=session)
-
-        assert [value["name"] for value in execute.call_args.args[1]] == [
-            "a_asset",
-            "b_asset",
-            "c_asset",
-        ]
-
-    def test_activating_assets_costs_one_read_and_one_insert(self, session):
-        """Deciding the claim needs what is already active; nothing else here may add a round trip."""
-        op = AssetModelOperation.collect(self._build_dags_scheduled_on([Asset("a_asset"), Asset("b_asset")]))
-        orm_assets = op.sync_assets(session=session)
-        session.flush()
-
-        statements: list[str] = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            statements.append(statement.split()[0].upper())
-
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            op.activate_assets_if_possible(orm_assets.values(), session=session)
-            session.flush()
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
-
-        assert statements == ["SELECT", "INSERT"], statements
-
     @pytest.mark.parametrize(
         ("blocker", "batch", "expected"),
         [
