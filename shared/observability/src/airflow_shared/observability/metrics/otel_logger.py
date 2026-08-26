@@ -504,6 +504,11 @@ def _stop_inherited_pipeline(provider: MeterProvider) -> None:
     The SDK's own ``after_in_child`` hook revives each reader's export thread, and the revived
     ticker does one final collect on its way out, so telling a reader to stop is not enough by
     itself: its collect callback has to stop producing the parent's measurements too.
+
+    Temporality does not change the need for this. Under cumulative the inherited readers
+    republish the parent's totals on every export; under delta they fall quiet, but their first
+    collect still emits the deltas the parent recorded before the fork -- which the parent
+    reports as well.
     """
     readers = _find_own_readers(provider)
     if readers is None:
