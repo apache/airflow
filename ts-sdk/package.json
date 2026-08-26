@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.28.1",
   "description": "TypeScript Task SDK for Apache Airflow task handlers",
   "license": "Apache-2.0",
+  "author": "Apache Software Foundation",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
