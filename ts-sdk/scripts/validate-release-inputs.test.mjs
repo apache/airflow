@@ -32,6 +32,7 @@ describe("validateReleaseInputs", () => {
   it("accepts stable and prerelease channels", () => {
     expect(validateReleaseInputs({ releaseTag: "ts-sdk/1.0.0", npmTag: "latest" })).toEqual({
       version: "1.0.0",
+      packageName: "apache-airflow-ts-sdk",
       packageFile: "apache-airflow-ts-sdk-1.0.0.tgz",
     });
     expect(
@@ -117,7 +118,8 @@ describe("validateReleaseInputs", () => {
       );
       expect(result.status, result.stderr).toBe(0);
       expect(readFileSync(outputFile, "utf8")).toBe(
-        "version=1.0.0-beta1\npackage_file=apache-airflow-ts-sdk-1.0.0-beta1.tgz\n",
+        "version=1.0.0-beta1\npackage_name=apache-airflow-ts-sdk\n" +
+          "package_file=apache-airflow-ts-sdk-1.0.0-beta1.tgz\n",
       );
     } finally {
       rmSync(tempDirectory, { force: true, recursive: true });

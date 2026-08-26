@@ -84,16 +84,25 @@ jobs:
           test "${DISPATCH_SHA}" = "$(git rev-parse HEAD)"
           test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
           git merge-base --is-ancestor HEAD "$(git rev-parse refs/remotes/origin/main)"
+      - name: Verify package identity
+        working-directory: ts-sdk
+        env:
+          EXPECTED_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(node --print "require('./package.json').name")" = "apache-airflow-ts-sdk"
+          test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
       - name: Confirm release advances the npm dist-tag
         working-directory: ts-sdk
         env:
           NPM_TAG: ${{ inputs.npm_tag }}
+          PACKAGE_NAME: ${{ steps.release.outputs.package_name }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           error_file="${RUNNER_TEMP}/npm-view-error.log"
           set +e
-          current_version="$(npm view apache-airflow-ts-sdk "dist-tags.${NPM_TAG}" 2>"${error_file}")"
+          current_version="$(npm view "${PACKAGE_NAME}" "dist-tags.${NPM_TAG}" 2>"${error_file}")"
           view_status=$?
           set -e
           if [[ ${view_status} -ne 0 ]]; then
@@ -105,14 +114,6 @@ jobs:
             fi
           fi
           CURRENT_DIST_TAG_VERSION="${current_version}" node scripts/validate-release-inputs.mjs
-      - name: Verify package identity
-        working-directory: ts-sdk
-        env:
-          EXPECTED_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          set -euo pipefail
-          test "$(node --print "require('./package.json').name")" = "apache-airflow-ts-sdk"
-          test "$(node --print "require('./package.json').version")" = "${EXPECTED_VERSION}"
       - name: Install and test package
         working-directory: ts-sdk
         run: |
