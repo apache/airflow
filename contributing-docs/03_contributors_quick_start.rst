@@ -414,9 +414,10 @@ see in CI in your local environment.
    ``uv`` is the recommended general-purpose Python development environment for Airflow.
 
 2. Run ``./scripts/tools/setup_breeze`` in your checked-out repository. This installs a small shim
-   at ``~/.local/bin/breeze`` that runs Breeze via ``uvx`` from the current git worktree's
-   ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding agents) gets
-   its own Breeze tied to that worktree's sources. See
+   at ``~/.local/bin/breeze`` that runs Breeze via ``uv run --locked`` from the current git
+   worktree's ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding
+   agents) gets its own Breeze, tied to that worktree's sources and to the dependency versions
+   pinned in ``dev/breeze/uv.lock``. See
    `ADR 0017 <../dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md>`_ for the
    rationale.
 
