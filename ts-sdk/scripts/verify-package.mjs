@@ -28,6 +28,9 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 
 const requiredRootFiles = ["LICENSE", "NOTICE", "README.md", "package.json"];
 
+// The Dag-authoring entrypoints a consumer must be able to reach from the package root.
+const REQUIRED_ROOT_EXPORTS = ["Dag", "DagRegistry", "serveDags"];
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     encoding: "utf8",
@@ -120,7 +123,14 @@ try {
     [
       "--input-type=module",
       "--eval",
-      `const sdk = await import(${JSON.stringify(packageJson.name)}); if (typeof sdk.registerTask !== "function") process.exit(1);`,
+      [
+        `const sdk = await import(${JSON.stringify(packageJson.name)});`,
+        `for (const name of ${JSON.stringify(REQUIRED_ROOT_EXPORTS)}) {`,
+        '  if (typeof sdk[name] !== "function") {',
+        "    throw new Error(`the root export does not expose ${name}`);",
+        "  }",
+        "}",
+      ].join("\n"),
     ],
     { cwd: consumerDirectory },
   );
