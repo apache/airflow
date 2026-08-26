@@ -58,6 +58,10 @@ class FakeRemoteLogIO:
         return cls()
 
 
+def fake_db_cleanup_table_configs():
+    return [{"table_name": "fake_schema.fake_table", "recency_column_name": "created_at"}]
+
+
 def test_cleanup_providers_manager(cleanup_providers_manager):
     """Check the cleanup provider manager functionality."""
     provider_manager = ProvidersManager()
@@ -245,6 +249,28 @@ class TestProviderManager:
         providers_manager._discover_remote_logging()
         assert "bad" not in providers_manager._remote_logging_by_scheme
         assert providers_manager._remote_logging_info_list == []
+
+    def test_providers_manager_register_db_cleanup_tables(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.db.cleanup"] = ProviderInfo(
+            version="0.0.1",
+            data={"db-cleanup-tables": [f"{__name__}.fake_db_cleanup_table_configs"]},
+        )
+        providers_manager._discover_db_cleanup_tables()
+        assert providers_manager._db_cleanup_table_provider_set == {
+            f"{__name__}.fake_db_cleanup_table_configs"
+        }
+
+    def test_providers_manager_register_db_cleanup_tables_bad_callable_filtered(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["fake.db.cleanup"] = ProviderInfo(
+            version="0.0.1",
+            data={"db-cleanup-tables": ["fake.module.does.not.exist.callable"]},
+        )
+        providers_manager._discover_db_cleanup_tables()
+        assert providers_manager._db_cleanup_table_provider_set == set()
 
     def test_connection_form_widgets(self, yaml_ui_metadata_counts):
         yaml_widgets, _ = yaml_ui_metadata_counts

@@ -30,7 +30,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
-from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
+from airflow.utils.db_cleanup import drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.db_manager import _callable_accepts_use_migration_files
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -351,10 +351,6 @@ def check(args):
     ):
         with attempt:
             db.check()
-
-
-# lazily imported by CLI parser for `help` command
-all_tables = sorted(config_dict)
 
 
 @cli_utils.action_cli(check_db=False)

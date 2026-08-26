@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import csv
 import dataclasses
+import functools
+import itertools
 import logging
 import os
 from collections.abc import Generator
@@ -38,6 +40,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
@@ -206,8 +209,6 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
-    _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
-    _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
     _TableConfig(
         table_name="trigger",
         recency_column_name="created_date",
@@ -247,7 +248,40 @@ if (
 ):
     config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
-config_dict: dict[str, _TableConfig] = {x.table_name: x for x in sorted(config_list)}
+
+def _provider_table_configs() -> Generator[tuple[str, _TableConfig], None, None]:
+    """
+    Collect ``_TableConfig`` data contributed by installed providers.
+
+    Providers declare ``db-cleanup-tables`` in their ``provider.yaml``, which is
+    a list of import paths to callables that each return a list of dicts of
+    ``_TableConfig`` kwargs.
+    """
+    from airflow.providers_manager import ProvidersManager
+
+    for import_path in ProvidersManager().db_cleanup_table_providers:
+        try:
+            for spec in import_string(import_path)():
+                config = _TableConfig(**spec)
+                yield config.table_name, config
+        except Exception:
+            logger.warning(
+                "Failed to load db clean table configs from %r; skipping.",
+                import_path,
+                exc_info=True,
+            )
+
+
+@functools.cache
+def _all_table_configs() -> dict[str, _TableConfig]:
+    """Core built-in table configs merged with provider-contributed ones."""
+    return dict(itertools.chain(((x.table_name, x) for x in config_list), _provider_table_configs()))
+
+
+@functools.cache
+def get_all_table_names() -> list[str]:
+    """Sorted names of every table ``airflow db clean`` can operate on (core + providers)."""
+    return sorted(_all_table_configs())
 
 
 def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
@@ -628,9 +662,10 @@ def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleName
 
 
 def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
+    config_dict = _all_table_configs()
     desired_table_names = set(table_names or config_dict)
 
-    outliers = desired_table_names - set(config_dict.keys())
+    outliers = desired_table_names.difference(config_dict)
     if outliers:
         logger.warning(
             "The following table(s) are not valid choices and will be skipped: %s",

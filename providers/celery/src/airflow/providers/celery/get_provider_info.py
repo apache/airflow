@@ -45,6 +45,7 @@ def get_provider_info():
             "airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
         ],
         "cli": ["airflow.providers.celery.cli.definition.get_celery_cli_commands"],
+        "db-cleanup-tables": ["airflow.providers.celery.cleanup.get_db_cleanup_table_configs"],
         "config": {
             "celery_kubernetes_executor": {
                 "description": "This section only applies if you are using the ``CeleryKubernetesExecutor`` in\n``[core]`` section above\n",
@@ -131,6 +132,13 @@ def get_provider_info():
                         "type": "string",
                         "sensitive": True,
                         "example": "db+postgresql+psycopg://postgres:airflow@postgres/airflow",
+                        "default": None,
+                    },
+                    "result_backend_schema": {
+                        "description": "The database schema that the Celery result backend tables (``celery_taskmeta``,\n``celery_tasksetmeta``) live in, when they are provisioned into a schema other than\nthe one used by ``sql_alchemy_conn``. When set, ``airflow db clean`` (and the\narchived-table export/drop commands) operate on these tables in this schema instead\nof silently skipping them.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "celery",
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {
