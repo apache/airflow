@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Button, type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
@@ -27,17 +27,30 @@ import { CreateAssetEventModal } from "./CreateAssetEventModal";
 
 type Props = {
   readonly asset?: AssetResponse;
-};
+  readonly withText?: boolean;
+} & ButtonProps;
 
-export const CreateAssetEvent = ({ asset }: Props) => {
+export const CreateAssetEvent = ({ asset, withText = false, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("assets");
 
   return (
     <>
-      <IconButton disabled={asset === undefined} label={translate("createEvent.button")} onClick={onOpen}>
-        <FiPlay />
-      </IconButton>
+      {withText ? (
+        <Button {...rest} disabled={asset === undefined} onClick={onOpen}>
+          <FiPlay />
+          {translate("createEvent.button")}
+        </Button>
+      ) : (
+        <IconButton
+          {...rest}
+          disabled={asset === undefined}
+          label={translate("createEvent.button")}
+          onClick={onOpen}
+        >
+          <FiPlay />
+        </IconButton>
+      )}
 
       {asset === undefined || !open ? undefined : (
         <CreateAssetEventModal asset={asset} onClose={onClose} open={open} />

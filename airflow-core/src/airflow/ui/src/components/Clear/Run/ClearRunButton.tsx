@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ButtonProps } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -30,9 +31,9 @@ import ClearRunDialog from "./ClearRunDialog";
 type Props = {
   readonly dagRun: DAGRunResponse;
   readonly isHotkeyEnabled?: boolean;
-};
+} & ButtonProps;
 
-const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
+export const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -47,6 +48,7 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   return (
     <>
       <IconButton
+        {...rest}
         label={
           isHotkeyEnabled
             ? translate("dags:runAndTaskActions.clear.buttonTooltip")
@@ -60,5 +62,3 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
     </>
   );
 };
-
-export default ClearRunButton;

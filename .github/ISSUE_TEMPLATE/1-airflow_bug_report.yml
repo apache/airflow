@@ -116,6 +116,7 @@ body:
         - alibaba
         - amazon
         - anthropic
+        - apache-arrow
         - apache-beam
         - apache-cassandra
         - apache-drill

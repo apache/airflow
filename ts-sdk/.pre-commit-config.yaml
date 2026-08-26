@@ -74,3 +74,19 @@ repos:
         additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: false
         require_serial: true
+      - id: verify-ts-sdk-package
+        name: Verify TypeScript SDK package artifact
+        entry: ./scripts/ci/prek/verify_ts_sdk_package.py
+        language: node
+        stages: [manual]
+        files: |
+          (?x)
+          ^src/.*\.ts$|
+          ^scripts/verify-package\.mjs$|
+          ^package\.json$|
+          ^pnpm-lock\.yaml$|
+          ^pnpm-workspace\.yaml$|
+          ^tsconfig(\.build)?\.json$
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true

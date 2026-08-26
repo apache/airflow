@@ -16,24 +16,76 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
   useTaskInstanceServiceGetMappedTaskInstance,
+  useTaskInstanceServiceGetTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
-import { BreadcrumbStats } from "src/components/BreadcrumbStats";
-import { StateBadge } from "src/components/StateBadge";
-import { TogglePause } from "src/components/TogglePause";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { BreadcrumbRow, CrumbLink, CrumbStack, CrumbText, type CrumbShape } from "src/components/Breadcrumb";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { DagSwitcherButton } from "./DagSwitcherButton";
+
+type Crumb = {
+  readonly caption: string;
+  /** Set alongside `state` so the badge keeps its room while the value is still loading. */
+  readonly hasState?: boolean;
+  readonly key: string;
+  readonly state?: TaskInstanceState | null;
+  readonly to?: string;
+  readonly value: string;
+};
+
+const BreadcrumbItem = ({
+  crumb,
+  dagId,
+  isLast,
+  shape,
+}: {
+  readonly crumb: Crumb;
+  readonly dagId: string;
+  readonly isLast: boolean;
+  readonly shape: CrumbShape;
+}) => {
+  const content = (
+    <CrumbStack
+      caption={crumb.caption}
+      hasState={crumb.hasState}
+      isCurrent={isLast}
+      state={crumb.state}
+      value={crumb.value}
+    />
+  );
+
+  if (crumb.key === "dag") {
+    return (
+      <DagSwitcherButton dagId={dagId} shape={shape}>
+        {content}
+      </DagSwitcherButton>
+    );
+  }
+
+  if (isLast || crumb.to === undefined) {
+    return <CrumbText shape={shape}>{content}</CrumbText>;
+  }
+
+  return (
+    <CrumbLink shape={shape} to={crumb.to}>
+      {content}
+    </CrumbLink>
+  );
+};
 
 export const DagBreadcrumb = () => {
   const { t: translate } = useTranslation();
   const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
+  const { pathname } = useLocation();
   const refetchInterval = useAutoRefresh({ dagId });
   const parsedMapIndex = parseInt(mapIndex, 10);
 
@@ -61,84 +113,117 @@ export const DagBreadcrumb = () => {
     { enabled: Boolean(runId) && Boolean(taskId) && mapIndex !== "-1" && !isNaN(parsedMapIndex) },
   );
 
-  const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
-    [
-      {
-        label: dag?.dag_display_name ?? dagId,
-        labelExtra: dag?.is_stale ? undefined : (
-          <TogglePause
-            dagDisplayName={dag?.dag_display_name}
-            dagId={dagId}
-            isPaused={Boolean(dag?.is_paused)}
-            skipConfirm
-          />
-        ),
-        title: translate("dag_one"),
-        value: `/dags/${dagId}`,
-      },
-    ];
+  // A task inside a mapped task group has expanded instances even though the task itself reports
+  // `is_mapped: false`, so the route is the reliable signal: both `/mapped` and `/mapped/:mapIndex`
+  // mean a list of instances exists behind this task.
+  const hasExpandedInstances = Boolean(task?.is_mapped) || mapIndex !== "-1" || pathname.endsWith("/mapped");
+
+  // Expanded instances are a list rather than one instance, so there is no single state to show —
+  // and asking for one without a map index is a guaranteed 404.
+  const { data: taskInstance } = useTaskInstanceServiceGetTaskInstance(
+    { dagId, dagRunId: runId ?? "", taskId: taskId ?? "" },
+    undefined,
+    {
+      enabled: Boolean(runId) && Boolean(taskId) && !hasExpandedInstances,
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+    },
+  );
+
+  const crumbs: Array<Crumb> = [
+    {
+      caption: translate("dag_one"),
+      key: "dag",
+      to: `/dags/${dagId}`,
+      value: dag?.dag_display_name ?? dagId,
+    },
+  ];
 
   // Add dag run breadcrumb
   if (runId !== undefined) {
-    links.push({
-      label: dagRun === undefined ? runId : dagRun.dag_run_id,
-      labelExtra: dagRun === undefined ? undefined : <StateBadge fontSize="xs" state={dagRun.state} />,
-      title: translate("dagRun_one"),
-      value: `/dags/${dagId}/runs/${runId}`,
+    crumbs.push({
+      caption: translate("dagRun_one"),
+      hasState: true,
+      key: "dagRun",
+      state: dagRun?.state,
+      to: `/dags/${dagId}/runs/${runId}`,
+      value: dagRun === undefined ? runId : dagRun.dag_run_id,
     });
   }
 
   // Add group breadcrumb
   if (groupId !== undefined) {
     if (runId === undefined) {
-      links.push({
-        label: translate("allRuns", { ns: "dag" }),
-        title: translate("dagRun_one"),
-        value: `/dags/${dagId}/runs`,
+      crumbs.push({
+        caption: translate("dagRun_one"),
+        key: "allRuns",
+        to: `/dags/${dagId}/runs`,
+        value: translate("allRuns", { ns: "dag" }),
       });
     }
 
-    links.push({
-      label: groupId,
-      title: "Group",
-      value: `/dags/${dagId}/groups/${groupId}`,
+    crumbs.push({
+      caption: translate("taskGroup_one"),
+      key: "group",
+      to: `/dags/${dagId}/groups/${groupId}`,
+      value: groupId,
     });
   }
 
   // Add task breadcrumb
   if (runId !== undefined && taskId !== undefined) {
-    if (task?.is_mapped) {
-      links.push({
-        label: `${task.task_display_name ?? taskId} [ ]`,
-        title: translate("task_one"),
-        value: `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`,
+    if (hasExpandedInstances) {
+      crumbs.push({
+        caption: translate("taskInstance_other"),
+        key: "task",
+        to: `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`,
+        value: `${task?.task_display_name ?? taskId} [ ]`,
       });
     } else {
-      links.push({
-        label: task?.task_display_name ?? taskId,
-        title: translate("task_one"),
+      crumbs.push({
+        caption: translate("taskInstance_one"),
+        hasState: true,
+        key: "task",
+        state: taskInstance?.state,
+        value: task?.task_display_name ?? taskId,
       });
     }
   }
 
   if (runId === undefined && taskId !== undefined) {
-    links.push({
-      label: translate("allRuns", { ns: "dag" }),
-      title: translate("dagRun_one"),
-      value: `/dags/${dagId}/runs`,
+    crumbs.push({
+      caption: translate("dagRun_one"),
+      key: "allRuns",
+      to: `/dags/${dagId}/runs`,
+      value: translate("allRuns", { ns: "dag" }),
     });
-    links.push({
-      label: task?.task_display_name ?? taskId,
-      title: translate("task_one"),
+    crumbs.push({
+      caption: translate("task_one"),
+      key: "task",
+      value: task?.task_display_name ?? taskId,
     });
   }
 
   if (mapIndex !== "-1") {
-    links.push({
-      label: mappedTaskInstance?.rendered_map_index ?? mapIndex,
-      title: translate("mapIndex"),
+    crumbs.push({
+      caption: translate("mapIndex"),
+      hasState: true,
+      key: "mapIndex",
+      state: mappedTaskInstance?.state,
+      value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
     });
   }
 
-  return <BreadcrumbStats links={links} />;
+  return (
+    <BreadcrumbRow aria-label={translate("breadcrumb")} data-testid="dag-breadcrumb">
+      {crumbs.map((crumb, index) => (
+        <BreadcrumbItem
+          crumb={crumb}
+          dagId={dagId}
+          isLast={index === crumbs.length - 1}
+          key={crumb.key}
+          shape={{ hasNotch: index > 0, hasPoint: index < crumbs.length - 1 }}
+        />
+      ))}
+    </BreadcrumbRow>
+  );
 };
