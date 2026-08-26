@@ -216,6 +216,22 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
                 yield group
             group = group.parent_group
 
+    def hierarchical_alphabetical_sort(self) -> list[DAGNode]:
+        """
+        Sort children in hierarchical alphabetical order.
+
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        Mirrors ``TaskGroup.hierarchical_alphabetical_sort`` in task-sdk; the UI
+        structure and grid endpoints call this on serialized task groups when
+        ``[api] grid_view_sorting_order`` is set to ``hierarchical_alphabetical``.
+        """
+        return sorted(
+            self.children.values(),
+            key=lambda node: (not isinstance(node, SerializedTaskGroup), node.node_id),
+        )
+
     def topological_sort(
         self, *, group_dict: dict[str | None, SerializedTaskGroup] | None = None
     ) -> list[DAGNode]:
