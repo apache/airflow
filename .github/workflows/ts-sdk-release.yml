@@ -132,7 +132,6 @@ jobs:
           set -euo pipefail
           artifact_dir="${RUNNER_TEMP}/ts-sdk-package"
           mkdir -p "${artifact_dir}"
-          test -z "$(find "${artifact_dir}" -mindepth 1 -maxdepth 1 -print -quit)"
           npm pack --pack-destination "${artifact_dir}"
           artifact_path="${artifact_dir}/${PACKAGE_FILE}"
           test -f "${artifact_path}"
