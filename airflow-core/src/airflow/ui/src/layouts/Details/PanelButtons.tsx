@@ -27,7 +27,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef, type RefObject, type Dispatch, type SetStateAction } from "react";
+import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt } from "react-icons/lu";
@@ -39,7 +39,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { IconButton, Switch } from "src/components/ui";
+import { IconButton, Switch, Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
 import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
@@ -84,6 +84,23 @@ const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) =>
     limit: config?.limit ?? 5,
   };
 };
+
+/**
+ * The options popover's trigger. Tooltip and popover each need their own element: both set an `id` on
+ * whatever they wrap and zag resolves a trigger by id, so sharing one element leaves the loser unable
+ * to find its anchor and positioning at the viewport origin.
+ */
+const OptionsTrigger = ({ label }: { readonly label: string }) => (
+  <Tooltip content={label} portalled>
+    <Box display="flex">
+      <Popover.Trigger asChild>
+        <IconButton aria-label={label} bg="bg" variant="outline">
+          <MdSettings />
+        </IconButton>
+      </Popover.Trigger>
+    </Box>
+  </Tooltip>
+);
 
 export const PanelButtons = ({
   dagView,
@@ -179,24 +196,27 @@ export const PanelButtons = ({
   });
 
   return (
-    <Box bg="bg" pr={4} ref={containerRef} width="100%" zIndex={1}>
+    <Box position="relative" ref={containerRef} width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
-        <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
+        <ButtonGroupToggle
+          bg="bg"
+          borderRadius="md"
+          isIcon
+          onChange={handleDagViewChange}
+          options={dagViewOptions}
+          value={dagView}
+        />
         <Flex alignItems="center" gap={1} justifyContent="space-between">
-          <ToggleGroups />
-          <TaskStreamFilter />
+          {dagView !== "graph" && <RunTypeLegend />}
+          <ToggleGroups bg="bg" borderRadius="md" />
           {dagView === "graph" && <GraphTaskFilters />}
+          <TaskStreamFilter />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
-            <Popover.Trigger asChild>
-              <IconButton label={translate("dag:panel.buttons.options")}>
-                <MdSettings />
-              </IconButton>
-            </Popover.Trigger>
+            <OptionsTrigger label={translate("dag:panel.buttons.options")} />
             <Portal>
               <Popover.Positioner>
                 <Popover.Content>
-                  <Popover.Arrow />
                   <Popover.Body
                     display="flex"
                     flexDirection="column"
@@ -266,11 +286,8 @@ export const PanelButtons = ({
       </Flex>
 
       {dagView !== "graph" && (
-        <Flex justifyContent="space-between" mt={1}>
+        <Flex justifyContent="space-between" mt={2}>
           <GridFilters />
-          <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
-            <RunTypeLegend />
-          </Flex>
         </Flex>
       )}
     </Box>
