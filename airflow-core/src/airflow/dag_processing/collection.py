@@ -1021,7 +1021,7 @@ class AssetModelOperation(NamedTuple):
                     session.delete(ref)
             session.bulk_save_objects(
                 DagScheduleAssetAliasReference(alias_id=alias_id, dag_id=dag_id)
-                for alias_id in referenced_alias_ids
+                for alias_id in sorted(referenced_alias_ids)
                 if alias_id not in orm_refs
             )
 
@@ -1221,12 +1221,16 @@ class AssetModelOperation(NamedTuple):
             # Add new references
             for name_uri, trigger_hashes in sorted(refs_to_add.items(), key=itemgetter(0)):
                 asset_model = assets[name_uri]
-
-                for trigger_hash in sorted(trigger_hashes):
-                    trigger = triggers.get(trigger_hash)
-                    orm_trigger = orm_triggers.get(trigger_hash)
-                    if orm_trigger and trigger:
-                        asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
+                # ``asset_watcher`` is keyed on (asset_id, trigger_id). Ordering by the trigger
+                # hash would order nothing: it is a builtin hash of a str and bytes, so its value
+                # differs between processes. The row ids do not.
+                watchers = [
+                    (orm_triggers[trigger_hash], triggers[trigger_hash])
+                    for trigger_hash in trigger_hashes
+                    if trigger_hash in orm_triggers and trigger_hash in triggers
+                ]
+                for orm_trigger, trigger in sorted(watchers, key=lambda pair: pair[0].id):
+                    asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
 
         if refs_to_remove:
             # Remove old references

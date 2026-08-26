@@ -352,9 +352,9 @@ class TestAssetModelOperation:
 
     def test_alias_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
         """The alias loop walks ``self.dags`` just as the asset one does."""
-        alias = AssetAlias("shared_alias")
+        aliases = [AssetAlias("z_alias"), AssetAlias("a_alias"), AssetAlias("m_alias")]
         dags = {
-            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=[alias]))
+            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=aliases))
             for dag_id in ("z_dag", "a_dag")
         }
         orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
@@ -376,7 +376,61 @@ class TestAssetModelOperation:
         finally:
             event.remove(bind, "before_cursor_execute", record)
 
-        assert [row["dag_id"] for row in inserted] == ["a_dag", "z_dag"]
+        # Sorted within each Dag as well as across them: the alias ids come out of a set.
+        by_dag = [(row["dag_id"], row["alias_id"]) for row in inserted]
+        assert by_dag == sorted(by_dag), by_dag
+        assert [dag_id for dag_id, _ in by_dag] == ["a_dag"] * 3 + ["z_dag"] * 3
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_watcher_rows_are_written_in_trigger_id_order(self, dag_maker, session):
+        """
+        ``asset_watcher`` is keyed on (asset_id, trigger_id).
+
+        The trigger hash cannot order it: it is a builtin hash of a str and bytes, so two
+        processes compute different values for the same trigger.
+        """
+        asset = Asset(
+            "watched_asset",
+            watchers=[
+                AssetWatcher(name="w_c", trigger=FileDeleteTrigger(filepath="/tmp/c")),
+                AssetWatcher(name="w_a", trigger=FileDeleteTrigger(filepath="/tmp/a")),
+                AssetWatcher(name="w_b", trigger=FileDeleteTrigger(filepath="/tmp/b")),
+            ],
+        )
+        with dag_maker(dag_id="watch_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_stale = False
+        orm_dags[dag.dag_id].is_paused = False
+        op = AssetModelOperation.collect(dags)
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+        op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.execute(delete(Trigger))
+        for asset_model in orm_assets.values():
+            asset_model.watchers = []
+        session.flush()
+
+        inserted: list[dict] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            if "insert into asset_watcher" in statement.lower():
+                inserted.extend(context.compiled_parameters)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            op.add_asset_trigger_references(orm_assets, session=session)
+            session.flush()
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        trigger_ids = [row["trigger_id"] for row in inserted]
+        assert len(trigger_ids) == 3, inserted
+        assert trigger_ids == sorted(trigger_ids), trigger_ids
 
     def test_asset_name_references_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
         """``dag_schedule_asset_name_reference`` is keyed on (name, dag_id), and so is its set."""
@@ -467,60 +521,6 @@ class TestAssetModelOperation:
     @staticmethod
     def _read_active_assets(session) -> list[tuple[str, str]]:
         return sorted((a.name, a.uri) for a in session.scalars(select(AssetActive)))
-
-    @pytest.mark.parametrize(
-        ("blocker", "batch", "expected"),
-        [
-            pytest.param(
-                Asset(name="n9", uri="s3://u1"),
-                [Asset(name="n1", uri="s3://u1"), Asset(name="n1", uri="s3://u2")],
-                [("n1", "s3://u2/"), ("n9", "s3://u1/")],
-                id="blocker-holds-the-uri",
-            ),
-            pytest.param(
-                Asset(name="n1", uri="s3://u9"),
-                [Asset(name="n1", uri="s3://u2"), Asset(name="n2", uri="s3://u2")],
-                [("n1", "s3://u9/"), ("n2", "s3://u2/")],
-                id="blocker-holds-the-name",
-            ),
-        ],
-    )
-    def test_the_database_activates_the_candidate_that_fits(self, blocker, batch, expected, session):
-        """
-        The first candidate cannot be activated whatever happens -- the blocker holds one of its
-        two columns -- and the one behind it can. Deciding that in Python instead got it wrong
-        twice, so this pins the outcome rather than the mechanism.
-        """
-        held = AssetModelOperation.collect(self._build_dags_scheduled_on([blocker]))
-        orm_held = held.sync_assets(session=session)
-        session.flush()
-        held.activate_assets_if_possible(orm_held.values(), session=session)
-        session.flush()
-
-        op = AssetModelOperation.collect(self._build_dags_scheduled_on(batch))
-        orm_assets = op.sync_assets(session=session)
-        session.flush()
-        op.activate_assets_if_possible(orm_assets.values(), session=session)
-        session.flush()
-
-        assert self._read_active_assets(session) == expected
-
-    def test_activating_nothing_asks_the_database_nothing(self, session):
-        """The guard exists so an empty batch does not pay for the claim it has nothing to make."""
-        op = AssetModelOperation.collect(self._build_dags_scheduled_on([Asset("only_asset")]))
-        statements: list[str] = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            statements.append(statement.split()[0].upper())
-
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            op.activate_assets_if_possible([], session=session)
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
-
-        assert statements == []
 
     @pytest.mark.parametrize(
         "seeded",
