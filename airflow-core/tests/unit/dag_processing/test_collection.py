@@ -260,6 +260,124 @@ class TestAssetModelOperation:
 
         assert [tag.name for tag in dm.tags] == ["daily", "finance", "ops"]
 
+    def test_dag_warnings_are_merged_in_a_stable_order(self, session):
+        """``dag_warning`` is keyed on (dag_id, warning_type), and the warnings arrive as a set."""
+        from airflow.dag_processing.collection import _update_dag_warnings
+
+        warnings = {
+            DagWarning(dag_id="b_dag", warning_type=DagWarningType.NONEXISTENT_POOL, message="b"),
+            DagWarning(dag_id="a_dag", warning_type=DagWarningType.NONEXISTENT_POOL, message="a"),
+        }
+
+        with mock.patch.object(session, "merge", autospec=True) as merge:
+            _update_dag_warnings(
+                ["a_dag", "b_dag"],
+                warnings,
+                (DagWarningType.NONEXISTENT_POOL,),
+                session=session,
+            )
+
+        assert [call.args[0].dag_id for call in merge.call_args_list] == ["a_dag", "b_dag"]
+
+    def test_reference_rows_are_written_dag_by_dag_in_a_stable_order(self, session, testing_dag_bundle):
+        """
+        The reference loops walk ``self.dags``, whose order differs between a per-file Dag
+        processor and a bundle-wide reserialize.
+        """
+        dags = {
+            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=[Asset("shared_ref")]))
+            for dag_id in ("z_dag", "a_dag")
+        }
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        op = AssetModelOperation.collect(dags)
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+
+        inserted: list[dict] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            if "insert into dag_schedule_asset_reference" in statement.lower():
+                inserted.extend(context.compiled_parameters)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+            session.flush()
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        assert [row["dag_id"] for row in inserted] == ["a_dag", "z_dag"]
+
+    def test_task_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
+        """Inlets arrive as a set, and both task loops walk ``self.dags``."""
+        asset = Asset("task_ref_asset")
+        dags = {}
+        for dag_id in ("z_dag", "a_dag"):
+            with DAG(dag_id=dag_id, schedule=None) as dag:
+                EmptyOperator(task_id="t_b", inlets=[asset], outlets=[asset])
+                EmptyOperator(task_id="t_a", inlets=[asset], outlets=[asset])
+            dags[dag_id] = LazyDeserializedDAG.from_dag(dag)
+
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        op = AssetModelOperation.collect(dags)
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+
+        inlets: list[dict] = []
+        outlets: list[dict] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            lowered = statement.lower()
+            if "insert into task_inlet_asset_reference" in lowered:
+                inlets.extend(context.compiled_parameters)
+            elif "insert into task_outlet_asset_reference" in lowered:
+                outlets.extend(context.compiled_parameters)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            op.add_task_asset_references(orm_dags, orm_assets, session=session)
+            session.flush()
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        assert [(row["dag_id"], row["task_id"]) for row in inlets] == [
+            ("a_dag", "t_a"),
+            ("a_dag", "t_b"),
+            ("z_dag", "t_a"),
+            ("z_dag", "t_b"),
+        ]
+        assert [row["dag_id"] for row in outlets] == ["a_dag", "a_dag", "z_dag", "z_dag"]
+
+    def test_alias_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
+        """The alias loop walks ``self.dags`` just as the asset one does."""
+        alias = AssetAlias("shared_alias")
+        dags = {
+            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=[alias]))
+            for dag_id in ("z_dag", "a_dag")
+        }
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        op = AssetModelOperation.collect(dags)
+        orm_aliases = op.sync_asset_aliases(session=session)
+        session.flush()
+
+        inserted: list[dict] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            if "insert into dag_schedule_asset_alias_reference" in statement.lower():
+                inserted.extend(context.compiled_parameters)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            op.add_dag_asset_alias_references(orm_dags, orm_aliases, session=session)
+            session.flush()
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        assert [row["dag_id"] for row in inserted] == ["a_dag", "z_dag"]
+
     def test_asset_name_references_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
         """``dag_schedule_asset_name_reference`` is keyed on (name, dag_id), and so is its set."""
         session.add_all(
@@ -269,8 +387,10 @@ class TestAssetModelOperation:
         inserted: list[dict] = []
 
         def record(conn, cursor, statement, parameters, context, executemany):
+            # ``parameters`` is dicts on psycopg but positional tuples on MySQL; the compiled ones
+            # are dicts on every backend.
             if "insert into dag_schedule_asset_name_reference" in statement.lower():
-                inserted.extend(parameters if executemany else [parameters])
+                inserted.extend(context.compiled_parameters)
 
         bind = session.get_bind()
         event.listen(bind, "before_cursor_execute", record)
