@@ -446,13 +446,10 @@ def requires_access_backfill(
         if backfill_id is not None:
             backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
             dag_id = backfill.dag_id if backfill else None
-
-        # Try to retrieve the dag_id from the request body (POST backfill)
-        # TODO: a backfill_id that parses but matches no row also lands here, so an unknown
-        # backfill is authorized against the body's dag_id and answers 404 where an unauthorized
-        # one answers 403 - disclosing which ids exist. Not exploitable for a cross-Dag action;
-        # tracked at https://github.com/apache/airflow/issues/71080
-        if dag_id is None:
+            # Not found: dag_id stays None, don't fall through to the body.
+            # See https://github.com/apache/airflow/issues/71080.
+        else:
+            # Try to retrieve the dag_id from the request body (POST backfill)
             # Not a json body, ignore
             with suppress(JSONDecodeError):
                 body = await request.json()
