@@ -172,14 +172,22 @@ class LazyXComSequence(Sequence[T]):
 class XComIterable(Sequence):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
-    def __init__(self, task_id: str, dag_id: str, run_id: str, length: int, map_index: int | None = None):
+    def __init__(
+        self,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        length: int | None = None,
+    ):
         self.task_id = task_id
         self.dag_id = dag_id
         self.run_id = run_id
-        self.length = length
         self.map_index = map_index
+        self.length = length or 0
+        self.index = self.length
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> Iterator[Any]:
         return _XComIterator(self)
 
     def __len__(self) -> int:
@@ -214,14 +222,42 @@ class XComIterable(Sequence):
             map_index=self.map_index,
         )
 
+    def append(self, value: Any):
+        try:
+            XCom.set(
+                key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+                value=value,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+                map_index=self.map_index,
+            )
+        finally:
+            self.index += 1
+            self.length += 1
+
+    async def aappend(self, value: Any):
+        try:
+            await XCom.aset(
+                key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+                value=value,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+                map_index=self.map_index,
+            )
+        finally:
+            self.index += 1
+            self.length += 1
+
     def serialize(self) -> dict:
         """Ensure the object is JSON serializable."""
         return {
             "task_id": self.task_id,
             "dag_id": self.dag_id,
             "run_id": self.run_id,
-            "length": self.length,
             "map_index": self.map_index,
+            "length": self.length,
         }
 
     @classmethod
