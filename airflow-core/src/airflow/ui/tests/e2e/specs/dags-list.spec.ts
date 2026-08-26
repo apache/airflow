@@ -44,7 +44,7 @@ test.describe("Dag Trigger Workflow", () => {
       });
 
       await page.goto(`/dags/${testDagId}/runs/${dagRunId}`);
-      const stateBadge = page.getByTestId("state-badge").first();
+      const stateBadge = page.getByTestId("header-card").getByTestId("state-badge").first();
 
       await expect(stateBadge).toContainText("Success", { timeout: 30_000 });
 

@@ -34,7 +34,7 @@ from tests_common.test_utils.taskinstance import (
     render_template_fields,
     run_task_instance,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -48,10 +48,7 @@ else:
     from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
         NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
     )
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 

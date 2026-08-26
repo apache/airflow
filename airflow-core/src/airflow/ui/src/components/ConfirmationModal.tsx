@@ -30,7 +30,7 @@ type Props = {
 };
 
 export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, open }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Modal

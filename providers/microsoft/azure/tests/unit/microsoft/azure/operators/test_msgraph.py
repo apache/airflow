@@ -27,7 +27,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context
+from airflow.providers.common.compat.sdk import AirflowException, Context, timezone
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 
@@ -39,11 +39,6 @@ from unit.microsoft.azure.test_utils import (
     mock_response,
     patch_hook_and_request_adapter,
 )
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef]
 
 
 class TestMSGraphAsyncOperator:
@@ -341,6 +336,49 @@ class TestMSGraphAsyncOperator:
         assert trigger.headers == headers
         assert trigger.data == data
         assert trigger.scopes == scopes
+
+    def test_trigger_next_link_forwards_the_path_parameters(self):
+        path_parameters = {"user_id": "48d31887-5fad-4d73-a9f5-3c356e68a038", "mailFolder_id": "inbox"}
+        operator = MSGraphAsyncOperator(
+            task_id="messages",
+            conn_id="msgraph_api",
+            url="users/{user_id}/mailFolders/{mailFolder_id}/messages",
+            path_parameters=path_parameters,
+            query_parameters={"$top": 12, "$count": True},
+        )
+        context = mock_context(task=operator)
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            operator.trigger_next_link(messages, method_name="execute_complete", context=context)
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert trigger.url == "users/{user_id}/mailFolders/{mailFolder_id}/messages"
+        assert trigger.path_parameters == path_parameters
+
+    def test_skip_pagination_expands_the_url_template_on_every_page(self):
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+        next_messages = load_json_from_resources(dirname(__file__), "..", "resources", "next_messages.json")
+        response = mock_json_response(200, messages, next_messages)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="messages",
+                conn_id="msgraph_api",
+                url="users/{user_id}/mailFolders/{mailFolder_id}/messages",
+                path_parameters={"user_id": "48d31887-5fad-4d73-a9f5-3c356e68a038", "mailFolder_id": "inbox"},
+                query_parameters={"$top": 12, "$count": True},
+                result_processor=lambda result, **context: result.get("value"),
+            )
+
+            execute_operator(operator)
+
+        urls = [call.args[0].url for call in mock_get_http_response.call_args_list]
+
+        assert urls == [
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true",
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true&%24skip=12",
+        ]
 
     def test_pagination_issues_every_page_with_the_configured_request(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
