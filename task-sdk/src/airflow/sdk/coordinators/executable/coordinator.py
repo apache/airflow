@@ -31,8 +31,9 @@ import attrs
 import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
     ResolvedBundle,
-    convert_roots,
+    convert_configured_roots,
     extract_supervisor_schema_version,
     parse_metadata_mapping,
 )
@@ -339,16 +340,22 @@ class ExecutableCoordinator(SubprocessCoordinator):
 
     :param executables_root: A list of directories scanned for executable
         bundles when a Python stub DAG delegates task execution to a native
-        runtime.
+        runtime. See :class:`SubprocessCoordinator` for its interaction with
+        ``dag_bundle_name``.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     executables_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
 
+    @property
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "executables_root", self.executables_root
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.executables_root, what.dag_id)
+        roots = self._get_scan_roots()
+        bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
