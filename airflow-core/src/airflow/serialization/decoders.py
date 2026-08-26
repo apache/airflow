@@ -215,6 +215,8 @@ def decode_deadline_alert(encoded_data: dict):
 
         if isinstance(deserialized, datetime.timedelta):
             interval = deserialized
+        elif isinstance(deserialized, SerializedVariableInterval):
+            interval = deserialized
         elif isinstance(deserialized, VariableInterval):
             interval = SerializedVariableInterval(key=deserialized.key)
         else:

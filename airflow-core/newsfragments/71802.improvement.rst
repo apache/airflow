@@ -1,1 +1,0 @@
-Add a core-side ``SerializedVariableInterval`` representation for deadline alerts, with ``VariableInterval`` converted to its serialized counterpart during deserialization and resolved in core during deadline evaluation; variable-backed intervals now also support zero and negative offsets to align with existing ``timedelta`` semantics.

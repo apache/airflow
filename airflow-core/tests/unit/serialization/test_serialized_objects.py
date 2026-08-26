@@ -43,7 +43,6 @@ from airflow.exceptions import (
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.models.variable import Variable
 from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
@@ -80,6 +79,7 @@ from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
     DeadlineReference,
+    VariableInterval,
 )
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
@@ -275,48 +275,6 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
 
 def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAssetBase | BaseAsset) -> bool:
     return ensure_serialized_asset(a) == ensure_serialized_asset(b)
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("3", timedelta(seconds=3)),
-        ("10", timedelta(seconds=10)),
-        ("05", timedelta(seconds=5)),
-        ("0", timedelta(0)),
-        ("-5", timedelta(seconds=-5)),
-    ],
-)
-def test_serialized_variable_interval_resolve_valid(mocker, value, expected):
-    mocker.patch.object(Variable, "get", return_value=value)
-
-    interval = SerializedVariableInterval(key="test_interval")
-
-    assert interval.resolve() == expected
-
-
-@pytest.mark.parametrize(
-    ("value", "raise_missing", "match"),
-    [
-        (None, True, "not found"),
-        ("abc", False, "must be an integer"),
-        ("", False, "must be an integer"),
-    ],
-)
-def test_serialized_variable_interval_resolve_invalid(mocker, value, raise_missing, match):
-    if raise_missing:
-        mocker.patch.object(
-            Variable,
-            "get",
-            side_effect=KeyError("test_interval"),
-        )
-    else:
-        mocker.patch.object(Variable, "get", return_value=value)
-
-    interval = SerializedVariableInterval(key="test_interval")
-
-    with pytest.raises(ValueError, match=match):
-        interval.resolve()
 
 
 def equal_serialized_deadline_alert(
@@ -539,13 +497,33 @@ def test_serialize_deserialize_connection():
 
 
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
-def test_serialize_deserialize_deadline_alert(reference):
+@pytest.mark.parametrize(
+    ("interval", "expected_interval"),
+    [
+        pytest.param(
+            timedelta(hours=1),
+            timedelta(hours=1),
+            id="timedelta",
+        ),
+        pytest.param(
+            VariableInterval("deadline_seconds"),
+            SerializedVariableInterval("deadline_seconds"),
+            id="sdk_variable_interval",
+        ),
+        pytest.param(
+            SerializedVariableInterval("deadline_seconds"),
+            SerializedVariableInterval("deadline_seconds"),
+            id="serialized_variable_interval",
+        ),
+    ],
+)
+def test_serialize_deserialize_deadline_alert(reference, interval, expected_interval):
     public_deadline_alert_fields = {
         field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
     }
     original = DeadlineAlert(
         reference=reference,
-        interval=timedelta(hours=1),
+        interval=interval,
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
@@ -556,7 +534,7 @@ def test_serialize_deserialize_deadline_alert(reference):
 
     deserialized = BaseSerialization.deserialize(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
-    assert deserialized.interval == original.interval
+    assert deserialized.interval == expected_interval
     assert deserialized.callback == original.callback
 
 

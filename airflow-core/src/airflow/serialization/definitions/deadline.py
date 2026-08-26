@@ -28,6 +28,7 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.models.deadline import classproperty
+from airflow.models.variable import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -385,7 +386,6 @@ class SerializedVariableInterval:
     key: str
 
     def resolve(self) -> timedelta:
-        from airflow.models.variable import Variable
 
         try:
             value = Variable.get(self.key)

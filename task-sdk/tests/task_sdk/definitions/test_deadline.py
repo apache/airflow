@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pytest
 from task_sdk.definitions.test_callback import TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH, UNIMPORTABLE_DOT_PATH
 
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
+from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import AirflowRuntimeError
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1
@@ -162,3 +165,51 @@ class TestDeadlineAlert:
                 interval=timedelta(hours=1),
                 callback="not_a_callback",  # type: ignore
             )
+
+
+class TestVariableInterval:
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("3", timedelta(seconds=3)),
+            ("10", timedelta(seconds=10)),
+            ("05", timedelta(seconds=5)),
+            ("0", timedelta(0)),
+            ("-5", timedelta(seconds=-5)),
+        ],
+    )
+    def test_resolve_valid(self, mocker, value, expected):
+        mocker.patch.object(Variable, "get", return_value=value)
+
+        interval = VariableInterval(key="test_interval")
+
+        with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
+            assert interval.resolve() == expected
+
+    @pytest.mark.parametrize(
+        ("value", "raise_runtime", "match"),
+        [
+            (None, True, "not found"),
+            ("abc", False, "must be an integer"),
+            ("", False, "must be an integer"),
+        ],
+    )
+    def test_resolve_invalid(self, mocker, value, raise_runtime, match):
+        if raise_runtime:
+            mock_err = mock.Mock()
+            mock_err.error.value = "MISSING"
+            mock_err.detail = "missing"
+
+            mocker.patch.object(
+                Variable,
+                "get",
+                side_effect=AirflowRuntimeError(mock_err),
+            )
+        else:
+            mocker.patch.object(Variable, "get", return_value=value)
+
+        interval = VariableInterval(key="test_interval")
+
+        with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
+            with pytest.raises(ValueError, match=match):
+                interval.resolve()
