@@ -31,6 +31,9 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
+# Stays on httpx (not httpx2): the client below is handed to kiota_http, which builds and
+# consumes httpx objects, and the two packages' classes are distinct.
+# Migrate once msgraph-core/kiota_http move to httpx2; tracked at https://github.com/apache/airflow/issues/70522
 import httpx
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.identity.aio import CertificateCredential, ClientSecretCredential
