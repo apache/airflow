@@ -104,6 +104,7 @@ from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -1320,7 +1321,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
-        objects = (log_records.popleft() for _ in range(len(log_records)))
+        objects = [log_records.popleft() for _ in range(len(log_records))]
+        # A bulk insert skips the ORM hook that would stamp this from ``dag_id``. One flush carries
+        # a record per task event, so resolve each Dag once rather than once per record.
+        teams_by_dag_id = {
+            dag_id: resolve_team_name(dag_id, session=session)
+            for dag_id in {log_record.dag_id for log_record in objects}
+        }
+        for log_record in objects:
+            log_record.team_name = teams_by_dag_id[log_record.dag_id]
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
     @staticmethod

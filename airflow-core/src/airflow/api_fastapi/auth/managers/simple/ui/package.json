@@ -31,7 +31,7 @@
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
-    "@7nohe/openapi-react-query-codegen": "^2.2.0",
+    "@7nohe/openapi-react-query-codegen": "^3.0.2",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",

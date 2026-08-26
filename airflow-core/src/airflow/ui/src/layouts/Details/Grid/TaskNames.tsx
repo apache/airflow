@@ -109,7 +109,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             transition="background-color 0.2s"
           >
             {node.isGroup ? (
-              <Link asChild data-testid={node.id} display="block" width="100%">
+              <Link
+                _hover={{ textDecoration: "none" }}
+                asChild
+                data-testid={node.id}
+                display="block"
+                width="100%"
+              >
                 <RouterLink
                   data-group-id={node.id}
                   onClick={onClick}
@@ -153,7 +159,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                 </RouterLink>
               </Link>
             ) : (
-              <Link asChild data-testid={node.id} display="inline">
+              <Link _hover={{ textDecoration: "none" }} asChild data-testid={node.id} display="inline">
                 <RouterLink
                   onClick={onRowClick}
                   replace
