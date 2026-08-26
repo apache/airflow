@@ -281,28 +281,30 @@ and hashes one package tarball without OIDC permissions. Its protected publish
 job then either uses [npm's staged-publishing flow](https://docs.npmjs.com/staged-publishing/)
 or publishes the formal release directly.
 
-Configure separate trusted-publisher relationships so the staged environment
-cannot publish directly and the formal environment cannot create staged
-versions:
+npm's registry supports only one trusted-publisher configuration per package,
+so both release paths share a single configuration pinned to a single GitHub
+environment:
 
 ```bash
 npm trust github apache-airflow-ts-sdk \
   --repo apache/airflow \
   --file ts-sdk-release.yml \
-  --environment ts-sdk-npm-staged \
-  --allow-stage-publish
-
-npm trust github apache-airflow-ts-sdk \
-  --repo apache/airflow \
-  --file ts-sdk-release.yml \
-  --environment ts-sdk-npm-formal \
+  --environment ts-sdk-npm-release \
+  --allow-stage-publish \
   --allow-publish
 ```
 
-Require reviewers and prevent self-review on both GitHub environments. Restrict
-their deployment tags to `ts-sdk/*`, protect those tags from updates and
-deletion with a repository ruleset, and give the formal environment the
-stricter reviewer policy.
+Confirm it with `npm trust list apache-airflow-ts-sdk`. A second `npm trust
+github` for the same package is rejected, so replace an outdated configuration
+with `npm trust revoke` first.
+
+Because the registry cannot express "stage only" and "publish only" as separate
+relationships, what separates the two paths is the GitHub environment gate
+rather than an npm-side permission split. Require reviewers and prevent
+self-review on `ts-sdk-npm-release`, restrict its deployment tags to
+`ts-sdk/*`, and protect those tags from updates and deletion with a repository
+ruleset. The pinned `--environment` claim means a workflow edit that drops the
+gate loses the ability to publish at all.
 
 Create and push a `ts-sdk/<version>` tag whose version exactly matches
 `package.json`, then dispatch the workflow on that same tag so npm provenance

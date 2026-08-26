@@ -152,7 +152,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.release_type == 'staged' && 'ts-sdk-npm-staged' || 'ts-sdk-npm-formal' }}
+      name: ts-sdk-npm-release
     permissions:
       contents: read
       id-token: write
