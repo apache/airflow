@@ -85,6 +85,9 @@ from airflow.sdk.api.datamodels._generated import (
     VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
+    XComBatchItemRequest,
+    XComBatchRequestBody,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -715,6 +718,24 @@ class XComOperations:
             params["include_prior_dates"] = include_prior_dates
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice", params=params)
         return XComSequenceSliceResponse.model_validate_json(resp.read())
+
+    def get_batch(
+        self,
+        dag_id: str,
+        run_id: str,
+        items: list[XComBatchItemRequest],
+    ) -> XComBatchResponse | ErrorResponse:
+        """Look up multiple XComs, scoped to one dag run, in a single API call."""
+        try:
+            resp = self.client.post(
+                f"xcoms/{dag_id}/{run_id}/batch",
+                content=XComBatchRequestBody(items=items).model_dump_json(),
+            )
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                return ErrorResponse(error=ErrorType.XCOM_BATCH_NOT_SUPPORTED, detail={})
+            raise
+        return XComBatchResponse.model_validate_json(resp.read())
 
 
 class TaskStateStoreOperations:

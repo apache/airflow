@@ -22,6 +22,21 @@ from cadwyn import VersionChange, schema
 from airflow.sdk.api.datamodels._generated import TIRunContext
 
 
+class AddXComBatchMessages(VersionChange):
+    """
+    Add the ``GetXComBatch``/``XComBatchResult`` message pair to the task-execution channel.
+
+    A wholly new discriminated-union member, not a field change on an existing one, so
+    there is nothing for older schema consumers to migrate away from -- the head shape
+    already is the schema for this body (see schema/AGENTS.md). This entry exists only
+    to satisfy the per-commit ``check-supervisor-schemas-versions`` snapshot check.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()
+
+
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     """
     Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks.

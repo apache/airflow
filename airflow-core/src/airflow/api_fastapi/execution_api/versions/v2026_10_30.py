@@ -19,12 +19,24 @@ from __future__ import annotations
 
 from cadwyn import (
     ResponseInfo,
+    VersionChange,
     VersionChangeWithSideEffects,
     convert_response_to_previous_version_for,
+    endpoint,
     schema,
 )
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+
+
+class AddXComBatchEndpoint(VersionChange):
+    """Add a batch XCom lookup endpoint that resolves multiple XComs in one request."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/xcoms/{dag_id}/{run_id}/batch", ["POST"]).didnt_exist,
+    )
 
 
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):

@@ -48,6 +48,8 @@ from airflow.sdk.api.datamodels._generated import (
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
+    XComBatchItemRequest,
+    XComBatchResponse,
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
@@ -1126,6 +1128,65 @@ class TestXCOMOperations:
             mapped_length=3,
         )
         assert result == OKResponse(ok=True)
+
+    def test_xcom_get_batch_success(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/batch":
+                assert json.loads(request.read()) == {
+                    "items": [
+                        {"task_id": "task_a", "key": "return_value", "map_index": -1},
+                        {"task_id": "task_b", "key": "return_value", "map_index": -1},
+                    ]
+                }
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "items": [
+                            {
+                                "task_id": "task_a",
+                                "key": "return_value",
+                                "map_index": -1,
+                                "found": True,
+                                "value": "value_a",
+                            },
+                            {
+                                "task_id": "task_b",
+                                "key": "return_value",
+                                "map_index": -1,
+                                "found": False,
+                                "value": None,
+                            },
+                        ]
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get_batch(
+            dag_id="dag_id",
+            run_id="run_id",
+            items=[
+                XComBatchItemRequest(task_id="task_a", key="return_value"),
+                XComBatchItemRequest(task_id="task_b", key="return_value"),
+            ],
+        )
+        assert isinstance(result, XComBatchResponse)
+        assert result.items[0].found is True
+        assert result.items[0].value == "value_a"
+        assert result.items[1].found is False
+
+    def test_xcom_get_batch_not_supported_by_server(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=404, json={"detail": "Not Found"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.get_batch(
+            dag_id="dag_id",
+            run_id="run_id",
+            items=[XComBatchItemRequest(task_id="task_a", key="return_value")],
+        )
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.XCOM_BATCH_NOT_SUPPORTED
 
 
 class TestConnectionOperations:

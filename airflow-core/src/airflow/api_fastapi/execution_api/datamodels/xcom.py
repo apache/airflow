@@ -40,3 +40,34 @@ class XComSequenceSliceResponse(RootModel):
     """XCom schema with minimal structure for slice-based access."""
 
     root: list[JsonValue]
+
+
+class XComBatchItemRequest(BaseModel):
+    """One XCom lookup within a batch request."""
+
+    task_id: str
+    key: str
+    map_index: int = -1
+
+
+class XComBatchRequestBody(BaseModel):
+    """Body for a batch XCom lookup, scoped to a single dag_id/run_id."""
+
+    items: list[XComBatchItemRequest]
+
+
+class XComBatchItemResponse(BaseModel):
+    """One XCom lookup result within a batch response."""
+
+    task_id: str
+    key: str
+    map_index: int
+    found: bool
+    value: JsonValue = None
+    """The returned XCom value in a JSON-compatible format. Meaningless when ``found`` is False."""
+
+
+class XComBatchResponse(BaseModel):
+    """Batch XCom lookup response, ordered the same as the request's items."""
+
+    items: list[XComBatchItemResponse]
