@@ -214,6 +214,58 @@ current task context when omitted.
 accepts an abort signal so tasks can clean up cooperatively when Airflow
 terminates the task subprocess with SIGTERM or SIGINT.
 
+## Compatibility matrix
+
+Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
+[`capabilities.yaml`](capabilities.yaml); the conformance dimensions are defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+Do not edit the table by hand — update the manifest and run the
+`update-ts-sdk-readme-matrix` prek hook.
+
+<!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
+*Min. Airflow version: 3.4 · supervisor schema: 2026-10-30*
+
+| Dimension | Tier | Supported | Since | Notes |
+|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4 |  |
+| state: `failed` | MUST | ✓ | 3.4 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4 | RetryTask |
+| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
+| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.4 |  |
+| **Runtime capabilities** |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
+| capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
+| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
+| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
+| **Native-Dag authoring** |  |  |  |  |
+| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
+| capability: `task-args` | MUST † | n/a | – |  |
+| capability: `dag-params` | MUST † | n/a | – |  |
+| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
+| capability: `branching` | SHOULD † | n/a | – |  |
+| capability: `dag-test` | SHOULD † | n/a | – |  |
+| capability: `task-group` | MAY † | n/a | – |  |
+| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
+| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
+| capability: `asset-scheduling` | MAY † | n/a | – |  |
+| capability: `object-store` | MAY † | n/a | – | no object-storage API yet |
+
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
+
+<!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
 ## Development
 
 ```bash
@@ -221,6 +273,7 @@ pnpm install
 pnpm test
 pnpm run typecheck
 pnpm run build
+pnpm run verify:package
 ```
 
 The committed lockfile and `pnpm-workspace.yaml` define the dependency security
@@ -229,11 +282,23 @@ can enter the lockfile, transitive dependencies cannot use Git or arbitrary
 tarball sources, and only explicitly approved dependencies can run lifecycle
 build scripts. Review changes to both files together when updating dependencies.
 
+`verify:package` creates the npm tarball, rejects files outside the published
+runtime allowlist, installs it into a clean temporary project, and smoke-tests
+every `exports` entry point and the `bin` executable. The required paths are
+derived from `package.json`, so a new export subpath is covered automatically.
+
+`tsconfig.build.json` turns off `sourceMap` and `declarationMap` that the base
+`tsconfig.json` enables. The published tarball ships `dist` but not `src`, so
+emitted maps would point at files the consumer never receives — the allowlist
+rejects them rather than shipping dangling maps. Local `pnpm run typecheck`
+still uses the base config, so editor tooling is unaffected.
+
 Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
-with its own managed node + pnpm toolchain:
+or verify the package with its own managed node + pnpm toolchain:
 
 ```bash
-prek run compile-ts-sdk
+prek run compile-ts-sdk --all-files
+prek run --hook-stage manual verify-ts-sdk-package --all-files
 ```
 
 ## API reference
@@ -273,3 +338,90 @@ gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
 Use `destination=staging` first to check the output, then `live`. Confirm that
 `https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
 invalidation) and that `/docs/ts-sdk/` redirects to it.
+
+## Publishing
+
+The manually dispatched `Release TypeScript SDK` workflow first builds, tests,
+and hashes one package tarball without OIDC permissions. Its protected publish
+job then either uses [npm's staged-publishing flow](https://docs.npmjs.com/staged-publishing/)
+or publishes the formal release directly.
+
+npm's registry supports only one trusted-publisher configuration per package,
+so both release paths share a single configuration pinned to a single GitHub
+environment:
+
+```bash
+npm trust github apache-airflow-ts-sdk \
+  --repo apache/airflow \
+  --file ts-sdk-release.yml \
+  --environment ts-sdk-npm-release \
+  --allow-stage-publish \
+  --allow-publish
+```
+
+Confirm it with `npm trust list apache-airflow-ts-sdk`. A second `npm trust
+github` for the same package is rejected, so replace an outdated configuration
+with `npm trust revoke` first.
+
+Because the registry cannot express "stage only" and "publish only" as separate
+relationships, what separates the two paths is the GitHub environment gate
+rather than an npm-side permission split. Require reviewers and prevent
+self-review on `ts-sdk-npm-release`, restrict its deployment tags to
+`ts-sdk/*`, and protect those tags from updates and deletion with a repository
+ruleset. The pinned `--environment` claim means a workflow edit that drops the
+gate loses the ability to publish at all.
+
+Create and push a `ts-sdk/<version>` tag whose version exactly matches
+`package.json`, then dispatch the workflow on that same tag so npm provenance
+names the source commit that produced the tarball. The tag must already exist
+on `apache/airflow` before the dispatch below can reference it as `--ref`:
+
+```bash
+git tag ts-sdk/1.0.0-beta1 <commit-sha>
+git push upstream ts-sdk/1.0.0-beta1
+```
+
+To submit the package to npm's private staging area for review, run:
+
+```bash
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \
+  -f release_type=staged \
+  -f tag=ts-sdk/1.0.0-beta1 \
+  -f npm_tag=beta
+```
+
+The publish job calls `npm stage publish` only after the unprivileged build job
+has uploaded a checksummed tarball. The version is not publicly installable
+until a maintainer reviews and approves it with 2FA. The following commands
+require npm 11.15 or later:
+
+```bash
+npm stage list apache-airflow-ts-sdk
+npm stage view <stage-id>
+npm stage download <stage-id>
+npm stage approve <stage-id>
+```
+
+The approval cannot run through the trusted-publisher workflow because npm
+requires interactive proof of presence. Reject an unsuitable staged version
+with `npm stage reject <stage-id>`. Do not run the formal workflow for a version
+that is already staged; approve or reject that staged version instead.
+
+To publish directly without npm's staging review, trigger the formal path:
+
+```bash
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \
+  -f release_type=formal \
+  -f tag=ts-sdk/1.0.0-beta1 \
+  -f npm_tag=beta
+```
+
+Use `latest` for stable releases and a non-`latest` tag such as `alpha`,
+`beta`, or `rc` for prereleases. The workflow rejects a dispatch that would
+move the selected npm dist-tag backward as of when it runs. For a staged
+release, the dist-tag only actually moves later, at `npm stage approve` time,
+which is not re-validated — approve staged versions in the order they were
+requested so the dist-tag does not regress. Both publication paths use
+short-lived npm OIDC credentials and automatically publish provenance. After
+verifying the trusted-publisher setup, disable token-based publishing and
+revoke obsolete npm automation tokens.
