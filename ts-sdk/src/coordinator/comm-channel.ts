@@ -51,6 +51,10 @@ export interface RequestOptions {
   timeoutMs?: number;
 }
 
+export interface ConnectOptions {
+  timeoutMs?: number;
+}
+
 export const COORDINATOR_REQUEST_TIMEOUT_MS = 30_000;
 
 export class CommChannel {
@@ -81,11 +85,22 @@ export class CommChannel {
     sock.on("error", (err) => this.handleClose(err));
   }
 
-  /** Connect and wait for the supervisor's greeting; rejects if the
-   *  socket dies before it arrives. */
-  static async connect(addr: string, logs: LogChannel | null = null): Promise<CommConnection> {
+  /** Connect and wait for the supervisor's greeting; rejects if the socket dies, or no greeting
+   *  arrives within `timeoutMs`, before it arrives. A timeout destroys the socket so the runtime
+   *  never waits on a wedged or misbehaving supervisor forever. */
+  static async connect(
+    addr: string,
+    logs: LogChannel | null = null,
+    opts: ConnectOptions = {},
+  ): Promise<CommConnection> {
     const sock = await connectTcp(addr);
     const channel = new CommChannel(sock, logs);
+    const timeoutMs = opts.timeoutMs ?? COORDINATOR_REQUEST_TIMEOUT_MS;
+    channel.greeting.rejectAfter(timeoutMs, () => {
+      const err = new Error(`Timed out waiting for supervisor greeting after ${timeoutMs} ms`);
+      sock.destroy(err);
+      return err;
+    });
     const firstFrame = await channel.greeting.promise;
     return { channel, firstFrame };
   }
