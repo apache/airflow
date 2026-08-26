@@ -27,6 +27,7 @@ Used by ``scripts/in_container/run_provider_yaml_files_check.py``.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 
 
@@ -120,3 +121,101 @@ def build_mismatch_error(
         )
         lines.append("[yellow]How to fix it[/]: Add the missing key(s) to conn-fields in provider.yaml.")
     return "\n".join(lines)
+
+
+def normalize_behaviour_value(value: object) -> str:
+    """
+    Equality-normalize a relabeling/placeholder value.
+
+    Placeholder values are display examples, so insignificant formatting must not count as
+    drift: surrounding whitespace is stripped, and values that parse as JSON on both sides
+    are compared structurally (hooks often build them with ``json.dumps`` at a different
+    indent than the YAML block scalar, and ``|`` block scalars add a trailing newline).
+    """
+    text = str(value).strip()
+    try:
+        return json.dumps(json.loads(text), sort_keys=True)
+    except (ValueError, TypeError):
+        return text
+
+
+def check_ui_field_behaviour_for_entry(
+    conn_type_entry: dict,
+    yaml_file_path: str,
+    get_behaviour: Callable[[str], dict | None],
+) -> list[str]:
+    """
+    Validate a connection-type entry's ``ui-field-behaviour`` against ``get_ui_field_behaviour()``.
+
+    *get_behaviour(hook_class_name)* is a callable supplied by the caller that returns the
+    hook's ``get_ui_field_behaviour()`` dict, or ``None`` to skip the entry (hook not
+    importable, or it does not override the method). Any other exception is converted to an
+    error string here so callers never need to catch it.
+
+    Airflow reads ``ui-field-behaviour`` from the provider YAML and ignores the hook method
+    when the YAML is present, so a hook-side edit that is not mirrored in the YAML never
+    reaches the UI. Both a missing ``ui-field-behaviour`` section and any per-section
+    difference are flagged.
+    """
+    hook_class_name: str = conn_type_entry["hook-class-name"]
+    connection_type: str = conn_type_entry.get("connection-type", "?")
+
+    try:
+        hook_behaviour = get_behaviour(hook_class_name)
+    except Exception as exc:
+        return [
+            f"Failed to call `{hook_class_name}.get_ui_field_behaviour()` "
+            f"while checking {yaml_file_path}: {exc}"
+        ]
+
+    if hook_behaviour is None:
+        return []
+
+    header = (
+        f"Mismatch between `ui-field-behaviour` in {yaml_file_path} and "
+        f"`{hook_class_name}.get_ui_field_behaviour()` "
+        f"for connection-type '{connection_type}':"
+    )
+
+    yaml_behaviour = conn_type_entry.get("ui-field-behaviour")
+    if yaml_behaviour is None:
+        return [
+            f"{header}\n"
+            "  The hook overrides get_ui_field_behaviour() but provider.yaml has no "
+            "ui-field-behaviour section, so the hook's field behaviour is invisible in the UI.\n"
+            "[yellow]How to fix it[/]: Declare ui-field-behaviour for this connection-type "
+            "in provider.yaml."
+        ]
+
+    problems = []
+
+    yaml_hidden = set(yaml_behaviour.get("hidden-fields") or [])
+    hook_hidden = set(hook_behaviour.get("hidden_fields") or [])
+    if yaml_hidden != hook_hidden:
+        problems.append(
+            "  hidden-fields differ."
+            f" Only in provider.yaml: {sorted(yaml_hidden - hook_hidden) or '-'};"
+            f" only in the hook: {sorted(hook_hidden - yaml_hidden) or '-'}"
+        )
+
+    for yaml_key, hook_key in (("relabeling", "relabeling"), ("placeholders", "placeholders")):
+        yaml_section = {
+            k: normalize_behaviour_value(v) for k, v in (yaml_behaviour.get(yaml_key) or {}).items()
+        }
+        hook_section = {
+            k: normalize_behaviour_value(v) for k, v in (hook_behaviour.get(hook_key) or {}).items()
+        }
+        if yaml_section == hook_section:
+            continue
+        diff_keys = sorted(
+            k for k in yaml_section.keys() | hook_section.keys() if yaml_section.get(k) != hook_section.get(k)
+        )
+        problems.append(f"  {yaml_key} differ for: {', '.join(diff_keys)}")
+
+    if not problems:
+        return []
+    problems.append(
+        "[yellow]How to fix it[/]: Make ui-field-behaviour in provider.yaml say the same "
+        "thing as get_ui_field_behaviour(); the YAML is what the UI actually shows."
+    )
+    return ["\n".join([header, *problems])]
