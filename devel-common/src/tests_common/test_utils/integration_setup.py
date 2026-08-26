@@ -28,17 +28,13 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.sdk import timezone
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 log = logging.getLogger(__name__)
 

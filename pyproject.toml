@@ -914,8 +914,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 # Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
 # all rules in each project https://github.com/astral-sh/ruff/issues/18723
-# Add this once providers are sorted
-# "airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
+"airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
 # "airflow_shared".msg = "Use airflow._shared or airflow.sdk._shared instead"
 
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
