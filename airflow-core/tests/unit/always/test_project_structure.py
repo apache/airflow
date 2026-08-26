@@ -83,7 +83,6 @@ class TestProjectStructure:
             "providers/apache/hdfs/tests/unit/apache/hdfs/sensors/test_hdfs.py",
             "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
-            "providers/celery/tests/unit/celery/executors/test_default_celery.py",
             "providers/cloudant/tests/unit/cloudant/test_cloudant_fake.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
