@@ -67,6 +67,17 @@ function collectEntryPoints(packageJson) {
   return targets.map((target) => target.replace(/^\.\//, ""));
 }
 
+/**
+ * The `exports` subpath keys as specifier suffixes: `"."` becomes `""` and `"./coordinator"`
+ * becomes `"/coordinator"`. Presence in the tarball is not resolution — a subpath can ship and
+ * still fail to import if its conditions are wrong or an internal import is broken.
+ */
+function collectExportSubpaths(packageJson) {
+  return Object.keys(packageJson.exports ?? { ".": {} }).map((subpath) =>
+    subpath === "." ? "" : subpath.replace(/^\./, ""),
+  );
+}
+
 const temporaryDirectory = mkdtempSync(join(tmpdir(), "airflow-ts-sdk-package-"));
 
 try {
@@ -124,6 +135,9 @@ try {
       "--input-type=module",
       "--eval",
       [
+        ...collectExportSubpaths(packageJson).map(
+          (subpath) => `await import(${JSON.stringify(packageJson.name + subpath)});`,
+        ),
         `const sdk = await import(${JSON.stringify(packageJson.name)});`,
         `for (const name of ${JSON.stringify(REQUIRED_ROOT_EXPORTS)}) {`,
         '  if (typeof sdk[name] !== "function") {',
