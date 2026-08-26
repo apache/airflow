@@ -144,7 +144,7 @@ jobs:
           name: ${{ steps.package.outputs.artifact_name }}
           path: ${{ runner.temp }}/ts-sdk-package/${{ steps.release.outputs.package_file }}
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   publish:
     name: ${{ inputs.release_type == 'staged' && 'Stage release on npm' || 'Publish formal release to npm' }}
