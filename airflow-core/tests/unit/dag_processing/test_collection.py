@@ -298,7 +298,7 @@ class TestAssetModelOperation:
         }
 
     def _active(self, session) -> list[tuple[str, str]]:
-        return sorted((a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive)))
+        return sorted((a.name, a.uri) for a in session.scalars(select(AssetActive)))
 
     def test_activation_rows_are_inserted_in_a_stable_order(self, session):
         """``asset_active`` is unique on both its columns, so its insert needs one order too."""
@@ -318,12 +318,34 @@ class TestAssetModelOperation:
             "c_asset",
         ]
 
+    def test_activating_assets_costs_one_read_and_one_insert(self, session):
+        """Deciding the claim needs what is already active; nothing else here may add a round trip."""
+        clear_db_assets()
+        op = AssetModelOperation.collect(self._dags_for([Asset("a_asset"), Asset("b_asset")]))
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement.split()[0].upper())
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            op.activate_assets_if_possible(orm_assets.values(), session=session)
+            session.flush()
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        assert statements == ["SELECT", "INSERT"], statements
+
     def test_a_candidate_the_insert_would_reject_does_not_take_the_claim(self, session):
         """
         The claim has to start from what is already active, not from the batch alone.
 
         With ``n9`` holding ``s3://u1``, ``("n1", "s3://u1")`` cannot be activated whatever happens
-        -- its uri is taken. Were it to claim the name anyway, ``("n1", "s3://u2")`` would be passed
+        -- its uri is taken. Were it to claim the name anyway, ``("n1", "s3://u2/")`` would be passed
         over and the insert would then drop the claimer too, leaving neither active.
         """
         clear_db_assets()
@@ -332,7 +354,7 @@ class TestAssetModelOperation:
         session.flush()
         blocker.activate_assets_if_possible(blocked.values(), session=session)
         session.flush()
-        assert self._active(session) == [("n9", "s3://u1")]
+        assert self._active(session) == [("n9", "s3://u1/")]
 
         op = AssetModelOperation.collect(
             self._dags_for([Asset(name="n1", uri="s3://u1"), Asset(name="n1", uri="s3://u2")])
@@ -342,7 +364,7 @@ class TestAssetModelOperation:
         op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()
 
-        assert self._active(session) == [("n1", "s3://u2"), ("n9", "s3://u1")]
+        assert self._active(session) == [("n1", "s3://u2/"), ("n9", "s3://u1/")]
 
     @pytest.mark.parametrize(
         "seeded",
@@ -374,8 +396,8 @@ class TestAssetModelOperation:
 
         pair = [Asset(name="dup", uri="s3://zzz"), Asset(name="dup", uri="s3://aaa")]
 
-        assert activate(pair) == [("dup", "s3://zzz")]
-        assert activate(list(reversed(pair))) == [("dup", "s3://aaa")], (
+        assert activate(pair) == [("dup", "s3://zzz/")]
+        assert activate(list(reversed(pair))) == [("dup", "s3://aaa/")], (
             "the winner came from the sort or the read-back, not from the Dags"
         )
 

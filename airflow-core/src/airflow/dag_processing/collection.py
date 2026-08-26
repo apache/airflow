@@ -866,10 +866,8 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
-            # Left in the order the Dags define them: that order decides which of two assets
-            # sharing a name is activated, so sorting here would move it, and a sweep would stop
-            # landing where writing its files one at a time does. Rows are sorted where they are
-            # inserted instead.
+            # Definition order decides which of two assets sharing a name is activated; the rows
+            # are sorted where they are inserted instead.
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
@@ -889,8 +887,7 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
-        # ``asset`` is unique on (name, uri), so two writers inserting the same new rows in
-        # opposite orders deadlock on that index.
+        # ``asset`` is unique on (name, uri): opposite insert orders deadlock on that index.
         to_create = sorted(
             (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
             key=lambda asset: (asset.name, asset.uri),
@@ -899,8 +896,7 @@ class AssetModelOperation(NamedTuple):
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(to_create, session=session)
         )
-        # In collection order, which is what decides the activation below. The rows that already
-        # existed came back in whatever order the query returned them.
+        # Collection order, which decides the activation below; the read-back returns its own.
         return {key: orm_assets[key] for key in self.assets if key in orm_assets}
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -915,7 +911,7 @@ class AssetModelOperation(NamedTuple):
         }
         for name, model in orm_aliases.items():
             model.group = self.asset_aliases[name].group
-        # ``asset_alias`` is unique on name; sorted for the reason the assets above are.
+        # ``asset_alias`` is unique on name, so the same applies.
         orm_aliases.update(
             (model.name, model)
             for model in asset_manager.create_asset_aliases(
@@ -955,12 +951,10 @@ class AssetModelOperation(NamedTuple):
         candidates = list(models)
         if not candidates:
             return
-        # Of two assets sharing a name or a uri only one can be active, and deciding which here
-        # rather than leaving it to the insert is what lets the rows be sorted -- ``asset_active``
-        # is unique on both columns, so two writers inserting in opposite orders deadlock on the
-        # index. The claim starts from what is already active, the way the scheduler's
-        # ``_activate_referenced_assets`` does: a candidate the insert would reject anyway must not
-        # take a name or uri from one that would have gone in.
+        # Only one of two assets sharing a name or a uri can be active. Deciding that here, from
+        # what is already active, is what lets the rows be sorted -- ``asset_active`` is unique on
+        # both columns. The read is a snapshot: a row deactivated meanwhile is missed until the
+        # scheduler's next orphanage pass.
         active = session.execute(
             select(AssetActive.name, AssetActive.uri).where(
                 or_(
