@@ -23,8 +23,12 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 COMMAND_ID = "123e4567-e89b-12d3-a456-426614174000"
+REGION_NAME = "eu-west-2"
+VERIFY = False
+BOTOCORE_CONFIG = {"read_timeout": 42}
 
 
 @pytest.fixture
@@ -144,3 +148,19 @@ class TestSsmRunCommandCompletedSensor:
 
             assert call_kwargs["command_id"] == COMMAND_ID
             assert call_kwargs["fail_on_nonzero_exit"] is False
+
+    def test_deferred_trigger_receives_hook_configuration(self):
+        sensor = self.SENSOR(
+            **self.default_op_kwarg,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            sensor.execute({})
+
+        assert exc_info.value.trigger.region_name == REGION_NAME
+        assert exc_info.value.trigger.verify == VERIFY
+        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG

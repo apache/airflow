@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -41,6 +42,9 @@ OP_KWARGS = {
     "waiter_max_attempts": 20,
     "deferrable": False,
 }
+REGION_NAME = "eu-west-2"
+VERIFY = False
+BOTOCORE_CONFIG = {"read_timeout": 42}
 HOOK_RETURN_VALUE = {
     "ResponseMetadata": {},
     "RestApiStatusCode": 200,
@@ -115,3 +119,20 @@ class TestMwaaTriggerDagRunOperator:
         assert response == HOOK_RETURN_VALUE
         assert mock_hook.get_waiter.call_count == wait_for_completion
         assert op.defer.call_count == deferrable
+
+    @mock.patch.object(MwaaTriggerDagRunOperator, "hook")
+    def test_deferred_trigger_receives_hook_configuration(self, mock_hook):
+        mock_hook.invoke_rest_api.return_value = HOOK_RETURN_VALUE
+        op = MwaaTriggerDagRunOperator(
+            **{**OP_KWARGS, "wait_for_completion": False, "deferrable": True},
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute({})
+
+        assert exc_info.value.trigger.region_name == REGION_NAME
+        assert exc_info.value.trigger.verify == VERIFY
+        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
