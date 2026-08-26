@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.microsoft.azure.hooks.analysis_services import (
+    AzureAnalysisServicesHook,
     AzureAnalysisServicesRefreshException,
     AzureAnalysisServicesRefreshStatus,
     RefreshType,
@@ -33,6 +34,8 @@ from airflow.providers.microsoft.azure.operators.analysis_services import (
 from airflow.providers.microsoft.azure.triggers.analysis_services import (
     AzureAnalysisServicesRefreshTrigger,
 )
+
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 
 CONN_ID = "azure_analysis_services_test"
 SERVER_NAME = "testserver"
@@ -117,6 +120,42 @@ class TestAzureAnalysisServicesRefreshOperator:
         assert deferred.value.method_name == "handle_refresh"
         # The timeout covers waiting for the refresh, so it only starts on the second deferral.
         assert deferred.value.timeout is None
+
+    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
+    @mock.patch.object(AzureAnalysisServicesHook, "trigger_refresh", autospec=True)
+    def test_execute_operator_full_lifecycle(self, trigger_refresh, get_refresh_status):
+        trigger_refresh.return_value = REFRESH_ID
+        get_refresh_status.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
+
+        result, events = execute_operator(build_operator())
+
+        assert result == REFRESH_ID
+        trigger_refresh.assert_awaited_once_with(
+            mock.ANY,
+            server_name=SERVER_NAME,
+            database=DATABASE,
+            refresh_type=REFRESH_TYPE,
+        )
+        get_refresh_status.assert_awaited_once_with(
+            mock.ANY,
+            server_name=SERVER_NAME,
+            database=DATABASE,
+            refresh_id=REFRESH_ID,
+        )
+        assert [event.payload for event in events] == [
+            {
+                "status": "success",
+                "refresh_status": None,
+                "message": f"Refresh {REFRESH_ID} has been triggered",
+                "refresh_id": REFRESH_ID,
+            },
+            {
+                "status": "success",
+                "refresh_status": AzureAnalysisServicesRefreshStatus.SUCCEEDED,
+                "message": f"Refresh {REFRESH_ID} completed successfully",
+                "refresh_id": REFRESH_ID,
+            },
+        ]
 
     def test_handle_refresh_defers_again_with_refresh_id(self):
         operator = build_operator()

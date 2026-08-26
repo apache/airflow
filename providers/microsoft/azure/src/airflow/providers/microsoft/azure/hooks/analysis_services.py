@@ -235,7 +235,8 @@ class AzureAnalysisServicesHook(BaseHook):
             )
         return unquote(location_parts[-1])
 
-    def _assert_host(self, host: str) -> None:
+    @staticmethod
+    def _assert_host(host: str) -> None:
         parsed_host = urlsplit(f"//{host}")
         # netloc, not .username/.port: those miss "@host" and ":0", and raise on ":abc".
         if (

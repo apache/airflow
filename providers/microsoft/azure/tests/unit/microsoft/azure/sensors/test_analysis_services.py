@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.microsoft.azure.hooks.analysis_services import (
+    AzureAnalysisServicesHook,
     AzureAnalysisServicesRefreshException,
     AzureAnalysisServicesRefreshStatus,
 )
@@ -29,6 +31,8 @@ from airflow.providers.microsoft.azure.sensors.analysis_services import AzureAna
 from airflow.providers.microsoft.azure.triggers.analysis_services import (
     AzureAnalysisServicesRefreshTrigger,
 )
+
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 
 CONN_ID = "azure_analysis_services_test"
 SERVER_NAME = "testserver"
@@ -83,16 +87,27 @@ class TestAzureAnalysisServicesSensor:
 
         assert deferred.value.timeout == timedelta(seconds=TIMEOUT)
 
-    def test_execute_complete_validates_event(self):
-        build_sensor().execute_complete(
-            context={},
-            event={
+    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
+    def test_execute_sensor_full_lifecycle(self, get_refresh_status):
+        get_refresh_status.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
+
+        result, events = execute_operator(build_sensor())
+
+        assert result is None
+        get_refresh_status.assert_awaited_once_with(
+            mock.ANY,
+            server_name=SERVER_NAME,
+            database=DATABASE,
+            refresh_id=REFRESH_ID,
+        )
+        assert [event.payload for event in events] == [
+            {
                 "status": "success",
                 "refresh_status": AzureAnalysisServicesRefreshStatus.SUCCEEDED,
-                "message": "ok",
+                "message": f"Refresh {REFRESH_ID} completed successfully",
                 "refresh_id": REFRESH_ID,
-            },
-        )
+            }
+        ]
 
     @pytest.mark.parametrize(
         "event",
