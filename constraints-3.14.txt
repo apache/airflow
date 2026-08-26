@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-25T18:17:13.109194
+# This constraints file was automatically generated on 2026-08-26T07:34:21.030280
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -623,7 +623,7 @@ s3fs==2026.7.0
 s3transfer==0.19.2
 sagemaker_studio==1.0.27
 scikit-learn==1.9.0
-scipy==1.18.0
+scipy==1.18.1
 scramp==1.4.17
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
@@ -677,7 +677,7 @@ traitlets==5.16.1
 trino==0.339.0
 truststore==0.10.4
 typer==0.27.1
-types-protobuf==7.35.1.20260821
+types-protobuf==7.35.1.20260822
 types-requests==2.33.0.20260712
 typing-inspection==0.4.4
 typing_extensions==4.16.0
