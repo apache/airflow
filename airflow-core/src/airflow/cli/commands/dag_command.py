@@ -243,23 +243,25 @@ def _bulk_clear_runs(
 @cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl dags pause")
 @providers_configuration_loaded
-def dag_pause(args) -> None:
+def dag_pause(args, dag: DAG | None = None) -> None:
     """Pauses a DAG."""
-    set_is_paused(True, args)
+    set_is_paused(True, args, dag)
 
 
 @cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl dags unpause")
 @providers_configuration_loaded
-def dag_unpause(args) -> None:
+def dag_unpause(args, dag: DAG | None = None) -> None:
     """Unpauses a DAG."""
-    set_is_paused(False, args)
+    set_is_paused(False, args, dag)
 
 
 @providers_configuration_loaded
 @provide_session
-def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> None:
+def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """Set is_paused for DAG by a given dag_id."""
+    if dag:
+        args.dag_id = dag.dag_id
     query = select(DagModel)
     if args.treat_dag_id_as_regex:
         query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
