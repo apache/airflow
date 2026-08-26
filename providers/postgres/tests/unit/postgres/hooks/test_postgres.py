@@ -676,6 +676,51 @@ class TestPostgresHookSqlalchemyScheme:
 
 
 @pytest.mark.backend("postgres")
+class TestPostgresHookPandasToSqlUuid:
+    """DataFrame.to_sql with string values into a uuid column: fails on psycopg3 because SQLAlchemy
+    renders typed bind casts, works when the connection opts back into psycopg2 via sqlalchemy_scheme."""
+
+    table = "test_pandas_to_sql_uuid_table"
+
+    PSYCOPG3_XFAIL_REASON = (
+        "The psycopg3 SQLAlchemy dialect renders typed bind casts, so string params fail with "
+        "'column is of type uuid but expression is of type character varying' instead of being "
+        "implicitly coerced as under psycopg2. Tracked upstream in "
+        "https://github.com/pandas-dev/pandas/issues/63511, "
+        "https://github.com/apache/arrow/pull/50325, "
+        "https://github.com/sqlalchemy/sqlalchemy/discussions/10839 and "
+        "https://github.com/sqlalchemy/sqlalchemy/issues/12060"
+    )
+
+    def teardown_method(self):
+        with PostgresHook().get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"DROP TABLE IF EXISTS {self.table}")
+
+    def insert_string_uuid_df(self, hook: PostgresHook) -> None:
+        engine = hook.get_sqlalchemy_engine()
+        with engine.begin() as conn:
+            conn.execute(sqlalchemy.text(f"CREATE TABLE {self.table} (id UUID PRIMARY KEY, item TEXT)"))
+        df = pd.DataFrame({"id": ["b29d6cda-04ca-4073-8ef8-4f70d35e41e2"], "item": ["laptop"]})
+        df.to_sql(self.table, engine, if_exists="append", index=False)
+
+    @pytest.mark.skipif(not USE_PSYCOPG3, reason="psycopg v3 or sqlalchemy v2 not available")
+    @pytest.mark.xfail(
+        raises=(sqlalchemy.exc.ProgrammingError, pd.errors.DatabaseError),
+        strict=True,
+        reason=PSYCOPG3_XFAIL_REASON,
+    )
+    def test_to_sql_string_uuid_fails_on_psycopg3(self):
+        self.insert_string_uuid_df(PostgresHook())
+
+    def test_to_sql_string_uuid_works_with_psycopg2_scheme(self):
+        hook = PostgresHook(sqlalchemy_scheme="postgresql+psycopg2")
+        self.insert_string_uuid_df(hook)
+        with hook.get_sqlalchemy_engine().connect() as conn:
+            assert conn.execute(sqlalchemy.text(f"SELECT COUNT(*) FROM {self.table}")).scalar() == 1
+
+
+@pytest.mark.backend("postgres")
 class TestPostgresHook:
     """Tests that are identical between psycopg2 and psycopg3."""
 
