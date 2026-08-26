@@ -52,7 +52,12 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.apache.druid.hooks.druid.DruidDbApiHook",
                 "hook-name": "Druid",
                 "connection-type": "druid",
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.apache.druid.hooks.druid.DruidHook",
+                "hook-name": "Druid Ingest",
+                "connection-type": "druid_ingest",
+            },
         ],
         "transfers": [
             {
