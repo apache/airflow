@@ -25,10 +25,19 @@ import structlog
 
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
-from airflow.sdk.exceptions import AirflowSkipException
-from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
+from airflow.sdk.exceptions import AirflowSkipException, ErrorType
+from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
+    GetXCom,
+    GetXComBatch,
+    XComBatchResult,
+    XComBatchResultItem,
+    XComResult,
+    XComSequenceSliceResult,
+)
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.serde import deserialize, serialize
 
@@ -416,3 +425,188 @@ class TestPlainXComArgResolveMappedGroup:
         assert resolved == "value-0"
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
+
+
+def test_expand_batches_plain_xcom_args_into_one_call(run_ti: RunTI, mock_supervisor_comms):
+    """Multiple plain, non-mapped-upstream XComArg kwargs resolve via a single GetXComBatch."""
+    results = []
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_a():
+            return ["a"]
+
+        @dag.task
+        def push_b():
+            return ["b"]
+
+        @dag.task
+        def push_c():
+            return ["c"]
+
+        @dag.task
+        def pull(x, y, z):
+            results.append((x, y, z))
+
+        pull.expand(x=push_a(), y=push_b(), z=push_c())
+
+    calls = {"GetXComBatch": 0, "GetXCom": 0}
+    values = {"push_a": ["a"], "push_b": ["b"], "push_c": ["c"]}
+
+    def comms(msg):
+        if isinstance(msg, GetXComBatch):
+            calls["GetXComBatch"] += 1
+            return XComBatchResult(
+                items=[
+                    XComBatchResultItem(
+                        task_id=item.task_id,
+                        key=item.key,
+                        map_index=-1,
+                        found=True,
+                        value=values[item.task_id],
+                    )
+                    for item in msg.items
+                ]
+            )
+        if isinstance(msg, GetXCom):
+            calls["GetXCom"] += 1
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = comms
+
+    assert run_ti(dag, "pull", 0) == TaskInstanceState.SUCCESS
+    assert calls == {"GetXComBatch": 1, "GetXCom": 0}
+    assert results == [("a", "b", "c")]
+
+
+def test_expand_batch_falls_back_on_old_server(run_ti: RunTI, mock_supervisor_comms):
+    """When the API server doesn't support batch lookups, kwargs resolve individually instead."""
+    results = []
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_a():
+            return ["a"]
+
+        @dag.task
+        def push_b():
+            return ["b"]
+
+        @dag.task
+        def pull(x, y):
+            results.append((x, y))
+
+        pull.expand(x=push_a(), y=push_b())
+
+    calls = {"GetXComBatch": 0, "GetXCom": 0}
+    values = {"push_a": ["a"], "push_b": ["b"]}
+
+    def comms(msg):
+        if isinstance(msg, GetXComBatch):
+            calls["GetXComBatch"] += 1
+            return ErrorResponse(error=ErrorType.XCOM_BATCH_NOT_SUPPORTED, detail={})
+        if isinstance(msg, GetXCom):
+            calls["GetXCom"] += 1
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=values[msg.task_id])
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = comms
+
+    assert run_ti(dag, "pull", 0) == TaskInstanceState.SUCCESS
+    assert calls == {"GetXComBatch": 1, "GetXCom": 2}
+    assert results == [("a", "b")]
+
+
+def test_expand_batch_skipped_for_custom_xcom_backend(run_ti: RunTI, mock_supervisor_comms):
+    """A custom XCom backend may bypass the batch endpoint's semantics, so batching is skipped."""
+    import airflow.sdk.execution_time.xcom as xcom_module
+
+    results = []
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_a():
+            return ["a"]
+
+        @dag.task
+        def push_b():
+            return ["b"]
+
+        @dag.task
+        def pull(x, y):
+            results.append((x, y))
+
+        pull.expand(x=push_a(), y=push_b())
+
+    calls = {"GetXComBatch": 0, "GetXCom": 0}
+    values = {"push_a": ["a"], "push_b": ["b"]}
+
+    def comms(msg):
+        if isinstance(msg, GetXComBatch):
+            calls["GetXComBatch"] += 1
+        if isinstance(msg, GetXCom):
+            calls["GetXCom"] += 1
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=values[msg.task_id])
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = comms
+
+    class CustomXCom(BaseXCom):
+        pass
+
+    with mock.patch.object(xcom_module, "XCom", CustomXCom):
+        assert run_ti(dag, "pull", 0) == TaskInstanceState.SUCCESS
+
+    assert calls == {"GetXComBatch": 0, "GetXCom": 2}
+    assert results == [("a", "b")]
+
+
+class TestDictOfListsExpandInputBatching:
+    """Unit-level tests for _batch_resolve_plain_xcom_args, below the full task-run scaffold."""
+
+    @staticmethod
+    def _make_plain_arg(task_id: str, *, mapped_task_group: bool = False) -> PlainXComArg:
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = task_id
+        operator.dag_id = "test_dag"
+        operator.get_closest_mapped_task_group.return_value = mock.MagicMock() if mapped_task_group else None
+        return PlainXComArg(operator=operator, key=BaseXCom.XCOM_RETURN_KEY)
+
+    def test_single_eligible_arg_is_not_batched(self):
+        """Nothing to batch with, so the caller's normal per-item path handles it instead."""
+        expand_input = DictOfListsExpandInput({"x": self._make_plain_arg("push_a")})
+        ti = mock.MagicMock(dag_id="test_dag")
+        ti.xcom_pull_batch.side_effect = AssertionError("should not batch a single kwarg")
+
+        assert expand_input._batch_resolve_plain_xcom_args({"ti": ti}) == {}
+
+    def test_mixed_eligibility_only_batches_plain_args(self):
+        """A mapped-task-group XComArg alongside plain ones: only the plain ones batch."""
+        expand_input = DictOfListsExpandInput(
+            {
+                "x": self._make_plain_arg("push_a"),
+                "y": self._make_plain_arg("push_b"),
+                "z": self._make_plain_arg("push_c", mapped_task_group=True),
+            }
+        )
+        ti = mock.MagicMock(dag_id="test_dag")
+        ti.xcom_pull_batch.return_value = XComBatchResult(
+            items=[
+                XComBatchResultItem(
+                    task_id="push_a", key=BaseXCom.XCOM_RETURN_KEY, map_index=-1, found=True, value="a"
+                ),
+                XComBatchResultItem(
+                    task_id="push_b", key=BaseXCom.XCOM_RETURN_KEY, map_index=-1, found=True, value="b"
+                ),
+            ]
+        )
+
+        results = expand_input._batch_resolve_plain_xcom_args({"ti": ti})
+
+        assert results == {"x": "a", "y": "b"}
+        ti.xcom_pull_batch.assert_called_once()
+        assert len(ti.xcom_pull_batch.call_args.args[0]) == 2

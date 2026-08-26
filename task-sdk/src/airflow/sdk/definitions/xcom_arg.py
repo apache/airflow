@@ -366,8 +366,27 @@ class PlainXComArg(XComArg):
             default=NOTSET,
             map_indexes=map_indexes,
         )
-        if is_arg_set(result):
-            return result
+        return self._finalize_pulled_value(result, dag_id=ti.dag_id)
+
+    @property
+    def is_batchable(self) -> bool:
+        """
+        Whether this XComArg can be resolved via a single-value batch XCom lookup.
+
+        True for the common, non-mapped-upstream case: the same condition that makes
+        ``resolve()`` above pull with ``map_indexes=None`` instead of returning a
+        ``LazyXComSequence`` or resolving per-map-index upstream indexes.
+        """
+        return not self.operator.is_mapped and self.operator.get_closest_mapped_task_group() is None
+
+    def _finalize_pulled_value(self, raw_value: Any, *, dag_id: str) -> Any:
+        """
+        Apply the not-found/default fallback shared by the per-item and batched pull paths.
+
+        ``raw_value`` is ``NOTSET`` (or unset) when no matching XCom was found.
+        """
+        if is_arg_set(raw_value):
+            return raw_value
         if self.key == BaseXCom.XCOM_RETURN_KEY:
             return None
         if getattr(self.operator, "multiple_outputs", False):
@@ -377,7 +396,7 @@ class PlainXComArg(XComArg):
             # different names than the predefined "XCOM_RETURN_KEY" and won't be found.
             # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
             return None
-        raise XComNotFound(ti.dag_id, task_id, self.key)
+        raise XComNotFound(dag_id, self.operator.task_id, self.key)
 
 
 def _get_callable_name(f: Callable | str) -> str:

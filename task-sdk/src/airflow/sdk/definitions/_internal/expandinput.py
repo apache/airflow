@@ -17,18 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import collections
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.types import NOTSET
 
 if TYPE_CHECKING:
     from typing import TypeGuard
 
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
+
+# Wraps a raw batch-response value so it can be passed to BaseXCom.deserialize_value,
+# which expects an object with a ``.value`` attribute (mirrors lazy_sequence.py's
+# private helper of the same shape; kept separate to avoid reaching into that module).
+_XComWrapper = collections.namedtuple("_XComWrapper", "value")
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
@@ -132,8 +139,11 @@ class DictOfListsExpandInput(ResolveMixin):
         they will not be present in the dict.
         """
 
-        # TODO: This initiates one API call for each XComArg. Would it be
-        # more efficient to do one single call and unpack the value here?
+        # NOTE: For plain, non-mapped-upstream XComArgs this operates on values already
+        # resolved by resolve() below (batched where possible, see
+        # _batch_resolve_plain_xcom_args). For a mapped-upstream XComArg, resolved_vals[k]
+        # is a LazyXComSequence and len() on it still triggers its own API call
+        # (GetXComCount) -- that case isn't batched yet.
         def _get_length(k: str, v: OperatorExpandArgument) -> int | None:
             from airflow.sdk.definitions.xcom_arg import XComArg, get_task_map_length
 
@@ -184,6 +194,52 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
+    def _batch_resolve_plain_xcom_args(self, context: Mapping[str, Any]) -> dict[str, Any]:
+        """
+        Batch-resolve the plain, non-mapped-upstream XComArg kwargs in one Execution API call.
+
+        Returns resolved values keyed by kwarg name, for whichever entries were actually
+        batched. Any key not in the returned dict falls through to the normal per-item
+        ``.resolve()`` path in the caller -- this happens when: fewer than two kwargs are
+        eligible (a single XComArg has nothing to batch with), a custom XCom backend is
+        configured (its ``get_one``/``get_all`` may bypass the batch endpoint's semantics
+        entirely, so batching is skipped rather than risking a mismatch), or the API server
+        doesn't support the batch endpoint yet (old server, newer Task SDK).
+        """
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetXComBatchItem, XComBatchResult
+        from airflow.sdk.execution_time.xcom import BaseXCom as ResolvedBaseXCom, XCom
+
+        if XCom is not ResolvedBaseXCom:
+            return {}
+
+        batchable = {k: v for k, v in self.value.items() if isinstance(v, PlainXComArg) and v.is_batchable}
+        if len(batchable) < 2:
+            return {}
+
+        ti = context["ti"]
+        items = [GetXComBatchItem(task_id=v.operator.task_id, key=v.key) for v in batchable.values()]
+        response = ti.xcom_pull_batch(items)
+        if isinstance(response, ErrorResponse):
+            return {}
+        if not isinstance(response, XComBatchResult):
+            raise TypeError(
+                f"Expected XComBatchResult or ErrorResponse, received: {type(response)} {response!r}"
+            )
+
+        by_task_key = {(item.task_id, item.key): item for item in response.items}
+        results: dict[str, Any] = {}
+        for k, xcom_arg in batchable.items():
+            item = by_task_key[(xcom_arg.operator.task_id, xcom_arg.key)]
+            if not item.found:
+                raw_value = NOTSET
+            elif item.value is None:
+                raw_value = None
+            else:
+                raw_value = ResolvedBaseXCom.deserialize_value(_XComWrapper(item.value))
+            results[k] = xcom_arg._finalize_pulled_value(raw_value, dag_id=ti.dag_id)
+        return results
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -193,11 +249,13 @@ class DictOfListsExpandInput(ResolveMixin):
         # When empty, individual XComArgs will compute their map_indexes lazily in xcom_arg.py.
         upstream_map_indexes = getattr(context["ti"], "_upstream_map_indexes", None) or {}
 
-        # TODO: This initiates one API call for each XComArg. Would it be
-        # more efficient to do one single call and unpack the value here?
+        batch_results = self._batch_resolve_plain_xcom_args(context)
 
         resolved = {
-            k: v.resolve(context) if _needs_run_time_resolution(v) else v for k, v in self.value.items()
+            k: batch_results[k]
+            if k in batch_results
+            else (v.resolve(context) if _needs_run_time_resolution(v) else v)
+            for k, v in self.value.items()
         }
 
         sized_resolved = {k: v for k, v in resolved.items() if isinstance(v, Sized)}
