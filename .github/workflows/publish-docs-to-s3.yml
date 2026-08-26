@@ -526,7 +526,7 @@ jobs:
           if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" ts-sdk "* ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'ts-sdk' — skipping TypeDoc build."
-          elif [[ -f "ts-sdk/docs/typedoc.json" ]]; then
+          elif [[ -f "ts-sdk/docs/typedoc.config.mjs" ]]; then
             echo "exists=true" >> "${GITHUB_OUTPUT}"
           else
             echo "exists=false" >> "${GITHUB_OUTPUT}"
