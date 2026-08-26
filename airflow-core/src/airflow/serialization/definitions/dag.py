@@ -63,7 +63,7 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import datetime
-    from collections.abc import Collection, Iterable, Sequence
+    from collections.abc import Collection, Iterable, Mapping, Sequence
     from typing import Any, Literal
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -194,7 +194,7 @@ class SerializedDAG:
         bundle_name: str,
         bundle_version: str | None,
         dags: Collection[DAG | LazyDeserializedDAG],
-        parse_duration: float | None = None,
+        parse_duration: float | Mapping[str, float | None] | None = None,
         *,
         session: Session = NEW_SESSION,
     ) -> None:

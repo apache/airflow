@@ -28,6 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
@@ -201,6 +202,20 @@ class _RunInfo(NamedTuple):
             session=session,
         )
         return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
+
+
+def _resolve_parse_duration(
+    parse_duration: float | Mapping[str, float | None] | None, dag_id: str
+) -> float | None:
+    """
+    Pick the parse duration for one Dag.
+
+    Persisting several files in one call means the duration differs per Dag, so callers doing that
+    pass a mapping. A single file still passes one value that applies to every Dag it defines.
+    """
+    if isinstance(parse_duration, Mapping):
+        return parse_duration.get(dag_id)
+    return parse_duration
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -471,7 +486,7 @@ def update_dag_parsing_results_in_db(
     bundle_version: str | None,
     dags: Collection[LazyDeserializedDAG],
     import_errors: dict[tuple[str, str], str],
-    parse_duration: float | None,
+    parse_duration: float | Mapping[str, float | None] | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -588,8 +603,12 @@ class DagModelOperation(NamedTuple):
                 .where(DagModel.dag_id.in_(self.dags))
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
+                .options(joinedload(DagModel.task_inlet_asset_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
+                # ``FOR NO KEY UPDATE`` conflicts with itself, and a group holds far more rows
+                # than one file did, so every writer takes them in the same order.
+                .order_by(DagModel.dag_id)
             ),
             of=DagModel,
             session=session,
@@ -612,7 +631,7 @@ class DagModelOperation(NamedTuple):
     def update_dags(
         self,
         orm_dags: dict[str, DagModel],
-        parse_duration: float | None,
+        parse_duration: float | Mapping[str, float | None] | None,
         *,
         session: Session,
     ) -> None:
@@ -626,7 +645,7 @@ class DagModelOperation(NamedTuple):
             dm.is_stale = False
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
-            dm.last_parse_duration = parse_duration
+            dm.last_parse_duration = _resolve_parse_duration(parse_duration, dag_id)
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:
@@ -850,6 +869,8 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
+            # Definition order decides which asset wins the unique-name race in ``asset_active``;
+            # :meth:`sync_assets` sorts what it inserts instead.
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
@@ -869,13 +890,19 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
-        orm_assets.update(
-            ((model.name, model.uri), model)
-            for model in asset_manager.create_assets(
-                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
-                session=session,
-            )
+        # ``asset`` is unique on (name, uri): two writers inserting the same new assets in
+        # opposite orders deadlock on that index.
+        to_create = sorted(
+            (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
+            key=lambda asset: (asset.name, asset.uri),
         )
+        created = {
+            (model.name, model.uri): model
+            for model in asset_manager.create_assets(to_create, session=session)
+        }
+        # Back to collection order: ``activate_assets_if_possible`` takes these first come, first
+        # served, so sorting for insertion must not decide which of two assets sharing a name wins.
+        orm_assets.update((key, created[key]) for key in self.assets if key in created)
         return orm_assets
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -1040,13 +1067,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No assets means there are no references to update.
-        if not assets:
-            return
         for dag_id, references in self.inlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_inlet_asset_references = []
+                if dags[dag_id].task_inlet_asset_references:
+                    dags[dag_id].task_inlet_asset_references = []
                 continue
             referenced_inlets = {
                 (task_id, asset.id)
@@ -1064,7 +1089,8 @@ class AssetModelOperation(NamedTuple):
         for dag_id, references in self.outlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_outlet_asset_references = []
+                if dags[dag_id].task_outlet_asset_references:
+                    dags[dag_id].task_outlet_asset_references = []
                 continue
             referenced_outlets = {
                 (task_id, assets[d.name, d.uri]): (
