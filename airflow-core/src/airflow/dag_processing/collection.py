@@ -231,7 +231,9 @@ def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> 
                 # Refresh the tags relationship from the database to reflect the deletions.
                 session.expire(dm, ["tags"])
 
-    dm.tags.extend(DagTag(name=name, dag_id=dm.dag_id) for name in tags_to_add)
+    # Sorted, like every other insert here: ``dag_tag`` is keyed on (name, dag_id), and a set
+    # iterates differently in each writer.
+    dm.tags.extend(DagTag(name=name, dag_id=dm.dag_id) for name in sorted(tags_to_add))
 
 
 def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, session: Session) -> None:
@@ -377,7 +379,7 @@ def _update_dag_warnings(
     for warning_to_delete in stored_warnings - warnings:
         session.delete(warning_to_delete)
 
-    for warning_to_add in warnings:
+    for warning_to_add in sorted(warnings, key=lambda warning: (warning.dag_id, warning.warning_type)):
         session.merge(warning_to_add)
 
 
@@ -588,9 +590,10 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        # Ordered, because these rows are locked, and two writers taking the same ones the other
-        # way round deadlock. Dag ids are shared between writers whenever a Dag moves file or a
-        # reserialize runs beside the Dag processor.
+        # Ordered because these rows are locked: two writers taking the same ones the other way
+        # round deadlock, which they can whenever a Dag moves between files or a reserialize runs
+        # beside the Dag processor. ``dag_id`` is the primary key, so the scan is in that order on
+        # MySQL too, where ``ORDER BY`` alone would not govern when locks are taken.
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
                 select(DagModel)
@@ -896,7 +899,7 @@ class AssetModelOperation(NamedTuple):
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(to_create, session=session)
         )
-        # Collection order, which decides the activation below; the read-back returns its own.
+        # Restore collection order; the read-back returns rows in whatever order it likes.
         return {key: orm_assets[key] for key in self.assets if key in orm_assets}
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -934,6 +937,9 @@ class AssetModelOperation(NamedTuple):
         there's a conflict. The scheduler makes a more comprehensive pass
         through all assets in ``_update_asset_orphanage``.
         """
+        candidates = list(models)
+        if not candidates:
+            return
         if (dialect_name := get_dialect_name(session)) == "postgresql":
             from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
@@ -948,13 +954,9 @@ class AssetModelOperation(NamedTuple):
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
-        candidates = list(models)
-        if not candidates:
-            return
-        # Only one of two assets sharing a name or a uri can be active. Deciding that here, from
-        # what is already active, is what lets the rows be sorted -- ``asset_active`` is unique on
-        # both columns. The read is a snapshot: a row deactivated meanwhile is missed until the
-        # scheduler's next orphanage pass.
+        # ``asset_active`` is unique on name and on uri separately, so choosing the winner here
+        # rather than leaving it to the insert is what lets these rows be sorted. The read is a
+        # snapshot; a row deactivated meanwhile is missed until the next orphanage pass.
         active = session.execute(
             select(AssetActive.name, AssetActive.uri).where(
                 or_(
@@ -973,7 +975,7 @@ class AssetModelOperation(NamedTuple):
             claimed_uris.add(model.uri)
             values.append({"name": model.name, "uri": model.uri})
         if values:
-            session.execute(stmt, sorted(values, key=lambda value: (value["name"], value["uri"])))
+            session.execute(stmt, sorted(values, key=itemgetter("name", "uri")))
 
     def add_dag_asset_references(
         self,
@@ -985,7 +987,7 @@ class AssetModelOperation(NamedTuple):
         # Optimization: No assets means there are no references to update.
         if not assets:
             return
-        for dag_id, references in self.schedule_asset_references.items():
+        for dag_id, references in sorted(self.schedule_asset_references.items(), key=itemgetter(0)):
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].schedule_asset_references = []
@@ -1027,7 +1029,7 @@ class AssetModelOperation(NamedTuple):
         # Optimization: No aliases means there are no references to update.
         if not aliases:
             return
-        for dag_id, references in self.schedule_asset_alias_references.items():
+        for dag_id, references in sorted(self.schedule_asset_alias_references.items(), key=itemgetter(0)):
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].schedule_asset_alias_references = []
@@ -1066,7 +1068,7 @@ class AssetModelOperation(NamedTuple):
         if old_refs:
             session.execute(delete(model).where(tuple_(model.dag_id, getattr(model, attr)).in_(old_refs)))
         if new_refs:
-            session.execute(insert(model), [{"dag_id": d, attr: r} for d, r in new_refs])
+            session.execute(insert(model), [{"dag_id": d, attr: r} for d, r in sorted(new_refs)])
 
     def add_dag_asset_name_uri_references(self, *, session: Session) -> None:
         self._add_dag_asset_references(
@@ -1092,7 +1094,7 @@ class AssetModelOperation(NamedTuple):
         # Optimization: No assets means there are no references to update.
         if not assets:
             return
-        for dag_id, references in self.inlet_references.items():
+        for dag_id, references in sorted(self.inlet_references.items(), key=itemgetter(0)):
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].task_inlet_asset_references = []
@@ -1107,10 +1109,10 @@ class AssetModelOperation(NamedTuple):
                     session.delete(ref)
             session.bulk_save_objects(
                 TaskInletAssetReference(asset_id=asset_id, dag_id=dag_id, task_id=task_id)
-                for task_id, asset_id in referenced_inlets
+                for task_id, asset_id in sorted(referenced_inlets)
                 if (task_id, asset_id) not in orm_refs
             )
-        for dag_id, references in self.outlet_references.items():
+        for dag_id, references in sorted(self.outlet_references.items(), key=itemgetter(0)):
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].task_outlet_asset_references = []
@@ -1237,10 +1239,10 @@ class AssetModelOperation(NamedTuple):
             )
 
             # Add new references
-            for name_uri, trigger_hashes in refs_to_add.items():
+            for name_uri, trigger_hashes in sorted(refs_to_add.items(), key=itemgetter(0)):
                 asset_model = assets[name_uri]
 
-                for trigger_hash in trigger_hashes:
+                for trigger_hash in sorted(trigger_hashes):
                     trigger = triggers.get(trigger_hash)
                     orm_trigger = orm_triggers.get(trigger_hash)
                     if orm_trigger and trigger:

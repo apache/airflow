@@ -248,19 +248,61 @@ class TestAssetModelOperation:
             dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
         return dags
 
-    def test_new_assets_and_aliases_are_inserted_in_a_stable_order(self, dag_maker, session):
+    def test_dag_tags_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
+        """``dag_tag`` is keyed on (name, dag_id), and the names arrive as a set."""
+        from airflow.dag_processing.collection import _update_dag_tags
+
+        dm = DagModel(dag_id="tagged_dag", bundle_name="testing")
+        session.add(dm)
+        session.flush()
+
+        _update_dag_tags({"finance", "ops", "daily"}, dm, session=session)
+
+        assert [tag.name for tag in dm.tags] == ["daily", "finance", "ops"]
+
+    def test_asset_name_references_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
+        """``dag_schedule_asset_name_reference`` is keyed on (name, dag_id), and so is its set."""
+        session.add_all(
+            [DagModel(dag_id="a_dag", bundle_name="testing"), DagModel(dag_id="b_dag", bundle_name="testing")]
+        )
+        session.flush()
+        inserted: list[dict] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            if "insert into dag_schedule_asset_name_reference" in statement.lower():
+                inserted.extend(parameters if executemany else [parameters])
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            AssetModelOperation._add_dag_asset_references(
+                {("b_dag", "n2"), ("a_dag", "n1"), ("b_dag", "n1"), ("a_dag", "n2")},
+                DagScheduleAssetNameReference,
+                "name",
+                session=session,
+            )
+            session.flush()
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        assert [(row["dag_id"], row["name"]) for row in inserted] == [
+            ("a_dag", "n1"),
+            ("a_dag", "n2"),
+            ("b_dag", "n1"),
+            ("b_dag", "n2"),
+        ]
+
+    def test_new_assets_and_aliases_are_inserted_in_a_stable_order(self, session):
         """Two writers reaching the same rows must take them the same way round or they deadlock."""
-        dags = self._build_dags_for(
-            dag_maker,
+        dags = self._build_dags_scheduled_on(
             [
-                Asset("c_asset"),
+                Asset(name="dup", uri="s3://zzz"),
                 AssetAlias("z_alias"),
                 Asset("a_asset"),
                 AssetAlias("a_alias"),
-                Asset("b_asset"),
-            ],
+                Asset(name="dup", uri="s3://aaa"),
+            ]
         )
-        clear_db_assets()
 
         def inserted(op):
             with (
@@ -280,31 +322,36 @@ class TestAssetModelOperation:
                 op.sync_assets(session=session)
                 op.sync_asset_aliases(session=session)
             return (
-                [a.name for a in assets.call_args.args[0]],
+                [(a.name, a.uri) for a in assets.call_args.args[0]],
                 [a.name for a in aliases.call_args.args[0]],
             )
 
         forwards = inserted(AssetModelOperation.collect(dags))
         backwards = inserted(AssetModelOperation.collect(dict(reversed(list(dags.items())))))
 
-        assert forwards == (["a_asset", "b_asset", "c_asset"], ["a_alias", "z_alias"])
+        # Two rows share a name, so the uri half of the key decides their order.
+        assert forwards == (
+            [("a_asset", "a_asset"), ("dup", "s3://aaa/"), ("dup", "s3://zzz/")],
+            ["a_alias", "z_alias"],
+        )
         assert forwards == backwards, "the order the Dags arrived in reached the insert"
 
     @staticmethod
-    def _dags_for(assets: list[Asset]) -> dict:
+    def _build_dags_scheduled_on(schedules: list) -> dict:
+        """One unpersisted Dag per schedule, so nothing is written before the call under test."""
         return {
-            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[asset]))
-            for i, asset in enumerate(assets)
+            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[schedule]))
+            for i, schedule in enumerate(schedules)
         }
 
-    def _active(self, session) -> list[tuple[str, str]]:
+    @staticmethod
+    def _read_active_assets(session) -> list[tuple[str, str]]:
         return sorted((a.name, a.uri) for a in session.scalars(select(AssetActive)))
 
     def test_activation_rows_are_inserted_in_a_stable_order(self, session):
         """``asset_active`` is unique on both its columns, so its insert needs one order too."""
-        clear_db_assets()
         op = AssetModelOperation.collect(
-            self._dags_for([Asset("c_asset"), Asset("a_asset"), Asset("b_asset")])
+            self._build_dags_scheduled_on([Asset("c_asset"), Asset("a_asset"), Asset("b_asset")])
         )
         orm_assets = op.sync_assets(session=session)
         session.flush()
@@ -320,8 +367,7 @@ class TestAssetModelOperation:
 
     def test_activating_assets_costs_one_read_and_one_insert(self, session):
         """Deciding the claim needs what is already active; nothing else here may add a round trip."""
-        clear_db_assets()
-        op = AssetModelOperation.collect(self._dags_for([Asset("a_asset"), Asset("b_asset")]))
+        op = AssetModelOperation.collect(self._build_dags_scheduled_on([Asset("a_asset"), Asset("b_asset")]))
         orm_assets = op.sync_assets(session=session)
         session.flush()
 
@@ -340,31 +386,63 @@ class TestAssetModelOperation:
 
         assert statements == ["SELECT", "INSERT"], statements
 
-    def test_a_candidate_the_insert_would_reject_does_not_take_the_claim(self, session):
+    @pytest.mark.parametrize(
+        ("blocker", "batch", "expected"),
+        [
+            pytest.param(
+                Asset(name="n9", uri="s3://u1"),
+                [Asset(name="n1", uri="s3://u1"), Asset(name="n1", uri="s3://u2")],
+                [("n1", "s3://u2/"), ("n9", "s3://u1/")],
+                id="blocker-holds-the-uri",
+            ),
+            pytest.param(
+                Asset(name="n1", uri="s3://u9"),
+                [Asset(name="n1", uri="s3://u2"), Asset(name="n2", uri="s3://u2")],
+                [("n1", "s3://u9/"), ("n2", "s3://u2/")],
+                id="blocker-holds-the-name",
+            ),
+        ],
+    )
+    def test_a_candidate_the_insert_would_reject_does_not_take_the_claim(
+        self, blocker, batch, expected, session
+    ):
         """
         The claim has to start from what is already active, not from the batch alone.
 
-        With ``n9`` holding ``s3://u1``, ``("n1", "s3://u1")`` cannot be activated whatever happens
-        -- its uri is taken. Were it to claim the name anyway, ``("n1", "s3://u2/")`` would be passed
+        The first candidate cannot be activated whatever happens -- the blocker holds one of its
+        two columns. Were it to claim the other anyway, the candidate behind it would be passed
         over and the insert would then drop the claimer too, leaving neither active.
         """
-        clear_db_assets()
-        blocker = AssetModelOperation.collect(self._dags_for([Asset(name="n9", uri="s3://u1")]))
-        blocked = blocker.sync_assets(session=session)
+        held = AssetModelOperation.collect(self._build_dags_scheduled_on([blocker]))
+        orm_held = held.sync_assets(session=session)
         session.flush()
-        blocker.activate_assets_if_possible(blocked.values(), session=session)
+        held.activate_assets_if_possible(orm_held.values(), session=session)
         session.flush()
-        assert self._active(session) == [("n9", "s3://u1/")]
 
-        op = AssetModelOperation.collect(
-            self._dags_for([Asset(name="n1", uri="s3://u1"), Asset(name="n1", uri="s3://u2")])
-        )
+        op = AssetModelOperation.collect(self._build_dags_scheduled_on(batch))
         orm_assets = op.sync_assets(session=session)
         session.flush()
         op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()
 
-        assert self._active(session) == [("n1", "s3://u2/"), ("n9", "s3://u1/")]
+        assert self._read_active_assets(session) == expected
+
+    def test_activating_nothing_asks_the_database_nothing(self, session):
+        """The guard exists so an empty batch does not pay for the claim it has nothing to make."""
+        op = AssetModelOperation.collect(self._build_dags_scheduled_on([Asset("only_asset")]))
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement.split()[0].upper())
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            op.activate_assets_if_possible([], session=session)
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        assert statements == []
 
     @pytest.mark.parametrize(
         "seeded",
@@ -384,15 +462,17 @@ class TestAssetModelOperation:
             clear_db_assets()
             if seeded:
                 # Written but not activated, so the pass below reads them back as existing rows.
-                AssetModelOperation.collect(self._dags_for(assets)).sync_assets(session=session)
+                AssetModelOperation.collect(self._build_dags_scheduled_on(assets)).sync_assets(
+                    session=session
+                )
                 session.commit()
 
-            op = AssetModelOperation.collect(self._dags_for(assets))
+            op = AssetModelOperation.collect(self._build_dags_scheduled_on(assets))
             orm_assets = op.sync_assets(session=session)
             session.flush()
             op.activate_assets_if_possible(orm_assets.values(), session=session)
             session.flush()
-            return self._active(session)
+            return self._read_active_assets(session)
 
         pair = [Asset(name="dup", uri="s3://zzz"), Asset(name="dup", uri="s3://aaa")]
 
