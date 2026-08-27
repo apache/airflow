@@ -122,15 +122,11 @@ class DateTimeSensorAsync(DateTimeSensor):
                 moment = self._moment
             except ValueError:
                 if not self._looks_like_template(self.target_time):
-                    # Not a template, and not parseable either -- this is genuinely invalid
-                    # input (e.g. "not-a-date"), so fail fast instead of silently deferring to
-                    # a trigger that could never resolve it either.
+                    # genuinely invalid input (e.g. "not-a-date"), not a template: fail fast
                     raise
                 moment = None
 
-            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
-            # assigning through it would overwrite the arguments of every other task built
-            # from this operator.
+            # start_trigger_args is a class attribute, so replace it rather than mutate it
             if moment is not None:
                 self.start_trigger_args = dataclasses.replace(
                     self.start_trigger_args,

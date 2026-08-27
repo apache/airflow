@@ -76,9 +76,6 @@ class DateTimeTrigger(BaseTrigger):
         if self.moment is not None:
             return self.moment
         if not self.target_time:
-            # __init__ guarantees one of moment/target_time is set; this only trips if
-            # target_time is cleared after construction, which would otherwise surface as a
-            # confusing AttributeError below instead of this clear message.
             raise TypeError("DateTimeTrigger requires either 'moment' or 'target_time' to be set")
         try:
             parsed = timezone.parse(self.target_time)
