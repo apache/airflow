@@ -276,6 +276,12 @@ The default ``body`` contains the rendered prompt and the output.  Where either
 is sensitive, template only ``{{ task.subject }}`` and a link to the review
 into channels outside Airflow's auth boundary.
 
+By default any user with the permission can answer the review.  Pass
+``approval_assigned_users=[{"id": "<user-id>", "name": "<user-name>"}]`` to
+restrict it to named reviewers, the way
+:class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+``assigned_users``.  This needs Airflow 3.1+.
+
 Parameters
 ----------
 
@@ -303,6 +309,9 @@ Parameters
   approving.  Default ``False``.
 - ``approval_notifiers``: Notifier, or list of notifiers, called once the review
   is open.  Default ``None``.
+- ``approval_assigned_users``: Users allowed to answer the review, as
+  ``{"id": ..., "name": ...}`` dicts.  ``None`` (default) lets any user with the
+  permission respond.  Needs Airflow 3.1+.
 
 Logging
 -------
