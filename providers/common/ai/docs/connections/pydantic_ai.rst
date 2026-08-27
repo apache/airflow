@@ -21,9 +21,11 @@ Pydantic AI Connection
 ======================
 
 The `Pydantic AI <https://ai.pydantic.dev/>`__ connection type configures access
-to LLM providers via the pydantic-ai framework. A single connection type works with
-any provider that pydantic-ai supports: OpenAI, Anthropic, Google, Bedrock, Groq,
-Mistral, Ollama, vLLM, and others.
+to LLM and embedding models via the pydantic-ai framework. A single connection
+type works with any provider that pydantic-ai supports. Supported LLM providers
+include OpenAI, Anthropic, Google, Bedrock, Groq, Mistral, Ollama, vLLM, and
+others. Embedding model availability depends on the providers supported by
+pydantic-ai's ``Embedder``.
 
 Default Connection IDs
 ----------------------
@@ -49,14 +51,24 @@ Model
     The model can also be overridden at the hook/operator level via the
     ``model_id`` parameter.
 
+Embedding Model
+    The embedding model identifier in ``provider:model`` format. This field
+    appears as a dedicated input in the connection form and stores its value in
+    ``extra["embed_model"]``.
+
+    Example: ``openai:text-embedding-3-small``
+
+    The embedding model and connection can also be overridden at the hook level
+    via the ``embed_model_id`` and ``embed_conn_id`` parameters.
+
 API Key (Password field)
-    The API key for your LLM provider. Required for API-key-based providers
+    The API key for your model provider. Required for API-key-based providers
     (OpenAI, Anthropic, Groq, Mistral). Leave empty for providers using
     environment-based auth (Bedrock via ``AWS_PROFILE``, Vertex via
     ``GOOGLE_APPLICATION_CREDENTIALS``).
 
 Host (optional)
-    Base URL for the provider's API. Only needed for custom endpoints:
+    Base URL for the model provider's API. Only needed for custom endpoints:
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
@@ -65,14 +77,17 @@ Host (optional)
 
 Extra (JSON, optional)
     A JSON object with additional configuration. Programmatic users can set the
-    model directly in extra:
+    LLM and embedding models directly in extra:
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5.6-sol"}
+        {
+            "model": "openai:gpt-5.6-sol",
+            "embed_model": "openai:text-embedding-3-small"
+        }
 
-    When using the UI, the "Model" field above writes to this same location
-    automatically.
+    When using the UI, the "Model" and "Embedding Model" fields above write to
+    this same location automatically.
 
 Examples
 --------
@@ -151,3 +166,11 @@ The hook reads the model from these sources in priority order:
 
 1. ``model_id`` parameter on the hook/operator
 2. ``model`` in the connection's extra JSON (set by the "Model" conn-field in the UI)
+
+The embedding model is resolved separately:
+
+1. ``embed_model_id`` parameter on the hook
+2. ``embed_model`` in the connection's extra JSON
+
+Embedding credentials and endpoints are read from ``embed_conn_id`` when set;
+otherwise they are read from ``llm_conn_id``.
