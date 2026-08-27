@@ -740,21 +740,26 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
   Publishing is deployed for the Airflow provider distributions on PyPI**,
   the recommended practice is:
 
-  1. Log in to https://pypi.org and create an API token right before the
-     upload step. **Scope caveat:** you would ideally create a
-     project-scoped token, but PyPI only allows project-scoped tokens for
-     projects you already own/maintain on that account. Most Airflow
-     release managers do not have per-project owner rights on every
-     provider being released, so in practice you will need to create an
-     account-wide ("all projects") token. That is acceptable **only if**
-     you treat it as single-use and delete it immediately after the upload
-     (step 4 below). Never keep an all-projects token on disk longer than
-     the upload itself.
-  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
-     `TWINE_PASSWORD=pypi-...`).
-  3. Run the upload (below).
-  4. **Immediately delete the token** from the PyPI web UI after the upload
-     completes. Do not keep long-lived release-manager tokens on disk.
+  1. Create the token immediately before uploading, at
+     [Account settings → API tokens → "Add API token"](https://pypi.org/manage/account/token/). Name
+     it after the wave (e.g. `airflow-providers-2026-08-25-rc`) so you can find it again to delete it.
+  2. **Scope caveat:** a token can only be scoped to a single project and a wave publishes several,
+     so pick "Entire account (all projects)". That is acceptable **only if** you treat it as
+     single-use and delete it immediately after the upload. Never keep an all-projects token on disk
+     longer than the upload itself.
+  3. Copy the `pypi-...` value, PyPI shows it only once. Pass it to twine in the environment rather
+     than in `~/.pypirc`, so that nothing is written to disk and any `.pypirc` you already have for
+     your own projects is left alone:
+
+     ```shell script
+     export TWINE_USERNAME=__token__
+     read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
+     ```
+
+  4. Run the upload (below).
+  5. **Delete the token** at
+     [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
+     `unset TWINE_USERNAME TWINE_PASSWORD`.
 
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
@@ -1677,21 +1682,26 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
   Publishing is deployed for the Airflow provider distributions on PyPI**,
   the recommended practice is:
 
-  1. Log in to https://pypi.org and create an API token right before the
-     upload step. **Scope caveat:** you would ideally create a
-     project-scoped token, but PyPI only allows project-scoped tokens for
-     projects you already own/maintain on that account. Most Airflow
-     release managers do not have per-project owner rights on every
-     provider being released, so in practice you will need to create an
-     account-wide ("all projects") token. That is acceptable **only if**
-     you treat it as single-use and delete it immediately after the upload
-     (step 4 below). Never keep an all-projects token on disk longer than
-     the upload itself.
-  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
-     `TWINE_PASSWORD=pypi-...`).
-  3. Run the upload (below).
-  4. **Immediately delete the token** from the PyPI web UI after the upload
-     completes. Do not keep long-lived release-manager tokens on disk.
+  1. Create the token immediately before uploading, at
+     [Account settings → API tokens → "Add API token"](https://pypi.org/manage/account/token/). Name
+     it after the wave (e.g. `airflow-providers-2026-08-25-final`) so you can find it again to delete it.
+  2. **Scope caveat:** a token can only be scoped to a single project and a wave publishes several,
+     so pick "Entire account (all projects)". That is acceptable **only if** you treat it as
+     single-use and delete it immediately after the upload. Never keep an all-projects token on disk
+     longer than the upload itself.
+  3. Copy the `pypi-...` value, PyPI shows it only once. Pass it to twine in the environment rather
+     than in `~/.pypirc`, so that nothing is written to disk and any `.pypirc` you already have for
+     your own projects is left alone:
+
+     ```shell script
+     export TWINE_USERNAME=__token__
+     read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
+     ```
+
+  4. Run the upload (below).
+  5. **Delete the token** at
+     [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
+     `unset TWINE_USERNAME TWINE_PASSWORD`.
 
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
