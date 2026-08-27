@@ -4246,14 +4246,21 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize(
-        ("initial_state", "started_ago", "expected_duration"),
+        ("initial_state", "started_ago", "ended_ago", "expected_duration"),
         [
-            pytest.param(TaskInstanceState.RUNNING, datetime.timedelta(hours=1), 3600.0, id="running"),
-            pytest.param(None, None, 0.0, id="never_started"),
+            pytest.param(TaskInstanceState.RUNNING, datetime.timedelta(hours=1), None, 3600.0, id="running"),
+            pytest.param(None, None, None, 0.0, id="never_started"),
+            pytest.param(
+                TaskInstanceState.UP_FOR_RETRY,
+                datetime.timedelta(hours=1),
+                datetime.timedelta(minutes=30),
+                1800.0,
+                id="up_for_retry_keeps_previous_try_end_date",
+            ),
         ],
     )
     def test_dagrun_timeout_sets_end_date_and_duration_on_skipped_tasks(
-        self, dag_maker, initial_state, started_ago, expected_duration
+        self, dag_maker, initial_state, started_ago, ended_ago, expected_duration
     ):
         """Without an end_date the UI keeps growing the duration of a task the timeout already skipped."""
         session = settings.Session()
@@ -4269,6 +4276,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy", session=session)
         ti.state = initial_state
         ti.start_date = now - started_ago if started_ago else None
+        ti.end_date = now - ended_ago if ended_ago else None
         session.merge(ti)
         session.flush()
 
@@ -4281,7 +4289,7 @@ class TestSchedulerJob:
 
         session.refresh(ti)
         assert ti.state == TaskInstanceState.SKIPPED
-        assert ti.end_date is not None
+        assert ti.end_date == (now - ended_ago if ended_ago else now)
         assert ti.duration == expected_duration
 
         session.rollback()
