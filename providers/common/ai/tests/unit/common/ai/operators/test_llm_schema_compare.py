@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -51,7 +52,9 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    mock_result.usage = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=None
+    )
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -291,6 +294,41 @@ class TestLLMSchemaCompareOperator:
         )
         mock_agent.run_sync.assert_called_once_with("user_prompt", usage_limits=None)
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
+    )
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_build_system_prompt, mock_build_schema_context
+    ):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
+        mock_build_schema_context.return_value = "schema_context"
+        mock_build_system_prompt.return_value = "system_prompt"
+
+        op = LLMSchemaCompareOperator(
+            task_id="test",
+            prompt="user_prompt",
+            llm_conn_id="llm_conn",
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["orders"],
+            usage_limits={"cost_limit": "0.5"},
+        )
+
+        mock_llm_hook = mock.Mock()
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = _make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        mock_llm_hook.create_agent.return_value = mock_agent
+        op.llm_hook = mock_llm_hook
+
+        op.execute(context={})
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
 
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._get_db_hook"

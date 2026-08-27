@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 
 from pydantic import BaseModel
 from pydantic_ai.usage import UsageLimits
@@ -139,6 +140,10 @@ def example_llm_operator_usage_limits():
             request_limit=5,
             input_tokens_limit=4_000,
             output_tokens_limit=1_000,
+            # Fail the task if the run's estimated USD cost exceeds $0.50.
+            # See docs/operators/llm.rst for caveats (not a hard guarantee,
+            # silently inert for models pydantic-ai can't price).
+            cost_limit=Decimal("0.50"),
         ),
     )
 
@@ -146,6 +151,30 @@ def example_llm_operator_usage_limits():
 # [END howto_operator_llm_usage_limits]
 
 example_llm_operator_usage_limits()
+
+
+# [START howto_operator_llm_templated_usage_limits]
+@dag(tags=["example"])
+def example_llm_operator_templated_usage_limits():
+    LLMOperator(
+        task_id="capped_summary",
+        prompt="Summarize the trade-offs of a message queue vs. direct HTTP calls in three bullet points.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a concise technical reviewer.",
+        # A plain dict lets every UsageLimits field be templated -- e.g. driven by
+        # an Airflow Variable so the budget can change per environment without
+        # editing the Dag. This caps a single task run, not a day's total spend --
+        # each run gets the full budget again.
+        usage_limits={
+            "cost_limit": "{{ var.value.llm_cost_cap_per_task }}",
+            "request_limit": 5,
+        },
+    )
+
+
+# [END howto_operator_llm_templated_usage_limits]
+
+example_llm_operator_templated_usage_limits()
 
 
 # [START howto_operator_llm_approval]

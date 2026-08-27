@@ -31,6 +31,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -144,10 +145,23 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
         :class:`~pydantic_ai.usage.UsageLimits` enforced on every agent run
-        (initial run, durable replay, and HITL regeneration). Pass
-        ``UsageLimits(request_limit=..., total_tokens_limit=..., tool_calls_limit=..., ...)``
-        to fail the task when the agent exceeds the configured token, request,
-        or tool budget. ``None`` (default) means no enforcement.
+        (initial run, durable replay, and HITL regeneration), or a dict of the
+        same fields (e.g.
+        ``{"cost_limit": "{{ params.budget }}", "request_limit": 5}``). The dict
+        form is templated: each value is rendered by Jinja like any other
+        ``template_fields`` entry, then coerced to that field's type (``Decimal``,
+        ``int``, or ``bool``). A value that cannot be coerced -- an unset Airflow
+        Variable renders to ``""``, a typo renders to a non-numeric string --
+        fails the task with a ``ValueError`` naming the field and the rendered
+        value, instead of silently disabling the limit. A ``UsageLimits``
+        instance passed directly is used as-is and is not templated or
+        validated. ``None`` (default) means no enforcement.
+
+        A dict that omits ``request_limit`` still gets pydantic-ai's default of
+        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
+        request cap. See :ref:`howto/operator:llm` for the full set of caveats,
+        and :ref:`howto/operator:agent` for the ``durable=True`` replay
+        double-counting warning.
     :param durable: When ``True``, enables step-level caching of model
         responses and tool results for durable execution.  On retry, cached
         steps are replayed instead of re-executing.  Each cached step is
@@ -232,6 +246,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         "system_prompt",
         "agent_params",
         "message_history",
+        "usage_limits",
     )
 
     operator_extra_links = (HITLReviewLink(),)
@@ -247,7 +262,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
-        usage_limits: UsageLimits | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
         durable: bool = False,
         code_mode: bool = False,
         message_history: list[ModelMessage] | str | bytes | None = None,
@@ -273,6 +288,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
+        # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         self.message_history = message_history
 
@@ -446,7 +462,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         agent = self._build_agent()
 
-        run_kwargs: dict[str, Any] = {"usage_limits": self.usage_limits}
+        run_kwargs: dict[str, Any] = {"usage_limits": coerce_usage_limits(self.usage_limits)}
         history = self._resolve_message_history()
         if history is not None:
             run_kwargs["message_history"] = history
@@ -553,7 +569,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Re-run the agent with *feedback* appended to the conversation history."""
         agent = self._build_agent()
         messages = message_history or []
-        result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
+        result = agent.run_sync(
+            feedback,
+            message_history=messages,
+            usage_limits=coerce_usage_limits(self.usage_limits),
+        )
         log_run_summary(self.log, result)
 
         output = result.output

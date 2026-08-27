@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from decimal import Decimal
 from enum import Enum
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -42,7 +43,9 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
+    mock_result.usage = MagicMock(
+        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0, cost=None
+    )
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -91,6 +94,30 @@ class TestLLMBranchOperator:
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
         mock_agent.run_sync.assert_called_once_with("Pick a branch", usage_limits=None)
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, mock_do_branch):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
+        downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_do_branch.return_value = "task_a"
+
+        op = LLMBranchOperator(
+            task_id="test",
+            prompt="Pick a branch",
+            llm_conn_id="my_llm",
+            usage_limits={"cost_limit": "0.5"},
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+
+        op.execute(MagicMock())
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
