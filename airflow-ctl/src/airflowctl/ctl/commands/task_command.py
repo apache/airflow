@@ -129,11 +129,17 @@ def failed_deps(args, api_client=NEW_API_CLIENT) -> None:
 @provide_api_client(kind=ClientKind.CLI)
 def state(args, api_client=NEW_API_CLIENT) -> None:
     """Get the state of a task instance."""
-    if (args.run_id is None) == (args.logical_date is None):
+    has_run_id = args.run_id is not None
+    has_logical_date = args.logical_date is not None
+    # Rejects both "neither given" and "both given".
+    if has_run_id == has_logical_date:
         rich.print("[red]Provide either run_id or --logical-date, but not both[/red]")
         sys.exit(1)
 
-    run_id = args.run_id or _find_run_id_by_logical_date(api_client, args.dag_id, args.logical_date)
+    if has_run_id:
+        run_id = args.run_id
+    else:
+        run_id = _find_run_id_by_logical_date(api_client, args.dag_id, args.logical_date)
 
     try:
         task_instance = api_client.task_instances.get(

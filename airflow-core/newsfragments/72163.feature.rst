@@ -1,0 +1,1 @@
+Add ``airflowctl tasks state`` command to get the state of a task instance, selected by ``run_id`` or ``--logical-date``.

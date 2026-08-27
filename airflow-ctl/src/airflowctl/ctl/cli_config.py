@@ -1204,7 +1204,8 @@ TASK_COMMANDS = (
         help="Get the state of a task instance",
         description=(
             "Get the state of a task instance. "
-            "Select the run with either run_id or --logical-date (pass exactly one)."
+            "Select the run with either run_id or --logical-date (pass exactly one). "
+            "--logical-date matches the Dag run with exactly that logical date."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
         args=(
