@@ -20,18 +20,25 @@ import datetime
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from websockets.sync.client import connect
+from websockets.sync.client import ClientConnection, connect
 
-from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import BaseSensorOperator, conf, poke_mode_only
 from airflow.providers.standard.triggers.websocket import WebSocketTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
+@poke_mode_only
 class WebSocketSensor(BaseSensorOperator):
     """
     Waits for a message on a WebSocket connection.
+
+    WebSocket messages are consumptive: once read, a message cannot be read again, and
+    reconnecting can duplicate ``message_to_send`` against the remote server. The
+    non-deferrable path therefore keeps a single connection open across pokes instead of
+    reconnecting and re-sending on every poke, and this sensor will not behave correctly in
+    reschedule mode, since that state would be lost between rescheduled invocations.
 
     :param url: The ``ws://`` or ``wss://`` URL of the WebSocket server to connect to.
     :param header: Optional headers sent when opening the connection.
@@ -60,22 +67,31 @@ class WebSocketSensor(BaseSensorOperator):
         self.header = header
         self.message_to_send = message_to_send
         self.deferrable = deferrable
+        self._connection: ClientConnection | None = None
 
     def poke(self, context: Context) -> bool:
-        self.log.info("Poking WebSocket %s", self.url)
-        with connect(self.url, additional_headers=self.header) as websocket:
+        if self._connection is None:
+            self.log.info("Connecting to WebSocket %s", self.url)
+            self._connection = connect(self.url, additional_headers=self.header)
             if self.message_to_send is not None:
-                websocket.send(self.message_to_send)
-            try:
-                websocket.recv(timeout=self.poke_interval)
-            except TimeoutError:
-                return False
+                self._connection.send(self.message_to_send)
+        try:
+            self._connection.recv(timeout=self.poke_interval)
+        except TimeoutError:
+            return False
         self.log.info("Received message from %s", self.url)
+        self._connection.close()
+        self._connection = None
         return True
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
-            super().execute(context=context)
+            try:
+                super().execute(context=context)
+            finally:
+                if self._connection is not None:
+                    self._connection.close()
+                    self._connection = None
             return
         # Each poke opens and consumes a WebSocket connection, so the deferrable path must
         # defer immediately: polling here first would send message_to_send and consume the
