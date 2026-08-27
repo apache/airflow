@@ -81,27 +81,31 @@ class TestCliPools:
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         assert self.session.scalar(select(Pool).where(Pool.pool == "foo")).include_deferred is False
 
-    def test_pool_set_include_deferred_rejected_when_fixed_by_config(self):
-        with conf_vars({("core", "pool_include_deferred"): "False"}):
-            with pytest.raises(SystemExit, match="include_deferred is fixed to False for all pools"):
+    @pytest.mark.parametrize("conf_value", ["True", "False"])
+    def test_pool_set_include_deferred_rejected_when_fixed_by_config(self, conf_value):
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            with pytest.raises(
+                SystemExit, match=f"include_deferred cannot be set because it is fixed to {conf_value}"
+            ):
                 pool_command.pool_set(
                     self.parser.parse_args(["pools", "set", "locked_pool", "1", "test", "--include-deferred"])
                 )
         assert self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")) is None
 
-    def test_pool_set_include_deferred_allowed_when_matching_config(self):
+    def test_pool_set_without_include_deferred_stores_config_value(self):
         try:
             with conf_vars({("core", "pool_include_deferred"): "True"}):
-                pool_command.pool_set(
-                    self.parser.parse_args(["pools", "set", "locked_pool", "1", "test", "--include-deferred"])
-                )
+                pool_command.pool_set(self.parser.parse_args(["pools", "set", "locked_pool", "1", "test"]))
             assert self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")).include_deferred
         finally:
             self._cleanup()
 
-    def test_pool_import_include_deferred_rejected_when_fixed_by_config(self, tmp_path):
+    @pytest.mark.parametrize("file_value", [True, False])
+    def test_pool_import_include_deferred_rejected_when_fixed_by_config(self, tmp_path, file_value):
         pool_import_file_path = tmp_path / "pools_import.json"
-        pool_config_input = {"locked_pool": {"slots": 1, "description": "test", "include_deferred": True}}
+        pool_config_input = {
+            "locked_pool": {"slots": 1, "description": "test", "include_deferred": file_value}
+        }
         with open(pool_import_file_path, mode="w") as file:
             json.dump(pool_config_input, file)
 
@@ -111,6 +115,25 @@ class TestCliPools:
                     self.parser.parse_args(["pools", "import", str(pool_import_file_path)])
                 )
         assert self.session.scalar(select(Pool).where(Pool.pool == "locked_pool")) is None
+
+    def test_pool_export_import_omits_include_deferred_when_fixed_by_config(self, tmp_path):
+        pool_export_file_path = tmp_path / "pools_export.json"
+        try:
+            pool_command.pool_set(self.parser.parse_args(["pools", "set", "locked_pool", "1", "test"]))
+            with conf_vars({("core", "pool_include_deferred"): "True"}):
+                pool_command.pool_export(
+                    self.parser.parse_args(["pools", "export", str(pool_export_file_path)])
+                )
+                with open(pool_export_file_path) as file:
+                    exported = json.load(file)
+                assert "include_deferred" not in exported["locked_pool"]
+
+                # the exported file can be imported back without being rejected
+                pool_command.pool_import(
+                    self.parser.parse_args(["pools", "import", str(pool_export_file_path)])
+                )
+        finally:
+            self._cleanup()
 
     def test_pool_get(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))

@@ -33,15 +33,15 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
-def check_include_deferred_choice_allowed(include_deferred: bool) -> str | None:
-    """Return an error message when an explicit ``include_deferred`` choice conflicts with the cluster config."""
+def get_include_deferred_rejection() -> str | None:
+    """Return an error message when ``include_deferred`` is fixed cluster-wide and so cannot be set by the user."""
     override = Pool.get_include_deferred_override()
-    if override is not None and include_deferred != override:
-        return (
-            f"include_deferred is fixed to {override} for all pools by the [core] pool_include_deferred "
-            "configuration and cannot be set per pool."
-        )
-    return None
+    if override is None:
+        return None
+    return (
+        f"include_deferred cannot be set because it is fixed to {override} for all pools by the "
+        "[core] pool_include_deferred configuration."
+    )
 
 
 def _show_pools(pools, output):
@@ -87,8 +87,8 @@ def pool_get(args):
 @providers_configuration_loaded
 def pool_set(args):
     """Create new pool with a given name and slots."""
-    # --include-deferred is a store-true flag, so only a passed flag is an explicit choice
-    if args.include_deferred and (error := check_include_deferred_choice_allowed(True)):
+    # --include-deferred is a store-true flag, so only a passed flag is a value provided by the user
+    if args.include_deferred and (error := get_include_deferred_rejection()):
         raise SystemExit(error)
     api_client = get_current_api_client()
     api_client.create_pool(
@@ -151,9 +151,7 @@ def pool_import_helper(filepath):
     failed = []
     for k, v in pools_json.items():
         if isinstance(v, dict) and "slots" in v and "description" in v:
-            if "include_deferred" in v and (
-                error := check_include_deferred_choice_allowed(bool(v["include_deferred"]))
-            ):
+            if "include_deferred" in v and (error := get_include_deferred_rejection()):
                 print(f"Pool {k}: {error}")
                 failed.append(k)
                 continue
@@ -174,14 +172,17 @@ def pool_import_helper(filepath):
 def pool_export_helper(filepath):
     """Help export all the pools to the json file."""
     api_client = get_current_api_client()
+    # Omit the field when it is fixed cluster-wide, otherwise the exported file cannot be imported back
+    export_include_deferred = Pool.get_include_deferred_override() is None
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
         entry = {
             "slots": pool[1],
             "description": pool[2],
-            "include_deferred": pool[3],
         }
+        if export_include_deferred:
+            entry["include_deferred"] = pool[3]
         if pool[4] is not None:
             entry["team_name"] = pool[4]
         pool_dict[pool[0]] = entry

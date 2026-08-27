@@ -41,12 +41,21 @@ def _apply_include_deferred_override(value: bool) -> bool:
     return value if override is None else override
 
 
-def _reject_conflicting_include_deferred(value: bool, override: bool) -> None:
-    if value != override:
+def _reject_user_provided_include_deferred(provided_fields: set[str]) -> bool | None:
+    """
+    Get the cluster-wide ``include_deferred`` value, rejecting any value provided by the user.
+
+    :param provided_fields: names of the fields explicitly present in the request body.
+    :return: the cluster-wide value, or None when pools choose the flag themselves.
+    :raises ValueError: if the flag is fixed cluster-wide but present in the request body.
+    """
+    override = Pool.get_include_deferred_override()
+    if override is not None and "include_deferred" in provided_fields:
         raise ValueError(
-            f"include_deferred is fixed to {override} for all pools by the [core] pool_include_deferred "
-            "configuration and cannot be set per pool. Please contact your administrator."
+            f"include_deferred cannot be set because it is fixed to {override} for all pools by the "
+            "[core] pool_include_deferred configuration. Please contact your administrator."
         )
+    return override
 
 
 PoolSlots = Annotated[
@@ -111,9 +120,7 @@ class PoolPatchBody(StrictBaseModel):
 
     @model_validator(mode="after")
     def enforce_include_deferred_override(self) -> PoolPatchBody:
-        override = Pool.get_include_deferred_override()
-        if override is not None and self.include_deferred is not None:
-            _reject_conflicting_include_deferred(self.include_deferred, override)
+        _reject_user_provided_include_deferred(self.model_fields_set)
         return self
 
 
@@ -135,10 +142,7 @@ class PoolBody(BasePool, StrictBaseModel):
 
     @model_validator(mode="after")
     def enforce_include_deferred_override(self) -> PoolBody:
-        override = Pool.get_include_deferred_override()
-        if override is None:
-            return self
-        if "include_deferred" in self.model_fields_set:
-            _reject_conflicting_include_deferred(self.include_deferred, override)
-        self.include_deferred = override
+        override = _reject_user_provided_include_deferred(self.model_fields_set)
+        if override is not None:
+            self.include_deferred = override
         return self

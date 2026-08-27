@@ -93,6 +93,11 @@ def update_orm_from_pydantic(
             if "name" in body_dict and "pool" not in body_dict:
                 body_dict["pool"] = body_dict.pop("name")
 
+            # When fixed cluster-wide the client must not send include_deferred, so supply the
+            # server-side value to satisfy BasePool, which requires it
+            if (include_deferred_override := Pool.get_include_deferred_override()) is not None:
+                body_dict["include_deferred"] = include_deferred_override
+
             BasePool.model_validate(body_dict)
 
         except ValidationError as e:

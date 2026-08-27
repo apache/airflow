@@ -468,22 +468,30 @@ class TestPatchPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
-    def test_patch_pool_with_cluster_fixed_include_deferred(self, test_client):
+    @pytest.mark.parametrize("include_deferred", [True, False, None])
+    def test_patch_pool_rejects_include_deferred_when_fixed_by_config(self, test_client, include_deferred):
         self.create_pools()
         with conf_vars({("core", "pool_include_deferred"): "False"}):
-            # conflicting explicit value is rejected
             response = test_client.patch(
                 f"/pools/{POOL2_NAME}",
-                json={"name": POOL2_NAME, "slots": 5, "include_deferred": True},
+                json={"name": POOL2_NAME, "slots": 5, "include_deferred": include_deferred},
             )
-            assert response.status_code == 422
-            assert "include_deferred is fixed to False" in response.json()["detail"][0]["msg"]
-            # matching value is accepted
+        assert response.status_code == 422
+        assert (
+            "include_deferred cannot be set because it is fixed to False"
+            in response.json()["detail"][0]["msg"]
+        )
+
+    def test_patch_pool_without_include_deferred_when_fixed_by_config(self, test_client, session):
+        self.create_pools()
+        with conf_vars({("core", "pool_include_deferred"): "True"}):
             response = test_client.patch(
                 f"/pools/{POOL2_NAME}",
-                json={"name": POOL2_NAME, "slots": 5, "include_deferred": False},
+                json={"name": POOL2_NAME, "slots": 5},
             )
-            assert response.status_code == 200
+        assert response.status_code == 200
+        assert response.json()["include_deferred"] is True
+        assert response.json()["slots"] == 5
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
@@ -612,38 +620,31 @@ class TestPostPool(TestPoolsEndpoint):
         )
         assert response.status_code == 422
 
-    @pytest.mark.parametrize(
-        ("conf_value", "body_include_deferred", "expected_status_code", "expected_include_deferred"),
-        [
-            ("True", None, 201, True),
-            ("True", True, 201, True),
-            ("False", True, 422, None),
-            ("True", False, 422, None),
-        ],
-    )
-    def test_post_pool_with_cluster_fixed_include_deferred(
-        self,
-        test_client,
-        session,
-        conf_value,
-        body_include_deferred,
-        expected_status_code,
-        expected_include_deferred,
+    @pytest.mark.parametrize("conf_value", ["True", "False"])
+    @pytest.mark.parametrize("body_include_deferred", [True, False])
+    def test_post_pool_rejects_include_deferred_when_fixed_by_config(
+        self, test_client, conf_value, body_include_deferred
     ):
-        body = {"name": "locked_pool", "slots": 1}
-        if body_include_deferred is not None:
-            body["include_deferred"] = body_include_deferred
         with conf_vars({("core", "pool_include_deferred"): conf_value}):
-            response = test_client.post("/pools", json=body)
-        assert response.status_code == expected_status_code
-        if expected_status_code == 201:
-            assert response.json()["include_deferred"] is expected_include_deferred
-            assert (
-                session.scalar(select(Pool.include_deferred).where(Pool.pool == "locked_pool"))
-                is expected_include_deferred
+            response = test_client.post(
+                "/pools",
+                json={"name": "locked_pool", "slots": 1, "include_deferred": body_include_deferred},
             )
-        else:
-            assert "include_deferred is fixed to" in response.json()["detail"][0]["msg"]
+        assert response.status_code == 422
+        assert (
+            f"include_deferred cannot be set because it is fixed to {conf_value}"
+            in response.json()["detail"][0]["msg"]
+        )
+
+    @pytest.mark.parametrize(("conf_value", "expected"), [("True", True), ("False", False)])
+    def test_post_pool_without_include_deferred_stores_config_value(
+        self, test_client, session, conf_value, expected
+    ):
+        with conf_vars({("core", "pool_include_deferred"): conf_value}):
+            response = test_client.post("/pools", json={"name": "locked_pool", "slots": 1})
+        assert response.status_code == 201
+        assert response.json()["include_deferred"] is expected
+        assert session.scalar(select(Pool.include_deferred).where(Pool.pool == "locked_pool")) is expected
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
@@ -1226,6 +1227,31 @@ class TestBulkPools(TestPoolsEndpoint):
         assert updated_pool.slots == 50  # updated
         assert updated_pool.description is None  # unchanged
         assert updated_pool.include_deferred is True  # unchanged
+
+    def test_bulk_create_rejects_include_deferred_when_fixed_by_config(self, test_client):
+        request_body = {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [{"name": "locked_pool", "slots": 1, "include_deferred": True}],
+                }
+            ]
+        }
+        with conf_vars({("core", "pool_include_deferred"): "True"}):
+            response = test_client.patch("/pools", json=request_body)
+        assert response.status_code == 422
+        assert (
+            "include_deferred cannot be set because it is fixed to True"
+            in response.json()["detail"][0]["msg"]
+        )
+
+    def test_bulk_create_without_include_deferred_stores_config_value(self, test_client, session):
+        request_body = {"actions": [{"action": "create", "entities": [{"name": "locked_pool", "slots": 1}]}]}
+        with conf_vars({("core", "pool_include_deferred"): "True"}):
+            response = test_client.patch("/pools", json=request_body)
+        assert response.status_code == 200
+        assert response.json()["create"]["success"] == ["locked_pool"]
+        assert session.scalar(select(Pool.include_deferred).where(Pool.pool == "locked_pool")) is True
 
     @pytest.mark.parametrize(
         ("pool_count"),

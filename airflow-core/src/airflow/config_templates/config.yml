@@ -480,8 +480,8 @@ core:
         each pool keeps its own ``include_deferred`` value, configurable per pool via the UI, API or CLI.
         When set to ``True`` or ``False``, the configured value is used for **every** pool (including
         pre-existing pools, whatever their stored value) when calculating occupied slots, and users can
-        no longer choose the flag per pool: attempts to explicitly set a conflicting ``include_deferred``
-        value when creating or updating a pool are rejected.
+        no longer choose the flag per pool: any attempt to set ``include_deferred`` when creating or
+        updating a pool is rejected, whether or not the requested value matches the configured one.
       version_added: 3.4.0
       type: string
       example: "True"

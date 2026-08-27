@@ -28,7 +28,8 @@ import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
-  include_deferred: boolean;
+  // Left undefined when the value is fixed cluster-wide, so it is not sent to the API
+  include_deferred: boolean | undefined;
   name: string;
   slots: number;
   team_name: string;
@@ -62,9 +63,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     typeof includeDeferredConfig === "boolean" ? includeDeferredConfig : undefined;
 
   const onSubmit = (data: PoolBody) => {
-    manageMutate(
-      includeDeferredOverride === undefined ? data : { ...data, include_deferred: includeDeferredOverride },
-    );
+    manageMutate(includeDeferredOverride === undefined ? data : { ...data, include_deferred: undefined });
   };
 
   const handleReset = () => {
