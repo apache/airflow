@@ -26,7 +26,7 @@ import { Wrapper } from "src/utils/Wrapper";
 import { GridButton } from "./GridButton";
 
 describe("GridButton", () => {
-  it("shows run details in the grid tooltip respecting the selected timezone", () => {
+  it("shows run details in the grid tooltip respecting the selected timezone", async () => {
     vi.useFakeTimers();
 
     render(
@@ -45,17 +45,19 @@ describe("GridButton", () => {
       { wrapper: Wrapper },
     );
 
-    act(() => {
-      fireEvent.mouseEnter(screen.getByText("bar"));
-      vi.advanceTimersByTime(500);
-    });
+    try {
+      await act(async () => {
+        fireEvent.pointerEnter(screen.getByText("bar"));
+        await vi.advanceTimersByTimeAsync(500);
+      });
 
-    expect(screen.getByTestId("basic-tooltip")).toHaveTextContent("2026-04-21 02:00:00");
-    expect(screen.getByTestId("basic-tooltip")).toHaveTextContent(
-      "common:runId: manual__2026-04-21T00:00:00+00:00",
-    );
-    expect(screen.getByTestId("basic-tooltip")).toHaveTextContent("duration: 01:01:01");
+      const tooltip = screen.getByRole("tooltip");
 
-    vi.useRealTimers();
+      expect(tooltip).toHaveTextContent("2026-04-21 02:00:00");
+      expect(tooltip).toHaveTextContent("common:runId: manual__2026-04-21T00:00:00+00:00");
+      expect(tooltip).toHaveTextContent("duration: 01:01:01");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
