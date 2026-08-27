@@ -280,3 +280,12 @@ repos:
         types: [python]
         files: ^.*/src/airflow/providers/.*\.py$
         require_serial: true
+  - repo: https://github.com/boidolr/ast-grep-pre-commit
+    rev: 0.45.2
+    hooks:
+      - id: ast-grep
+        name: Check providers import httpx2 rather than httpx
+        types: [python]
+        # Pinned to this directory's config rather than relying on ast-grep walking up
+        # from the working directory, so a future root sgconfig.yml cannot shadow it.
+        args: ["--config", "./sgconfig.yml"]
