@@ -27,6 +27,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from airflow.cli.commands.config_command import ConfigChange, ConfigParameter
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -263,11 +264,19 @@ class TestCliConfigGetValue:
 
         config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
-    def test_should_raise_exception_when_option_is_missing(self, caplog):
-        config_command.get_value(
-            self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-        )
-        assert "section/key [missing-section/dags_folder] not found in config" in caplog.text
+    def test_should_raise_exception_when_option_is_missing(self):
+        with pytest.raises(SystemExit) as ctx:
+            config_command.get_value(
+                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
+            )
+        assert str(ctx.value) == "The option [missing-section/dags_folder] is not found in config."
+
+    @conf_vars({("core", "asset_manager_kwargs_cmd"): "false"})
+    def test_should_not_report_a_failed_lookup_as_a_missing_option(self):
+        with pytest.raises(AirflowConfigException, match="Cannot execute false"):
+            config_command.get_value(
+                self.parser.parse_args(["config", "get-value", "core", "asset_manager_kwargs"])
+            )
 
 
 class TestConfigLint:
