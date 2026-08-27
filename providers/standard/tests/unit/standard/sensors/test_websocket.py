@@ -42,56 +42,35 @@ class TestWebSocketSensor:
     def test_poke_returns_true_on_message(self, mock_connect):
         mock_websocket = mock.MagicMock(spec=ClientConnection)
         mock_websocket.recv.return_value = "pong"
-        mock_connect.return_value = mock_websocket
+        mock_connect.return_value.__enter__.return_value = mock_websocket
 
         sensor = WebSocketSensor(task_id="poke_true", url=URL, message_to_send="ping", dag=self.dag)
         assert sensor.poke(context={}) is True
         mock_websocket.send.assert_called_once_with("ping")
-        mock_websocket.close.assert_called_once()
-        assert sensor._connection is None
 
     @mock.patch("airflow.providers.standard.sensors.websocket.connect", autospec=True)
     def test_poke_returns_false_on_timeout(self, mock_connect):
         mock_websocket = mock.MagicMock(spec=ClientConnection)
         mock_websocket.recv.side_effect = TimeoutError()
-        mock_connect.return_value = mock_websocket
+        mock_connect.return_value.__enter__.return_value = mock_websocket
 
         sensor = WebSocketSensor(task_id="poke_false", url=URL, dag=self.dag)
         assert sensor.poke(context={}) is False
-        mock_websocket.close.assert_not_called()
 
     @mock.patch("airflow.providers.standard.sensors.websocket.connect", autospec=True)
-    def test_poke_reuses_connection_and_sends_message_once(self, mock_connect):
-        """A second poke() after a timeout must not reopen the connection or re-send
-        message_to_send — WebSocket reads are consumptive, so resending would restart
-        the remote job the sensor is waiting on."""
+    def test_poke_waits_for_the_overall_timeout_not_poke_interval(self, mock_connect):
+        """recv() must be bounded by the sensor's overall timeout, not poke_interval —
+        otherwise a single poke could block past the sensor's declared timeout before
+        that timeout is ever checked."""
         mock_websocket = mock.MagicMock(spec=ClientConnection)
-        mock_websocket.recv.side_effect = [TimeoutError(), "pong"]
-        mock_connect.return_value = mock_websocket
+        mock_websocket.recv.return_value = "pong"
+        mock_connect.return_value.__enter__.return_value = mock_websocket
 
-        sensor = WebSocketSensor(task_id="reuse", url=URL, message_to_send="ping", dag=self.dag)
-        assert sensor.poke(context={}) is False
+        sensor = WebSocketSensor(
+            task_id="poke_timeout_arg", url=URL, timeout=45, poke_interval=5, dag=self.dag
+        )
         assert sensor.poke(context={}) is True
-
-        mock_connect.assert_called_once()
-        mock_websocket.send.assert_called_once_with("ping")
-
-    def test_execute_closes_connection_left_open_on_timeout(self):
-        """If the sensor loop times out, execute() must close whatever connection poke()
-        left open rather than leaking it."""
-        sensor = WebSocketSensor(task_id="timeout", url=URL, timeout=0, dag=self.dag)
-        fake_connection = mock.MagicMock(spec=ClientConnection)
-
-        def fake_poke(context):
-            sensor._connection = fake_connection
-            return False
-
-        with mock.patch.object(WebSocketSensor, "poke", side_effect=fake_poke):
-            with pytest.raises(AirflowSensorTimeout):
-                sensor.execute({})
-
-        fake_connection.close.assert_called_once()
-        assert sensor._connection is None
+        mock_websocket.recv.assert_called_once_with(timeout=45)
 
     def test_reschedule_mode_not_allowed(self):
         with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
@@ -111,12 +90,30 @@ class TestWebSocketSensor:
         assert isinstance(exc.value.trigger, WebSocketTrigger)
         assert exc.value.trigger.url == URL
 
-    def test_execute_sync_returns_after_one_poke(self):
-        """The non-deferrable path must return once the sensor loop succeeds, not poke
-        (and consume) a second WebSocket message."""
-        sensor = WebSocketSensor(task_id="sync", url=URL, timeout=0, dag=self.dag)
+    def test_execute_sync_calls_poke_exactly_once(self):
+        """Since poke() already blocks for the full sensor timeout, execute() must never
+        call it a second time — a second call would open a new connection and re-send
+        message_to_send."""
+        sensor = WebSocketSensor(task_id="sync_timeout", url=URL, timeout=0, dag=self.dag)
 
-        with mock.patch.object(WebSocketSensor, "poke", return_value=True) as mock_poke:
-            sensor.execute({})
+        with mock.patch.object(WebSocketSensor, "poke", return_value=False) as mock_poke:
+            with pytest.raises(AirflowSensorTimeout):
+                sensor.execute({})
 
         mock_poke.assert_called_once()
+
+    def test_template_fields_are_rendered(self):
+        """url, header, and message_to_send commonly need runtime values (run_id, an
+        idempotency key, an auth token), so all three must be templated."""
+        sensor = WebSocketSensor(
+            task_id="templated",
+            url="wss://example.com/{{ run_id }}",
+            message_to_send='{"run_id": "{{ run_id }}"}',
+            header={"Authorization": "Bearer {{ run_id }}"},
+            dag=self.dag,
+        )
+        sensor.render_template_fields({"run_id": "manual__2024-01-01"})
+
+        assert sensor.url == "wss://example.com/manual__2024-01-01"
+        assert sensor.message_to_send == '{"run_id": "manual__2024-01-01"}'
+        assert sensor.header == {"Authorization": "Bearer manual__2024-01-01"}

@@ -51,3 +51,11 @@ passing connection headers such as an auth token via ``header``:
     :dedent: 4
     :start-after: [START example_websocket_sensor_send_message_async]
     :end-before: [END example_websocket_sensor_send_message_async]
+
+.. warning::
+    In deferrable mode, ``message_to_send`` may be sent more than once for a single task
+    run. Airflow triggers are not guaranteed to execute exactly once — a triggerer
+    restart or redistribution to another host re-runs the trigger from scratch, opening
+    a new connection and re-sending ``message_to_send``. If that message has a side
+    effect on the remote server, such as starting a job, the server must treat a resend
+    as safe — for example by deduplicating on a request id embedded in the message.

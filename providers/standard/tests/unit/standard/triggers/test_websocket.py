@@ -76,3 +76,24 @@ class TestWebSocketTrigger:
         await trigger.run().__anext__()
 
         mock_websocket.send.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.standard.triggers.websocket.connect", autospec=True)
+    async def test_reconstructed_trigger_resends_message_to_send(self, mock_connect):
+        """Documents that a triggerer restart or redistribution — which reconstructs the
+        trigger from its serialize() output and calls run() again — re-sends
+        message_to_send. Airflow does not guarantee a trigger's run() executes only
+        once, so callers whose message starts a remote job must make that job
+        idempotent; this is not something the trigger itself can enforce."""
+        mock_websocket = mock.AsyncMock(spec=ClientConnection)
+        mock_websocket.recv.return_value = "pong"
+        mock_connect.return_value = _FakeConnection(mock_websocket)
+
+        original = WebSocketTrigger(url=self.URL, message_to_send="start_job")
+        _, kwargs = original.serialize()
+        reconstructed = WebSocketTrigger(**kwargs)
+
+        await original.run().__anext__()
+        await reconstructed.run().__anext__()
+
+        assert mock_websocket.send.await_args_list == [mock.call("start_job"), mock.call("start_job")]

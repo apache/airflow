@@ -32,6 +32,12 @@ class WebSocketTrigger(BaseTrigger):
     WebSocket server and resume once that server replies, without occupying a worker slot
     while waiting.
 
+    Like any Airflow trigger, ``run()`` is not guaranteed to execute only once: a
+    triggerer restart or redistribution to another host re-runs it from scratch. Each
+    execution opens a new connection and re-sends ``message_to_send`` if one is set, so
+    if that message starts a remote job, the remote server must treat a resend as safe —
+    for example by deduplicating on a request id embedded in the message.
+
     :param url: The ``ws://`` or ``wss://`` URL of the WebSocket server to connect to.
     :param header: Optional headers sent when opening the connection.
     :param message_to_send: Optional message sent right after the connection is established.
