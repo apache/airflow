@@ -346,7 +346,7 @@ class TestCalculatedDeadlineReferences:
     )
     def test_dagrun_references_use_supplied_dagrun(self, reference, attribute, session):
         """DagRun references use the in-memory DagRun instead of querying it again."""
-        dagrun = SimpleNamespace(logical_date=DEFAULT_DATE, queued_at=DEFAULT_DATE)
+        dagrun = SimpleNamespace(dag_id=DAG_ID, logical_date=DEFAULT_DATE, queued_at=DEFAULT_DATE)
         interval = timedelta(hours=1)
 
         assert getattr(dagrun, attribute) == DEFAULT_DATE
@@ -361,6 +361,33 @@ class TestCalculatedDeadlineReferences:
             )
             == DEFAULT_DATE + interval
         )
+
+    @pytest.mark.parametrize(
+        ("reference", "attribute", "message"),
+        [
+            pytest.param(
+                SerializedReferenceModels.DagRunLogicalDateDeadline(),
+                "logical_date",
+                "No deadline created for dag_id_1: the Dag run has no logical date.",
+                id="logical_date",
+            ),
+            pytest.param(
+                SerializedReferenceModels.DagRunQueuedAtDeadline(),
+                "queued_at",
+                "No deadline created for dag_id_1: the Dag run has no queued at time.",
+                id="queued_at",
+            ),
+        ],
+    )
+    def test_dagrun_references_log_when_dagrun_date_is_missing(
+        self, reference, attribute, message, caplog, session
+    ):
+        caplog.set_level("WARNING", logger=reference.log.name)
+        dagrun = SimpleNamespace(dag_id=DAG_ID, logical_date=DEFAULT_DATE, queued_at=DEFAULT_DATE)
+        setattr(dagrun, attribute, None)
+
+        assert reference.evaluate_with(session=session, interval=timedelta(), dagrun=dagrun) is None
+        assert caplog.messages == [message]
 
     def test_average_runtime_with_sufficient_history(self, session, dag_maker):
         """Test AverageRuntimeDeadline when enough historical data exists."""
