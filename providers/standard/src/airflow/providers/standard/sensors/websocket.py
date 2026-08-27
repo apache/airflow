@@ -76,16 +76,20 @@ class WebSocketSensor(BaseSensorOperator):
     def execute(self, context: Context) -> None:
         if not self.deferrable:
             super().execute(context=context)
-        if not self.poke(context=context):
-            self.defer(
-                timeout=datetime.timedelta(seconds=self.timeout),
-                trigger=WebSocketTrigger(
-                    url=self.url,
-                    header=self.header,
-                    message_to_send=self.message_to_send,
-                ),
-                method_name="execute_complete",
-            )
+            return
+        # Each poke opens and consumes a WebSocket connection, so the deferrable path must
+        # defer immediately: polling here first would send message_to_send and consume the
+        # reply before handing off, leaving the trigger to open a second connection and
+        # re-send the request.
+        self.defer(
+            timeout=datetime.timedelta(seconds=self.timeout),
+            trigger=WebSocketTrigger(
+                url=self.url,
+                header=self.header,
+                message_to_send=self.message_to_send,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""

@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from websockets.sync.client import ClientConnection
 
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import TaskDeferred
@@ -37,9 +38,9 @@ class TestWebSocketSensor:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         cls.dag = DAG("test_websocket_sensor", schedule=None, default_args=args)
 
-    @mock.patch("airflow.providers.standard.sensors.websocket.connect")
+    @mock.patch("airflow.providers.standard.sensors.websocket.connect", autospec=True)
     def test_poke_returns_true_on_message(self, mock_connect):
-        mock_websocket = mock.MagicMock()
+        mock_websocket = mock.MagicMock(spec=ClientConnection)
         mock_websocket.recv.return_value = "pong"
         mock_connect.return_value.__enter__.return_value = mock_websocket
 
@@ -47,21 +48,35 @@ class TestWebSocketSensor:
         assert sensor.poke(context={}) is True
         mock_websocket.send.assert_called_once_with("ping")
 
-    @mock.patch("airflow.providers.standard.sensors.websocket.connect")
+    @mock.patch("airflow.providers.standard.sensors.websocket.connect", autospec=True)
     def test_poke_returns_false_on_timeout(self, mock_connect):
-        mock_websocket = mock.MagicMock()
+        mock_websocket = mock.MagicMock(spec=ClientConnection)
         mock_websocket.recv.side_effect = TimeoutError()
         mock_connect.return_value.__enter__.return_value = mock_websocket
 
         sensor = WebSocketSensor(task_id="poke_false", url=URL, dag=self.dag)
         assert sensor.poke(context={}) is False
 
-    def test_task_defer(self):
+    def test_task_defer_does_not_poke_first(self):
+        """The deferrable path must defer immediately: poke() consumes the connection,
+        so polling before deferring would send message_to_send and lose the reply the
+        trigger is supposed to wait for."""
         sensor = WebSocketSensor(task_id="defer", url=URL, deferrable=True, dag=self.dag)
 
-        with mock.patch.object(WebSocketSensor, "poke", return_value=False):
+        with mock.patch.object(WebSocketSensor, "poke") as mock_poke:
             with pytest.raises(TaskDeferred) as exc:
                 sensor.execute({})
 
+        mock_poke.assert_not_called()
         assert isinstance(exc.value.trigger, WebSocketTrigger)
         assert exc.value.trigger.url == URL
+
+    def test_execute_sync_returns_after_one_poke(self):
+        """The non-deferrable path must return once the sensor loop succeeds, not poke
+        (and consume) a second WebSocket message."""
+        sensor = WebSocketSensor(task_id="sync", url=URL, timeout=0, dag=self.dag)
+
+        with mock.patch.object(WebSocketSensor, "poke", return_value=True) as mock_poke:
+            sensor.execute({})
+
+        mock_poke.assert_called_once()

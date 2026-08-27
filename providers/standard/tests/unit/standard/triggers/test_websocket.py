@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from websockets.asyncio.client import ClientConnection
 
 from airflow.providers.standard.triggers.websocket import WebSocketTrigger
 
@@ -51,9 +52,9 @@ class TestWebSocketTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.standard.triggers.websocket.connect")
+    @mock.patch("airflow.providers.standard.triggers.websocket.connect", autospec=True)
     async def test_run_yields_event_with_received_message(self, mock_connect):
-        mock_websocket = mock.AsyncMock()
+        mock_websocket = mock.AsyncMock(spec=ClientConnection)
         mock_websocket.recv.return_value = "pong"
         mock_connect.return_value = _FakeConnection(mock_websocket)
 
@@ -65,9 +66,9 @@ class TestWebSocketTrigger:
         assert event.payload == "pong"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.standard.triggers.websocket.connect")
+    @mock.patch("airflow.providers.standard.triggers.websocket.connect", autospec=True)
     async def test_run_does_not_send_without_message_to_send(self, mock_connect):
-        mock_websocket = mock.AsyncMock()
+        mock_websocket = mock.AsyncMock(spec=ClientConnection)
         mock_websocket.recv.return_value = "pong"
         mock_connect.return_value = _FakeConnection(mock_websocket)
 

@@ -21,15 +21,10 @@ from typing import Any
 
 from websockets.asyncio.client import connect
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-else:
-    from airflow.triggers.base import BaseTrigger as BaseEventTrigger, TriggerEvent  # type: ignore
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class WebSocketTrigger(BaseEventTrigger):
+class WebSocketTrigger(BaseTrigger):
     """
     A trigger that opens a WebSocket connection and fires once a message is received.
 

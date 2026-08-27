@@ -41,3 +41,13 @@ Also for this job you can use sensor in the deferrable mode:
     :dedent: 4
     :start-after: [START example_websocket_sensor_async]
     :end-before: [END example_websocket_sensor_async]
+
+A common use case is to send a request over the connection right after it opens (via
+``message_to_send``) and then wait for the remote server's asynchronous reply, optionally
+passing connection headers such as an auth token via ``header``:
+
+.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_websocket_sensor_send_message_async]
+    :end-before: [END example_websocket_sensor_send_message_async]
