@@ -2828,6 +2828,37 @@ class TestTISkipDownstreamRaceCondition:
         ti_downstream = dr.get_task_instance("downstream")
         assert ti_downstream.state == State.SKIPPED
 
+    def test_skip_downstream_nulls_trigger_id_on_deferred_ti(self, client, session, dag_maker):
+        """DEFERRED-exit must NULL trigger_id; skip-downstream does not go through set_state."""
+        with dag_maker("skip_race_dag_deferred", session=session):
+            branch = EmptyOperator(task_id="branch")
+            downstream = EmptyOperator(task_id="downstream")
+            branch >> downstream
+        dr = dag_maker.create_dagrun(run_id="run")
+
+        ti_branch = dr.get_task_instance("branch")
+        ti_branch.set_state(State.SUCCESS)
+
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+
+        ti_downstream = dr.get_task_instance("downstream")
+        ti_downstream.state = TaskInstanceState.DEFERRED
+        ti_downstream.trigger_id = trigger.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_branch.id}/skip-downstream",
+            json={"tasks": ["downstream"]},
+        )
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti_downstream = dr.get_task_instance("downstream")
+        assert ti_downstream.state == State.SKIPPED
+        assert ti_downstream.trigger_id is None
+
 
 class TestTIHealthEndpoint:
     def setup_method(self):

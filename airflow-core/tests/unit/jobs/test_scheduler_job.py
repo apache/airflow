@@ -8246,6 +8246,39 @@ class TestSchedulerJob:
             session.refresh(ti)
             assert ti.state == State.DEFERRED
 
+    def test_timeout_triggers_is_pk_ordered_and_bounded(self, dag_maker, monkeypatch):
+        """Fallback must ORDER BY id and stop at the batch size (one tick)."""
+        monkeypatch.setattr(SchedulerJobRunner, "_TRIGGER_TIMEOUT_BATCH_SIZE", 1)
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_pk_order",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+            EmptyOperator(task_id="dummy2")
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance("dummy1", session=session)
+        ti2 = dr.get_task_instance("dummy2", session=session)
+        past = timezone.utcnow() - datetime.timedelta(seconds=60)
+        for ti in (ti1, ti2):
+            ti.state = State.DEFERRED
+            ti.trigger_timeout = past
+        session.flush()
+        first, second = sorted((ti1, ti2), key=lambda ti: ti.id)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        session.refresh(first)
+        session.refresh(second)
+        assert first.state == State.SCHEDULED
+        assert first.next_method == "__fail__"
+        assert first.trigger_id is None
+        assert second.state == State.DEFERRED
+
     def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
         """
         A parked ``awaiting_input`` task past its deadline with defaults is resumed to SCHEDULED by

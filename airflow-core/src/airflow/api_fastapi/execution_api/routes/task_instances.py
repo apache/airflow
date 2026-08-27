@@ -879,7 +879,7 @@ def ti_skip_downstream(
             tuple_(TI.task_id, TI.map_index).in_(task_ids),
             skippable_state_clause,
         )
-        .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
+        .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now, trigger_id=None)
         .execution_options(synchronize_session=False)
     )
 

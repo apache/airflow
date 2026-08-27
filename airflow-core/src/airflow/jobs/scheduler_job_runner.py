@@ -333,6 +333,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
 
     job_type = "SchedulerJob"
+    # One timeout-fallback batch per scheduler tick (HITL sweep shape).
+    _TRIGGER_TIMEOUT_BATCH_SIZE = 100
 
     def __init__(
         self,
@@ -3528,7 +3530,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                     )
                     .order_by(TI.id)
-                    .limit(100)
+                    .limit(self._TRIGGER_TIMEOUT_BATCH_SIZE)
                 )
                 query = with_row_locks(query, of=TI, session=session, skip_locked=True)
                 timed_out_ids = list(session.scalars(query).all())
