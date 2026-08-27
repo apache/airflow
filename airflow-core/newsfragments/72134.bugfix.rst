@@ -1,0 +1,1 @@
+MySQL deadlocks between the scheduler timeout sweep and triggerer unused-trigger cleanup no longer take down the triggerer. Deferred tasks whose triggerer is still alive are not timed out by the scheduler.
