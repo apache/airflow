@@ -56,7 +56,6 @@ from airflow.dag_processing.bundles.base import (
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
-from airflow.exceptions import AirflowException
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -156,7 +155,7 @@ class DagFileInfo:
     @property
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
-        return normalize_name_for_stats(str(self.rel_path))
+        return normalize_name_for_stats(str(self.rel_path), log_warning=False)
 
 
 def _config_int_factory(section: str, key: str):
@@ -298,6 +297,11 @@ class DagFileProcessorManager(LoggingMixin):
     _file_parsing_sort_mode: str = attrs.field(
         factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
     )
+
+    dag_discovery_safe_mode: bool = attrs.field(
+        factory=_config_bool_factory("core", "dag_discovery_safe_mode")
+    )
+    """Resolved once per process so file discovery and the deactivation scan use the same value."""
 
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=_make_execution_api)
     """API server to interact with Metadata DB"""
@@ -853,7 +857,7 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     bundle.initialize()
                     any_refreshed = True
-                except AirflowException as e:
+                except Exception as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
             try:
@@ -956,8 +960,16 @@ class DagFileProcessorManager(LoggingMixin):
         """Get relative paths for dag files from bundle dir."""
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        rel_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
-        self.log.info("Found %s files for bundle %s", len(rel_paths), bundle.name)
+        rel_paths = [
+            Path(x).relative_to(bundle.path)
+            for x in list_py_file_paths(bundle.path, safe_mode=self.dag_discovery_safe_mode)
+        ]
+        self.log.info(
+            "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
+            len(rel_paths),
+            bundle.name,
+            self.dag_discovery_safe_mode,
+        )
 
         return rel_paths
 
@@ -975,7 +987,8 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
-                        if might_contain_dag(info.filename, True, z):
+                        # Use the configured discovery safe mode
+                        if might_contain_dag(info.filename, self.dag_discovery_safe_mode, z):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s", abs_path)

@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1785633505
+source-date-epoch: 1787011200
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.8.0
   - 0.7.0
   - 0.6.0
   - 0.5.0
@@ -63,6 +64,9 @@ integrations:
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst
     tags: [ai]
+  - integration-name: Docker Sandboxes
+    external-doc-url: https://docs.docker.com/ai/sandboxes/
+    tags: [software]
 
 hooks:
   - integration-name: Pydantic AI
@@ -306,7 +310,7 @@ connection-types:
     conn-fields:
       model:
         label: Model
-        description: "Google model identifier (e.g. google-vertex:gemini-2.0-flash)"
+        description: "Google model identifier (e.g. google-cloud:gemini-2.0-flash)"
         schema:
           type:
             - string
@@ -327,7 +331,7 @@ connection-types:
             - 'null'
       vertexai:
         label: Force Vertex AI Mode
-        description: "Force Vertex AI mode. Auto-detected when project/location/credentials are set."
+        description: "Ignored (kept for compatibility); mode is now selected via the Model field's prefix."
         schema:
           type:
             - boolean
@@ -488,8 +492,10 @@ toolsets:
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge
+      - airflow.providers.common.ai.toolsets.managed_agent
 
 retry-policies:
   - integration-name: Common AI

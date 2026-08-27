@@ -111,6 +111,11 @@ class Variable(Base, LoggingMixin):
     def set_val(self, value):
         """Encode the specified value with Fernet Key and store it in Variables Table."""
         if value is not None:
+            if not isinstance(value, str):
+                raise TypeError(
+                    f"Variable value must be a string, got {type(value).__name__}. "
+                    "Use Variable.set(key, value, serialize_json=True) to store non-string values."
+                )
             fernet = get_fernet()
             self._val = fernet.encrypt(bytes(value, "utf-8")).decode()
             self.is_encrypted = fernet.is_encrypted
@@ -214,7 +219,9 @@ class Variable(Base, LoggingMixin):
         This operation overwrites an existing variable using the session's dialect-specific upsert operation.
 
         :param key: Variable Key
-        :param value: Value to set for the Variable
+        :param value: Value to set for the Variable. Non-string values are coerced with ``str()``
+            unless ``serialize_json=True``, so pass ``serialize_json=True`` to store them as JSON
+            that ``deserialize_json=True`` can read back.
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param team_name: Team name associated to the variable (if any)
@@ -251,7 +258,7 @@ class Variable(Base, LoggingMixin):
         # check if the secret exists in the custom secrets' backend.
         from airflow.sdk import SecretCache
 
-        Variable.check_for_write_conflict(key=key)
+        Variable.check_for_write_conflict(key=key, team_name=team_name)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -280,7 +287,6 @@ class Variable(Base, LoggingMixin):
                 val=val,
                 description=description,
                 is_encrypted=is_encrypted,
-                team_name=team_name,
             )
             stmt = build_upsert_stmt(
                 get_dialect_name(session), Variable, ["key"], upsert_values, update_fields
@@ -336,7 +342,7 @@ class Variable(Base, LoggingMixin):
                 "Multi-team mode is not configured in the Airflow environment. To assign a team to a variable, multi-mode must be enabled."
             )
 
-        Variable.check_for_write_conflict(key=key)
+        Variable.check_for_write_conflict(key=key, team_name=team_name)
 
         if Variable.get_variable_from_secrets(key=key, team_name=team_name) is None:
             raise KeyError(f"Variable {key} does not exist")
@@ -424,7 +430,7 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
-    def check_for_write_conflict(key: str) -> None:
+    def check_for_write_conflict(key: str, team_name: str | None = None) -> None:
         """
         Log a warning if a variable exists outside the metastore.
 
@@ -433,11 +439,15 @@ class Variable(Base, LoggingMixin):
         subsequent reads will not read the set value.
 
         :param key: Variable Key
+        :param team_name: Team name the variable is being written for, so the check resolves
+            against the same scope the write will use
         """
         for secrets_backend in ensure_secrets_loaded():
             if not isinstance(secrets_backend, MetastoreBackend):
                 try:
-                    var_val = secrets_backend.get_variable(key=key)
+                    var_val = call_secrets_backend_method(
+                        secrets_backend.get_variable, team_name=team_name, key=key
+                    )
                     if var_val is not None:
                         _backend_name = type(secrets_backend).__name__
                         log.warning(

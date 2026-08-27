@@ -675,6 +675,7 @@ export class BackfillService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -1027,6 +1028,7 @@ export class DagRunService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -1103,7 +1105,8 @@ export class DagRunService {
      * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
      *
      * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+     * `total_entries_limit` (a value equal to that limit means at least that many runs match).
      * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
      * on the first page.
      * @param data The data for the request.
@@ -1211,6 +1214,7 @@ export class DagRunService {
                 consuming_asset_pattern: data.consumingAssetPattern
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -1659,6 +1663,7 @@ export class DagService {
      * Get Dags
      * Get all Dags.
      * @param data The data for the request.
+     * @param data.isScheduled Filter Dags by whether their timetable can create scheduled runs.
      * @param data.limit
      * @param data.offset
      * @param data.tags
@@ -1696,6 +1701,7 @@ export class DagService {
             method: 'GET',
             url: '/api/v2/dags',
             query: {
+                is_scheduled: data.isScheduled,
                 limit: data.limit,
                 offset: data.offset,
                 tags: data.tags,
@@ -1861,6 +1867,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Unprocessable Entity'
             }
         });
@@ -2081,6 +2088,7 @@ export class DagService {
                 dag_id: data.dagId
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }
@@ -2164,6 +2172,7 @@ export class EventLogService {
      * @param data.ownerPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.ownerDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.eventPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.teams
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2197,7 +2206,8 @@ export class EventLogService {
                 run_id_prefix_pattern: data.runIdPrefixPattern,
                 owner_prefix_pattern: data.ownerPrefixPattern,
                 owner_display_name_prefix_pattern: data.ownerDisplayNamePrefixPattern,
-                event_prefix_pattern: data.eventPrefixPattern
+                event_prefix_pattern: data.eventPrefixPattern,
+                teams: data.teams
             },
             errors: {
                 401: 'Unauthorized',
@@ -2700,9 +2710,10 @@ export class TaskInstanceService {
      * **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
      *
      * **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-     * When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
-     * ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
-     * on the first page.
+     * When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+     * `total_entries_limit` (a value equal to that limit means at least that many task instances
+     * match). ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is
+     * ``null`` on the first page.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -2976,6 +2987,7 @@ export class TaskInstanceService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -3232,6 +3244,7 @@ export class TaskInstanceService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -3891,7 +3904,6 @@ export class TaskStateStoreService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -3907,8 +3919,8 @@ export class TaskStateStoreService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.mapIndex
      * @param data.allMapIndices
+     * @param data.mapIndex
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -3922,8 +3934,8 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex,
-                all_map_indices: data.allMapIndices
+                all_map_indices: data.allMapIndices,
+                map_index: data.mapIndex
             },
             errors: {
                 401: 'Unauthorized',
@@ -3938,10 +3950,10 @@ export class TaskStateStoreService {
      * Get Task State Store
      * Get a single task state store entry.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.mapIndex
      * @returns TaskStateStoreResponse Successful Response
      * @throws ApiError
@@ -3951,10 +3963,10 @@ export class TaskStateStoreService {
             method: 'GET',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -3972,10 +3984,10 @@ export class TaskStateStoreService {
      * Set Task State Store
      * Set a task state store value. Creates or overwrites the key.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.requestBody
      * @param data.mapIndex
      * @returns void Successful Response
@@ -3986,10 +3998,10 @@ export class TaskStateStoreService {
             method: 'PUT',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -4009,10 +4021,10 @@ export class TaskStateStoreService {
      * Patch Task State Store
      * Update the value of an existing task state store key.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.requestBody
      * @param data.mapIndex
      * @returns unknown Successful Response
@@ -4023,10 +4035,10 @@ export class TaskStateStoreService {
             method: 'PATCH',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -4046,10 +4058,10 @@ export class TaskStateStoreService {
      * Delete Task State Store
      * Delete a single task state store key. No-op if the key does not exist.
      * @param data The data for the request.
+     * @param data.key
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.key
      * @param data.mapIndex
      * @returns void Successful Response
      * @throws ApiError
@@ -4059,10 +4071,10 @@ export class TaskStateStoreService {
             method: 'DELETE',
             url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}',
             path: {
+                key: data.key,
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                key: data.key
+                task_id: data.taskId
             },
             query: {
                 map_index: data.mapIndex
@@ -4808,6 +4820,7 @@ export class DependenciesService {
                 dependency_type: data.dependencyType
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }

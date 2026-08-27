@@ -10,7 +10,8 @@
     "columns": {
       "section": "Section"
     },
-    "title": "Airflow Configuration"
+    "config_one": "Config",
+    "config_other": "Configs"
   },
   "connections": {
     "add": "Add $t(connections.connection_one)",
@@ -96,7 +97,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "Job",
+    "job_other": "Jobs"
   },
   "plugins": {
     "columns": {
@@ -104,6 +107,8 @@
     },
     "importError_one": "Plugin Import Error",
     "importError_other": "Plugin Import Errors",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
     "searchPlaceholder": "Search by file"
   },
   "pools": {
@@ -138,7 +143,9 @@
     "columns": {
       "packageName": "Package Name",
       "version": "Version"
-    }
+    },
+    "provider_one": "Provider",
+    "provider_other": "Providers"
   },
   "variables": {
     "add": "Add $t(variables.variable_one)",
