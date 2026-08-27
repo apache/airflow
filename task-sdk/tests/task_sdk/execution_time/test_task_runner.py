@@ -2272,6 +2272,39 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
+    def test_macros_in_context_are_scoped_to_the_tasks_team(self, create_runtime_ti, mock_supervisor_comms):
+        """The accessor placed in the context must carry the team the server reported."""
+        from airflow.sdk.plugins_manager import AirflowPlugin
+
+        from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+        def team_a_macro():
+            return "team-a"
+
+        class TeamAPlugin(AirflowPlugin):
+            name = "team_a_macros"
+            team_name = "team-a"
+            macros = [team_a_macro]
+
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="hello"), dag_id="basic_task")
+        # Stand in for a multi-team server handing this task to a worker as team-b's.
+        runtime_ti._ti_context_from_server.multi_team = True
+        runtime_ti._ti_context_from_server.dag_run.team_name = "team-b"
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+        mock_supervisor_comms.send.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        with mock_plugin_manager(plugins=[TeamAPlugin]):
+            macros = runtime_ti.get_template_context()["macros"]
+
+            with pytest.raises(AttributeError, match="belong to team 'team-a'"):
+                macros.team_a_macros
+
     def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
 

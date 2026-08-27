@@ -314,6 +314,7 @@ def ti_run(
             connections=[],
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
+            multi_team=conf.getboolean("core", "multi_team"),
         )
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
