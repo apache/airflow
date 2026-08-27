@@ -69,7 +69,8 @@ def compile_mysql(element: JSONExtract, compiler: SQLCompiler, **kwargs: dict[st
     :meta: private
     """
     column, key = element.clauses
-    return compiler.process(func.json_unquote(func.json_extract(column, f"$.{key.value}")), **kwargs)
+    extracted = func.json_extract(column, f"$.{key.value}")
+    return compiler.process(func.json_unquote(extracted), **kwargs)
 
 
 @compiles(JSONExtract, "sqlite")
