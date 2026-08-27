@@ -18,12 +18,31 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import type { PropsWithChildren } from "react";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReactAppResponse } from "openapi/requests/types.gen";
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { Overview } from "./Overview";
+
+const { mockUseTaskInstanceServiceGetTaskInstances } = vi.hoisted(() => ({
+  mockUseTaskInstanceServiceGetTaskInstances: vi.fn(() => ({
+    data: { task_instances: [], total_entries: 0 },
+    isLoading: false,
+  })),
+}));
+
+const wrapperWithSearch = (search: string) => {
+  const RouterWrapper = ({ children }: PropsWithChildren) => (
+    <BaseWrapper>
+      <MemoryRouter initialEntries={[`/dags/my_dag/tasks/my_task${search}`]}>{children}</MemoryRouter>
+    </BaseWrapper>
+  );
+
+  return RouterWrapper;
+};
 
 vi.mock("openapi/queries", () => ({
   usePluginServiceGetPlugins: () => ({
@@ -44,10 +63,7 @@ vi.mock("openapi/queries", () => ({
       ],
     },
   }),
-  useTaskInstanceServiceGetTaskInstances: () => ({
-    data: { task_instances: [], total_entries: 0 },
-    isLoading: false,
-  }),
+  useTaskInstanceServiceGetTaskInstances: mockUseTaskInstanceServiceGetTaskInstances,
 }));
 
 vi.mock("src/components/DurationChart", () => ({ DurationChart: () => null }));
@@ -77,5 +93,31 @@ describe("Task overview plugins", () => {
     render(<Overview />, { wrapper: Wrapper });
 
     expect(screen.queryByText("Scoped overview plugin")).not.toBeInTheDocument();
+  });
+});
+
+describe("Task overview duration chart limit", () => {
+  beforeEach(() => {
+    mockUseTaskInstanceServiceGetTaskInstances.mockClear();
+  });
+
+  it("requests the default number of task instances when no limit is set", () => {
+    render(<Overview />, { wrapper: wrapperWithSearch("") });
+
+    expect(mockUseTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 10, orderBy: ["-run_after"] }),
+      undefined,
+      expect.anything(),
+    );
+  });
+
+  it("requests the number of task instances given by the limit search param", () => {
+    render(<Overview />, { wrapper: wrapperWithSearch("?limit=50") });
+
+    expect(mockUseTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 50, orderBy: ["-run_after"] }),
+      undefined,
+      expect.anything(),
+    );
   });
 });
