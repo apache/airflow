@@ -223,6 +223,10 @@ core:
         * ``False``: Execute via forking of the parent process
         * ``True``: Spawning a new python process, slower than fork, but means plugin changes picked
           up by tasks straight away
+
+        On workers this also makes the task process ``exec`` a fresh interpreter right after the
+        fork, so it cannot inherit a lock held by a supervisor thread at fork time (which can
+        otherwise deadlock the task permanently at its first TLS call).
       default: "False"
       example: ~
       version_added: 2.0.0

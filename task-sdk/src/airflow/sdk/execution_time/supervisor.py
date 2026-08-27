@@ -513,8 +513,18 @@ See: https://github.com/python/cpython/issues/105912
 
 
 def _should_use_exec() -> bool:
-    """Whether forked children should ``exec`` a fresh interpreter on this platform."""
-    return sys.platform in _FORK_EXEC_PLATFORMS
+    """
+    Whether forked children should ``exec`` a fresh interpreter.
+
+    Always on for platforms where bare fork is unsafe (macOS). Elsewhere it can be
+    opted into with ``[core] execute_tasks_new_python_interpreter``: exec replaces
+    the child's address space, so it cannot inherit a lock a supervisor thread held
+    at fork time (e.g. OpenSSL's, which otherwise deadlocks the task at its first
+    TLS call — see #71707).
+    """
+    if sys.platform in _FORK_EXEC_PLATFORMS:
+        return True
+    return conf.getboolean("core", "execute_tasks_new_python_interpreter", fallback=False)
 
 
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
