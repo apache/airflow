@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
+import re
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -27,12 +29,31 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+
+# Matches the `google...` provider key pydantic-ai expects before the `:model-name`
+# separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
+_GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
+
+
+def _assert_prefix_is_known_provider(prefix: str) -> None:
+    """
+    Assert pydantic-ai's provider registry recognizes ``prefix``.
+
+    ``infer_provider_class`` raises ``ValueError: Unknown provider: ...`` for a
+    name it doesn't recognize, but ``ImportError`` for a recognized name whose
+    optional dependency (``google-genai``) isn't installed in this test env.
+    Only the former indicates the advertised prefix has drifted out of sync
+    with what's actually installed.
+    """
+    with contextlib.suppress(ImportError):
+        infer_provider_class(prefix)
 
 
 class TestPydanticAIHookInit:
@@ -930,3 +951,35 @@ class TestPydanticAIVertexHook:
             # environment; failing past provider-name resolution is enough to
             # prove "google-cloud" is recognized.
             pass
+
+    def test_conn_fields_model_description_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``provider.yaml`` conn-field, the actual UI source.
+
+        Once a hook's ``provider.yaml`` declares ``conn-fields``, the connection
+        form renders those and ``get_ui_field_behaviour`` placeholders are never
+        shown (``providers_manager.py``'s ``ui_metadata_loaded``, deprecated
+        since 3.2.0) — so this description, not the placeholder below, is what
+        a user actually copies the model prefix from.
+        """
+        connection_types = get_provider_info()["connection-types"]
+        vertex_conn_fields = next(
+            c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai-vertex"
+        )
+        description = vertex_conn_fields["model"]["description"]
+        match = _GOOGLE_MODEL_PREFIX_RE.search(description)
+        assert match, f"no google model prefix found in description: {description!r}"
+        _assert_prefix_is_known_provider(match.group())
+
+    def test_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``get_ui_field_behaviour`` placeholder.
+
+        Superseded at runtime by the ``provider.yaml`` conn-field above, but
+        still source code a developer can read and copy from directly, so it
+        needs to stay accurate too.
+        """
+        placeholder = PydanticAIVertexHook.get_ui_field_behaviour()["placeholders"]["extra"]
+        match = _GOOGLE_MODEL_PREFIX_RE.search(placeholder)
+        assert match, f"no google model prefix found in placeholder: {placeholder!r}"
+        _assert_prefix_is_known_provider(match.group())
