@@ -58,6 +58,12 @@ class S3ToTeradataOperator(BaseOperator):
         Refer to
         https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Teradata-VantageTM-Native-Object-Store-Getting-Started-Guide-17.20/Setting-Up-Access/Controlling-Foreign-Table-Access-with-an-AUTHORIZATION-Object
 
+
+    When ``teradata_authorization_name`` is not set and the object store is private, the store's
+    credentials are sent to Teradata inside the ``CREATE TABLE`` statement itself. Teradata records
+    that statement in its own query logs (DBQL) and monitoring views, which Airflow cannot redact,
+    so the credentials are readable by anyone with access to those. Prefer an AUTHORIZATION object,
+    which keeps the credentials in the database instead of in each statement.
     Note that ``s3_source_key`` and ``teradata_table`` are
     templated, so you can use variables in them if you wish.
     """
@@ -92,18 +98,22 @@ class S3ToTeradataOperator(BaseOperator):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         teradata_hook = TeradataHook(teradata_conn_id=self.teradata_conn_id)
         credentials_part = "ACCESS_ID= '' ACCESS_KEY= ''"
+        redacted_credentials_part = credentials_part
         if not self.public_bucket:
             # Accessing data directly from the S3 bucket and creating permanent table inside the database
             if self.teradata_authorization_name:
                 credentials_part = f"AUTHORIZATION={self.teradata_authorization_name}"
+                redacted_credentials_part = credentials_part
             else:
                 credentials = s3_hook.get_credentials()
                 access_key = credentials.access_key
                 access_secret = credentials.secret_key
                 credentials_part = f"ACCESS_ID= '{access_key}' ACCESS_KEY= '{access_secret}'"
+                redacted_credentials_part = "ACCESS_ID= '***' ACCESS_KEY= '***'"
                 token = credentials.token
                 if token:
                     credentials_part = credentials_part + f" SESSION_TOKEN = '{token}'"
+                    redacted_credentials_part = redacted_credentials_part + " SESSION_TOKEN = '***'"
         sql = dedent(f"""
                         CREATE MULTISET TABLE {self.teradata_table} AS
                         (
@@ -113,6 +123,11 @@ class S3ToTeradataOperator(BaseOperator):
                             ) AS d
                         ) WITH DATA
                         """).rstrip()
+        if redacted_credentials_part != credentials_part:
+            # The statement embeds the credentials themselves, so keep it out of the task log
+            # and log the redacted form in its place.
+            teradata_hook.log_sql = False
+            self.log.info("Running statement: %s", sql.replace(credentials_part, redacted_credentials_part))
         try:
             teradata_hook.run(sql, True)
         except Exception as ex:
