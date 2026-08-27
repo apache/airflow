@@ -26,7 +26,8 @@ from airflow.providers.common.compat import triggers
 class TestBaseEventTrigger:
     def test_falls_back_to_base_trigger_without_base_event_trigger(self, monkeypatch):
         """On Airflow 2.x, where the class does not exist, the alias resolves to BaseTrigger."""
-        monkeypatch.delattr(airflow.triggers.base, "BaseEventTrigger")
+        # Already absent when the tests run against Airflow 2.x, which is the case being simulated.
+        monkeypatch.delattr(airflow.triggers.base, "BaseEventTrigger", raising=False)
 
         assert triggers.BaseEventTrigger is airflow.triggers.base.BaseTrigger
 
