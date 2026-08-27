@@ -109,8 +109,9 @@ returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
 Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
-are specific to this operator, ``approval_timeout`` and the rest of the
-approval behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
+are specific to this operator, ``approval_timeout``,
+``approval_assigned_users``, and the rest of the approval behaviour are
+inherited from :ref:`LLMOperator <howto/operator:llm>`.
 
 How It Works
 ------------
@@ -142,6 +143,8 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
+- ``approval_assigned_users``: Users allowed to answer the review.  ``None``
+  (default) lets any user with the permission respond.  Needs Airflow 3.1+.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
   skipping the downstream tasks.  Generally discouraged.  Only takes effect
   with ``require_approval=True``.  Default ``False``.

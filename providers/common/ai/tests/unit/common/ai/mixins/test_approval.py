@@ -53,11 +53,13 @@ class FakeOperator(LLMApprovalMixin):
         task_id: str = "test_task",
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
+        approval_assigned_users: list[dict[str, str]] | None = None,
     ):
         self.prompt = prompt
         self.task_id = task_id
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
+        self.approval_assigned_users = approval_assigned_users
 
         self.defer = MagicMock()
         self.log = MagicMock()
@@ -173,6 +175,23 @@ class TestDeferForApproval:
         assert param["schema"] == schema
         defer_kwargs = approval_op_with_modifications.defer.call_args[1]
         assert defer_kwargs["kwargs"]["generated_output"] == '["task_a"]'
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_assigned_users_are_forwarded(self, mock_upsert, mock_trigger_cls, context):
+        users = [{"id": "u1", "name": "alice"}]
+        op = FakeOperator(approval_assigned_users=users)
+
+        op.defer_for_approval(context, "output")
+
+        assert mock_upsert.call_args[1]["assigned_users"] == users
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_assigned_users_omitted_when_unset(self, mock_upsert, mock_trigger_cls, approval_op, context):
+        approval_op.defer_for_approval(context, "output")
+
+        assert "assigned_users" not in mock_upsert.call_args[1]
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)

@@ -36,7 +36,10 @@ try:
 except ImportError:
     _CORE_WALKER = False
 
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    TaskDeferred,
+)
 
 if AIRFLOW_V_3_3_PLUS:
     # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
@@ -193,6 +196,27 @@ class TestLLMOperatorApproval:
         assert op.require_approval is False
         assert op.allow_modifications is False
         assert op.approval_timeout is None
+        assert op.approval_assigned_users is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="assigned_users needs Airflow 3.1+")
+    @pytest.mark.parametrize(
+        "assigned_users",
+        [{"id": "u1", "name": "alice"}, [{"id": "u1", "name": "alice"}]],
+        ids=["single", "list"],
+    )
+    def test_approval_assigned_users_normalized_to_list(self, assigned_users):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_assigned_users=assigned_users)
+        assert op.approval_assigned_users == [{"id": "u1", "name": "alice"}]
+
+    @pytest.mark.skipif(AIRFLOW_V_3_1_PLUS, reason="guard only fires on cores before 3.1")
+    def test_approval_assigned_users_rejected_on_old_core(self):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="needs Airflow 3.1"):
+            LLMOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                approval_assigned_users={"id": "u1", "name": "alice"},
+            )
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
