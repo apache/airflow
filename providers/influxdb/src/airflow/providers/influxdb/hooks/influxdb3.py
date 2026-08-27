@@ -232,8 +232,6 @@ class InfluxDB3Hook(BaseHook):
         nothing to poll in between. Connection setup and DataFrame conversion are offloaded
         with ``asyncio.to_thread`` so that no step runs on the triggerer's event loop.
 
-        Requires ``influxdb3-python>=0.12.0``, the release that introduced ``query_async``.
-
         :param query: SQL query string
         :return: List of dictionaries representing query results
         """
