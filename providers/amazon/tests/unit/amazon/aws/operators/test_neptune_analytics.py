@@ -241,9 +241,15 @@ class TestNeptuneCreateGraphOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneCreatePrivateGraphEndpointOperator:
@@ -466,9 +472,16 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "vpc_id": VPC_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneDeletePrivateGraphEndpointOperator:
@@ -622,9 +635,17 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "vpc_id": VPC_ID,
+            "endpoint_id": ENDPOINT_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneDeleteGraphOperator:
@@ -803,9 +824,15 @@ class TestNeptuneDeleteGraphOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneCreateGraphWithImportOperator:
@@ -1097,9 +1124,15 @@ class TestNeptuneCreateGraphWithImportOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "graph_id": GRAPH_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_defer_wait_for_task_trigger_receives_hook_configuration(self, mock_conn):
@@ -1121,9 +1154,15 @@ class TestNeptuneCreateGraphWithImportOperator:
                 event={"status": "success"},
             )
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "import_task_id": self.IMPORT_TASK_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 TASK_ID = "import-task-id-12345"
@@ -1361,9 +1400,15 @@ class TestNeptuneStartImportTaskOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "import_task_id": TASK_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestNeptuneCancelImportTaskOperator:
@@ -1477,6 +1522,12 @@ class TestNeptuneCancelImportTaskOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             operator.execute(None)
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            "task_identifier": TASK_ID,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
