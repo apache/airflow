@@ -32,7 +32,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -956,16 +956,18 @@ class AssetModelOperation(NamedTuple):
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
         # ``asset_active`` is unique on name and on uri separately, and no order of this insert
         # is consistent for both indexes -- two writers can sort identically and still take the
-        # two uris the opposite way round. So the rows are serialized on their assets instead:
-        # every writer takes those in one order, which leaves the insert below to run without a
-        # second writer inside it, and lets the database go on arbitrating which of two
-        # conflicting assets wins.
+        # two uris the opposite way round. So the rows are serialized first, on every asset
+        # sharing a name or a uri with one being activated rather than on the exact pairs: two
+        # writers activating different assets still meet on those two columns. Taking them in one
+        # order leaves the insert below to run without a second writer inside it, and lets the
+        # database go on arbitrating which of two conflicting assets wins.
         session.execute(
             with_row_locks(
                 select(AssetModel.id)
                 .where(
-                    tuple_(AssetModel.name, AssetModel.uri).in_(
-                        [(model.name, model.uri) for model in candidates]
+                    or_(
+                        AssetModel.name.in_({model.name for model in candidates}),
+                        AssetModel.uri.in_({model.uri for model in candidates}),
                     )
                 )
                 .order_by(AssetModel.name, AssetModel.uri),

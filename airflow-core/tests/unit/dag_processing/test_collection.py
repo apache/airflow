@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections import defaultdict
 from collections.abc import Generator
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -29,8 +30,10 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import delete, event, func, inspect as sa_inspect, select, text
 from sqlalchemy.exc import OperationalError, SAWarning
+from sqlalchemy.orm import Session as SqlaSession
 
 import airflow.dag_processing.collection
+from airflow import settings
 from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
@@ -47,6 +50,7 @@ from airflow.exceptions import SerializationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
+    AssetAliasModel,
     AssetModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
@@ -246,16 +250,15 @@ class TestAssetModelOperation:
         insert one row each and then wait on the other's uncommitted unique conflict. Taking the
         assets in one order first moves that wait outside the insert.
         """
-        from sqlalchemy.orm import Session as SqlaSession
-
-        from airflow import settings
-
-        pair = [Asset(name="x_asset", uri="s3://x"), Asset(name="y_asset", uri="s3://y")]
-        seeded = AssetModelOperation.collect(self._build_dags_scheduled_on(pair))
+        # Disjoint asset rows that meet on the uri column: locking the exact pairs leaves these
+        # two writers free to reach the insert together, holding one uri each.
+        held = [Asset(name="a_asset", uri="s3://z"), Asset(name="c_asset", uri="s3://y")]
+        waiting = [Asset(name="b_asset", uri="s3://y"), Asset(name="c_asset", uri="s3://z")]
+        seeded = AssetModelOperation.collect(self._build_dags_scheduled_on(held + waiting))
         seeded.sync_assets(session=session)
         session.commit()
 
-        holder = AssetModelOperation.collect(self._build_dags_scheduled_on(pair))
+        holder = AssetModelOperation.collect(self._build_dags_scheduled_on(held))
         orm_held = holder.sync_assets(session=session)
         session.flush()
         holder.activate_assets_if_possible(orm_held.values(), session=session)
@@ -263,7 +266,7 @@ class TestAssetModelOperation:
         other = SqlaSession(bind=settings.engine)
         try:
             other.execute(text("SET lock_timeout = '750ms'"))
-            waiter = AssetModelOperation.collect(self._build_dags_scheduled_on(list(reversed(pair))))
+            waiter = AssetModelOperation.collect(self._build_dags_scheduled_on(waiting))
             orm_waiting = waiter.sync_assets(session=other)
 
             # Where it waits is the whole point: on the assets, before it has inserted anything.
@@ -388,12 +391,10 @@ class TestAssetModelOperation:
 
     def test_alias_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
         """The alias loop walks ``self.dags`` just as the asset one does."""
-        # Nine aliases so the two the Dags use get ids 2 and 9. As a set those iterate 9 before
-        # 2 -- consecutive ids come out ascending either way and would prove nothing.
-        seeded = AssetModelOperation.collect(
-            self._build_dags_scheduled_on([AssetAlias(f"alias_{i}") for i in range(1, 10)])
-        )
-        seeded.sync_asset_aliases(session=session)
+        # Ids 2 and 9 exactly: as a set those iterate 9 before 2, where consecutive ids come out
+        # ascending either way and would prove nothing. Written rather than seeded, because
+        # clearing rows leaves the sequence where it was and the next ids are anyone's guess.
+        session.add_all([AssetAliasModel(id=2, name="alias_2"), AssetAliasModel(id=9, name="alias_9")])
         session.flush()
         chosen = [AssetAlias("alias_2"), AssetAlias("alias_9")]
         dags = {
@@ -430,19 +431,21 @@ class TestAssetModelOperation:
         ``asset_watcher`` is keyed on (asset_id, trigger_id).
 
         The trigger hash cannot order it: it is a builtin hash of a str and bytes, so two
-        processes compute different values for the same trigger. The hashes are pinned here to
-        values whose set iteration -- and so the order the rows are created and given ids --
-        differs from their ascending order, which is what tells the two sorts apart.
+        processes compute different values for the same trigger. Trigger ids are handed out while
+        iterating the hashes of *every* asset, so one asset's own hashes can iterate the other way
+        -- ``{5, 9}`` alone comes out ``9, 5`` where it comes out ``5, 9`` inside ``{1,2,3,5,9}``,
+        which is what tells ordering by id apart from taking the hashes as they come.
         """
-        hashes = {"/tmp/a": 16, "/tmp/b": 9, "/tmp/c": 2}
-        asset = Asset(
-            "watched_asset",
-            watchers=[
-                AssetWatcher(name=f"w_{path[-1]}", trigger=FileDeleteTrigger(filepath=path))
-                for path in hashes
-            ],
-        )
-        with dag_maker(dag_id="watch_dag", schedule=[asset]) as dag:
+        hashes = {"/tmp/w1": 5, "/tmp/w2": 9, "/tmp/o1": 1, "/tmp/o2": 2, "/tmp/o3": 3}
+
+        def watchers_for(*paths):
+            return [
+                AssetWatcher(name=f"w{path[-1]}", trigger=FileDeleteTrigger(filepath=path)) for path in paths
+            ]
+
+        watched = Asset("watched_asset", watchers=watchers_for("/tmp/w1", "/tmp/w2"))
+        other = Asset("other_asset", watchers=watchers_for("/tmp/o1", "/tmp/o2", "/tmp/o3"))
+        with dag_maker(dag_id="watch_dag", schedule=[watched, other]) as dag:
             EmptyOperator(task_id="mytask")
 
         dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
@@ -454,6 +457,8 @@ class TestAssetModelOperation:
         session.flush()
         op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         op.activate_assets_if_possible(orm_assets.values(), session=session)
+        # dag_maker already wrote these; clearing them is what leaves the pass below something to
+        # add, and the ids it hands out are the ones under test.
         session.execute(delete(Trigger))
         for asset_model in orm_assets.values():
             asset_model.watchers = []
@@ -478,9 +483,12 @@ class TestAssetModelOperation:
         finally:
             event.remove(bind, "before_cursor_execute", record)
 
-        trigger_ids = [row["trigger_id"] for row in inserted]
-        assert len(trigger_ids) == 3, inserted
-        assert trigger_ids == sorted(trigger_ids), trigger_ids
+        assert len(inserted) == 5, inserted
+        per_asset: dict[int, list[int]] = defaultdict(list)
+        for row in inserted:
+            per_asset[row["asset_id"]].append(row["trigger_id"])
+        for asset_id, trigger_ids in per_asset.items():
+            assert trigger_ids == sorted(trigger_ids), (asset_id, trigger_ids)
 
     def test_asset_name_references_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
         """``dag_schedule_asset_name_reference`` is keyed on (name, dag_id), and so is its set."""
