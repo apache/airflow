@@ -52,11 +52,13 @@ class FakeOperator(LLMApprovalMixin):
         prompt: str = "Summarize this",
         task_id: str = "test_task",
         approval_timeout: timedelta | None = None,
+        on_approval_timeout: str = "fail",
         allow_modifications: bool = False,
     ):
         self.prompt = prompt
         self.task_id = task_id
         self.approval_timeout = approval_timeout
+        self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
 
         self.defer = MagicMock()
@@ -205,6 +207,22 @@ class TestDeferForApproval:
 
         defer_kwargs = op.defer.call_args[1]
         assert defer_kwargs["timeout"] == timeout
+
+    @pytest.mark.parametrize(
+        ("on_approval_timeout", "expected_defaults"),
+        [("fail", None), ("approve", ["Approve"]), ("reject", ["Reject"])],
+    )
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_on_approval_timeout_sets_hitl_defaults(
+        self, mock_upsert, mock_trigger_cls, context, on_approval_timeout, expected_defaults
+    ):
+        op = FakeOperator(approval_timeout=timedelta(hours=1), on_approval_timeout=on_approval_timeout)
+
+        op.defer_for_approval(context, "output")
+
+        assert mock_upsert.call_args[1]["defaults"] == expected_defaults
+        assert mock_trigger_cls.call_args[1]["defaults"] == expected_defaults
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -420,6 +438,12 @@ class TestDeferForApproval:
 
         assert result == "output"
 
+    def test_timed_out_rejection_names_the_timeout_default(self, approval_op):
+        event = {"chosen_options": ["Reject"], "responded_by_user": None, "timedout": True}
+
+        with pytest.raises(HITLRejectException, match="Output was rejected by the approval timeout default."):
+            approval_op.execute_complete({}, generated_output="output", event=event)
+
     def test_rejection_message_includes_username(self, approval_op):
         event = {"chosen_options": ["Reject"], "responded_by_user": "alice"}
 
@@ -452,6 +476,21 @@ class TestAwaitInputForApproval:
             op.defer_for_approval(context, "output")
 
         assert exc_info.value.timeout == timeout
+
+    @pytest.mark.parametrize(
+        ("on_approval_timeout", "expected_defaults"),
+        [("fail", None), ("approve", ["Approve"]), ("reject", ["Reject"])],
+    )
+    @patch(UPSERT_HITL_PATH)
+    def test_on_approval_timeout_sets_hitl_defaults_on_await(
+        self, mock_upsert, context, on_approval_timeout, expected_defaults
+    ):
+        op = FakeOperator(approval_timeout=timedelta(hours=1), on_approval_timeout=on_approval_timeout)
+
+        with pytest.raises(TaskAwaitingInput):
+            op.defer_for_approval(context, "output")
+
+        assert mock_upsert.call_args[1]["defaults"] == expected_defaults
 
     @patch(UPSERT_HITL_PATH)
     def test_pydantic_output_stringified_on_await(self, mock_upsert, approval_op, context):

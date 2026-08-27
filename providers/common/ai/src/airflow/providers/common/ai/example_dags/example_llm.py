@@ -159,6 +159,7 @@ def example_llm_operator_approval():
         system_prompt="You are a financial analyst. Be concise and accurate.",
         require_approval=True,
         approval_timeout=timedelta(hours=24),
+        on_approval_timeout="reject",
         allow_modifications=True,
     )
 

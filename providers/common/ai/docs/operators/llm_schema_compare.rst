@@ -121,7 +121,7 @@ Set ``require_approval=True`` to pause the task after the comparison and wait
 for a human reviewer to approve the result before it is returned. The review
 body shows the compatibility verdict, a mismatch severity summary, and the
 full result JSON. Rejecting the review, or letting ``approval_timeout``
-expire, fails the task:
+expire with the default ``on_approval_timeout="fail"``, fails the task:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_schema_compare.py
     :language: python
@@ -132,8 +132,9 @@ expire, fails the task:
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-``approval_timeout``, ``allow_modifications``, and the rest of the approval
-behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
+``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``, and
+the rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
 
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
@@ -191,6 +192,9 @@ Parameters
   waits for human review before returning the result.  Default ``False``.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
+- ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
+  review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
+  ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
   before approving.  Default ``False``.
 
