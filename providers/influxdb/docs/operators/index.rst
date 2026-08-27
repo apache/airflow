@@ -60,10 +60,12 @@ Set ``deferrable=True`` to release the worker slot while the query runs. The tas
 
 .. note::
 
-    InfluxDB 3 streams query results over a single Arrow Flight call rather than exposing a job that
-    can be polled, so the trigger awaits the query once instead of polling at an interval, and there
-    is no ``poll_interval`` parameter. Results still travel back through XCom, so deferring is most
-    useful for long-running queries with small-to-moderate result sets. For very large extracts,
-    keep using :class:`~airflow.providers.influxdb.hooks.influxdb3.InfluxDB3Hook` from a Python task.
+    This implementation follows the upstream ``influxdb3-python`` client, which documents querying
+    through the `Flight client <https://influxdb3-python.readthedocs.io/en/latest/>`__ and exposes
+    `query_async() <https://influxdb3-python.readthedocs.io/en/latest/api_reference/>`__ as a
+    single async query call. The trigger therefore awaits one query call instead of polling at an
+    interval, and there is no ``poll_interval`` parameter.
 
-    Deferrable mode requires ``influxdb3-python>=0.12.0`` and a running ``triggerer``.
+    Results still travel back through XCom, so deferring is most useful for long-running queries
+    with small-to-moderate result sets. For very large extracts, keep using
+    :class:`~airflow.providers.influxdb.hooks.influxdb3.InfluxDB3Hook` from a Python task.

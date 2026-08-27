@@ -40,11 +40,9 @@ class InfluxDB3Operator(BaseOperator):
 
     :param sql: The SQL query to be executed
     :param influxdb3_conn_id: Reference to :ref:`InfluxDB 3 connection id <howto/connection:influxdb3>`.
-    :param deferrable: Run the query from the triggerer instead of holding a worker slot for its
-        duration. Requires ``influxdb3-python>=0.12.0``. Note that InfluxDB 3 streams results over
-        Arrow Flight rather than exposing a job that can be polled, so the whole result set still flows back
-        through XCom -- deferring helps with long-running queries returning modest result sets
-        (aggregations, freshness probes), not with very large extracts.
+    :param deferrable: Run the query from the triggerer so the worker slot is released while the
+        query runs. This is most useful for long-running queries that return small-to-moderate
+        result sets because the full result still flows back through XCom.
     """
 
     template_fields: Sequence[str] = ("sql",)
