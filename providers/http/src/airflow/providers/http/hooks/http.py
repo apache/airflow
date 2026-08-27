@@ -120,6 +120,34 @@ def _retryable_error_async(exception: BaseException) -> bool:
     return exception.status >= 500
 
 
+class _ConnectionHeaderSession(Session):
+    """
+    A :class:`~requests.Session` that drops connection-supplied headers across hosts.
+
+    ``requests`` removes only the ``Authorization`` header when a redirect crosses to a
+    different host (see :meth:`requests.Session.rebuild_auth`). Credentials placed in a
+    connection's ``extra`` field — the documented way to supply them — commonly use other
+    header names such as ``X-API-Key``, and those would otherwise be replayed verbatim to
+    whatever host a redirect points at.
+
+    Only headers that came from the connection are dropped; headers passed explicitly by
+    the caller are left alone, since the caller controls the request either way.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.connection_header_keys: set[str] = set()
+
+    def rebuild_auth(self, prepared_request, response):
+        """Strip connection-supplied headers when the redirect changes host."""
+        super().rebuild_auth(prepared_request, response)
+        if not self.connection_header_keys:
+            return
+        if self.should_strip_auth(response.request.url, prepared_request.url):
+            for header in self.connection_header_keys:
+                prepared_request.headers.pop(header, None)
+
+
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
@@ -196,7 +224,7 @@ class HttpHook(BaseHook):
         :param extra_options: additional options to be used when executing the request
         :return: A configured requests.Session object.
         """
-        session = Session()
+        session: Session = _ConnectionHeaderSession()
         connection = self.get_connection(self.http_conn_id)
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)  # type: ignore[arg-type]
@@ -268,6 +296,11 @@ class HttpHook(BaseHook):
             session.headers.update(conn_extra_options)
         except TypeError:
             self.log.warning("Connection to %s has invalid extra field.", connection.host)
+        else:
+            if isinstance(session, _ConnectionHeaderSession):
+                # Remember which headers came from the connection so they can be dropped
+                # if a redirect crosses to a different host.
+                session.connection_header_keys.update(conn_extra_options)
 
         return session
 
