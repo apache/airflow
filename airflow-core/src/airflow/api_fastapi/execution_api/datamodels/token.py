@@ -31,13 +31,19 @@ class TIClaims(BaseModel):
     """
     Validated JWT claims for a task identity token.
 
-    Only fields used by the Execution API (sub, scope) are explicitly typed.
+    Only fields used by the Execution API (sub, scope, bundle_name) are explicitly typed.
     JWTValidator already validates exp/iat/nbf/aud/etc. Extra claims are allowed.
     """
 
     model_config = ConfigDict(extra="allow")
 
     scope: TokenScope = "execution"
+    bundle_name: str | None = None
+    """
+    Dag bundle the caller acts for, when the token does not identify a task instance (Dag parsing).
+
+    Task tokens leave this unset; their bundle (and team) is resolved from the task instance.
+    """
 
 
 class TIToken(BaseModel):

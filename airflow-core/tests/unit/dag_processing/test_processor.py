@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import pathlib
 import sys
@@ -89,6 +90,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -383,6 +385,131 @@ class TestDagFileProcessor:
         assert result.import_errors != {}
         if result.import_errors:
             assert "The conn_id `my_conn` isn't defined" in next(iter(result.import_errors.values()))
+
+    @pytest.fixture
+    def team_bundle(self, tmp_path: pathlib.Path):
+        """Register ``tmp_path`` as a team-owned bundle in multi-team mode; yield ``(bundle_name, team_name)``."""
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        bundle_name = f"bundle_{uuid.uuid4().hex}"
+        team_name = f"team_{uuid.uuid4().hex}"
+        with create_session() as session:
+            bundle = DagBundleModel(name=bundle_name)
+            bundle.teams.append(Team(name=team_name))
+            session.add(bundle)
+
+        bundle_config = [
+            {
+                "name": bundle_name,
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(tmp_path), "refresh_interval": 0},
+                "team_name": team_name,
+            }
+        ]
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            yield bundle_name, team_name
+
+        with create_session() as session:
+            stored_bundle = session.scalars(
+                select(DagBundleModel).where(DagBundleModel.name == bundle_name)
+            ).one()
+            stored_bundle.teams = []
+            session.delete(stored_bundle)
+            session.delete(session.scalars(select(Team).where(Team.name == team_name)).one())
+
+    def test_top_level_team_scoped_variable_access(
+        self, tmp_path: pathlib.Path, inprocess_client, team_bundle
+    ):
+        """Parsing a team bundle's Dag file resolves the team's variables in multi-team mode."""
+        from airflow.models.variable import Variable as VariableORM
+
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
+
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        bundle_name, team_name = team_bundle
+        with create_session() as session:
+            VariableORM.set(key="myvar", value="abc", team_name=team_name, session=session)
+        inprocess_client.headers[InProcessExecutionAPI.bundle_name_header] = bundle_name
+
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name=bundle_name,
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=[],
+            logger=logger,
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        clear_db_variables()
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_abc"
+
+    def test_top_level_team_scoped_connection_access(
+        self, tmp_path: pathlib.Path, inprocess_client, team_bundle
+    ):
+        """Parsing a team bundle's Dag file resolves the team's connections in multi-team mode."""
+        from airflow.models.connection import Connection as ConnectionORM
+
+        logger = MagicMock(spec=FilteringBoundLogger)
+        logger_filehandle = MagicMock(spec=BinaryIO)
+
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, BaseHook
+
+            with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').host}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        bundle_name, team_name = team_bundle
+        with create_session() as session:
+            session.add(
+                ConnectionORM(conn_id="my_conn", conn_type="http", host="team-host", team_name=team_name)
+            )
+        inprocess_client.headers[InProcessExecutionAPI.bundle_name_header] = bundle_name
+
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name=bundle_name,
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=[],
+            logger=logger,
+            logger_filehandle=logger_filehandle,
+            client=inprocess_client,
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        clear_db_connections(add_default_connections_back=False)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_team-host"
 
     def test_import_module_in_bundle_root(self, tmp_path: pathlib.Path, inprocess_client):
         tmp_path.joinpath("util.py").write_text("NAME = 'dag_name'")
