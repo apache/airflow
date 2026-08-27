@@ -193,8 +193,7 @@ async def test_persists_the_watermark_on_each_event():
     trigger.asset_state_store = store
 
     with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222)]):
-        # Gathering 2 events runs several real asyncio.to_thread calls (head lookup + store
-        # get/set); the default 1s budget is too tight under CI thread-pool scheduling latency.
+        # Multiple real thread-pool head lookups can exceed the default 1s budget under CI latency.
         payloads = await _collect(trigger, 2, timeout=3.0)
 
     assert [p["snapshot_id"] for p in payloads] == [111, 222]
