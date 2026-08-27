@@ -70,7 +70,36 @@ class TestWebSocketSensor:
             task_id="poke_timeout_arg", url=URL, timeout=45, poke_interval=5, dag=self.dag
         )
         assert sensor.poke(context={}) is True
-        mock_websocket.recv.assert_called_once_with(timeout=45)
+
+        mock_connect.assert_called_once_with(URL, additional_headers=None, open_timeout=45)
+        (_, kwargs) = mock_websocket.recv.call_args
+        assert kwargs["timeout"] == pytest.approx(45, abs=1)
+
+    @mock.patch("airflow.providers.standard.sensors.websocket.connect", autospec=True)
+    def test_poke_returns_false_when_handshake_times_out(self, mock_connect):
+        """A connect() timeout (slow handshake) must be treated the same as a recv()
+        timeout — including respecting soft_fail — not propagate as a raw TimeoutError
+        that bypasses the sensor's normal timeout handling."""
+        mock_connect.side_effect = TimeoutError("timed out while waiting for handshake response")
+
+        sensor = WebSocketSensor(task_id="handshake_timeout", url=URL, dag=self.dag)
+        assert sensor.poke(context={}) is False
+
+    @mock.patch("airflow.providers.standard.sensors.websocket.time.monotonic")
+    @mock.patch("airflow.providers.standard.sensors.websocket.connect", autospec=True)
+    def test_poke_recv_gets_remaining_time_after_slow_handshake(self, mock_connect, mock_monotonic):
+        """If the handshake itself consumes part of the timeout budget, recv() must only
+        get what's left, not the full timeout again — otherwise total wait time could
+        exceed the sensor's declared timeout."""
+        mock_websocket = mock.MagicMock(spec=ClientConnection)
+        mock_websocket.recv.return_value = "pong"
+        mock_connect.return_value.__enter__.return_value = mock_websocket
+        # deadline computed at t=0 with timeout=10; connect() "takes" 4s, leaving 6s for recv().
+        mock_monotonic.side_effect = [0, 4]
+
+        sensor = WebSocketSensor(task_id="slow_handshake", url=URL, timeout=10, dag=self.dag)
+        assert sensor.poke(context={}) is True
+        mock_websocket.recv.assert_called_once_with(timeout=6)
 
     def test_reschedule_mode_not_allowed(self):
         with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
@@ -82,7 +111,7 @@ class TestWebSocketSensor:
         trigger is supposed to wait for."""
         sensor = WebSocketSensor(task_id="defer", url=URL, deferrable=True, dag=self.dag)
 
-        with mock.patch.object(WebSocketSensor, "poke") as mock_poke:
+        with mock.patch.object(WebSocketSensor, "poke", autospec=True) as mock_poke:
             with pytest.raises(TaskDeferred) as exc:
                 sensor.execute({})
 
@@ -96,7 +125,7 @@ class TestWebSocketSensor:
         message_to_send."""
         sensor = WebSocketSensor(task_id="sync_timeout", url=URL, timeout=0, dag=self.dag)
 
-        with mock.patch.object(WebSocketSensor, "poke", return_value=False) as mock_poke:
+        with mock.patch.object(WebSocketSensor, "poke", autospec=True, return_value=False) as mock_poke:
             with pytest.raises(AirflowSensorTimeout):
                 sensor.execute({})
 

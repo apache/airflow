@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -72,13 +73,14 @@ class WebSocketSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info("Connecting to WebSocket %s", self.url)
-        with connect(self.url, additional_headers=self.header) as websocket:
-            if self.message_to_send is not None:
-                websocket.send(self.message_to_send)
-            try:
-                websocket.recv(timeout=self.timeout)
-            except TimeoutError:
-                return False
+        deadline = time.monotonic() + self.timeout
+        try:
+            with connect(self.url, additional_headers=self.header, open_timeout=self.timeout) as websocket:
+                if self.message_to_send is not None:
+                    websocket.send(self.message_to_send)
+                websocket.recv(timeout=max(deadline - time.monotonic(), 0))
+        except TimeoutError:
+            return False
         self.log.info("Received message from %s", self.url)
         return True
 
