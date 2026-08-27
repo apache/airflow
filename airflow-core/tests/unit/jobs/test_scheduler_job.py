@@ -8143,6 +8143,109 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_timeout_triggers_does_not_flip_healthy_assigned(self, dag_maker):
+        """A past trigger_timeout on a TI whose triggerer is alive must not be swept."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_healthy_assigned",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy1", session=session)
+        triggerer_job = Job(heartrate=10, state=State.RUNNING)
+        triggerer_job.job_type = "TriggererJob"
+        triggerer_job.latest_heartbeat = timezone.utcnow()
+        session.add(triggerer_job)
+        session.flush()
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        trigger.triggerer_id = triggerer_job.id
+        session.add(trigger)
+        session.flush()
+        ti.state = State.DEFERRED
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        ti.trigger_id = trigger.id
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        session.refresh(ti)
+        assert ti.state == State.DEFERRED
+        assert ti.trigger_id == trigger.id
+
+    def test_timeout_triggers_falls_back_for_dead_triggerer(self, dag_maker):
+        """Orphaned deferred TIs whose triggerer heartbeat is dead are still timed out."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_dead_triggerer",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy1", session=session)
+        triggerer_job = Job(heartrate=10, state=State.RUNNING)
+        triggerer_job.job_type = "TriggererJob"
+        triggerer_job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
+        session.add(triggerer_job)
+        session.flush()
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        trigger.triggerer_id = triggerer_job.id
+        session.add(trigger)
+        session.flush()
+        ti.state = State.DEFERRED
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        ti.trigger_id = trigger.id
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        session.refresh(ti)
+        assert ti.state == State.SCHEDULED
+        assert ti.next_method == "__fail__"
+        assert ti.trigger_id is None
+
+    @pytest.mark.backend("mysql")
+    def test_check_trigger_timeouts_skips_locked_rows(self, dag_maker, session):
+        """The timeout fallback must SKIP LOCKED rows another session already holds."""
+        with dag_maker(
+            dag_id="test_timeout_triggers_skip_locked",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy1", session=session)
+        ti.state = State.DEFERRED
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        session.commit()
+
+        with create_session(scoped=False) as competing_session:
+            locked = competing_session.scalars(
+                with_row_locks(
+                    select(TaskInstance).where(TaskInstance.id == ti.id),
+                    of=TaskInstance,
+                    session=competing_session,
+                    skip_locked=True,
+                )
+            ).all()
+            assert len(locked) == 1
+
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+            self.job_runner.check_trigger_timeouts(session=session)
+
+            session.refresh(ti)
+            assert ti.state == State.DEFERRED
+
     def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
         """
         A parked ``awaiting_input`` task past its deadline with defaults is resumed to SCHEDULED by

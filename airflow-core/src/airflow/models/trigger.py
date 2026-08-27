@@ -37,7 +37,6 @@ from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -236,20 +235,12 @@ class Trigger(Base):
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
-        Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop the triggers not referenced by anyone.
-        """
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
-        for attempt in run_with_db_retries():
-            with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
-                    )
-                    .values(trigger_id=None)
-                )
 
+        Deferred-exit paths must NULL ``task_instance.trigger_id`` themselves.
+        This method no longer bulk-updates task instances (that UPDATE deadlocked
+        with scheduler timeout scans on MySQL).
+        """
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
         ids = select(cls.id).where(
             ~cls.assets.any(),
@@ -258,10 +249,20 @@ class Trigger(Base):
         )
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
         if get_dialect_name(session) == "mysql":
-            # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
+            # MySQL doesn't support a DELETE whose subquery selects from the target table,
+            # so materialize the ids first. The DELETE re-checks the reference predicates:
+            # a task can defer onto one of these triggers in between, and deleting it
+            # would cascade-delete the task instance row.
             ids_list = list(session.scalars(ids).all())
             session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
+                delete(Trigger)
+                .where(
+                    Trigger.id.in_(ids_list),
+                    ~cls.assets.any(),
+                    ~cls.callback.has(),
+                    ~cls.task_instance.has(),
+                )
+                .execution_options(synchronize_session=False)
             )
         else:
             session.execute(
@@ -277,12 +278,15 @@ class Trigger(Base):
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
         """
-        # Resume deferred tasks
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        # Resume deferred tasks. SKIP LOCKED: if the scheduler fallback or another
+        # triggerer already took the row, this is a no-op.
+        query = (
+            select(TaskInstance)
+            .where(TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED)
+            .order_by(TaskInstance.id)
+        )
+        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
+        for task_instance in session.scalars(query):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
@@ -317,11 +321,13 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        query = (
+            select(TaskInstance)
+            .where(TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED)
+            .order_by(TaskInstance.id)
+        )
+        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
+        for task_instance in session.scalars(query):
             # Add the error and set the next_method to the fail state
             if isinstance(exc, BaseException):
                 traceback = format_exception(type(exc), exc, exc.__traceback__)

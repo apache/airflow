@@ -153,8 +153,9 @@ def test_clean_unused(session, dag_maker):
     tis = {ti.task_id: ti for ti in dr.task_instances}
     tis["fake0"].state = State.DEFERRED
     tis["fake0"].trigger_id = trigger1.id
+    # DEFERRED-exit must NULL trigger_id; leftover FKs are no longer bulk-unlinked.
     tis["fake1"].state = State.SUCCESS
-    tis["fake1"].trigger_id = trigger2.id
+    tis["fake1"].trigger_id = None
     tis["fake2"].state = State.SUCCESS
     tis["fake2"].trigger_id = trigger4.id
     session.flush()
@@ -178,6 +179,66 @@ def test_clean_unused(session, dag_maker):
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
+
+
+def test_clean_unused_does_not_update_task_instance(session, dag_maker):
+    """clean_unused must not bulk-UPDATE task_instance (lock-order inversion vs timeout)."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    with dag_maker(session=session):
+        EmptyOperator(task_id="fake")
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[0]
+    ti.state = State.SUCCESS
+    ti.trigger_id = trigger.id
+    session.flush()
+
+    from sqlalchemy.sql.dml import Update
+
+    updates: list[object] = []
+    original_execute = session.execute
+
+    def _spy(stmt, *args, **kwargs):
+        if isinstance(stmt, Update):
+            updates.append(stmt)
+        return original_execute(stmt, *args, **kwargs)
+
+    session.execute = _spy  # type: ignore[method-assign]
+    Trigger.clean_unused(session=session)
+    assert updates == []
+    session.refresh(ti)
+    assert ti.trigger_id == trigger.id
+
+
+def test_clean_unused_keeps_triggers_referenced_after_candidate_select(session, dag_maker, monkeypatch):
+    """MySQL two-step DELETE must re-check references so a deferral between SELECT and DELETE survives."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    with dag_maker(session=session):
+        EmptyOperator(task_id="fake")
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[0]
+
+    original_scalars = session.scalars
+    seen = {"done": False}
+
+    def _scalars(statement, *args, **kwargs):
+        result = original_scalars(statement, *args, **kwargs)
+        if not seen["done"]:
+            ti.state = State.DEFERRED
+            ti.trigger_id = trigger.id
+            session.flush()
+            seen["done"] = True
+        return result
+
+    monkeypatch.setattr(session, "scalars", _scalars)
+    monkeypatch.setattr("airflow.models.trigger.get_dialect_name", lambda _session: "mysql")
+    Trigger.clean_unused(session=session)
+    assert session.get(Trigger, trigger.id) is not None
+    session.refresh(ti)
+    assert ti.trigger_id == trigger.id
 
 
 @patch.object(TriggererCallback, "handle_event")

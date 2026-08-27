@@ -1461,6 +1461,7 @@ class DagRun(Base, LoggingMixin):
                     if ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
                         ti.state = TaskInstanceState.REMOVED
+                        ti.trigger_id = None
                         session.flush()
                 else:
                     yield ti
@@ -1916,6 +1917,7 @@ class DagRun(Base, LoggingMixin):
                         tags={**self.stats_tags, "dag_id": dag.dag_id},
                     )
                     ti.state = TaskInstanceState.REMOVED
+                    ti.trigger_id = None
                 continue
 
             try:
@@ -1933,6 +1935,7 @@ class DagRun(Base, LoggingMixin):
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
                         )
                         ti.state = TaskInstanceState.REMOVED
+                        ti.trigger_id = None
                     continue
                 # Upstreams finished, check there aren't any extras
                 if ti.map_index >= total_length:
@@ -1942,6 +1945,7 @@ class DagRun(Base, LoggingMixin):
                         total_length,
                     )
                     ti.state = TaskInstanceState.REMOVED
+                    ti.trigger_id = None
             else:
                 # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
@@ -1951,9 +1955,11 @@ class DagRun(Base, LoggingMixin):
                         num_mapped_tis,
                     )
                     ti.state = TaskInstanceState.REMOVED
+                    ti.trigger_id = None
                 elif ti.map_index < 0:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = TaskInstanceState.REMOVED
+                    ti.trigger_id = None
 
         return task_ids
 
@@ -2141,7 +2147,7 @@ class DagRun(Base, LoggingMixin):
                     TI.run_id == self.run_id,
                     TI.map_index.in_(removed_indexes),
                 )
-                .values(state=TaskInstanceState.REMOVED)
+                .values(state=TaskInstanceState.REMOVED, trigger_id=None)
             )
             session.flush()
 

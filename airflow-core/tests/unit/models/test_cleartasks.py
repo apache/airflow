@@ -28,6 +28,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -135,9 +136,13 @@ class TestClearTasks:
             EmptyOperator(task_id="task0")
 
         ti0 = dag_maker.create_dagrun().task_instances[0]
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
         ti0.state = State.DEFERRED
         ti0.next_method = "next_method"
         ti0.next_kwargs = {}
+        ti0.trigger_id = trigger.id
 
         session.add(ti0)
         session.commit()
@@ -148,6 +153,7 @@ class TestClearTasks:
 
         assert ti0.next_method is None
         assert ti0.next_kwargs is None
+        assert ti0.trigger_id is None
 
     @pytest.mark.parametrize(
         ("state", "last_scheduling"), [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]

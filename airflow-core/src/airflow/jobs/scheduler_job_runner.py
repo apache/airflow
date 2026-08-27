@@ -2974,6 +2974,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             for task_instance in unfinished_task_instances:
                 task_instance.state = TaskInstanceState.SKIPPED
+                task_instance.trigger_id = None
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
@@ -3498,22 +3499,52 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def check_trigger_timeouts(
         self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
-        """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
+        """
+        Time out deferred tasks whose triggerer is gone or never assigned.
+
+        A healthy assigned triggerer already maps cancel-past-timeout to
+        ``submit_failure``. This sweep is a mixed-version / orphan fallback.
+        """
+        now = timezone.utcnow()
+        threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
+        alive_triggerer_ids = select(Job.id).where(
+            Job.end_date.is_(None),
+            Job.latest_heartbeat > now - timedelta(seconds=threshold),
+            Job.job_type == "TriggererJob",
+        )
         for attempt in run_with_db_retries(max_retries, logger=self.log):
             with attempt:
-                result = session.execute(
-                    update(TI)
+                query = (
+                    select(TI.id)
+                    .outerjoin(Trigger, TI.trigger_id == Trigger.id)
                     .where(
                         TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
+                        TI.trigger_timeout < now,
+                        or_(
+                            TI.trigger_id.is_(None),
+                            Trigger.id.is_(None),
+                            Trigger.triggerer_id.is_(None),
+                            ~Trigger.triggerer_id.in_(alive_triggerer_ids),
+                        ),
                     )
+                    .order_by(TI.id)
+                    .limit(100)
+                )
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                timed_out_ids = list(session.scalars(query).all())
+                if not timed_out_ids:
+                    return
+                result = session.execute(
+                    update(TI)
+                    .where(TI.id.in_(timed_out_ids))
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         next_method=TRIGGER_FAIL_REPR,
                         next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
+                        scheduled_dttm=now,
                         trigger_id=None,
                     )
+                    .execution_options(synchronize_session=False)
                 )
                 num_timed_out_tasks = getattr(result, "rowcount", 0)
                 if num_timed_out_tasks:

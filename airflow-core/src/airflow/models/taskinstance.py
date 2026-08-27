@@ -443,6 +443,7 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.try_number)
             ti.state = None
             ti.external_executor_id = None
+            ti.trigger_id = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
@@ -1052,6 +1053,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.log.debug("Setting task state for %s to %s", self, state)
         if self not in session:
             self.refresh_from_db(session=session)
+        if self.state == TaskInstanceState.DEFERRED:
+            self.trigger_id = None
         self.state = state
         self.start_date = self.start_date or current_time
         if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
