@@ -924,8 +924,11 @@ unchecked). If the issue was already created, apply the same local edit and then
 Once you are satisfied with `files/provider_issue.md` (and any checkmarks have been carried over), create the issue from the file:
 
 ```shell script
+# Fill prepared-on date by hand when RELEASE_DATE is unset, since an empty date formats as *today* on GNU date.
+date_cmd=(date -d); [[ "${OSTYPE}" == *darwin* ]] && date_cmd=(date -j -f "%Y-%m-%d")
+PREPARED_ON="<MONTH DD, YYYY>"; [[ -n "${RELEASE_DATE:-}" ]] && PREPARED_ON=$("${date_cmd[@]}" "${RELEASE_DATE%%_*}" +'%B %d, %Y')
 gh issue create --repo apache/airflow \
-    --title "Status of testing Providers that were prepared on <MONTH DD, YYYY>" \
+    --title "Status of testing Providers that were prepared on ${PREPARED_ON}" \
     --body-file files/provider_issue.md --label "testing status,kind:meta"
 ```
 
