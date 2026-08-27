@@ -156,12 +156,20 @@ class SerializedReferenceModels:
         """A deadline that returns a DagRun's logical date."""
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
+            if dagrun.logical_date is None:
+                self.log.warning(
+                    "No deadline created for %s: the Dag run has no logical date.", dagrun.dag_id
+                )
             return dagrun.logical_date
 
     class DagRunQueuedAtDeadline(SerializedBaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
+            if dagrun.queued_at is None:
+                self.log.warning(
+                    "No deadline created for %s: the Dag run has no queued at time.", dagrun.dag_id
+                )
             return dagrun.queued_at
 
     @dataclass
