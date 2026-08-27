@@ -55,7 +55,7 @@ class InfluxDB3AsyncQueryNotAvailableError(RuntimeError):
     """Raised when the installed InfluxDB 3 client lacks async query support."""
 
 
-def convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
+def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
     return json.loads(dataframe.to_json(orient="records", date_format="iso"))
 
