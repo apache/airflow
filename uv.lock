@@ -3205,7 +3205,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.35.0"
+version = "9.35.1"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6587,7 +6587,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "15.0.0"
+version = "15.0.1"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
