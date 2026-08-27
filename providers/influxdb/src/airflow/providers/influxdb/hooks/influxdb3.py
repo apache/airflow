@@ -248,7 +248,7 @@ class InfluxDB3Hook(BaseHook):
                 f"Result type: {type(result).__module__}.{type(result).__name__}"
             )
 
-        return await asyncio.to_thread(convert_dataframe_to_records, result)
+        return await asyncio.to_thread(_convert_dataframe_to_records, result)
 
     def write(
         self,
