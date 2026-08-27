@@ -190,6 +190,7 @@ class TaskMap(TaskInstanceDependencies):
                 # are not done yet, so the task can't fail yet.
                 if not task.dag or not task.dag.partial:
                     unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+                    unmapped_ti.trigger_id = None
             elif total_length < 1:
                 # If the upstream maps this to a zero-length value, simply mark
                 # the unmapped task instance as SKIPPED (if needed).
@@ -199,6 +200,7 @@ class TaskMap(TaskInstanceDependencies):
                     total_length,
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
+                unmapped_ti.trigger_id = None
             else:
                 dr = unmapped_ti.dag_run
                 zero_index_ti_exists = exists_query(
@@ -289,5 +291,6 @@ class TaskMap(TaskInstanceDependencies):
         to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
+            ti.trigger_id = None
         session.flush()
         return all_expanded_tis, total_expanded_ti_count - 1

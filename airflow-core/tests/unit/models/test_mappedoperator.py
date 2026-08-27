@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -246,6 +247,59 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     ).all()
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
+
+
+def test_expand_mapped_task_nulls_trigger_id_on_removed_extra(dag_maker, session):
+    """Shrinking a map must NULL trigger_id; extras do not go through set_state."""
+    with dag_maker(session=session, serialized=True) as dag:
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+
+    mapped_deser = dag.task_dict[mapped.task_id]
+    dr = dag_maker.create_dagrun()
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.execute(
+        delete(TaskInstance).where(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == dr.run_id,
+        )
+    )
+    dag_version = DagVersion.get_latest_version(dr.dag_id)
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    kept = TaskInstance(
+        mapped_deser,
+        run_id=dr.run_id,
+        map_index=0,
+        state=TaskInstanceState.SUCCESS,
+        dag_version_id=dag_version.id,
+    )
+    extra = TaskInstance(
+        mapped_deser,
+        run_id=dr.run_id,
+        map_index=1,
+        state=TaskInstanceState.DEFERRED,
+        dag_version_id=dag_version.id,
+    )
+    extra.trigger_id = trigger.id
+    session.add_all([kept, extra])
+    session.flush()
+
+    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
+    session.refresh(extra)
+    assert extra.state == TaskInstanceState.REMOVED
+    assert extra.trigger_id is None
 
 
 @pytest.mark.parametrize(
