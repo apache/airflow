@@ -19,15 +19,23 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook, convert_dataframe_to_records
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 from airflow.providers.influxdb.triggers.influxdb3 import InfluxDB3QueryTrigger
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from airflow.sdk.definitions.context import Context
+
+
+def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
+    """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
+    return json.loads(dataframe.to_json(orient="records", date_format="iso"))
 
 
 class InfluxDB3Operator(BaseOperator):
@@ -83,7 +91,7 @@ class InfluxDB3Operator(BaseOperator):
         result = hook.query(self.sql)
 
         self.log.info("Query executed successfully. Rows returned: %d", len(result))
-        return convert_dataframe_to_records(result)
+        return _convert_dataframe_to_records(result)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Return the query results produced by :class:`InfluxDB3QueryTrigger`."""
