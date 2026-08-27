@@ -75,12 +75,12 @@ class LlamaIndexHook(BaseHook):
     :param embed_model: Embedding model name (e.g.
         ``"text-embedding-3-small"``). Overrides ``extra["embed_model"]``
         on the connection.
-    :param embedding_kwargs: Additional keyword arguments to pass to the embedding
-        model constructor. Connection credentials and the base URL take precedence
-        over matching values.
     :param llm_model: LLM model name (e.g. ``"gpt-4o"``). Overrides
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`.
+    :param embedding_kwargs: Additional keyword arguments to pass to the embedding
+            model constructor. Connection credentials and the base URL take precedence
+            over matching values.
     """
 
     conn_name_attr = "llm_conn_id"
