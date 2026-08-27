@@ -261,7 +261,9 @@ def dag_unpause(args, dag: DAG | None = None) -> None:
 def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """Set is_paused for DAG by a given dag_id."""
     if dag:
+        # A Dag object fully determines the target, so pattern matching has nothing left to match on.
         args.dag_id = dag.dag_id
+        args.treat_dag_id_as_regex = False
     query = select(DagModel)
     if args.treat_dag_id_as_regex:
         query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
@@ -276,7 +278,7 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
-        dags_ids = [dag.dag_id for dag in matched_dags]
+        dags_ids = [dag_model.dag_id for dag_model in matched_dags]
         question = (
             f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
             f"{','.join(dags_ids)}"
