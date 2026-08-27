@@ -20,7 +20,11 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict, task_group_to_dict_grid
+from airflow.api_fastapi.core_api.services.ui.task_group import (
+    get_task_group_children_getter,
+    task_group_to_dict,
+    task_group_to_dict_grid,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -36,6 +40,7 @@ from airflow.sdk import (
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.utils.dag_edges import dag_edges
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag
 from unit.models import DEFAULT_DATE
 
@@ -251,6 +256,31 @@ def test_task_group_to_dict_alternative_syntax():
     serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
+
+
+@conf_vars({("api", "grid_view_sorting_order"): "hierarchical_alphabetical"})
+def test_task_group_to_dict_hierarchical_alphabetical_sort():
+    """``hierarchical_alphabetical`` orders serialized children: groups first, then tasks, each alphabetical."""
+    # The getter caches the resolved sort order, so force a re-read under the patched config.
+    get_task_group_children_getter.cache_clear()
+    try:
+        logical_date = pendulum.parse("20200101")
+        dag = DAG("test_tg_hier_alpha", schedule=None, start_date=logical_date)
+        # Added in a non-alphabetical order, mixing tasks and groups.
+        EmptyOperator(task_id="zeta", dag=dag)
+        group_b = TaskGroup("group_b", dag=dag)
+        EmptyOperator(task_id="b1", dag=dag, task_group=group_b)
+        group_a = TaskGroup("group_a", dag=dag)
+        EmptyOperator(task_id="a1", dag=dag, task_group=group_a)
+        EmptyOperator(task_id="alpha", dag=dag)
+
+        serialized_dag = create_scheduler_dag(dag)
+        node = task_group_to_dict(serialized_dag.task_group)
+
+        assert [child["id"] for child in node["children"]] == ["group_a", "group_b", "alpha", "zeta"]
+    finally:
+        # Don't leak the patched sort order to other tests.
+        get_task_group_children_getter.cache_clear()
 
 
 def test_task_group_to_dict_builds_group_dict_once(monkeypatch):
