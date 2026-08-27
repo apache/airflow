@@ -20,7 +20,7 @@ import asyncio
 import gc
 import threading
 from unittest import mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -40,6 +40,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.connection import Connection
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
+from airflow.models.variable import Variable
+from airflow.sdk.api.client import Client
+from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.config import conf_vars
 
@@ -392,3 +400,69 @@ class TestTraceContextPropagation:
                 await gen.asend(None)  # resume past the yield -> else branch -> detach
 
         detach_spy.assert_called_once()
+
+
+class TestInProcessExecutionAPIBundleName:
+    """The in-process caller's bundle header becomes the token's ``bundle_name`` claim, which resolves the team."""
+
+    @staticmethod
+    def _make_client(bundle_name: str | None = None) -> Client:
+        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+        client.base_url = "http://in-process.invalid/"
+        if bundle_name is not None:
+            client.headers[InProcessExecutionAPI.bundle_name_header] = bundle_name
+        return client
+
+    @pytest.fixture
+    def team_bundle(self, session):
+        """Create a bundle owned by a team; yield ``(bundle_name, team_name)``."""
+        bundle = DagBundleModel(name=f"bundle_{uuid4().hex}")
+        team = Team(name=f"team_{uuid4().hex}")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield bundle.name, team.name
+
+        bundle.teams = []
+        session.delete(bundle)
+        session.delete(team)
+        session.commit()
+
+    def test_bundle_header_scopes_variable_lookup(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        key = f"var_{uuid4().hex}"
+        Variable.set(key=key, value="team_value", team_name=team_name, session=session)
+        session.commit()
+
+        with_bundle = self._make_client(bundle_name).variables.get(key)
+        without_bundle = self._make_client().variables.get(key)
+        unknown_bundle = self._make_client("does-not-exist").variables.get(key)
+
+        Variable.delete(key=key, team_name=team_name, session=session)
+        session.commit()
+
+        assert with_bundle == VariableResponse(key=key, value="team_value")
+        not_found = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+        assert without_bundle == not_found
+        assert unknown_bundle == not_found
+
+    def test_bundle_header_scopes_connection_lookup(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        conn_id = f"conn_{uuid4().hex}"
+        connection = Connection(conn_id=conn_id, conn_type="http", host="team-host", team_name=team_name)
+        session.add(connection)
+        session.commit()
+
+        with_bundle = self._make_client(bundle_name).connections.get(conn_id)
+        without_bundle = self._make_client().connections.get(conn_id)
+
+        session.delete(connection)
+        session.commit()
+
+        assert isinstance(with_bundle, ConnectionResponse)
+        assert with_bundle.host == "team-host"
+        assert without_bundle == ErrorResponse(
+            error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id}
+        )
