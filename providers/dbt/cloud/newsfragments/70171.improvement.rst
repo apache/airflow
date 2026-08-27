@@ -1,1 +1,0 @@
-Log dbt Cloud run status, messages, and failed step details in Airflow task logs when a job run errors or is cancelled
