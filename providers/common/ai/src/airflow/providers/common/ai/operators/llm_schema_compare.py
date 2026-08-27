@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.schema_context import format_columns_for_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -204,7 +205,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             self.log.warning("Table %r returned no columns — it may not exist.", table_name)
             return ""
 
-        col_info = ", ".join(f"{c['name']} {c['type']}" for c in columns)
+        col_info = format_columns_for_prompt(columns)
         parts = [f"Columns: {col_info}"]
 
         if self.context_strategy == "full":
@@ -275,11 +276,12 @@ class LLMSchemaCompareOperator(LLMOperator):
         engine = DataFusionEngine()
         return engine
 
-    def _introspect_schema_from_datafusion(self, ds_config: DataSourceConfig):
+    def _introspect_schema_from_datafusion(self, ds_config: DataSourceConfig) -> str:
         self._df_engine.register_datasource(ds_config)
-        schema_text = self._df_engine.get_schema(ds_config.table_name)
+        columns = self._df_engine.get_schema(ds_config.table_name)
+        col_info = format_columns_for_prompt(columns)
 
-        return f"Source: {ds_config.conn_id} \nFormat: ({ds_config.format})\nTable: {ds_config.table_name}\nColumns: {schema_text}"
+        return f"Source: {ds_config.conn_id} \nFormat: ({ds_config.format})\nTable: {ds_config.table_name}\nColumns: {col_info}"
 
     def _build_schema_context(self) -> str:
         """Collect schemas from all configured sources each clearly."""

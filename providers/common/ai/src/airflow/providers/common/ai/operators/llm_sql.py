@@ -35,6 +35,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.common.ai.utils.schema_context import format_columns_for_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -228,7 +229,7 @@ class LLMSQLQueryOperator(LLMOperator):
             if not columns:
                 self.log.warning("Table %r returned no columns — it may not exist.", table)
                 continue
-            col_info = ", ".join(f"{c['name']} {c['type']}" for c in columns)
+            col_info = format_columns_for_prompt(columns)
             parts.append(f"Table: {table}\nColumns: {col_info}")
         if not parts and self.table_names:
             raise ValueError(
@@ -237,12 +238,13 @@ class LLMSQLQueryOperator(LLMOperator):
             )
 
         if self.datasource_config:
-            object_storage_schema = self._introspect_object_storage_schema()
-            parts.append(f"Table: {self.datasource_config.table_name}\nColumns: {object_storage_schema}")
+            object_storage_schema = self._introspect_object_storage_schema(self.datasource_config)
+            col_info = format_columns_for_prompt(object_storage_schema)
+            parts.append(f"Table: {self.datasource_config.table_name}\nColumns: {col_info}")
 
         return "\n\n".join(parts)
 
-    def _introspect_object_storage_schema(self):
+    def _introspect_object_storage_schema(self, ds_config: DataSourceConfig) -> list[dict[str, str]]:
         """Use DataFusion Engine to get the schema of object stores."""
         try:
             from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
@@ -256,8 +258,8 @@ class LLMSQLQueryOperator(LLMOperator):
             ) from e
 
         engine = DataFusionEngine()
-        engine.register_datasource(self.datasource_config)
-        return engine.get_schema(self.datasource_config.table_name)
+        engine.register_datasource(ds_config)
+        return engine.get_schema(ds_config.table_name)
 
     def _build_system_prompt(self, schema_info: str) -> str:
         """Construct the system prompt for the LLM."""

@@ -301,7 +301,7 @@ querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache 
    * - ``list_tables``
      - Lists registered table names
    * - ``get_schema``
-     - Returns column names and types for a table (Arrow schema)
+     - Returns column names and types for a table
    * - ``query``
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)

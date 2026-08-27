@@ -110,7 +110,7 @@ operator = LLMSQLQueryOperator(
 )
 
 try:
-    operator._introspect_object_storage_schema()
+    operator._introspect_object_storage_schema(operator.datasource_config)
 except AirflowOptionalProviderFeatureException as error:
     expected = 'pip install "apache-airflow-providers-common-sql[datafusion]"'
     if expected not in str(error):
@@ -416,8 +416,12 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
     def test_introspect_object_storage_schema(self, mock_engine_cls):
         """_introspect_object_storage_schema registers datasource and returns schema."""
         mock_engine = mock_engine_cls.return_value
-        schema_text = "cust_id: int64\nname: string\namount: float64"
-        mock_engine.get_schema.return_value = schema_text
+        mock_schema = [
+            {"name": "cust_id", "type": "int64"},
+            {"name": "name", "type": "string"},
+            {"name": "amount", "type": "float64"},
+        ]
+        mock_engine.get_schema.return_value = mock_schema
 
         ds_config = DataSourceConfig(
             conn_id="aws_default",
@@ -431,11 +435,11 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
             llm_conn_id="my_llm",
             datasource_config=ds_config,
         )
-        result = op._introspect_object_storage_schema()
+        result = op._introspect_object_storage_schema(ds_config)
 
         mock_engine.register_datasource.assert_called_once_with(ds_config)
         mock_engine.get_schema.assert_called_once_with("sales")
-        assert result == schema_text
+        assert result == mock_schema
 
     @patch(
         "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
@@ -444,8 +448,8 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
     def test_introspect_schemas_with_db_and_datasource_config(self, mock_engine_cls):
         """_introspect_schemas includes both db table and object storage schema."""
         mock_engine = mock_engine_cls.return_value
-        object_schema = "col_a: int64\ncol_b: string"
-        mock_engine.get_schema.return_value = object_schema
+        mock_schema = [{"name": "col_a", "type": "int64"}, {"name": "col_b", "type": "string"}]
+        mock_engine.get_schema.return_value = mock_schema
 
         ds_config = DataSourceConfig(
             conn_id="aws_default",
@@ -473,7 +477,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert "Table: local_table" in result
         assert "id INTEGER" in result
         assert "Table: remote_table" in result
-        assert object_schema in result
+        assert "col_a int64, col_b string" in result
 
     @patch(
         "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
@@ -482,7 +486,8 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
     def test_introspect_schemas_datasource_config_without_db_tables(self, mock_engine_cls):
         """_introspect_schemas works when only datasource_config is provided (no db tables)."""
         mock_engine = mock_engine_cls.return_value
-        mock_engine.get_schema.return_value = "ts: TIMESTAMP\nvalue: DOUBLE"
+        mock_schema = [{"name": "ts", "type": "TIMESTAMP"}, {"name": "value", "type": "DOUBLE"}]
+        mock_engine.get_schema.return_value = mock_schema
 
         ds_config = DataSourceConfig(
             conn_id="aws_default",
@@ -505,7 +510,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
             result = op._introspect_schemas()
 
         assert "Table: s3_data" in result
-        assert "ts: TIMESTAMP\nvalue: DOUBLE" in result
+        assert "ts TIMESTAMP, value DOUBLE" in result
 
     def test_introspect_schemas_raises_when_no_tables_and_no_datasource(self):
         """ValueError is raised when no db tables return schema and no datasource_config is set."""
@@ -534,7 +539,8 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
     ):
         """Full execute flow with both db tables and object storage datasource."""
         mock_engine = mock_engine_cls.return_value
-        mock_engine.get_schema.return_value = "event: TEXT\nts: TIMESTAMP"
+        mock_schema = [{"name": "event", "type": "TEXT"}, {"name": "ts", "type": "TIMESTAMP"}]
+        mock_engine.get_schema.return_value = mock_schema
 
         mock_agent = _make_mock_agent(
             "SELECT u.id, e.event FROM users u JOIN events e ON u.id = e.user_id", make_mock_run_result
@@ -570,7 +576,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         instructions = mock_hook_cls.get_hook.return_value.create_agent.call_args[1]["instructions"]
         assert "users" in instructions
         assert "events" in instructions
-        assert "event: TEXT\nts: TIMESTAMP" in instructions
+        assert "event TEXT, ts TIMESTAMP" in instructions
 
 
 class TestLLMSQLQueryOperatorDialect:

@@ -25,6 +25,10 @@
 Changelog
 ---------
 
+.. warning::
+  ``DataFusionEngine.get_schema()`` now returns ``list[dict[str, str]]`` — one dict per column with ``name`` and ``type`` keys — instead of a pre-formatted string.
+  Callers that embedded the return value directly in text must format it themselves, for example ``", ".join(f"{c['name']} {c['type']}" for c in columns)``.
+
 2.1.1
 .....
 

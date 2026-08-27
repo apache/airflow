@@ -557,7 +557,8 @@ class TestLLMSchemaCompareOperator:
     def test_introspect_schema_from_datafusion_success(self):
         """When a DataFusion engine is available, it should register the datasource and return schema text."""
         df_mock_engine = MagicMock(spec=DataFusionEngine)
-        df_mock_engine.get_schema.return_value = "id int, name varchar"
+        mock_schema = [{"name": "id", "type": "int"}, {"name": "name", "type": "varchar"}]
+        df_mock_engine.get_schema.return_value = mock_schema
 
         ds = DataSourceConfig(
             conn_id="s3_conn", table_name="test_table", uri="s3://bucket/key", format="parquet"
