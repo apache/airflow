@@ -24,6 +24,7 @@
   },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "Audit Log",
     "deadlines": "Deadlines",
@@ -204,6 +205,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Received Asset Events"
   },
+  "pause": "Pause",
   "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
   "presetFilters": {
@@ -361,6 +363,7 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
+  "switchDag": "Switch $t(dag_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
@@ -519,6 +522,7 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
+  "unpause": "Unpause",
   "user": "User",
   "validation": {
     "mustBeAtLeast": "Must be at least {{min}}.",

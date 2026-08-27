@@ -19,7 +19,6 @@
 
 export * from "./Accordion";
 export * from "./Alert";
-export * from "./Breadcrumb";
 export * from "./ButtonGroupToggle";
 export * from "./Checkbox";
 export * from "./Clipboard";
