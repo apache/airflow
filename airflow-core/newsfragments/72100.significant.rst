@@ -1,4 +1,4 @@
-Clearing a task now discards its task state store entries
+Clearing a task now discards its task state store entries by default
 
 Clearing a task instance discards its ``task_state_store`` entries, so the next attempt starts from
 the beginning instead of resuming from a checkpoint or reconnecting to an external job recorded by

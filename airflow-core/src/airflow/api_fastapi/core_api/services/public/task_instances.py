@@ -98,7 +98,7 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
 
 def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> None:
     """Discard task state store entries for each TI if clear_on_success is enabled."""
-    if not conf.getboolean("state_store", "clear_on_success", fallback=False):
+    if not conf.getboolean("state_store", "clear_on_success"):
         return
     _discard_task_state_store(tis, session, event="Cleared task state on success")
 

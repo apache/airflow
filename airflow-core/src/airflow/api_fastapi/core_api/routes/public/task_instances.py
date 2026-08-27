@@ -987,9 +987,7 @@ def post_clear_task_instances(
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
-        # Clearing means "run this again", so the next attempt starts over rather than resuming from
-        # progress recorded by the attempt the user just discarded. Only after the clear has
-        # succeeded, so a failed clear cannot take the task state with it.
+        # After the clear has succeeded, so a failed clear cannot take the task state with it.
         if not body.keep_task_state:
             _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
