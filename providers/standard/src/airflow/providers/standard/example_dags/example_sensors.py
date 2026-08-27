@@ -28,6 +28,7 @@ from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
+from airflow.providers.standard.sensors.websocket import WebSocketSensor
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import DAG
@@ -125,6 +126,22 @@ with DAG(
     )
     # [END example_day_of_week_sensor]
 
+    # [START example_websocket_sensor]
+    t12 = WebSocketSensor(
+        task_id="wait_for_websocket_message", url="wss://example.com/socket", timeout=3, soft_fail=True
+    )
+    # [END example_websocket_sensor]
+
+    # [START example_websocket_sensor_async]
+    t13 = WebSocketSensor(
+        task_id="wait_for_websocket_message_async",
+        url="wss://example.com/socket",
+        deferrable=True,
+        timeout=3,
+        soft_fail=True,
+    )
+    # [END example_websocket_sensor_async]
+
     tx = BashOperator(task_id="print_date_in_bash", bash_command="date")
 
     tx.trigger_rule = TriggerRule.NONE_FAILED
@@ -133,3 +150,4 @@ with DAG(
     t8 >> tx
     [t9, t10] >> tx
     t11 >> tx
+    [t12, t13] >> tx

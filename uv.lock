@@ -3205,7 +3205,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.35.0"
+version = "9.35.1"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6587,7 +6587,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "15.0.0"
+version = "15.0.1"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
@@ -8272,6 +8272,9 @@ dependencies = [
 openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
+websocket = [
+    { name = "websockets" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -8281,6 +8284,7 @@ dev = [
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
+    { name = "websockets" },
 ]
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
@@ -8291,8 +8295,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "websockets", marker = "extra == 'websocket'", specifier = ">=14.0" },
 ]
-provides-extras = ["openlineage"]
+provides-extras = ["openlineage", "websocket"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -8302,6 +8307,7 @@ dev = [
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "websockets", specifier = ">=14.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 

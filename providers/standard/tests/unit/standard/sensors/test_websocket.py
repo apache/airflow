@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from unittest import mock
+
+import pytest
+
+from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.standard.sensors.websocket import WebSocketSensor
+from airflow.providers.standard.triggers.websocket import WebSocketTrigger
+
+from tests_common.test_utils.version_compat import timezone
+
+URL = "ws://example.com/socket"
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
+
+
+class TestWebSocketSensor:
+    @classmethod
+    def setup_class(cls):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        cls.dag = DAG("test_websocket_sensor", schedule=None, default_args=args)
+
+    @mock.patch("airflow.providers.standard.sensors.websocket.connect")
+    def test_poke_returns_true_on_message(self, mock_connect):
+        mock_websocket = mock.MagicMock()
+        mock_websocket.recv.return_value = "pong"
+        mock_connect.return_value.__enter__.return_value = mock_websocket
+
+        sensor = WebSocketSensor(task_id="poke_true", url=URL, message_to_send="ping", dag=self.dag)
+        assert sensor.poke(context={}) is True
+        mock_websocket.send.assert_called_once_with("ping")
+
+    @mock.patch("airflow.providers.standard.sensors.websocket.connect")
+    def test_poke_returns_false_on_timeout(self, mock_connect):
+        mock_websocket = mock.MagicMock()
+        mock_websocket.recv.side_effect = TimeoutError()
+        mock_connect.return_value.__enter__.return_value = mock_websocket
+
+        sensor = WebSocketSensor(task_id="poke_false", url=URL, dag=self.dag)
+        assert sensor.poke(context={}) is False
+
+    def test_task_defer(self):
+        sensor = WebSocketSensor(task_id="defer", url=URL, deferrable=True, dag=self.dag)
+
+        with mock.patch.object(WebSocketSensor, "poke", return_value=False):
+            with pytest.raises(TaskDeferred) as exc:
+                sensor.execute({})
+
+        assert isinstance(exc.value.trigger, WebSocketTrigger)
+        assert exc.value.trigger.url == URL
