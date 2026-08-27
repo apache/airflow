@@ -66,6 +66,8 @@ dependencies = [
     "requests>=2.32.0,<3",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "pandas" = [
     'pandas>=2.1.2; python_version <"3.13"',
