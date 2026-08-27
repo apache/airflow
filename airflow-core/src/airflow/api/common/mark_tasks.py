@@ -26,7 +26,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
 
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, set_task_instances_state
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -97,9 +97,7 @@ def set_state(
 
     if commit:
         tis_altered = list(session.scalars(qry_dag.with_for_update()).all())
-        for task_instance in tis_altered:
-            task_instance.set_state(state, session=session)
-        session.flush()
+        set_task_instances_state(tis_altered, state, session=session)
     else:
         tis_altered = list(session.scalars(qry_dag).all())
     return tis_altered
@@ -277,7 +275,10 @@ def _set_dag_run_terminal_state(
         task.dag = dag
         return task
 
-    running_tasks = [_set_running_task(task) for task in dag.tasks if task.task_id in task_ids_of_running_tis]
+    # Address each running task instance by (task, map_index): a bare task would select every
+    # map index of a mapped task, and the pending siblings of one running mapped task instance
+    # would end up in ``ti_state`` instead of SKIPPED.
+    running_tasks = [(_set_running_task(dag.task_dict[ti.task_id]), ti.map_index) for ti in killed_tis]
 
     # Mark non-finished tasks as SKIPPED.
     pending_tis: list[TaskInstance] = list(
@@ -300,8 +301,7 @@ def _set_dag_run_terminal_state(
     pending_normal_tis = [ti for ti in pending_tis if not dag.task_dict[ti.task_id].is_teardown]
 
     if commit:
-        for ti in pending_normal_tis:
-            ti.set_state(TaskInstanceState.SKIPPED, session=session)
+        set_task_instances_state(pending_normal_tis, TaskInstanceState.SKIPPED, session=session)
 
         # Set the dag run state only if there is no pending teardown (else this would not be scheduled later).
         if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
