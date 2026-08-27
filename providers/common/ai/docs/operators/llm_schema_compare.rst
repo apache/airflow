@@ -132,8 +132,9 @@ expire, fails the task:
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
-``approval_timeout``, ``allow_modifications``, and the rest of the approval
-behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
+``approval_timeout``, ``allow_modifications``, ``approval_notifiers``, and the
+rest of the approval behaviour are inherited from
+:ref:`LLMOperator <howto/operator:llm>`.
 
 Conditional ETL Based on Schema Compatibility
 ----------------------------------------------
@@ -193,6 +194,8 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
   before approving.  Default ``False``.
+- ``approval_notifiers``: Notifier, or list of notifiers, called once the review
+  is open.  Default ``None``.
 
 Logging
 -------

@@ -36,7 +36,7 @@ try:
 except ImportError:
     _CORE_WALKER = False
 
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import BaseNotifier, TaskDeferred
 
 if AIRFLOW_V_3_3_PLUS:
     # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
@@ -193,6 +193,12 @@ class TestLLMOperatorApproval:
         assert op.require_approval is False
         assert op.allow_modifications is False
         assert op.approval_timeout is None
+        assert op.approval_notifiers == []
+
+    def test_single_approval_notifier_normalized_to_list(self):
+        notifier = MagicMock(spec=BaseNotifier)
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", approval_notifiers=notifier)
+        assert op.approval_notifiers == [notifier]
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")

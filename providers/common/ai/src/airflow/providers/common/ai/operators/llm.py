@@ -29,7 +29,7 @@ from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import BaseNotifier, BaseOperator
 
 try:
     # New enough cores register an operator's declared ``output_type`` classes for
@@ -88,6 +88,8 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
+    :param approval_notifiers: Notifiers called once the review is open, so a
+        reviewer is told about it.  Default ``None``.
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --
@@ -119,6 +121,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Sequence[BaseNotifier] | None = None,
         serialize_output: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -138,6 +141,9 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
+        self.approval_notifiers = (
+            [approval_notifiers] if isinstance(approval_notifiers, BaseNotifier) else approval_notifiers or []
+        )
 
     @cached_property
     def llm_hook(self) -> PydanticAIHook:
