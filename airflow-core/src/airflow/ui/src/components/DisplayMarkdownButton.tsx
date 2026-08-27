@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack } from "@chakra-ui/react";
-import { type ReactElement, useState } from "react";
+import { Heading, VStack, type ButtonProps } from "@chakra-ui/react";
+import { useState, type ReactElement } from "react";
 
 import { Dialog, IconButton } from "src/components/ui";
 import { MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/components/ui/ResizableWrapper";
@@ -29,17 +29,18 @@ const DisplayMarkdownButton = ({
   icon,
   mdContent,
   text,
+  ...rest
 }: {
   readonly header: string;
   readonly icon?: ReactElement;
   readonly mdContent: string;
   readonly text: string;
-}) => {
+} & ButtonProps) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
     <div>
-      <IconButton data-testid="markdown-button" label={text} onClick={() => setIsDocsOpen(true)}>
+      <IconButton {...rest} data-testid="markdown-button" label={text} onClick={() => setIsDocsOpen(true)}>
         {icon}
       </IconButton>
       <Dialog.Root

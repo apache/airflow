@@ -5,10 +5,12 @@
   "description": "Documentation toolchain for the Apache Airflow TypeScript SDK (ts-sdk). TypeDoc renders the API reference straight to HTML with the clean-jsdoc-theme; it is kept in its own package so the docs-only dependencies stay out of the SDK's runtime and build toolchain.",
   "type": "module",
   "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
     "prebuild": "node scripts/prepare-readme.mjs",
-    "build": "typedoc",
+    "build": "typedoc --options typedoc.config.mjs",
+    "postbuild": "node scripts/strip-remote-fonts.mjs && node scripts/verify-deployment-paths.mjs",
     "prestart": "node scripts/prepare-readme.mjs",
-    "start": "typedoc --watch"
+    "start": "typedoc --options typedoc.config.mjs --watch"
   },
   "devDependencies": {
     "@clean-jsdoc-theme/typedoc": "^5.1.1",
