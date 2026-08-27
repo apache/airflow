@@ -24,6 +24,7 @@
   },
   "backfill_one": "回填",
   "backfill_other": "回填",
+  "breadcrumb": "麵包屑導覽",
   "browse": {
     "auditLog": "稽核日誌",
     "deadlines": "截止期限",
@@ -204,6 +205,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "收到的資源事件"
   },
+  "pause": "暫停",
   "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
   "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
   "presetFilters": {
@@ -361,6 +363,7 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
+  "switchDag": "切換$t(dag_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -519,6 +522,7 @@
   "total": "總計 {{state}}",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
+  "unpause": "取消暫停",
   "user": "使用者",
   "validation": {
     "mustBeAtLeast": "必須至少為 {{min}}。",
