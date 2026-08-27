@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -28,17 +31,25 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, ReferenceModels
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import timezone
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import (
+    AverageRuntimeDeadline,
+    BaseDeadlineReference,
+    DagRunLogicalDateDeadline,
+    DagRunQueuedAtDeadline,
     DeadlineReference,
+    FixedDatetimeDeadline,
+    deadline_reference,
 )
-from airflow.serialization.definitions.deadline import (
-    SerializedReferenceModels,
-)
+from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 DAG_ID = "dag_id_1"
 INVALID_DAG_ID = "invalid_dag_id"
@@ -376,4 +387,587 @@ class TestCalculatedDeadlineReferences:
         setattr(dagrun, attribute, None)
 
         assert reference.evaluate_with(session=session, interval=timedelta(), dagrun=dagrun) is None
-        assert caplog.messages == [message]
+        assert {"event": message} in caplog
+
+    def test_average_runtime_with_sufficient_history(self, session, dag_maker):
+        """Test AverageRuntimeDeadline when enough historical data exists."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create 10 completed DAG runs with known durations
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800, 5400, 2700, 4500, 3300, 6000, 2400, 4200]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"test_run_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        # Test with default max_runs (10)
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=10)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
+
+            # Calculate expected average: sum(durations) / len(durations)
+            expected_avg_seconds = sum(durations) / len(durations)
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+
+            # Compare only up to minutes to avoid sub-second timing issues in CI
+            assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+    def test_average_runtime_with_insufficient_history(self, session, dag_maker):
+        """Test AverageRuntimeDeadline when insufficient historical data exists."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create only 5 completed DAG runs (less than default max_runs of 10)
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800, 5400, 2700]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"insufficient_run_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=10)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
+
+            # Should return None since insufficient runs
+            assert result is None
+
+    def test_average_runtime_with_min_runs(self, session, dag_maker):
+        """Test AverageRuntimeDeadline with min_runs parameter allowing calculation with fewer runs."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        # Create only 3 completed DAG runs
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800]  # 1h, 2h, 30min
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"min_runs_test_{i}", state=DagRunState.SUCCESS
+            )
+            # Manually set start and end times
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        # Test with min_runs=2, should work with 3 runs
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=2)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
+
+            # Should calculate average from 3 runs
+            expected_avg_seconds = sum(durations) / len(durations)  # 4200 seconds
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+            # Compare only up to minutes to avoid sub-second timing issues in CI
+            assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+        # Test with min_runs=5, should return None with only 3 runs
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=5)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
+            assert result is None
+
+    def test_average_runtime_min_runs_validation(self):
+        """Test that min_runs must be at least 1."""
+        with pytest.raises(ValueError, match="min_runs must be at least 1"):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=0)
+
+        with pytest.raises(ValueError, match="min_runs must be at least 1"):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
+
+    def test_average_runtime_excludes_non_successful_runs(self, session, dag_maker):
+        """Only SUCCESSFUL runs contribute to the average; FAILED runs must be ignored.
+
+        A failed run's duration is not representative of a normal runtime, so including it
+        would skew the computed deadline. Seed an equal mix of fast-successful and
+        slow-failed runs and assert the average reflects only the successful ones.
+        """
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        success_duration = 60  # the only durations that should count
+        failed_duration = 36000  # 10h — would massively skew the average if (wrongly) counted
+
+        # Interleave 3 successful (60s) and 3 failed (36000s) runs.
+        specs = [
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+            (DagRunState.SUCCESS, success_duration),
+            (DagRunState.FAILED, failed_duration),
+        ]
+        for i, (state, duration) in enumerate(specs):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date, run_id=f"mix_run_{i}", state=state)
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=duration)
+
+        session.commit()
+
+        # min_runs=3 so the 3 successful runs alone satisfy the minimum.
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(
+                session=session, interval=interval, dagrun=SimpleNamespace(dag_id=DAG_ID)
+            )
+
+        # Average must be over the 3 successful 60s runs only (not the 36000s failures).
+        expected = DEFAULT_DATE + timedelta(seconds=success_duration) + interval
+        assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+    def test_average_runtime_skips_when_too_few_successful_runs(self, session, dag_maker):
+        """If only FAILED runs exist (fewer than min_runs successful), no deadline is created."""
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        for i in range(5):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"failed_run_{i}", state=DagRunState.FAILED
+            )
+            dagrun.start_date = start_time
+            dagrun.end_date = start_time + timedelta(seconds=3600)
+
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=3)
+        result = reference.evaluate_with(
+            session=session, interval=timedelta(hours=1), dagrun=SimpleNamespace(dag_id=DAG_ID)
+        )
+        assert result is None
+
+
+class TestDeadlineReference:
+    """DeadlineReference lives in definitions/deadlines.py but properly testing them requires DB access."""
+
+    def test_deadline_reference_creation(self):
+        """Test that DeadlineReference provides consistent interface and types."""
+        fixed_reference = DeadlineReference.FIXED_DATETIME(DEFAULT_DATE)
+        assert isinstance(fixed_reference, FixedDatetimeDeadline)
+        assert fixed_reference._datetime == DEFAULT_DATE
+
+        logical_date_reference = DeadlineReference.DAGRUN_LOGICAL_DATE
+        assert isinstance(logical_date_reference, DagRunLogicalDateDeadline)
+
+        queued_reference = DeadlineReference.DAGRUN_QUEUED_AT
+        assert isinstance(queued_reference, DagRunQueuedAtDeadline)
+
+        average_runtime_reference = DeadlineReference.AVERAGE_RUNTIME()
+        assert isinstance(average_runtime_reference, AverageRuntimeDeadline)
+        assert average_runtime_reference.max_runs == 10
+        assert average_runtime_reference.min_runs == 10
+
+        # Test with custom parameters
+        custom_reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=3)
+        assert custom_reference.max_runs == 5
+        assert custom_reference.min_runs == 3
+
+
+class TestCustomDeadlineReference:
+    class MyCustomRef(BaseDeadlineReference):
+        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+            return timezone.datetime(DEFAULT_DATE)
+
+    class MyInvalidCustomRef:
+        pass
+
+    class MyCustomRefWithKwargs(BaseDeadlineReference):
+        required_kwargs = {"custom_id"}
+
+        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+            return timezone.datetime(DEFAULT_DATE)
+
+    def setup_method(self):
+        self.original_dagrun_created = DeadlineReference.TYPES.DAGRUN_CREATED
+        self.original_dagrun_queued = DeadlineReference.TYPES.DAGRUN_QUEUED
+        self.original_dagrun = DeadlineReference.TYPES.DAGRUN
+        self.original_deadline_attrs = set(dir(DeadlineReference))
+
+    def teardown_method(self):
+        DeadlineReference.TYPES.DAGRUN_CREATED = self.original_dagrun_created
+        DeadlineReference.TYPES.DAGRUN_QUEUED = self.original_dagrun_queued
+        DeadlineReference.TYPES.DAGRUN = self.original_dagrun
+
+        for attr in set(dir(DeadlineReference)):
+            if attr not in self.original_deadline_attrs:
+                delattr(DeadlineReference, attr)
+
+    @pytest.mark.parametrize(
+        "reference",
+        [
+            pytest.param(MyCustomRef, id="basic_custom_reference"),
+            pytest.param(MyCustomRefWithKwargs, id="custom_reference_with_kwargs"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "timing",
+        [
+            pytest.param(None, id="default_timing"),
+            pytest.param(DeadlineReference.TYPES.DAGRUN_CREATED, id="dagrun_created"),
+            pytest.param(DeadlineReference.TYPES.DAGRUN_QUEUED, id="dagrun_queued"),
+        ],
+    )
+    def test_register_custom_reference(self, timing, reference):
+        if timing is None:
+            result = DeadlineReference.register_custom_reference(reference)
+            expected_timing = DeadlineReference.TYPES.DAGRUN_CREATED
+        else:
+            result = DeadlineReference.register_custom_reference(reference, timing)
+            expected_timing = timing
+
+        assert result is reference
+        assert hasattr(DeadlineReference, reference.__name__)
+        assert getattr(DeadlineReference, reference.__name__).__class__ is reference
+
+        assert_correct_timing(reference, expected_timing)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
+
+    def test_register_custom_reference_invalid_inheritance(self):
+        with pytest.raises(ValueError, match="must inherit from BaseDeadlineReference"):
+            DeadlineReference.register_custom_reference(self.MyInvalidCustomRef)
+
+    def test_register_custom_reference_invalid_timing(self):
+        invalid_timing = ("not", "a", "valid", "timing")
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"Invalid deadline reference type {invalid_timing}; "
+                f"must be a valid DeadlineReference.TYPES option."
+            ),
+        ):
+            DeadlineReference.register_custom_reference(self.MyCustomRef, invalid_timing)
+
+    def test_custom_reference_discoverable_on_deadline_reference(self):
+        # Custom references are only registered on DeadlineReference, not on ReferenceModels.
+        # During deserialization, custom refs are discovered via __class_path in the
+        # serialized data (using import_string), not through ReferenceModels lookup.
+        DeadlineReference.register_custom_reference(self.MyCustomRef)
+
+        assert hasattr(DeadlineReference, self.MyCustomRef.__name__)
+        found_instance = getattr(DeadlineReference, self.MyCustomRef.__name__)
+        assert isinstance(found_instance, self.MyCustomRef)
+
+
+class TestDeadlineReferenceDecorator:
+    def setup_method(self):
+        self.original_dagrun_created = DeadlineReference.TYPES.DAGRUN_CREATED
+        self.original_dagrun_queued = DeadlineReference.TYPES.DAGRUN_QUEUED
+        self.original_dagrun = DeadlineReference.TYPES.DAGRUN
+        self.original_deadline_attrs = set(dir(DeadlineReference))
+
+    def teardown_method(self):
+        DeadlineReference.TYPES.DAGRUN_CREATED = self.original_dagrun_created
+        DeadlineReference.TYPES.DAGRUN_QUEUED = self.original_dagrun_queued
+        DeadlineReference.TYPES.DAGRUN = self.original_dagrun
+
+        for attr in set(dir(DeadlineReference)):
+            if attr not in self.original_deadline_attrs:
+                delattr(DeadlineReference, attr)
+
+    @staticmethod
+    def create_decorated_custom_ref():
+        @deadline_reference()
+        class DecoratedCustomRef(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        return DecoratedCustomRef
+
+    @staticmethod
+    def create_decorated_custom_ref_with_kwargs():
+        @deadline_reference()
+        class DecoratedCustomRefWithKwargs(BaseDeadlineReference):
+            required_kwargs = {"custom_id"}
+
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        return DecoratedCustomRefWithKwargs
+
+    @staticmethod
+    def create_decorated_custom_ref_queued():
+        @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
+        class DecoratedCustomRefQueued(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        return DecoratedCustomRefQueued
+
+    @pytest.mark.parametrize(
+        ("reference_factory", "expected_timing"),
+        [
+            pytest.param(
+                create_decorated_custom_ref,
+                DeadlineReference.TYPES.DAGRUN_CREATED,
+                id="basic_decorated_custom_ref",
+            ),
+            pytest.param(
+                create_decorated_custom_ref_with_kwargs,
+                DeadlineReference.TYPES.DAGRUN_CREATED,
+                id="decorated_ref_with_kwargs",
+            ),
+            pytest.param(
+                create_decorated_custom_ref_queued,
+                DeadlineReference.TYPES.DAGRUN_QUEUED,
+                id="decorated_ref_queued",
+            ),
+        ],
+    )
+    def test_deadline_reference_decorator(self, reference_factory, expected_timing):
+        reference = reference_factory()
+
+        assert hasattr(DeadlineReference, reference.__name__)
+        assert getattr(DeadlineReference, reference.__name__).__class__ is reference
+
+        assert_correct_timing(reference, expected_timing)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
+
+    def test_deadline_reference_decorator_with_invalid_class(self):
+        """Test that the decorator raises error for invalid classes."""
+        with pytest.raises(ValueError, match="InvalidDecoratedRef must inherit from BaseDeadlineReference"):
+
+            @deadline_reference()
+            class InvalidDecoratedRef:
+                pass
+
+    def test_deadline_reference_decorator_with_invalid_timing(self):
+        invalid_timing = ("not", "a", "valid", "timing")
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"Invalid deadline reference type {invalid_timing}; "
+                f"must be a valid DeadlineReference.TYPES option."
+            ),
+        ):
+
+            @deadline_reference(invalid_timing)
+            class DecoratedCustomRef(BaseDeadlineReference):
+                def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                    return timezone.datetime(DEFAULT_DATE)
+
+    @mock.patch.object(DeadlineReference, "register_custom_reference")
+    def test_deadline_reference_decorator_calls_register_method(self, mock_register):
+        timing = DeadlineReference.TYPES.DAGRUN_QUEUED
+
+        @deadline_reference(timing)
+        class DecoratedCustomRef(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        mock_register.assert_called_once_with(DecoratedCustomRef, timing)
+
+    def test_deadline_reference_decorator_without_parentheses(self):
+        @deadline_reference
+        class BareDecoratedRef(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        # The decorated name must still be the class, not the inner decorator function.
+        assert isinstance(BareDecoratedRef, type)
+        assert issubclass(BareDecoratedRef, BaseDeadlineReference)
+
+        assert hasattr(DeadlineReference, BareDecoratedRef.__name__)
+        assert getattr(DeadlineReference, BareDecoratedRef.__name__).__class__ is BareDecoratedRef
+
+        assert_correct_timing(BareDecoratedRef, DeadlineReference.TYPES.DAGRUN_CREATED)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
+
+    def test_deadline_reference_decorator_without_parentheses_invalid_class(self):
+        """Test that the bare form must inherit the base class."""
+        with pytest.raises(ValueError, match="InvalidBareRef must inherit from BaseDeadlineReference"):
+
+            @deadline_reference
+            class InvalidBareRef:
+                pass
+
+    def test_deadline_reference_requiring_arguments_raises_helpful_error(self):
+        """Test that a reference which cannot be instantiated with no arguments explains itself."""
+        with pytest.raises(TypeError, match="must be constructible with no arguments"):
+
+            @deadline_reference()
+            @dataclass
+            class RefWithRequiredField(BaseDeadlineReference):
+                required_field: str
+
+                def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                    return timezone.datetime(DEFAULT_DATE)
+
+
+@pytest.mark.db_test
+class TestDeadlineMetricsTeamName:
+    """Verify team_name tag is included/excluded on deadline metrics based on multi_team config."""
+
+    @staticmethod
+    def setup_method():
+        _clean_db()
+
+    @staticmethod
+    def teardown_method():
+        _clean_db()
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"
+            ),
+            pytest.param("false", {"dag_id": "dl_dag", "dagrun_id": mock.ANY}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_deadline_not_missed_respects_team_name(
+        self, mock_get_backend, multi_team, expected_tags, session, dag_maker
+    ):
+        from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        from tests_common.test_utils.config import conf_vars
+
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        team = Team(name="dl_team")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="dl_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dl_dag", bundle_name="dl_bundle", session=session):
+            EmptyOperator(task_id="task1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS, logical_date=DEFAULT_DATE)
+        dr.end_date = DEFAULT_DATE
+        session.flush()
+
+        deadline = Deadline(
+            deadline_time=DEFAULT_DATE + timedelta(hours=1),
+            callback=AsyncCallback(TEST_CALLBACK_PATH),
+            dagrun_id=dr.id,
+            dag_id=dr.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            Deadline.prune_deadlines(conditions={Deadline.dagrun_id: dr.id}, session=session)
+
+        mock_stats.incr.assert_any_call("deadline_alerts.deadline_not_missed", tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_tags"),
+        [
+            pytest.param(
+                "true", {"dag_id": "dl_dag", "dagrun_id": mock.ANY, "team_name": "dl_team"}, id="with_team"
+            ),
+            pytest.param("false", {"dag_id": "dl_dag", "dagrun_id": mock.ANY}, id="without_team"),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_deadline_missed_respects_team_name(
+        self, mock_get_backend, multi_team, expected_tags, session, dag_maker
+    ):
+        from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        from tests_common.test_utils.config import conf_vars
+
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+
+        team = Team(name="dl_team")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="dl_bundle")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dl_dag", bundle_name="dl_bundle", session=session):
+            EmptyOperator(task_id="task1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING, logical_date=DEFAULT_DATE)
+
+        deadline = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH),
+            dagrun_id=dr.id,
+            dag_id=dr.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline)
+        session.flush()
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            with mock.patch.object(deadline.callback, "queue"):
+                deadline.handle_miss(session)
+
+        mock_stats.incr.assert_any_call("deadline_alerts.deadline_missed", tags=expected_tags)
