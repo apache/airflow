@@ -127,6 +127,37 @@ def failed_deps(args, api_client=NEW_API_CLIENT) -> None:
 
 
 @provide_api_client(kind=ClientKind.CLI)
+def state(args, api_client=NEW_API_CLIENT) -> None:
+    """Get the state of a task instance."""
+    if (args.run_id is None) == (args.logical_date is None):
+        rich.print("[red]Provide either run_id or --logical-date, but not both[/red]")
+        sys.exit(1)
+
+    run_id = args.run_id or _find_run_id_by_logical_date(api_client, args.dag_id, args.logical_date)
+
+    try:
+        task_instance = api_client.task_instances.get(
+            dag_id=args.dag_id,
+            dag_run_id=run_id,
+            task_id=args.task_id,
+            map_index=args.map_index,
+            suppress_error_log=True,
+        )
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            map_index_part = f" with map index {args.map_index}" if args.map_index >= 0 else ""
+            rich.print(
+                f"[red]Task instance for task {args.task_id!r}{map_index_part} in Dag run "
+                f"{run_id!r} of Dag {args.dag_id!r} not found[/red]"
+            )
+            sys.exit(1)
+        raise
+
+    # "None" keeps the output of the deprecated ``airflow tasks state`` for an unset state.
+    print(task_instance.state.value if task_instance.state else "None")
+
+
+@provide_api_client(kind=ClientKind.CLI)
 def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
     """Get the status of all task instances in a Dag run."""
     if (args.run_id is None) == (args.logical_date is None):
