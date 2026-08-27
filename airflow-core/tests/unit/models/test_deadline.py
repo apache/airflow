@@ -387,7 +387,7 @@ class TestCalculatedDeadlineReferences:
         setattr(dagrun, attribute, None)
 
         assert reference.evaluate_with(session=session, interval=timedelta(), dagrun=dagrun) is None
-        assert caplog.messages == [message]
+        assert {"event": message} in caplog
 
     def test_average_runtime_with_sufficient_history(self, session, dag_maker):
         """Test AverageRuntimeDeadline when enough historical data exists."""
