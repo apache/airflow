@@ -1527,3 +1527,60 @@ def test_handle_clear_run_preserves_partition_key(dag_maker, session):
     )
     assert bdr is not None
     assert bdr.partition_key == partition_key
+
+
+def test_handle_clear_run_only_updates_the_targeted_run(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    logical_date = timezone.parse("2026-01-10")
+    dr = dag_maker.create_dagrun(
+        run_id="scheduled_2026-01-10",
+        run_type=DagRunType.SCHEDULED,
+        logical_date=logical_date,
+        session=session,
+        state="failed",
+    )
+    other_manual_run = dag_maker.create_dagrun(
+        run_id="manual_2026-01-10",
+        run_type=DagRunType.MANUAL,
+        logical_date=logical_date,
+        session=session,
+        state="success",
+    )
+    session.commit()
+
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=logical_date,
+        to_date=logical_date,
+        dag_run_conf=None,
+        max_active_runs=1,
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+    session.add(backfill)
+    session.flush()
+
+    info = DagRunInfo(
+        run_after=logical_date,
+        data_interval=DataInterval(logical_date, logical_date),
+        partition_key=None,
+        partition_date=None,
+    )
+
+    _handle_clear_run(
+        session=session,
+        dag=dag,
+        dr=dr,
+        info=info,
+        backfill_id=backfill.id,
+        sort_ordinal=1,
+    )
+    session.flush()
+    session.refresh(dr)
+    session.refresh(other_manual_run)
+
+    assert dr.run_type == DagRunType.BACKFILL_JOB
+    assert dr.backfill_id == backfill.id
+    assert other_manual_run.run_type == DagRunType.MANUAL
+    assert other_manual_run.backfill_id is None

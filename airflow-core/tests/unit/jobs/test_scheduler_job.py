@@ -6686,6 +6686,44 @@ class TestSchedulerJob:
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         session.rollback()
 
+    def test_scheduler_create_dag_runs_manual_run_does_not_block_scheduled_run(self, dag_maker, session):
+        with dag_maker(
+            dag_id="test_scheduler_create_dag_runs_manual_run_does_not_block_scheduled_run",
+            schedule=timedelta(days=1),
+            catchup=True,
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+        assert dag_model.next_dagrun == DEFAULT_DATE
+
+        manual_run = dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            logical_date=dag_model.next_dagrun,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            session=session,
+            creating_job_id=2,
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._create_dag_runs([dag_model], session)
+
+        scheduled_run = session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag.dag_id,
+                DagRun.run_type == DagRunType.SCHEDULED,
+                DagRun.logical_date == DEFAULT_DATE,
+            )
+        ).one_or_none()
+        assert scheduled_run is not None, "the scheduled run must still be created despite the manual run"
+        assert scheduled_run.id != manual_run.id
+        assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
+        session.rollback()
+
     @conf_vars({("scheduler", "use_job_schedule"): "false"})
     def test_do_schedule_max_active_runs_dag_timed_out(self, dag_maker, session):
         """Test that tasks are set to a finished state when their DAG times out"""
@@ -6920,7 +6958,7 @@ class TestSchedulerJob:
             BashOperator(task_id="dummy3", bash_command="true")
 
         session = settings.Session()
-        dag_run = dag_maker.create_dagrun(state=State.QUEUED, session=session)
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED, session=session)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)

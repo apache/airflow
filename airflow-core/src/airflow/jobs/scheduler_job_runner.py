@@ -2533,7 +2533,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(
                 tuple_(DagRun.dag_id, DagRun.logical_date).in_(
                     (dm.dag_id, dm.next_dagrun) for dm in dag_models
-                )
+                ),
+                DagRun.run_type == DagRunType.SCHEDULED,
             )
             .options(load_only(DagRun.dag_id, DagRun.logical_date))
         ).all()
