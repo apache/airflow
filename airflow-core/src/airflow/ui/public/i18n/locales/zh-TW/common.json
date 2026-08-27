@@ -363,7 +363,7 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
-  "switchDag": "切換$t(dag_one)",
+  "switchDag": "切換 $t(dag_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
