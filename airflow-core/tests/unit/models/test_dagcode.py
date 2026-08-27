@@ -214,3 +214,51 @@ class TestDagCode:
         DagCode.update_source_code(dag.dag_id, dag.fileloc)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2
+
+    def test_update_source_code_refreshes_fileloc(self, dag_maker, session):
+        """When the source changes, update_source_code also refreshes a stale fileloc."""
+        with dag_maker("dag_fileloc") as dag:
+
+            @task_decorator
+            def mytask():
+                print("hi")
+
+            mytask()
+        sync_dag_to_db(dag)
+
+        dag_code = DagCode.get_latest_dagcode(dag.dag_id)
+        # Simulate a stale fileloc and a changed source so the update path is taken.
+        dag_code.fileloc = "/old/stale/path.py"
+        dag_code.source_code_hash = "stalehash"
+        session.add(dag_code)
+        session.commit()
+
+        DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
+        refreshed = DagCode.get_latest_dagcode(dag.dag_id)
+        assert refreshed.fileloc == dag.fileloc
+        assert refreshed.source_code_hash != "stalehash"
+
+    def test_update_source_code_refreshes_fileloc_when_source_unchanged(self, dag_maker, session):
+        """A moved/renamed file with identical contents still refreshes a stale fileloc."""
+        with dag_maker("dag_fileloc_moved") as dag:
+
+            @task_decorator
+            def mytask():
+                print("hi")
+
+            mytask()
+        sync_dag_to_db(dag)
+
+        dag_code = DagCode.get_latest_dagcode(dag.dag_id)
+        # Stale fileloc but the stored source hash still matches the file contents.
+        dag_code.fileloc = "/old/stale/path.py"
+        session.add(dag_code)
+        session.commit()
+        original_hash = dag_code.source_code_hash
+
+        DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
+        refreshed = DagCode.get_latest_dagcode(dag.dag_id)
+        assert refreshed.fileloc == dag.fileloc
+        assert refreshed.source_code_hash == original_hash

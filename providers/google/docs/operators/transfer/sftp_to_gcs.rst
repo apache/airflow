@@ -52,6 +52,20 @@ The following Operator copies a single file.
     :start-after: [START howto_operator_sftp_to_gcs_copy_single_file]
     :end-before: [END howto_operator_sftp_to_gcs_copy_single_file]
 
+Streaming large files
+---------------------
+
+Set ``use_stream=True`` to stream from SFTP into GCS without a local tempfile.
+This avoids worker disk usage. Paramiko prefetch (``sftp_prefetch``, default
+``True``) can still queue the whole file in RAM, so for large files also set
+``sftp_prefetch=False``. ``gzip`` and ``mime_type`` apply on the stream path.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_sftp_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sftp_to_gcs_copy_single_file_stream]
+    :end-before: [END howto_operator_sftp_to_gcs_copy_single_file_stream]
+
 Moving a single file
 --------------------
 
