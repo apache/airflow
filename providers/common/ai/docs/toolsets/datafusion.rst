@@ -37,7 +37,7 @@ querying files on object stores (S3, GCS, Azure Blob Storage, local filesystem, 
    * - ``list_tables``
      - Lists registered table names
    * - ``get_schema``
-     - Returns a table's columns (Arrow schema) as JSON, with a ``name_contains``
+     - Returns a table's columns as JSON, with a ``name_contains``
        filter and a bounded summary on very wide tables (see
        :ref:`bounded-schema-results`)
    * - ``query``

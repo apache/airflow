@@ -409,7 +409,12 @@ class DataFusionEngine(LoggingMixin):
         # Azure storage account names are capped at 24 characters.
         return netloc.split(".", 1)[0][:24]
 
-    def get_schema(self, table_name: str):
-        """Get the schema of a table."""
-        schema = str(self.session_context.table(table_name).schema())
-        return schema
+    def get_schema(self, table_name: str) -> list[dict[str, str]]:
+        """
+        Return column names and types for a table from its Arrow schema.
+
+        :param table_name: Name of the table registered in the session context.
+        :return: List of dicts with ``name`` and ``type`` keys.
+        """
+        table = self.session_context.table(table_name)
+        return [{"name": f.name, "type": str(f.type)} for f in table.schema()]
