@@ -133,6 +133,16 @@ class TestMwaaTriggerDagRunOperator:
         with pytest.raises(TaskDeferred) as exc_info:
             op.execute({})
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": OP_KWARGS["waiter_delay"],
+            "waiter_max_attempts": OP_KWARGS["waiter_max_attempts"],
+            "aws_conn_id": "aws_default",
+            "external_env_name": OP_KWARGS["env_name"],
+            "external_dag_id": OP_KWARGS["trigger_dag_id"],
+            "external_dag_run_id": HOOK_RETURN_VALUE["RestApiResponse"]["dag_run_id"],
+            "success_states": None,
+            "failure_states": None,
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }

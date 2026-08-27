@@ -125,9 +125,19 @@ class TestMwaaDagRunSuccessSensor:
         with pytest.raises(TaskDeferred) as exc_info:
             sensor.execute({})
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": SENSOR_DAG_RUN_KWARGS["poke_interval"],
+            "waiter_max_attempts": SENSOR_DAG_RUN_KWARGS["max_retries"],
+            "aws_conn_id": "aws_default",
+            "external_env_name": SENSOR_DAG_RUN_KWARGS["external_env_name"],
+            "external_dag_id": SENSOR_DAG_RUN_KWARGS["external_dag_id"],
+            "external_dag_run_id": SENSOR_DAG_RUN_KWARGS["external_dag_run_id"],
+            "success_states": set(SENSOR_STATE_KWARGS["success_states"]),
+            "failure_states": set(SENSOR_STATE_KWARGS["failure_states"]),
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
 
 
 class TestMwaaTaskSuccessSensor:
@@ -192,6 +202,17 @@ class TestMwaaTaskSuccessSensor:
         with pytest.raises(TaskDeferred) as exc_info:
             sensor.execute({})
 
-        assert exc_info.value.trigger.region_name == REGION_NAME
-        assert exc_info.value.trigger.verify == VERIFY
-        assert exc_info.value.trigger.botocore_config == BOTOCORE_CONFIG
+        assert exc_info.value.trigger.serialize()[1] == {
+            "waiter_delay": SENSOR_TASK_KWARGS["poke_interval"],
+            "waiter_max_attempts": SENSOR_TASK_KWARGS["max_retries"],
+            "aws_conn_id": "aws_default",
+            "external_env_name": SENSOR_TASK_KWARGS["external_env_name"],
+            "external_dag_id": SENSOR_TASK_KWARGS["external_dag_id"],
+            "external_dag_run_id": SENSOR_TASK_KWARGS["external_dag_run_id"],
+            "external_task_id": SENSOR_TASK_KWARGS["external_task_id"],
+            "success_states": set(SENSOR_STATE_KWARGS["success_states"]),
+            "failure_states": set(SENSOR_STATE_KWARGS["failure_states"]),
+            "region_name": REGION_NAME,
+            "verify": VERIFY,
+            "botocore_config": BOTOCORE_CONFIG,
+        }
