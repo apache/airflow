@@ -29,6 +29,7 @@ from sqlalchemy import select
 from airflow.models import Variable, crypto, variable
 from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
+from airflow.utils.sqlalchemy import prohibit_commit
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
@@ -39,6 +40,29 @@ if TYPE_CHECKING:
     from airflow.models.team import Team
 
 pytestmark = pytest.mark.db_test
+
+
+class _SessionUnawareMetastoreBackend(MetastoreBackend):
+    """A custom backend whose ``get_variable`` override predates the ``session`` keyword."""
+
+    # The signature mismatch with the base class is the point of this fixture, so mypy's
+    # override check has to be waived here rather than fixed.
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:  # type: ignore[override]
+        return "from_subclass"
+
+
+class _SessionAwareMetastoreBackend(MetastoreBackend):
+    """A custom backend whose ``get_variable`` override does accept ``session``."""
+
+    def __init__(self):
+        super().__init__()
+        self.received_session: Session | None = None
+
+    def get_variable(
+        self, key: str, team_name: str | None = None, *, session: Session | None = None
+    ) -> str | None:
+        self.received_session = session
+        return "from_subclass"
 
 
 class TestVariable:
@@ -191,6 +215,100 @@ class TestVariable:
             "MockSecretsBackend"
         )
         Variable.delete(key="key", session=session)
+
+    @mock.patch.object(MetastoreBackend, "get_variable", autospec=True)
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_forwards_session_to_metastore_backend(self, mock_ensure_secrets, mock_get_variable, session):
+        mock_get_variable.return_value = "from_db"
+        mock_ensure_secrets.return_value = [MetastoreBackend()]
+
+        assert Variable.get("some_key", session=session) == "from_db"
+        assert mock_get_variable.call_args.kwargs["session"] is session
+
+    @mock.patch.object(MetastoreBackend, "get_variable", autospec=True)
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_without_session_omits_session_kwarg(self, mock_ensure_secrets, mock_get_variable):
+        mock_get_variable.return_value = "from_db"
+        mock_ensure_secrets.return_value = [MetastoreBackend()]
+
+        assert Variable.get("some_key") == "from_db"
+        assert "session" not in mock_get_variable.call_args.kwargs
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_does_not_forward_session_to_other_backends(self, mock_ensure_secrets, session):
+        """Only the metastore backend reads the metadata database, so only it accepts a session."""
+        mock_backend = mock.Mock()
+        mock_backend.get_variable.return_value = "from_backend"
+        mock_backend.__class__.__name__ = "MockSecretsBackend"
+        mock_ensure_secrets.return_value = [mock_backend]
+
+        assert Variable.get("some_key", session=session) == "from_backend"
+        assert "session" not in mock_backend.get_variable.call_args.kwargs
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_omits_session_for_session_unaware_metastore_subclass(self, mock_ensure_secrets, session):
+        """Forwarding a session to an override that predates it would read as a missing Variable."""
+        mock_ensure_secrets.return_value = [_SessionUnawareMetastoreBackend()]
+
+        assert Variable.get("some_key", session=session) == "from_subclass"
+
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_get_forwards_session_to_session_aware_metastore_subclass(self, mock_ensure_secrets, session):
+        """A subclass that does accept a session still receives it, so it reuses the transaction."""
+        backend = _SessionAwareMetastoreBackend()
+        mock_ensure_secrets.return_value = [backend]
+
+        assert Variable.get("some_key", session=session) == "from_subclass"
+        assert backend.received_session is session
+
+    def test_get_with_session_does_not_commit_under_prohibit_commit(self, session):
+        """
+        A caller holding an open transaction can read a Variable without its session being committed.
+
+        Without the session being forwarded, ``MetastoreBackend.get_variable``'s ``provide_session``
+        takes the same scoped session and commits it, which the guard rejects.
+        """
+        Variable.set(key="interval_key", value="60", session=session)
+        session.commit()
+        SecretCache.invalidate_variable("interval_key")
+
+        with prohibit_commit(session):
+            assert Variable.get("interval_key", session=session) == "60"
+
+    def test_update_with_session_does_not_commit_under_prohibit_commit(self, session):
+        """``update`` verifies existence through the secrets chain, which must reuse the session too."""
+        Variable.set(key="interval_key", value="60", session=session)
+        session.commit()
+        SecretCache.invalidate_variable("interval_key")
+
+        with prohibit_commit(session):
+            Variable.update(key="interval_key", value="120", session=session)
+
+    def test_setdefault_with_session_does_not_commit_under_prohibit_commit(self, session):
+        """``setdefault`` reads through the secrets chain before deciding whether to write."""
+        Variable.set(key="interval_key", value="60", session=session)
+        session.commit()
+        SecretCache.invalidate_variable("interval_key")
+
+        with prohibit_commit(session):
+            assert Variable.setdefault("interval_key", "120", session=session) == "60"
+
+    def test_setdefault_writes_default_with_session_under_prohibit_commit(self, session):
+        """The write half must reuse the session too, so the miss path stays inside the transaction."""
+        with prohibit_commit(session):
+            assert Variable.setdefault("absent_key", "30", session=session) == "30"
+        session.commit()
+
+        assert Variable.get("absent_key", session=session) == "30"
+
+    def test_get_rejects_session_in_execution_context(self):
+        """Reads from an execution context go via the Execution API, where a session is meaningless."""
+        task_runner = mock.Mock(SUPERVISOR_COMMS=mock.Mock())
+        with (
+            mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.task_runner": task_runner}),
+            pytest.raises(ValueError, match="cannot use a metadata database session"),
+        ):
+            Variable.get("some_key", session=mock.Mock())
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
