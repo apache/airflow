@@ -1357,9 +1357,9 @@ class TestSparkSubmitHook:
         assert command_masked == expected
 
     @pytest.mark.db_test
-    def test_masks_passwords_is_linear_on_large_input(self) -> None:
-        # The previous regex backtracked quadratically on long inputs without a sensitive
-        # keyword, taking ~57s for this payload and blocking the worker slot.
+    def test_masks_passwords_stays_fast_on_large_input(self) -> None:
+        # The previous pattern retried at every offset on long inputs, taking tens of
+        # seconds for this payload and blocking the worker slot.
         hook = SparkSubmitHook()
         payload = ("spark-submit", "--arg", "x " * 25_000)
 
@@ -1368,6 +1368,21 @@ class TestSparkSubmitHook:
         elapsed = time.monotonic() - start
 
         assert command_masked == " ".join(payload)
+        assert elapsed < 5
+
+    @pytest.mark.db_test
+    def test_masks_passwords_stays_fast_on_repeated_keywords(self) -> None:
+        # A token packing many sensitive keywords is the worst remaining case: it still
+        # backtracks, so this only guards against regressing to the previous pattern,
+        # which needed minutes for an input of this size.
+        hook = SparkSubmitHook()
+        payload = ("spark-submit", "--arg", "secret" * 2000)
+
+        start = time.monotonic()
+        command_masked = hook._mask_cmd(payload)
+        elapsed = time.monotonic() - start
+
+        assert command_masked.startswith("spark-submit --arg secret")
         assert elapsed < 5
 
     @pytest.mark.db_test

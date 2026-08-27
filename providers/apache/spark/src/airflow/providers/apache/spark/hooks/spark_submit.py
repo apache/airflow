@@ -55,10 +55,13 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
-# Values to mask are anchored at a token boundary so the scan stays linear: without
-# the lookbehind the leading \S*? retries at every offset, which is the quadratic
-# backtracking this pattern replaces. A quote only closes the value when whitespace
-# or the end of the string follows it, so quoted values may themselves contain quotes.
+# Values to mask are anchored at a token boundary: without the lookbehind the leading
+# \S*? retries at every offset in the string, which is what made masking pathologically
+# slow on long arguments and log lines. Anchoring does not make this strictly O(n) -- a
+# token packing many "secret"/"password" occurrences still backtracks quadratically --
+# but it removes the retry-per-offset factor and is orders of magnitude faster in
+# practice. A quote only closes the value when whitespace or the end of the string
+# follows it, so quoted values may themselves contain quotes.
 _SENSITIVE_VALUE_RE = re.compile(
     r"(?<!\S)(\S*?(?:secret|password)\S*?(?:=|\s+))"
     r"(?:'((?:[^']|'(?!\s|$))*)'|\"((?:[^\"]|\"(?!\s|$))*)\"|(\S*))",
