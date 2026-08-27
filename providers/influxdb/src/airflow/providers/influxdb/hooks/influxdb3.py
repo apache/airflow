@@ -24,6 +24,7 @@ API compared to InfluxDB 2.x.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -220,16 +221,17 @@ class InfluxDB3Hook(BaseHook):
         Run a SQL query from the triggerer and return JSON-serializable records.
 
         ``InfluxDBClient3.query_async`` runs the blocking Arrow Flight calls in the event
-        loop's default executor, so awaiting it does not block the triggerer. It is a plain
-        coroutine that resolves once the whole result stream has been read -- InfluxDB 3 has
-        no submit-then-poll query API, so there is nothing to poll in between.
+        loop's default executor. It is a plain coroutine that resolves once the whole result
+        stream has been read -- InfluxDB 3 has no submit-then-poll query API, so there is
+        nothing to poll in between. Connection setup and DataFrame conversion are offloaded
+        with ``asyncio.to_thread`` so that no step runs on the triggerer's event loop.
 
         Requires ``influxdb3-python>=0.12.0``, the release that introduced ``query_async``.
 
         :param query: SQL query string
         :return: List of dictionaries representing query results
         """
-        client = self.get_conn()
+        client = await asyncio.to_thread(self.get_conn)
         if not hasattr(client, "query_async"):
             raise InfluxDB3AsyncQueryNotAvailableError(
                 "Deferrable mode requires influxdb3-python>=0.12.0, which introduced "
@@ -246,7 +248,7 @@ class InfluxDB3Hook(BaseHook):
                 f"Result type: {type(result).__module__}.{type(result).__name__}"
             )
 
-        return convert_dataframe_to_records(result)
+        return await asyncio.to_thread(convert_dataframe_to_records, result)
 
     def write(
         self,
