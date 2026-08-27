@@ -66,6 +66,13 @@ dependencies = [
     "requests>=2.32.0,<3",
 ]
 
+[project.optional-dependencies]
+"pandas" = [
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",

@@ -43,7 +43,7 @@ except ImportError:
         InfluxDBClient3 = None  # type: ignore[assignment, misc]
         Point = None  # type: ignore[assignment, misc]
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -203,7 +203,13 @@ class InfluxDB3Hook(BaseHook):
         :param query: SQL query string
         :return: pandas DataFrame with query results
         """
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas is required for InfluxDB 3 query results. Install it with: "
+                "pip install 'apache-airflow-providers-influxdb[pandas]'"
+            ) from e
 
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
@@ -238,7 +244,13 @@ class InfluxDB3Hook(BaseHook):
                 "InfluxDBClient3.query_async(). Upgrade with: pip install 'influxdb3-python>=0.12.0'"
             )
 
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas is required for InfluxDB 3 query results. Install it with: "
+                "pip install 'apache-airflow-providers-influxdb[pandas]'"
+            ) from e
 
         result = await client.query_async(query=query, language="sql", mode="pandas")
 
