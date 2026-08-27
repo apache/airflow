@@ -23,13 +23,15 @@ import pendulum
 import pytest
 from sqlalchemy import delete, insert, select, update
 
-from airflow.models.asset import AssetModel, DagScheduleAssetReference
+from airflow.models.asset import AssetModel, AssetPartitionDagRun, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import Asset
+from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1292,10 +1294,12 @@ class TestDagDetails(TestDagEndpoint):
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
             "start_date": start_date,
+            "suggested_partition_key": None,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_partitioned_at_runtime": False,
             "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
@@ -1395,16 +1399,32 @@ class TestDagDetails(TestDagEndpoint):
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
             "start_date": start_date,
+            "suggested_partition_key": None,
             "tags": [],
             "template_search_path": None,
             "timetable_summary": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_partitioned_at_runtime": False,
             "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
             "team_name": None,
         }
         assert res_json == expected
+
+    def test_dag_details_returns_suggested_partition_key(self, session, test_client, dag_maker):
+        dag_id = "test_dag_details_partition_suggestion"
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAtRuntime(), serialized=True):
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, partition_key="runtime-key")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+        assert response.status_code == 200
+        res_json = response.json()
+        assert res_json["timetable_partitioned_at_runtime"] is True
+        assert res_json["suggested_partition_key"] == "runtime-key"
 
     def test_dag_details_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/details")
@@ -1596,9 +1616,11 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "relative_fileloc": "test_dags.py",
+            "suggested_partition_key": None,
             "tags": tags,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_partitioned_at_runtime": False,
             "timetable_periodic": False,
             "timetable_summary": None,
         }
@@ -1630,6 +1652,55 @@ class TestGetDag(TestDagEndpoint):
         tag_names_in_response = [tag["name"] for tag in res_json["tags"]]
         expected_sorted_tags = sorted(tag_names)
         assert tag_names_in_response == expected_sorted_tags
+
+    def test_get_dag_returns_suggested_partition_key_for_asset_driven_dag(
+        self, session, test_client, dag_maker
+    ):
+        dag_id = "test_dag_asset_driven_suggestion"
+        asset = Asset(name=f"{dag_id}_asset", uri=f"s3://bucket/{dag_id}")
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), serialized=True):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        session.add(AssetPartitionDagRun(target_dag_id=dag_id, partition_key="pending-key"))
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}")
+        assert response.status_code == 200
+        res_json = response.json()
+        assert res_json["timetable_partitioned"] is True
+        assert res_json["timetable_partitioned_at_runtime"] is False
+        assert res_json["suggested_partition_key"] == "pending-key"
+
+    def test_get_dag_returns_suggested_partition_key_for_partitioned_at_runtime_dag(
+        self, session, test_client, dag_maker
+    ):
+        dag_id = "test_dag_partitioned_at_runtime_suggestion"
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAtRuntime(), serialized=True):
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, partition_key="runtime-key")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}")
+        assert response.status_code == 200
+        res_json = response.json()
+        assert res_json["timetable_partitioned"] is False
+        assert res_json["timetable_partitioned_at_runtime"] is True
+        assert res_json["suggested_partition_key"] == "runtime-key"
+
+    def test_get_dags_list_reports_partitioned_at_runtime(self, session, test_client, dag_maker):
+        """The list endpoint returns bare DagModel rows, so this only holds if the flag is a column."""
+        dag_id = "test_dag_list_partitioned_at_runtime"
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAtRuntime(), serialized=True):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get("/dags", params={"dag_id_pattern": dag_id})
+        assert response.status_code == 200
+        [dag] = response.json()["dags"]
+        assert dag["timetable_partitioned_at_runtime"] is True
+        assert dag["suggested_partition_key"] is None
 
     def test_get_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}")

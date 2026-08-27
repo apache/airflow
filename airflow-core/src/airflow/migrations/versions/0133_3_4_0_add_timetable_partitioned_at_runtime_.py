@@ -1,0 +1,56 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""
+Add timetable_partitioned_at_runtime to dag.
+
+Revision ID: b8f1c0a4d276
+Revises: 8d3f1a6b2c47
+Create Date: 2026-08-12 18:40:11.402913
+
+"""
+
+from __future__ import annotations
+
+import sqlalchemy as sa
+from alembic import op
+
+from airflow.migrations.utils import disable_sqlite_fkeys
+
+# revision identifiers, used by Alembic.
+revision = "b8f1c0a4d276"
+down_revision = "8d3f1a6b2c47"
+branch_labels = None
+depends_on = None
+airflow_version = "3.4.0"
+
+
+def upgrade():
+    """Add timetable_partitioned_at_runtime to dag."""
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.add_column(
+                sa.Column("timetable_partitioned_at_runtime", sa.Boolean, nullable=False, server_default="0")
+            )
+
+
+def downgrade():
+    """Remove timetable_partitioned_at_runtime from dag."""
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("timetable_partitioned_at_runtime")
