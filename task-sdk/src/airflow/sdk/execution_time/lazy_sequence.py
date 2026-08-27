@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import collections
 import itertools
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
@@ -250,6 +250,16 @@ class XComIterable(Sequence):
             self.index += 1
             self.length += 1
 
+    def flatten(self) -> XComIterable:
+        """Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes)."""
+        return FlattenedXComIterable(
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            length=self.length,
+        )
+
     def serialize(self) -> dict:
         """Ensure the object is JSON serializable."""
         return {
@@ -264,6 +274,26 @@ class XComIterable(Sequence):
     def deserialize(cls, data: dict, version: int):
         """Ensure the object is JSON deserializable."""
         return XComIterable(**data)
+
+
+class FlattenedXComIterable(XComIterable):
+    """An XComIterable whose iterator recursively expands nested iterables (except str/bytes)."""
+
+    def __iter__(self) -> Iterator[Any]:
+        for item in super().__iter__():
+            yield from self._flatten(item)
+
+    @classmethod
+    def _flatten(cls, item: Any) -> Iterator[Any]:
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+            for sub in item:
+                yield from cls._flatten(sub)
+        else:
+            yield item
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        return FlattenedXComIterable(**data)
 
 
 class _XComIterator:

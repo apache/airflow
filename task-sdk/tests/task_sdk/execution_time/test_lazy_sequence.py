@@ -300,3 +300,67 @@ class TestXComIterable:
         iterable = XComIterable.deserialize(data, version=1)
         iterable.append("new_value")
         assert mock_set.call_args.kwargs["key"] == f"{BaseXCom.XCOM_RETURN_KEY}_3"
+
+    # ------------------------------------------------------------------
+    # flatten
+    # ------------------------------------------------------------------
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_list_items(self, mock_get_one):
+        """Items that are lists are expanded into individual elements."""
+        mock_get_one.side_effect = [["a", "b"], ["c", "d"]]
+        iterable = self.make_iterable(length=2)
+        assert list(iterable.flatten()) == ["a", "b", "c", "d"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_tuple_items(self, mock_get_one):
+        """Items that are tuples are expanded into individual elements."""
+        mock_get_one.side_effect = [("a", "b"), ("c",)]
+        iterable = self.make_iterable(length=2)
+        assert list(iterable.flatten()) == ["a", "b", "c"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_set_items(self, mock_get_one):
+        """Items that are sets are expanded into individual elements."""
+        mock_get_one.side_effect = [{42}]
+        iterable = self.make_iterable(length=1)
+        assert list(iterable.flatten()) == [42]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_expands_generator_items(self, mock_get_one):
+        """Items that are generators are expanded into individual elements."""
+        mock_get_one.side_effect = [iter([1, 2, 3])]
+        iterable = self.make_iterable(length=1)
+        assert list(iterable.flatten()) == [1, 2, 3]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_passes_through_string_items(self, mock_get_one):
+        """Strings are not iterated — they are yielded as a single item."""
+        mock_get_one.side_effect = ["hello", "world"]
+        iterable = self.make_iterable(length=2)
+        assert list(iterable.flatten()) == ["hello", "world"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_passes_through_bytes_items(self, mock_get_one):
+        """Bytes are not iterated — they are yielded as a single item."""
+        mock_get_one.side_effect = [b"hello"]
+        iterable = self.make_iterable(length=1)
+        assert list(iterable.flatten()) == [b"hello"]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_passes_through_non_iterable_items(self, mock_get_one):
+        """Scalar (non-iterable) items are yielded unchanged."""
+        mock_get_one.side_effect = [1, 2.0, True]
+        iterable = self.make_iterable(length=3)
+        assert list(iterable.flatten()) == [1, 2.0, True]
+
+    @patch.object(XCom, "get_one")
+    def test_flatten_handles_mixed_items(self, mock_get_one):
+        """Mixed collection and scalar items are each handled correctly."""
+        mock_get_one.side_effect = [["a", "b"], "c", ("d",), 5]
+        iterable = self.make_iterable(length=4)
+        assert list(iterable.flatten()) == ["a", "b", "c", "d", 5]
+
+    def test_flatten_on_empty_iterable_yields_nothing(self):
+        iterable = self.make_iterable(length=0)
+        assert list(iterable.flatten()) == []
