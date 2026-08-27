@@ -692,3 +692,85 @@ class TestGetFastapiPluginsTeamName:
         for plugin in (global_plugin, team_plugin):
             assert "team_name" not in plugin.fastapi_apps[0]
             assert "team_name" not in plugin.fastapi_root_middlewares[0]
+
+
+class TestExtraLinkTeamVisibility:
+    """``is_extra_link_visible_to_team`` decides whether a team-scoped plugin's operator link
+    is rendered for a given Dag, so the API server can hide one team's links from another."""
+
+    @staticmethod
+    def _link_class():
+        from tests_common.test_utils.compat import BaseOperatorLink
+
+        class SomeLink(BaseOperatorLink):
+            name = "Some Link"
+
+            def get_link(self, operator, ti_key):
+                return "https://example.com"
+
+        return SomeLink
+
+    def test_operator_defined_link_is_visible_to_every_team(self):
+        """A link no plugin registered belongs to the operator, so no team owns it."""
+        from airflow import plugins_manager
+
+        link = self._link_class()()
+        with mock_plugin_manager(plugins=[]):
+            assert plugins_manager.is_extra_link_visible_to_team(link, "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link, None) is True
+
+    @pytest.mark.parametrize(
+        ("dag_team", "expected"),
+        [
+            pytest.param("team_a", True, id="owning-team"),
+            pytest.param("team_b", False, id="other-team"),
+            pytest.param(None, False, id="teamless-dag"),
+        ],
+    )
+    def test_team_scoped_link_is_visible_only_to_its_team(self, dag_team, expected):
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), dag_team) is expected
+
+    def test_link_registered_by_a_global_plugin_too_stays_global(self):
+        """Ownership resolves least restrictively: one global registration keeps the link
+        visible everywhere, rather than the team registration narrowing it."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_link_plugin"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin, GlobalPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), None) is True
+
+    def test_operator_scoped_links_are_tracked_alongside_global_ones(self):
+        """``operator_extra_links`` are team-owned on the same terms as ``global_operator_extra_links``."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is False
