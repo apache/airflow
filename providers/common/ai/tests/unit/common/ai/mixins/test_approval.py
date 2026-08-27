@@ -23,6 +23,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
+from collections.abc import Sequence
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -32,6 +33,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
+from airflow.providers.common.compat.sdk import BaseNotifier
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTriggerEventError
 
 if AIRFLOW_V_3_3_PLUS:
@@ -53,11 +55,13 @@ class FakeOperator(LLMApprovalMixin):
         task_id: str = "test_task",
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
+        approval_notifiers: Sequence[BaseNotifier] = (),
     ):
         self.prompt = prompt
         self.task_id = task_id
         self.approval_timeout = approval_timeout
         self.allow_modifications = allow_modifications
+        self.approval_notifiers = approval_notifiers
 
         self.defer = MagicMock()
         self.log = MagicMock()
@@ -173,6 +177,31 @@ class TestDeferForApproval:
         assert param["schema"] == schema
         defer_kwargs = approval_op_with_modifications.defer.call_args[1]
         assert defer_kwargs["kwargs"]["generated_output"] == '["task_a"]'
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_notifiers_fire_once_the_review_is_open(self, mock_upsert, mock_trigger_cls, context):
+        notifier = MagicMock(spec=BaseNotifier)
+        order = MagicMock()
+        order.attach_mock(mock_upsert, "open_review")
+        order.attach_mock(notifier, "notify")
+        op = FakeOperator(approval_notifiers=[notifier])
+
+        op.defer_for_approval(context, "output")
+
+        notifier.assert_called_once_with(context)
+        assert [call[0] for call in order.mock_calls] == ["open_review", "notify"]
+
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_notifier_failure_stops_the_review(self, mock_upsert, mock_trigger_cls, context):
+        notifier = MagicMock(spec=BaseNotifier, side_effect=RuntimeError("smtp down"))
+        op = FakeOperator(approval_notifiers=[notifier])
+
+        with pytest.raises(RuntimeError, match="smtp down"):
+            op.defer_for_approval(context, "output")
+
+        op.defer.assert_not_called()
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
