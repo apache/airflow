@@ -473,6 +473,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                 "project_id": self.dataflow_config.project_id,
                 "location": location,
                 "gcp_conn_id": self.gcp_conn_id,
+                "poll_sleep": self.dataflow_config.poll_sleep,
+                "impersonation_chain": self.dataflow_config.impersonation_chain,
             }
             trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
 
@@ -667,6 +669,8 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                         "project_id": self.dataflow_config.project_id,
                         "location": self.dataflow_config.location,
                         "gcp_conn_id": self.gcp_conn_id,
+                        "poll_sleep": self.dataflow_config.poll_sleep,
+                        "impersonation_chain": self.dataflow_config.impersonation_chain,
                     }
                     trigger: DataflowJobStatusTrigger | DataflowJobStateCompleteTrigger
 
