@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, event, func, inspect as sa_inspect, select
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select, text
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -39,6 +39,7 @@ from airflow.dag_processing.collection import (
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
+    _update_dag_warnings,
     _update_import_errors,
     update_dag_parsing_results_in_db,
 )
@@ -238,20 +239,57 @@ class TestAssetModelOperation:
         yield
         self.clean_db()
 
-    @staticmethod
-    def _build_dags_for(dag_maker, schedules):
-        """One Dag per schedule, keyed by dag_id in the order given."""
-        dags = {}
-        for index, schedule in enumerate(schedules):
-            with dag_maker(dag_id=f"dag_{index}", schedule=[schedule]) as dag:
-                EmptyOperator(task_id="mytask")
-            dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
-        return dags
+    @pytest.mark.backend("postgres")
+    def test_two_writers_cannot_activate_the_same_assets_at_once(self, session):
+        """
+        Two writers reactivating the same inactive assets in opposite order would otherwise
+        insert one row each and then wait on the other's uncommitted unique conflict. Taking the
+        assets in one order first moves that wait outside the insert.
+        """
+        from sqlalchemy.orm import Session as SqlaSession
+
+        from airflow import settings
+
+        pair = [Asset(name="x_asset", uri="s3://x"), Asset(name="y_asset", uri="s3://y")]
+        seeded = AssetModelOperation.collect(self._build_dags_scheduled_on(pair))
+        seeded.sync_assets(session=session)
+        session.commit()
+
+        holder = AssetModelOperation.collect(self._build_dags_scheduled_on(pair))
+        orm_held = holder.sync_assets(session=session)
+        session.flush()
+        holder.activate_assets_if_possible(orm_held.values(), session=session)
+
+        other = SqlaSession(bind=settings.engine)
+        try:
+            other.execute(text("SET lock_timeout = '750ms'"))
+            waiter = AssetModelOperation.collect(self._build_dags_scheduled_on(list(reversed(pair))))
+            orm_waiting = waiter.sync_assets(session=other)
+
+            # Where it waits is the whole point: on the assets, before it has inserted anything.
+            # Without the lock it gets as far as the insert and waits on the unique index there,
+            # which is the position two writers deadlock from.
+            attempted: list[str] = []
+
+            def record(conn, cursor, statement, parameters, context, executemany):
+                if "insert into asset_active" in statement.lower():
+                    attempted.append(statement)
+
+            event.listen(settings.engine, "before_cursor_execute", record)
+            try:
+                with pytest.raises(OperationalError, match="lock timeout"):
+                    waiter.activate_assets_if_possible(orm_waiting.values(), session=other)
+            finally:
+                event.remove(settings.engine, "before_cursor_execute", record)
+
+            assert attempted == [], "the second writer reached the insert before waiting"
+        finally:
+            other.rollback()
+            other.close()
+        session.rollback()
 
     def test_dag_tags_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
         """``dag_tag`` is keyed on (name, dag_id), and the names arrive as a set."""
-        from airflow.dag_processing.collection import _update_dag_tags
-
         dm = DagModel(dag_id="tagged_dag", bundle_name="testing")
         session.add(dm)
         session.flush()
@@ -262,8 +300,6 @@ class TestAssetModelOperation:
 
     def test_dag_warnings_are_merged_in_a_stable_order(self, session):
         """``dag_warning`` is keyed on (dag_id, warning_type), and the warnings arrive as a set."""
-        from airflow.dag_processing.collection import _update_dag_warnings
-
         warnings = {
             DagWarning(dag_id="b_dag", warning_type=DagWarningType.NONEXISTENT_POOL, message="b"),
             DagWarning(dag_id="a_dag", warning_type=DagWarningType.NONEXISTENT_POOL, message="a"),
@@ -352,9 +388,16 @@ class TestAssetModelOperation:
 
     def test_alias_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
         """The alias loop walks ``self.dags`` just as the asset one does."""
-        aliases = [AssetAlias("z_alias"), AssetAlias("a_alias"), AssetAlias("m_alias")]
+        # Nine aliases so the two the Dags use get ids 2 and 9. As a set those iterate 9 before
+        # 2 -- consecutive ids come out ascending either way and would prove nothing.
+        seeded = AssetModelOperation.collect(
+            self._build_dags_scheduled_on([AssetAlias(f"alias_{i}") for i in range(1, 10)])
+        )
+        seeded.sync_asset_aliases(session=session)
+        session.flush()
+        chosen = [AssetAlias("alias_2"), AssetAlias("alias_9")]
         dags = {
-            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=aliases))
+            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=chosen))
             for dag_id in ("z_dag", "a_dag")
         }
         orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
@@ -379,7 +422,7 @@ class TestAssetModelOperation:
         # Sorted within each Dag as well as across them: the alias ids come out of a set.
         by_dag = [(row["dag_id"], row["alias_id"]) for row in inserted]
         assert by_dag == sorted(by_dag), by_dag
-        assert [dag_id for dag_id, _ in by_dag] == ["a_dag"] * 3 + ["z_dag"] * 3
+        assert [dag_id for dag_id, _ in by_dag] == ["a_dag"] * 2 + ["z_dag"] * 2
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_watcher_rows_are_written_in_trigger_id_order(self, dag_maker, session):
@@ -387,14 +430,16 @@ class TestAssetModelOperation:
         ``asset_watcher`` is keyed on (asset_id, trigger_id).
 
         The trigger hash cannot order it: it is a builtin hash of a str and bytes, so two
-        processes compute different values for the same trigger.
+        processes compute different values for the same trigger. The hashes are pinned here to
+        values whose set iteration -- and so the order the rows are created and given ids --
+        differs from their ascending order, which is what tells the two sorts apart.
         """
+        hashes = {"/tmp/a": 16, "/tmp/b": 9, "/tmp/c": 2}
         asset = Asset(
             "watched_asset",
             watchers=[
-                AssetWatcher(name="w_c", trigger=FileDeleteTrigger(filepath="/tmp/c")),
-                AssetWatcher(name="w_a", trigger=FileDeleteTrigger(filepath="/tmp/a")),
-                AssetWatcher(name="w_b", trigger=FileDeleteTrigger(filepath="/tmp/b")),
+                AssetWatcher(name=f"w_{path[-1]}", trigger=FileDeleteTrigger(filepath=path))
+                for path in hashes
             ],
         )
         with dag_maker(dag_id="watch_dag", schedule=[asset]) as dag:
@@ -423,8 +468,13 @@ class TestAssetModelOperation:
         bind = session.get_bind()
         event.listen(bind, "before_cursor_execute", record)
         try:
-            op.add_asset_trigger_references(orm_assets, session=session)
-            session.flush()
+            with mock.patch.object(
+                BaseEventTrigger,
+                "hash",
+                staticmethod(lambda classpath, kwargs: hashes[kwargs["filepath"]]),
+            ):
+                op.add_asset_trigger_references(orm_assets, session=session)
+                session.flush()
         finally:
             event.remove(bind, "before_cursor_execute", record)
 

@@ -937,6 +937,9 @@ class AssetModelOperation(NamedTuple):
         there's a conflict. The scheduler makes a more comprehensive pass
         through all assets in ``_update_asset_orphanage``.
         """
+        candidates = list(models)
+        if not candidates:
+            return
         if (dialect_name := get_dialect_name(session)) == "postgresql":
             from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 
@@ -951,11 +954,26 @@ class AssetModelOperation(NamedTuple):
             from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
             stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
-        # Left to the insert: ``asset_active`` is unique on name and on uri separately, and no
-        # single order can be consistent for both, so choosing a winner here would only narrow
-        # what the database already arbitrates.
-        if values := [{"name": model.name, "uri": model.uri} for model in models]:
-            session.execute(stmt, values)
+        # ``asset_active`` is unique on name and on uri separately, and no order of this insert
+        # is consistent for both indexes -- two writers can sort identically and still take the
+        # two uris the opposite way round. So the rows are serialized on their assets instead:
+        # every writer takes those in one order, which leaves the insert below to run without a
+        # second writer inside it, and lets the database go on arbitrating which of two
+        # conflicting assets wins.
+        session.execute(
+            with_row_locks(
+                select(AssetModel.id)
+                .where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(
+                        [(model.name, model.uri) for model in candidates]
+                    )
+                )
+                .order_by(AssetModel.name, AssetModel.uri),
+                session=session,
+                of=AssetModel,
+            )
+        )
+        session.execute(stmt, [{"name": model.name, "uri": model.uri} for model in candidates])
 
     def add_dag_asset_references(
         self,
