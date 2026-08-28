@@ -39,11 +39,13 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
     clear_db_deadline_alert,
     clear_db_runs,
     clear_db_serialized_dags,
+    clear_db_teams,
 )
 from tests_common.test_utils.team import attach_dag_to_team
 
@@ -74,13 +76,21 @@ def _cb() -> AsyncCallback:
     return AsyncCallback(_CALLBACK_PATH)
 
 
-@pytest.fixture(autouse=True)
-def setup(dag_maker, session):
+def _clear_db():
     clear_db_deadline()
     clear_db_deadline_alert()
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    # attach_dag_to_team commits its bundle and team before yielding, so a run interrupted
+    # inside that context manager leaves rows behind that would collide on the next run.
+    clear_db_dag_bundles()
+    clear_db_teams()
+
+
+@pytest.fixture(autouse=True)
+def setup(dag_maker, session):
+    _clear_db()
 
     with dag_maker(DAG_ID, serialized=True, session=session):
         EmptyOperator(task_id="task")
@@ -228,11 +238,7 @@ def setup(dag_maker, session):
     dag_maker.sync_dagbag_to_db()
     session.commit()
     yield
-    clear_db_deadline()
-    clear_db_deadline_alert()
-    clear_db_runs()
-    clear_db_dags()
-    clear_db_serialized_dags()
+    _clear_db()
 
 
 class TestGetDagRunDeadlines:
