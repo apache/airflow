@@ -5080,9 +5080,9 @@
                             "default": "Admin"
                         },
                         "username": {
-                            "description": "Default user username.",
+                            "description": "Default user username. Must be set when the job is enabled.",
                             "type": "string",
-                            "default": "admin"
+                            "default": ""
                         },
                         "email": {
                             "description": "Default user email address.",
@@ -5100,9 +5100,9 @@
                             "default": "user"
                         },
                         "password": {
-                            "description": "Default user password.",
+                            "description": "Default user password. Must be set when the job is enabled.",
                             "type": "string",
-                            "default": "admin"
+                            "default": ""
                         }
                     }
                 },
