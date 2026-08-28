@@ -25,14 +25,6 @@
 Changelog
 ---------
 
-.. note::
-    The Keycloak access and refresh tokens carried in the ``_access_token`` and
-    ``_refresh_token`` cookies are now required to name the same subject as the signed
-    Airflow JWT they accompany. A request whose cookies disagree is rejected rather than
-    served, so a session assembled from tokens belonging to different subjects no longer
-    authenticates. Ordinary sessions are unaffected: the login flow issues all three
-    cookies for one subject.
-
 0.9.0
 .....
 
