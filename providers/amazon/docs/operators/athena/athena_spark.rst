@@ -15,8 +15,8 @@
    specific language governing permissions and limitations
    under the License.
 
-Athena Spark Operators
-======================
+Athena Spark Operators and Sensors
+==================================
 
 Amazon Athena supports Apache Spark calculations through session-based APIs.
 This page documents the provider support for submitting and monitoring those
@@ -49,3 +49,23 @@ to submit Spark code to an existing Athena Spark session.
     :language: python
     :start-after: [START howto_operator_athena_spark]
     :end-before: [END howto_operator_athena_spark]
+
+Sensors
+-------
+
+Wait for an Athena Spark calculation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use :class:`~airflow.providers.amazon.aws.sensors.athena_spark.AthenaSparkSensor`
+to wait for an existing Athena Spark calculation execution to reach a terminal
+state.
+
+The sensor expects a calculation execution ID that was already created, for
+example by calling
+:class:`~airflow.providers.amazon.aws.operators.athena_spark.AthenaSparkOperator`
+or by starting the calculation outside Airflow.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
+    :language: python
+    :start-after: [START howto_sensor_athena_spark]
+    :end-before: [END howto_sensor_athena_spark]
