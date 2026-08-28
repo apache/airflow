@@ -65,7 +65,7 @@ def __getattr__(name):
 
             # Back-compat for older Task SDK clients
             return [
-                secrets_backends.ENVIRONMENT_VARIABLE_MODULE,
+                secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
             ]
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
