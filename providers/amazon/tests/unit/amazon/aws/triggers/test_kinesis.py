@@ -179,7 +179,7 @@ def test_checkpoint_key_uses_stream_identity(trigger, field):
     kwargs[field] = f"different-{field}"
     other = KinesisTrigger(**kwargs)
 
-    assert trigger._build_checkpoint_key() != other._build_checkpoint_key()
+    assert trigger._asset_store_checkpoint_key != other._asset_store_checkpoint_key
 
 
 @pytest.mark.parametrize(
@@ -197,20 +197,39 @@ def test_checkpoint_key_ignores_polling_and_client_options(trigger, field, value
     kwargs[field] = value
     other = KinesisTrigger(**kwargs)
 
-    assert trigger._build_checkpoint_key() == other._build_checkpoint_key()
+    assert trigger._asset_store_checkpoint_key == other._asset_store_checkpoint_key
 
 
-def test_load_and_save_checkpoint(trigger):
+@mock.patch(f"{MODULE}.hashlib.sha256", autospec=True)
+def test_checkpoint_key_is_cached(mock_sha256, trigger):
+    mock_sha256.return_value.hexdigest.return_value = "digest"
+
+    first_key = trigger._asset_store_checkpoint_key
+    second_key = trigger._asset_store_checkpoint_key
+
+    assert first_key == second_key == "kinesis_shard_sequence_numbers:digest"
+    mock_sha256.assert_called_once()
+
+
+@pytest.mark.asyncio
+@mock.patch(f"{MODULE}.asyncio.to_thread", new_callable=AsyncMock)
+async def test_load_and_save_checkpoint(mock_to_thread, trigger):
     checkpoint = {SHARD_ID: "123"}
     store = configure_checkpoint_store(trigger, checkpoint)
+    mock_to_thread.side_effect = lambda func, *args, **kwargs: func(*args, **kwargs)
 
-    assert trigger._load_checkpoint() == checkpoint
-    trigger._save_checkpoint(checkpoint)
+    assert await trigger._load_checkpoint() == checkpoint
+    await trigger._save_checkpoint(checkpoint)
 
-    store.get.assert_called_once_with(trigger._build_checkpoint_key(), default={})
-    store.set.assert_called_once_with(trigger._build_checkpoint_key(), checkpoint)
+    store.get.assert_called_once_with(trigger._asset_store_checkpoint_key, default={})
+    store.set.assert_called_once_with(trigger._asset_store_checkpoint_key, checkpoint)
+    assert mock_to_thread.await_args_list == [
+        mock.call(store.get, trigger._asset_store_checkpoint_key, default={}),
+        mock.call(store.set, trigger._asset_store_checkpoint_key, checkpoint),
+    ]
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "checkpoint",
     [
@@ -220,37 +239,39 @@ def test_load_and_save_checkpoint(trigger):
     ],
 )
 @mock.patch.object(KinesisTrigger, "log", new_callable=mock.PropertyMock)
-def test_invalid_checkpoint_falls_back_to_initial_position(mock_log, trigger, checkpoint):
+async def test_invalid_checkpoint_falls_back_to_initial_position(mock_log, trigger, checkpoint):
     configure_checkpoint_store(trigger, checkpoint)
 
-    assert trigger._load_checkpoint() == {}
+    assert await trigger._load_checkpoint() == {}
     mock_log.return_value.warning.assert_called_once()
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("missing_attribute", [True, False])
 @mock.patch.object(KinesisTrigger, "log", new_callable=mock.PropertyMock)
-def test_checkpoint_falls_back_to_memory_without_store(mock_log, trigger, missing_attribute):
+async def test_checkpoint_falls_back_to_memory_without_store(mock_log, trigger, missing_attribute):
     if missing_attribute:
         trigger.__dict__.pop("asset_state_store", None)
     else:
         trigger.asset_state_store = None
 
-    assert trigger._load_checkpoint() == {}
-    trigger._save_checkpoint({SHARD_ID: "123"})
+    assert await trigger._load_checkpoint() == {}
+    await trigger._save_checkpoint({SHARD_ID: "123"})
 
     mock_log.return_value.warning.assert_called_once()
 
 
+@pytest.mark.asyncio
 @mock.patch.object(KinesisTrigger, "log", new_callable=mock.PropertyMock)
-def test_checkpoint_falls_back_to_memory_for_multiple_assets(mock_log, trigger):
+async def test_checkpoint_falls_back_to_memory_for_multiple_assets(mock_log, trigger):
     store = configure_checkpoint_store(trigger, {})
     store.get.side_effect = ValueError
 
-    assert trigger._load_checkpoint() == {}
+    assert await trigger._load_checkpoint() == {}
 
     store.get.side_effect = None
     store.set.side_effect = ValueError
-    trigger._save_checkpoint({SHARD_ID: "123"})
+    await trigger._save_checkpoint({SHARD_ID: "123"})
 
     mock_log.return_value.warning.assert_called_once()
 
@@ -378,7 +399,7 @@ async def test_run_yields_events_and_keeps_running(mock_sleep, hook_property, tr
 
     assert first_event.payload["message_batch"][0]["SequenceNumber"] == "1"
     assert second_event.payload["message_batch"][0]["SequenceNumber"] == "2"
-    store.set.assert_called_once_with(trigger._build_checkpoint_key(), {SHARD_ID: "1"})
+    store.set.assert_called_once_with(trigger._asset_store_checkpoint_key, {SHARD_ID: "1"})
     mock_sleep.assert_awaited_once_with(10)
 
 
@@ -416,7 +437,7 @@ async def test_run_checkpoints_once_after_sweep(mock_sleep, hook_property, trigg
         await anext(generator)
 
     store.set.assert_called_once_with(
-        trigger._build_checkpoint_key(),
+        trigger._asset_store_checkpoint_key,
         {SHARD_ID: "1", CHILD_SHARD_ID: "2"},
     )
 
@@ -435,7 +456,7 @@ async def test_checkpoint_prunes_expired_shards_on_startup(mock_sleep, hook_prop
     with pytest.raises(StopPolling):
         await anext(trigger.run())
 
-    store.set.assert_called_once_with(trigger._build_checkpoint_key(), {SHARD_ID: "1"})
+    store.set.assert_called_once_with(trigger._asset_store_checkpoint_key, {SHARD_ID: "1"})
 
 
 @pytest.mark.asyncio
@@ -468,7 +489,7 @@ async def test_checkpoint_retains_closed_parent(mock_sleep, hook_property, trigg
 
     assert event.payload["message_batch"][0]["SequenceNumber"] == "child-sequence"
     store.set.assert_called_once_with(
-        trigger._build_checkpoint_key(),
+        trigger._asset_store_checkpoint_key,
         {SHARD_ID: "parent-sequence", CHILD_SHARD_ID: "child-sequence"},
     )
 
@@ -504,13 +525,15 @@ async def test_startup_without_checkpoint_honours_configured_position(
 @pytest.mark.asyncio
 @mock.patch.object(KinesisTrigger, "hook", new_callable=mock.PropertyMock)
 @mock.patch(f"{MODULE}.asyncio.sleep", new_callable=AsyncMock)
-async def test_expired_iterator_is_recovered_from_checkpoint(mock_sleep, hook_property, trigger):
+async def test_repeated_expired_iterators_are_recovered_from_checkpoint(mock_sleep, hook_property, trigger):
     client, _ = create_client([{"Shards": [{"ShardId": SHARD_ID}]}])
     client.get_shard_iterator.side_effect = [
         {"ShardIterator": "initial-iterator"},
-        {"ShardIterator": "recovered-iterator"},
+        {"ShardIterator": "first-recovered-iterator"},
+        {"ShardIterator": "second-recovered-iterator"},
     ]
     client.get_records.side_effect = [
+        ExpiredIteratorException,
         ExpiredIteratorException,
         {"Records": [create_record("124")], "NextShardIterator": "next-iterator"},
     ]
@@ -533,8 +556,33 @@ async def test_expired_iterator_is_recovered_from_checkpoint(mock_sleep, hook_pr
             ShardIteratorType="AFTER_SEQUENCE_NUMBER",
             StartingSequenceNumber="123",
         ),
+        mock.call(
+            StreamName=STREAM_NAME,
+            ShardId=SHARD_ID,
+            ShardIteratorType="AFTER_SEQUENCE_NUMBER",
+            StartingSequenceNumber="123",
+        ),
     ]
     mock_sleep.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_expired_iterator_retry_limit(trigger):
+    client, _ = create_client([])
+    client.get_records.side_effect = ExpiredIteratorException
+    client.get_shard_iterator.return_value = {"ShardIterator": "recovered-iterator"}
+
+    with pytest.raises(ExpiredIteratorException):
+        await trigger._get_records(
+            client,
+            SHARD_ID,
+            "initial-iterator",
+            "123",
+            "LATEST",
+        )
+
+    assert client.get_records.await_count == 3
+    assert client.get_shard_iterator.await_count == 2
 
 
 @pytest.mark.asyncio

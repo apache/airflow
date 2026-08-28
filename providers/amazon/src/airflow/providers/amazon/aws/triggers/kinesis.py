@@ -21,6 +21,7 @@ import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.kinesis import KinesisHook
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 
 _CHECKPOINT_KEY_PREFIX = "kinesis_shard_sequence_numbers"
+_EXPIRED_ITERATOR_RETRIES = 2
 _ITERATOR_TYPES_WITHOUT_EXTRA_ARGS = frozenset({"LATEST", "TRIM_HORIZON"})
 
 
@@ -57,6 +59,8 @@ class KinesisTrigger(BaseEventTrigger):
     :param aws_conn_id: AWS connection id.
     :param shard_iterator_type: Position used when a shard has no checkpoint. ``LATEST`` only sees records
         that arrive after the watcher starts; ``TRIM_HORIZON`` starts from the oldest retained record.
+        Only these types are supported because ``AT_TIMESTAMP`` requires a timestamp and sequence-number
+        types require a starting sequence number for each shard. Checkpoints handle resuming each shard.
     :param batch_size: Maximum records per ``GetRecords`` call and trigger event. Must be between 1 and
         10,000. Record data is base64-encoded before it is stored in the metadata database, so use a
         conservative value for large records.
@@ -126,7 +130,8 @@ class KinesisTrigger(BaseEventTrigger):
             config=self.botocore_config,
         )
 
-    def _build_checkpoint_key(self) -> str:
+    @cached_property
+    def _asset_store_checkpoint_key(self) -> str:
         identity = json.dumps(
             {
                 "stream_name": self.stream_name,
@@ -144,7 +149,7 @@ class KinesisTrigger(BaseEventTrigger):
         self.log.warning(message)
         self._checkpoint_warning_logged = True
 
-    def _load_checkpoint(self) -> dict[str, str]:
+    async def _load_checkpoint(self) -> dict[str, str]:
         store = getattr(self, "asset_state_store", None)
         if store is None:
             self._log_checkpoint_warning_once(
@@ -153,7 +158,9 @@ class KinesisTrigger(BaseEventTrigger):
             return {}
 
         try:
-            checkpoint = store.get(self._build_checkpoint_key(), default={}) or {}
+            checkpoint = (
+                await asyncio.to_thread(store.get, self._asset_store_checkpoint_key, default={}) or {}
+            )
         except ValueError:
             self._log_checkpoint_warning_once(
                 "Kinesis checkpointing requires a single watched asset; using an in-memory cursor"
@@ -170,7 +177,7 @@ class KinesisTrigger(BaseEventTrigger):
             return {}
         return dict(checkpoint)
 
-    def _save_checkpoint(self, sequence_numbers: dict[str, str]) -> None:
+    async def _save_checkpoint(self, sequence_numbers: dict[str, str]) -> None:
         store = getattr(self, "asset_state_store", None)
         if store is None:
             self._log_checkpoint_warning_once(
@@ -179,7 +186,11 @@ class KinesisTrigger(BaseEventTrigger):
             return
 
         try:
-            store.set(self._build_checkpoint_key(), dict(sequence_numbers))
+            await asyncio.to_thread(
+                store.set,
+                self._asset_store_checkpoint_key,
+                dict(sequence_numbers),
+            )
         except ValueError:
             self._log_checkpoint_warning_once(
                 "Kinesis checkpointing requires a single watched asset; using an in-memory cursor"
@@ -232,22 +243,24 @@ class KinesisTrigger(BaseEventTrigger):
         after_sequence_number: str | None,
         fallback_iterator_type: str,
     ) -> dict[str, Any]:
-        try:
-            return await client.get_records(
-                ShardIterator=shard_iterator,
-                Limit=self.batch_size,
-            )
-        except client.exceptions.ExpiredIteratorException:
-            shard_iterator = await self._get_shard_iterator(
-                client,
-                shard_id,
-                after_sequence_number,
-                fallback_iterator_type,
-            )
-            return await client.get_records(
-                ShardIterator=shard_iterator,
-                Limit=self.batch_size,
-            )
+        for _ in range(_EXPIRED_ITERATOR_RETRIES):
+            try:
+                return await client.get_records(
+                    ShardIterator=shard_iterator,
+                    Limit=self.batch_size,
+                )
+            except client.exceptions.ExpiredIteratorException:
+                shard_iterator = await self._get_shard_iterator(
+                    client,
+                    shard_id,
+                    after_sequence_number,
+                    fallback_iterator_type,
+                )
+
+        return await client.get_records(
+            ShardIterator=shard_iterator,
+            Limit=self.batch_size,
+        )
 
     @staticmethod
     def _build_event_records(shard_id: str, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -265,7 +278,7 @@ class KinesisTrigger(BaseEventTrigger):
         return event_records
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        loaded_sequence_numbers = self._load_checkpoint()
+        loaded_sequence_numbers = await self._load_checkpoint()
 
         async with await self.hook.get_async_conn() as client:
             shard_ids = await self._find_shard_ids(client)
@@ -330,7 +343,7 @@ class KinesisTrigger(BaseEventTrigger):
                         iterators[shard_id] = next_shard_iterator
 
                 if checkpoint_dirty:
-                    self._save_checkpoint(sequence_numbers)
+                    await self._save_checkpoint(sequence_numbers)
                     checkpoint_dirty = False
 
                 await asyncio.sleep(self.waiter_delay)
