@@ -439,6 +439,9 @@ def test_process_log_messages_renders_exceptions_from_the_triggerer_itself(
 ):
     """The triggerer's own log is read as text, so the exception dicts become a stack trace."""
     supervisor = supervisor_builder()
+    # Priming the generator calls configure_logging(), which reconfigures structlog globally
+    # and would replace the capture cap_structlog installed. Keep the patch.
+    mocker.patch("airflow.sdk.log.configure_logging")
     mocker.patch("airflow.sdk.log.logging_processors")
 
     gen = supervisor._process_log_messages_from_subprocess()
@@ -492,6 +495,8 @@ def test_process_log_messages_keeps_an_unrecognised_exception_payload(
 ):
     """A payload that is not transformer output is passed through rather than dropped."""
     supervisor = supervisor_builder()
+    # Same reason as the test above: priming reconfigures structlog and drops the capture.
+    mocker.patch("airflow.sdk.log.configure_logging")
     mocker.patch("airflow.sdk.log.logging_processors")
     payload = {"not": "a transformer payload"}
 
