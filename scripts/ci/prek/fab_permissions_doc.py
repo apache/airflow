@@ -49,7 +49,12 @@ FAB_SRC = REPO_ROOT / "providers/fab/src/airflow/providers/fab"
 PERMISSIONS_PY = FAB_SRC / "www/security/permissions.py"
 AUTH_MANAGER_PY = FAB_SRC / "auth_manager/fab_auth_manager.py"
 SECURITY_MANAGER_PY = FAB_SRC / "auth_manager/security_manager/override.py"
-OUTPUT_RST = REPO_ROOT / "providers/fab/docs/auth-manager/_api_permissions_table.rst"
+# The table is written in place, between markers, inside the access-control page.
+# A separate fragment file cannot live here: every ``.rst`` under the docs tree is
+# scanned as a document, so a title-less include fragment trips the glob toctree.
+OUTPUT_RST = REPO_ROOT / "providers/fab/docs/auth-manager/access-control.rst"
+BEGIN_MARKER = ".. BEGIN GENERATED PERMISSIONS TABLE"
+END_MARKER = ".. END GENERATED PERMISSIONS TABLE"
 
 # FAB serves its own user and role management endpoints from a separate router, using
 # ``requires_fab_custom_view`` rather than the core ``requires_access_*`` helpers. They
@@ -326,28 +331,6 @@ def _fab_route_entries() -> list[tuple[str, str, str, str]]:
     return rows
 
 
-# The generated file must carry the ASF header itself; otherwise the ``insert-license``
-# hook adds it and this generator strips it back out on the next run.
-RST_LICENSE_HEADER = """\
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
- ..   http://www.apache.org/licenses/LICENSE-2.0
-
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-"""
-
-
 def render_rst(entries: list[PermissionEntry]) -> str:
     rows = []
     for entry in sorted(entries):
@@ -366,8 +349,9 @@ def render_rst(entries: list[PermissionEntry]) -> str:
 
     head = ("Endpoint", "Method", "Permissions", "Minimum role")
     lines = [
-        *RST_LICENSE_HEADER.split("\n"),
-        ".. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.",
+        BEGIN_MARKER,
+        "",
+        ".. THE TABLE BELOW IS AUTO-GENERATED. DO NOT EDIT IT MANUALLY.",
         "   Regenerate with:  python scripts/ci/prek/fab_permissions_doc.py",
         "   Trigger:          prek run generate-fab-permissions-doc --all-files",
         "",
@@ -387,6 +371,7 @@ def render_rst(entries: list[PermissionEntry]) -> str:
             f"     - {row_perms}",
             f"     - {row_role}",
         ]
+    lines += ["", END_MARKER]
     return "\n".join(lines) + "\n"
 
 
@@ -399,21 +384,31 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
-    content = render_rst(entries)
+    table = render_rst(entries)
 
     if args.print_only:
-        print(content)
+        print(table)
         return 0
 
+    current = OUTPUT_RST.read_text(encoding="utf-8")
+    start = current.find(BEGIN_MARKER)
+    end = current.find(END_MARKER)
+    if start == -1 or end == -1:
+        print(f"[FAIL] {OUTPUT_RST} is missing the generated-table markers.", file=sys.stderr)
+        return 1
+    updated = current[:start] + table + current[end + len(END_MARKER) + 1 :]
+
     if args.check:
-        if not OUTPUT_RST.exists() or OUTPUT_RST.read_text(encoding="utf-8") != content:
-            print(f"[FAIL] {OUTPUT_RST} is stale. Run: python {pathlib.Path(__file__).name}", file=sys.stderr)
+        if current != updated:
+            print(
+                f"[FAIL] {OUTPUT_RST} is stale. Run: python {pathlib.Path(__file__).name}",
+                file=sys.stderr,
+            )
             return 1
         print(f"[OK] {OUTPUT_RST} is up to date.")
         return 0
 
-    OUTPUT_RST.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_RST.write_text(content, encoding="utf-8")
+    OUTPUT_RST.write_text(updated, encoding="utf-8")
     return 0
 
 
