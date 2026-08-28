@@ -36,4 +36,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "airflow-java-sdk"
-include("bom", "jpl", "jul", "log4j2", "plugin", "processor", "sdk", "slf4j")
+include("bom", "jpl", "jul", "log4j2", "plugin", "processor", "scripts", "sdk", "slf4j")
