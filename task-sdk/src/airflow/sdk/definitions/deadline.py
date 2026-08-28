@@ -152,10 +152,12 @@ class DeadlineAlert:
         interval: timedelta | VariableInterval,
         callback: Callback,
         name: str | None = None,
+        fire_on_failure: bool = False,
     ):
         self.reference = reference
         self.interval = interval
         self.name = name
+        self.fire_on_failure = fire_on_failure
 
         if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
@@ -168,6 +170,7 @@ class DeadlineAlert:
             isinstance(self.reference, type(other.reference))
             and self.interval == other.interval
             and self.callback == other.callback
+            and self.fire_on_failure == other.fire_on_failure
         )
 
     def __hash__(self) -> int:
@@ -176,6 +179,7 @@ class DeadlineAlert:
                 type(self.reference).__name__,
                 self.interval,
                 self.callback,
+                self.fire_on_failure,
             )
         )
 

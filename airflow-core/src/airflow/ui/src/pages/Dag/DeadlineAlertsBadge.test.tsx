@@ -58,6 +58,7 @@ const { useDeadlinesServiceGetDagDeadlineAlerts } = await import("openapi/querie
 // popover claims the run must complete within a few seconds of its logical date.
 const baseAlert: DeadlineAlertResponse = {
   created_at: "2025-01-01T00:00:00Z",
+  fire_on_failure: false,
   id: "alert-1",
   interval: null,
   name: null,
