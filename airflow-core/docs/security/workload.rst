@@ -52,7 +52,7 @@ not set.
     default_impersonation = airflow
 
 What impersonation does not cover
-''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''
 
 Impersonation applies to task **execution**. It does not apply to Dag file **parsing**.
 
