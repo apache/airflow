@@ -17,12 +17,13 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
 
 import { ConfirmationModal } from "./ConfirmationModal";
-import { Switch, type SwitchProps } from "./ui";
+import { Switch, Tooltip, type SwitchProps } from "./ui";
 
 type Props = {
   readonly dagDisplayName?: string;
@@ -33,7 +34,7 @@ type Props = {
 
 export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-
+  const { t: translate } = useTranslation();
   const { mutate: togglePause } = useTogglePause({ dagId });
   const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
 
@@ -47,20 +48,19 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...r
 
   const onChange = () => (showConfirmation && skipConfirm !== true ? onOpen() : onToggle());
 
+  const label = `${isPaused ? translate("common:unpause") : translate("common:pause")} ${dagDisplayName ?? dagId}`;
+
   return (
     <>
-      <Switch
-        checked={isPaused === undefined ? undefined : !isPaused}
-        data-testid="toggle-pause"
-        onCheckedChange={onChange}
-        {...rest}
-      />
-      <ConfirmationModal
-        header={`${isPaused ? "Unpause" : "Pause"} ${dagDisplayName ?? dagId}?`}
-        onConfirm={onToggle}
-        onOpenChange={onClose}
-        open={open}
-      />
+      <Tooltip content={label}>
+        <Switch
+          checked={isPaused === undefined ? undefined : !isPaused}
+          data-testid="toggle-pause"
+          onCheckedChange={onChange}
+          {...rest}
+        />
+      </Tooltip>
+      <ConfirmationModal header={`${label}?`} onConfirm={onToggle} onOpenChange={onClose} open={open} />
     </>
   );
 };

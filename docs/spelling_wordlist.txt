@@ -15,6 +15,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -52,6 +53,7 @@ alibaba
 alibabacloud
 allAuthenticatedUsers
 allowlist
+allowlists
 allUsers
 alphanumerics
 amazonaws
@@ -176,7 +178,9 @@ baseoperatorlink
 BaseView
 BaseXCom
 bashrc
+BatchClient
 batchGet
+BatchNodeState
 BatchServiceClient
 bc
 bcc
@@ -238,6 +242,7 @@ charset
 chatbot
 chatbots
 CheckOperator
+checkpointed
 checksums
 childs
 chmod
@@ -312,6 +317,7 @@ containerConfiguration
 containerd
 ContainerGroup
 containerinstance
+containerised
 ContainerPort
 contentUrl
 contextmgr
@@ -319,6 +325,7 @@ contrib
 convertToIri
 cooldown
 copyable
+coreutils
 CoreV
 coroutine
 cosmosdb
@@ -391,6 +398,8 @@ dataframes
 DataFusion
 Datafusion
 datafusion
+Datagram
+datagram
 Datalake
 datamodel
 Datanodes
@@ -461,6 +470,7 @@ deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
@@ -1069,9 +1079,12 @@ metastore
 metavar
 mget
 mgmt
+MiB
 microservice
 microservices
 microsoft
+microVM
+microVMs
 middleware
 middlewares
 midnights
@@ -1146,6 +1159,8 @@ nohup
 nonnegative
 nonterminal
 noqa
+Normalised
+normalised
 normalizer
 NotFound
 notificationChannels
@@ -1396,6 +1411,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1485,6 +1501,7 @@ sanitization
 sas
 Sasl
 sasl
+sbx
 scala
 scalability
 scalable
@@ -1518,6 +1535,7 @@ sendgrid
 sentimentMax
 ser
 serde
+serialisation
 serialise
 serializable
 SerializedDAG
@@ -1882,6 +1900,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1912,6 +1931,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 Wheeler

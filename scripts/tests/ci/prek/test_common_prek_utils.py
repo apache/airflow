@@ -27,8 +27,10 @@ from ci.prek.common_prek_utils import (
     get_imports_from_file,
     get_provider_base_dir_from_path,
     get_provider_id_from_path,
+    get_provider_namespace_from_path,
     initialize_breeze_prek,
     insert_documentation,
+    is_duplicated_namespace_init,
     is_hidden_within_root,
     pre_process_mypy_files,
     read_airflow_version,
@@ -539,6 +541,95 @@ class TestGetProviderBaseDirFromPath:
         test_file.touch()
         result = get_provider_base_dir_from_path(test_file)
         assert result == outer
+
+
+class TestGetProviderNamespaceFromPath:
+    @pytest.mark.parametrize(
+        ("provider_path", "expected"),
+        [
+            pytest.param("providers/apache/hive", "apache", id="nested-provider"),
+            pytest.param("providers/acme/widget", "acme", id="unknown-nested-provider"),
+            pytest.param("providers/amazon", None, id="top-level-provider"),
+        ],
+    )
+    def test_namespace_comes_from_the_directory_tree(self, create_provider_tree, provider_path, expected):
+        assert get_provider_namespace_from_path(create_provider_tree(provider_path)) == expected
+
+    def test_returns_none_outside_any_provider(self, tmp_path):
+        unrelated = tmp_path / "file.py"
+        unrelated.touch()
+        assert get_provider_namespace_from_path(unrelated) is None
+
+
+class TestIsDuplicatedNamespaceInit:
+    @staticmethod
+    def _make_provider(tmp_path, provider_path: str, init_relative_path: str):
+        provider_dir = tmp_path / provider_path
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").touch()
+        init_file = provider_dir / init_relative_path
+        init_file.parent.mkdir(parents=True, exist_ok=True)
+        init_file.touch()
+        return init_file
+
+    @pytest.mark.parametrize(
+        ("provider_path", "init_relative_path", "expected"),
+        [
+            pytest.param(
+                "providers/apache/hive",
+                "src/airflow/providers/apache/__init__.py",
+                True,
+                id="src-namespace-init",
+            ),
+            pytest.param(
+                "providers/apache/hive", "tests/unit/apache/__init__.py", True, id="unit-namespace-init"
+            ),
+            pytest.param(
+                "providers/apache/hive",
+                "tests/integration/apache/__init__.py",
+                True,
+                id="integration-namespace-init",
+            ),
+            pytest.param(
+                "providers/apache/hive", "tests/system/apache/__init__.py", True, id="system-namespace-init"
+            ),
+            pytest.param(
+                "providers/acme/widget",
+                "src/airflow/providers/acme/__init__.py",
+                True,
+                id="unknown-namespace-init",
+            ),
+            pytest.param(
+                "providers/apache/hive",
+                "src/airflow/providers/apache/hive/__init__.py",
+                False,
+                id="provider-own-init-is-unique",
+            ),
+            pytest.param(
+                "providers/amazon",
+                "src/airflow/providers/amazon/__init__.py",
+                False,
+                id="top-level-provider-init-is-unique",
+            ),
+            pytest.param(
+                "providers/apache/hive",
+                "src/airflow/providers/apache/hive/hooks/hive.py",
+                False,
+                id="not-an-init-file",
+            ),
+        ],
+    )
+    def test_only_repeated_namespace_inits_are_reported(
+        self, tmp_path, provider_path, init_relative_path, expected
+    ):
+        init_file = self._make_provider(tmp_path, provider_path, init_relative_path)
+        assert is_duplicated_namespace_init(init_file) is expected
+
+    def test_returns_false_outside_any_provider(self, tmp_path):
+        unrelated = tmp_path / "airflow" / "providers" / "apache" / "__init__.py"
+        unrelated.parent.mkdir(parents=True)
+        unrelated.touch()
+        assert is_duplicated_namespace_init(unrelated) is False
 
 
 class TestInitializeBreezePrek:

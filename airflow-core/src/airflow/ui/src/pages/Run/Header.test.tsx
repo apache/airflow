@@ -34,7 +34,7 @@ vi.mock("src/components/Clear", () => ({ ClearRunButton: () => undefined }));
 vi.mock("src/components/MarkAs", () => ({ MarkRunAsButton: () => undefined }));
 vi.mock("src/components/NeedsReviewButton", () => ({ NeedsReviewButtonWithModal: () => undefined }));
 vi.mock("src/pages/DagRuns/DeleteRunButton", () => ({ default: () => undefined }));
-vi.mock("src/components/NotePreview", () => ({ default: () => undefined }));
+vi.mock("src/components/NotePreview", () => ({ NotePreview: () => undefined }));
 
 vi.mock("openapi/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof OpenapiQueries>();

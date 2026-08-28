@@ -416,17 +416,19 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <TaskInstancesFilter />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<TaskInstancesFilter />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
+        total={data?.total_entries ?? 0}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>

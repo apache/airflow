@@ -41,18 +41,21 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
-# Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "ibm", "microsoft"]
-
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
-# Maps a Docker build platform string (as declared in ``provider.yaml`` under
-# ``excluded-platforms``) to the ``platform_machine`` values Python reports on that
-# architecture. ``linux/arm64`` covers both Linux (``aarch64``) and macOS Apple Silicon
-# (``arm64``) so a provider opting out of ARM is never pulled in on any ARM machine where
-# its native dependency cannot be built.
+# Maps a platform string (as declared in ``provider.yaml`` under ``excluded-platforms``)
+# to the ``platform_machine`` values Python reports there. The two ARM spellings are not
+# synonyms: ``platform.machine()`` returns ``aarch64`` on Linux and ``arm64`` on macOS, so
+# each platform excludes exactly one of them. A provider whose native dependency is
+# unavailable on every ARM target lists both platforms; one that only lacks a Linux ARM
+# build lists ``linux/arm64`` alone and stays installable on Apple Silicon.
+#
+# Only the ``linux/*`` entries correspond to CI matrix platforms (see ``CI_PLATFORMS``);
+# ``darwin/arm64`` never matches a CI run and exists purely to drive the install-time
+# marker.
 EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
-    "linux/arm64": ["aarch64", "arm64"],
+    "linux/arm64": ["aarch64"],
+    "darwin/arm64": ["arm64"],
 }
 
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
@@ -589,6 +592,30 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
         if (parent / "provider.yaml").exists():
             return parent
     return None
+
+
+def get_provider_namespace_from_path(file_path: Path) -> str | None:
+    """Get the namespace of the nested provider the file belongs to, None if it is not nested."""
+    provider_id = get_provider_id_from_path(file_path)
+    if not provider_id or "." not in provider_id:
+        return None
+    return provider_id.split(".")[0]
+
+
+def is_duplicated_namespace_init(file_path: Path) -> bool:
+    """Check whether the file is a namespace ``__init__.py`` repeated across the namespace."""
+    if file_path.name != "__init__.py":
+        return False
+    namespace = get_provider_namespace_from_path(file_path)
+    base_dir = get_provider_base_dir_from_path(file_path)
+    if namespace is None or base_dir is None:
+        return False
+    return file_path.relative_to(base_dir).parts in {
+        ("src", "airflow", "providers", namespace, "__init__.py"),
+        ("tests", "unit", namespace, "__init__.py"),
+        ("tests", "integration", namespace, "__init__.py"),
+        ("tests", "system", namespace, "__init__.py"),
+    }
 
 
 def get_all_provider_ids(

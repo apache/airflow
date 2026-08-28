@@ -22,17 +22,24 @@ TypeScript SDK
 
 |experimental|
 
-The TypeScript SDK lets you implement Airflow task logic in TypeScript (or plain JavaScript), running on
-Node.js. The Dag and its scheduling remain in Python; individual tasks delegate to a Node.js subprocess that
-is spawned by :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
+The TypeScript SDK lets you group task handlers in a ``Dag`` and implement their logic in TypeScript (or
+plain JavaScript), running on Node.js. A matching Python stub Dag still declares the scheduling shape and
+dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is the ``@apache-airflow/ts-sdk`` package (ESM-only). It is currently in **alpha** and its API may change.
+The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in **beta** and its API may change.
 
 .. warning::
 
-  The SDK is not yet published to npm. To try it today, build it from source in the
-  `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and
-  depend on it locally (see ``ts-sdk/example/`` for a working setup).
+  Install an available release from npm. To try an unreleased change, build it from source in the
+  `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository
+  and depend on it locally (see ``ts-sdk/example/`` for a working setup).
+
+.. seealso::
+
+  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, task handlers,
+  ``TaskClient``, supporting types, and exceptions),
+  see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
 .. contents:: Contents
    :local:
@@ -46,6 +53,11 @@ Prerequisites
   the worker, under a directory the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
+* In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
+
+  .. code-block:: bash
+
+      npm install apache-airflow-ts-sdk
 
 Quick start
 -----------
@@ -81,13 +93,14 @@ value routes the task to the Node.js coordinator.
 TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Register it with the
-``dag_id`` and ``task_id`` it implements, then start the coordinator runtime; the registrations and the
-top-level ``await startCoordinator()`` make the module a runnable bundle entry point.
+A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
+the ``dag_id`` it implements, attach each handler with ``dag.task``, collect the Dags in a ``DagRegistry``,
+then serve them to Airflow with ``serveDags``; that top-level ``await`` makes the module a runnable bundle
+entry point.
 
 .. code-block:: typescript
 
-    import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
     export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
       const upstream = await client.getXCom<string>({
@@ -98,12 +111,22 @@ top-level ``await startCoordinator()`` make the module a runnable bundle entry p
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
 
-    registerTask({ dagId: "typescript_example", taskId: "build_message" }, buildMessage);
+    const dag = new Dag("typescript_example");
+    dag.task("build_message", buildMessage);
 
-    await startCoordinator();
+    await serveDags(new DagRegistry(dag));
 
-The ``dagId`` passed to ``registerTask`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-must match a ``@task.stub`` function in that Dag.
+The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
+passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. The registry passed to
+``serveDags`` is the bundle's complete set of Dags; a second ``serveDags`` call is rejected. A Dag left out
+of the registry is not part of the packed bundle, and its tasks are marked removed at runtime.
+
+``DagRegistry`` holds no sockets and starts nothing, so a unit test can build one and dispatch a handler
+through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
+its Dags across several modules can add them incrementally with ``registry.register(...)``.
+
+``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
+These are not used yet; do not set them. Any other key is rejected.
 
 .. note::
 
@@ -241,8 +264,12 @@ a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the `
 map plus the supervisor schema version) as a leading ``//# airflowMetadata=<base64>`` comment — one file to
 deploy, with no separate manifest or ``node_modules``.
 
+``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
+``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
+
 .. code-block:: bash
 
+    npm install --save-dev esbuild
     npx airflow-ts-pack src/main.ts --outdir dist
 
 Use ``--outdir <dir>`` to choose the output directory (default ``dist``) and ``--source <name>`` to set the
@@ -272,8 +299,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``bundles_root``
      - *(required)*
-     - One or more directories searched, in order, for a ``bundle.mjs`` (with embedded metadata, or with an
-       ``airflow-metadata.yaml`` sidecar). Accepts a string, a path, or a list of strings/paths.
+     - One or more directories searched, in order, for a ``bundle.mjs`` with embedded metadata. Accepts a
+       string, a path, or a list of strings/paths.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -288,7 +315,7 @@ Limitations
 * **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
   languages, so task names and dependencies are declared in Python with
   :func:`@task.stub <airflow.sdk.task.stub>`.
-* **Alpha status.** The SDK API may change in incompatible ways between releases.
+* **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One bundle per coordinator.** :class:`~airflow.sdk.coordinators.node.NodeCoordinator` launches the first
   usable bundle found in ``bundles_root``; it does not yet route different Dags or tasks to different
   bundles. To serve multiple bundles, register multiple coordinators on separate queues.

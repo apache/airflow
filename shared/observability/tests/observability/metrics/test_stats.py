@@ -54,7 +54,7 @@ def get_statsd_logger_factory(
     metrics_block_list: str | None = None,
     stat_name_handler: Callable[[str], str] | None = None,
 ):
-    return lambda: statsd_logger.get_statsd_logger(
+    return lambda: statsd_logger.get_udp_statsd_logger(
         stats_class=stats_class,
         host="localhost",
         port="1234",
@@ -66,10 +66,29 @@ def get_statsd_logger_factory(
 
 
 class TestGetStatsdLogger:
-    @mock.patch("statsd.StatsClient")
-    def test_passes_ipv6_as_keyword(self, mock_stats_client):
-        statsd_logger.get_statsd_logger(stats_class=mock_stats_client, ipv6=True)
-        assert mock_stats_client.call_args.kwargs["ipv6"] is True
+    def test_passes_ipv6_as_keyword(self):
+        with mock.patch.object(statsd.StatsClient, "__init__", return_value=None) as mock_init:
+            statsd_logger.get_udp_statsd_logger(stats_class=statsd.StatsClient, host="h", port=1, ipv6=True)
+        assert mock_init.call_args.kwargs["ipv6"] is True
+
+    def test_socket_path_constructs_stats_class_with_socket_path(self):
+        with mock.patch.object(statsd.UnixSocketStatsClient, "__init__", return_value=None) as mock_init:
+            statsd_logger.get_socket_statsd_logger(
+                stats_class=statsd.UnixSocketStatsClient,
+                socket_path="/var/run/datadog/dsd.socket",
+                prefix="airflow",
+            )
+        mock_init.assert_called_once_with(socket_path="/var/run/datadog/dsd.socket", prefix="airflow")
+
+    def test_no_stats_class_with_socket_path_uses_unix_client(self):
+        with mock.patch.object(statsd.UnixSocketStatsClient, "__init__", return_value=None):
+            result = statsd_logger.get_socket_statsd_logger(socket_path="/var/run/datadog/dsd.socket")
+        assert isinstance(result.statsd, statsd.UnixSocketStatsClient)
+
+    def test_no_stats_class_without_socket_path_uses_stats_client(self):
+        with mock.patch.object(statsd.StatsClient, "__init__", return_value=None):
+            result = statsd_logger.get_udp_statsd_logger(host="localhost", port=8125)
+        assert isinstance(result.statsd, statsd.StatsClient)
 
 
 class TestStats:
@@ -740,17 +759,20 @@ class TestLegacyExport:
 
 class TestCustomStatsName:
     def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self):
-        with mock.patch("statsd.StatsClient") as mock_statsd:
+        with (
+            mock.patch.object(statsd.StatsClient, "__init__", return_value=None),
+            mock.patch.object(statsd.StatsClient, "incr") as mock_incr,
+        ):
             importlib.reload(airflow_shared.observability.metrics.stats)
             airflow_shared.observability.metrics.stats.initialize(
                 factory=get_statsd_logger_factory(
-                    stats_class=mock_statsd,
+                    stats_class=statsd.StatsClient,
                     stat_name_handler=always_invalid,
                 ),
                 export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
-            mock_statsd.return_value.assert_not_called()
+        mock_incr.assert_not_called()
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self):
@@ -768,18 +790,33 @@ class TestCustomStatsName:
             airflow_shared.observability.metrics.stats.incr("empty_key")
             mock_dogstatsd.return_value.assert_not_called()
 
+    @skip_if_force_lowest_dependencies_marker
+    def test_dogstatsd_socket_path_passed_and_host_port_omitted(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            datadog_logger.get_dogstatsd_logger(
+                socket_path="unix:///var/run/datadog/dsd.socket",
+                namespace="airflow",
+            )
+            _, kwargs = mock_dogstatsd.call_args
+            assert kwargs["socket_path"] == "unix:///var/run/datadog/dsd.socket"
+            assert "host" not in kwargs
+            assert "port" not in kwargs
+
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self):
-        with mock.patch("statsd.StatsClient") as mock_statsd:
+        with (
+            mock.patch.object(statsd.StatsClient, "__init__", return_value=None),
+            mock.patch.object(statsd.StatsClient, "incr") as mock_incr,
+        ):
             importlib.reload(airflow_shared.observability.metrics.stats)
             airflow_shared.observability.metrics.stats.initialize(
                 factory=get_statsd_logger_factory(
-                    stats_class=mock_statsd,
+                    stats_class=statsd.StatsClient,
                     stat_name_handler=always_valid,
                 ),
                 export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
-            mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
+        mock_incr.assert_called_once_with("empty_key", 1, 1)
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self):

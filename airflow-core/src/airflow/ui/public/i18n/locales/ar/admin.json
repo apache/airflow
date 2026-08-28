@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "القسم"
-    },
-    "title": "Airflow إعدادات"
+    }
   },
   "connections": {
     "add": "إضافة موَّصل",
