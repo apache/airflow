@@ -64,7 +64,11 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
+from airflow.jobs.scheduler_job_runner import (
+    SCHEDULER_DAG_CACHE_SIZE,
+    SchedulerJobRunner,
+    _resolve_ti_callback_bundle_info,
+)
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -13097,11 +13101,7 @@ def _extract_bundle_name(ti):
 
 def _extract_bundle_version(ti):
     """Mirror the inline fallback logic from scheduler_job_runner.py."""
-    return (
-        ti.dag_version.bundle_version
-        if ti.dag_version and ti.dag_run.bundle_version is not None
-        else ti.dag_run.bundle_version
-    )
+    return ti.dag_run.bundle_version
 
 
 class TestSchedulerCallbackBundleInfoDagVersionNullable:
@@ -13109,7 +13109,7 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
     Verify the bundle_name / bundle_version extraction logic used at all five
     TaskCallbackRequest / EmailRequest creation sites in scheduler_job_runner.py.
 
-    When dag_version is present  -> use dag_version.bundle_name / bundle_version.
+    When dag_version is present  -> use its bundle_name and the DagRun's stable bundle_version.
     When dag_version is None     -> fall back to dag_model.bundle_name / dag_run.bundle_version.
     """
 
@@ -13129,7 +13129,7 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
         ti = _make_ti_with_dag_version(dag_version=dv, dag_model_bundle_name="SHOULD-NOT-USE")
 
         assert _extract_bundle_name(ti) == dv_bundle_name
-        assert _extract_bundle_version(ti) == dv_bundle_version
+        assert _extract_bundle_version(ti) == "v1.0-fallback"
 
     # ── With dag_version None (legacy Airflow 2 task) ─────────────────────
 
@@ -13174,10 +13174,9 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
         assert isinstance(name, str)
         assert version is None or isinstance(version, str)
 
-    # ── Precedence: dag_version wins over fallback ─────────────────────────
+    # ── Precedence: DagVersion owns the name; DagRun owns the version ──────
 
-    def test_dag_version_takes_precedence_over_fallback_values(self):
-        """When dag_version is set, dag_model/dag_run fallbacks must NOT be used."""
+    def test_dag_version_name_and_dag_run_version_take_precedence(self):
         dv = _make_dag_version(bundle_name="preferred-bundle", bundle_version="preferred-v1")
         ti = _make_ti_with_dag_version(
             dag_version=dv,
@@ -13186,7 +13185,7 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
         )
 
         assert _extract_bundle_name(ti) == "preferred-bundle"
-        assert _extract_bundle_version(ti) == "preferred-v1"
+        assert _extract_bundle_version(ti) == "fallback-v1"
 
     def test_fallback_values_used_only_when_dag_version_is_none(self):
         """When dag_version is None, fallback values must be used."""
@@ -13213,6 +13212,20 @@ class TestSchedulerCallbackBundleInfoDagVersionNullable:
         assert _extract_bundle_name(ti) == "my-bundle"
         # but bundle_version follows the dag_run's unpinned state
         assert _extract_bundle_version(ti) is None
+
+    def test_callback_uses_run_version_when_dag_version_advances(self):
+        current_dag_version = _make_dag_version(bundle_name="my-bundle", bundle_version="new-version")
+        current_dag_version.version_data = {"manifest": "new"}
+        ti = _make_ti_with_dag_version(
+            dag_version=current_dag_version,
+            dag_run_bundle_version="old-version",
+        )
+
+        bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
+
+        assert bundle_name == "my-bundle"
+        assert bundle_version == "old-version"
+        assert version_data is None
 
 
 def _make_scheduler_runner_for_connection_tests(

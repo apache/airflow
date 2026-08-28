@@ -434,6 +434,29 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     assert request.version_data == version_data
 
 
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_callback_uses_run_version_after_dag_version_advances(
+    mock_send, session, create_task_instance
+):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.dag_run.bundle_version = "old-version"
+    task_instance.dag_version.bundle_version = "new-version"
+    task_instance.dag_version.version_data = {"manifest": "new"}
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.bundle_version == "old-version"
+    assert request.version_data is None
+
+
 @pytest.mark.parametrize(
     ("retries", "expected_state", "expected_callback_type", "expect_history_row"),
     [

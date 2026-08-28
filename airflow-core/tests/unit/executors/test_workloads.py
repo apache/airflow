@@ -228,6 +228,7 @@ class TestExecuteTaskMakeVersionData:
         ti.dag_version.version_data = ti_dag_version_data
 
         if has_created_dag_version:
+            ti.dag_run.created_dag_version.bundle_version = bundle_version
             ti.dag_run.created_dag_version.version_data = version_data
         else:
             ti.dag_run.created_dag_version = None
@@ -303,6 +304,7 @@ class TestExecuteCallbackMakeVersionData:
         dag_run.dag_model.bundle_name = "test-bundle"
         dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
         if has_created_dag_version:
+            dag_run.created_dag_version.bundle_version = bundle_version
             dag_run.created_dag_version.version_data = version_data
         else:
             dag_run.created_dag_version = None
