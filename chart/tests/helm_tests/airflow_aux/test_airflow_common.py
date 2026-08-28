@@ -475,6 +475,19 @@ class TestAirflowCommon:
             names = {env["name"] for env in container.get("env", [])}
             assert not (names & metadata_db_vars), f"metadata DB env in {container['name']}"
 
+    def test_worker_migration_init_container_keeps_metadata_db(self):
+        """The worker's migration-wait init container queries the DB, so it still needs it.
+
+        It runs to completion before the worker starts and shares no environment with the
+        container that executes task code, so keeping the credentials here costs nothing.
+        """
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        init_containers = {
+            container["name"]: {env["name"] for env in container.get("env", [])}
+            for container in docs[0]["spec"]["template"]["spec"]["initContainers"]
+        }
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in init_containers["wait-for-airflow-migrations"]
+
     def test_metadata_db_env_kept_where_the_component_uses_it(self):
         docs = render_chart(
             show_only=[
