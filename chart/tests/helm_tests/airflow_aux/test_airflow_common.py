@@ -351,7 +351,11 @@ class TestAirflowCommon:
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
+        # Workers do not receive the metadata DB connection: they execute tasks and reach
+        # the Execution API, so they have no reason to hold the database credentials.
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + [
+            var for var in expected_vars if var != "AIRFLOW_CONN_AIRFLOW_DB"
+        ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             variables = expected_vars_in_worker if component == "worker" else expected_vars
@@ -390,7 +394,11 @@ class TestAirflowCommon:
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
-            expected_in_worker = ["DUMB_INIT_SETSID"] + expected
+            expected_in_worker = ["DUMB_INIT_SETSID"] + [
+                var
+                for var in expected
+                if var not in {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"}
+            ]
             variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
@@ -454,6 +462,33 @@ class TestAirflowCommon:
                 f"spec.template.spec.containers[?name=='{component}'].env[].name", doc
             )
             assert "AIRFLOW__API_AUTH__JWT_SECRET" not in env_names, f"Wrong vars in {component}"
+
+    def test_metadata_db_env_absent_from_workers_by_default(self):
+        """Celery workers execute Dag-author code and must not hold DB credentials.
+
+        KEDA is the exception: its ScaledObject reads the connection from an env var on
+        this pod spec, so the variable has to stay when KEDA is doing the scaling.
+        """
+        metadata_db_vars = {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"}
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        for container in docs[0]["spec"]["template"]["spec"]["containers"]:
+            names = {env["name"] for env in container.get("env", [])}
+            assert not (names & metadata_db_vars), f"metadata DB env in {container['name']}"
+
+    def test_metadata_db_env_kept_where_the_component_uses_it(self):
+        docs = render_chart(
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        assert docs
+        for doc in docs:
+            component = doc["metadata"]["labels"]["component"]
+            names = {env["name"] for env in doc["spec"]["template"]["spec"]["containers"][0]["env"]}
+            assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names, f"{component} lost its DB connection"
 
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
