@@ -58,7 +58,12 @@ If release name contains chart name it will be used as a full name.
   {{- toYaml $rendered -}}
 {{- end }}
 
-{{/* Standard Airflow environment variables */}}
+{{/* Standard Airflow environment variables.
+
+     Callers pass `IncludeMetadataDb` to say whether the component talks to the metadata
+     database. Components that only execute tasks do not: the task SDK reaches the
+     Execution API instead, so they have no reason to hold the database credentials.
+     Same shape as `IncludeJwtSecret` below. */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
   - name: AIRFLOW_HOME
@@ -70,14 +75,14 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
+  {{- if and .IncludeMetadataDb .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: {{ template "airflow_metadata_secret_key" . }}
   {{- end }}
-  {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
+  {{- if and .IncludeMetadataDb .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
