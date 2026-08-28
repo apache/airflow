@@ -738,7 +738,6 @@ class SerializedDagModel(Base):
             # which is denoted by serialized_dag_hash == None, then fall through to write
             new_serialized_dag = cls(dag, _dag_hash=new_dag_hash)
 
-
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
                 update(cls)
