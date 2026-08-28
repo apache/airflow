@@ -420,6 +420,29 @@ class TestLLMBranchOperatorApproval:
         assert list(mock_skip.call_args.kwargs["tasks"]) == [task_a]
         mock_do_branch.assert_not_called()
 
+    @patch.object(LLMBranchOperator, "skip")
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_reject_skips_indirect_downstream_when_ignoring_trigger_rules(
+        self, mock_do_branch, mock_skip
+    ):
+        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", ignore_downstream_trigger_rules=True)
+        op.downstream_task_ids = {"task_a"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        task_a = MagicMock(is_teardown=False)
+        indirect = MagicMock(is_teardown=False)
+        cleanup = MagicMock(is_teardown=True)
+        task = MagicMock()
+        task.get_flat_relatives.return_value = [task_a, indirect, cleanup]
+        ti = MagicMock()
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": ti}[key]})
+
+        op.execute_complete(ctx, generated_output="task_a", event=event)
+
+        task.get_flat_relatives.assert_called_once_with(upstream=False)
+        task.get_direct_relatives.assert_not_called()
+        assert list(mock_skip.call_args.kwargs["tasks"]) == [task_a, indirect]
+        mock_do_branch.assert_not_called()
+
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_reject_fails_with_fail_on_reject(self, mock_do_branch):
         op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", fail_on_reject=True)
