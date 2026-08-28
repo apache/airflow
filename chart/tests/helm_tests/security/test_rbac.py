@@ -157,7 +157,7 @@ class TestRBAC:
                 "triggerer": {"serviceAccount": {"create": False}},
                 "statsd": {"serviceAccount": {"create": False}},
                 "otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}},
-                "createUserJob": {"serviceAccount": {"create": False}},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"create": False}},
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
                 "flower": {"enabled": True, "serviceAccount": {"create": False}},
             },
@@ -171,6 +171,10 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                },
                 "fullnameOverride": "test-rbac",
                 "executor": "CeleryExecutor,KubernetesExecutor",
                 "rbac": {"create": False},
@@ -223,7 +227,7 @@ class TestRBAC:
                         "create": False,
                     },
                 },
-                "createUserJob": {"serviceAccount": {"create": False}},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"create": False}},
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
             },
         )
@@ -237,6 +241,10 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                },
                 "fullnameOverride": "test-rbac",
                 "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
@@ -314,7 +322,7 @@ class TestRBAC:
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
             },
         )
@@ -364,7 +372,7 @@ class TestRBAC:
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
             },
         )
@@ -409,6 +417,5 @@ class TestRBAC:
             "test-rbac-api-server",
             "test-rbac-triggerer",
             "test-rbac-migrate-database-job",
-            "test-rbac-create-user-job",
         ]
         assert sorted(list_of_sa_names) == sorted(service_account_names)
