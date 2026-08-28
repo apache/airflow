@@ -126,6 +126,9 @@ class DagFileParseRequest(BaseModel):
     bundle_name: str
     """Bundle name for team-specific executor validation."""
 
+    bundle_version: str | None = None
+    """Exact bundle generation used for this parse."""
+
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
@@ -226,7 +229,8 @@ def _parse_file_entrypoint():
     task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
 
-    result = _parse_file(msg, log)
+    with BundleVersionLock(bundle_name=msg.bundle_name, bundle_version=msg.bundle_version):
+        result = _parse_file(msg, log)
 
     if result is not None:
         comms_decoder.send(result)
@@ -604,6 +608,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        bundle_version: str | None = None,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
@@ -633,7 +638,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name, bundle_version)
         return proc
 
     def _on_child_started(
@@ -642,11 +647,13 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        bundle_version: str | None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
             bundle_name=bundle_name,
+            bundle_version=bundle_version,
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)

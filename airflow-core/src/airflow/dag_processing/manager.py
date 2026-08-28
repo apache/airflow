@@ -51,6 +51,7 @@ from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
+    BundleVersionLock,
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -140,6 +141,7 @@ class DagFileInfo:
     bundle_name: str
     bundle_path: Path | None = field(compare=False, default=None)
     bundle_version: str | None = None
+    bundle_version_data: dict[str, Any] | None = field(compare=False, default=None)
 
     @property
     def absolute_path(self) -> Path:
@@ -265,6 +267,8 @@ class DagFileProcessorManager(LoggingMixin):
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
+    _published_bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
+    _bundle_version_locks: dict[tuple[str, str], BundleVersionLock] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
@@ -378,7 +382,18 @@ class DagFileProcessorManager(LoggingMixin):
         gc.freeze()
 
     def after_run(self) -> None:
-        """Tear down state after the parsing loop exits. Default no-op; override to customize."""
+        """Release bundle generation leases after the parsing loop exits."""
+        locks = list(self._bundle_version_locks.items())
+        self._bundle_version_locks.clear()
+        for (bundle_name, bundle_version), lock in locks:
+            try:
+                lock.release()
+            except Exception:
+                self.log.exception(
+                    "Failed to release bundle generation lease for %s at version %s",
+                    bundle_name,
+                    bundle_version,
+                )
 
     def prepare_server_process_context(self) -> None:
         """
@@ -572,9 +587,10 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._kill_timed_out_processors()
 
-            self._queue_requested_files_for_parsing()
-
+            priority_files = self._claim_requested_files_for_parsing()
             self._refresh_dag_bundles(known_files=known_files)
+            self._queue_requested_files_for_parsing(priority_files, known_files=known_files)
+            self._reconcile_bundle_version_locks(known_files)
 
             if not self._file_queue:
                 # Generate more file paths to process if we processed all the files already. Note for this to
@@ -591,6 +607,7 @@ class DagFileProcessorManager(LoggingMixin):
             for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
+            self._reconcile_bundle_version_locks(known_files)
             self._cleanup_stale_bundle_versions()
             self.purge_inactive_dag_warnings()
 
@@ -635,13 +652,66 @@ class DagFileProcessorManager(LoggingMixin):
                 on_close(sock)
                 sock.close()
 
-    def _queue_requested_files_for_parsing(self) -> None:
-        """Queue any files requested for parsing as requested by users via UI/API."""
+    def _claim_requested_files_for_parsing(self) -> list[DagFileInfo]:
+        """Claim priority files and request their bundles be refreshed before queueing them."""
         files = self.claim_priority_files()
-        self._add_files_to_queue(files, mode="frontprio")
         self.request_bundle_refresh(file.bundle_name for file in files)
         if self._force_refresh_bundles:
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
+        return files
+
+    def _queue_requested_files_for_parsing(
+        self,
+        files: list[DagFileInfo] | None = None,
+        *,
+        known_files: dict[str, set[DagFileInfo]] | None = None,
+    ) -> None:
+        """Queue priority files against their bundle's successfully refreshed generation."""
+        if files is None:
+            files = self._claim_requested_files_for_parsing()
+        bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        resolved_files = []
+        for file in files:
+            bundle = bundles.get(file.bundle_name)
+            if bundle is None:
+                resolved_files.append(file)
+                continue
+            if bundle.refreshes_to_versioned_paths is True and known_files is not None:
+                published_file = next(
+                    (
+                        known_file
+                        for known_file in known_files.get(bundle.name, ())
+                        if known_file.presence_key == file.presence_key
+                    ),
+                    None,
+                )
+                if published_file is None:
+                    self.log.info(
+                        "Skipping priority parse for %s in bundle %s because it is not in a published generation",
+                        file.rel_path,
+                        bundle.name,
+                    )
+                    continue
+                resolved_files.append(published_file)
+                continue
+
+            if bundle.refreshes_to_versioned_paths is True:
+                bundle_version, bundle_version_data = unpack_bundle_version(
+                    bundle.get_current_version(), bundle
+                )
+            else:
+                bundle_version = None
+                bundle_version_data = None
+            resolved_files.append(
+                DagFileInfo(
+                    rel_path=file.rel_path,
+                    bundle_name=file.bundle_name,
+                    bundle_path=bundle.path,
+                    bundle_version=bundle_version,
+                    bundle_version_data=bundle_version_data,
+                )
+            )
+        self._add_files_to_queue(resolved_files, mode="frontprio")
 
     def claim_priority_files(self) -> list[DagFileInfo]:
         """
@@ -692,7 +762,19 @@ class DagFileProcessorManager(LoggingMixin):
             bundle = bundles[request.bundle_name]
             files.append(
                 DagFileInfo(
-                    rel_path=Path(request.relative_fileloc), bundle_name=bundle.name, bundle_path=bundle.path
+                    rel_path=Path(request.relative_fileloc),
+                    bundle_name=bundle.name,
+                    bundle_path=bundle.path,
+                    bundle_version=(
+                        self._bundle_versions.get(bundle.name)
+                        if bundle.refreshes_to_versioned_paths is True
+                        else None
+                    ),
+                    bundle_version_data=(
+                        self._bundle_version_data.get(bundle.name)
+                        if bundle.refreshes_to_versioned_paths is True
+                        else None
+                    ),
                 )
             )
             session.delete(request)
@@ -759,9 +841,20 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
         if bundle.supports_versioning and request.bundle_version:
+            key = (request.bundle_name, request.bundle_version)
+            already_leased = key in self._bundle_version_locks
             try:
+                self._acquire_bundle_version_lock(*key)
                 bundle.initialize()
             except Exception:
+                if not already_leased and (lock := self._bundle_version_locks.pop(key, None)):
+                    try:
+                        lock.release()
+                    except Exception:
+                        self.log.exception(
+                            "Failed to release callback bundle lease for %s at version %s",
+                            *key,
+                        )
                 self.log.exception(
                     "Error initializing bundle %s version %s for callback, skipping",
                     request.bundle_name,
@@ -781,6 +874,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_path=bundle.path,
             bundle_name=request.bundle_name,
             bundle_version=request.bundle_version,
+            bundle_version_data=request.version_data,
         )
         self._callback_to_execute[file_info].append(request)
         self._add_files_to_queue([file_info], mode="front")
@@ -909,6 +1003,26 @@ class DagFileProcessorManager(LoggingMixin):
                 version_after_refresh, version_data_after_refresh = unpack_bundle_version(
                     bundle.get_current_version(), bundle
                 )
+                if bundle.refreshes_to_versioned_paths is True:
+                    try:
+                        self._acquire_bundle_version_lock(bundle.name, version_after_refresh)
+                    except Exception:
+                        self.log.exception(
+                            "Could not lease published generation %s for bundle %s",
+                            version_after_refresh,
+                            bundle.name,
+                        )
+                        self._force_refresh_bundles.add(bundle.name)
+                        continue
+                    if not bundle.path.is_dir():
+                        self.log.error(
+                            "Published generation %s for bundle %s disappeared before it could be leased",
+                            version_after_refresh,
+                            bundle.name,
+                        )
+                        self._force_refresh_bundles.add(bundle.name)
+                        continue
+                    self._published_bundle_versions[bundle.name] = version_after_refresh
                 if previously_seen and pre_refresh_version == version_after_refresh:
                     self.log.debug(
                         "Bundle %s version not changed after refresh: %s",
@@ -937,7 +1051,17 @@ class DagFileProcessorManager(LoggingMixin):
                 self._bundle_version_data[bundle.name] = version_data_after_refresh
 
             found_files = {
-                DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
+                DagFileInfo(
+                    rel_path=p,
+                    bundle_name=bundle.name,
+                    bundle_path=bundle.path,
+                    bundle_version=(
+                        version_after_refresh if bundle.refreshes_to_versioned_paths is True else None
+                    ),
+                    bundle_version_data=(
+                        version_data_after_refresh if bundle.refreshes_to_versioned_paths is True else None
+                    ),
+                )
                 for p in self._find_files_in_bundle(bundle)
             }
 
@@ -1204,13 +1328,20 @@ class DagFileProcessorManager(LoggingMixin):
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
         present_keys = {file.presence_key for file in present}
-        self._file_queue = OrderedDict((x, None) for x in self._file_queue if x.presence_key in present_keys)
+        self._file_queue = OrderedDict(
+            (file, None)
+            for file in self._file_queue
+            if file in self._callback_to_execute
+            or (file.bundle_version is not None and file in present)
+            or (file.bundle_version is None and file.presence_key in present_keys)
+        )
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
-        present_keys = {file.presence_key for file in present}
-        stats_to_remove = {file for file in self._file_stats if file.presence_key not in present_keys}
+        stats_to_remove = {
+            file for file in self._file_stats if file not in present and file not in self._processors
+        }
         for file in stats_to_remove:
             del self._file_stats[file]
 
@@ -1221,7 +1352,9 @@ class DagFileProcessorManager(LoggingMixin):
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 
         for file in list(self._processors.keys()):
-            if file.presence_key not in present_keys:
+            # An immutable generation can disappear from the latest file listing while a historical callback
+            # is still running against it. Its generation lease keeps the files alive; let the processor finish.
+            if file.bundle_version is None and file.presence_key not in present_keys:
                 processor = self._processors.pop(file, None)
                 if not processor:
                     continue
@@ -1285,12 +1418,32 @@ class DagFileProcessorManager(LoggingMixin):
             team_name=team_name,
         )
 
-        if proc.parsing_result is not None:
+        is_stale_generation = (
+            file.bundle_version is not None
+            and self._published_bundle_versions.get(file.bundle_name, file.bundle_version)
+            != file.bundle_version
+        )
+        if proc.parsing_result is not None and is_stale_generation:
+            self.log.info(
+                "Discarding parse result for %s in superseded bundle %s generation %s",
+                file.rel_path,
+                file.bundle_name,
+                file.bundle_version,
+            )
+        elif proc.parsing_result is not None:
             try:
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
-                    bundle_version=self._bundle_versions[file.bundle_name],
-                    version_data=self._bundle_version_data.get(file.bundle_name),
+                    bundle_version=(
+                        file.bundle_version
+                        if file.bundle_version is not None
+                        else self._bundle_versions[file.bundle_name]
+                    ),
+                    version_data=(
+                        file.bundle_version_data
+                        if file.bundle_version is not None
+                        else self._bundle_version_data.get(file.bundle_name)
+                    ),
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
                     relative_fileloc=str(file.rel_path),
@@ -1439,6 +1592,7 @@ class DagFileProcessorManager(LoggingMixin):
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
             bundle_name=dag_file.bundle_name,
+            bundle_version=dag_file.bundle_version,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
@@ -1447,6 +1601,42 @@ class DagFileProcessorManager(LoggingMixin):
             subprocess_logs_to_stdout=conf.get("logging", "dag_processor_log_target") == "stdout",
             client=self.client,
         )
+
+    def _reconcile_bundle_version_locks(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        """Keep generation leases for every current, queued, or in-flight parse."""
+        referenced_files = set(self._file_queue)
+        referenced_files.update(self._processors)
+        for files in known_files.values():
+            referenced_files.update(files)
+        referenced_versions = {
+            (file.bundle_name, file.bundle_version)
+            for file in referenced_files
+            if file.bundle_version is not None
+        }
+
+        for key in referenced_versions - self._bundle_version_locks.keys():
+            self._acquire_bundle_version_lock(*key)
+
+        for key in self._bundle_version_locks.keys() - referenced_versions:
+            lock = self._bundle_version_locks.pop(key)
+            try:
+                lock.release()
+            except Exception:
+                self.log.exception(
+                    "Failed to release bundle generation lease for %s at version %s",
+                    *key,
+                )
+
+        present = set().union(*known_files.values()) if known_files else set()
+        self.remove_orphaned_file_stats(present)
+
+    def _acquire_bundle_version_lock(self, bundle_name: str, bundle_version: str | None) -> None:
+        """Acquire one manager-owned lease, deduplicated by bundle generation."""
+        if bundle_version is None or (bundle_name, bundle_version) in self._bundle_version_locks:
+            return
+        lock = BundleVersionLock(bundle_name=bundle_name, bundle_version=bundle_version)
+        lock.acquire()
+        self._bundle_version_locks[(bundle_name, bundle_version)] = lock
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
@@ -1480,14 +1670,19 @@ class DagFileProcessorManager(LoggingMixin):
         A "new" file is a file that has not been processed yet and is not currently being processed.
         """
         new_files = []
-        tracked_presence_keys = {file.presence_key for file in self._file_queue}
-        tracked_presence_keys.update(file.presence_key for file in self._file_stats)
-        tracked_presence_keys.update(file.presence_key for file in self._processors)
+        tracked_files = set(self._file_queue) | self._file_stats.keys() | self._processors.keys()
+        tracked_presence_keys = {file.presence_key for file in tracked_files if file.bundle_version is None}
         for files in known_files.values():
             for file in files:
-                if file.presence_key not in tracked_presence_keys:
-                    new_files.append(file)
+                if file.bundle_version is not None:
+                    if file in tracked_files:
+                        continue
+                    tracked_files.add(file)
+                else:
+                    if file.presence_key in tracked_presence_keys:
+                        continue
                     tracked_presence_keys.add(file.presence_key)
+                new_files.append(file)
 
         if new_files:
             self.log.info("Adding %d new files to the front of the queue", len(new_files))

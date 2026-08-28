@@ -2420,30 +2420,29 @@ def main():
     span = INVALID_SPAN
     with stack:
         try:
-            try:
-                log.info("::group::Pre Execute")
-                startup_details = get_startup_details()
-
-                span_ctx_mgr = _make_task_span(msg=startup_details)
-                span = stack.enter_context(span_ctx_mgr)
-                ti, context, log = startup(msg=startup_details)
-            except AirflowRescheduleException as reschedule:
-                log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
-                SUPERVISOR_COMMS.send(
-                    msg=RescheduleTask(
-                        reschedule_date=reschedule.reschedule_date,
-                        end_date=datetime.now(tz=timezone.utc),
-                    )
-                )
-                span.record_exception(reschedule)
-                span.set_status(
-                    Status(StatusCode.ERROR, description=f"Exception: {type(reschedule).__name__}")
-                )
-                sys.exit(0)
+            log.info("::group::Pre Execute")
+            startup_details = get_startup_details()
             with BundleVersionLock(
-                bundle_name=ti.bundle_instance.name,
-                bundle_version=ti.bundle_instance.version,
+                bundle_name=startup_details.bundle_info.name,
+                bundle_version=startup_details.bundle_info.version,
             ):
+                try:
+                    span_ctx_mgr = _make_task_span(msg=startup_details)
+                    span = stack.enter_context(span_ctx_mgr)
+                    ti, context, log = startup(msg=startup_details)
+                except AirflowRescheduleException as reschedule:
+                    log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+                    SUPERVISOR_COMMS.send(
+                        msg=RescheduleTask(
+                            reschedule_date=reschedule.reschedule_date,
+                            end_date=datetime.now(tz=timezone.utc),
+                        )
+                    )
+                    span.record_exception(reschedule)
+                    span.set_status(
+                        Status(StatusCode.ERROR, description=f"Exception: {type(reschedule).__name__}")
+                    )
+                    sys.exit(0)
                 state, _, error = run(ti, context, log)
                 context["exception"] = error
                 # run() funnels every failure path into `error` rather than

@@ -45,7 +45,7 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
@@ -95,12 +95,17 @@ def _get_file_infos(files: list[str | Path]) -> list[DagFileInfo]:
     return [DagFileInfo(bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path(f)) for f in files]
 
 
-def _get_versioned_file_info(file: str | Path, bundle_version: str = "v1") -> DagFileInfo:
+def _get_versioned_file_info(
+    file: str | Path,
+    bundle_version: str = "v1",
+    bundle_version_data: dict | None = None,
+) -> DagFileInfo:
     return DagFileInfo(
         bundle_name="testing",
         bundle_path=TEST_DAGS_FOLDER,
         rel_path=Path(file),
         bundle_version=bundle_version,
+        bundle_version_data=bundle_version_data,
     )
 
 
@@ -633,6 +638,7 @@ class TestDagFileProcessorManager:
         present_file = _get_file_infos(["callbacks.py"])[0]
 
         manager._file_queue = OrderedDict.fromkeys([versioned_file])
+        manager._callback_to_execute[versioned_file] = [MagicMock()]
 
         manager.purge_removed_files_from_queue(present={present_file})
 
@@ -648,27 +654,24 @@ class TestDagFileProcessorManager:
 
         assert manager._file_queue == OrderedDict()
 
-    def test_terminate_orphan_processes_keeps_versioned_callback_processor_when_unversioned_file_is_present(
-        self,
-    ):
+    def test_terminate_orphan_processes_keeps_versioned_callback_processor_when_file_is_absent(self):
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
-        present_file = _get_file_infos(["callbacks.py"])[0]
         processor = MagicMock()
 
         manager._processors[versioned_file] = processor
 
-        manager.terminate_orphan_processes(present={present_file})
+        manager.terminate_orphan_processes(present=set())
 
         assert manager._processors == {versioned_file: processor}
         processor.kill.assert_not_called()
 
     def test_terminate_orphan_processes_kills_processor_when_file_is_truly_absent(self):
         manager = DagFileProcessorManager(max_runs=1)
-        versioned_file = _get_versioned_file_info("callbacks with spaces.py")
+        unversioned_file = _get_file_infos(["callbacks with spaces.py"])[0]
         processor = MagicMock()
 
-        manager._processors[versioned_file] = processor
+        manager._processors[unversioned_file] = processor
 
         with mock.patch("airflow.dag_processing.manager.stats.decr") as stats_decr_mock:
             manager.terminate_orphan_processes(present=set())
@@ -683,11 +686,11 @@ class TestDagFileProcessorManager:
     def test_terminate_orphan_processes_tolerates_stale_file_handle_on_close(self):
         """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
         manager = DagFileProcessorManager(max_runs=1)
-        versioned_file = _get_versioned_file_info("callbacks.py")
+        unversioned_file = _get_file_infos(["callbacks.py"])[0]
         processor, _ = self.mock_processor()
         processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
 
-        manager._processors[versioned_file] = processor
+        manager._processors[unversioned_file] = processor
 
         with (
             mock.patch.object(type(processor), "kill"),
@@ -697,7 +700,7 @@ class TestDagFileProcessorManager:
 
         assert manager._processors == {}
 
-    def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
+    def test_remove_orphaned_file_stats_drops_old_generation_when_current_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("callbacks.py")
         present_file = _get_file_infos(["callbacks.py"])[0]
@@ -706,7 +709,19 @@ class TestDagFileProcessorManager:
 
         manager.remove_orphaned_file_stats(present={present_file})
 
-        assert manager._file_stats == {versioned_file: DagFileStat()}
+        assert manager._file_stats == {}
+
+    def test_remove_orphaned_file_stats_keeps_generation_with_active_processor(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        old_file = _get_versioned_file_info("callbacks.py", bundle_version="v1")
+        current_file = _get_versioned_file_info("callbacks.py", bundle_version="v2")
+
+        manager._file_stats[old_file] = DagFileStat()
+        manager._processors[old_file] = MagicMock()
+
+        manager.remove_orphaned_file_stats(present={current_file})
+
+        assert manager._file_stats == {old_file: DagFileStat()}
 
     def test_remove_orphaned_file_stats_drops_versioned_callback_stats_when_truly_absent(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -849,29 +864,26 @@ class TestDagFileProcessorManager:
         # file_1 should remain (already in queue)
         assert list(manager._file_queue) == [file_2, file_1]
 
-    def test_add_new_files_to_queue_skips_versioned_files_already_represented(self):
+    def test_add_new_files_to_queue_adds_new_immutable_generation(self):
         manager = DagFileProcessorManager(max_runs=1)
         queued_versioned_file = _get_versioned_file_info("file_1.py")
         processed_versioned_file = _get_versioned_file_info("file_3.py")
         parsed_versioned_file = _get_versioned_file_info("file_4.py")
-        new_file = _get_file_infos(["file_2.py"])[0]
+        current_files = {
+            _get_versioned_file_info(name, bundle_version="v2")
+            for name in ("file_1.py", "file_2.py", "file_3.py", "file_4.py")
+        }
 
         manager._file_queue = OrderedDict.fromkeys([queued_versioned_file])
         manager._processors[processed_versioned_file] = MagicMock()
         manager._file_stats[parsed_versioned_file] = DagFileStat(num_dags=1)
 
-        known_files = {
-            "testing": {
-                _get_file_infos(["file_1.py"])[0],
-                new_file,
-                _get_file_infos(["file_3.py"])[0],
-                _get_file_infos(["file_4.py"])[0],
-            }
-        }
+        known_files = {"testing": current_files}
 
         manager._add_new_files_to_queue(known_files)
 
-        assert list(manager._file_queue) == [new_file, queued_versioned_file]
+        assert set(manager._file_queue) == current_files | {queued_versioned_file}
+        assert list(manager._file_queue)[-1] == queued_versioned_file
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
@@ -1128,6 +1140,76 @@ class TestDagFileProcessorManager:
 
         assert manager._file_queue == OrderedDict.fromkeys([file1, file2])
         assert manager._force_refresh_bundles == {"dags-folder"}
+
+    def test_priority_file_is_rebound_to_refreshed_immutable_generation(self, tmp_path):
+        old_file = DagFileInfo(
+            bundle_name="versioned",
+            rel_path=Path("dag.py"),
+            bundle_path=tmp_path / "before-refresh",
+            bundle_version="v1",
+            bundle_version_data={"manifest": "v1"},
+        )
+        bundle = MagicMock(
+            name="versioned",
+            path=tmp_path / "versions" / "v2",
+            refreshes_to_versioned_paths=True,
+        )
+        bundle.name = "versioned"
+        bundle.get_current_version.return_value = BundleVersion(version="v2", data={"manifest": "v2"})
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [bundle]
+        manager._bundle_versions["versioned"] = "v2"
+        manager._bundle_version_data["versioned"] = {"manifest": "v2"}
+
+        manager._queue_requested_files_for_parsing([old_file])
+
+        [queued_file] = manager._file_queue
+        assert queued_file.bundle_path == tmp_path / "versions" / "v2"
+        assert queued_file.bundle_version == "v2"
+        assert queued_file.bundle_version_data == {"manifest": "v2"}
+
+    def test_priority_file_uses_published_snapshot_when_state_persistence_failed(self, tmp_path):
+        requested_file = DagFileInfo(
+            bundle_name="versioned",
+            rel_path=Path("dag.py"),
+            bundle_path=tmp_path / "versions" / "v1",
+            bundle_version="v1",
+        )
+        published_file = DagFileInfo(
+            bundle_name="versioned",
+            rel_path=Path("dag.py"),
+            bundle_path=tmp_path / "versions" / "v2",
+            bundle_version="v2",
+            bundle_version_data={"manifest": "v2"},
+        )
+        bundle = MagicMock(refreshes_to_versioned_paths=True)
+        bundle.name = "versioned"
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [bundle]
+        manager._bundle_versions["versioned"] = "v1"
+        manager._bundle_version_data["versioned"] = {"manifest": "v1"}
+
+        manager._queue_requested_files_for_parsing(
+            [requested_file], known_files={"versioned": {published_file}}
+        )
+
+        assert list(manager._file_queue) == [published_file]
+
+    def test_priority_file_is_not_queued_without_a_published_generation(self, tmp_path):
+        requested_file = DagFileInfo(
+            bundle_name="versioned",
+            rel_path=Path("dag.py"),
+            bundle_path=tmp_path / "versions" / "v1",
+            bundle_version="v1",
+        )
+        bundle = MagicMock(refreshes_to_versioned_paths=True)
+        bundle.name = "versioned"
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [bundle]
+
+        manager._queue_requested_files_for_parsing([requested_file], known_files={})
+
+        assert manager._file_queue == OrderedDict()
 
     def test_request_bundle_refresh_marks_bundles_for_refresh(self):
         """`request_bundle_refresh` adds the bundles to the force-refresh set."""
@@ -1497,6 +1579,66 @@ class TestDagFileProcessorManager:
         manager.cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
+    def test_reconcile_bundle_version_locks_tracks_current_queued_and_inflight_versions(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        current = _get_versioned_file_info("current.py", bundle_version="v3")
+        queued = _get_versioned_file_info("queued.py", bundle_version="v2")
+        inflight = _get_versioned_file_info("inflight.py", bundle_version="v1")
+        manager._file_queue[queued] = None
+        manager._processors[inflight] = MagicMock()
+
+        created_locks = {}
+
+        def create_lock(*, bundle_name, bundle_version):
+            lock = MagicMock()
+            created_locks[(bundle_name, bundle_version)] = lock
+            return lock
+
+        with mock.patch(
+            "airflow.dag_processing.manager.BundleVersionLock", side_effect=create_lock
+        ) as lock_class:
+            manager._reconcile_bundle_version_locks({"testing": {current}})
+
+            assert set(manager._bundle_version_locks) == {
+                ("testing", "v1"),
+                ("testing", "v2"),
+                ("testing", "v3"),
+            }
+            assert lock_class.call_count == 3
+            for lock in created_locks.values():
+                lock.acquire.assert_called_once_with()
+
+            manager._file_queue.clear()
+            manager._processors.clear()
+            manager._reconcile_bundle_version_locks({"testing": {current}})
+
+            assert set(manager._bundle_version_locks) == {("testing", "v3")}
+            created_locks[("testing", "v1")].release.assert_called_once_with()
+            created_locks[("testing", "v2")].release.assert_called_once_with()
+            created_locks[("testing", "v3")].release.assert_not_called()
+
+    def test_after_run_releases_bundle_version_locks(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        locks = {("testing", "v1"): MagicMock(), ("testing", "v2"): MagicMock()}
+        manager._bundle_version_locks.update(locks)
+
+        manager.after_run()
+
+        assert manager._bundle_version_locks == {}
+        for lock in locks.values():
+            lock.release.assert_called_once_with()
+
+    def test_reconcile_bundle_version_lock_acquisition_failure_is_fail_closed(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        current = _get_versioned_file_info("current.py")
+
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class:
+            lock_class.return_value.acquire.side_effect = OSError("read-only tracking directory")
+            with pytest.raises(OSError, match="read-only tracking directory"):
+                manager._reconcile_bundle_version_locks({"testing": {current}})
+
+        assert manager._bundle_version_locks == {}
+
     @pytest.mark.parametrize(
         ("log_target", "expected_subprocess_logs_to_stdout"),
         [
@@ -1608,7 +1750,7 @@ class TestDagFileProcessorManager:
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
         """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
         manager = DagFileProcessorManager(max_runs=1)
-        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        file = _get_versioned_file_info("abc.txt")
         manager._file_stats[file] = DagFileStat()
         manager._bundle_versions["testing"] = "v1"
 
@@ -1625,7 +1767,7 @@ class TestDagFileProcessorManager:
     def test_handle_parsing_result_throttles_retry_when_first_persist_fails(self, session):
         """Persist errors should throttle retries without claiming persistence succeeded."""
         manager = DagFileProcessorManager(max_runs=1)
-        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        file = _get_versioned_file_info("abc.txt")
         original_stat = DagFileStat()
         manager._file_stats[file] = original_stat
         manager._bundle_versions["testing"] = "v1"
@@ -1648,7 +1790,7 @@ class TestDagFileProcessorManager:
 
     def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
         manager = DagFileProcessorManager(max_runs=1)
-        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        file = _get_versioned_file_info("abc.txt")
         original_stat = DagFileStat(
             num_dags=1,
             import_errors=0,
@@ -1681,6 +1823,42 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_finish_time is not None
         assert manager._file_stats[file].last_finish_time > original_stat.last_finish_time
         assert manager._file_stats[file].num_dags == 0
+
+    def test_handle_parsing_result_persists_file_generation_snapshot(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        old_data = {"manifest_version_id": "manifest-v1"}
+        file = _get_versioned_file_info(
+            "abc.txt",
+            bundle_version="v1",
+            bundle_version_data=old_data,
+        )
+        manager._file_stats[file] = DagFileStat()
+        manager._bundle_versions["testing"] = "v2"
+        manager._bundle_version_data["testing"] = {"manifest_version_id": "manifest-v2"}
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
+
+        with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
+            manager.handle_parsing_result(file, processor, session=session)
+
+        assert mock_persist.call_args.kwargs["bundle_version"] == "v1"
+        assert mock_persist.call_args.kwargs["version_data"] == old_data
+
+    def test_handle_parsing_result_discards_superseded_immutable_generation(self, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        old_file = _get_versioned_file_info("abc.txt", bundle_version="v1")
+        manager._file_stats[old_file] = DagFileStat()
+        manager._published_bundle_versions["testing"] = "v2"
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="abc.txt", serialized_dags=[])
+
+        with mock.patch.object(manager, "persist_parsing_result") as mock_persist:
+            manager.handle_parsing_result(old_file, processor, session=session)
+
+        mock_persist.assert_not_called()
+        assert manager._file_stats[old_file].run_count == 1
 
     def test_collect_results_processes_remaining_files_when_one_persist_fails(self, session):
         manager = DagFileProcessorManager(max_runs=1)
@@ -1754,6 +1932,7 @@ class TestDagFileProcessorManager:
                     "file": "/opt/airflow/dags/test_dag.py",
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
+                    "bundle_version": None,
                     "callback_requests": [],
                     "type": "DagFileParseRequest",
                 },
@@ -1775,6 +1954,7 @@ class TestDagFileProcessorManager:
                     "file": "/opt/airflow/dags/dag_callback_dag.py",
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
+                    "bundle_version": None,
                     "callback_requests": [
                         {
                             "filepath": "dag_callback_dag.py",
@@ -1799,7 +1979,11 @@ class TestDagFileProcessorManager:
 
         processor, read_socket = self.mock_processor()
         processor._on_child_started(
-            callbacks, path, bundle_path=Path("/opt/airflow/dags"), bundle_name="testing"
+            callbacks,
+            path,
+            bundle_path=Path("/opt/airflow/dags"),
+            bundle_name="testing",
+            bundle_version=None,
         )
 
         read_socket.settimeout(0.1)
@@ -2349,6 +2533,7 @@ class TestDagFileProcessorManager:
                     path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
                     bundle_name="testing",
+                    bundle_version=dag2_path.bundle_version,
                     dag_file_rel_path=str(dag2_path.rel_path),
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
@@ -2362,6 +2547,7 @@ class TestDagFileProcessorManager:
                     path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
                     bundle_name="testing",
+                    bundle_version=dag1_path.bundle_version,
                     dag_file_rel_path=str(dag1_path.rel_path),
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
@@ -2381,6 +2567,7 @@ class TestDagFileProcessorManager:
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.supports_versioning = True
         mock_bundle_manager.return_value.get_bundle.return_value = bundle
+        events = []
 
         request = DagCallbackRequest(
             filepath="file1.py",
@@ -2392,7 +2579,14 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        assert manager.prepare_callback_bundle(request) is bundle
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class:
+            lock_class.return_value.acquire.side_effect = lambda: events.append("lease")
+            bundle.initialize.side_effect = lambda: events.append("initialize")
+
+            assert manager.prepare_callback_bundle(request) is bundle
+
+        assert events == ["lease", "initialize"]
+        assert manager._bundle_version_locks == {("testing", "some_commit_hash"): lock_class.return_value}
         bundle.initialize.assert_called_once()
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
@@ -2414,7 +2608,8 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        manager.prepare_callback_bundle(request)
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock"):
+            manager.prepare_callback_bundle(request)
         mock_bundle_manager.return_value.get_bundle.assert_called_once_with(
             name="testing", version="some_commit_hash", version_data=version_data
         )
@@ -2494,8 +2689,62 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        assert manager.prepare_callback_bundle(request) is None
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class:
+            assert manager.prepare_callback_bundle(request) is None
+
         bundle.initialize.assert_called_once()
+        lock_class.return_value.acquire.assert_called_once_with()
+        lock_class.return_value.release.assert_called_once_with()
+        assert manager._bundle_version_locks == {}
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_prepare_callback_bundle_release_failure_does_not_escape(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        bundle.initialize.side_effect = RuntimeError("clone failed")
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class:
+            lock_class.return_value.release.side_effect = OSError("tracking write failed")
+
+            assert manager.prepare_callback_bundle(request) is None
+
+        assert manager._bundle_version_locks == {}
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_prepare_callback_bundle_acquire_failure_skips_initialize(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class:
+            lock_class.return_value.acquire.side_effect = OSError("tracking directory is read-only")
+
+            assert manager.prepare_callback_bundle(request) is None
+
+        bundle.initialize.assert_not_called()
+        lock_class.return_value.release.assert_not_called()
+        assert manager._bundle_version_locks == {}
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_add_callback_queues_file_info_on_success(self, mock_bundle_manager):
@@ -2515,7 +2764,8 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
-        manager._add_callback_to_queue(request)
+        with mock.patch("airflow.dag_processing.manager.BundleVersionLock"):
+            manager._add_callback_to_queue(request)
 
         bundle.initialize.assert_called_once()
         assert manager._callback_to_execute
@@ -3408,6 +3658,98 @@ class TestDagFileProcessorManager:
         # full update called with the actual version, not short-circuited to version=None
         mock_update.assert_called_once_with("mock_bundle", last_refreshed=mock.ANY, version="v1")
         assert manager._bundle_versions["mock_bundle"] == "v1"
+
+    def test_refresh_immutable_bundle_acquires_generation_lease_before_file_scan(self, tmp_path):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle(
+            supports_versioning=True,
+            current_version=BundleVersion(version="v2"),
+        )
+        bundle.refreshes_to_versioned_paths = True
+        bundle.path = tmp_path / "v2"
+        bundle.path.mkdir()
+        manager._dag_bundles = [bundle]
+        events = []
+
+        def find_files(_bundle):
+            events.append("scan")
+            assert ("mock_bundle", "v2") in manager._bundle_version_locks
+            return []
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", side_effect=find_files),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+            mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class,
+        ):
+            lock_class.return_value.acquire.side_effect = lambda: events.append("lease")
+            manager._refresh_dag_bundles({})
+
+        assert events == ["lease", "scan"]
+        assert manager._published_bundle_versions == {"mock_bundle": "v2"}
+
+    def test_refresh_immutable_bundle_lease_failure_skips_file_scan(self, tmp_path):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle(
+            supports_versioning=True,
+            current_version=BundleVersion(version="v2"),
+        )
+        bundle.refreshes_to_versioned_paths = True
+        bundle.path = tmp_path / "v2"
+        bundle.path.mkdir()
+        manager._dag_bundles = [bundle]
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle") as find_files,
+            mock.patch("airflow.dag_processing.manager.BundleVersionLock") as lock_class,
+        ):
+            lock_class.return_value.acquire.side_effect = OSError("tracking directory is read-only")
+            manager._refresh_dag_bundles({})
+
+        find_files.assert_not_called()
+        assert manager._bundle_version_locks == {}
+        assert manager._published_bundle_versions == {}
+        assert manager._force_refresh_bundles == {"mock_bundle"}
+
+    def test_refresh_immutable_bundle_retries_if_generation_disappears_before_lease(self, tmp_path):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle(
+            supports_versioning=True,
+            current_version=BundleVersion(version="v2"),
+        )
+        bundle.refreshes_to_versioned_paths = True
+        bundle.path = tmp_path / "v2"
+        bundle.path.mkdir()
+        manager._dag_bundles = [bundle]
+
+        def remove_generation():
+            shutil.rmtree(bundle.path)
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
+            ),
+            mock.patch.object(manager, "update_bundle_state") as update_state,
+            mock.patch.object(manager, "_find_files_in_bundle") as find_files,
+            mock.patch.object(manager, "_acquire_bundle_version_lock", side_effect=remove_generation),
+        ):
+            manager._refresh_dag_bundles({})
+
+        update_state.assert_not_called()
+        find_files.assert_not_called()
+        assert manager._published_bundle_versions == {}
+        assert manager._force_refresh_bundles == {"mock_bundle"}
 
     def test_refresh_dag_bundles_get_bundle_state_failure_skips_bundle(self):
         """A failure in get_bundle_state() logs and skips the bundle without aborting the loop."""
