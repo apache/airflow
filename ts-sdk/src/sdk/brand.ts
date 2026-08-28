@@ -40,4 +40,4 @@ export function hasBrand(value: unknown, name: string): boolean {
 
 /** Tail shared by the errors reporting a second resolved copy. */
 export const DUPLICATE_COPY_HINT =
-  "comes from a different copy of @apache-airflow/ts-sdk; deduplicate the dependency so one copy is resolved";
+  "comes from a different copy of apache-airflow-ts-sdk; deduplicate the dependency so one copy is resolved";

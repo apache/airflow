@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ButtonProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 
@@ -25,14 +26,19 @@ import { useDagParsing } from "src/queries/useDagParsing.ts";
 type Props = {
   readonly dagId: string;
   readonly fileToken: string;
-};
+} & ButtonProps;
 
-export const ParseDagButton = ({ dagId, fileToken }: Props) => {
+export const ParseDagButton = ({ dagId, fileToken, ...rest }: Props) => {
   const { t: translate } = useTranslation("components");
   const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <IconButton label={translate("reparseDag")} loading={isPending} onClick={() => mutate({ fileToken })}>
+    <IconButton
+      {...rest}
+      label={translate("reparseDag")}
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+    >
       <AiOutlineFileSync />
     </IconButton>
   );

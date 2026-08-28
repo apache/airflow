@@ -25,6 +25,7 @@ from cachetools import LRUCache, TTLCache
 
 from airflow.api_fastapi.app import purge_cached_app
 from airflow.api_fastapi.common.dagbag import create_dag_bag
+from airflow.models.dagbag import CachedDBDagBag
 from airflow.sdk import BaseOperator
 
 from tests_common.test_utils.config import conf_vars
@@ -53,13 +54,13 @@ class TestDagBagSingleton:
         """Patch DagBag once before app is created, and reset counter."""
         self.dagbag_call_counter["count"] = 0
 
-        from airflow.models.dagbag import DBDagBag as RealDagBag
+        from airflow.models.dagbag import CachedDBDagBag as RealDagBag
 
         def factory(*args, **kwargs):
             self.dagbag_call_counter["count"] += 1
             return RealDagBag(*args, **kwargs)
 
-        with mock.patch("airflow.api_fastapi.common.dagbag.DBDagBag", side_effect=factory):
+        with mock.patch("airflow.api_fastapi.common.dagbag.CachedDBDagBag", side_effect=factory):
             purge_cached_app()
             yield
 
@@ -93,20 +94,27 @@ class TestCreateDagBag:
     """Tests for create_dag_bag() function."""
 
     @pytest.mark.parametrize(
-        ("cache_size", "cache_ttl", "expected_dags_type", "expected_maxsize"),
+        ("cache_size", "cache_ttl", "expected_bag_type", "expected_dags_type", "expected_maxsize"),
         [
-            pytest.param("64", "3600", TTLCache, 64, id="default_ttl_cache"),
-            pytest.param("0", "3600", TTLCache, math.inf, id="size_zero_ttl_only"),
-            pytest.param("64", "0", LRUCache, 64, id="ttl_zero_lru_only"),
-            pytest.param("0", "0", dict, None, id="both_zero_no_eviction"),
+            pytest.param("64", "3600", CachedDBDagBag, TTLCache, 64, id="default_ttl_cache"),
+            pytest.param("0", "3600", CachedDBDagBag, TTLCache, math.inf, id="size_zero_ttl_only"),
+            pytest.param("64", "0", CachedDBDagBag, LRUCache, 64, id="ttl_zero_lru_only"),
+            pytest.param("0", "0", CachedDBDagBag, dict, None, id="both_zero_no_eviction"),
         ],
     )
-    def test_create_dag_bag_cache_modes(self, cache_size, cache_ttl, expected_dags_type, expected_maxsize):
+    def test_create_dag_bag_cache_modes(
+        self,
+        cache_size,
+        cache_ttl,
+        expected_bag_type,
+        expected_dags_type,
+        expected_maxsize,
+    ):
         with conf_vars({("api", "dag_cache_size"): cache_size, ("api", "dag_cache_ttl"): cache_ttl}):
             dag_bag = create_dag_bag()
 
+        assert type(dag_bag) is expected_bag_type
         assert isinstance(dag_bag._dags, expected_dags_type)
-        assert dag_bag._use_cache is (expected_dags_type is not dict)
         if expected_maxsize is not None:
             assert dag_bag._dags.maxsize == expected_maxsize
 

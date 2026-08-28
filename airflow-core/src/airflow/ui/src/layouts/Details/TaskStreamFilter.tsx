@@ -105,7 +105,7 @@ export const TaskStreamFilter = () => {
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }} tooltipLabel={tooltipContent}>
       <Menu.Trigger asChild>
-        <IconButton variant={hasActiveFilter ? "solid" : "ghost"}>
+        <IconButton bg="bg" variant={hasActiveFilter ? "solid" : "outline"}>
           <FiFilter />
         </IconButton>
       </Menu.Trigger>
