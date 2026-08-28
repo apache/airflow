@@ -220,6 +220,7 @@ class TestAirflowCommon:
                     }
                 ],
                 "nodeSelector": {"type": "user-node"},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}},
             },
             show_only=[
                 "templates/cleanup/cleanup-cronjob.yaml",
@@ -489,7 +490,11 @@ class TestAirflowCommon:
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
                 "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
-                "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                    "priorityClassName": "low-priority-create-user-job",
+                },
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",

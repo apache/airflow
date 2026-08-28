@@ -5061,7 +5061,7 @@
                 "enabled": {
                     "description": "Whether the create user job should be created.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "defaultUser": {
                     "description": "Optional default Airflow user information",
