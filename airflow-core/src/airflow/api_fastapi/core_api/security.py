@@ -147,22 +147,26 @@ async def get_user(
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
-    # A user might have been already built by a trusted in-tree middleware (currently
-    # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
-    # `request.state.user_authenticated_via` is set to the trust sentinel above.
-    # Honour the cached user only when both are present, so a stray `state.user`
-    # assignment from unrelated middleware can't bypass JWT validation.
-    user: BaseUser | None = getattr(request.state, "user", None)
-    trust_marker = getattr(request.state, "user_authenticated_via", None)
-    if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
-        return user
-
+    # An explicitly supplied credential always wins over the ambient session cookie.
     token_str: str | None
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         token_str = bearer_credentials.credentials
     elif oauth_token:
         token_str = oauth_token
     else:
+        token_str = None
+
+    if token_str is None:
+        # No explicit credential on this request, so the cookie is the caller's identity.
+        # A user might have been already built by a trusted in-tree middleware (currently
+        # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
+        # `request.state.user_authenticated_via` is set to the trust sentinel above.
+        # Honour the cached user only when both are present, so a stray `state.user`
+        # assignment from unrelated middleware can't bypass JWT validation.
+        user: BaseUser | None = getattr(request.state, "user", None)
+        trust_marker = getattr(request.state, "user_authenticated_via", None)
+        if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
+            return user
         token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
 
     return await resolve_user_from_token(token_str)
