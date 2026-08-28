@@ -1545,6 +1545,20 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "hook-name": "LevelDB",
                 "connection-type": "leveldb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "schema", "port"],
+                    "relabeling": {},
+                },
+                "conn-fields": {
+                    "create_if_missing": {
+                        "label": "Create a database if it does not exist",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "error_if_exists": {
+                        "label": "Raise an exception if the database already exists",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
