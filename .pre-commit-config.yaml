@@ -742,7 +742,7 @@ repos:
           ^providers/fab/src/airflow/providers/fab/www/security/permissions\.py$|
           ^scripts/ci/prek/extract_permissions\.py$|
           ^scripts/ci/prek/fab_permissions_doc\.py$|
-          ^providers/fab/docs/auth-manager/_api_permissions_table\.rst$
+          ^providers/fab/docs/auth-manager/access-control\.rst$
         pass_filenames: false
       - id: update-tested-versions
         name: Update tested Python/DB/Kubernetes versions in docs
