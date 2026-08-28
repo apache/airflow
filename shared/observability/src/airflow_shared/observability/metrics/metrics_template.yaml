@@ -691,7 +691,7 @@ metrics:
   # ==========
   # Timers
   # ==========
-  - name: "http_request_duration_seconds"
+  - name: "http_request_duration_milliseconds"
     description: "Milliseconds taken to complete a REST API request, tagged by method, route,
     and status_family."
     type: "timer"

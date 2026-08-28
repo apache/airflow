@@ -21,55 +21,49 @@ from unittest import mock
 
 import pytest
 import structlog.testing
-from starlette.applications import Starlette
+from fastapi import FastAPI
 from starlette.responses import PlainTextResponse
-from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.common.http_metrics import (
     HttpMetricsMiddleware,
+    _emit_api_metrics,
     _get_status_family,
 )
 
 
-def _make_app(raise_exc: bool = False) -> Starlette:
-    async def homepage(request):
-        if raise_exc:
-            raise RuntimeError("boom")
+def _make_app() -> FastAPI:
+    """Build a FastAPI app so route resolution behaves as it does in the real API server."""
+    app = FastAPI()
+
+    @app.get("/")
+    async def homepage():
         return PlainTextResponse("ok")
 
-    async def api_item(request):
+    @app.get("/api/v2/items/{item_id}")
+    async def api_item(item_id: str):
         return PlainTextResponse("ok")
 
-    async def task_instance(request):
+    @app.get("/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
+    async def task_instance(dag_id: str, dag_run_id: str, task_id: str):
         return PlainTextResponse("ok")
 
-    async def ui_item(request):
+    @app.get("/ui/items/{item_id}")
+    async def ui_item(item_id: str):
         return PlainTextResponse("ok")
 
-    async def plugin_item(request):
+    @app.get("/plugin/items/{item_id}")
+    async def plugin_item(item_id: str):
         return PlainTextResponse("ok")
 
-    async def api_fail(request):
+    @app.get("/api/v2/fail")
+    async def api_fail():
         raise RuntimeError("boom")
 
-    async def health(request):
+    @app.get("/api/v2/monitor/health")
+    async def health():
         return PlainTextResponse("healthy")
 
-    app = Starlette(
-        routes=[
-            Route("/", homepage),
-            Route("/api/v2/items/{item_id}", api_item),
-            Route(
-                "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
-                task_instance,
-            ),
-            Route("/ui/items/{item_id}", ui_item),
-            Route("/plugin/items/{item_id}", plugin_item),
-            Route("/api/v2/fail", api_fail),
-            Route("/api/v2/monitor/health", health),
-        ]
-    )
     app.add_middleware(HttpMetricsMiddleware)
     return app
 
@@ -123,6 +117,22 @@ def test_get_status_family(status_code, expected):
     assert _get_status_family(status_code) == expected
 
 
+def test_request_duration_is_emitted_in_milliseconds():
+    with (
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr"),
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
+    ):
+        _emit_api_metrics(
+            scope={},
+            path="/api/v2/items/42",
+            method="GET",
+            status_code=200,
+            duration_us=1_500_000,
+        )
+
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", 1500.0, tags=mock.ANY)
+
+
 @pytest.mark.parametrize(
     ("request_path", "route_tag"),
     [
@@ -144,20 +154,13 @@ def test_api_requests_emit_metrics(request_path, route_tag):
         response = client.get(request_path)
 
     assert response.status_code == 200
-    expected_request_tags = {
+    expected_tags = {
         "method": "GET",
         "route": route_tag,
         "status_family": "2xx",
     }
-    expected_duration_tags = {
-        "method": "GET",
-        "route": route_tag,
-        "status_family": "2xx",
-    }
-    mock_incr.assert_called_once_with("http_requests_total", tags=expected_request_tags)
-    mock_timing.assert_called_once_with(
-        "http_request_duration_seconds", mock.ANY, tags=expected_duration_tags
-    )
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
 
 @pytest.mark.parametrize(
@@ -195,7 +198,7 @@ def test_health_path_emits_metrics():
         "status_family": "2xx",
     }
     mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
-    mock_timing.assert_called_once_with("http_request_duration_seconds", mock.ANY, tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
 
 def test_failed_api_requests_emit_metrics_with_server_error_status():
@@ -207,13 +210,13 @@ def test_failed_api_requests_emit_metrics_with_server_error_status():
         response = client.get("/api/v2/fail")
 
     assert response.status_code == 500
-    expected_request_tags = {
+    expected_tags = {
         "method": "GET",
         "route": "/api/v2/fail",
         "status_family": "5xx",
     }
-    mock_incr.assert_called_once_with("http_requests_total", tags=expected_request_tags)
-    mock_timing.assert_called_once_with("http_request_duration_seconds", mock.ANY, tags=expected_request_tags)
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
 
 def test_unmatched_api_requests_use_unmatched_route_tag():
@@ -225,17 +228,10 @@ def test_unmatched_api_requests_use_unmatched_route_tag():
         response = client.get("/api/v2/missing")
 
     assert response.status_code == 404
-    expected_request_tags = {
+    expected_tags = {
         "method": "GET",
         "route": "unmatched",
         "status_family": "4xx",
     }
-    expected_duration_tags = {
-        "method": "GET",
-        "route": "unmatched",
-        "status_family": "4xx",
-    }
-    mock_incr.assert_called_once_with("http_requests_total", tags=expected_request_tags)
-    mock_timing.assert_called_once_with(
-        "http_request_duration_seconds", mock.ANY, tags=expected_duration_tags
-    )
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
