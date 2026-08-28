@@ -51,6 +51,12 @@ AUTH_MANAGER_PY = FAB_SRC / "auth_manager/fab_auth_manager.py"
 SECURITY_MANAGER_PY = FAB_SRC / "auth_manager/security_manager/override.py"
 OUTPUT_RST = REPO_ROOT / "providers/fab/docs/auth-manager/_api_permissions_table.rst"
 
+# FAB serves its own user and role management endpoints from a separate router, using
+# ``requires_fab_custom_view`` rather than the core ``requires_access_*`` helpers. They
+# are real endpoints and belong in this table, so they are parsed here as well.
+FAB_ROUTES_DIR = FAB_SRC / "auth_manager/api_fastapi/routes"
+FAB_ROUTER_PY = FAB_ROUTES_DIR / "router.py"
+
 # HTTP verb -> FAB action. PATCH and PUT are both edits.
 _METHOD_TO_ACTION = {
     "GET": "can_read",
@@ -261,6 +267,65 @@ def minimum_role(perms: list[str]) -> str:
     return "Admin"
 
 
+def _fab_router_prefix() -> str:
+    """Read ``FAB_AUTH_PREFIX`` from router.py rather than hardcoding it."""
+    return _resolve_str_constants(_parse(FAB_ROUTER_PY)).get("FAB_AUTH_PREFIX", "")
+
+
+def _fab_route_entries() -> list[tuple[str, str, str, str]]:
+    """Parse FAB's own routes into ``(path, http_method, permissions, role)`` rows.
+
+    ``requires_fab_custom_view(method, resource)`` names its resource directly, so no
+    entity expansion or base-Dag rule applies here -- unlike the core helpers.
+    """
+    display = _resource_display_names()
+    prefix = _fab_router_prefix()
+    rows: list[tuple[str, str, str, str]] = []
+
+    for route_file in sorted(FAB_ROUTES_DIR.glob("*.py")):
+        if route_file.name in {"__init__.py", "router.py"}:
+            continue
+        for node in ast.walk(_parse(route_file)):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            for deco in node.decorator_list:
+                if not isinstance(deco, ast.Call):
+                    continue
+                verb = _name_of(deco.func)
+                if verb is None or verb.upper() not in _METHOD_TO_ACTION:
+                    continue
+                if not deco.args or not isinstance(deco.args[0], ast.Constant):
+                    continue
+                path = deco.args[0].value
+                if not isinstance(path, str):
+                    continue
+
+                perms: list[str] = []
+                for kw in deco.keywords:
+                    if kw.arg != "dependencies" or not isinstance(kw.value, ast.List):
+                        continue
+                    for dep in kw.value.elts:
+                        if not isinstance(dep, ast.Call) or not dep.args:
+                            continue
+                        inner = dep.args[0]
+                        if not isinstance(inner, ast.Call):
+                            continue
+                        if _name_of(inner.func) != "requires_fab_custom_view":
+                            continue
+                        if len(inner.args) < 2 or not isinstance(inner.args[0], ast.Constant):
+                            continue
+                        auth_method = inner.args[0].value
+                        const = _name_of(inner.args[1])
+                        if not const or not isinstance(auth_method, str):
+                            continue
+                        action = _METHOD_TO_ACTION.get(auth_method, "can_read")
+                        perms.append(f"{display.get(const, const)}.{action}")
+
+                if perms:
+                    rows.append((f"{prefix}{path}", verb.upper(), ", ".join(perms), minimum_role(perms)))
+    return rows
+
+
 # The generated file must carry the ASF header itself; otherwise the ``insert-license``
 # hook adds it and this generator strips it back out on the next run.
 RST_LICENSE_HEADER = """\
@@ -295,6 +360,9 @@ def render_rst(entries: list[PermissionEntry]) -> str:
                 minimum_role(perms),
             )
         )
+
+    rows.extend(_fab_route_entries())
+    rows.sort()
 
     head = ("Endpoint", "Method", "Permissions", "Minimum role")
     lines = [

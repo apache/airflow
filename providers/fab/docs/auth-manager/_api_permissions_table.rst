@@ -29,11 +29,11 @@
      - Minimum role
    * - ``/api/v2/assets``
      - GET
-     - Assets.can_read
+     - Asset Aliases.can_read
      - Viewer
    * - ``/api/v2/assets``
      - GET
-     - Asset Aliases.can_read
+     - Assets.can_read
      - Viewer
    * - ``/api/v2/assets/aliases``
      - GET
@@ -53,11 +53,11 @@
      - User
    * - ``/api/v2/assets/{asset_id}``
      - GET
-     - Assets.can_read
+     - Asset Aliases.can_read
      - Viewer
    * - ``/api/v2/assets/{asset_id}``
      - GET
-     - Asset Aliases.can_read
+     - Assets.can_read
      - Viewer
    * - ``/api/v2/assets/{asset_id}/materialize``
      - POST
@@ -555,3 +555,47 @@
      - GET
      - None
      - Public
+   * - ``/fab/v1/permissions``
+     - GET
+     - Roles.can_read
+     - Admin
+   * - ``/fab/v1/roles``
+     - GET
+     - Roles.can_read
+     - Admin
+   * - ``/fab/v1/roles``
+     - POST
+     - Roles.can_create
+     - Admin
+   * - ``/fab/v1/roles/{name}``
+     - DELETE
+     - Roles.can_delete
+     - Admin
+   * - ``/fab/v1/roles/{name}``
+     - GET
+     - Roles.can_read
+     - Admin
+   * - ``/fab/v1/roles/{name}``
+     - PATCH
+     - Roles.can_edit
+     - Admin
+   * - ``/fab/v1/users``
+     - GET
+     - Users.can_read
+     - Admin
+   * - ``/fab/v1/users``
+     - POST
+     - Users.can_create
+     - Admin
+   * - ``/fab/v1/users/{username}``
+     - DELETE
+     - Users.can_delete
+     - Admin
+   * - ``/fab/v1/users/{username}``
+     - GET
+     - Users.can_read
+     - Admin
+   * - ``/fab/v1/users/{username}``
+     - PATCH
+     - Users.can_edit
+     - Admin
