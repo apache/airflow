@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 _T = TypeVar("_T")
 
 
-ENVIRONMENT_VARIABLE_MODULE = "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
-EXECUTION_API_MODULE = "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-METASTORE_MODULE = "airflow.secrets.metastore.MetastoreBackend"
+ENVIRONMENT_VARIABLE_BACKEND_PATH = "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
+EXECUTION_API_BACKEND_PATH = "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
+METASTORE_BACKEND_PATH = "airflow.secrets.metastore.MetastoreBackend"
 
 
 class Backend(enum.Enum):
@@ -42,12 +42,12 @@ class Backend(enum.Enum):
     METASTORE = "metastore"
 
     @classmethod
-    def from_module(cls, default_backend: str) -> Backend:
-        if default_backend == ENVIRONMENT_VARIABLE_MODULE:
+    def from_path(cls, default_backend: str) -> Backend:
+        if default_backend == ENVIRONMENT_VARIABLE_BACKEND_PATH:
             return cls.ENVIRONMENT_VARIABLE
-        if default_backend == EXECUTION_API_MODULE:
+        if default_backend == EXECUTION_API_BACKEND_PATH:
             return cls.EXECUTION_API
-        if default_backend == METASTORE_MODULE:
+        if default_backend == METASTORE_BACKEND_PATH:
             return cls.METASTORE
 
         raise ValueError(f"Unknown module provided: {default_backend}")

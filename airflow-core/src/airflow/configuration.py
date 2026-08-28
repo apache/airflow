@@ -769,7 +769,7 @@ def initialize_secrets_backends(
         secrets_backend_cls = import_string(class_name)
         backend = secrets_backend_cls()
         backend._set_connection_class(Connection)
-        backend_list.append((Backend.from_module(class_name), backend))
+        backend_list.append((Backend.from_path(class_name), backend))
 
     return sorted_backends(conf, backend_list, worker_mode)
 

@@ -311,7 +311,7 @@ class TestContextDetection:
 
 
 class TestSecretsBackendMemoisation:
-    BACKEND = secrets_backends.ENVIRONMENT_VARIABLE_MODULE
+    BACKEND = secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH
 
     def test_nothing_is_memoised_until_a_custom_backend_is_configured(self):
         first = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)

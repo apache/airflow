@@ -2482,7 +2482,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     # 3. Fallback for unknown contexts (supervisor, etc.)
     # Only env vars + external backends from config, no MetastoreBackend, no ExecutionAPISecretsBackend
     fallback_backends = [
-        secrets_backends.ENVIRONMENT_VARIABLE_MODULE,
+        secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
     ]
     return ensure_secrets_loaded(default_backends=fallback_backends)
 
