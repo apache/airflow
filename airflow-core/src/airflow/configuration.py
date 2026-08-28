@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import enum
 import logging
 import os
 import pathlib
@@ -42,6 +41,7 @@ from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
+from airflow._shared.configuration.secrets_backends import Backend, sorted_backends
 from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
@@ -741,55 +741,6 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
     return conf._get_custom_secret_backend(worker_mode=worker_mode)
 
 
-class Backend(enum.Enum):
-    """Known secrets backends."""
-
-    ENVIRONMENT_VARIABLE = "environment_variable"
-    EXECUTION_API = "execution_api"
-    CUSTOM = "custom"
-    METASTORE = "metastore"
-
-    @classmethod
-    def from_module(cls, default_backend: str) -> Backend:
-        match default_backend:
-            case "airflow.secrets.environment_variables.EnvironmentVariablesBackend":
-                return cls.ENVIRONMENT_VARIABLE
-            case "airflow.secrets.metastore.MetastoreBackend":
-                return cls.METASTORE
-            case "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend":
-                return cls.EXECUTION_API
-
-        raise ValueError(f"Unknown module provided: {default_backend}")
-
-
-def _get_secrets_backend_order(required_backends: list[Backend], worker_mode: bool) -> list[Backend]:
-    from airflow.configuration import conf
-
-    search_section = "workers" if worker_mode else "secrets"
-    invalid_backends = []
-    backends_order = []
-    for backend in conf.getlist(search_section, "backends_order", delimiter=","):
-        try:
-            backends_order.append(Backend(backend))
-        except ValueError:
-            invalid_backends.append(backend)
-
-    if invalid_backends:
-        raise AirflowConfigException(
-            f"The configuration option [{search_section}]backends_order is misconfigured. "
-            f"The following backend types are unsupported: {invalid_backends}",
-        )
-
-    # backend is in use but its missing from ordering
-    if missing_backends := [b.value for b in required_backends if b not in backends_order]:
-        raise AirflowConfigException(
-            f"The configuration option [{search_section}]backends_order is misconfigured. "
-            f"The following backend types are missing: {missing_backends}",
-        )
-
-    return backends_order
-
-
 def initialize_secrets_backends(
     default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
 ) -> list[BaseSecretsBackend]:
@@ -820,10 +771,7 @@ def initialize_secrets_backends(
         backend._set_connection_class(Connection)
         backend_list.append((Backend.from_module(class_name), backend))
 
-    backends_order = _get_secrets_backend_order([b[0] for b in backend_list], worker_mode)
-    backend_list.sort(key=lambda e: backends_order.index(e[0]))
-
-    return [b[1] for b in backend_list]
+    return sorted_backends(conf, backend_list, worker_mode)
 
 
 def initialize_auth_manager() -> BaseAuthManager:
