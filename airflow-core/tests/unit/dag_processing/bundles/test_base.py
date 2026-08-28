@@ -26,6 +26,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import call, patch
 
+import pendulum
 import pytest
 import time_machine
 
@@ -35,7 +36,9 @@ from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     BundleVersion,
     BundleVersionLock,
+    TrackedBundleVersionInfo,
     get_bundle_storage_root_path,
+    get_bundle_version_path,
 )
 
 from tests_common.test_utils.config import conf_vars
@@ -72,6 +75,10 @@ class BasicBundle(BaseDagBundle):
 
     def path(self):
         pass
+
+
+def test_bundle_refresh_does_not_publish_versioned_paths_by_default():
+    assert BasicBundle(name="basic").refreshes_to_versioned_paths is False
 
 
 def test_dag_bundle_root_storage_path():
@@ -194,6 +201,31 @@ class TestBundleVersionLock:
         lth1.stop = True
         t1.join()
 
+    def test_first_shared_holder_remains_protected_after_second_releases(self):
+        bundle_name = "abc"
+        version = "shared-version"
+        bundle_path = get_bundle_version_path(bundle_name=bundle_name, version=version)
+        bundle_path.mkdir(parents=True)
+        first = BundleVersionLock(bundle_name=bundle_name, bundle_version=version)
+        second = BundleVersionLock(bundle_name=bundle_name, bundle_version=version)
+        first.acquire()
+        second.acquire()
+        second.release()
+        info = TrackedBundleVersionInfo(
+            lock_file_path=first.lock_file_path,
+            version=version,
+            dt=pendulum.now(tz=pendulum.UTC),
+        )
+
+        BundleUsageTrackingManager._remove_stale_bundle(bundle_name, info)
+
+        assert bundle_path.exists()
+        first.release()
+
+        BundleUsageTrackingManager._remove_stale_bundle(bundle_name, info)
+
+        assert not bundle_path.exists()
+
     def test_that_no_version_is_noop(self):
         with BundleVersionLock(
             bundle_name="Yer face",
@@ -202,6 +234,16 @@ class TestBundleVersionLock:
             log.info("this is fine")
         assert b.lock_file_path is None
         assert b.lock_file is None
+
+    def test_context_manager_propagates_acquire_failure(self):
+        lock = BundleVersionLock(bundle_name="abc", bundle_version="v1")
+
+        with (
+            patch.object(lock, "acquire", side_effect=OSError("tracking unavailable")),
+            pytest.raises(OSError, match="tracking unavailable"),
+        ):
+            with lock:
+                pass
 
     def test_log_exc_formats_message_correctly(self):
         """Test that _log_exc correctly formats the log message with all parameters."""
@@ -241,6 +283,20 @@ class FakeBundle(BaseDagBundle):
 
 
 class TestBundleUsageTrackingManager:
+    def test_cleanup_removes_tracking_file_when_generation_is_missing(self):
+        lock = BundleVersionLock(bundle_name="abc", bundle_version="missing")
+        lock.acquire()
+        lock.release()
+        info = TrackedBundleVersionInfo(
+            lock_file_path=lock.lock_file_path,
+            version="missing",
+            dt=pendulum.now(tz=pendulum.UTC),
+        )
+
+        BundleUsageTrackingManager._remove_stale_bundle("abc", info)
+
+        assert not lock.lock_file_path.exists()
+
     @pytest.mark.parametrize(
         ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),
         [
