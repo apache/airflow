@@ -914,6 +914,21 @@ export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanc
   taskId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData, ...options });
 /**
+* Get Task Instance Retry Details
+* Get retry timing details for a task instance waiting to retry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @returns TaskInstanceRetryDetails Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServiceGetTaskInstanceRetryDetails = <TData = Common.TaskInstanceServiceGetTaskInstanceRetryDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceRetryDetailsKeyFn({ dagId, dagRunId, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceRetryDetails({ dagId, dagRunId, taskId }) as TData, ...options });
+/**
 * Get Mapped Task Instances
 * Get list of mapped task instances.
 * @param data The data for the request.
@@ -1098,6 +1113,23 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
   mapIndex: number;
   taskId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+/**
+* Get Mapped Task Instance Retry Details
+* Get retry timing details for a mapped task instance waiting to retry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns TaskInstanceRetryDetails Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServiceGetMappedTaskInstanceRetryDetails = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceRetryDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceRetryDetailsKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstanceRetryDetails({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
 /**
 * Get Task Instances
 * Get list of task instances.

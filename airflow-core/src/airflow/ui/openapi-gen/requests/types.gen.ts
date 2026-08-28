@@ -1882,6 +1882,53 @@ export type TaskInstanceResponse = {
 };
 
 /**
+ * Calculated timing details for a task instance waiting to retry.
+ */
+export type TaskInstanceRetryDetails = {
+    /**
+     * Time when the task instance becomes eligible to retry.
+     */
+    eligible_at: string;
+    /**
+     * Effective retry delay after applying any maximum.
+     */
+    delay_seconds: number;
+    /**
+     * Retry delay configured on the task, when the task definition is available.
+     */
+    configured_delay_seconds: number | null;
+    /**
+     * Exponentially increased delay before deterministic jitter is applied.
+     */
+    backoff_delay_seconds: number | null;
+    /**
+     * Deterministic jitter calculated for this attempt.
+     */
+    jitter_seconds: number | null;
+    /**
+     * Effective maximum from the task and global retry-delay limits.
+     */
+    maximum_delay_seconds: number | null;
+    /**
+     * Whether the calculated delay exceeded the effective maximum.
+     */
+    is_capped: boolean;
+    /**
+     * Source of the effective retry delay.
+     */
+    source: TaskInstanceRetrySource;
+    /**
+     * Reason supplied by a retry policy, when available.
+     */
+    reason: string | null;
+};
+
+/**
+ * Source of a calculated retry delay.
+ */
+export type TaskInstanceRetrySource = 'task_configuration' | 'retry_policy';
+
+/**
  * All possible states that a Task Instance can be in.
  *
  * Note that None is also allowed, so always use this in a type hint with Optional.
@@ -3784,6 +3831,14 @@ export type DeleteTaskInstanceData = {
 
 export type DeleteTaskInstanceResponse = unknown;
 
+export type GetTaskInstanceRetryDetailsData = {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+};
+
+export type GetTaskInstanceRetryDetailsResponse = TaskInstanceRetryDetails;
+
 export type GetMappedTaskInstancesData = {
     dagId: string;
     dagRunId: string;
@@ -3917,6 +3972,15 @@ export type PatchTaskInstanceByMapIndexData = {
 };
 
 export type PatchTaskInstanceByMapIndexResponse = TaskInstanceCollectionResponse;
+
+export type GetMappedTaskInstanceRetryDetailsData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+};
+
+export type GetMappedTaskInstanceRetryDetailsResponse = TaskInstanceRetryDetails;
 
 export type GetTaskInstancesData = {
     /**
@@ -6769,6 +6833,37 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/retryDetails': {
+        get: {
+            req: GetTaskInstanceRetryDetailsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceRetryDetails;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped': {
         get: {
             req: GetMappedTaskInstancesData;
@@ -6941,6 +7036,37 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/retryDetails': {
+        get: {
+            req: GetMappedTaskInstanceRetryDetailsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceRetryDetails;
                 /**
                  * Unauthorized
                  */

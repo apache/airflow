@@ -23,6 +23,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import {
   useTaskInstanceServiceGetMappedTaskInstance,
+  useTaskInstanceServiceGetMappedTaskInstanceRetryDetails,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
 import { DagVersionDetails } from "src/components/DagVersionDetails";
@@ -38,6 +39,7 @@ import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
+import { RetryDetails } from "./RetryDetails";
 import { TriggererInfo } from "./TriggererInfo";
 
 export const Details = () => {
@@ -75,6 +77,21 @@ export const Details = () => {
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const refetchInterval = useAutoRefresh({ dagId });
+  const isCurrentRetry = taskInstance?.state === "up_for_retry" && tryNumber === taskInstance.try_number;
+
+  const { data: retryDetails } = useTaskInstanceServiceGetMappedTaskInstanceRetryDetails(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parsedMapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      enabled: !isNaN(parsedMapIndex) && isCurrentRetry,
+      refetchInterval: isCurrentRetry ? refetchInterval : false,
+    },
+  );
 
   const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails(
     {
@@ -146,6 +163,7 @@ export const Details = () => {
       {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
         <TriggererInfo taskInstance={taskInstance} />
       ) : undefined}
+      {isCurrentRetry && retryDetails !== undefined ? <RetryDetails details={retryDetails} /> : undefined}
       <Table.Root striped>
         <Table.Body>
           <Table.Row>

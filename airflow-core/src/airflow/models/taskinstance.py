@@ -26,7 +26,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast as typing_cast
 from urllib.parse import quote
 from uuid import UUID
 
@@ -138,6 +138,19 @@ class OutletEventPayload(NamedTuple):
 
     extra: dict
     partition_key: str | None
+
+
+class RetryTiming(NamedTuple):
+    """Timing and calculation details for a task retry."""
+
+    eligible_at: datetime
+    delay: timedelta
+    configured_delay: timedelta | None
+    backoff_delay: timedelta | None
+    jitter: timedelta | None
+    maximum_delay: timedelta | None
+    is_capped: bool
+    is_policy_override: bool
 
 
 @provide_session
@@ -1244,9 +1257,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             prefix += f"map_index={map_index} "
         return prefix + f"[{field('state')}] ti_id={field('id')}>"
 
-    def next_retry_datetime(self):
+    def get_retry_timing(self) -> RetryTiming:
         """
-        Get datetime of the next retry if the task instance fails.
+        Get the timing and calculation details for the next retry.
 
         When a :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy` has
         overridden the delay, ``retry_delay_override`` is stored on the task
@@ -1255,15 +1268,32 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
-        # Check for a policy-driven delay override.
         if self.retry_delay_override is not None:
+            task = typing_cast("Operator | None", getattr(self, "task", None))
+            configured_delay = task.retry_delay if task is not None else None
             base = self.end_date if self.end_date is not None else timezone.utcnow()
-            return base + timedelta(seconds=self.retry_delay_override)
+            delay = timedelta(seconds=self.retry_delay_override)
+            return RetryTiming(
+                eligible_at=base + delay,
+                delay=delay,
+                configured_delay=configured_delay,
+                backoff_delay=None,
+                jitter=None,
+                maximum_delay=None,
+                is_capped=False,
+                is_policy_override=True,
+            )
 
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
-        delay = self.task.retry_delay
-        multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
+        task = typing_cast("Operator", self.task)
+        configured_delay = task.retry_delay
+        delay = configured_delay
+        backoff_delay = None
+        jitter = None
+        maximum_delay = None
+        is_capped = False
+        multiplier = task.retry_exponential_backoff if task.retry_exponential_backoff != 0 else 1.0
         if multiplier != 1.0 and multiplier > 0:
             try:
                 # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
@@ -1293,18 +1323,34 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 ).hexdigest(),
                 16,
             )
-            # between 1 and 1.0 * delay * (multiplier^retry_number)
-            modded_hash = min_backoff + ti_hash % min_backoff
-            # timedelta has a maximum representable value. The exponentiation
-            # here means this value can be exceeded after a certain number
-            # of tries (around 50 if the initial delay is 1s, even fewer if
-            # the delay is larger). Cap the value here before creating a
-            # timedelta object so the operation doesn't fail with "OverflowError".
-            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
-            delay = timedelta(seconds=delay_backoff_in_seconds)
-            if self.task.max_retry_delay:
-                delay = min(self.task.max_retry_delay, delay)
-        return self.end_date + delay
+            jitter_in_seconds = ti_hash % min_backoff
+            calculated_delay_in_seconds = min_backoff + jitter_in_seconds
+            retry_cap = timedelta(seconds=MAX_RETRY_DELAY)
+            max_retry_delay = typing_cast("timedelta | None", task.max_retry_delay)
+            if max_retry_delay:
+                retry_cap = min(max_retry_delay, retry_cap)
+            maximum_delay = retry_cap
+
+            delay_in_seconds = min(calculated_delay_in_seconds, retry_cap.total_seconds())
+            delay = timedelta(seconds=delay_in_seconds)
+            backoff_delay = timedelta(seconds=min(min_backoff, MAX_RETRY_DELAY))
+            jitter = timedelta(seconds=min(jitter_in_seconds, MAX_RETRY_DELAY))
+            is_capped = delay_in_seconds < calculated_delay_in_seconds
+
+        return RetryTiming(
+            eligible_at=typing_cast("datetime", self.end_date) + delay,
+            delay=delay,
+            configured_delay=configured_delay,
+            backoff_delay=backoff_delay,
+            jitter=jitter,
+            maximum_delay=maximum_delay,
+            is_capped=is_capped,
+            is_policy_override=False,
+        )
+
+    def next_retry_datetime(self):
+        """Get datetime of the next retry if the task instance fails."""
+        return self.get_retry_timing().eligible_at
 
     def ready_for_retry(self) -> bool:
         """Check on whether the task instance is in the right state and timeframe to be retried."""

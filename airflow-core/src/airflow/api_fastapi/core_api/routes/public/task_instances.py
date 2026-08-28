@@ -101,6 +101,8 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstanceRetryDetails,
+    TaskInstanceRetrySource,
     TaskInstancesBatchBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -129,6 +131,48 @@ log = structlog.get_logger(__name__)
 
 task_instances_router = AirflowRouter(tags=["Task Instance"], prefix="/dags/{dag_id}")
 task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
+
+
+def _build_task_instance_retry_details(
+    task_instance: TI, dag_bag: DagBagDep, *, session: SessionDep
+) -> TaskInstanceRetryDetails:
+    if task_instance.state != TaskInstanceState.UP_FOR_RETRY:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Task instance `{task_instance.task_id}` is not waiting for retry",
+        )
+
+    dag = get_dag_for_run(dag_bag, task_instance.dag_run, session)
+    try:
+        task_instance.task = dag.get_task(task_instance.task_id)
+    except TaskNotFound as error:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Task `{task_instance.task_id}` was not found in the Dag version for run `{task_instance.run_id}`",
+        ) from error
+
+    timing = task_instance.get_retry_timing()
+    return TaskInstanceRetryDetails(
+        eligible_at=timing.eligible_at,
+        delay_seconds=timing.delay.total_seconds(),
+        configured_delay_seconds=(
+            timing.configured_delay.total_seconds() if timing.configured_delay is not None else None
+        ),
+        backoff_delay_seconds=(
+            timing.backoff_delay.total_seconds() if timing.backoff_delay is not None else None
+        ),
+        jitter_seconds=timing.jitter.total_seconds() if timing.jitter is not None else None,
+        maximum_delay_seconds=(
+            timing.maximum_delay.total_seconds() if timing.maximum_delay is not None else None
+        ),
+        is_capped=timing.is_capped,
+        source=(
+            TaskInstanceRetrySource.RETRY_POLICY
+            if timing.is_policy_override
+            else TaskInstanceRetrySource.TASK_CONFIGURATION
+        ),
+        reason=task_instance.retry_reason if timing.is_policy_override else None,
+    )
 
 
 @task_instances_router.get(
@@ -164,6 +208,38 @@ def get_task_instance(
         )
 
     return task_instance
+
+
+@task_instances_router.get(
+    task_instances_prefix + "/{task_id}/retryDetails",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def get_task_instance_retry_details(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    dag_bag: DagBagDep,
+    session: SessionDep,
+) -> TaskInstanceRetryDetails:
+    """Get retry timing details for a task instance waiting to retry."""
+    task_instance = session.scalar(
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.map_index == -1,
+        )
+        .options(joinedload(TI.dag_run))
+    )
+    if task_instance is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}` and task_id: `{task_id}` was not found",
+        )
+
+    return _build_task_instance_retry_details(task_instance, dag_bag, session=session)
 
 
 @task_instances_router.get(
@@ -451,6 +527,39 @@ def get_mapped_task_instance(
         )
 
     return task_instance
+
+
+@task_instances_router.get(
+    task_instances_prefix + "/{task_id}/{map_index}/retryDetails",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+)
+def get_mapped_task_instance_retry_details(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    dag_bag: DagBagDep,
+    session: SessionDep,
+) -> TaskInstanceRetryDetails:
+    """Get retry timing details for a mapped task instance waiting to retry."""
+    task_instance = session.scalar(
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.map_index == map_index,
+        )
+        .options(joinedload(TI.dag_run))
+    )
+    if task_instance is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Mapped Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and map_index: `{map_index}` was not found",
+        )
+
+    return _build_task_instance_retry_details(task_instance, dag_bag, session=session)
 
 
 @task_instances_router.get(

@@ -679,12 +679,81 @@ class TestTaskInstance:
         ti.end_date = pendulum.instance(timezone.utcnow())
 
         ti.try_number = 5000
-        date = ti.next_retry_datetime()
-        assert date == ti.end_date + max_delay
+        timing = ti.get_retry_timing()
+        assert timing.eligible_at == ti.end_date + max_delay
+        assert timing.delay == max_delay
+        assert timing.maximum_delay == max_delay
+        assert timing.is_capped is True
+        assert ti.next_retry_datetime() == timing.eligible_at
 
         ti.try_number = 50000
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
+
+    def test_get_retry_timing_exposes_exponential_breakdown(self, dag_maker):
+        delay = datetime.timedelta(seconds=30)
+        max_delay = datetime.timedelta(minutes=60)
+
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_exp_backoff_and_max_delay",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=delay,
+                retry_exponential_backoff=2.0,
+                max_retry_delay=max_delay,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+        ti.try_number = 3
+
+        timing = ti.get_retry_timing()
+
+        assert timing.backoff_delay is not None
+        assert timing.jitter is not None
+        assert timing.eligible_at == ti.end_date + timing.delay
+        assert timing.delay == timing.backoff_delay + timing.jitter
+        assert timing.configured_delay == delay
+        assert timing.backoff_delay == datetime.timedelta(seconds=120)
+        assert datetime.timedelta(0) <= timing.jitter < timing.backoff_delay
+        assert timing.maximum_delay == max_delay
+        assert timing.is_capped is False
+        assert timing.is_policy_override is False
+
+        ti.try_number = 9
+        capped_timing = ti.get_retry_timing()
+
+        assert capped_timing.backoff_delay is not None
+        assert capped_timing.delay == max_delay
+        assert capped_timing.backoff_delay > max_delay
+        assert capped_timing.maximum_delay == max_delay
+        assert capped_timing.is_capped is True
+
+    def test_get_retry_timing_without_backoff(self, dag_maker):
+        delay = datetime.timedelta(seconds=30)
+
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_without_exp_backoff",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=delay,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        timing = ti.get_retry_timing()
+
+        assert timing.eligible_at == ti.end_date + delay
+        assert timing.delay == delay
+        assert timing.configured_delay == delay
+        assert timing.backoff_delay is None
+        assert timing.jitter is None
+        assert timing.maximum_delay is None
+        assert timing.is_capped is False
+        assert timing.is_policy_override is False
 
     @pytest.mark.parametrize("seconds", [0, 0.5, 1])
     def test_next_retry_datetime_short_or_zero_intervals(self, dag_maker, seconds):
@@ -755,6 +824,19 @@ class TestTaskInstance:
         ti.retry_delay_override = 10.0
         date_override = ti.next_retry_datetime()
         assert date_override == ti.end_date + datetime.timedelta(seconds=10)
+        timing = ti.get_retry_timing()
+        assert timing.delay == datetime.timedelta(seconds=10)
+        assert timing.configured_delay == datetime.timedelta(minutes=5)
+        assert timing.backoff_delay is None
+        assert timing.jitter is None
+        assert timing.maximum_delay is None
+        assert timing.is_capped is False
+        assert timing.is_policy_override is True
+
+        del ti.task
+        timing_without_task = ti.get_retry_timing()
+        assert timing_without_task.eligible_at == ti.end_date + datetime.timedelta(seconds=10)
+        assert timing_without_task.configured_delay is None
 
         # Override of 0 means retry immediately
         ti.retry_delay_override = 0.0

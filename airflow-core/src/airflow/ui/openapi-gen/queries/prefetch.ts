@@ -914,6 +914,21 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (queryClient: Query
   taskId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }), queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) });
 /**
+* Get Task Instance Retry Details
+* Get retry timing details for a task instance waiting to retry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @returns TaskInstanceRetryDetails Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskInstanceServiceGetTaskInstanceRetryDetails = (queryClient: QueryClient, { dagId, dagRunId, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceRetryDetailsKeyFn({ dagId, dagRunId, taskId }), queryFn: () => TaskInstanceService.getTaskInstanceRetryDetails({ dagId, dagRunId, taskId }) });
+/**
 * Get Mapped Task Instances
 * Get list of mapped task instances.
 * @param data The data for the request.
@@ -1098,6 +1113,23 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient:
   mapIndex: number;
   taskId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) });
+/**
+* Get Mapped Task Instance Retry Details
+* Get retry timing details for a mapped task instance waiting to retry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns TaskInstanceRetryDetails Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceRetryDetails = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceRetryDetailsKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getMappedTaskInstanceRetryDetails({ dagId, dagRunId, mapIndex, taskId }) });
 /**
 * Get Task Instances
 * Get list of task instances.

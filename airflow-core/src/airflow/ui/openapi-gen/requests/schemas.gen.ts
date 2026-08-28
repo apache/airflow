@@ -7324,6 +7324,102 @@ export const $TaskInstanceResponse = {
     description: 'TaskInstance serializer for responses.'
 } as const;
 
+export const $TaskInstanceRetryDetails = {
+    properties: {
+        eligible_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Eligible At',
+            description: 'Time when the task instance becomes eligible to retry.'
+        },
+        delay_seconds: {
+            type: 'number',
+            title: 'Delay Seconds',
+            description: 'Effective retry delay after applying any maximum.'
+        },
+        configured_delay_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Configured Delay Seconds',
+            description: 'Retry delay configured on the task, when the task definition is available.'
+        },
+        backoff_delay_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Backoff Delay Seconds',
+            description: 'Exponentially increased delay before deterministic jitter is applied.'
+        },
+        jitter_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Jitter Seconds',
+            description: 'Deterministic jitter calculated for this attempt.'
+        },
+        maximum_delay_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Maximum Delay Seconds',
+            description: 'Effective maximum from the task and global retry-delay limits.'
+        },
+        is_capped: {
+            type: 'boolean',
+            title: 'Is Capped',
+            description: 'Whether the calculated delay exceeded the effective maximum.'
+        },
+        source: {
+            '$ref': '#/components/schemas/TaskInstanceRetrySource',
+            description: 'Source of the effective retry delay.'
+        },
+        reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason',
+            description: 'Reason supplied by a retry policy, when available.'
+        }
+    },
+    type: 'object',
+    required: ['eligible_at', 'delay_seconds', 'configured_delay_seconds', 'backoff_delay_seconds', 'jitter_seconds', 'maximum_delay_seconds', 'is_capped', 'source', 'reason'],
+    title: 'TaskInstanceRetryDetails',
+    description: 'Calculated timing details for a task instance waiting to retry.'
+} as const;
+
+export const $TaskInstanceRetrySource = {
+    type: 'string',
+    enum: ['task_configuration', 'retry_policy'],
+    title: 'TaskInstanceRetrySource',
+    description: 'Source of a calculated retry delay.'
+} as const;
+
 export const $TaskInstanceState = {
     type: 'string',
     enum: ['removed', 'scheduled', 'queued', 'running', 'success', 'restarting', 'failed', 'up_for_retry', 'up_for_reschedule', 'upstream_failed', 'skipped', 'deferred', 'awaiting_input'],

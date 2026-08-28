@@ -1019,6 +1019,15 @@ class TaskInletAssetReference(BaseModel):
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
+class TaskInstanceRetrySource(str, Enum):
+    """
+    Source of a calculated retry delay.
+    """
+
+    TASK_CONFIGURATION = "task_configuration"
+    RETRY_POLICY = "retry_policy"
+
+
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -2179,6 +2188,53 @@ class TaskInstanceResponse(BaseModel):
     triggerer_job: JobResponse | None
     dag_version: DagVersionResponse | None
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+
+
+class TaskInstanceRetryDetails(BaseModel):
+    """
+    Calculated timing details for a task instance waiting to retry.
+    """
+
+    eligible_at: Annotated[
+        datetime,
+        Field(description="Time when the task instance becomes eligible to retry.", title="Eligible At"),
+    ]
+    delay_seconds: Annotated[
+        float, Field(description="Effective retry delay after applying any maximum.", title="Delay Seconds")
+    ]
+    configured_delay_seconds: Annotated[
+        float | None,
+        Field(
+            description="Retry delay configured on the task, when the task definition is available.",
+            title="Configured Delay Seconds",
+        ),
+    ]
+    backoff_delay_seconds: Annotated[
+        float | None,
+        Field(
+            description="Exponentially increased delay before deterministic jitter is applied.",
+            title="Backoff Delay Seconds",
+        ),
+    ]
+    jitter_seconds: Annotated[
+        float | None,
+        Field(description="Deterministic jitter calculated for this attempt.", title="Jitter Seconds"),
+    ]
+    maximum_delay_seconds: Annotated[
+        float | None,
+        Field(
+            description="Effective maximum from the task and global retry-delay limits.",
+            title="Maximum Delay Seconds",
+        ),
+    ]
+    is_capped: Annotated[
+        bool,
+        Field(description="Whether the calculated delay exceeded the effective maximum.", title="Is Capped"),
+    ]
+    source: Annotated[TaskInstanceRetrySource, Field(description="Source of the effective retry delay.")]
+    reason: Annotated[
+        str | None, Field(description="Reason supplied by a retry policy, when available.", title="Reason")
+    ]
 
 
 class TaskResponse(BaseModel):
