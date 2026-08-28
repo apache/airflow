@@ -126,6 +126,7 @@ class BatchJobCollection:
         del self.key_to_id[workload_key]
         del self.id_to_key[job_id]
         del self.id_to_failure_counts[job_id]
+        del self.id_to_job_info[job_id]
         return workload_key
 
     def remove_job(self, job_id: str) -> BatchJobWorkloadKey | None:
