@@ -1396,7 +1396,20 @@ def _deploy_helm_chart(
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
-        if not use_flask_appbuilder:
+        if use_flask_appbuilder:
+            # The chart creates no user of its own, so the account the tests log in as has to
+            # be asked for here, credentials included.
+            helm_command.extend(
+                [
+                    "--set",
+                    "createUserJob.enabled=true",
+                    "--set",
+                    "createUserJob.defaultUser.username=admin",
+                    "--set",
+                    "createUserJob.defaultUser.password=admin",
+                ]
+            )
+        else:
             helm_command.extend(["--set", "createUserJob.enabled=false"])
         if upgrade:
             # force upgrade
@@ -1748,6 +1761,12 @@ def dev(
             "scheduler": {"env": [{"name": "DEV_MODE", "value": "true"}]},
             "triggerer": {"env": [{"name": "DEV_MODE", "value": "true"}]},
             "dagProcessor": {"env": [{"name": "DEV_MODE", "value": "true"}]},
+            # The chart creates no user of its own, so a throwaway one is asked for here to
+            # keep the dev-mode UI loggable-into.
+            "createUserJob": {
+                "enabled": True,
+                "defaultUser": {"username": "admin", "password": "admin"},
+            },
         }
         dev_env_values_path = Path(tmp_dir) / "dev-env-values.yaml"
         dev_env_values_path.write_text(yaml.safe_dump(dev_env_values, sort_keys=False))

@@ -157,7 +157,11 @@ class TestRBAC:
                 "triggerer": {"serviceAccount": {"create": False}},
                 "statsd": {"serviceAccount": {"create": False}},
                 "otelCollector": {"tracesEnabled": True, "serviceAccount": {"create": False}},
-                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"create": False}},
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                    "serviceAccount": {"create": False},
+                },
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
                 "flower": {"enabled": True, "serviceAccount": {"create": False}},
             },
@@ -227,7 +231,11 @@ class TestRBAC:
                         "create": False,
                     },
                 },
-                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"create": False}},
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                    "serviceAccount": {"create": False},
+                },
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
             },
         )
@@ -322,7 +330,11 @@ class TestRBAC:
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                    "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME},
+                },
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
             },
         )
@@ -372,7 +384,11 @@ class TestRBAC:
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}, "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
+                "createUserJob": {
+                    "enabled": True,
+                    "defaultUser": {"username": "admin", "password": "admin"},
+                    "serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME},
+                },
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
             },
         )
