@@ -1459,6 +1459,31 @@ class TestBulkVariables(TestVariableEndpoint):
             assert response_data[key] == value
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
 
+    def test_bulk_update_with_unknown_update_mask_field_returns_400(self, test_client, session):
+        self.create_variables()
+        response = test_client.patch(
+            "/variables",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "key": TEST_VARIABLE_KEY,
+                                "value": "new_value",
+                                "description": "new description",
+                            }
+                        ],
+                        "update_mask": ["valu"],  # codespell:ignore valu
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 400
+        assert "Unknown field(s) in update_mask: 'valu'" in response.json()["detail"]  # codespell:ignore
+        stored = session.scalar(select(Variable).where(Variable.key == TEST_VARIABLE_KEY))
+        assert stored.val == TEST_VARIABLE_VALUE
+
     @pytest.mark.parametrize(
         ("entity_key", "entity_value", "entity_description"),
         [
