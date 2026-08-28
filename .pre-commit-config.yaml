@@ -729,6 +729,21 @@ repos:
           ^scripts/ci/prek/extract_permissions\.py$|
           ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
+      - id: generate-fab-permissions-doc
+        name: Generate FAB auth manager REST API permission table
+        entry: ./scripts/ci/prek/fab_permissions_doc.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/fab_auth_manager\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override\.py$|
+          ^providers/fab/src/airflow/providers/fab/www/security/permissions\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^scripts/ci/prek/fab_permissions_doc\.py$|
+          ^providers/fab/docs/auth-manager/_api_permissions_table\.rst$
+        pass_filenames: false
       - id: update-tested-versions
         name: Update tested Python/DB/Kubernetes versions in docs
         entry: ./scripts/ci/prek/update_tested_versions.py
