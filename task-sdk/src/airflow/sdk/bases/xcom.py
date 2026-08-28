@@ -23,10 +23,12 @@ from typing import Any, Protocol
 import structlog
 
 from airflow.sdk.execution_time.comms import (
+    BulkDeleteXCom,
     DeleteXCom,
     GetXCom,
     GetXComSequenceSlice,
     SetXCom,
+    XComDeleteCountResult,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -572,3 +574,51 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+
+    @classmethod
+    def delete_all(
+        cls,
+        dag_id: str,
+        run_id: str,
+        task_id: str | None = None,
+        key: str | None = None,
+        map_index: int | None = None,
+        include_dag_result: bool = False,
+    ) -> int:
+        """
+        Bulk delete XCom entries, optionally filtered by task_id, key, or map_index.
+
+        .. note:: This **will not** purge any data from a custom XCom backend.
+
+        :param dag_id: Dag ID.
+        :param run_id: Dag run ID for the task.
+        :param task_id: Optional task ID filter. If provided, only XComs from this task
+            will be deleted. Pass *None* (default) to delete across all tasks.
+        :param key: Optional key filter. If provided, only XComs with this key
+            will be deleted. Pass *None* (default) to delete all keys.
+        :param map_index: Optional map index filter. If provided, only XComs with this
+            map index will be deleted. Pass *None* (default) to delete all map indexes.
+            Pass ``-1`` to delete only XComs from non-mapped tasks.
+        :param include_dag_result: Whether to also delete the Dag run's result XComs
+            (``dag_result``). Pass *False* (default) to preserve them, or *True* to
+            delete them as well.
+        :return: Number of XCom entries deleted. This count is best effort. A retried request
+            can report fewer rows than were actually deleted.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = SUPERVISOR_COMMS.send(
+            BulkDeleteXCom(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                key=key,
+                map_index=map_index,
+                include_dag_result=include_dag_result,
+            ),
+        )
+
+        if not isinstance(msg, XComDeleteCountResult):
+            raise TypeError(f"Expected XComDeleteCountResult, received: {type(msg)} {msg}")
+
+        return msg.count

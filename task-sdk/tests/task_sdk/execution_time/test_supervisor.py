@@ -76,6 +76,7 @@ from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     AssetStateStoreResult,
     AwaitInputTask,
+    BulkDeleteXCom,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     ClearTaskStateStore,
@@ -153,6 +154,7 @@ from airflow.sdk.execution_time.comms import (
     VariableKeysResult,
     VariableResult,
     XComCountResponse,
+    XComDeleteCountResult,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -2024,6 +2026,49 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="delete_xcom",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", None, None, None, False),
+            response=XComDeleteCountResult(count=5),
+        ),
+        expected_body={"count": 5, "type": "XComDeleteCountResult"},
+        test_id="bulk_delete_xcoms",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", task_id="t1"),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", "t1", None, None, False),
+            response=XComDeleteCountResult(count=3),
+        ),
+        expected_body={"count": 3, "type": "XComDeleteCountResult"},
+        test_id="bulk_delete_xcoms_with_task_id",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", task_id="t1", map_index=0),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", "t1", None, 0, False),
+            response=XComDeleteCountResult(count=1),
+        ),
+        expected_body={"count": 1, "type": "XComDeleteCountResult"},
+        test_id="bulk_delete_xcoms_with_map_index",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", include_dag_result=True),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", None, None, None, True),
+            response=XComDeleteCountResult(count=2),
+        ),
+        expected_body={"count": 2, "type": "XComDeleteCountResult"},
+        test_id="bulk_delete_xcoms_with_dag_result",
     ),
     RequestTestCase(
         message=RetryTask(

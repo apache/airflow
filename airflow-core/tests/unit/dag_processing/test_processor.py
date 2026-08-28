@@ -2217,6 +2217,7 @@ class TestDagProcessingMessageTypes:
             "AwaitInputTask",
             "DeferTask",
             "DeleteXCom",
+            "BulkDeleteXCom",
             "GetAssetByName",
             "GetAssetByUri",
             "GetAssetsByAlias",
@@ -2276,6 +2277,7 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            "XComDeleteCountResult",
             # AIP-103 task/asset store results — worker-only responses to the above messages.
             "TaskStateStoreResult",
             "AssetStateStoreResult",
