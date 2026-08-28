@@ -270,6 +270,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
         ``LoggingToolset`` that logs tool calls with timing at INFO level and
         arguments at DEBUG level. Set to ``False`` to disable.
+        a mapped ``@task.agent``. Each task instance renders its own copy and logs
+        the rendered toolset id; the toolset object in the Dag file is not
+        modified. Derive the connection ID from values the Dag controls rather than
+        ``params`` or ``dag_run.conf``, which whoever triggers the Dag controls.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
@@ -722,6 +726,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             # ``toolsets=`` wrapping above, so their results would re-execute on
             # every retry instead of replaying; wrap their inner toolset too.
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
+        if capabilities and self.enable_tool_logging:
+            capabilities = self._build_logging_capabilities(capabilities)
         if self.cache_prompt:
             capabilities.append(PromptCaching())
         if capabilities:
@@ -876,6 +882,22 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                 "and every step after the first of them",
                 counter.skipped_model,
             )
+
+    def _build_logging_capabilities(self, capabilities: list[Any]) -> list[Any]:
+        """Wrap concrete toolsets provided via a pydantic-ai ``Toolset`` capability for logging."""
+        # Keep capability imports out of Dag-parse-time code paths; they are only
+        # needed while constructing the runtime agent.
+        from pydantic_ai.capabilities import Toolset
+        from pydantic_ai.toolsets.abstract import AbstractToolset
+
+        rewrapped: list[Any] = []
+        for capability in capabilities:
+            if isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset):
+                logged = wrap_toolsets_for_logging([capability.toolset], self.log)[0]
+                rewrapped.append(replace(capability, toolset=logged))
+                continue
+            rewrapped.append(capability)
+        return rewrapped
 
     def _build_durable_storage(self, context: Context) -> DurableStorageProtocol:
         """
