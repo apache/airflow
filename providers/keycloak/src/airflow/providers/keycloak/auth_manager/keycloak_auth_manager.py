@@ -845,9 +845,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         try:
             payload_b64 = token.split(".")[1] + "=="
             payload = json.loads(urlsafe_b64decode(payload_b64))
-        except (IndexError, ValueError, TypeError):
+            subject = payload["sub"]
+        except (IndexError, KeyError, TypeError, ValueError):
             return None
-        subject = payload.get("sub")
         return str(subject) if subject is not None else None
 
     @staticmethod

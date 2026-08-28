@@ -133,14 +133,19 @@ def _clear_filter_cache():
     cache_module._pending_requests.clear()
 
 
-def keycloak_token(subject: str) -> str:
-    """Build a JWT-shaped Keycloak token carrying ``sub``.
+def token_with_payload(payload: str) -> str:
+    """Build a JWT-shaped token whose payload segment is the given raw text.
 
     Only the payload segment is read when the token is bound to the Airflow session
     identity, so the header and signature are placeholders.
     """
-    payload = base64.urlsafe_b64encode(json.dumps({"sub": subject}).encode()).decode().rstrip("=")
-    return f"header.{payload}.signature"
+    encoded = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+    return f"header.{encoded}.signature"
+
+
+def keycloak_token(subject: str) -> str:
+    """Build a JWT-shaped Keycloak token carrying ``sub``."""
+    return token_with_payload(json.dumps({"sub": subject}))
 
 
 class TestKeycloakAuthManager:
@@ -307,7 +312,17 @@ class TestKeycloakAuthManager:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
-    async def test_get_user_from_token_rejects_unparsable_token(self, auth_manager):
+    @pytest.mark.parametrize(
+        "access_token",
+        [
+            pytest.param("not-a-jwt", id="no-payload-segment"),
+            pytest.param(token_with_payload("not json"), id="payload-not-json"),
+            pytest.param(token_with_payload("1"), id="payload-not-an-object"),
+            pytest.param(token_with_payload('{"other": "user_id"}'), id="payload-without-sub"),
+            pytest.param(token_with_payload('{"sub": null}'), id="payload-with-null-sub"),
+        ],
+    )
+    async def test_get_user_from_token_rejects_unparsable_token(self, auth_manager, access_token):
         """A token whose subject cannot be read matches no user and is refused."""
         mock_get_user_from_token = AsyncMock(
             return_value=KeycloakAuthManagerUser(
@@ -318,7 +333,7 @@ class TestKeycloakAuthManager:
             patch.object(BaseAuthManager, "get_user_from_token", mock_get_user_from_token),
             pytest.raises(InvalidTokenError, match="does not belong to this Airflow session"),
         ):
-            await auth_manager.get_user_from_token("token", "not-a-jwt", "refresh_token")
+            await auth_manager.get_user_from_token("token", access_token, "refresh_token")
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
