@@ -1148,9 +1148,7 @@ class TestBaseDatabricksHook:
         hook.databricks_conn = mock_conn
 
         resource = f"https://{mock_conn.host}/oidc/v1/token"
-        with pytest.raises(
-            AirflowException, match="client_id is required for Kubernetes OIDC token federation"
-        ):
+        with pytest.raises(ValueError, match="`client_id` is required for Kubernetes OIDC token federation"):
             hook._get_federated_databricks_token(resource)
 
     @mock.patch(
@@ -1987,9 +1985,7 @@ class TestBaseDatabricksHook:
         hook._adatabricks_conn = mock_conn
 
         resource = f"https://{mock_conn.host}/oidc/v1/token"
-        with pytest.raises(
-            AirflowException, match="client_id is required for Kubernetes OIDC token federation"
-        ):
+        with pytest.raises(ValueError, match="`client_id` is required for Kubernetes OIDC token federation"):
             await hook._a_get_federated_databricks_token(resource)
 
     @pytest.mark.asyncio
