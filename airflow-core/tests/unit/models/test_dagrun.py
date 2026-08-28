@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from collections.abc import Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from functools import partial, reduce
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -61,6 +61,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.variable import Variable as VariableModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -76,8 +77,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1390,16 +1389,18 @@ class TestDagRun:
             VariableInterval("my_key"),
         ],
     )
-    @mock.patch.object(Variable, "get")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_success_deadline(self, _, mock_get, interval, session, deadline_test_dag):
+    def test_dagrun_success_deadline(self, _, interval, session, deadline_test_dag):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dag"
 
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
-        # First value used during resolution
-        mock_get.return_value = "5"
+        if isinstance(interval, VariableInterval):
+            # Seed via the metastore model, not the SDK Variable (whose set() routes through
+            # SUPERVISOR_COMMS), so the row lands in the variable table on this session.
+            VariableModel.set(key="my_key", value="5", session=session)
+            session.flush()
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
@@ -1509,71 +1510,198 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
-    @mock.patch.object(Variable, "get")
+    @pytest.mark.parametrize(
+        ("interval", "failure"),
+        [
+            pytest.param(VariableInterval("missing_key"), nullcontext(), id="missing_variable"),
+            pytest.param(
+                datetime.timedelta(hours=1),
+                mock.patch(
+                    "airflow.serialization.definitions.dag.decode_deadline_alert",
+                    autospec=True,
+                    side_effect=ValueError("corrupt deadline alert blob"),
+                ),
+                id="decode_failure",
+            ),
+            pytest.param(
+                datetime.timedelta(hours=1),
+                mock.patch.object(
+                    SerializedReferenceModels.FixedDatetimeDeadline,
+                    "evaluate_with",
+                    autospec=True,
+                    side_effect=RuntimeError("evaluate_with failed"),
+                ),
+                id="evaluate_with_failure",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_stable(self, _, mock_get, session, deadline_test_dag):
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-        # First value used during resolution.
-        mock_get.return_value = "60"
+    def test_dagrun_deadline_failure_is_isolated(
+        self, _, mock_stats_incr, interval, failure, session, deadline_test_dag
+    ):
+        """A failure while creating any single deadline must not abort DagRun creation."""
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=VariableInterval("my_key"),
+                interval=interval,
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with (
+            conf_vars({("core", "multi_team"): "true"}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value="team_alpha"),
+            failure,
+        ):
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
+            )
+
+        assert dag_run is not None
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        mock_stats_incr.assert_any_call(
+            "deadline_alerts.deadline_creation_failed",
+            tags={"dag_id": scheduler_dag.dag_id, "team_name": "team_alpha"},
+        )
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_skips_broken_backend(self, _, session, deadline_test_dag):
+        """A backend that raises must be skipped; the Variable still resolves from the next backend."""
+        from airflow.secrets import BaseSecretsBackend
+        from airflow.secrets.metastore import MetastoreBackend
+
+        VariableModel.set(key="broken_backend_key", value="5", session=session)
+        session.flush()
+
+        broken_backend = mock.create_autospec(BaseSecretsBackend, instance=True)
+        broken_backend.get_variable.side_effect = RuntimeError("backend down")
+
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("broken_backend_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with mock.patch(
+            "airflow.serialization.definitions.dag.ensure_secrets_loaded",
+            return_value=[broken_backend, MetastoreBackend()],
+        ):
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
+            )
+
+        assert dag_run is not None
+        broken_backend.get_variable.assert_called_once()
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=5)
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_resolves_from_env_var(
+        self, _, session, deadline_test_dag, monkeypatch
+    ):
+        """A VariableInterval backed by an ``AIRFLOW_VAR_*`` env var (no DB row) must resolve."""
+        monkeypatch.setenv("AIRFLOW_VAR_ENV_INTERVAL_KEY", "7")
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("env_interval_key"),
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         )
 
         dag_run = self.create_dag_run(
             dag=scheduler_dag,
-            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.SUCCESS},
+            task_states={"task_1": TaskInstanceState.SUCCESS},
             session=session,
         )
-        dag_run.dag = scheduler_dag
-
-        # First update resolve interval to "5".
-        dag_run.update_state(session=session)
+        assert dag_run is not None
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        first_deadline_time = deadline.deadline_time
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=7)
 
-        # Change Variable value after resolution.
-        mock_get.return_value = "120"
-
-        # Run again (This should not change existing deadline).
-        dag_run.update_state(session=session)
-
-        deadline = session.execute(select(Deadline)).scalars().one_or_none()
-        assert deadline.deadline_time == first_deadline_time
-
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name"),
+        [
+            pytest.param("true", "team_alpha", id="team_scoped"),
+            pytest.param("false", None, id="global"),
+        ],
+    )
     @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
+    def test_dagrun_deadline_variable_interval_scoped_to_team(
+        self, _, multi_team, team_name, session, deadline_test_dag
+    ):
+        """A VariableInterval must resolve against the DagRun's team, not the global scope."""
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
 
-        with mock.patch.object(
-            Variable,
-            "get",
-            side_effect=AirflowRuntimeError(mock_err),
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("team_interval_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
+            mock.patch(
+                "airflow.serialization.definitions.dag.call_secrets_backend_method",
+                return_value="5",
+            ) as mock_call,
         ):
-            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-            scheduler_dag = deadline_test_dag(
-                deadline=DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("missing_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
             )
 
-            with pytest.raises(ValueError, match="not found"):
-                self.create_dag_run(
-                    dag=scheduler_dag,
-                    task_states={"task_1": TaskInstanceState.SUCCESS},
-                    session=session,
-                )
+        assert dag_run is not None
+        # The team the DagRun belongs to must be forwarded to the backend lookup.
+        mock_call.assert_called_once()
+        assert mock_call.call_args.kwargs["team_name"] == team_name
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_variable_interval_resolves_under_prohibit_commit(
+        self, _, session, deadline_test_dag
+    ):
+        """The scheduler creates DagRuns under ``prohibit_commit``, so the Variable lookup must reuse
+        the given session -- an implicit commit from a non-forwarded session trips the guard and no
+        Deadline is created."""
+        VariableModel.set(key="guarded_interval_key", value="5", session=session)
+        session.flush()
+
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=VariableInterval("guarded_interval_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # No task_states here: the helper's get_task_instance() opens its own session and would trip the guard.
+        with prohibit_commit(session):
+            dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+        session.flush()
+
+        assert dag_run is not None
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert deadline is not None
+        assert deadline.deadline_time == future_date + datetime.timedelta(seconds=5)
 
 
 @pytest.mark.parametrize(

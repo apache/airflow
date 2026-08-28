@@ -212,3 +212,18 @@ class TestVariableInterval:
 
         with pytest.raises(ValueError, match=match):
             interval.resolve()
+
+    @pytest.mark.parametrize(
+        ("value", "match"),
+        [
+            ("abc", "must be an integer"),
+            ("", "must be an integer"),
+            (None, "must be an integer"),
+            ("0", "must be > 0"),
+            ("-5", "must be > 0"),
+            ("99999999999999", "too large to be a valid interval"),
+        ],
+    )
+    def test_coerce_to_timedelta_invalid(self, value, match):
+        with pytest.raises(ValueError, match=match):
+            VariableInterval(key="k").coerce_to_timedelta(value)
