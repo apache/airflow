@@ -152,6 +152,10 @@ from airflow.api_fastapi.common.parameters.task_instance import (
     QueryTITaskGroupFilter as QueryTITaskGroupFilter,
     QueryTITryNumberFilter as QueryTITryNumberFilter,
 )
+from airflow.api_fastapi.common.parameters.update_mask import (
+    update_mask_param_factory as update_mask_param_factory,
+    validate_update_mask as validate_update_mask,
+)
 from airflow.api_fastapi.common.parameters.xcom import (
     QueryXComDagDisplayNamePatternSearch as QueryXComDagDisplayNamePatternSearch,
     QueryXComDagDisplayNamePrefixPatternSearch as QueryXComDagDisplayNamePrefixPatternSearch,
