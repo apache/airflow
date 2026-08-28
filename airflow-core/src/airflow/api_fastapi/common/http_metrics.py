@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(logger_name="http.metrics")
 
-_ROUTE_PATHS_BY_ROUTER_ID: dict[int, dict[object, str]] = {}
 _API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui")
 
 
@@ -43,35 +42,11 @@ def _get_status_family(status_code: int) -> str:
 
 
 def _get_route_template(scope: Scope) -> str:
-    route = scope.get("route")
-    route_path = getattr(route, "path", None)
+    # FastAPI's APIRoute.matches() stores the matched route in the scope before the endpoint runs.
+    # Requests matching no route (404s, redirects) share one bucket so tag cardinality stays bounded.
+    route_path = getattr(scope.get("route"), "path", None)
     if isinstance(route_path, str) and route_path:
         return route_path
-
-    router = scope.get("router")
-    endpoint = scope.get("endpoint")
-    if router is not None and endpoint is not None:
-        route_paths = _ROUTE_PATHS_BY_ROUTER_ID.get(id(router))
-        if route_paths is None:
-            route_paths = {
-                candidate_endpoint: candidate_route_path
-                for candidate_route in getattr(router, "routes", ())
-                for candidate_endpoint, candidate_route_path in [
-                    (
-                        getattr(candidate_route, "endpoint", None),
-                        getattr(candidate_route, "path", None),
-                    )
-                ]
-                if candidate_endpoint is not None
-                and isinstance(candidate_route_path, str)
-                and candidate_route_path
-            }
-            _ROUTE_PATHS_BY_ROUTER_ID[id(router)] = route_paths
-
-        endpoint_route_path = route_paths.get(endpoint)
-        if isinstance(endpoint_route_path, str) and endpoint_route_path:
-            return endpoint_route_path
-
     return "unmatched"
 
 
@@ -95,7 +70,7 @@ def _emit_api_metrics(
     duration_ms = duration_us / 1000.0
 
     Stats.incr("http_requests_total", tags=tags)
-    Stats.timing("http_request_duration_seconds", duration_ms, tags=tags)
+    Stats.timing("http_request_duration_milliseconds", duration_ms, tags=tags)
 
 
 class HttpMetricsMiddleware:
