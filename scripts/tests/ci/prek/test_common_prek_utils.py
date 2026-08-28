@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest import mock
 
 import ci.prek.common_prek_utils as common_prek_utils
 import pytest
@@ -174,6 +175,85 @@ class TestPreProcessMypyFiles:
         files = [PROVIDERS_AMAZON_S3_PATH]
         result = pre_process_mypy_files(files)
         assert PROVIDERS_AMAZON_S3_PATH in result
+
+
+class TestSchemaVersionCheckGitUtilities:
+    @pytest.mark.parametrize(
+        ("github_base_ref", "default_branch", "expected"),
+        [
+            ("v3-1-test", "main", "v3-1-test"),
+            (None, "v3-0-test", "v3-0-test"),
+            (None, None, "main"),
+        ],
+    )
+    def test_get_target_branch(self, monkeypatch, github_base_ref, default_branch, expected):
+        for name, value in (("GITHUB_BASE_REF", github_base_ref), ("DEFAULT_BRANCH", default_branch)):
+            if value is None:
+                monkeypatch.delenv(name, raising=False)
+            else:
+                monkeypatch.setenv(name, value)
+
+        assert common_prek_utils.get_target_branch() == expected
+
+    @mock.patch.object(common_prek_utils.subprocess, "run", autospec=True)
+    def test_get_changed_files_uses_filenames_from_prek(self, run):
+        filenames = ["airflow-core/src/airflow/example.py"]
+
+        assert common_prek_utils.get_changed_files(filenames) == filenames
+        run.assert_not_called()
+
+    @mock.patch.object(common_prek_utils.subprocess, "run", autospec=True)
+    def test_get_changed_files_uses_staged_files_when_invoked_directly(self, run):
+        run.return_value = subprocess.CompletedProcess(
+            args=["git", "diff"],
+            returncode=0,
+            stdout="first.py\nsecond.py\n",
+        )
+
+        assert common_prek_utils.get_changed_files([]) == ["first.py", "second.py"]
+        run.assert_called_once_with(
+            ["git", "diff", "--cached", "--name-only"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    @mock.patch.object(common_prek_utils, "get_target_branch", autospec=True, return_value="main")
+    @mock.patch.object(common_prek_utils, "get_remote_for_main", autospec=True, return_value="upstream")
+    @mock.patch.object(common_prek_utils.subprocess, "run", autospec=True)
+    def test_fetch_target_branch(self, run, get_remote_for_main, get_target_branch):
+        assert common_prek_utils.fetch_target_branch() == "upstream/main"
+        get_remote_for_main.assert_called_once_with()
+        get_target_branch.assert_called_once_with()
+        run.assert_called_once_with(
+            ["git", "fetch", "upstream", "main"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    @mock.patch.object(common_prek_utils.subprocess, "run", autospec=True)
+    def test_create_temporary_worktree_removes_worktree_after_error(self, run):
+        with pytest.raises(RuntimeError, match="schema generation failed"):
+            with common_prek_utils.create_temporary_worktree("upstream/main") as worktree_path:
+                temp_dir = worktree_path.parent
+                raise RuntimeError("schema generation failed")
+
+        assert not temp_dir.exists()
+        assert run.call_args_list == [
+            mock.call(
+                ["git", "worktree", "add", str(worktree_path), "upstream/main"],
+                capture_output=True,
+                text=True,
+                check=True,
+            ),
+            mock.call(
+                ["git", "worktree", "remove", "--force", str(worktree_path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            ),
+        ]
 
 
 class TestIsHiddenWithinRoot:

@@ -41,13 +41,16 @@ script so the comparison is dump-version stable.
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-from common_prek_utils import console, get_remote_for_main
+from common_prek_utils import (
+    console,
+    create_temporary_worktree,
+    fetch_target_branch,
+    get_changed_files,
+)
 
 SUPERVISOR_SCHEMAS_PREFIX = "task-sdk/src/airflow/sdk/execution_time/schema/"
 VERSIONS_PREFIX = SUPERVISOR_SCHEMAS_PREFIX + "versions/"
@@ -55,25 +58,6 @@ TASK_SDK_COMMS_PATH = "task-sdk/src/airflow/sdk/execution_time/comms.py"
 CORE_PROCESSOR_PATH = "airflow-core/src/airflow/dag_processing/processor.py"
 
 DUMP_SCRIPT = Path(__file__).parent / "dump_supervisor_schemas.py"
-
-
-# TODO: We should consolidte the common logic with check_execution_api_versions.py into common_prek_utils
-def get_target_branch() -> str:
-    """Branch to compare against. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else main."""
-    return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
-
-
-def get_changed_files(filenames: list[str]) -> list[str]:
-    """Get changed files. Uses filenames from prek when provided, else staged files for local runs."""
-    if filenames:
-        return filenames
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [f for f in result.stdout.strip().splitlines() if f]
 
 
 def dump_snapshot(cwd: Path) -> str:
@@ -101,12 +85,8 @@ def dump_snapshot(cwd: Path) -> str:
     return result.stdout
 
 
-def _upstream_has_schema() -> bool:
+def _upstream_has_schema(ref: str) -> bool:
     """Return True if the target branch carries the schema package."""
-    target_branch = get_target_branch()
-    remote = get_remote_for_main()
-    ref = f"{remote}/{target_branch}"
-    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
     # ``git cat-file -e`` exits zero iff the path exists at the ref.
     result = subprocess.run(
         ["git", "cat-file", "-e", f"{ref}:{VERSIONS_PREFIX}__init__.py"],
@@ -116,22 +96,10 @@ def _upstream_has_schema() -> bool:
     return result.returncode == 0
 
 
-def dump_snapshot_from_main() -> str:
+def dump_snapshot_from_main(ref: str) -> str:
     """Dump snapshot from target branch using a temporary worktree."""
-    target_branch = get_target_branch()
-    remote = get_remote_for_main()
-    ref = f"{remote}/{target_branch}"
-    worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
-    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
-    subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
-    try:
+    with create_temporary_worktree(ref) as worktree_path:
         return dump_snapshot(worktree_path)
-    finally:
-        subprocess.run(
-            ["git", "worktree", "remove", "--force", str(worktree_path)],
-            capture_output=True,
-            check=False,
-        )
 
 
 def main() -> int:
@@ -154,7 +122,8 @@ def main() -> int:
         # Contributor added a version-change entry: trust them.
         return 0
 
-    if not _upstream_has_schema():
+    target_ref = fetch_target_branch()
+    if not _upstream_has_schema(target_ref):
         # The package is being introduced in this PR -- nothing on the
         # target branch to compare against. The check will start firing
         # normally once the package is on the target branch.
@@ -166,7 +135,7 @@ def main() -> int:
         return 0
 
     try:
-        main_snapshot = dump_snapshot_from_main()
+        main_snapshot = dump_snapshot_from_main(target_ref)
     except Exception as e:
         console.print(f"[bold red]ERROR:[/] Failed to generate upstream snapshot for comparison: {e}")
         return 1
@@ -184,10 +153,8 @@ def main() -> int:
         for f in schema_source_files:
             console.print(f"  - [magenta]{f}[/]")
         console.print("")
-        remote = get_remote_for_main()
-        target_branch = get_target_branch()
         console.print(
-            f"Snapshot diff against [cyan]{remote}/{target_branch}[/] detected differences.\n"
+            f"Snapshot diff against [cyan]{target_ref}[/] detected differences.\n"
             "\n"
             "Append a ``VersionChange`` subclass to the in-progress head "
             "``v<YYYY>_<MM>_<DD>.py`` file under:\n"
