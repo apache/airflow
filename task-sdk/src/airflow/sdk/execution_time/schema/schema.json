@@ -1861,6 +1861,7 @@
         "CONNECTION_NOT_FOUND",
         "VARIABLE_NOT_FOUND",
         "XCOM_NOT_FOUND",
+        "XCOM_BATCH_NOT_SUPPORTED",
         "ASSET_NOT_FOUND",
         "TASK_STORE_NOT_FOUND",
         "ASSET_STORE_NOT_FOUND",
@@ -2850,6 +2851,62 @@
         "task_id"
       ],
       "title": "GetXCom",
+      "type": "object"
+    },
+    "GetXComBatch": {
+      "description": "Look up multiple XComs, scoped to a single dag run, in one request.",
+      "properties": {
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/GetXComBatchItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "type": {
+          "const": "GetXComBatch",
+          "default": "GetXComBatch",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dag_id",
+        "run_id",
+        "items"
+      ],
+      "title": "GetXComBatch",
+      "type": "object"
+    },
+    "GetXComBatchItem": {
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "task_id",
+        "key"
+      ],
+      "title": "GetXComBatchItem",
       "type": "object"
     },
     "GetXComCount": {
@@ -4505,6 +4562,61 @@
         "value"
       ],
       "title": "VariableResult",
+      "type": "object"
+    },
+    "XComBatchResult": {
+      "description": "Response to GetXComBatch request.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/XComBatchResultItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "type": {
+          "const": "XComBatchResult",
+          "default": "XComBatchResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "XComBatchResult",
+      "type": "object"
+    },
+    "XComBatchResultItem": {
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "map_index": {
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "found": {
+          "title": "Found",
+          "type": "boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        }
+      },
+      "required": [
+        "task_id",
+        "key",
+        "map_index",
+        "found"
+      ],
+      "title": "XComBatchResultItem",
       "type": "object"
     },
     "XComCountResponse": {

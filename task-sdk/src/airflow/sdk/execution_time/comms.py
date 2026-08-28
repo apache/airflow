@@ -96,6 +96,7 @@ from airflow.sdk.api.datamodels._generated import (
     TriggerDAGRunPayload,
     UpdateHITLDetailPayload,
     VariableResponse,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -561,6 +562,28 @@ class XComCountResponse(BaseModel):
     type: Literal["XComCountResponse"] = "XComCountResponse"
 
 
+class XComBatchResultItem(BaseModel):
+    task_id: str
+    key: str
+    map_index: int
+    found: bool
+    value: JsonValue = None
+
+
+class XComBatchResult(BaseModel):
+    """Response to GetXComBatch request."""
+
+    items: list[XComBatchResultItem]
+    type: Literal["XComBatchResult"] = "XComBatchResult"
+
+    @classmethod
+    def from_response(cls, response: XComBatchResponse) -> XComBatchResult:
+        return cls(
+            items=[XComBatchResultItem(**item.model_dump()) for item in response.items],
+            type="XComBatchResult",
+        )
+
+
 class XComSequenceIndexResult(BaseModel):
     root: JsonValue
     type: Literal["XComSequenceIndexResult"] = "XComSequenceIndexResult"
@@ -841,6 +864,7 @@ ToTask = Annotated[
     | VariableKeysResult
     | XComCountResponse
     | XComResult
+    | XComBatchResult
     | XComSequenceIndexResult
     | XComSequenceSliceResult
     | InactiveAssetsResult
@@ -925,6 +949,21 @@ class GetXComCount(BaseModel):
     run_id: str
     task_id: str
     type: Literal["GetXComCount"] = "GetXComCount"
+
+
+class GetXComBatchItem(BaseModel):
+    task_id: str
+    key: str
+    map_index: int = -1
+
+
+class GetXComBatch(BaseModel):
+    """Look up multiple XComs, scoped to a single dag run, in one request."""
+
+    dag_id: str
+    run_id: str
+    items: list[GetXComBatchItem]
+    type: Literal["GetXComBatch"] = "GetXComBatch"
 
 
 class GetXComSequenceItem(BaseModel):
@@ -1282,6 +1321,7 @@ ToSupervisor = Annotated[
     | GetVariable
     | GetVariableKeys
     | GetXCom
+    | GetXComBatch
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice

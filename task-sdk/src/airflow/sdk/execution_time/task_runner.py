@@ -103,6 +103,8 @@ from airflow.sdk.execution_time.comms import (
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
+    GetXComBatch,
+    GetXComBatchItem,
     InactiveAssetsResult,
     PreviousDagRunResult,
     PreviousTIResult,
@@ -124,6 +126,7 @@ from airflow.sdk.execution_time.comms import (
     ToTask,
     TriggerDagRun,
     ValidateInletsAndOutlets,
+    XComBatchResult,
 )
 from airflow.sdk.execution_time.context import (
     AssetStateStoreAccessors,
@@ -650,6 +653,21 @@ class RuntimeTaskInstance(TaskInstance):
         :param value: Value to store. Only be JSON-serializable values may be used.
         """
         await _axcom_push(self, key, value)
+
+    def xcom_pull_batch(self, items: list[GetXComBatchItem]) -> XComBatchResult | ErrorResponse:
+        """
+        Pull multiple XComs in a single Execution API round trip.
+
+        Used by ``DictOfListsExpandInput.resolve()`` to batch the plain, non-mapped-
+        upstream XComArg kwargs of a mapped task's ``.expand()`` call instead of
+        pulling each one individually. Returns an ``ErrorResponse`` with
+        ``ErrorType.XCOM_BATCH_NOT_SUPPORTED`` when talking to an API server that
+        predates this endpoint; callers fall back to per-item ``xcom_pull()``.
+        """
+        response = SUPERVISOR_COMMS.send(GetXComBatch(dag_id=self.dag_id, run_id=self.run_id, items=items))
+        if TYPE_CHECKING:
+            assert isinstance(response, (XComBatchResult, ErrorResponse))
+        return response
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any

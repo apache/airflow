@@ -513,6 +513,44 @@ class VariableResponse(BaseModel):
     value: Annotated[str | None, Field(title="Value")]
 
 
+class XComBatchItemRequest(BaseModel):
+    """
+    One XCom lookup within a batch request.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    key: Annotated[str, Field(title="Key")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+
+
+class XComBatchItemResponse(BaseModel):
+    """
+    One XCom lookup result within a batch response.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    key: Annotated[str, Field(title="Key")]
+    map_index: Annotated[int, Field(title="Map Index")]
+    found: Annotated[bool, Field(title="Found")]
+    value: JsonValue | None = None
+
+
+class XComBatchRequestBody(BaseModel):
+    """
+    Body for a batch XCom lookup, scoped to a single dag_id/run_id.
+    """
+
+    items: Annotated[list[XComBatchItemRequest], Field(max_length=1000, title="Items")]
+
+
+class XComBatchResponse(BaseModel):
+    """
+    Batch XCom lookup response, ordered the same as the request's items.
+    """
+
+    items: Annotated[list[XComBatchItemResponse], Field(title="Items")]
+
+
 class XComResponse(BaseModel):
     """
     XCom schema for responses with fields that are needed for Runtime.

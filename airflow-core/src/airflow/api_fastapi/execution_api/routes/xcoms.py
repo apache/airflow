@@ -22,12 +22,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
+    XComBatchItemResponse,
+    XComBatchRequestBody,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -38,23 +41,14 @@ from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
-def has_xcom_access(
-    dag_id: str,
-    run_id: str,
-    task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
-    request: Request,
-    session: SessionDep,
-    token=CurrentTIToken,
-) -> bool:
+def _check_dag_team_access(dag_id: str, *, write: bool, session: SessionDep, token) -> None:
     """
-    Check whether the requesting task may access the XCom for ``dag_id``.
+    Raise 403 unless the requesting task's team may access XComs for ``dag_id``.
 
     In multi-team mode, XCom access is scoped by team ownership (resolved via the
     ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
 
-    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
-      global (teamless) dags;
+    * reads are allowed for the requester's own team or for global (teamless) dags;
     * writes and deletes are allowed only for the requester's own team; a team
       task may not mutate a global dag's XCom, mirroring how team-scoped
       Variables and Connections behave.
@@ -67,18 +61,8 @@ def has_xcom_access(
     """
     from airflow.configuration import conf
 
-    write = request.method not in {"GET", "HEAD", "OPTIONS"}
-
-    log.debug(
-        "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
-        "write" if write else "read",
-        token.id,
-        xcom_key,
-        dag_id,
-    )
-
     if not conf.getboolean("core", "multi_team"):
-        return True
+        return
 
     from airflow.api_fastapi.execution_api.security import (
         _team_name_for_dag_stmt,
@@ -90,10 +74,10 @@ def has_xcom_access(
 
     # Same team (including a teamless task accessing a global, teamless dag) is always allowed.
     if target_team == requester_team:
-        return True
+        return
     # Reads may additionally reach global (teamless) dags; writes and deletes may not.
     if not write and target_team is None:
-        return True
+        return
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -102,6 +86,40 @@ def has_xcom_access(
             "message": "Task does not have access to this XCom in multi-team mode",
         },
     )
+
+
+def has_xcom_access(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
+    request: Request,
+    session: SessionDep,
+    token=CurrentTIToken,
+) -> bool:
+    """Check whether the requesting task may access the XCom for ``dag_id``. See ``_check_dag_team_access``."""
+    write = request.method not in {"GET", "HEAD", "OPTIONS"}
+    log.debug(
+        "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
+        "write" if write else "read",
+        token.id,
+        xcom_key,
+        dag_id,
+    )
+    _check_dag_team_access(dag_id, write=write, session=session, token=token)
+    return True
+
+
+def has_xcom_batch_access(
+    dag_id: str,
+    run_id: str,
+    session: SessionDep,
+    token=CurrentTIToken,
+) -> bool:
+    """Check whether the requesting task may batch-read XComs for ``dag_id``. See ``_check_dag_team_access``."""
+    log.debug("Checking read XCom batch access for task instance '%s' on dag '%s'", token.id, dag_id)
+    _check_dag_team_access(dag_id, write=False, session=session, token=token)
+    return True
 
 
 router = APIRouter(
@@ -482,3 +500,57 @@ def delete_xcom(
     )
     session.execute(query)
     return {"message": f"XCom with key: {key} successfully deleted."}
+
+
+# A separate router (registered directly by routes/__init__.py, not merged via
+# router.include_router) because ``router`` above carries ``has_xcom_access`` as a
+# constructor-level dependency, which needs ``task_id``/``key`` path params this
+# route doesn't have. Merging would leak that dependency onto this route's OpenAPI
+# operation as an unresolvable path parameter.
+batch_router = APIRouter(dependencies=[Depends(has_xcom_batch_access)])
+
+
+@batch_router.post(
+    "/{dag_id}/{run_id}/batch",
+    description="Look up multiple XCom values in one request, scoped to a single dag run",
+)
+def get_xcom_batch(
+    dag_id: str,
+    run_id: str,
+    body: XComBatchRequestBody,
+    session: SessionDep,
+) -> XComBatchResponse:
+    """
+    Batch-fetch XComs from the database - not other XCom Backends.
+
+    Collapses what would otherwise be one Execution API round trip per requested
+    XCom (e.g. one per XComArg kwarg of a mapped task's ``.expand()``) into a
+    single request. Missing items are reported via ``found=False`` rather than
+    failing the whole batch, since a partial miss (e.g. an upstream that hasn't
+    pushed yet) is an expected outcome for a batch, not an error.
+    """
+    if not body.items:
+        return XComBatchResponse(items=[])
+
+    requested = [(item.task_id, item.key, item.map_index) for item in body.items]
+    query = select(XComModel.task_id, XComModel.key, XComModel.map_index, XComModel.value).where(
+        XComModel.dag_id == dag_id,
+        XComModel.run_id == run_id,
+        tuple_(XComModel.task_id, XComModel.key, XComModel.map_index).in_(requested),
+    )
+    found_values = {
+        (task_id, key, map_index): value for task_id, key, map_index, value in session.execute(query)
+    }
+
+    return XComBatchResponse(
+        items=[
+            XComBatchItemResponse(
+                task_id=item.task_id,
+                key=item.key,
+                map_index=item.map_index,
+                found=(item.task_id, item.key, item.map_index) in found_values,
+                value=found_values.get((item.task_id, item.key, item.map_index)),
+            )
+            for item in body.items
+        ]
+    )

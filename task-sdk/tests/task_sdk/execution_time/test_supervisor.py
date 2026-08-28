@@ -67,6 +67,7 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
+    XComBatchItemRequest,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import supervisor, task_runner
@@ -117,6 +118,8 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComBatch,
+    GetXComBatchItem,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -152,6 +155,8 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
     VariableKeysResult,
     VariableResult,
+    XComBatchResult,
+    XComBatchResultItem,
     XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
@@ -1913,6 +1918,41 @@ REQUEST_TEST_CASES = [
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=GetXComBatch(
+            dag_id="test_dag",
+            run_id="test_run",
+            items=[GetXComBatchItem(task_id="test_task", key="test_key")],
+        ),
+        test_id="get_xcom_batch",
+        client_mock=ClientMock(
+            method_path="xcoms.get_batch",
+            args=(
+                "test_dag",
+                "test_run",
+                [XComBatchItemRequest(task_id="test_task", key="test_key", map_index=-1)],
+            ),
+            response=XComBatchResult(
+                items=[
+                    XComBatchResultItem(
+                        task_id="test_task", key="test_key", map_index=-1, found=True, value="test_value"
+                    )
+                ]
+            ),
+        ),
+        expected_body={
+            "items": [
+                {
+                    "task_id": "test_task",
+                    "key": "test_key",
+                    "map_index": -1,
+                    "found": True,
+                    "value": "test_value",
+                }
+            ],
+            "type": "XComBatchResult",
+        },
     ),
     RequestTestCase(
         message=SetXCom(

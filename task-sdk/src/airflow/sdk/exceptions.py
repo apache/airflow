@@ -90,6 +90,9 @@ class ErrorType(enum.Enum):
     CONNECTION_NOT_FOUND = "CONNECTION_NOT_FOUND"
     VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
     XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
+    # The batch XCom lookup endpoint doesn't exist on this API server (older server,
+    # newer Task SDK). Callers fall back to resolving XComs one at a time.
+    XCOM_BATCH_NOT_SUPPORTED = "XCOM_BATCH_NOT_SUPPORTED"
     ASSET_NOT_FOUND = "ASSET_NOT_FOUND"
     TASK_STORE_NOT_FOUND = "TASK_STORE_NOT_FOUND"
     ASSET_STORE_NOT_FOUND = "ASSET_STORE_NOT_FOUND"

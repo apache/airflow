@@ -618,6 +618,139 @@ class TestXComsDeleteEndpoint:
         assert xcom_ti is not None
 
 
+class TestXComsBatchEndpoint:
+    def test_batch_multiple_items_found(self, client, create_task_instance, session):
+        """A batch request returns each requested item, ordered the same as the request."""
+        ti = create_task_instance()
+        session.add_all(
+            [
+                XComModel(
+                    key="a",
+                    value="value_a",
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                ),
+                XComModel(
+                    key="b",
+                    value="value_b",
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/batch",
+            json={
+                "items": [
+                    {"task_id": ti.task_id, "key": "a"},
+                    {"task_id": ti.task_id, "key": "b"},
+                ]
+            },
+        )
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {
+            "items": [
+                {"task_id": ti.task_id, "key": "a", "map_index": -1, "found": True, "value": "value_a"},
+                {"task_id": ti.task_id, "key": "b", "map_index": -1, "found": True, "value": "value_b"},
+            ]
+        }
+
+    def test_batch_partial_miss_reported_not_found(self, client, create_task_instance, session):
+        """A missing item is reported as found=False instead of failing the whole batch."""
+        ti = create_task_instance()
+        session.add(
+            XComModel(
+                key="a",
+                value="value_a",
+                dag_run_id=ti.dag_run.id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+            )
+        )
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/batch",
+            json={
+                "items": [
+                    {"task_id": ti.task_id, "key": "a"},
+                    {"task_id": ti.task_id, "key": "missing"},
+                ]
+            },
+        )
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {
+            "items": [
+                {"task_id": ti.task_id, "key": "a", "map_index": -1, "found": True, "value": "value_a"},
+                {"task_id": ti.task_id, "key": "missing", "map_index": -1, "found": False, "value": None},
+            ]
+        }
+
+    def test_batch_empty_request(self, client, create_task_instance):
+        ti = create_task_instance()
+
+        response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/batch", json={"items": []})
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {"items": []}
+
+    def test_batch_rejects_too_many_items(self, client, create_task_instance):
+        """A request over MAX_XCOM_BATCH_ITEMS is rejected before touching the database."""
+        from airflow.api_fastapi.execution_api.datamodels.xcom import MAX_XCOM_BATCH_ITEMS
+
+        ti = create_task_instance()
+        items = [{"task_id": ti.task_id, "key": f"k{i}"} for i in range(MAX_XCOM_BATCH_ITEMS + 1)]
+
+        response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/batch", json={"items": items})
+
+        assert response.status_code == 422, response.json()
+
+    def test_batch_non_default_map_index(self, client, dag_maker, session):
+        """A batch item with an explicit map_index resolves the matching mapped-task-instance XCom."""
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=[1, 2, 3])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+
+        for map_index in (0, 1, 2):
+            session.add(
+                XComModel(
+                    key="k",
+                    value=f"value_{map_index}",
+                    dag_run_id=dag_run.id,
+                    run_id=dag_run.run_id,
+                    task_id="task",
+                    dag_id="dag",
+                    map_index=map_index,
+                )
+            )
+        session.commit()
+
+        response = client.post(
+            "/execution/xcoms/dag/runid/batch",
+            json={"items": [{"task_id": "task", "key": "k", "map_index": 1}]},
+        )
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {
+            "items": [{"task_id": "task", "key": "k", "map_index": 1, "found": True, "value": "value_1"}]
+        }
+
+
 class TestXComTeamAccess:
     """Multi-team isolation for the Execution API XCom routes (no cross-team sharing)."""
 
@@ -766,3 +899,36 @@ class TestXComTeamAccess:
 
         assert forbidden.status_code == 403, forbidden.json()
         assert allowed.status_code == 200, allowed.json()
+
+    def test_batch_cross_team_access_forbidden(self, client, exec_app, session, dag_maker):
+        """A task cannot batch-read another team's XComs, scoped by the batch's dag_id."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        target_dr, _ = self._make_dag(session, dag_maker, target_dag, "team_b")
+        self._insert_xcom(session, target_dr, target_dag)
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.post(
+                f"/execution/xcoms/{target_dag}/run1/batch", json={"items": [{"task_id": "task", "key": "k"}]}
+            )
+
+        assert response.status_code == 403, response.json()
+        assert response.json()["detail"]["reason"] == "access_denied"
+
+    def test_batch_same_team_read_allowed(self, client, exec_app, session, dag_maker):
+        """A task may batch-read XComs within its own team."""
+        dag_id = f"dag_{uuid4().hex}"
+        dag_run, ti = self._make_dag(session, dag_maker, dag_id, "team_a")
+        self._insert_xcom(session, dag_run, dag_id, key="k", value="v")
+        self._authenticate_as(exec_app, ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.post(
+                f"/execution/xcoms/{dag_id}/run1/batch", json={"items": [{"task_id": "task", "key": "k"}]}
+            )
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == {
+            "items": [{"task_id": "task", "key": "k", "map_index": -1, "found": True, "value": "v"}]
+        }

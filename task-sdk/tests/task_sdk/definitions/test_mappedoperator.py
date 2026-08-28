@@ -35,10 +35,13 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetTICount,
     GetXCom,
+    GetXComBatch,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     SetXCom,
     TICount,
+    XComBatchResult,
+    XComBatchResultItem,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -50,6 +53,19 @@ from tests_common.test_utils.mock_operators import (
 )
 
 DEFAULT_DATE = datetime(2016, 1, 1)
+
+
+def _xcom_batch_result(msg: GetXComBatch, value_for_task_id) -> XComBatchResult:
+    """Build a found=True XComBatchResult for every item in msg, mirroring a GetXCom mock's value."""
+    get_value = value_for_task_id if callable(value_for_task_id) else (lambda _: value_for_task_id)
+    return XComBatchResult(
+        items=[
+            XComBatchResultItem(
+                task_id=item.task_id, key=item.key, map_index=-1, found=True, value=get_value(item.task_id)
+            )
+            for item in msg.items
+        ]
+    )
 
 
 def test_task_mapping_with_dag():
@@ -266,6 +282,8 @@ def test_mapped_render_template_fields_validating_operator(
     def mock_comms(msg):
         if isinstance(msg, GetXCom):
             return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=["{{ ds }}"])
+        if isinstance(msg, GetXComBatch):
+            return _xcom_batch_result(msg, ["{{ ds }}"])
         if isinstance(msg, GetXComSequenceSlice):
             return XComSequenceSliceResult(root=["{{ ds }}"])
         if isinstance(msg, GetTICount):
@@ -460,12 +478,17 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
     numbers = [1, 2]
     letters = {"a": "x", "b": "y", "c": "z"}
 
+    def _value_for(task_id):
+        return numbers if task_id == "emit_numbers" else letters
+
     def mock_comms(msg):
         if isinstance(msg, GetXCom):
             if msg.task_id == "emit_numbers":
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=numbers)
             if msg.task_id == "emit_letters":
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=letters)
+        elif isinstance(msg, GetXComBatch):
+            return _xcom_batch_result(msg, _value_for)
         elif isinstance(msg, GetXComSequenceSlice):
             if msg.task_id == "emit_numbers":
                 return XComSequenceSliceResult(root=numbers)
@@ -516,6 +539,8 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
         if isinstance(msg, GetXCom):
             if msg.task_id == "emit_numbers":
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=numbers)
+        elif isinstance(msg, GetXComBatch):
+            return _xcom_batch_result(msg, numbers)
         elif isinstance(msg, GetXComSequenceSlice):
             if msg.task_id == "emit_numbers":
                 return XComSequenceSliceResult(root=numbers)
