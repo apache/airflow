@@ -29,6 +29,7 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from jwt import InvalidTokenError
 from keycloak import KeycloakOpenID
 from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
@@ -174,6 +175,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         if not AIRFLOW_V_3_3_PLUS:
             return user
         if access_token:
+            # The Airflow JWT is signed and establishes who the caller is. The Keycloak
+            # tokens arrive in separate cookies that the signature does not cover, so
+            # pairing them unchecked would let a caller combine their own Airflow session
+            # with somebody else's Keycloak token: every authorization decision is then
+            # made for that subject, while the session identity, audit trail and logs
+            # continue to show this one.
+            if self._token_subject(access_token) != user.get_id():
+                raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
             user.access_token = access_token
             user.refresh_token = refresh_token
             return user
@@ -817,6 +826,29 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @staticmethod
+    def _token_subject(token: str) -> str | None:
+        """
+        Return the ``sub`` claim of a JWT without verifying its signature.
+
+        :meta private:
+
+        The value is only ever compared against an identity the signed Airflow JWT has
+        already established, so it is never trusted on its own. A forged token is
+        rejected by Keycloak when it is presented; a genuine token belonging to somebody
+        else is exactly what this comparison exists to catch. A token that cannot be
+        parsed yields ``None``, which matches no user id.
+
+        :param token: the token
+        """
+        try:
+            payload_b64 = token.split(".")[1] + "=="
+            payload = json.loads(urlsafe_b64decode(payload_b64))
+        except (IndexError, ValueError, TypeError):
+            return None
+        subject = payload.get("sub")
+        return str(subject) if subject is not None else None
 
     @staticmethod
     def _token_expired(token: str) -> bool:
