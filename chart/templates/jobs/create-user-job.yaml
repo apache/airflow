@@ -21,6 +21,9 @@
 ## Airflow Create User Job
 ##########################
 {{- if .Values.createUserJob.enabled }}
+{{- if or (not .Values.createUserJob.defaultUser.username) (not .Values.createUserJob.defaultUser.password) }}
+{{- fail "createUserJob.enabled is true but createUserJob.defaultUser.username and/or createUserJob.defaultUser.password are not set. Set both to credentials of your own, or leave createUserJob.enabled false and create the user yourself with `airflow users create`." }}
+{{- end }}
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
