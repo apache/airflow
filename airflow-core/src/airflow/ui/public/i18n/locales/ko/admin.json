@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "섹션"
-    }
+    },
+    "config_one": "설정",
+    "config_other": "설정"
   },
   "connections": {
     "add": "커넥션 추가",
@@ -95,7 +97,9 @@
       "dagProcessorJob": "Dag 프로세서 잡",
       "schedulerJob": "스케줄러 잡",
       "triggererJob": "트리거러 잡"
-    }
+    },
+    "job_one": "잡",
+    "job_other": "잡"
   },
   "plugins": {
     "columns": {
@@ -103,6 +107,8 @@
     },
     "importError_one": "플러그인 가져오기 오류",
     "importError_other": "플러그인 가져오기 오류들",
+    "plugin_one": "플러그인",
+    "plugin_other": "플러그인",
     "searchPlaceholder": "파일로 검색"
   },
   "pools": {
@@ -136,7 +142,9 @@
     "columns": {
       "packageName": "패키지 이름",
       "version": "버전"
-    }
+    },
+    "provider_one": "제공자",
+    "provider_other": "제공자"
   },
   "variables": {
     "add": "변수 추가",

@@ -24,13 +24,8 @@ from datetime import timedelta
 
 import pytest
 
-try:
-    from airflow.sdk.timezone import datetime
-except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
-
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred, timezone
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
 
@@ -38,7 +33,7 @@ pytestmark = pytest.mark.db_test
 
 
 TEST_DAG_ID = "unit_tests_file_sensor"
-DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
 class TestFileSensor:
@@ -249,7 +244,7 @@ class TestFileSensor:
         with DAG(
             dag_id="test_start_trigger_args_not_shared",
             schedule=None,
-            start_date=datetime(2020, 1, 1),
+            start_date=timezone.datetime(2020, 1, 1),
         ):
             first = FileSensor(
                 task_id="first", filepath="first.txt", deferrable=True, start_from_trigger=True, timeout=60
