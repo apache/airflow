@@ -137,9 +137,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         cannot be deserialized from XCom.
     :param toolsets: List of pydantic-ai toolsets the agent can use
         (e.g. ``SQLToolset``, ``HookToolset``).
-    :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
-        ``LoggingToolset`` that logs tool calls with timing at INFO level and
-        arguments at DEBUG level. Set to ``False`` to disable.
+    :param enable_tool_logging: When ``True`` (default), wraps each toolset and
+        each concrete pydantic-ai ``Toolset`` capability in a ``LoggingToolset``
+        that logs tool calls with timing at INFO level and arguments at DEBUG
+        level. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
@@ -333,6 +334,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             # ``toolsets=`` wrapping above, so their results would re-execute on
             # every retry instead of replaying; wrap their inner toolset too.
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
+        if capabilities and self.enable_tool_logging:
+            capabilities = self._build_logging_capabilities(capabilities)
         if self.code_mode:
             capabilities.append(_build_code_mode())
         if capabilities:
@@ -391,6 +394,22 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                     "factory are not cached for replay; pass the toolset via `toolsets=` "
                     "for durability."
                 )
+            rewrapped.append(capability)
+        return rewrapped
+
+    def _build_logging_capabilities(self, capabilities: list[Any]) -> list[Any]:
+        """Wrap concrete toolsets provided via a pydantic-ai ``Toolset`` capability for logging."""
+        # Keep capability imports out of Dag-parse-time code paths; they are only
+        # needed while constructing the runtime agent.
+        from pydantic_ai.capabilities import Toolset
+        from pydantic_ai.toolsets.abstract import AbstractToolset
+
+        rewrapped: list[Any] = []
+        for capability in capabilities:
+            if isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset):
+                logged = wrap_toolsets_for_logging([capability.toolset], self.log)[0]
+                rewrapped.append(replace(capability, toolset=logged))
+                continue
             rewrapped.append(capability)
         return rewrapped
 
