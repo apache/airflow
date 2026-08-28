@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
-    CTE,
+    Subquery,
     Text,
     and_,
     case,
@@ -3798,15 +3798,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .group_by(AssetModel.id)
         )
 
-        orphan_query = asset_reference_query.having(orphaned).cte()
-        activate_query = asset_reference_query.having(~orphaned).cte()
+        orphan_query = asset_reference_query.having(orphaned).subquery()
+        activate_query = asset_reference_query.having(~orphaned).subquery()
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
         self._activate_referenced_assets(activate_query, session=session)
         self._cleanup_orphaned_asset_state_store(session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _orphan_unreferenced_assets(assets_query: Subquery, *, session: Session) -> None:
         deleted_orphaned_assets = session.execute(
             delete(AssetActive).where(
                 exists().where(
@@ -3818,7 +3818,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
 
     @staticmethod
-    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _activate_referenced_assets(assets_query: Subquery, *, session: Session) -> None:
         active_assets_query = select(AssetActive.name, AssetActive.uri).join(
             assets_query,
             and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
