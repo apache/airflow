@@ -172,10 +172,10 @@ Endpoint                                                                        
 /assets                                                                            GET    Assets.can_read                                                   Viewer
 /assets/{uri}                                                                      GET    Assets.can_read                                                   Viewer
 /assets/events                                                                     GET    Assets.can_read                                                   Viewer
-/eventLogs                                                                         GET    Audit Logs.can_read                                               Admin
-                                                                                          All Audit Logs.can_read (for rows not tied to a Dag)
-/eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Admin
-                                                                                          All Audit Logs.can_read (for rows not tied to a Dag)
+/eventLogs                                                                         GET    Dags.can_read, Audit Logs.can_read (rows tied to a Dag)           Viewer
+/eventLogs                                                                         GET    All Audit Logs.can_read (rows not tied to a Dag)                  Admin
+/eventLogs/{event_log_id}                                                          GET    Dags.can_read, Audit Logs.can_read (rows tied to a Dag)           Viewer
+/eventLogs/{event_log_id}                                                          GET    All Audit Logs.can_read (rows not tied to a Dag)                  Admin
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
 /importErrors/{import_error_id}                                                    GET    ImportError.can_read                                              Viewer
 /health                                                                            GET    None                                                              Public

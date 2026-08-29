@@ -47,9 +47,11 @@ except ImportError:
     Mapped = Any  # type: ignore[assignment,misc]
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
+from airflow.providers.common.compat.security.access_view import AUDIT_LOGS_ALL_ACCESS_VIEW
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
@@ -512,6 +514,11 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
     }
+    if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
+        viewer_role_perms |= {
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+        }
     app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
 
     with app.app_context():
@@ -521,6 +528,30 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         for role in security_manager.get_user_roles(user):
             perms_views.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
         assert perms_views == viewer_role_perms
+
+
+@pytest.mark.skipif(
+    AUDIT_LOGS_ALL_ACCESS_VIEW is None,
+    reason="Viewers are granted audit log access only on a core that gates the Dag-less rows separately",
+)
+@pytest.mark.parametrize(
+    ("role_name", "expected_all_audit_logs"),
+    [("Viewer", False), ("User", False), ("Op", False), ("Admin", True)],
+)
+def test_default_roles_read_dag_audit_logs(app, role_name, expected_all_audit_logs):
+    """Every default role reads the audit rows of a Dag it can see; only Admin reads the rows with no Dag."""
+    with app.app_context():
+        with create_user_scope(app, username="audit_log_user", role_name=role_name) as user:
+            assert get_auth_manager().is_authorized_dag(
+                method="GET",
+                access_entity=DagAccessEntity.AUDIT_LOG,
+                details=DagDetails(id="example_dag"),
+                user=user,
+            )
+            assert (
+                get_auth_manager().is_authorized_view(access_view=AUDIT_LOGS_ALL_ACCESS_VIEW, user=user)
+                is expected_all_audit_logs
+            )
 
 
 def test_get_current_user_permissions(app):

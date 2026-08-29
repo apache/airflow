@@ -20,6 +20,16 @@
 Changelog
 ---------
 
+.. warning::
+  On Airflow 3.4.0 and newer the ``Audit Logs.can_read`` and ``Audit Logs.menu_access``
+  permissions move from the ``Admin`` role to the ``Viewer`` role, so ``Viewer``, ``User`` and
+  ``Op`` now reach the audit log of the Dags they may read. The audit rows that are not tied to
+  a Dag -- Connection, Variable and Pool operations -- stay behind ``All Audit Logs.can_read``,
+  which only ``Admin`` holds. On an older Airflow those rows are not gated separately, so both
+  permissions stay with ``Admin`` there. Upgrading syncs the new permissions onto the built-in
+  roles; a deployment that wants the previous behaviour has to revoke them from the ``Viewer``
+  role explicitly.
+
 3.8.1
 .....
 

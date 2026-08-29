@@ -73,6 +73,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.security.access_view import AUDIT_LOGS_ALL_ACCESS_VIEW
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -157,6 +158,16 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
+
+# Airflow 3.4.0 moved the audit rows that carry no Dag -- Connection, Variable and Pool
+# operations -- behind ``AccessView.AUDIT_LOGS_ALL``, which leaves ``Audit Logs.can_read``
+# covering only the rows the event log endpoints already narrow to the caller's readable Dags.
+# An older core returns those Dag-less rows to anyone holding ``Audit Logs.can_read``, so there
+# the permission has to stay admin-only.
+_DAG_AUDIT_LOG_PERMISSIONS = [
+    (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+    (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+]
 
 
 class FabException(Exception):
@@ -269,6 +280,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
@@ -289,6 +301,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -352,8 +365,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     # [START security_admin_perms]
     ADMIN_PERMISSIONS = [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
@@ -366,6 +377,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
     ]
     # [END security_admin_perms]
+
+    if AUDIT_LOGS_ALL_ACCESS_VIEW is None:
+        VIEWER_PERMISSIONS = [
+            permission for permission in VIEWER_PERMISSIONS if permission not in _DAG_AUDIT_LOG_PERMISSIONS
+        ]
+        ADMIN_PERMISSIONS = ADMIN_PERMISSIONS + _DAG_AUDIT_LOG_PERMISSIONS
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
