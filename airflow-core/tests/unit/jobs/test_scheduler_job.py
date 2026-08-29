@@ -2188,8 +2188,8 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
-        """Check that task instances of missing DAGs are failed"""
+    def test_queued_task_instances_skipped_when_serialized_dag_missing(self, dag_maker, session):
+        """An unresolvable serialized Dag leaves every run's task instances SCHEDULED for a retry."""
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag"
         task_id_1 = "dummy"
         task_id_2 = "dummydummy"
@@ -2201,22 +2201,135 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        self.job_runner.scheduler_dag_bag = mock.MagicMock()
+        self.job_runner.scheduler_dag_bag = mock.MagicMock(spec=CachedDBDagBag)
         self.job_runner.scheduler_dag_bag.get_dag_for_run.return_value = None
 
-        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr1 = dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING)
+        dr2 = dag_maker.create_dagrun_after(dr1, run_id="run_2", state=DagRunState.RUNNING)
 
-        tis = dr.task_instances
-        for ti in tis:
-            ti.state = State.SCHEDULED
-            session.merge(ti)
+        for dr in (dr1, dr2):
+            for ti in dr.task_instances:
+                ti.state = State.SCHEDULED
+                session.merge(ti)
         session.flush()
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
         assert len(res) == 0
-        tis = dr.get_task_instances(session=session)
-        assert len(tis) == 2
-        assert all(ti.state == State.FAILED for ti in tis)
+        for dr in (dr1, dr2):
+            tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
+            assert all(ti.state == State.SCHEDULED for ti in tis)
+
+        # The lookup is made once per run, not once for each of the four task instances.
+        assert self.job_runner.scheduler_dag_bag.get_dag_for_run.call_count == 2
+
+    def test_missing_serialized_dag_for_one_run_does_not_block_another_run(self, dag_maker, session):
+        """Resolution is per run, so one run's miss must not hold back the Dag's other runs."""
+        dag_id = "SchedulerJobTest.test_missing_serialized_dag_one_run"
+
+        with dag_maker(dag_id=dag_id, session=session, default_args={"max_active_tis_per_dag": 2}):
+            EmptyOperator(task_id="dummy")
+
+        dr1 = dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING)
+        dr2 = dag_maker.create_dagrun_after(dr1, run_id="run_2", state=DagRunState.RUNNING)
+        serialized_dag = dag_maker.serialized_dag
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner.scheduler_dag_bag = mock.MagicMock(spec=CachedDBDagBag)
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.side_effect = lambda dag_run, session: (
+            None if dag_run.run_id == "run_1" else serialized_dag
+        )
+
+        for dr in (dr1, dr2):
+            for ti in dr.task_instances:
+                ti.state = State.SCHEDULED
+                session.merge(ti)
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        session.flush()
+
+        assert [(ti.dag_id, ti.run_id) for ti in res] == [(dag_id, "run_2")]
+        assert all(ti.state == State.SCHEDULED for ti in dr1.get_task_instances(session=session))
+
+    def test_missing_serialized_dag_queues_task_instances_once_it_resolves(self, dag_maker, session):
+        """Task instances left SCHEDULED are queued on a later round once the serialized Dag resolves."""
+        dag_id = "SchedulerJobTest.test_missing_serialized_dag_resolves"
+
+        with dag_maker(dag_id=dag_id, session=session, default_args={"max_active_tis_per_dag": 2}):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        serialized_dag = dag_maker.serialized_dag
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner.scheduler_dag_bag = mock.MagicMock(spec=CachedDBDagBag)
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.side_effect = [None, serialized_dag]
+
+        for ti in dr.task_instances:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        assert self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session) == []
+        session.flush()
+        assert all(ti.state == State.SCHEDULED for ti in dr.get_task_instances(session=session))
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert [ti.task_id for ti in res] == ["dummy"]
+
+    def test_missing_serialized_dag_does_not_starve_other_dags(self, dag_maker, session, caplog):
+        """A Dag that cannot be resolved must not hold up the Dags queued behind it."""
+        broken_dag_id = "SchedulerJobTest.test_missing_serialized_dag_starvation_broken"
+        healthy_dag_id = "SchedulerJobTest.test_missing_serialized_dag_starvation_healthy"
+
+        with dag_maker(
+            dag_id=broken_dag_id,
+            session=session,
+            default_args={"max_active_tis_per_dag": 1, "priority_weight": 100},
+        ):
+            EmptyOperator(task_id="broken")
+        broken_runs = [dag_maker.create_dagrun(run_id="broken_run_0", state=DagRunState.RUNNING)]
+        for run_number in range(1, 4):
+            broken_runs.append(
+                dag_maker.create_dagrun_after(
+                    broken_runs[-1], run_id=f"broken_run_{run_number}", state=DagRunState.RUNNING
+                )
+            )
+
+        with dag_maker(dag_id=healthy_dag_id, session=session, default_args={"priority_weight": 1}):
+            EmptyOperator(task_id="healthy")
+        healthy_run = dag_maker.create_dagrun(run_id="healthy_run", state=DagRunState.RUNNING)
+
+        for dr in (*broken_runs, healthy_run):
+            for ti in dr.task_instances:
+                ti.state = State.SCHEDULED
+                session.merge(ti)
+        session.commit()
+
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == broken_dag_id))
+        session.commit()
+        session.expire_all()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # The broken Dag has more runs than one query can return, and its task instances outrank the
+        # healthy Dag's, so the healthy Dag is only reachable if every broken run is starved out over
+        # successive query iterations.
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=2, session=session)
+        session.flush()
+
+        assert [(ti.dag_id, ti.task_id) for ti in res] == [(healthy_dag_id, "healthy")]
+        for dr in broken_runs:
+            assert all(ti.state == State.SCHEDULED for ti in dr.get_task_instances(session=session))
+
+        # One error for the Dag, not one per missing run.
+        errors = [entry for entry in caplog.entries if entry["log_level"] == "error"]
+        assert len(errors) == 1
+        assert f"Dag '{broken_dag_id}'" in errors[0]["event"]
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_nonexistent_pool"
