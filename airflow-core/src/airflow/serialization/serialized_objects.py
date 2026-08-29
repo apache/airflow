@@ -1173,7 +1173,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             v = v_in  # surpass PLW2901
             # Use centralized field deserialization logic
             if k in encoded_op.get("template_fields", []):
-                if isinstance(v, dict) and Encoding.TYPE in v and Encoding.VAR in v:
+                if isinstance(v, dict) and v.get(Encoding.TYPE) == DAT.DAG_PARAM and Encoding.VAR in v:
                     v = cls.deserialize(v)
             elif k == "_operator_extra_links":
                 if cls._load_operator_extra_links:

@@ -5267,3 +5267,33 @@ def test_serialized_dagparam_resolve_prefers_dag_run_conf():
     assert param_notset.resolve(
         {"dag_run": type("DR", (), {"conf": {}})(), "params": {"p": "from_params"}}
     ) == ("from_params")
+
+
+def test_serialized_dagparam_resolve_skips_conf_when_name_missing():
+    param = SerializedDagParam(dag_id="d", name="p", default="from_default")
+    context = {
+        "dag_run": type("DR", (), {"conf": {"other": "x"}})(),
+        "params": {"p": "from_params"},
+    }
+    assert param.resolve(context) == "from_default"
+
+
+def test_serialized_dagparam_resolve_raises_when_unresolved():
+    param = SerializedDagParam(dag_id="d", name="p")
+    with pytest.raises(RuntimeError, match="No value could be resolved for parameter p"):
+        param.resolve({"dag_run": type("DR", (), {"conf": {}})(), "params": {}})
+
+
+def test_dagparam_nested_in_taskflow_call_is_address_stable():
+    from airflow.sdk import task
+
+    with DAG("test-dagparam-nested-call", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+        @task
+        def do(something):
+            return something
+
+        do(dag.param("some", "some_default_val"))
+
+    blob = json.dumps(DagSerialization.to_dict(dag))
+    assert "object at 0x" not in blob.lower()
