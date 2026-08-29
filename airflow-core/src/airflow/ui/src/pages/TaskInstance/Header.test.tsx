@@ -32,7 +32,7 @@ import { Header } from "./Header";
 vi.mock("src/components/Clear", () => ({ ClearTaskInstanceButton: () => undefined }));
 vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceDialog", () => ({ default: () => undefined }));
 vi.mock("src/components/MarkAs", () => ({ MarkTaskInstanceAsButton: () => undefined }));
-vi.mock("src/components/NotePreview", () => ({ default: () => undefined }));
+vi.mock("src/components/NotePreview", () => ({ NotePreview: () => undefined }));
 
 const mockConfig: Record<string, unknown> = { multi_team: false };
 

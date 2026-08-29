@@ -17,7 +17,6 @@
  * under the License.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { Dispatch, SetStateAction } from "react";
 import { MemoryRouter, useLocation, useMatches, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -95,21 +94,21 @@ const LocationDisplay = () => {
 
 const renderSearch = ({
   initialEntry,
-  setIsOpen = vi.fn(),
+  onClose = vi.fn(),
 }: {
   initialEntry: string;
-  setIsOpen?: Dispatch<SetStateAction<boolean>>;
+  onClose?: () => void;
 }) => {
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <SearchDags setIsOpen={setIsOpen} />
+        <SearchDags onClose={onClose} />
         <LocationDisplay />
       </MemoryRouter>
     </BaseWrapper>,
   );
 
-  return setIsOpen;
+  return onClose;
 };
 
 describe("SearchDags", () => {
@@ -133,12 +132,12 @@ describe("SearchDags", () => {
   });
 
   it("preserves the selected Dag tab when switching Dags", () => {
-    const setIsOpen = renderSearch({ initialEntry: "/dags/old_dag/details" });
+    const onClose = renderSearch({ initialEntry: "/dags/old_dag/details" });
 
     fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/details");
-    expect(setIsOpen).toHaveBeenCalledWith(false);
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("resets to the Dag overview from a deeper entity route", () => {

@@ -112,6 +112,7 @@ def default_action_log(
     logical_date,
     host_name,
     full_command,
+    team_name=None,
     *,
     session: Session = NEW_SESSION,
     **_,
@@ -125,7 +126,7 @@ def default_action_log(
     from sqlalchemy.exc import OperationalError, ProgrammingError
 
     from airflow._shared.timezones import timezone
-    from airflow.models.log import Log
+    from airflow.models.log import Log, resolve_team_name
 
     try:
         # Use bulk_insert_mappings here to avoid importing all models (which using the classes does) early
@@ -141,6 +142,8 @@ def default_action_log(
                     "task_id": task_id,
                     "dag_id": dag_id,
                     "logical_date": logical_date,
+                    # A bulk insert skips the ORM hook that would stamp this from ``dag_id``.
+                    "team_name": team_name or resolve_team_name(dag_id, session=session),
                     "dttm": timezone.utcnow(),
                 }
             ],

@@ -193,7 +193,7 @@ class ArangoDBHook(BaseHook):
         return {
             "hidden_fields": ["port", "extra"],
             "relabeling": {
-                "host": "ArangoDB Host URL or  comma separated list of URLs (coordinators in a cluster)",
+                "host": "ArangoDB Host URL or comma separated list of URLs (coordinators in a cluster)",
                 "schema": "ArangoDB Database",
                 "login": "ArangoDB Username",
                 "password": "ArangoDB Password",

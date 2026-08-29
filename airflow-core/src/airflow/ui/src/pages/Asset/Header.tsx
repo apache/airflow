@@ -52,5 +52,5 @@ export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
       : []),
   ];
 
-  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} />;
+  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} type="asset" />;
 };
