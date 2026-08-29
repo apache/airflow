@@ -290,34 +290,39 @@ class TestCloudComposerExternalTaskTrigger:
         date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
         start_date = datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc)
         end_date = datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc)
-        hook = mock.AsyncMock(spec=CloudComposerAsyncHook)
-        hook.get_environment.return_value = SimpleNamespace(
-            config=SimpleNamespace(airflow_uri="https://composer.example")
+        # get_environment is wrapped by fallback_to_default_project_id, so
+        # inspect.iscoroutinefunction is False and AsyncMock(spec=...) is a
+        # MagicMock on Python 3.10. Awaited methods must be AsyncMock.
+        hook = mock.Mock(spec=CloudComposerAsyncHook)
+        hook.get_environment = mock.AsyncMock(
+            return_value=SimpleNamespace(config=SimpleNamespace(airflow_uri="https://composer.example"))
         )
-        hook.get_task_instances.side_effect = [
-            {
-                "task_instances": [
-                    {
-                        "task_id": TEST_COMPOSER_EXTERNAL_TASK_IDS[0],
-                        "dag_id": TEST_COMPOSER_DAG_ID,
-                        "state": out_of_window_state,
-                        date_key: "2024-03-21T11:10:00+00:00",
-                    }
-                ],
-                "total_entries": 1,
-            },
-            {
-                "task_instances": [
-                    {
-                        "task_id": TEST_COMPOSER_EXTERNAL_TASK_IDS[0],
-                        "dag_id": TEST_COMPOSER_DAG_ID,
-                        "state": "success",
-                        date_key: "2024-03-22T11:10:00+00:00",
-                    }
-                ],
-                "total_entries": 1,
-            },
-        ]
+        hook.get_task_instances = mock.AsyncMock(
+            side_effect=[
+                {
+                    "task_instances": [
+                        {
+                            "task_id": TEST_COMPOSER_EXTERNAL_TASK_IDS[0],
+                            "dag_id": TEST_COMPOSER_DAG_ID,
+                            "state": out_of_window_state,
+                            date_key: "2024-03-21T11:10:00+00:00",
+                        }
+                    ],
+                    "total_entries": 1,
+                },
+                {
+                    "task_instances": [
+                        {
+                            "task_id": TEST_COMPOSER_EXTERNAL_TASK_IDS[0],
+                            "dag_id": TEST_COMPOSER_DAG_ID,
+                            "state": "success",
+                            date_key: "2024-03-22T11:10:00+00:00",
+                        }
+                    ],
+                    "total_entries": 1,
+                },
+            ]
+        )
         trigger_kwargs = {
             "project_id": TEST_PROJECT_ID,
             "region": TEST_LOCATION,
