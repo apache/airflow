@@ -458,6 +458,7 @@ class TestGoogleDriveHook:
         ("o'brien.csv", "o\\'brien.csv"),
         ("back\\slash", "back\\\\slash"),
         ("x' or name!='", "x\\' or name!=\\'"),
+        ("back\\slash and o'quote", "back\\\\slash and o\\'quote"),
     ],
 )
 def test_escape_drive_query_value(raw, expected):

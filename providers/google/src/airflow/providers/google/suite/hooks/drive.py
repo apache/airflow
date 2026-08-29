@@ -30,15 +30,10 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 def _escape_drive_query_value(value: str) -> str:
-    r"""
-    Escape a value for interpolation into a Drive ``q=`` string literal.
-
-    The Drive query language delimits string literals with single quotes and escapes
-    ``'`` and ``\\`` with a backslash. Values reaching these queries are frequently
-    object names taken from a source bucket listing rather than written by hand, so a
-    quote in the value is ordinary input; left unescaped it ends the literal early and
-    the expression no longer means what the caller intended.
-    """
+    r"""Escape a value for interpolation into a Drive ``q=`` string literal."""
+    # Drive string literals are single-quoted and escape both quotes and backslashes with a
+    # backslash. Object names routinely contain either character, and left unescaped they end
+    # the literal early and change what the expression means.
     return str(value).replace("\\", "\\\\").replace("'", "\\'")
 
 
