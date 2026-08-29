@@ -341,27 +341,30 @@ def connections_add(args):
                 f"the --conn-{'uri' if has_uri else 'json'} flag: {invalid_args!r}"
             )
 
-    if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
-        if args.conn_extra is not None:
-            new_conn.set_extra(args.conn_extra)
-    elif args.conn_json:
-        new_conn = Connection.from_json(conn_id=args.conn_id, value=args.conn_json)
-        if not new_conn.conn_type:
-            raise SystemExit("conn-json is invalid; must supply conn-type")
-    else:
-        new_conn = Connection(
-            conn_id=args.conn_id,
-            conn_type=args.conn_type,
-            description=args.conn_description,
-            host=args.conn_host,
-            login=args.conn_login,
-            password=args.conn_password,
-            schema=args.conn_schema,
-            port=args.conn_port,
-        )
-        if args.conn_extra is not None:
-            new_conn.set_extra(args.conn_extra)
+    try:
+        if args.conn_uri:
+            new_conn = Connection(conn_id=args.conn_id, description=args.conn_description, uri=args.conn_uri)
+            if args.conn_extra is not None:
+                new_conn.set_extra(args.conn_extra)
+        elif args.conn_json:
+            new_conn = Connection.from_json(conn_id=args.conn_id, value=args.conn_json)
+            if not new_conn.conn_type:
+                raise SystemExit("conn-json is invalid; must supply conn-type")
+        else:
+            new_conn = Connection(
+                conn_id=args.conn_id,
+                conn_type=args.conn_type,
+                description=args.conn_description,
+                host=args.conn_host,
+                login=args.conn_login,
+                password=args.conn_password,
+                schema=args.conn_schema,
+                port=args.conn_port,
+            )
+            if args.conn_extra is not None:
+                new_conn.set_extra(args.conn_extra)
+    except (ValueError, AirflowException) as e:
+        raise SystemExit(f"Could not create connection. {e}")
 
     with create_session() as session:
         if not session.scalar(select(Connection).where(Connection.conn_id == new_conn.conn_id).limit(1)):

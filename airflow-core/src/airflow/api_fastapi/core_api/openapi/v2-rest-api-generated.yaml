@@ -12674,7 +12674,9 @@ components:
           title: Schema
         port:
           anyOf:
-          - type: integer
+          - maximum: 65535
+            minimum: 0
+            type: integer
           - type: 'null'
           title: Port
         password:
@@ -12829,7 +12831,9 @@ components:
           title: Schema
         port:
           anyOf:
-          - type: integer
+          - maximum: 65535
+            minimum: 0
+            type: integer
           - type: 'null'
           title: Port
         password:

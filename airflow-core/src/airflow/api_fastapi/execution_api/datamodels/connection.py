@@ -31,5 +31,5 @@ class ConnectionResponse(BaseModel):
     schema_: str | None = Field(alias="schema")
     login: str | None
     password: str | None
-    port: int | None
+    port: int | None = Field(default=None, ge=0, le=65535)
     extra: str | None

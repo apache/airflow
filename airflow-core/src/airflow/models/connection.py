@@ -190,6 +190,9 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             self.port = port
             self.extra = extra
 
+        if self.port is not None:
+            self.port = self._validate_port(self.port)
+
         if conn_id is not None:
             sanitized_id = sanitize_conn_id(conn_id)
             if sanitized_id is not None:
@@ -201,6 +204,22 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             mask_secret(self.password)
             mask_secret(quote(self.password))
         self.team_name = team_name
+
+    @staticmethod
+    def _validate_port(port: Any) -> int:
+        """Verify that `port` is an integer between 0 and 65535."""
+        if isinstance(port, str):
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError(
+                    f"Expected integer value between 0 and 65535 for `port`, but got {port!r} instead."
+                )
+        if isinstance(port, bool) or not isinstance(port, int) or not (0 <= port <= 65535):
+            raise ValueError(
+                f"Expected integer value between 0 and 65535 for `port`, but got {port!r} instead."
+            )
+        return port
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:

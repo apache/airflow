@@ -788,6 +788,24 @@ class TestCliAddConnections:
         )
 
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("invalid_port", [-1, 65536, 99999999])
+    def test_cli_connection_add_rejects_invalid_port(self, invalid_port):
+        """connections add should exit with a user-friendly error for out-of-range ports."""
+        with pytest.raises(SystemExit) as exc_info:
+            connection_command.connections_add(
+                self.parser.parse_args(
+                    [
+                        "connections",
+                        "add",
+                        "bad-port-conn",
+                        "--conn-type=http",
+                        f"--conn-port={invalid_port}",
+                    ]
+                )
+            )
+        assert "Could not create connection" in str(exc_info.value)
+
 class TestCliDeleteConnections:
     parser = cli_parser.get_parser()
 

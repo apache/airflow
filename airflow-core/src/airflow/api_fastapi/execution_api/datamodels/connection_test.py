@@ -46,5 +46,5 @@ class ConnectionTestConnectionResponse(BaseModel):
     login: str | None = None
     password: str | None = None
     schema_: str | None = Field(None, alias="schema")
-    port: int | None = None
+    port: int | None = Field(default=None, ge=0, le=65535)
     extra: str | None = None

@@ -430,3 +430,22 @@ class TestConnectionFromUri:
             original_extra = json.loads(conn_from_original.extra)
             roundtrip_extra = json.loads(conn_from_roundtrip.extra)
             assert original_extra == roundtrip_extra
+
+    @pytest.mark.parametrize("valid_port", [0, 80, 5432, 65535, None])
+    def test_connection_valid_port(self, valid_port):
+        conn = Connection(conn_id="test_conn", conn_type="http", port=valid_port)
+        assert conn.port == valid_port
+
+    @pytest.mark.parametrize("invalid_port", [-1, 65536, 99999999, "invalid", 80.5, True, False])
+    def test_connection_invalid_port(self, invalid_port):
+        with pytest.raises(ValueError, match="Expected integer value between 0 and 65535 for port"):
+            Connection(conn_id="test_conn", conn_type="http", port=invalid_port)
+
+    def test_connection_from_json_port_validation(self):
+        valid_json = json.dumps({"conn_type": "http", "port": "8080"})
+        conn = Connection.from_json(valid_json, conn_id="test_conn")
+        assert conn.port == 8080
+
+        invalid_json = json.dumps({"conn_type": "http", "port": 70000})
+        with pytest.raises(ValueError, match="Expected integer value between 0 and 65535 for port"):
+            Connection.from_json(invalid_json, conn_id="test_conn")

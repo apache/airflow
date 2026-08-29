@@ -2254,3 +2254,26 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
                 "method": "POST",
             },
         )
+
+
+class TestConnectionPortValidation(TestConnectionEndpoint):
+    @pytest.mark.parametrize("port", [-1, 65536, 99999999])
+    def test_post_connection_rejects_invalid_port(self, test_client, port):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port}
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("port", [0, 80, 5432, 65535, None])
+    def test_post_connection_accepts_valid_port(self, test_client, session, port):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port}
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 201
+        assert response.json()["port"] == port
+
+    @pytest.mark.parametrize("port", [-1, 65536, 99999999])
+    def test_patch_connection_rejects_invalid_port(self, test_client, session, port):
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE))
+        session.commit()
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port}
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body)
+        assert response.status_code == 422
