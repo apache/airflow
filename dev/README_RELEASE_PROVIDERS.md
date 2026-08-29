@@ -24,6 +24,7 @@
   - [What the provider distributions are](#what-the-provider-distributions-are)
   - [Decide when to release](#decide-when-to-release)
   - [Delegating release duties to a non-PMC committer](#delegating-release-duties-to-a-non-pmc-committer)
+- [Prerequisites (first-time release managers)](#prerequisites-first-time-release-managers)
 - [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Special procedures (done very infrequently)](#special-procedures-done-very-infrequently)
   - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
@@ -128,6 +129,27 @@ remains the party accountable for the release under ASF policy.
 > live — sharing their screen (or pairing) through the build → sign → `dist/dev` → PyPI-RC steps so the
 > Delegate sees exactly how it is done. The aim is simply that these steps are familiar rather than
 > a surprise if and when the Delegate later becomes a PMC member and runs them for real.
+
+# Prerequisites (first-time release managers)
+
+Two steps of the release depend on access that you must request. Request both **before** you start your first
+release. They only need to be done once for new release managers, but may take some time.
+
+* **PyPI: membership of the `apache-airflow` organization.** The
+  [RC upload](#publish-the-regular-distributions-to-pypi-release-candidates) and the
+  [final upload](#publish-the-packages-to-pypi) steps push to the `apache-airflow-providers-*` PyPi projects.
+  Ask a PMC member who is an owner of the Apache Airflow PyPI organization to invite your account. Then
+  accept the invitation. Confirm it worked by opening [your PyPI projects](https://pypi.org/manage/projects/)
+  and you should see many Airflow related projects (170+ at the time of writing).
+
+* **GitHub: the docs-publishing allowlist.** The
+  [`publish-docs-to-s3.yml`](../.github/workflows/publish-docs-to-s3.yml) workflow gates its
+  `build-info` job on `github.event.sender.login`, and every other job depends on `build-info`. If
+  your GitHub handle is not in that list, dispatching the workflow (as
+  [Prepare documentation in Staging](#prepare-documentation-in-staging) does) reports **no error at
+  all**. The run is created and every job is silently skipped, which is easy to mistake for a
+  successful publish. Add your handle with a one-line PR to that file and merge it to main. Example:
+  [#71848](https://github.com/apache/airflow/pull/71848).
 
 # Collect ambiguities during the release (for a follow-up doc PR)
 
@@ -590,12 +612,21 @@ Set tags for the providers in the repo.
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
 git push upstream providers/${RELEASE_DATE}
-breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both
+breeze release-management prepare-provider-distributions  --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
 The `prepare-*-distributions` commands should produce the reproducible `.whl`, `.tar.gz` packages in the dist folder.
 The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
+
+> [!IMPORTANT]
+> `--version-suffix ""` is passed deliberately, and the empty value is the point: the packages
+> committed to SVN carry the **final** version in their filename (`...-6.0.1-py3-none-any.whl`), with
+> no `rcN`. That is what lets a passing vote promote them with a plain `svn mv` instead of a rebuild.
+> The [PyPI upload below](#publish-the-regular-distributions-to-pypi-release-candidates) is the
+> opposite case - it builds a *separate* set of packages from the same sources with
+> `--version-suffix rcN`, so those filenames do carry the candidate number. Mixing the two up
+> produces an SVN wave that cannot be promoted.
 
 if you only build few packages, run:
 
@@ -603,7 +634,7 @@ if you only build few packages, run:
 echo "Tagging with providers/${RELEASE_DATE}"
 git tag -s providers/${RELEASE_DATE} -m "Tag providers for ${RELEASE_DATE}" --force
 git push upstream providers/${RELEASE_DATE}
-breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both PACKAGE PACKAGE ....
+breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix "" PACKAGE PACKAGE ....
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 
 ```
@@ -731,21 +762,26 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
   Publishing is deployed for the Airflow provider distributions on PyPI**,
   the recommended practice is:
 
-  1. Log in to https://pypi.org and create an API token right before the
-     upload step. **Scope caveat:** you would ideally create a
-     project-scoped token, but PyPI only allows project-scoped tokens for
-     projects you already own/maintain on that account. Most Airflow
-     release managers do not have per-project owner rights on every
-     provider being released, so in practice you will need to create an
-     account-wide ("all projects") token. That is acceptable **only if**
-     you treat it as single-use and delete it immediately after the upload
-     (step 4 below). Never keep an all-projects token on disk longer than
-     the upload itself.
-  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
-     `TWINE_PASSWORD=pypi-...`).
-  3. Run the upload (below).
-  4. **Immediately delete the token** from the PyPI web UI after the upload
-     completes. Do not keep long-lived release-manager tokens on disk.
+  1. Create the token immediately before uploading, at
+     [Account settings → API tokens → "Add API token"](https://pypi.org/manage/account/token/). Name
+     it after the wave (e.g. `airflow-providers-2026-08-25-rc`) so you can find it again to delete it.
+  2. **Scope caveat:** a token can only be scoped to a single project and a wave publishes several,
+     so pick "Entire account (all projects)". That is acceptable **only if** you treat it as
+     single-use and delete it immediately after the upload. Never keep an all-projects token on disk
+     longer than the upload itself.
+  3. Copy the `pypi-...` value, PyPI shows it only once. Pass it to twine in the environment rather
+     than in `~/.pypirc`, so that nothing is written to disk and any `.pypirc` you already have for
+     your own projects is left alone:
+
+     ```shell script
+     export TWINE_USERNAME=__token__
+     read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
+     ```
+
+  4. Run the upload (below).
+  5. **Delete the token** at
+     [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
+     `unset TWINE_USERNAME TWINE_PASSWORD`.
 
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
@@ -777,8 +813,30 @@ grep -oE 'https://pypi\.org/project/[^[:space:]]+' "${AIRFLOW_REPO_ROOT}/files/t
 
 Earlier, we pushed the date tag, now that the RC(s) are ready we can push the tags for them.
 
+> [!IMPORTANT]
+> `tag-providers` tags whatever `HEAD` currently points at — it does not derive the commit from
+> `--release-date`. **Always check out the wave tag `providers/${RELEASE_DATE}` first**, so the
+> per-provider tags land on the exact commit the artifacts were built from. Anything that moved
+> `HEAD` between the build and this step — a `git pull`, a branch switch, a rebase, or concurrent
+> work by another terminal or agent sharing the same checkout — is otherwise tagged silently and
+> without any error. This has gone wrong in a real wave: all 44 tags were pushed at an unrelated
+> commit and had to be force-recreated afterwards. For the same reason, prefer running release
+> steps from a dedicated worktree rather than a checkout you are also working in.
+
 ```shell script
+git checkout providers/${RELEASE_DATE}
+# Both SHAs printed here must be identical before you tag
+git rev-parse HEAD "providers/${RELEASE_DATE}^{commit}"
 breeze release-management tag-providers --release-date ${RELEASE_DATE}
+```
+
+You will see `You are in 'detached HEAD' state.` — that is expected, the wave tag is behind `main`.
+
+Verify the pushed tags point where you think they do. Plain `git ls-remote` prints the *tag object*
+SHA for annotated tags, which never matches the commit and looks alarming; dereference it with `^{}`:
+
+```shell script
+git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Prepare documentation in Staging
@@ -893,8 +951,11 @@ unchecked). If the issue was already created, apply the same local edit and then
 Once you are satisfied with `files/provider_issue.md` (and any checkmarks have been carried over), create the issue from the file:
 
 ```shell script
+# Fill prepared-on date by hand when RELEASE_DATE is unset, since an empty date formats as *today* on GNU date.
+date_cmd=(date -d); [[ "${OSTYPE}" == *darwin* ]] && date_cmd=(date -j -f "%Y-%m-%d")
+PREPARED_ON="<MONTH DD, YYYY>"; [[ -n "${RELEASE_DATE:-}" ]] && PREPARED_ON=$("${date_cmd[@]}" "${RELEASE_DATE%%_*}" +'%B %d, %Y')
 gh issue create --repo apache/airflow \
-    --title "Status of testing Providers that were prepared on <MONTH DD, YYYY>" \
+    --title "Status of testing Providers that were prepared on ${PREPARED_ON}" \
     --body-file files/provider_issue.md --label "testing status,kind:meta"
 ```
 
@@ -1138,7 +1199,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both
+breeze release-management prepare-provider-distributions --include-removed-providers --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_providers --version "${RELEASE_DATE}"
 ```
 
@@ -1646,21 +1707,26 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
   Publishing is deployed for the Airflow provider distributions on PyPI**,
   the recommended practice is:
 
-  1. Log in to https://pypi.org and create an API token right before the
-     upload step. **Scope caveat:** you would ideally create a
-     project-scoped token, but PyPI only allows project-scoped tokens for
-     projects you already own/maintain on that account. Most Airflow
-     release managers do not have per-project owner rights on every
-     provider being released, so in practice you will need to create an
-     account-wide ("all projects") token. That is acceptable **only if**
-     you treat it as single-use and delete it immediately after the upload
-     (step 4 below). Never keep an all-projects token on disk longer than
-     the upload itself.
-  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
-     `TWINE_PASSWORD=pypi-...`).
-  3. Run the upload (below).
-  4. **Immediately delete the token** from the PyPI web UI after the upload
-     completes. Do not keep long-lived release-manager tokens on disk.
+  1. Create the token immediately before uploading, at
+     [Account settings → API tokens → "Add API token"](https://pypi.org/manage/account/token/). Name
+     it after the wave (e.g. `airflow-providers-2026-08-25-final`) so you can find it again to delete it.
+  2. **Scope caveat:** a token can only be scoped to a single project and a wave publishes several,
+     so pick "Entire account (all projects)". That is acceptable **only if** you treat it as
+     single-use and delete it immediately after the upload. Never keep an all-projects token on disk
+     longer than the upload itself.
+  3. Copy the `pypi-...` value, PyPI shows it only once. Pass it to twine in the environment rather
+     than in `~/.pypirc`, so that nothing is written to disk and any `.pypirc` you already have for
+     your own projects is left alone:
+
+     ```shell script
+     export TWINE_USERNAME=__token__
+     read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
+     ```
+
+  4. Run the upload (below).
+  5. **Delete the token** at
+     [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
+     `unset TWINE_USERNAME TWINE_PASSWORD`.
 
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
@@ -1700,8 +1766,21 @@ and lead to annoying errors. The default behavior would be to clean such local t
 
 If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
 
+As when [pushing the RC tags](#push-the-rc-tags), check out the wave tag first — `tag-providers`
+tags `HEAD`, so the final tags must be created from the wave commit and not from whatever the
+checkout happens to be on:
+
 ```shell script
+git checkout providers/${RELEASE_DATE}
+# Both SHAs printed here must be identical before you tag
+git rev-parse HEAD "providers/${RELEASE_DATE}^{commit}"
 breeze release-management tag-providers --release-date ${RELEASE_DATE}
+```
+
+Then confirm each pushed tag resolves to the wave commit (`^{}` dereferences the annotated tag):
+
+```shell script
+git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
 ## Publish documentation

@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Hashable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -83,13 +83,16 @@ class BaseWorkloadSchema(BaseModel):
     token: str = Field(repr=False)
     """The identity token for this workload"""
 
-    @staticmethod
-    def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
+    token_scope: ClassVar[str] = "workload"
+    """Scope claim stamped into tokens minted for this workload type."""
+
+    @classmethod
+    def generate_token(cls, sub_id: str, generator: JWTGenerator | None = None) -> str:
         if not generator:
             return ""
         valid_for = conf.getfloat("scheduler", "task_queued_timeout")
         return generator.generate(
-            extras={"sub": sub_id, "scope": "workload"},
+            extras={"sub": sub_id, "scope": cls.token_scope},
             valid_for=valid_for,
         )
 

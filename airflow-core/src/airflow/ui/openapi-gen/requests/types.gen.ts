@@ -901,6 +901,7 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -1001,9 +1002,13 @@ export type DAGRunClearBody = {
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1136,6 +1141,18 @@ export type DAGWarningResponse = {
 export type DagProcessorInfoResponse = {
     status: string | null;
     latest_dag_processor_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<DagProcessorInstanceInfoResponse> | null;
+};
+
+/**
+ * Dag processor instance info serializer for responses.
+ */
+export type DagProcessorInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_dag_processor_heartbeat: string | null;
+    bundle_names: Array<(string)> | null;
 };
 
 /**
@@ -1145,12 +1162,16 @@ export type DagRunAssetReference = {
     run_id: string;
     dag_id: string;
     logical_date: string | null;
-    start_date: string;
+    start_date: string | null;
     end_date: string | null;
     state: string;
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
@@ -1184,6 +1205,7 @@ export type DagScheduleAssetReference = {
     dag_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -1285,6 +1307,7 @@ export type EventLogResponse = {
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1304,6 +1327,7 @@ export type ExternalViewResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -1480,6 +1504,8 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
+    team_name?: string | null;
+    bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
 
@@ -1528,6 +1554,17 @@ export type PatchTaskInstanceBody = {
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+};
+
+/**
+ * Serializer for the optional Dag/task scoping criteria of a UI plugin.
+ */
+export type PluginAppliesToResponse = {
+    dag_tags?: Array<(string)> | null;
+    dag_ids?: Array<(string)> | null;
+    task_ids?: Array<(string)> | null;
+    operators?: Array<(string)> | null;
+    operator_names?: Array<(string)> | null;
 };
 
 /**
@@ -1680,6 +1717,7 @@ export type ReactAppResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
@@ -1699,6 +1737,17 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  */
 export type SchedulerInfoResponse = {
     status: string | null;
+    latest_scheduler_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<SchedulerInstanceInfoResponse> | null;
+};
+
+/**
+ * Scheduler instance info serializer for responses.
+ */
+export type SchedulerInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
 
@@ -1757,9 +1806,13 @@ export type TaskInletAssetReference = {
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1912,6 +1965,7 @@ export type TaskOutletAssetReference = {
     task_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2041,6 +2095,18 @@ export type TriggerResponse = {
 export type TriggererInfoResponse = {
     status: string | null;
     latest_triggerer_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<TriggererInstanceInfoResponse> | null;
+};
+
+/**
+ * Triggerer instance info serializer for responses.
+ */
+export type TriggererInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_triggerer_heartbeat: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -2181,6 +2247,10 @@ export type XComUpdateBody = {
 export type AuthenticatedMeResponse = {
     id: string;
     username: string;
+    /**
+     * Teams the user has access to. Null when the environment does not run in multi-team mode.
+     */
+    teams?: Array<(string)> | null;
 };
 
 /**
@@ -3457,6 +3527,10 @@ export type GetDagsData = {
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
+    /**
+     * Filter Dags by whether their timetable can create scheduled runs.
+     */
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -3703,6 +3777,7 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: number | null;
 };
 
@@ -5410,6 +5485,10 @@ export type $OpenApiTs = {
                  */
                 200: DryRunBackfillCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -5762,6 +5841,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5826,6 +5909,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6367,6 +6454,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
@@ -6523,6 +6614,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunLightResponse | null;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7048,6 +7143,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7264,6 +7363,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7803,10 +7906,6 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
-                 * Not Found
-                 */
-                404: HTTPExceptionResponse;
-                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8082,6 +8181,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8512,6 +8615,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BaseGraphResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

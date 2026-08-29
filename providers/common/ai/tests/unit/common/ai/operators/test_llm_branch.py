@@ -25,7 +25,8 @@ import pytest
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import Param, ParamValidationError, TaskDeferred
+from airflow.providers.standard.exceptions import HITLRejectException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -313,10 +314,10 @@ class TestLLMBranchOperatorApproval:
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_review_form_multi_branch_keeps_string_schema(
+    def test_review_form_multi_branch_renders_multiselect(
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
     ):
-        """With allow_multiple_branches the editable param stays free-text (JSON list)."""
+        """With allow_multiple_branches the editable param is an array enum (multi-select)."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
@@ -338,7 +339,17 @@ class TestLLMBranchOperatorApproval:
 
         call_kwargs = mock_upsert.call_args.kwargs
         assert "Valid branches: `task_a`, `task_b`" in call_kwargs["body"]
-        assert call_kwargs["params"]["output"]["schema"] == {"type": "string"}
+        assert call_kwargs["params"]["output"]["schema"] == {
+            "type": "array",
+            "items": {"type": "string", "enum": ["task_a", "task_b"]},
+            "examples": ["task_a", "task_b"],
+        }
+        assert call_kwargs["params"]["output"]["value"] == ["task_a"]
+
+        schema = call_kwargs["params"]["output"]["schema"]
+        assert Param(schema=schema).resolve(["task_a"]) == ["task_a"]
+        with pytest.raises(ParamValidationError):
+            Param(schema=schema).resolve(["task_x"])
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
@@ -387,6 +398,39 @@ class TestLLMBranchOperatorApproval:
         assert result == ["task_a", "task_c"]
         mock_do_branch.assert_called_once_with(ctx, ["task_a", "task_c"])
 
+    @patch.object(LLMBranchOperator, "skip")
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_reject_skips_downstream_except_teardowns(self, mock_do_branch, mock_skip):
+        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c")
+        op.downstream_task_ids = {"task_a", "cleanup"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        task_a = MagicMock(is_teardown=False)
+        cleanup = MagicMock(is_teardown=True)
+        task = MagicMock()
+        task.get_direct_relatives.return_value = [task_a, cleanup]
+        ti = MagicMock()
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": ti}[key]})
+
+        result = op.execute_complete(ctx, generated_output="task_a", event=event)
+
+        assert result is None
+        task.get_direct_relatives.assert_called_once_with(upstream=False)
+        mock_skip.assert_called_once()
+        assert mock_skip.call_args.kwargs["ti"] is ti
+        assert list(mock_skip.call_args.kwargs["tasks"]) == [task_a]
+        mock_do_branch.assert_not_called()
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_reject_fails_with_fail_on_reject(self, mock_do_branch):
+        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", fail_on_reject=True)
+        op.downstream_task_ids = {"task_a", "task_b"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+
+        with pytest.raises(HITLRejectException, match="rejected"):
+            op.execute_complete(_make_context(), generated_output="task_a", event=event)
+
+        mock_do_branch.assert_not_called()
+
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_with_modified_branch(self, mock_do_branch):
         """A reviewer-modified branch is used when it is a valid downstream task."""
@@ -404,6 +448,30 @@ class TestLLMBranchOperatorApproval:
 
         assert result == "task_b"
         mock_do_branch.assert_called_once_with(ctx, "task_b")
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_with_multiselect_modified_branches(self, mock_do_branch):
+        """A list submitted by the multi-select review form branches into those tasks."""
+        mock_do_branch.return_value = ["task_b", "task_c"]
+        op = LLMBranchOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            allow_multiple_branches=True,
+            allow_modifications=True,
+        )
+        op.downstream_task_ids = {"task_a", "task_b", "task_c"}
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "admin",
+            "params_input": {"output": ["task_b", "task_c"]},
+        }
+        ctx = _make_context()
+
+        result = op.execute_complete(ctx, generated_output='["task_a"]', event=event)
+
+        assert result == ["task_b", "task_c"]
+        mock_do_branch.assert_called_once_with(ctx, ["task_b", "task_c"])
 
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_rejects_invalid_modified_branch(self, mock_do_branch):

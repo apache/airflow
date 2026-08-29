@@ -29,6 +29,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.db.assets import eager_load_asset_reference_teams
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
@@ -69,11 +70,13 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
+    ReadableAssetEventsFilterDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -86,6 +89,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
@@ -208,8 +212,7 @@ def get_assets(
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
     assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
         assets_select.options(
-            subqueryload(AssetModel.scheduled_dags),
-            subqueryload(AssetModel.producing_tasks),
+            *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
             subqueryload(AssetModel.aliases),
             subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
@@ -339,6 +342,7 @@ def get_asset_events(
     name_prefix_pattern: QueryAssetNamePrefixPatternSearch,
     extra_filter: QueryAssetEventExtraFilter,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
+    readable_asset_events_filter: ReadableAssetEventsFilterDep,
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
@@ -362,6 +366,7 @@ def get_asset_events(
             name_prefix_pattern,
             extra_filter,
             timestamp_range,
+            readable_asset_events_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -377,7 +382,7 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(
-        asset_events=assets_events,
+        asset_events=serialize_asset_events(assets_events, session=session),
         total_entries=total_entries,
     )
 
@@ -459,7 +464,10 @@ def materialize_asset(
     if not get_auth_manager().is_authorized_dag(
         method="POST",
         access_entity=DagAccessEntity.RUN,
-        details=DagDetails(id=dag_id),
+        # The Dag is resolved from the asset here rather than named by the caller, so its team has
+        # to be looked up too. A team-aware auth manager distinguishes a team-scoped Dag from a
+        # global one by this field, so leaving it None asks the wrong question.
+        details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
         user=user,
     ):
         raise HTTPException(
@@ -582,8 +590,7 @@ def get_asset(
         select(AssetModel)
         .where(AssetModel.id == asset_id)
         .options(
-            joinedload(AssetModel.scheduled_dags),
-            joinedload(AssetModel.producing_tasks),
+            *eager_load_asset_reference_teams(),
             joinedload(AssetModel.consuming_tasks),
             joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
@@ -690,7 +697,7 @@ def get_dag_asset_queued_event(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
@@ -704,7 +711,7 @@ def delete_asset_queued_events(
     where_clause = _generate_queued_event_where_clause(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
-    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
     result = cast("CursorResult", session.execute(delete_stmt))
     if result.rowcount == 0:
         raise HTTPException(
@@ -724,7 +731,7 @@ def delete_asset_queued_events(
     ),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
@@ -756,7 +763,7 @@ def delete_dag_asset_queued_events(
     ),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
@@ -771,9 +778,7 @@ def delete_dag_asset_queued_event(
     where_clause = _generate_queued_event_where_clause(
         dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
     )
-    delete_statement = (
-        delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
-    )
+    delete_statement = delete(AssetDagRunQueue).where(*where_clause)
     result = cast("CursorResult", session.execute(delete_statement))
     if result.rowcount == 0:
         raise HTTPException(

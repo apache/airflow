@@ -26,8 +26,10 @@ from airflow.secrets.environment_variables import (
     EnvironmentVariablesBackend,
 )
 
-# A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain
-# underscores (they are validated against ``^[a-zA-Z0-9_-]{3,50}$``), so both shapes are exercised.
+from tests_common.test_utils.config import conf_vars
+
+# A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain a
+# single underscore (they are validated against ``TEAM_NAME_PATTERN``), so both shapes are exercised.
 TEAM_NAMES = ["team_a", "teama"]
 OTHER_TEAM_NAME = "team_b"
 SECRET_ID = "dbconn"
@@ -56,6 +58,11 @@ def lookup(env_prefix: str, method: str, secret_id: str, team_name: str | None) 
 
 class TestEnvironmentVariablesBackendTeamScope:
     """A team specific secret must only be resolvable for the team it is stored for."""
+
+    @pytest.fixture(autouse=True)
+    def _multi_team_enabled(self):
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
@@ -186,3 +193,15 @@ class TestEnvironmentVariablesBackendTeamScope:
         monkeypatch.delenv(env_prefix + SECRET_ID.upper(), raising=False)
 
         assert lookup(env_prefix, method, SECRET_ID, team_name) is None
+
+
+class TestEnvironmentVariablesBackendMultiTeamDisabled:
+    """No team scoped variable can exist without multi-team mode, so there is no ambiguity
+    to refuse -- an ordinary id containing the separator must resolve normally."""
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self, monkeypatch, env_prefix, method):
+        secret_id = f"prod{TEAM_SEP}{SECRET_ID}"
+        monkeypatch.setenv(env_prefix + secret_id.upper(), GLOBAL_VALUE)
+
+        assert lookup(env_prefix, method, secret_id, None) == GLOBAL_VALUE

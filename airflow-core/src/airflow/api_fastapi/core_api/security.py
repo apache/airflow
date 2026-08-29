@@ -27,6 +27,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt, TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -69,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
+from airflow.models.asset import AssetEvent
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -283,6 +285,23 @@ class PermittedEventLogFilter(PermittedDagFilter):
         return select.where(or_(permitted_dag_logs, Log.dag_id.is_(None)))
 
 
+class PermittedAssetEventFilter(PermittedDagFilter):
+    """A parameter that filters asset events to those produced by Dags the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Asset events created through the API, or emitted by a watcher, have no source Dag.
+        # They carry no per-Dag key to authorize on, so they stay visible to any caller who
+        # may read assets; only events produced by a Dag's task are scoped to that Dag's
+        # readability. Filtering here rather than after the fact keeps unauthorized rows out
+        # of the count and pagination too, so their existence does not leak either.
+        return select.where(
+            or_(
+                AssetEvent.source_dag_id.in_(self.value or set()),
+                AssetEvent.source_dag_id.is_(None),
+            )
+        )
+
+
 class PermittedTIFilter(PermittedDagFilter):
     """A parameter that filters the permitted task instances for the user."""
 
@@ -343,6 +362,9 @@ ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filt
 ReadableDagRunsFilterDep = Annotated[
     PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
 ]
+ReadableAssetEventsFilterDep = Annotated[
+    PermittedAssetEventFilter, Depends(permitted_dag_filter_factory("GET", PermittedAssetEventFilter))
+]
 ReadableDagWarningsFilterDep = Annotated[
     PermittedDagWarningFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagWarningFilter))
 ]
@@ -390,6 +412,38 @@ ReadableBackfillsFilterDep = Annotated[
 ]
 
 
+# The type the backfill routes declare for the `backfill_id` path parameter. Shared with
+# `requires_access_backfill` so the authorization decision parses the id exactly as the handler
+# does; see the comment there for why any divergence is a cross-Dag authorization bypass.
+_BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
+
+# Shared with the backfill routes: for an id named in the path this dependency answers before
+# the handler does, so the two must not describe the same condition differently.
+BACKFILL_NOT_FOUND = "Backfill not found"
+
+
+def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user: BaseUser) -> None:
+    """Authorize a backfill named by the request path against that backfill's Dag alone."""
+    # ``dag_id`` is None when the id matched no row. Answering 404 there while a backfill on a Dag
+    # the caller may not read answers 403 would tell them which backfill ids exist across Dags.
+    if dag_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
+    details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id))
+    auth_manager = get_auth_manager()
+    if auth_manager.is_authorized_dag(
+        method=method, access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        return
+    # A caller who may read the Dag can already list its backfills, so the id is no secret from
+    # them: hiding it would only cost them the reason their request was refused.
+    if method != "GET" and auth_manager.is_authorized_dag(
+        method="GET", access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
+
 def requires_access_backfill(
     method: ResourceMethod,
 ) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
@@ -400,32 +454,39 @@ def requires_access_backfill(
         user: GetUserDep,
         session: SessionDep,
     ) -> None:
-        dag_id = None
-
-        # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
-            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
-        except ValueError:
+            # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
+            # where int() raises), or the two can authorize and act on different backfills.
+            backfill_id = (
+                _BACKFILL_ID_ADAPTER.validate_python(backfill_id_raw) if backfill_id_raw is not None else None
+            )
+        except ValidationError:
+            # Rejected by the endpoint's parser too, so the handler cannot run: FastAPI answers
+            # 422 before it is reached. Left as None, preserving that response.
             backfill_id = None
 
         if backfill_id is not None:
-            backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
-            dag_id = backfill.dag_id if backfill else None
+            # The path names the backfill, so its row is the only authorization subject: what the
+            # caller supplies alongside must not decide a decision the path already scoped.
+            dag_id = session.scalar(select(Backfill.dag_id).where(Backfill.id == backfill_id))
+            _authorize_backfill_in_path(method, dag_id, user)
+            return
 
-        # Try to retrieve the dag_id from the request body (POST backfill)
-        if dag_id is None:
-            # Not a json body, ignore
-            with suppress(JSONDecodeError):
-                body = await request.json()
-                if isinstance(body, dict):
-                    dag_id = body.get("dag_id")
-            if dag_id is not None and not isinstance(dag_id, str):
-                # Fail closed: reject non-string dag_id before authz decision.
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="'dag_id' must be a string",
-                )
+        # Left: the routes naming their Dag in the body (create, dry run) or in the query string
+        # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
+        dag_id = None
+        # Not a json body, ignore
+        with suppress(JSONDecodeError):
+            body = await request.json()
+            if isinstance(body, dict):
+                dag_id = body.get("dag_id")
+        if dag_id is not None and not isinstance(dag_id, str):
+            # Fail closed: reject non-string dag_id before authz decision.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'dag_id' must be a string",
+            )
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
             request,

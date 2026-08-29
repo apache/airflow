@@ -78,7 +78,7 @@ apache-airflow-providers-databricks package
 `Databricks <https://databricks.com/>`__
 
 
-Release: 7.18.1
+Release: 7.19.0
 
 Provider package
 ----------------
@@ -98,9 +98,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ====================================================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ====================================================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -108,13 +108,13 @@ PIP package                                 Version required
 ``databricks-sql-connector``                ``>=4.4.0``
 ``aiohttp``                                 ``>=3.14.0,<4``
 ``mergedeep``                               ``>=1.3.4``
-``pandas``                                  ``>=2.1.2,<3; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3,<3; python_version >= "3.13" and python_version < "3.14"``
-``pandas``                                  ``>=2.3.3,<3; python_version >= "3.14"``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
 ``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
-==========================================  ====================================================================
+==========================================  ==================================================================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -168,5 +168,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-databricks 7.18.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.18.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.18.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.18.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-databricks 7.18.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.18.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.18.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.18.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-databricks 7.19.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.19.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.19.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.19.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-databricks 7.19.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.19.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.19.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.19.0-py3-none-any.whl.sha512>`__)

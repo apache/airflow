@@ -68,11 +68,12 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 if AIRFLOW_V_3_2_PLUS:
     from airflow.executors.base_executor import ExecutorConf
+from airflow.providers.common.compat.sdk import timezone
+
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseOperator, timezone
+    from airflow.sdk import BaseOperator
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[attr-defined,no-redef]
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -724,15 +725,147 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
         ) in caplog.text
 
 
-@conf_vars({("celery_broker_transport_options", "sentinel_kwargs"): '{"service_name": "mymaster"}'})
-def test_sentinel_kwargs_loaded_from_string():
+_dict_options_test_cases: list[tuple[str, str, dict]] = [
+    (
+        "client-config",
+        '{"connect_timeout": 5}',
+        {
+            "connect_timeout": 5,
+        },
+    ),
+    (
+        "fetch_message_attributes",
+        """
+            {
+                "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],
+                "MessageAttributeNames": ["S3MessageBodyKey"]
+            }
+        """,
+        {
+            "MessageSystemAttributeNames": ["SenderId", "SentTimestamp"],
+            "MessageAttributeNames": ["S3MessageBodyKey"],
+        },
+    ),
+    (
+        "predefined_exchanges",
+        """
+            {
+                "exchange-1": {
+                    "arn": "arn:aws:sns:us-east-1:xxx:exchange-1",
+                    "access_key_id": "a",
+                    "secret_access_key": "b"
+                },
+                "exchange-2.fifo": {
+                    "arn": "arn:aws:sns:us-east-1:xxx:exchange-2",
+                    "access_key_id": "c",
+                    "secret_access_key": "d"
+                }
+            }
+        """,
+        {
+            "exchange-1": {
+                "arn": "arn:aws:sns:us-east-1:xxx:exchange-1",
+                "access_key_id": "a",
+                "secret_access_key": "b",
+            },
+            "exchange-2.fifo": {
+                "arn": "arn:aws:sns:us-east-1:xxx:exchange-2",
+                "access_key_id": "c",
+                "secret_access_key": "d",
+            },
+        },
+    ),
+    (
+        "predefined_queues",
+        """
+        {
+            "queue-1": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa",
+                "access_key_id": "a",
+                "secret_access_key": "b",
+                "backoff_tasks": ["svc.tasks.tasks.task1"]
+            },
+            "queue-2.fifo": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/bbb.fifo",
+                "access_key_id": "c",
+                "secret_access_key": "d"
+            }
+        }
+        """,
+        {
+            "queue-1": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/aaa",
+                "access_key_id": "a",
+                "secret_access_key": "b",
+                "backoff_tasks": ["svc.tasks.tasks.task1"],
+            },
+            "queue-2.fifo": {
+                "url": "https://sqs.us-east-1.amazonaws.com/xxx/bbb.fifo",
+                "access_key_id": "c",
+                "secret_access_key": "d",
+            },
+        },
+    ),
+    (
+        "queue_tags",
+        """
+        {
+                "Environment": "production",
+                "Team": "backend"
+        }
+        """,
+        {
+            "Environment": "production",
+            "Team": "backend",
+        },
+    ),
+    (
+        "sqs-creation-attributes",
+        """
+        {
+            "KmsMasterKeyId": "alias/aws/sqs"
+        }
+        """,
+        {
+            "KmsMasterKeyId": "alias/aws/sqs",
+        },
+    ),
+    (
+        "kafka_admin_config",
+        '{"sasl.username": "foo", "sasl.password": "bar"}',
+        {"sasl.username": "foo", "sasl.password": "bar"},
+    ),
+    ("kafka_common_config", '{"compression.type": "zstd"}', {"compression.type": "zstd"}),
+    (
+        "kafka_consumer_config",
+        '{"group.id": "myconsumer"}',
+        {"group.id": "myconsumer"},
+    ),
+    (
+        "kafka_producer_config",
+        '{"ssl.certificate.location": "/foo/bar"}',
+        {"ssl.certificate.location": "/foo/bar"},
+    ),
+    ("sentinel_kwargs", '{"service_name": "mymaster"}', {"service_name": "mymaster"}),
+]
+
+
+@pytest.mark.parametrize(
+    (
+        "option",
+        "value",
+        "expected",
+    ),
+    _dict_options_test_cases,
+    ids=[t[0] for t in _dict_options_test_cases],
+)
+def test_dict_options_loaded_from_string(option, value, expected):
     import importlib
 
     # Reload celery conf to apply the new config.
-    importlib.reload(default_celery)
-    assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
-        "service_name": "mymaster"
-    }
+    with conf_vars({("celery_broker_transport_options", option): value}):
+        importlib.reload(default_celery)
+        assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"][option] == expected
 
 
 @conf_vars({("celery", "task_acks_late"): "False"})

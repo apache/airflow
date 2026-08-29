@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+22.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support sovereign console links (#70001)``
+* ``Add synchronous Vertex AI Agent Engine query operator (#70933)``
+* ``Add Cloud Run job links during execution (#70179)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prepare Cloud Batch jobs before template rendering (#70835)``
+* ``Improve BigQuery-to-SQL column lineage rendering (#70816)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+* ``Use latest Google Ads API version by default (#71280)``
+
+Misc
+~~~~
+
+* ``Restore the evaluation extra of google-cloud-aiplatform (#71520)``
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace the ACL calls with IAM roles for the system tests + add new (#70978)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix Java Beam SDK example to target Java 11 (#71218)``
+
+
 22.3.0
 ......
 
@@ -68,6 +99,7 @@ Bug Fixes
 * ``Emit GCSListObjectsOperator delimiter deprecation warning after rendering (#70533)``
 * ``Move Compute Engine validation out of constructors (#70454)``
 * ``Prevent premature validation in Gemini batch job operators (#70362)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
@@ -75,16 +107,17 @@ Misc
 * ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
 * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
 * ``Strip only the literal properties/ prefix from GA property link IDs (#70919)``
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Update system test to the latest api version of google-ads (#69865)``
 * ``Use common.compat.sdk for timezone imports in providers (#70492)``
 * ``Drop redundant BigQueryInsertJobOperator job ID snapshot in __init__ (#70494)``
+* ``Install google-cloud-aiplatform without the 'evaluation' extra and require its dependencies directly, so the provider installs on Python 3.14 (#71273)``
 
 Doc-only
 ~~~~~~~~
 
 * ``Link task state store docs in durable execution across providers (#69851)``
 * ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+* ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -93,6 +126,11 @@ Doc-only
    * ``Preserve Dataform workflow invocation config (#53843) (#69161)``
    * ``Revert Dataform workflow invocation dict normalization (#69161) (#70395)``
    * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
+   * ``Update changelog with better wording (#71161)``
+   * ``Prepare providers release 2026-08-06 (#71219)``
 
 22.2.2
 ......
@@ -1438,7 +1476,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 13.0.0
 ......
