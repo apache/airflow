@@ -802,6 +802,21 @@ class TestCliConfigMethods:
         assert args_by_flag["--task-ids"].kwargs["type"] is str
         assert "--output" in args_by_flag
 
+    def test_tasks_list_args(self):
+        command_factory = CommandFactory()
+        tasks_group = next(
+            group_command for group_command in command_factory.group_commands if group_command.name == "tasks"
+        )
+        list_command = next(
+            sub_command for sub_command in tasks_group.subcommands if sub_command.name == "list"
+        )
+        args_by_flag = {arg.flags[0]: arg for arg in list_command.args}
+
+        assert "dag_id" in args_by_flag, "required path parameter should be positional"
+        assert args_by_flag["--order-by"].kwargs["type"] is str
+        assert args_by_flag["--order-by"].kwargs["default"] is None
+        assert "--output" in args_by_flag
+
     @pytest.mark.parametrize(
         ("raw_task_ids", "expected_task_ids"),
         [
@@ -837,6 +852,7 @@ class TestCliConfigMethods:
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
+            ("tasks", "list", "List all tasks of a Dag"),
         ],
     )
     def test_help_texts_used_for_auto_generated_commands(self, group_name, subcommand_name, expected_help):

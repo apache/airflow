@@ -93,6 +93,7 @@ taskinstances:
 
 tasks:
   clear: "Clear task instances of a Dag by its ID"
+  list: "List all tasks of a Dag"
 
 variables:
   get: "Retrieve a variable by its key"
