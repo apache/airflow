@@ -69,23 +69,24 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   ];
 
   return (
-    <Box>
-      <HeaderCard
-        actions={
-          <ClearTaskInstanceButton
-            allMapped
-            dagId={dagId}
-            dagRunId={runId}
-            isHotkeyEnabled
-            taskId={taskInstance.task_id}
-          />
-        }
-        icon={<MdOutlineTask />}
-        state={taskInstance.state}
-        stats={stats}
-        subTitle={<Time datetime={taskInstance.min_start_date} />}
-        title={`${taskInstance.task_display_name} [${taskCount}]`}
-      />
-    </Box>
+    <HeaderCard
+      actions={
+        <ClearTaskInstanceButton
+          allMapped
+          bg="bg"
+          dagId={dagId}
+          dagRunId={runId}
+          isHotkeyEnabled
+          taskId={taskInstance.task_id}
+          variant="outline"
+        />
+      }
+      icon={<MdOutlineTask />}
+      state={taskInstance.state}
+      stats={stats}
+      subTitle={<Time datetime={taskInstance.min_start_date} />}
+      title={`${taskInstance.task_display_name} [${taskCount}]`}
+      type="taskInstance"
+    />
   );
 };

@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ButtonGroupProps, ButtonProps } from "@chakra-ui/react";
+import type { ButtonGroupProps } from "@chakra-ui/react";
 import { Button, ButtonGroup } from "@chakra-ui/react";
-import type { FC, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { IconButton } from ".";
 
@@ -44,7 +44,7 @@ export const ButtonGroupToggle = <T extends string = string>({
   value,
   ...rest
 }: ButtonGroupToggleProps<T>) => {
-  const ButtonComponent: FC<ButtonProps> = isIcon ? IconButton : Button;
+  const ButtonComponent = isIcon ? IconButton : Button;
 
   return (
     <ButtonGroup attached colorPalette="brand" variant="outline" {...rest}>
@@ -58,8 +58,9 @@ export const ButtonGroupToggle = <T extends string = string>({
             data-testid={option.dataTestId}
             disabled={option.disabled}
             key={option.value}
+            label={isIcon ? option.title : undefined}
             onClick={() => onChange(option.value)}
-            title={option.title}
+            title={isIcon ? undefined : option.title}
             value={option.value}
             variant={isSelected ? "solid" : "outline"}
           >

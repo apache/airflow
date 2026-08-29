@@ -15,6 +15,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -396,6 +397,8 @@ dataframes
 DataFusion
 Datafusion
 datafusion
+Datagram
+datagram
 Datalake
 datamodel
 Datanodes
@@ -1407,6 +1410,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1895,6 +1899,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1925,6 +1930,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 whitespace

@@ -152,15 +152,19 @@ export const AssetsList = () => {
     value: searchParams.get(SearchParamsKeys.GROUP_PATTERN),
   });
 
-  const { data, error, isLoading } = useAssetServiceGetAssetsUi({
-    ...groupArg,
-    lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
-    lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
-    limit: pagination.pageSize,
-    ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-  });
+  const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
+    {
+      ...groupArg,
+      lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
+      lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
+      limit: pagination.pageSize,
+      ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+    },
+    undefined,
+    { placeholderData: (prev) => prev },
+  );
 
   const columns = createColumns(translate);
   const totalEntries = data?.total_entries ?? 0;
@@ -200,6 +204,7 @@ export const AssetsList = () => {
         </VStack>
       }
       initialState={tableURLState}
+      isFetching={isFetching}
       isLoading={isLoading}
       modelName="common:asset"
       onStateChange={setTableURLState}

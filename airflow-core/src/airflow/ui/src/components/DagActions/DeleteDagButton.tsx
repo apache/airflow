@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ButtonProps } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
@@ -28,9 +29,9 @@ import { useDeleteDag } from "src/queries/useDeleteDag";
 type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
-};
+} & ButtonProps;
 
-export const DeleteDagButton = ({ dagDisplayName, dagId }: DeleteDagButtonProps) => {
+export const DeleteDagButton = ({ dagDisplayName, dagId, ...rest }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,7 +53,7 @@ export const DeleteDagButton = ({ dagDisplayName, dagId }: DeleteDagButtonProps)
 
   return (
     <>
-      <IconButton colorPalette="danger" label={label} onClick={onOpen}>
+      <IconButton {...rest} colorPalette="danger" label={label} onClick={onOpen}>
         <FiTrash2 />
       </IconButton>
 
