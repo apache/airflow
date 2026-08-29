@@ -704,6 +704,13 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param git_source: Optional specification of a remote git repository from which
         supported task types are retrieved.
+    :param performance_target: Optional performance mode for the run on serverless compute.
+        Either ``PERFORMANCE_OPTIMIZED`` (prioritizes fast startup and execution) or
+        ``STANDARD`` (enables cost-efficient execution of serverless workloads). This field
+        will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/submit
     :param deferrable: Run operator in the deferrable mode.
 
         .. seealso::
@@ -750,6 +757,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         "idempotency_token",
         "access_control_list",
         "git_source",
+        "performance_target",
         "databricks_conn_id",
     )
     template_ext: Sequence[str] = (".json-tpl",)
@@ -784,6 +792,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
+        performance_target: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
@@ -816,6 +825,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.idempotency_token = idempotency_token
         self.access_control_list = access_control_list
         self.git_source = git_source
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -847,6 +857,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             "idempotency_token": self.idempotency_token,
             "access_control_list": self.access_control_list,
             "git_source": self.git_source,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:

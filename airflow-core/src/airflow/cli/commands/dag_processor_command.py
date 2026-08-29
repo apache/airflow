@@ -38,7 +38,7 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     if args.bundle_name:
         cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
-        job=Job(),
+        job=Job(bundle_names=args.bundle_name),
         processor=DagFileProcessorManager(
             max_runs=args.num_runs,
             bundle_names_to_parse=args.bundle_name,

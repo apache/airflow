@@ -23,14 +23,13 @@ from unittest.mock import PropertyMock
 import pytest
 import time_machine
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 from airflow.providers.google.cloud.transfers.s3_to_gcs import (
     _RETURN_GCS_URIS_FALSE_DEPRECATION_MSG,
     S3ToGCSOperator,
 )
-from airflow.utils.timezone import utcnow
 
 PROJECT_ID = "test-project-id"
 TASK_ID = "test-s3-gcs-operator"
@@ -532,7 +531,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             dest_gcs=GCS_PATH_PREFIX,
         )
 
-        now_time = utcnow()
+        now_time = timezone.utcnow()
         with time_machine.travel(now_time):
             with mock.patch.object(operator, "get_transfer_hook") as mock_get_transfer_hook:
                 mock_create_transfer_job = mock.MagicMock(

@@ -3154,6 +3154,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -3859,6 +3864,18 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+        bundle_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Bundle Names
         dag_display_name:
           anyOf:
           - type: string
@@ -4712,6 +4729,11 @@ components:
           type: string
           format: date-time
           title: Updated At
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:

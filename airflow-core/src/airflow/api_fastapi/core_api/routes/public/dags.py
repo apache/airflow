@@ -136,6 +136,10 @@ def get_dags(
         FilterParam[list[str] | None],
         Depends(filter_param_factory(DagModel.timetable_type, list[str], FilterOptionEnum.IN)),
     ],
+    is_scheduled: Annotated[
+        bool | None,
+        Query(description="Filter Dags by whether their timetable can create scheduled runs."),
+    ] = None,
 ) -> DAGCollectionResponse:
     """Get all Dags."""
     query = generate_dag_with_latest_run_query(
@@ -148,6 +152,12 @@ def get_dags(
         order_by=order_by,
         dag_ids=readable_dags_filter.value,
     )
+    if is_scheduled is not None:
+        unscheduled_timetable_types = ("NullTimetable", "PartitionedAtRuntime")
+        if is_scheduled:
+            query = query.where(DagModel.timetable_type.not_in(unscheduled_timetable_types))
+        else:
+            query = query.where(DagModel.timetable_type.in_(unscheduled_timetable_types))
 
     dags_select, total_entries = paginated_select(
         statement=query,

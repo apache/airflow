@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.3.0``
+Release: ``22.4.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/>`_.
 
 Installation
 ------------
@@ -198,7 +198,7 @@ Extra                 Dependencies
 ``postgres``          ``apache-airflow-providers-postgres``
 ``presto``            ``apache-airflow-providers-presto``
 ``salesforce``        ``apache-airflow-providers-salesforce``
-``sftp``              ``apache-airflow-providers-sftp``
+``sftp``              ``apache-airflow-providers-sftp>=5.3.3``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
@@ -207,4 +207,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/changelog.html>`_.

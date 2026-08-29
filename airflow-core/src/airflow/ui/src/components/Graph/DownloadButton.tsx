@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Panel, useReactFlow } from "@xyflow/react";
+import { ControlButton, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { useTranslation } from "react-i18next";
 import { FiDownload } from "react-icons/fi";
 
-import { IconButton, toaster } from "src/components/ui";
+import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ name }: { readonly name: string }) => {
   const { t: translate } = useTranslation("components");
@@ -64,15 +64,13 @@ export const DownloadButton = ({ name }: { readonly name: string }) => {
   };
 
   return (
-    <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
-      <IconButton
-        label={translate("graph.downloadImage")}
-        onClick={() => {
-          void onClick();
-        }}
-      >
-        <FiDownload />
-      </IconButton>
-    </Panel>
+    <ControlButton
+      onClick={() => {
+        void onClick();
+      }}
+      title={translate("graph.downloadImage")}
+    >
+      <FiDownload />
+    </ControlButton>
   );
 };
