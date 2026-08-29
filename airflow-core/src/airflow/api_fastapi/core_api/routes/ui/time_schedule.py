@@ -156,17 +156,7 @@ def get_time_schedule_stream(
     timezone: str = "UTC",
     view_mode: Literal["day", "week"] = "day",
 ) -> StreamingResponse:
-    """
-    Stream server-filtered and aggregated Time Schedule data in Dag batches.
-
-    This private UI endpoint returns newline-delimited ``TimeScheduleBatch`` JSON objects rather than raw
-    Dag run rows. Each batch contains up to 25 Dags and is emitted after its database session has closed,
-    allowing the UI to render progressively without a slow client retaining a database connection.
-
-    Dag metadata filters and Dag run filters are applied before the bounded, newest-first Dag run selection.
-    Periodic Dags without a selected run can produce planned items from their next run time and
-    ``dagrun_timeout``. The endpoint is coupled to the Time Schedule UI and is not a stable public API.
-    """
+    """Stream filtered and aggregated Time Schedule data in Dag batches."""
     if time_scale not in _SUPPORTED_TIME_SCALES:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
