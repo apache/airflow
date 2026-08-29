@@ -1,0 +1,1 @@
+The scheduler no longer bulk-fails every SCHEDULED task when the serialized Dag is briefly missing; it skips that tick and retries, matching the create-run path.
