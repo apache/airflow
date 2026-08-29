@@ -6446,6 +6446,58 @@ class TestSchedulerJob:
             ]
             assert scheduler_messages == ["Dag not found in serialized_dag table"]
 
+    def test_executable_task_instances_skip_when_serialized_dag_missing(self, dag_maker):
+        dag_id = "SchedulerJobTest.test_executable_tis_skip_when_no_serdag"
+        with dag_maker(dag_id=dag_id, max_active_tasks=16):
+            EmptyOperator(task_id="t1", max_active_tis_per_dag=8)
+            EmptyOperator(task_id="t2", max_active_tis_per_dag=8)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        tis = list(dr.task_instances)
+        assert len(tis) == 2
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        with mock.patch.object(
+            self.job_runner.scheduler_dag_bag,
+            "get_dag_for_run",
+            return_value=None,
+            autospec=True,
+        ):
+            queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert queued_tis == []
+        session.expire_all()
+        remaining = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).all()
+        assert {ti.state for ti in remaining} == {State.SCHEDULED}
+        session.rollback()
+
+    def test_executable_task_instances_queue_when_serialized_dag_present(self, dag_maker):
+        dag_id = "SchedulerJobTest.test_executable_tis_queue_when_serdag_present"
+        with dag_maker(dag_id=dag_id, max_active_tasks=16):
+            EmptyOperator(task_id="t1", max_active_tis_per_dag=8)
+            EmptyOperator(task_id="t2", max_active_tis_per_dag=8)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        session = settings.Session()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        for ti in dr.task_instances:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert {ti.task_id for ti in queued_tis} == {"t1", "t2"}
+        session.rollback()
+
     def _clear_serdags(self, dag_id, session):
         SDM = SerializedDagModel
         sdms = session.scalars(select(SDM).where(SDM.dag_id == dag_id))
