@@ -29,6 +29,7 @@ from airflow.utils.scheduler_health import serve_health_check
 from airflow.utils.serve_logs import serve_logs
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_celery_not_installed
 
 pytestmark = pytest.mark.db_test
 
@@ -41,7 +42,7 @@ class TestSchedulerCommand:
     @pytest.mark.parametrize(
         ("executor", "expect_serve_logs"),
         [
-            ("CeleryExecutor", False),
+            pytest.param("CeleryExecutor", False, marks=skip_if_celery_not_installed),
             ("LocalExecutor", True),
             ("KubernetesExecutor", False),
             ("LocalExecutor,KubernetesExecutor", True),
