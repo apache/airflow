@@ -22,8 +22,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionHookFieldBehavior,
+    ConnectionHookMetaData,
+    StandardHookFields,
+)
 from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
-from airflow.providers_manager import ConnectionFormWidgetInfo, ProvidersManager
+from airflow.providers_manager import ConnectionFormWidgetInfo, ConnectionTypeHookUIMetadata, ProvidersManager
 
 CONNECTIONS_MODULE = "airflow.api_fastapi.core_api.services.ui.connections"
 
@@ -79,7 +84,7 @@ def find_spec_raises(name, package=None):
     raise ModuleNotFoundError(f"No module named {name!r}", name=name)
 
 
-def make_widget(field, field_name: str = "extra_field") -> ConnectionFormWidgetInfo:
+def make_widget(field, field_name: str) -> ConnectionFormWidgetInfo:
     return ConnectionFormWidgetInfo(
         hook_class_name="SomeHook",
         package_name="apache-airflow-providers-some",
@@ -174,7 +179,31 @@ class TestMockBaseField:
         field = HookMetaService.MockStringField(widget=widget)
 
         assert field.widget is widget
+        # ProvidersManager checks this attribute before accepting connection widgets.
         assert field.field_class is HookMetaService.MockStringField
+
+
+class TestMakeStandardFields:
+    def test_returns_none_without_field_behaviour(self):
+        assert HookMetaService._make_standard_fields(None) is None
+
+    def test_builds_configured_field_behaviours(self):
+        result = HookMetaService._make_standard_fields(
+            {
+                "hidden_fields": ["description"],
+                "relabeling": {"host": "Server"},
+                "placeholders": {"port": "5432"},
+            }
+        )
+
+        assert result == StandardHookFields(
+            description=ConnectionHookFieldBehavior(hidden=True),
+            url_schema=None,
+            host=ConnectionHookFieldBehavior(title="Server"),
+            port=ConnectionHookFieldBehavior(placeholder="5432"),
+            login=None,
+            password=None,
+        )
 
 
 class TestConvertExtraFields:
@@ -342,3 +371,44 @@ class TestGetHooksWithMockedFab:
         assert captured["label"] == "Some label"
         assert isinstance(captured["validator"], HookMetaService.MockEnum)
         assert captured["validator"].allowed_values == ["a", "b"]
+
+
+class TestHookMetaData:
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        HookMetaService.hook_meta_data.cache_clear()
+        yield
+        HookMetaService.hook_meta_data.cache_clear()
+
+    @mock.patch(f"{CONNECTIONS_MODULE}.ProvidersManager", autospec=True)
+    def test_builds_metadata(self, providers_manager):
+        provider_manager = providers_manager.return_value
+        provider_manager._connection_form_widgets_from_metadata = {
+            "extra__some__token": make_widget({"schema": {}}, "token")
+        }
+        provider_manager.iter_connection_type_hook_ui_metadata.return_value = [
+            ConnectionTypeHookUIMetadata(
+                connection_type="some",
+                hook_name="Some hook",
+                hook_class_name="some.hooks.SomeHook",
+                field_behaviour={"hidden_fields": ["password"]},
+            )
+        ]
+
+        assert HookMetaService.hook_meta_data() == [
+            ConnectionHookMetaData(
+                connection_type="some",
+                hook_class_name="some.hooks.SomeHook",
+                default_conn_name=None,
+                hook_name="Some hook",
+                standard_fields=StandardHookFields(
+                    description=None,
+                    url_schema=None,
+                    host=None,
+                    port=None,
+                    login=None,
+                    password=ConnectionHookFieldBehavior(hidden=True),
+                ),
+                extra_fields={"token": {"schema": {}}},
+            )
+        ]
