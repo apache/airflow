@@ -26,7 +26,7 @@ from sqlalchemy.orm import make_transient
 
 from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
 from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
-from airflow.utils import timezone  # type: ignore[attr-defined]
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.session import create_session
 from airflow.version import version
 
