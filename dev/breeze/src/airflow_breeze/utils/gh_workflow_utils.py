@@ -96,13 +96,20 @@ def make_sure_gh_is_installed():
         sys.exit(1)
 
 
-def get_latest_workflow_run_id(workflow_name: str, repo: str) -> int | None:
+def get_latest_workflow_run_id(workflow_name: str, repo: str, *, exit_on_error: bool = True) -> int | None:
     """
-    Get the latest workflow run ID for a given workflow name and repository.
+    Get the latest dispatched workflow run ID for a given workflow name and repository.
+
+    Only ``workflow_dispatch`` runs are considered - several of the workflows we drive here also run
+    on push or pull request (apache/airflow-site's `build.yml`, for one), and such a run registering
+    between our two lookups would otherwise be mistaken for the one we dispatched.
 
     :param workflow_name: The name of the workflow to check.
     :param repo: The repository in the format 'owner/repo'.
-    :return: The run id, or None when the workflow has never run.
+    :param exit_on_error: Whether a failing `gh` call should terminate breeze. Pass False when the
+        caller polls and can afford to retry a transient failure.
+    :return: The run id, or None when the workflow has never been dispatched (or when the lookup
+        failed and ``exit_on_error`` is False).
     """
     make_sure_gh_is_installed()
     command = [
@@ -113,6 +120,8 @@ def get_latest_workflow_run_id(workflow_name: str, repo: str) -> int | None:
         workflow_name,
         "--repo",
         repo,
+        "--event",
+        "workflow_dispatch",
         "--limit",
         "1",
         "--json",
@@ -121,6 +130,9 @@ def get_latest_workflow_run_id(workflow_name: str, repo: str) -> int | None:
 
     result = run_gh_command(command, capture_output=True)
     if result.returncode != 0:
+        if not exit_on_error:
+            console_print(f"[yellow]Error fetching workflow run ID: {result.stderr} - retrying.[/yellow]")
+            return None
         console_print(f"[red]Error fetching workflow run ID: {result.stderr}[/red]")
         sys.exit(1)
 
@@ -147,7 +159,7 @@ def wait_for_new_workflow_run(workflow_name: str, repo: str, previous_run_id: in
     """
     deadline = time.monotonic() + NEW_RUN_TIMEOUT_SECONDS
     while True:
-        run_id = get_latest_workflow_run_id(workflow_name, repo)
+        run_id = get_latest_workflow_run_id(workflow_name, repo, exit_on_error=False)
         if run_id is not None and (previous_run_id is None or run_id > previous_run_id):
             console_print(
                 f"[blue]Running workflow {workflow_name} at "
