@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest import mock
 
@@ -26,6 +26,7 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerAirflowCLICommandTrigger,
     CloudComposerDAGRunTrigger,
@@ -268,3 +269,77 @@ class TestCloudComposerExternalTaskTrigger:
             },
         )
         assert actual_data == expected_data
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @pytest.mark.parametrize(
+        ("extra_kwargs", "out_of_window_state"),
+        [
+            ({}, "success"),
+            ({"failed_states": ["failed"]}, "failed"),
+            ({"skipped_states": ["skipped"]}, "skipped"),
+        ],
+        ids=["allowed", "failed", "skipped"],
+    )
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_composer.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    async def test_run_keeps_waiting_when_all_task_instances_outside_window(
+        self, mock_sleep, extra_kwargs, out_of_window_state, composer_airflow_version
+    ):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        start_date = datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc)
+        end_date = datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc)
+        hook = mock.AsyncMock(spec=CloudComposerAsyncHook)
+        hook.get_environment.return_value = SimpleNamespace(
+            config=SimpleNamespace(airflow_uri="https://composer.example")
+        )
+        hook.get_task_instances.side_effect = [
+            {
+                "task_instances": [
+                    {
+                        "task_id": TEST_COMPOSER_EXTERNAL_TASK_IDS[0],
+                        "dag_id": TEST_COMPOSER_DAG_ID,
+                        "state": out_of_window_state,
+                        date_key: "2024-03-21T11:10:00+00:00",
+                    }
+                ],
+                "total_entries": 1,
+            },
+            {
+                "task_instances": [
+                    {
+                        "task_id": TEST_COMPOSER_EXTERNAL_TASK_IDS[0],
+                        "dag_id": TEST_COMPOSER_DAG_ID,
+                        "state": "success",
+                        date_key: "2024-03-22T11:10:00+00:00",
+                    }
+                ],
+                "total_entries": 1,
+            },
+        ]
+        trigger_kwargs = {
+            "project_id": TEST_PROJECT_ID,
+            "region": TEST_LOCATION,
+            "environment_id": TEST_ENVIRONMENT_ID,
+            "start_date": start_date,
+            "end_date": end_date,
+            "allowed_states": TEST_ALLOWED_STATES,
+            "skipped_states": [],
+            "failed_states": [],
+            "composer_external_dag_id": TEST_COMPOSER_DAG_ID,
+            "composer_external_task_ids": TEST_COMPOSER_EXTERNAL_TASK_IDS,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+            "poll_interval": TEST_POLL_INTERVAL,
+            "composer_airflow_version": composer_airflow_version,
+        }
+        trigger_kwargs.update(extra_kwargs)
+        trigger = CloudComposerExternalTaskTrigger(**trigger_kwargs)
+
+        with mock.patch.object(trigger, "_get_async_hook", return_value=hook):
+            actual_event = await trigger.run().asend(None)
+
+        assert actual_event == TriggerEvent({"status": "success"})
+        assert hook.get_task_instances.await_count == 2
+        assert mock_sleep.await_count == 1
