@@ -87,9 +87,11 @@ class TestSFTPToGCSOperator:
 
         sftp_hook.return_value.delete_file.assert_not_called()
 
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
-    def test_execute_copy_single_file_with_stream(self, sftp_hook, gcs_hook):
+    def test_execute_copy_single_file_with_stream(self, sftp_hook, gcs_hook, named_temp):
+        mime_type = "text/plain"
         task = SFTPToGCSOperator(
             task_id=TASK_ID,
             source_path=SOURCE_OBJECT_NO_WILDCARD,
@@ -99,6 +101,7 @@ class TestSFTPToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            mime_type=mime_type,
             use_stream=True,
         )
 
@@ -108,14 +111,55 @@ class TestSFTPToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+        blob = gcs_hook.return_value.get_bucket.return_value.blob.return_value
+        write_stream = blob.open.return_value.__enter__.return_value
         gcs_hook.return_value.get_bucket.assert_called_once_with(TEST_BUCKET)
         gcs_hook.return_value.get_bucket.return_value.blob.assert_called_once_with(DESTINATION_PATH_FILE)
+        assert blob.content_type == mime_type
+        blob.open.assert_called_once_with("wb")
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
         sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=True
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), write_stream, prefetch=True
         )
+        sink = sftp_hook.return_value.retrieve_file.call_args.args[1]
+        assert not isinstance(sink, str)
+        assert hasattr(sink, "write")
+        named_temp.assert_not_called()
         gcs_hook.return_value.upload.assert_not_called()
         sftp_hook.return_value.delete_file.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.gzip.GzipFile")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_execute_copy_single_file_with_stream_and_gzip(
+        self, sftp_hook, gcs_hook, named_temp, gzip_file_cls
+    ):
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=TEST_BUCKET,
+            destination_path=DESTINATION_PATH_FILE,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gzip=True,
+            use_stream=True,
+        )
+        compressed = gzip_file_cls.return_value.__enter__.return_value
+        blob = gcs_hook.return_value.get_bucket.return_value.blob.return_value
+        write_stream = blob.open.return_value.__enter__.return_value
+
+        task.execute(None)
+
+        assert blob.content_type == DEFAULT_MIME_TYPE
+        blob.open.assert_called_once_with("wb", ignore_flush=True)
+        gzip_file_cls.assert_called_once_with(fileobj=write_stream, mode="wb")
+        sftp_hook.return_value.retrieve_file.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), compressed, prefetch=True
+        )
+        named_temp.assert_not_called()
+        gcs_hook.return_value.upload.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
@@ -237,6 +281,38 @@ class TestSFTPToGCSOperator:
                 ),
             ]
         )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_execute_copy_with_wildcard_and_stream(self, sftp_hook, gcs_hook, named_temp):
+        sftp_hook.return_value.get_tree_map.return_value = [
+            ["main_dir/test_object3.json", "main_dir/sub_dir/test_object3.json"],
+            [],
+            [],
+        ]
+
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=SOURCE_OBJECT_WILDCARD_FILENAME,
+            destination_bucket=TEST_BUCKET,
+            destination_path=DESTINATION_PATH_DIR,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            use_stream=True,
+        )
+        task.execute(None)
+
+        named_temp.assert_not_called()
+        gcs_hook.return_value.upload.assert_not_called()
+        assert sftp_hook.return_value.retrieve_file.call_count == 2
+        for call in sftp_hook.return_value.retrieve_file.call_args_list:
+            sink = call.args[1]
+            assert not isinstance(sink, str)
+            assert hasattr(sink, "write")
+        blob = gcs_hook.return_value.get_bucket.return_value.blob.return_value
+        assert blob.open.call_count == 2
+        blob.open.assert_called_with("wb")
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")

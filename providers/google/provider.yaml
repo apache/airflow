@@ -30,12 +30,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1785633505
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 22.4.0
   - 22.3.0
   - 22.2.2
   - 22.2.1
@@ -1324,6 +1325,28 @@ connection-types:
   - hook-class-name: airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
     hook-name: "LevelDB"
     connection-type: leveldb
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - password
+        - schema
+        - port
+      relabeling: {}
+    conn-fields:
+      create_if_missing:
+        label: Create a database if it does not exist
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
+      error_if_exists:
+        label: Raise an exception if the database already exists
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
   - hook-class-name: airflow.providers.google.ads.hooks.ads.GoogleAdsHook
     hook-name: "Google Ads"
     connection-type: google_ads
