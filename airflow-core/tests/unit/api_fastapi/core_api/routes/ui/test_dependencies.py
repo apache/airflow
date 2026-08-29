@@ -868,9 +868,11 @@ class TestGetDependencies:
             entry_task_node_id = f"task:{dag_id}__SEPARATOR__entry_task"
             assert nodes_by_id[entry_task_node_id]["type"] == "task"
 
-    def test_data_dependencies_batches_inlet_outlet_resolution_across_producing_tasks(
+    def test_data_dependencies_batches_inlet_resolution_across_producing_tasks(
         self, dag_maker, test_client, session
     ):
+        """Producing tasks trace upstream through their own inlets; that inlet lookup must be
+        batched across all producing tasks in a round, not issued once per task."""
         asset_a = Asset(uri="s3://data-dep-bucket/inlet-batch-a", name="data_dep_inlet_batch_asset_a")
         dag_ids = [f"data_dep_inlet_batch_producer_{i}" for i in range(3)]
 
@@ -900,6 +902,42 @@ class TestGetDependencies:
         nodes_by_id = {node["id"]: node for node in result["nodes"]}
         for dag_id in dag_ids:
             task_node_id = f"task:{dag_id}__SEPARATOR__produce"
+            assert nodes_by_id[task_node_id]["type"] == "task"
+
+    def test_data_dependencies_batches_outlet_resolution_across_consuming_tasks(
+        self, dag_maker, test_client, session
+    ):
+        """Consuming tasks trace downstream through their own outlets; that outlet lookup must be
+        batched across all consuming tasks in a round, not issued once per task."""
+        asset_a = Asset(uri="s3://data-dep-bucket/outlet-batch-a", name="data_dep_outlet_batch_asset_a")
+        dag_ids = [f"data_dep_outlet_batch_consumer_{i}" for i in range(3)]
+
+        for dag_id in dag_ids:
+            with dag_maker(
+                dag_id=dag_id,
+                schedule=None,
+                serialized=True,
+                session=session,
+            ):
+                EmptyOperator(task_id="consume", inlets=[asset_a])
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_a_id = session.scalar(
+            select(AssetModel.id).where(AssetModel.name == "data_dep_outlet_batch_asset_a")
+        )
+
+        expected_query_count = 9
+        with assert_queries_count(expected_query_count):
+            response = test_client.get(
+                "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+            )
+        assert response.status_code == 200
+
+        result = response.json()
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        for dag_id in dag_ids:
+            task_node_id = f"task:{dag_id}__SEPARATOR__consume"
             assert nodes_by_id[task_node_id]["type"] == "task"
 
     def test_data_dependencies_attributes_alias_produced_asset_to_source_task(
