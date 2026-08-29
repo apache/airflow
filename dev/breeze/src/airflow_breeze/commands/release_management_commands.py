@@ -1073,7 +1073,6 @@ def prepare_provider_documentation(
             if mark_doc_only:
                 with ci_group(f"Marking '{provider_id}' as doc-only"):
                     drop_provider_to_doc_only(provider_id, base_branch=base_branch)
-                continue
             if os.environ.get("GITHUB_ACTIONS", "false") != "true":
                 if not only_min_version_update:
                     console_print("-" * get_console().width)

@@ -646,22 +646,39 @@ def test_drop_provider_to_doc_only_restores_the_release_state_and_records_the_ma
     assert (docs / ".latest-doc-only-change.txt").read_text() == "a" * 40 + "\n"
 
 
+@pytest.mark.parametrize(
+    ("marked_for_release", "expected_reason"),
+    [
+        pytest.param(True, "has never been released", id="never-released"),
+        pytest.param(False, "No changes found", id="nothing-since-last-release"),
+    ],
+)
 @mock.patch("airflow_breeze.prepare_providers.provider_documentation.run_command")
 @mock.patch("airflow_breeze.prepare_providers.provider_documentation._get_all_changes_for_package")
 @mock.patch("airflow_breeze.prepare_providers.provider_documentation.clear_cache_for_provider_metadata")
 @mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_yaml")
 @mock.patch("airflow_breeze.prepare_providers.provider_documentation.get_provider_details")
 def test_drop_provider_to_doc_only_writes_no_marker_when_there_is_nothing_to_mark(
-    mock_details, mock_yaml, mock_clear_cache, mock_changes, mock_run, tmp_path
+    mock_details,
+    mock_yaml,
+    mock_clear_cache,
+    mock_changes,
+    mock_run,
+    tmp_path,
+    capsys,
+    marked_for_release,
+    expected_reason,
 ):
-    """An empty marker would silence the provider's next release entirely."""
+    """An empty marker would silence the provider's next release entirely, and a provider without a
+    release has nothing for the marker to point at."""
     docs = tmp_path / "docs"
     docs.mkdir()
     mock_details.return_value = mock.MagicMock(root_provider_path=tmp_path)
     mock_yaml.return_value = tmp_path / "provider.yaml"
-    mock_changes.return_value = (True, [], "")
+    mock_changes.return_value = (marked_for_release, [], "")
 
     with pytest.raises(PrepareReleaseDocsNoChangesException):
         drop_provider_to_doc_only("amazon", base_branch="main")
 
     assert not (docs / ".latest-doc-only-change.txt").exists()
+    assert expected_reason in capsys.readouterr().out
