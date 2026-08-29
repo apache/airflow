@@ -93,6 +93,32 @@ def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) 
 
 
 @pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+)
+@time_machine.travel(pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc))
+def test_coarser_schedule_does_not_re_emit_logical_date(catchup: bool) -> None:
+    """Switching to a coarser cron must not re-emit the previous run's logical_date.
+
+    An hourly run leaves the interval [00:00, 01:00). Aligning that end to a daily
+    schedule lands back on 00:00, the logical_date the run already occupies, which
+    stalls the scheduler on "run already exists; skipping dagrun creation".
+    """
+    timetable = CronDataIntervalTimetable("0 0 * * *", utc)
+    last = DataInterval(
+        start=pendulum.DateTime(2021, 9, 6, 0, tzinfo=utc),
+        end=pendulum.DateTime(2021, 9, 6, 1, tzinfo=utc),
+    )
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=last,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+    )
+    expected_start = pendulum.DateTime(2021, 9, 7, 0, tzinfo=utc)
+    expected_end = pendulum.DateTime(2021, 9, 8, 0, tzinfo=utc)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+@pytest.mark.parametrize(
     "earliest",
     [pytest.param(None, id="none"), pytest.param(START_DATE, id="start_date")],
 )
