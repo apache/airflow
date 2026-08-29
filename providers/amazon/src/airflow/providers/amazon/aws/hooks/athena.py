@@ -86,13 +86,6 @@ class AthenaHook(AwsBaseHook):
         "CANCELLED",
     )
 
-    SPARK_INTERMEDIATE_STATES = (
-        "CREATING",
-        "CREATED",
-        "QUEUED",
-        "RUNNING",
-        "CANCELING",
-    )
     SPARK_FAILURE_STATES = (
         "FAILED",
         "CANCELED",

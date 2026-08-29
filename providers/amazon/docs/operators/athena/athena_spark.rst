@@ -18,26 +18,24 @@
 Athena Spark Operators
 ======================
 
-Amazon Athena supports Apache Spark calculations through session-based APIs.
+`Amazon Athena <https://aws.amazon.com/athena/>`__ supports Apache Spark calculations through session-based APIs.
 This page documents the provider support for submitting and monitoring those
 calculations from Airflow.
 
 Prerequisite Tasks
 ------------------
 
-Before using the Athena Spark operator or sensor, make sure that:
+.. include:: ../../_partials/prerequisite_tasks.rst
 
-* an Athena Spark session already exists;
-* an AWS connection is configured in Airflow;
-* the connection has permission to start and read Athena calculation
-  executions for the target session.
+Generic Parameters
+------------------
 
-The :class:`~airflow.providers.amazon.aws.operators.athena_spark.AthenaSparkOperator`
-submits Spark code to an existing Athena session and waits for the calculation
-to reach a terminal state. It does not create the Athena Spark session.
+.. include:: ../../_partials/generic_parameters.rst
 
 Operators
 ---------
+
+.. _howto/operator:AthenaSparkOperator:
 
 Submit Spark code to an Athena session
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -45,7 +43,16 @@ Submit Spark code to an Athena session
 Use :class:`~airflow.providers.amazon.aws.operators.athena_spark.AthenaSparkOperator`
 to submit Spark code to an existing Athena Spark session.
 
+In the following example, we submit PySpark code to an existing Athena Spark
+session and wait for the calculation to complete. For more examples of how to use
+this operator, please see the `Sample Dag <https://github.com/apache/airflow/blob/|version|/providers/amazon/tests/system/amazon/aws/example_athena_spark.py>`__.
+
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
     :language: python
     :start-after: [START howto_operator_athena_spark]
     :end-before: [END howto_operator_athena_spark]
+
+Reference
+---------
+
+* `AWS boto3 documentation for Athena calculation APIs <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html>`__

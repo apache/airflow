@@ -46,8 +46,8 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
     :param code_block: The calculation code, such as PySpark, to execute. (templated)
     :param description: Optional description of the calculation. Defaults to None.
     :param client_request_token: Optional idempotency token for the submission. Defaults to None.
-    :param poll_interval: Seconds to wait between status checks. Defaults to 30.
-    :param max_attempts: Maximum number of polling attempts before timing out. Defaults to 120.
+    :param waiter_delay: Seconds to wait between status checks. Defaults to 30.
+    :param waiter_max_attempts: Maximum number of polling attempts before timing out. Defaults to 120.
         To limit total task time, use execution_timeout on the task as well.
     :param log_query: Whether to log submission details. Defaults to True.
     :param aws_conn_id: The Airflow connection used for AWS credentials. Defaults to ``aws_default``.
@@ -69,8 +69,8 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
         code_block: str,
         description: str | None = None,
         client_request_token: str | None = None,
-        poll_interval: int = 30,
-        max_attempts: int = 120,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 120,
         log_query: bool = True,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
@@ -89,8 +89,8 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
         self.code_block = code_block
         self.description = description
         self.client_request_token = client_request_token
-        self.poll_interval = poll_interval
-        self.max_attempts = max_attempts
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.log_query = log_query
         self._calculation_execution_id: str | None = None
 
@@ -117,7 +117,7 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
 
     def _poll_until_terminal(self, calculation_execution_id: str) -> str:
         """Poll calculation status until a terminal state or timeout."""
-        for attempt in range(1, self.max_attempts + 1):
+        for attempt in range(1, self.waiter_max_attempts + 1):
             state = self.hook.check_spark_calculation_status(calculation_execution_id)
 
             if state is None:
@@ -131,19 +131,31 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
                 calculation_execution_id,
                 state,
                 attempt,
-                self.max_attempts,
+                self.waiter_max_attempts,
             )
 
             if state in AthenaHook.SPARK_TERMINAL_STATES:
                 return state
 
-            if attempt != self.max_attempts:
-                time.sleep(self.poll_interval)
+            if attempt != self.waiter_max_attempts:
+                time.sleep(self.waiter_delay)
 
+        self._stop_calculation(calculation_execution_id)
         raise RuntimeError(
-            f"Polling timed out after {self.max_attempts} attempts for calculation "
-            f"{calculation_execution_id}. Use execution_timeout or increase max_attempts."
+            f"Polling timed out after {self.waiter_max_attempts} attempts for calculation "
+            f"{calculation_execution_id}. Use execution_timeout or increase waiter_max_attempts."
         )
+
+    def _stop_calculation(self, calculation_execution_id: str) -> None:
+        self.log.info("Stopping Athena Spark calculation %s", calculation_execution_id)
+        try:
+            self.hook.stop_spark_calculation(calculation_execution_id)
+        except Exception:
+            self.log.warning(
+                "Failed to stop Athena Spark calculation %s",
+                calculation_execution_id,
+                exc_info=True,
+            )
 
     def _handle_terminal_state(self, calculation_execution_id: str, state: str) -> dict[str, Any]:
         """Resolve terminal state: raise on failure/cancel, build and return metadata."""
@@ -197,12 +209,7 @@ class AthenaSparkOperator(AwsBaseOperator[AthenaHook]):
     def on_kill(self) -> None:
         """Request cancellation of the calculation when the task is killed."""
         if self._calculation_execution_id:
-            self.log.info("Received kill signal; stopping calculation %s", self._calculation_execution_id)
-            try:
-                self.hook.stop_spark_calculation(self._calculation_execution_id)
-            except Exception:
-                self.log.warning(
-                    "Failed to stop calculation %s",
-                    self._calculation_execution_id,
-                    exc_info=True,
-                )
+            self.log.info(
+                "Received kill signal for Athena Spark calculation %s", self._calculation_execution_id
+            )
+            self._stop_calculation(self._calculation_execution_id)

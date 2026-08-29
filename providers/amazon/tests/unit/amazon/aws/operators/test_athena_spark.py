@@ -76,8 +76,8 @@ class TestAthenaSparkOperator:
             session_id=MOCK_DATA["session_id"],
             code_block=MOCK_DATA["code_block"],
             client_request_token=MOCK_DATA["client_request_token"],
-            poll_interval=0,
-            max_attempts=3,
+            waiter_delay=0,
+            waiter_max_attempts=3,
         )
         self.athena = AthenaSparkOperator(**self.default_op_kwargs, aws_conn_id=None, dag=self.dag)
 
@@ -109,8 +109,8 @@ class TestAthenaSparkOperator:
         assert self.athena.session_id == MOCK_DATA["session_id"]
         assert self.athena.code_block == MOCK_DATA["code_block"]
         assert self.athena.client_request_token == MOCK_DATA["client_request_token"]
-        assert self.athena.poll_interval == 0
-        assert self.athena.max_attempts == 3
+        assert self.athena.waiter_delay == 0
+        assert self.athena.waiter_max_attempts == 3
         assert self.athena._calculation_execution_id is None
 
     @mock.patch.object(AthenaHook, "get_spark_calculation_info")
@@ -231,6 +231,7 @@ class TestAthenaSparkOperator:
             client_request_token=MOCK_DATA["client_request_token"],
         )
 
+    @mock.patch.object(AthenaHook, "stop_spark_calculation")
     @mock.patch.object(AthenaHook, "check_spark_calculation_status", return_value="RUNNING")
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
     @mock.patch.object(AthenaHook, "get_conn")
@@ -239,6 +240,7 @@ class TestAthenaSparkOperator:
         mock_conn,
         mock_start_spark_calculation,
         mock_check_spark_calculation_status,
+        mock_stop_spark_calculation,
     ):
         with pytest.raises(RuntimeError):
             self.athena.execute({})
@@ -249,7 +251,8 @@ class TestAthenaSparkOperator:
             description=None,
             client_request_token=MOCK_DATA["client_request_token"],
         )
-        assert mock_check_spark_calculation_status.call_count == self.athena.max_attempts
+        assert mock_check_spark_calculation_status.call_count == self.athena.waiter_max_attempts
+        mock_stop_spark_calculation.assert_called_once_with(ATHENA_CALCULATION_ID)
 
     @mock.patch.object(AthenaHook, "check_spark_calculation_status", return_value=None)
     @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
