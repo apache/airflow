@@ -224,6 +224,38 @@ class TestFindNewestVersionInPypi:
 
         assert m.find_newest_version_in_pypi("apache-airflow-providers-brand-new", "3.10", True) is None
 
+    def test_retries_when_pypi_resets_the_connection(self, monkeypatch):
+        calls = {"n": 0}
+
+        def flaky_get(url, timeout):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise m.requests.ConnectionError("Connection reset by peer")
+            return _FakeResponse({"releases": {"1.2.0": [_file()]}})
+
+        monkeypatch.setattr(m.requests, "get", flaky_get)
+        monkeypatch.setattr(m.time, "sleep", lambda seconds: None)
+
+        newest = m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.10", False)
+
+        assert newest == "1.2.0"
+        assert calls["n"] == 2
+
+    def test_connection_reset_is_raised_after_retries_are_exhausted(self, monkeypatch):
+        calls = {"n": 0}
+
+        def always_reset(url, timeout):
+            calls["n"] += 1
+            raise m.requests.ConnectionError("Connection reset by peer")
+
+        monkeypatch.setattr(m.requests, "get", always_reset)
+        monkeypatch.setattr(m.time, "sleep", lambda seconds: None)
+
+        with pytest.raises(m.requests.ConnectionError, match="Connection reset by peer"):
+            m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.10", False)
+
+        assert calls["n"] == m.PYPI_LOOKUP_ATTEMPTS
+
 
 class TestBuildPinnedProviderRequirements:
     """Providers are pinned at what PyPI holds rather than left for the resolution to pick."""
