@@ -108,6 +108,10 @@ This option will always use running Git-Sync sidecar on every dag-processor, wor
 The Git-Sync sidecar containers will sync Dags from a git repository every configured number of
 seconds. If you are using the ``KubernetesExecutor``, Git-Sync will run as an init container on your worker pods.
 
+If you want the synced files to appear under a different directory name than ``repo`` inside the Dag mount path,
+set ``dags.gitSync.link`` in your ``values.yaml``. For example, ``link: myrepo`` will mount Dags under
+``$AIRFLOW_HOME/dags/myrepo`` instead of ``$AIRFLOW_HOME/dags/repo``.
+
 .. code-block:: bash
 
    helm upgrade --install airflow apache-airflow/airflow \
