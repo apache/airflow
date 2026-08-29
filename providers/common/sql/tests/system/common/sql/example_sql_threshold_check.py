@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 from airflow import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.operators.sql import SQLThresholdCheckOperator
-from airflow.utils.timezone import datetime
 
 connection_args = {
     "conn_id": "sales_db",
@@ -35,7 +35,7 @@ with DAG(
     "example_sql_threshold_check_query",
     description="Example DAG for SQLThresholdCheckOperator.",
     default_args=connection_args,
-    start_date=datetime(2024, 12, 12),
+    start_date=timezone.datetime(2024, 12, 12),
     schedule=None,
     catchup=False,
 ) as dag:

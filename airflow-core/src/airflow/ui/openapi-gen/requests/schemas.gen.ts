@@ -4411,12 +4411,93 @@ export const $DagProcessorInfoResponse = {
                 }
             ],
             title: 'Latest Dag Processor Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detailed Status'
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/DagProcessorInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
         }
     },
     type: 'object',
-    required: ['status', 'latest_dag_processor_heartbeat'],
+    required: ['status', 'latest_dag_processor_heartbeat', 'detailed_status'],
     title: 'DagProcessorInfoResponse',
     description: 'DagProcessor info serializer for responses.'
+} as const;
+
+export const $DagProcessorInstanceInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Status'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        latest_dag_processor_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Dag Processor Heartbeat'
+        },
+        bundle_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Names'
+        }
+    },
+    type: 'object',
+    required: ['status', 'hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
+    title: 'DagProcessorInstanceInfoResponse',
+    description: 'Dag processor instance info serializer for responses.'
 } as const;
 
 export const $DagRunAssetReference = {
@@ -4564,6 +4645,17 @@ export const $DagScheduleAssetReference = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4948,6 +5040,17 @@ export const $EventLogResponse = {
                 }
             ],
             title: 'Task Display Name'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -5674,6 +5777,31 @@ export const $JobResponse = {
                 }
             ],
             title: 'Unixname'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
+        bundle_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Names'
         },
         dag_display_name: {
             anyOf: [
@@ -6583,12 +6711,79 @@ export const $SchedulerInfoResponse = {
                 }
             ],
             title: 'Latest Scheduler Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detailed Status'
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/SchedulerInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
         }
     },
     type: 'object',
-    required: ['status', 'latest_scheduler_heartbeat'],
+    required: ['status', 'latest_scheduler_heartbeat', 'detailed_status'],
     title: 'SchedulerInfoResponse',
     description: 'Scheduler info serializer for responses.'
+} as const;
+
+export const $SchedulerInstanceInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Status'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        latest_scheduler_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Scheduler Heartbeat'
+        }
+    },
+    type: 'object',
+    required: ['status', 'hostname', 'latest_scheduler_heartbeat'],
+    title: 'SchedulerInstanceInfoResponse',
+    description: 'Scheduler instance info serializer for responses.'
 } as const;
 
 export const $StructuredLogMessage = {
@@ -7740,6 +7935,17 @@ export const $TaskOutletAssetReference = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -8354,12 +8560,90 @@ export const $TriggererInfoResponse = {
                 }
             ],
             title: 'Latest Triggerer Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detailed Status'
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/TriggererInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
         }
     },
     type: 'object',
-    required: ['status', 'latest_triggerer_heartbeat'],
+    required: ['status', 'latest_triggerer_heartbeat', 'detailed_status'],
     title: 'TriggererInfoResponse',
     description: 'Triggerer info serializer for responses.'
+} as const;
+
+export const $TriggererInstanceInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Status'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        latest_triggerer_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Triggerer Heartbeat'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        }
+    },
+    type: 'object',
+    required: ['status', 'hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    title: 'TriggererInstanceInfoResponse',
+    description: 'Triggerer instance info serializer for responses.'
 } as const;
 
 export const $UpdateHITLDetailPayload = {

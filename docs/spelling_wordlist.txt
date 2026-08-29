@@ -15,6 +15,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -315,6 +316,7 @@ containerConfiguration
 containerd
 ContainerGroup
 containerinstance
+containerised
 ContainerPort
 contentUrl
 contextmgr
@@ -395,6 +397,8 @@ dataframes
 DataFusion
 Datafusion
 datafusion
+Datagram
+datagram
 Datalake
 datamodel
 Datanodes
@@ -465,6 +469,7 @@ deliverability
 deltalake
 denylist
 dep
+dependant
 DependencyMixin
 Deprecations
 deprecations
@@ -1153,6 +1158,8 @@ nohup
 nonnegative
 nonterminal
 noqa
+Normalised
+normalised
 normalizer
 NotFound
 notificationChannels
@@ -1403,6 +1410,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1526,6 +1534,7 @@ sendgrid
 sentimentMax
 ser
 serde
+serialisation
 serialise
 serializable
 SerializedDAG
@@ -1890,6 +1899,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1920,6 +1930,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 whitespace
