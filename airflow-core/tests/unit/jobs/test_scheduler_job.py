@@ -2188,8 +2188,8 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
-        """Check that task instances of missing DAGs are failed"""
+    def test_queued_task_instances_skips_when_serialized_dag_missing(self, dag_maker, session):
+        """A missing serialized Dag skips this TI; it must not fail SCHEDULED siblings."""
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag"
         task_id_1 = "dummy"
         task_id_2 = "dummydummy"
@@ -2216,7 +2216,7 @@ class TestSchedulerJob:
         assert len(res) == 0
         tis = dr.get_task_instances(session=session)
         assert len(tis) == 2
-        assert all(ti.state == State.FAILED for ti in tis)
+        assert {ti.state for ti in tis} == {State.SCHEDULED}
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_nonexistent_pool"
@@ -6464,14 +6464,16 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
+        assert dag_maker.dag_model.has_task_concurrency_limits
         with mock.patch.object(
             self.job_runner.scheduler_dag_bag,
             "get_dag_for_run",
             return_value=None,
             autospec=True,
-        ):
+        ) as mock_get_dag:
             queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
+        assert mock_get_dag.called
         assert queued_tis == []
         session.expire_all()
         remaining = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).all()
@@ -6494,6 +6496,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
+        assert dag_maker.dag_model.has_task_concurrency_limits
         queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         assert {ti.task_id for ti in queued_tis} == {"t1", "t2"}
         session.rollback()

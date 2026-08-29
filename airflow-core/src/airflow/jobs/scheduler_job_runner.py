@@ -600,8 +600,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session=session,
         )
 
-        # A missing serialized row is not a concurrency answer. Skip this tick
-        # so a transient parse/version hole does not fail every SCHEDULED TI.
+        # Missing serialized Dag: skip this TI; do not fail siblings.
         if not serialized_dag:
             self.log.error(
                 "DAG '%s' for task instance %s not found in serialized_dag table",
