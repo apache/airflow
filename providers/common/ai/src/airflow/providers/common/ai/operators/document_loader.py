@@ -366,7 +366,7 @@ class DocumentLoaderOperator(BaseOperator):
         return self._parse_json_lines_text(self._read_text(file_path))
 
     def _parse_json_lines_text(self, text: str) -> list[dict[str, Any]]:
-        documents = []
+        documents: list[dict[str, Any]] = []
         for line in text.splitlines():
             if not line.strip():
                 continue
