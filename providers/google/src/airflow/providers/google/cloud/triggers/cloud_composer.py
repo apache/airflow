@@ -455,6 +455,7 @@ class CloudComposerExternalTaskTrigger(BaseTrigger):
             for task_instance in task_instances
             if start_ts < parser.parse(task_instance[date_key]).timestamp() < end_ts
         ]
+        # all([]) is True; an empty window must keep waiting.
         if not in_window:
             return False
         return all(task_instance["state"] in states for task_instance in in_window)

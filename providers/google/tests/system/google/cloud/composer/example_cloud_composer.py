@@ -301,6 +301,9 @@ with DAG(
     )
     # [END howto_operator_trigger_dag_run]
 
+    # Exclusive window. A parse-time `datetime.now()` end excludes TIs created
+    # after parse (env create + trigger_dag_run). Keep the end in the future;
+    # timeout stops an empty window from hanging the system test.
     # [START howto_sensor_external_task]
     external_task_sensor = CloudComposerExternalTaskSensor(
         task_id="external_task_sensor",
@@ -310,7 +313,11 @@ with DAG(
         composer_external_dag_id="airflow_monitoring",
         composer_external_task_id="echo",
         allowed_states=["success"],
-        execution_range=[datetime.now() - timedelta(1), datetime.now()],
+        execution_range=[
+            datetime.now() - timedelta(days=1),
+            datetime.now() + timedelta(days=1),
+        ],
+        timeout=60 * 60,
     )
     # [END howto_sensor_external_task]
 
@@ -323,8 +330,12 @@ with DAG(
         composer_external_dag_id="airflow_monitoring",
         composer_external_task_id="echo",
         allowed_states=["success"],
-        execution_range=[datetime.now() - timedelta(1), datetime.now()],
+        execution_range=[
+            datetime.now() - timedelta(days=1),
+            datetime.now() + timedelta(days=1),
+        ],
         deferrable=True,
+        timeout=60 * 60,
     )
     # [END howto_sensor_external_task_deferrable_mode]
 

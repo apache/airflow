@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.sensors.cloud_composer import (
     CloudComposerDAGRunSensor,
     CloudComposerExternalTaskSensor,
 )
+from airflow.providers.standard.exceptions import ExternalTaskFailedError
 
 TEST_PROJECT_ID = "test_project_id"
 TEST_OPERATION_NAME = "test_operation_name"
@@ -75,6 +76,7 @@ TEST_GET_TASK_INSTANCES_RESULT = lambda state, date_key, task_id: {
 TEST_WINDOW_START = datetime(2024, 5, 22, 0, 0, 0, tzinfo=timezone.utc)
 TEST_WINDOW_END = datetime(2024, 5, 23, 0, 0, 0, tzinfo=timezone.utc)
 TEST_IN_WINDOW_DATE = "2024-05-22T11:10:00+00:00"
+TEST_IN_WINDOW_DATE_2 = "2024-05-22T15:10:00+00:00"
 TEST_OUT_OF_WINDOW_DATE = "2024-05-20T11:10:00+00:00"
 TEST_WINDOW_START_DATE = "2024-05-22T00:00:00+00:00"
 TEST_WINDOW_END_DATE = "2024-05-23T00:00:00+00:00"
@@ -407,12 +409,55 @@ class TestCloudComposerExternalTaskSensor:
         date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
         mock_hook.return_value.get_task_instances.return_value = _task_instances_result(
             _task_instance("success", date_key, when=TEST_IN_WINDOW_DATE),
-            _task_instance("running", date_key, task_id="other_task", when=TEST_OUT_OF_WINDOW_DATE),
+            _task_instance("running", date_key, when=TEST_OUT_OF_WINDOW_DATE),
         )
-        task = _external_task_sensor()
+        task = _external_task_sensor(composer_external_task_id=TEST_COMPOSER_EXTERNAL_TASK_ID)
         task._composer_airflow_version = composer_airflow_version
 
         assert task.poke(context={"logical_date": TEST_WINDOW_END})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_in_window_running_keeps_waiting(self, mock_hook, composer_airflow_version):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.get_task_instances.return_value = _task_instances_result(
+            _task_instance("running", date_key, when=TEST_IN_WINDOW_DATE),
+            _task_instance("success", date_key, when=TEST_OUT_OF_WINDOW_DATE),
+        )
+        task = _external_task_sensor(composer_external_task_id=TEST_COMPOSER_EXTERNAL_TASK_ID)
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": TEST_WINDOW_END})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_two_in_window_mixed_states_keep_waiting(self, mock_hook, composer_airflow_version):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.get_task_instances.return_value = _task_instances_result(
+            _task_instance("success", date_key, when=TEST_IN_WINDOW_DATE),
+            _task_instance("running", date_key, when=TEST_IN_WINDOW_DATE_2),
+        )
+        task = _external_task_sensor(composer_external_task_id=TEST_COMPOSER_EXTERNAL_TASK_ID)
+        task._composer_airflow_version = composer_airflow_version
+
+        assert not task.poke(context={"logical_date": TEST_WINDOW_END})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_failed_states_fire_when_all_in_window_failed(self, mock_hook, composer_airflow_version):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.get_task_instances.return_value = _task_instances_result(
+            _task_instance("failed", date_key, when=TEST_IN_WINDOW_DATE),
+            _task_instance("failed", date_key, when=TEST_IN_WINDOW_DATE_2),
+        )
+        task = _external_task_sensor(
+            composer_external_task_id=TEST_COMPOSER_EXTERNAL_TASK_ID,
+            failed_states=["failed"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        with pytest.raises(ExternalTaskFailedError):
+            task.poke(context={"logical_date": TEST_WINDOW_END})
 
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
