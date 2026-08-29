@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box, Code, Text } from "@chakra-ui/react";
+import { Box, Code, HStack, Text } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineStorage, MdTimeline } from "react-icons/md";
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset } from "openapi/queries";
-import { BreadcrumbStats } from "src/components/BreadcrumbStats";
+import { BreadcrumbRow, CrumbStack, CrumbText } from "src/components/Breadcrumb";
 import { ProgressBar } from "src/components/ui";
 import { GroupsProvider } from "src/context/groups";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
@@ -53,14 +53,6 @@ export const AssetLayout = () => {
 
   useDocumentTitle(asset?.name);
 
-  const links = [
-    {
-      label: asset?.name,
-      title: translate("common:asset_one"),
-      value: `/assets/${assetId}`,
-    },
-  ];
-
   const { fitView, getZoom } = useReactFlow();
 
   const externalTabs = usePluginTabs("asset");
@@ -77,9 +69,17 @@ export const AssetLayout = () => {
 
   return (
     <>
-      <HStack justifyContent="space-between" mb={2}>
-        <BreadcrumbStats links={links} />
-        <CreateAssetEvent asset={asset} />
+      <HStack justifyContent="space-between" mb={3}>
+        <BreadcrumbRow aria-label={translate("common:breadcrumb")} data-testid="asset-breadcrumb">
+          <CrumbText shape={{ hasNotch: false, hasPoint: false }}>
+            <CrumbStack
+              caption={translate("common:asset_one")}
+              isCurrent
+              value={asset?.name ?? assetId ?? ""}
+            />
+          </CrumbText>
+        </BreadcrumbRow>
+        <CreateAssetEvent asset={asset} variant="outline" withText />
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
@@ -90,7 +90,14 @@ export const AssetLayout = () => {
           key={`asset-${direction}`}
         >
           <Panel defaultSize={70} minSize={6}>
-            <Box height="100%" position="relative" pr={2}>
+            <Box
+              borderColor="bg.muted"
+              borderRadius="md"
+              borderWidth="2px"
+              height="calc(100% - 12px)" // 12px = 3units of padding
+              overflow="hidden"
+              position="relative"
+            >
               <AssetPanelButtons dependencyType={dependencyType} setDependencyType={setDependencyType} />
               <GroupsProvider dagId="~">
                 <AssetGraph asset={asset} dependencyType={dependencyType} />
@@ -107,32 +114,46 @@ export const AssetLayout = () => {
               }
             }}
           >
-            <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
+            <Box
+              _hover={{ bg: "info.solid" }}
+              borderRadius="full"
+              cursor="col-resize"
+              height="calc(100% - 12px)" // 12px = 3units of padding
+              mb={3}
+              w={1}
+            />
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
-            <Header asset={asset} />
-            {asset?.extra && Object.keys(asset.extra).length > 0 ? (
-              <Box mb={3} mt={3} px={3}>
-                <Text fontWeight="bold" mb={2}>
-                  {translate("assets:additional_data")}
-                </Text>
-                <Code
-                  background="bg.subtle"
-                  borderRadius="md"
-                  color="fg.default"
-                  display="block"
-                  fontSize="sm"
-                  p={2}
-                  w="full"
-                  whiteSpace="pre"
-                >
-                  {JSON.stringify(asset.extra, null, 2)}
-                </Code>
-              </Box>
-            ) : null}
+            <Box
+              display="flex"
+              flexDirection="column"
+              gap={3}
+              paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
+            >
+              <Header asset={asset} />
+              {asset?.extra && Object.keys(asset.extra).length > 0 ? (
+                <div>
+                  <Text fontWeight="bold" mb={2}>
+                    {translate("assets:additional_data")}
+                  </Text>
+                  <Code
+                    background="bg.subtle"
+                    borderRadius="md"
+                    color="fg.default"
+                    display="block"
+                    fontSize="sm"
+                    p={2}
+                    w="full"
+                    whiteSpace="pre"
+                  >
+                    {JSON.stringify(asset.extra, null, 2)}
+                  </Code>
+                </div>
+              ) : null}
 
-            <NavTabs tabs={tabs} />
-            <Outlet />
+              <NavTabs tabs={tabs} />
+              <Outlet />
+            </Box>
           </Panel>
         </PanelGroup>
       </Box>

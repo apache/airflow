@@ -2569,6 +2569,36 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
 
+    def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(" ".join(statement.split()).upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.delete(f"/assets/{asset.id}/queuedEvents")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 204
+        deletes = [s for s in executed_statements if s.startswith("DELETE")]
+        assert deletes, "Expected the endpoint to issue a DELETE statement"
+        assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
+        assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
+            "No SELECT may precede a DELETE to collect the keys it is about to remove"
+        )
+
 
 class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_delete_should_respond_204(self, test_client, session, create_dummy_dag):
@@ -2596,6 +2626,36 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.delete("/dags/random/assets/random/queuedEvents")
         assert response.status_code == 403
+
+    def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(" ".join(statement.split()).upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.delete(f"/dags/{dag_id}/assets/{asset.id}/queuedEvents")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 204
+        deletes = [s for s in executed_statements if s.startswith("DELETE")]
+        assert deletes, "Expected the endpoint to issue a DELETE statement"
+        assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
+        assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
+            "No SELECT may precede a DELETE to collect the keys it is about to remove"
+        )
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"

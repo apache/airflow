@@ -94,19 +94,50 @@ def normalize_metric_name(registry_metric_name: str) -> str:
         "{job_name}_start"             →  "*_start"
         "pool.open_slots"              →  "pool.open_slots"
     """
-    return re.sub(r"\{[^}]+\}", "*", registry_metric_name)
+    return _VARIABLE_RE.sub("*", registry_metric_name)
 
 
-# Sentinel returned when a dynamic metric name is partially matched based on a common prefix.
+# Sentinel returned when a dynamic metric name is structurally matched against registry entries.
 # For dynamic metric names that include variables, the check can't find an exact match with a registry
-# entry or its type. So, a partially matched prefix is good enough and type checking is skipped.
-_PREFIX_MATCHED = "__prefix_matched__"
+# entry or its type. So, a structural match is good enough and type checking is skipped.
+_PATTERN_MATCHED = "__pattern_matched__"
+
+# A ``{variable}`` stands for one or more dot-separated segments, so one pattern covers both a
+# single-segment substitution (``{state}`` -> ``running``) and a multi-segment one
+# (``{stats_prefix}`` -> ``api_server.dag_bag``).
+_VARIABLE_SEGMENTS = r"[^.]+(?:\.[^.]+)*"
+
+# The ``{variable}`` placeholder itself, shared by name normalization and pattern compilation.
+_VARIABLE_RE = re.compile(r"\{[^}]+\}")
 
 
-def find_prefix_matched_registry_entries(metric_name: str, metrics_registry: dict[str, dict]) -> list[str]:
-    """Return the registry entry names whose name matches the static prefix of a dynamic metric name."""
-    base = metric_name.split("{")[0].rstrip(".")
-    return [name for name in metrics_registry if name == base or name.startswith(base + ".")]
+def compile_dynamic_metric_pattern(metric_name: str) -> re.Pattern[str]:
+    """Compile a ``{variable}``-containing metric name into a regex over its static parts.
+
+    Matching on the whole shape rather than only the prefix before the first variable means a
+    variable may sit anywhere in the name, including at the start or between static parts::
+
+        "ti.{state}"                     matches "ti.running"
+        "{stats_prefix}.cache_hit"       matches "api_server.dag_bag.cache_hit"
+        "{prefix}.foo.{state}.duration"  matches "a.b.foo.success.duration"
+    """
+    literals = _VARIABLE_RE.split(metric_name)
+    return re.compile(_VARIABLE_SEGMENTS.join(re.escape(literal) for literal in literals))
+
+
+def find_pattern_matched_registry_entries(metric_name: str, metrics_registry: dict[str, dict]) -> list[str]:
+    """Return the registry entry names a dynamic metric name structurally matches."""
+    literals = _VARIABLE_RE.split(metric_name)
+    if len(literals) == 1:
+        # Static name: the exact and normalized lookups already had their chance.
+        return []
+    if not any(literals):
+        # Nothing but variables, e.g. ``{name}`` or ``{prefix}{suffix}``. The pattern would be a
+        # bare "any segments" regex matching every entry, which marks the whole registry used and
+        # silently disables the unused-entry check. Match nothing so the name is reported missing.
+        return []
+    pattern = compile_dynamic_metric_pattern(metric_name)
+    return [name for name in metrics_registry if pattern.fullmatch(name)]
 
 
 def find_registry_match(metric_name: str, metrics_registry: dict[str, dict]) -> str | None:
@@ -126,13 +157,11 @@ def find_registry_match(metric_name: str, metrics_registry: dict[str, dict]) -> 
             return registry_metric_name
 
     # Dynamic metric name.
-    if "{" in metric_name and find_prefix_matched_registry_entries(metric_name, metrics_registry):
-        # Metric prefix matches the prefix of a dynamic registry entry.
-        # If the static part before the first variable, matches an exact registry entry name,
-        # or a dotted-prefix of one, then the name is considered covered and
-        # _PREFIX_MATCHED is returned. The type check must be skipped because
-        # the resulting metric name with all variables expanded, cannot be determined.
-        return _PREFIX_MATCHED
+    if find_pattern_matched_registry_entries(metric_name, metrics_registry):
+        # The name's static parts line up with at least one registry entry, so it is considered
+        # covered and _PATTERN_MATCHED is returned. The type check must be skipped because the
+        # resulting metric name with all variables expanded cannot be determined.
+        return _PATTERN_MATCHED
 
     # All checks for matching failed.
     return None
@@ -381,8 +410,8 @@ def compute_unused_registry_entries(
         registry_metric_name = find_registry_match(metric_name, metrics_registry)
         if registry_metric_name is None:
             continue
-        if registry_metric_name is _PREFIX_MATCHED:
-            used_entries.update(find_prefix_matched_registry_entries(metric_name, metrics_registry))
+        if registry_metric_name is _PATTERN_MATCHED:
+            used_entries.update(find_pattern_matched_registry_entries(metric_name, metrics_registry))
         else:
             used_entries.add(registry_metric_name)
     return sorted(set(metrics_registry) - used_entries)
@@ -439,9 +468,9 @@ def main() -> None:
     metrics_with_type_mismatch: dict[str, list[tuple[MetricCall, str, str]]] = {}
     for name, calls in code_metrics.items():
         registry_metric_name = find_registry_match(name, metrics_registry)
-        if registry_metric_name is None or registry_metric_name is _PREFIX_MATCHED:
+        if registry_metric_name is None or registry_metric_name is _PATTERN_MATCHED:
             # If None, then it's reported as missing, no need for type check.
-            # If _PREFIX_MATCHED, then the exact entry can't be determined. Skip the type check.
+            # If _PATTERN_MATCHED, then the exact entry can't be determined. Skip the type check.
             continue
         registry_type = metrics_registry[registry_metric_name].get("type", "").lower()
         mismatched = [

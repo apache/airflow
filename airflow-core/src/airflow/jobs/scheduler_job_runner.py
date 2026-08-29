@@ -100,10 +100,11 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion, _resolve_version_data
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -383,7 +384,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = DBDagBag(load_op_links=False, cache_size=SCHEDULER_DAG_CACHE_SIZE)
+        self.scheduler_dag_bag = CachedDBDagBag(
+            load_op_links=False,
+            cache_size=SCHEDULER_DAG_CACHE_SIZE,
+            cache_ttl=0,
+            stats_prefix="scheduler.dag_bag",
+        )
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
@@ -1315,7 +1321,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
-        objects = (log_records.popleft() for _ in range(len(log_records)))
+        objects = [log_records.popleft() for _ in range(len(log_records))]
+        # A bulk insert skips the ORM hook that would stamp this from ``dag_id``. One flush carries
+        # a record per task event, so resolve each Dag once rather than once per record.
+        teams_by_dag_id = {
+            dag_id: resolve_team_name(dag_id, session=session)
+            for dag_id in {log_record.dag_id for log_record in objects}
+        }
+        for log_record in objects:
+            log_record.team_name = teams_by_dag_id[log_record.dag_id]
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
     @staticmethod
@@ -1425,7 +1439,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
-                if state in (CallbackState.RUNNING, CallbackState.FAILED, CallbackState.SUCCESS):
+                # Skip RUNNING: the callback token endpoint owns that transition, so persisting it here races.
+                if state in (CallbackState.FAILED, CallbackState.SUCCESS):
                     callback_keys_with_events.append(key)
             else:
                 cls.logger().error("Unknown workload key type in event buffer: %r", key)
@@ -1442,10 +1457,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            if state == CallbackState.RUNNING:
-                callback.state = CallbackState.RUNNING
-                cls.logger().info("Callback %s is currently running", callback_id)
-            elif state == CallbackState.SUCCESS:
+            if state == CallbackState.SUCCESS:
                 callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
             elif state == CallbackState.FAILED:

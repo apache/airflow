@@ -48,7 +48,7 @@ const MarkdownModal = ({
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const hasContent = Boolean(mdContent?.trim());
   // Open straight into editing when there's nothing to read; otherwise show the
@@ -104,7 +104,7 @@ const MarkdownModal = ({
           minSize={{ height: 600, width: 800 }}
           storageKey={MARKDOWN_DIALOG_STORAGE_KEY}
         >
-          <Dialog.Header alignItems="center" justifyContent="space-between">
+          <Dialog.Header alignItems="center" borderTopRadius="md" justifyContent="space-between">
             <Dialog.Title>{header}</Dialog.Title>
             <Dialog.CloseTrigger />
           </Dialog.Header>

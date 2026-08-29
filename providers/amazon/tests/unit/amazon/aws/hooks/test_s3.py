@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 from collections.abc import Iterator
-from datetime import datetime as std_datetime, timedelta, timezone
+from datetime import datetime as std_datetime, timedelta, timezone as std_timezone
 from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -42,8 +42,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.timezone import datetime
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 try:
     import importlib.util
@@ -374,8 +373,8 @@ class TestAwsS3Hook:
         bucket.put_object(Key="bxb", Body=b"axb")
         bucket.put_object(Key="dir/b", Body=b"b")
 
-        from_datetime = datetime(1992, 3, 8, 18, 52, 51)
-        to_datetime = datetime(1993, 3, 14, 21, 52, 42)
+        from_datetime = timezone.datetime(1992, 3, 8, 18, 52, 51)
+        to_datetime = timezone.datetime(1993, 3, 14, 21, 52, 42)
 
         def dummy_object_filter(keys, from_datetime=None, to_datetime=None):
             return []
@@ -642,8 +641,16 @@ class TestAwsS3Hook:
         test_resp_iter = [
             {
                 "Contents": [
-                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
-                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {
+                        "Key": "test_key",
+                        "ETag": "etag1",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
+                    {
+                        "Key": "test_key2",
+                        "ETag": "etag2",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
                 ]
             }
         ]
@@ -658,8 +665,8 @@ class TestAwsS3Hook:
         keys = [x async for x in s3_hook_async.get_file_metadata_async(mock_client, "test_bucket", "test*")]
 
         assert keys == [
-            {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
-            {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+            {"Key": "test_key", "ETag": "etag1", "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34)},
+            {"Key": "test_key2", "ETag": "etag2", "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34)},
         ]
         extra_params = {}
         if requester_pays:
@@ -751,8 +758,16 @@ class TestAwsS3Hook:
         test_resp_iter = [
             {
                 "Contents": [
-                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
-                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {
+                        "Key": "test_key",
+                        "ETag": "etag1",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
+                    {
+                        "Key": "test_key2",
+                        "ETag": "etag2",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
                 ]
             }
         ]
@@ -782,8 +797,16 @@ class TestAwsS3Hook:
         test_resp_iter = [
             {
                 "Contents": [
-                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
-                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {
+                        "Key": "test_key",
+                        "ETag": "etag1",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
+                    {
+                        "Key": "test_key2",
+                        "ETag": "etag2",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
                 ]
             }
         ]
@@ -819,7 +842,7 @@ class TestAwsS3Hook:
                         "Key": mock_response_bucket_key,
                         "Size": 0,
                         "ETag": "etag1",
-                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
                     }
                     for mock_response_bucket_key in mock_response_bucket_keys
                 ]
@@ -857,8 +880,16 @@ class TestAwsS3Hook:
         test_resp_iter = [
             {
                 "Contents": [
-                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
-                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {
+                        "Key": "test_key",
+                        "ETag": "etag1",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
+                    {
+                        "Key": "test_key2",
+                        "ETag": "etag2",
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
+                    },
                 ]
             }
         ]
@@ -985,13 +1016,13 @@ class TestAwsS3Hook:
                     {
                         "Key": "test/example_s3_test_file.txt",
                         "ETag": "etag1",
-                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
                         "Size": 0,
                     },
                     {
                         "Key": "test_key2",
                         "ETag": "etag2",
-                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
                         "Size": 0,
                     },
                 ],
@@ -1002,13 +1033,13 @@ class TestAwsS3Hook:
                     {
                         "Key": "test/example_aeoua.txt",
                         "ETag": "etag1",
-                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
                         "Size": 0,
                     },
                     {
                         "Key": "test_key2",
                         "ETag": "etag2",
-                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
                         "Size": 0,
                     },
                 ],
@@ -1052,7 +1083,7 @@ class TestAwsS3Hook:
                     {
                         "Key": key,
                         "ETag": "etag1",
-                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "LastModified": timezone.datetime(2020, 8, 14, 17, 19, 34),
                         "Size": 0,
                     },
                 ]
@@ -1140,7 +1171,7 @@ class TestAwsS3Hook:
     @pytest.mark.asyncio
     @mock.patch.object(S3Hook, "_list_keys_async", autospec=True)
     async def test_s3_key_hook_is_keys_unchanged_success_async(self, mock_list_keys, time_machine):
-        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
+        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=std_timezone.utc)
         time_machine.move_to(frozen_dt, tick=False)
         mock_list_keys.return_value = ["test"]
 
@@ -1262,7 +1293,7 @@ class TestAwsS3Hook:
             previous_objects=set(),
             inactivity_seconds=0,
             allow_delete=False,
-            last_activity_time=std_datetime.now(timezone.utc),
+            last_activity_time=std_datetime.now(std_timezone.utc),
         )
         assert response.get("status") == "pending"
 
