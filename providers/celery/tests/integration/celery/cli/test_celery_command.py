@@ -58,8 +58,8 @@ class TestWorkerServeLogs:
     @pytest.mark.parametrize(
         ("skip", "expected"),
         [
-            (True, ["bundle_cleanup_main"]),
-            (False, ["serve_logs", "bundle_cleanup_main"]),
+            (True, ["_bundle_cleanup_main"]),
+            (False, ["serve_logs", "_bundle_cleanup_main"]),
         ],
     )
     def test_skip_serve_logs_on_worker_start(self, skip, expected):
