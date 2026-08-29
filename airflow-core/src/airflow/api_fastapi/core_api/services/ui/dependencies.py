@@ -426,6 +426,8 @@ def get_data_dependencies(
 
     processed_assets: set[int] = set()
     processed_tasks: set[tuple[str, str]] = set()  # (dag_id, task_id)
+    processed_inlet_tasks: set[tuple[str, str]] = set()
+    processed_outlet_tasks: set[tuple[str, str]] = set()
     processed_scheduled_dags: set[str] = set()
     # Assets linked to an AssetAlias -- these may be produced via the alias with no static
     # TaskOutletAssetReference, so their producing task is recovered from AssetEvent afterwards.
@@ -489,10 +491,11 @@ def get_data_dependencies(
 
                 # Add edge: task → asset
                 edge_set.add((task_node_id, asset_node_id))
+                processed_tasks.add(task_key)
 
                 # Find other assets this task consumes (inlets) to trace upstream
-                if task_key not in processed_tasks:
-                    processed_tasks.add(task_key)
+                if task_key not in processed_inlet_tasks:
+                    processed_inlet_tasks.add(task_key)
                     pending_inlet_keys.add(task_key)
 
             # Process consuming tasks (tasks that input this asset)
@@ -513,10 +516,11 @@ def get_data_dependencies(
 
                 # Add edge: asset → task
                 edge_set.add((asset_node_id, task_node_id))
+                processed_tasks.add(task_key)
 
                 # Find other assets this task produces (outlets) to trace downstream
-                if task_key not in processed_tasks:
-                    processed_tasks.add(task_key)
+                if task_key not in processed_outlet_tasks:
+                    processed_outlet_tasks.add(task_key)
                     pending_outlet_keys.add(task_key)
 
             # Process Dags scheduled by this asset at the Dag level (`schedule=...`). These have
@@ -582,9 +586,11 @@ def get_data_dependencies(
                 for triggering_asset_node_id in triggering_asset_node_ids_by_dag[dag_id]:
                     edge_set.add((triggering_asset_node_id, task_node_id))
 
+            processed_tasks.add(task_key)
+
             # Find other assets this entry task produces (outlets) to trace downstream.
-            if task_key not in processed_tasks:
-                processed_tasks.add(task_key)
+            if task_key not in processed_outlet_tasks:
+                processed_outlet_tasks.add(task_key)
                 pending_outlet_keys.add(task_key)
 
         if pending_inlet_keys:
