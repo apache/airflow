@@ -56,6 +56,7 @@ class TestDagProcessorCommand:
         with configure_testing_dag_bundle(os.devnull):
             dag_processor_command.dag_processor(args)
         assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]
+        assert mock_runner.call_args.kwargs["job"].bundle_names == ["testing"]
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")

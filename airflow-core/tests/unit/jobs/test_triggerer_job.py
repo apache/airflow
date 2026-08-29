@@ -265,11 +265,22 @@ def test_capacity_decode():
 
 
 @pytest.mark.parametrize("team_name", ["team_a", None])
-def test_triggerer_job_runner_stores_team_name(team_name):
-    """TriggererJobRunner stores team_name as-is (validated at CLI layer)."""
-    job = Job()
-    runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
-    assert runner.team_name == team_name
+@patch.object(TriggerRunnerSupervisor, "start")
+def test_execute_passes_job_team_name_to_supervisor(mock_supervisor_start, team_name):
+    mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
+    mock_supervisor._exit_code = 0
+    mock_supervisor_start.return_value = mock_supervisor
+
+    job = Job(team_name=team_name)
+    job_runner = TriggererJobRunner(job)
+    with (
+        patch.object(job_runner, "register_signals"),
+        patch("airflow.jobs.triggerer_job_runner.stats.initialize"),
+    ):
+        job_runner._execute()
+
+    mock_supervisor_start.assert_called_once()
+    assert mock_supervisor_start.call_args.kwargs["team_name"] == team_name
 
 
 @pytest.mark.parametrize("platform_uses_exec", [True, False])

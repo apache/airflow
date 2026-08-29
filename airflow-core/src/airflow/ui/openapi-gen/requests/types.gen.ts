@@ -1141,6 +1141,18 @@ export type DAGWarningResponse = {
 export type DagProcessorInfoResponse = {
     status: string | null;
     latest_dag_processor_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<DagProcessorInstanceInfoResponse> | null;
+};
+
+/**
+ * Dag processor instance info serializer for responses.
+ */
+export type DagProcessorInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_dag_processor_heartbeat: string | null;
+    bundle_names: Array<(string)> | null;
 };
 
 /**
@@ -1492,6 +1504,8 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
+    team_name?: string | null;
+    bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
 
@@ -1723,6 +1737,17 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  */
 export type SchedulerInfoResponse = {
     status: string | null;
+    latest_scheduler_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<SchedulerInstanceInfoResponse> | null;
+};
+
+/**
+ * Scheduler instance info serializer for responses.
+ */
+export type SchedulerInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
 
@@ -2070,6 +2095,18 @@ export type TriggerResponse = {
 export type TriggererInfoResponse = {
     status: string | null;
     latest_triggerer_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<TriggererInstanceInfoResponse> | null;
+};
+
+/**
+ * Triggerer instance info serializer for responses.
+ */
+export type TriggererInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_triggerer_heartbeat: string | null;
+    team_name: string | null;
 };
 
 /**

@@ -50,9 +50,12 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.deadline import VariableInterval
 from airflow.serialization.decoders import decode_deadline_alert
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedReferenceModels,
+    SerializedVariableInterval,
+)
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -754,7 +757,7 @@ class SerializedDAG:
 
             interval = deserialized_deadline_alert.interval
 
-            if isinstance(interval, VariableInterval):
+            if isinstance(interval, SerializedVariableInterval):
                 interval = interval.resolve()
 
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):

@@ -112,8 +112,9 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
             flex={1}
             flexDirection="column"
             minH={0}
-            overflow="auto"
+            overflowY="auto"
             p={3}
+            pb={0}
           >
             {baseReactPlugins.map((plugin) => (
               <ReactPlugin key={plugin.name} reactApp={plugin} />

@@ -1,0 +1,23 @@
+Backfill endpoints no longer disclose which backfill ids exist across Dags
+
+The five routes that name a backfill in their path -- ``GET /backfills/{backfill_id}``,
+``GET /backfills/{backfill_id}/dag_runs`` and the ``pause``, ``unpause`` and ``cancel``
+routes -- resolved the Dag they authorize against from the ``dag_id`` supplied on the
+request whenever the path's id matched no row. An unknown id and a backfill on a Dag the
+caller cannot see therefore answered differently, which enumerates backfill ids across Dags.
+
+The backfill named in the path is now the only thing those routes authorize against.
+
+**Behaviour changes:**
+
+- A backfill whose Dag the caller may not read returns ``404`` with detail
+  ``Backfill not found``, the same answer an unknown id gets, where it previously returned
+  ``403``. A caller who may read the Dag still gets ``403`` for a write they are not allowed.
+- A ``backfill_id`` in the path is never authorized against a ``dag_id`` in the request body
+  or query string. ``GET /backfills``, ``POST /backfills`` and ``POST /backfills/dry_run``
+  name no backfill in their path and keep authorizing off the request.
+- All five routes now answer an unknown id with the same detail, ``Backfill not found``.
+  ``GET /backfills/{backfill_id}/dag_runs`` previously answered
+  ``Backfill with id {backfill_id} not found`` and the ``pause``, ``unpause`` and ``cancel``
+  routes ``Could not find backfill with id {backfill_id}``. Clients matching on ``detail``
+  must be updated.

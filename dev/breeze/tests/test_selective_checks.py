@@ -3635,9 +3635,9 @@ def test_testable_providers_integrations_gated_by_affected_provider():
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
-    """ibm.mq declares `excluded-platforms: [linux/arm64]`, so it must be absent from
-    the ARM individual-providers matrix (used by the Low-dep ARM canary job) and
-    present on AMD."""
+    """ibm.mq and ibm.db2 declare `excluded-platforms: [linux/arm64]`, so they must be
+    absent from the ARM individual-providers matrix (used by the Low-dep ARM canary job)
+    and present on AMD."""
     arm_checks = SelectiveChecks(
         files=("airflow-core/tests/test_example.py",),
         commit_ref=NEUTRAL_COMMIT,
@@ -3650,6 +3650,7 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
     arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
     assert arm_output is not None
     assert "Providers[ibm.mq]" not in arm_output
+    assert "Providers[ibm.db2]" not in arm_output
 
     amd_checks = SelectiveChecks(
         files=("airflow-core/tests/test_example.py",),
@@ -3663,6 +3664,7 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
     amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
     assert amd_output is not None
     assert "Providers[ibm.mq]" in amd_output
+    assert "Providers[ibm.db2]" in amd_output
 
 
 def test_run_kubernetes_tests_forced_by_label():
