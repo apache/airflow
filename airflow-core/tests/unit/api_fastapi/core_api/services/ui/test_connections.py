@@ -350,11 +350,10 @@ class TestGetHooksWithMockedFab:
 
     def test_patched_helpers_return_the_mock_substitutes(self):
         """
-        The substitutes are reached through ``wtforms.validators``, not ``sys.modules``.
+        Exactly one of the two ``wtforms.validators`` mocks receives the substitute.
 
-        ``mock.patch`` resolves ``wtforms.validators.any_of`` by attribute lookup on the ``wtforms``
-        mock, which is a different object from the ``sys.modules["wtforms.validators"]`` mock that
-        ``from wtforms.validators import any_of`` would return.
+        Different Python versions can resolve the dotted patch target to either object, so check
+        both paths without relying on a particular resolution strategy.
         """
         captured = {}
 
@@ -363,14 +362,17 @@ class TestGetHooksWithMockedFab:
             import wtforms
 
             captured["label"] = flask_babel.lazy_gettext("Some label")
-            captured["validator"] = wtforms.validators.any_of(["a", "b"])
+            captured["validators"] = [
+                sys.modules["wtforms.validators"].any_of(["a", "b"]),
+                wtforms.validators.any_of(["a", "b"]),
+            ]
             return mock.MagicMock(spec=ProvidersManager)
 
         self.call_without_fab_modules(find_spec_raises, read_patched_helpers)
 
         assert captured["label"] == "Some label"
-        assert isinstance(captured["validator"], HookMetaService.MockEnum)
-        assert captured["validator"].allowed_values == ["a", "b"]
+        substitutes = [v for v in captured["validators"] if isinstance(v, HookMetaService.MockEnum)]
+        assert [substitute.allowed_values for substitute in substitutes] == [["a", "b"]]
 
 
 class TestHookMetaData:
