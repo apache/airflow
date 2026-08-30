@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -371,40 +371,22 @@ class TestEmrServerlessJobSensorTrigger:
     def test_failure_acceptors_precede_success_acceptors(self):
         trigger = self.build_trigger(target_states={"FAILED", "RUNNING"})
 
-        assert trigger.waiter_config_overrides == {
-            "acceptors": [
-                {
-                    "matcher": "path",
-                    "argument": "jobRun.state",
-                    "expected": "CANCELLED",
-                    "state": "failure",
-                },
-                {
-                    "matcher": "path",
-                    "argument": "jobRun.state",
-                    "expected": "CANCELLING",
-                    "state": "failure",
-                },
-                {
-                    "matcher": "path",
-                    "argument": "jobRun.state",
-                    "expected": "FAILED",
-                    "state": "failure",
-                },
-                {
-                    "matcher": "path",
-                    "argument": "jobRun.state",
-                    "expected": "FAILED",
-                    "state": "success",
-                },
-                {
-                    "matcher": "path",
-                    "argument": "jobRun.state",
-                    "expected": "RUNNING",
-                    "state": "success",
-                },
-            ]
-        }
+        waiter_config_overrides = trigger.waiter_config_overrides
+        assert waiter_config_overrides is not None
+        acceptors = waiter_config_overrides["acceptors"]
+        failure_acceptors = [acceptor for acceptor in acceptors if acceptor["state"] == "failure"]
+        success_acceptors = [acceptor for acceptor in acceptors if acceptor["state"] == "success"]
+
+        assert acceptors == [*failure_acceptors, *success_acceptors]
+        assert len(failure_acceptors) == len(EmrServerlessHook.JOB_FAILURE_STATES)
+        assert {acceptor["expected"] for acceptor in failure_acceptors} == (
+            EmrServerlessHook.JOB_FAILURE_STATES
+        )
+        assert len(success_acceptors) == 2
+        assert {acceptor["expected"] for acceptor in success_acceptors} == {"FAILED", "RUNNING"}
+        assert all(
+            acceptor["matcher"] == "path" and acceptor["argument"] == "jobRun.state" for acceptor in acceptors
+        )
 
 
 class TestEmrServerlessStartJobTrigger:
