@@ -236,12 +236,6 @@ class InfluxDB3Hook(BaseHook):
         :return: List of dictionaries representing query results
         """
         client = await asyncio.to_thread(self.get_conn)
-        if not hasattr(client, "query_async"):
-            raise InfluxDB3AsyncQueryNotAvailableError(
-                "Deferrable mode requires an InfluxDB 3 client that exposes "
-                "InfluxDBClient3.query_async(). Reinstall or upgrade the provider "
-                "dependencies to use influxdb3-python>=0.12.0."
-            )
 
         try:
             import pandas as pd
