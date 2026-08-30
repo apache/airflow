@@ -367,10 +367,13 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _parse_json_lines_text(self, text: str) -> list[dict[str, Any]]:
         documents: list[dict[str, Any]] = []
-        for line in text.splitlines():
+        for line_number, line in enumerate(text.splitlines(), start=1):
             if not line.strip():
                 continue
-            item = json.loads(line)
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON on line {line_number}, column {e.colno}: {e.msg}") from e
             documents.append(self._json_item_to_doc(item, item_index=len(documents)))
         return documents
 

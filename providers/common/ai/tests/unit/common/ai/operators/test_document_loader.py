@@ -218,6 +218,13 @@ class TestJsonLinesParser:
         assert [doc["text"] for doc in result] == ["First", "Second"]
         assert [doc["metadata"]["source"] for doc in result] == ["a", "b"]
 
+    def test_invalid_json_line(self):
+        raw = b'{"valid": true}\n\n{"invalid": }\n'
+        op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".jsonl")
+
+        with pytest.raises(ValueError, match=r"Invalid JSON on line 3, column 13"):
+            op.execute(context=MagicMock())
+
     def test_directory_recognizes_jsonl_extension(self, tmp_path):
         (tmp_path / "items.jsonl").write_text('{"name": "kept"}\n', encoding="utf-8")
 
