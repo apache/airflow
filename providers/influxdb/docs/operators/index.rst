@@ -62,9 +62,8 @@ Set ``deferrable=True`` to release the worker slot while the query runs. The tas
 
     This implementation follows the upstream ``influxdb3-python`` client, which documents querying
     through the `Flight client <https://influxdb3-python.readthedocs.io/en/latest/>`__ and exposes
-    `query_async() <https://influxdb3-python.readthedocs.io/en/latest/api_reference/>`__ as a
-    single async query call. The trigger therefore awaits one query call instead of polling at an
-    interval, and there is no ``poll_interval`` parameter.
+    `query_async() <https://influxdb3-python.readthedocs.io/en/latest/api_reference/>`__ for
+    asynchronous query execution.
 
     Results still travel back through XCom, so deferring is most useful for long-running queries
     with small-to-moderate result sets. For very large extracts, keep using
