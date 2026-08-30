@@ -268,8 +268,6 @@ resolves to ``{"dag_folder": ..., "file_count": ...}``.
       captured value. Redirect noisy subcommands (for example ``2>/dev/null``) to avoid this.
     * The dictionary must fit on a single line. Use ``jq -c`` rather than pretty-printed output, and prefer
       ``printf`` over a multi-line ``printf`` format string.
-    * Every line the command writes is sent to the task log, including the line holding your values. Avoid
-      emitting secrets this way.
 
 .. note::
 
