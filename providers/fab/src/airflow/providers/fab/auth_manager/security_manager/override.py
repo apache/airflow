@@ -1354,10 +1354,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: the role name
         """
-        return self.session.scalars(select(self.role_model).filter_by(name=name)).unique().one_or_none()
+        return self.session.scalars(select(self.role_model).filter_by(name=name)).one_or_none()
 
     def get_all_roles(self) -> list[Role]:
-        return self.session.scalars(select(self.role_model)).unique().all()
+        return list(self.session.scalars(select(self.role_model)).all())
 
     def delete_role(self, role_name: str) -> None:
         """
