@@ -2595,7 +2595,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         skip_callback_requests: list[DagSkippedIntervalsCallbackRequest] = []
         skipped_intervals_listener_events: list[tuple[str, SkippedIntervalsSummary]] = []
         listener_has_impls = bool(
-            get_listener_manager().hook.on_intervals_skipped.get_hookimpls()  # type: ignore[attr-defined]
+            get_listener_manager().hook.on_dag_skipped_intervals.get_hookimpls()  # type: ignore[attr-defined]
         )
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
@@ -2762,7 +2762,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     ) -> None:
         for dag_id, summary in events:
             try:
-                get_listener_manager().hook.on_intervals_skipped(  # type: ignore[attr-defined]
+                get_listener_manager().hook.on_dag_skipped_intervals(  # type: ignore[attr-defined]
                     dag_id=dag_id,
                     summary=summary,
                 )

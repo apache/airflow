@@ -96,8 +96,8 @@ This example listens when the scheduler skips scheduled intervals for a Dag with
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
-    :start-after: [START howto_listen_intervals_skipped]
-    :end-before: [END howto_listen_intervals_skipped]
+    :start-after: [START howto_listen_dag_skipped_intervals]
+    :end-before: [END howto_listen_dag_skipped_intervals]
 
 The listener plugin files required to add the listener implementation is added as part of the
 Airflow plugin into ``$AIRFLOW_HOME/plugins/`` folder and loaded during Airflow startup.

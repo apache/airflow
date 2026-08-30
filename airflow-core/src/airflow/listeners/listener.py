@@ -32,7 +32,7 @@ def get_listener_manager() -> ListenerManager:
 
     Registers the following listeners:
     - lifecycle: on_starting, before_stopping
-    - dag: on_intervals_skipped
+    - dag: on_dag_skipped_intervals
     - dagrun: on_dag_run_running, on_dag_run_success, on_dag_run_failed
     - taskinstance: on_task_instance_running, on_task_instance_success, etc.
     - asset: on_asset_created, on_asset_changed, etc.
