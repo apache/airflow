@@ -170,6 +170,7 @@ class InfluxDB3Hook(BaseHook):
         if self.client is not None:
             return self.client
 
+        # Token: prefer extras (from form widget), fallback to password field
         if "token" not in self.extras or not self.extras.get("token"):
             token = getattr(self.connection, "password", None)
             if token:
@@ -180,6 +181,7 @@ class InfluxDB3Hook(BaseHook):
                     "Set it in the 'Token' field of the connection form or in connection extras."
                 )
 
+        # Database: required for InfluxDB 3.x (from form widget or extras)
         database = self.extras.get("database") or self.extras.get("db")
         if not database:
             raise ValueError(
@@ -188,6 +190,7 @@ class InfluxDB3Hook(BaseHook):
             )
         self.extras["database"] = database
 
+        # Org: optional (from form widget or extras)
         if "org" not in self.extras:
             self.extras["org"] = ""
 
