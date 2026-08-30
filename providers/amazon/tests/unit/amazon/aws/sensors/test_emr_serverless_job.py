@@ -108,7 +108,7 @@ class TestEmrServerlessJobSensorDeferrable(TestEmrServerlessJobSensor):
         assert trigger.serialized_fields == {
             "application_id": self.app_id,
             "job_run_id": self.job_run_id,
-            "target_states": ["RUNNING"],
+            "target_states": {"RUNNING"},
         }
         assert trigger.waiter_delay == 10
         assert trigger.aws_conn_id == "aws_default"
