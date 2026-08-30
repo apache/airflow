@@ -224,9 +224,9 @@ def on_dag_run_running(dag_run: DagRun, msg: str):
 # [END howto_listen_dagrun_running_task]
 
 
-# [START howto_listen_intervals_skipped]
+# [START howto_listen_dag_skipped_intervals]
 @hookimpl
-def on_intervals_skipped(dag_id: str, summary):
+def on_dag_skipped_intervals(dag_id: str, summary):
     """
     Called when a Dag with catchup=False skips one or more scheduled intervals.
 
@@ -241,4 +241,4 @@ def on_intervals_skipped(dag_id: str, summary):
     )
 
 
-# [END howto_listen_intervals_skipped]
+# [END howto_listen_dag_skipped_intervals]

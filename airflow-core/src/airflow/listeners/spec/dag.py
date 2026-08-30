@@ -27,5 +27,5 @@ hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_intervals_skipped(dag_id: str, summary: SkippedIntervalsSummary):
+def on_dag_skipped_intervals(dag_id: str, summary: SkippedIntervalsSummary):
     """Execute when a Dag with catchup=False skips one or more scheduled intervals."""

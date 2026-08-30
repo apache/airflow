@@ -69,18 +69,18 @@ Dag Skipped Interval Events
 
 When a Dag with ``catchup=False`` skips one or more scheduled data intervals (for example after
 a scheduler restart or when a paused Dag is re-enabled), the scheduler invokes the
-``on_intervals_skipped`` listener hook with a
+``on_dag_skipped_intervals`` listener hook with a
 :class:`~airflow.timetables.base.SkippedIntervalsSummary`. This is the listener counterpart to the Dag-level
 ``on_skipped_intervals_callback``; listeners run synchronously in the scheduler, while the callback
 is dispatched to the dag processor. Like the callback, it does not fire on a Dag's first
 automated run (no previous run to compare against).
 
-- ``on_intervals_skipped``
+- ``on_dag_skipped_intervals``
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
-    :start-after: [START howto_listen_intervals_skipped]
-    :end-before: [END howto_listen_intervals_skipped]
+    :start-after: [START howto_listen_dag_skipped_intervals]
+    :end-before: [END howto_listen_dag_skipped_intervals]
 
 
 TaskInstance State Change Events
@@ -225,5 +225,5 @@ List of changes in the listener interfaces since 2.8.0 when they were introduced
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 | 3.2.0           | ``on_task_instance_skipped``               | New listener method added to the interface                                                                                    |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
-| 3.3.0           | ``on_intervals_skipped``                   | New listener method added; fires when a Dag with ``catchup=False`` skips scheduled intervals                                  |
+| 3.3.0           | ``on_dag_skipped_intervals``               | New listener method added; fires when a Dag with ``catchup=False`` skips scheduled intervals                                  |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+

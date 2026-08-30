@@ -28,7 +28,7 @@ events: list[tuple[str, SkippedIntervalsSummary]] = []
 
 
 @hookimpl
-def on_intervals_skipped(dag_id: str, summary: SkippedIntervalsSummary):
+def on_dag_skipped_intervals(dag_id: str, summary: SkippedIntervalsSummary):
     events.append((dag_id, summary))
 
 
