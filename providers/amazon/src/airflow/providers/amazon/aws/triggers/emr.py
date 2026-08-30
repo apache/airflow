@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Collection
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
@@ -369,6 +369,82 @@ class EmrServerlessStopApplicationTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessJobSensorTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an EMR Serverless job run until it reaches a target or failure state.
+
+    :param application_id: The ID of the application the job is running on.
+    :param job_run_id: The ID of the job run.
+    :param target_states: The states that indicate the sensor has succeeded.
+    :param waiter_delay: The time in seconds to wait between polling attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made. Defaults to an infinite wait.
+    :param aws_conn_id: Reference to the AWS connection ID.
+    :param region_name: The AWS region where the job is running.
+    :param verify: Whether to verify SSL certificates.
+    :param botocore_config: Configuration dictionary for the botocore client.
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        job_run_id: str,
+        target_states: Collection[str],
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = sys.maxsize,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+    ) -> None:
+        serialized_target_states = sorted(set(target_states))
+        failure_acceptors = [
+            {
+                "matcher": "path",
+                "argument": "jobRun.state",
+                "expected": state,
+                "state": "failure",
+            }
+            for state in sorted(EmrServerlessHook.JOB_FAILURE_STATES)
+        ]
+        success_acceptors = [
+            {
+                "matcher": "path",
+                "argument": "jobRun.state",
+                "expected": state,
+                "state": "success",
+            }
+            for state in serialized_target_states
+        ]
+        super().__init__(
+            serialized_fields={
+                "application_id": application_id,
+                "job_run_id": job_run_id,
+                "target_states": serialized_target_states,
+            },
+            waiter_name="serverless_job_completed",
+            waiter_args={"applicationId": application_id, "jobRunId": job_run_id},
+            failure_message="EMR Serverless job failed",
+            status_message="EMR Serverless job status is",
+            status_queries=["jobRun.state", "jobRun.stateDetails"],
+            return_value=None,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            waiter_config_overrides={"acceptors": [*failure_acceptors, *success_acceptors]},
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
+        )
+
+    def hook(self) -> EmrServerlessHook:
+        return EmrServerlessHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
 
 class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):

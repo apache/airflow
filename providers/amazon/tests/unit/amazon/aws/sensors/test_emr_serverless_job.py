@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessJobSensor
-from airflow.providers.amazon.aws.triggers.emr import EmrServerlessStartJobTrigger
+from airflow.providers.amazon.aws.triggers.emr import EmrServerlessJobSensorTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
@@ -83,47 +84,40 @@ class TestPokeRaisesAirflowException(TestEmrServerlessJobSensor):
 
 
 class TestEmrServerlessJobSensorDeferrable(TestEmrServerlessJobSensor):
-    def test_sensor_defer(self):
-        sensor = EmrServerlessJobSensor(
-            task_id="test_emr_serverless_job_sensor",
-            application_id=self.app_id,
-            job_run_id=self.job_run_id,
-            aws_conn_id="aws_default",
-            deferrable=True,
-        )
-
-        with patch.object(EmrServerlessJobSensor, "poke", return_value=False):
-            with pytest.raises(TaskDeferred) as exc:
-                sensor.execute(context=None)
-        assert isinstance(exc.value.trigger, EmrServerlessStartJobTrigger), (
-            "Trigger is not an EmrServerlessStartJobTrigger"
-        )
-
     def test_sensor_defer_trigger_parameters(self):
         sensor = EmrServerlessJobSensor(
             task_id="test_emr_serverless_job_sensor",
             application_id=self.app_id,
             job_run_id=self.job_run_id,
+            target_states={"RUNNING"},
             aws_conn_id="aws_default",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
             deferrable=True,
-            max_attempts=100,
+            poke_interval=10,
+            timeout=300,
         )
-        sensor.poke_interval = 10
 
-        with patch.object(EmrServerlessJobSensor, "poke", return_value=False):
+        with mock.patch.object(EmrServerlessJobSensor, "poke", autospec=True, return_value=False):
             with pytest.raises(TaskDeferred) as exc:
                 sensor.execute(context=None)
 
         trigger = exc.value.trigger
-        assert isinstance(trigger, EmrServerlessStartJobTrigger)
-        assert trigger.application_id == self.app_id
-        assert trigger.job_id == self.job_run_id
+        assert isinstance(trigger, EmrServerlessJobSensorTrigger)
+        assert trigger.serialized_fields == {
+            "application_id": self.app_id,
+            "job_run_id": self.job_run_id,
+            "target_states": ["RUNNING"],
+        }
         assert trigger.waiter_delay == 10
-        assert trigger.attempts == 100
         assert trigger.aws_conn_id == "aws_default"
-        assert trigger.cancel_on_kill is False
+        assert trigger.region_name == "eu-west-1"
+        assert trigger.verify is False
+        assert trigger.botocore_config == {"read_timeout": 42}
+        assert exc.value.timeout == timedelta(seconds=300)
 
-    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor.poke")
+    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor.poke", autospec=True)
     def test_sensor_defer_skipped_when_poke_succeeds(self, mock_poke):
         self.sensor.deferrable = True
         mock_poke.return_value = True
@@ -131,8 +125,8 @@ class TestEmrServerlessJobSensorDeferrable(TestEmrServerlessJobSensor):
         mock_poke.assert_called_once()
 
     def test_execute_complete_success(self):
-        self.sensor.execute_complete(context={}, event={"status": "success", "job_details": {}})
+        self.sensor.execute_complete(context={}, event={"status": "success", "value": None})
 
     def test_execute_complete_failure(self):
         with pytest.raises(RuntimeError, match="Error while running job"):
-            self.sensor.execute_complete(context={}, event={"status": "failure", "message": "Job failed"})
+            self.sensor.execute_complete(context={}, event={"status": "error", "message": "Job failed"})

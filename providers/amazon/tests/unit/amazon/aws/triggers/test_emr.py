@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessCancelJobsTrigger,
     EmrServerlessCreateApplicationTrigger,
     EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessJobSensorTrigger,
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
@@ -313,6 +314,96 @@ class TestEmrServerlessStopApplicationTrigger:
             "waiter_delay": 30,
             "waiter_max_attempts": 60,
             "aws_conn_id": "aws_default",
+        }
+
+
+class TestEmrServerlessJobSensorTrigger:
+    @staticmethod
+    def build_trigger(**kwargs):
+        trigger_kwargs = {
+            "application_id": "test_application_id",
+            "job_run_id": "test_job_run_id",
+            "target_states": {"RUNNING"},
+            "waiter_delay": 10,
+            "aws_conn_id": "aws_default",
+            **kwargs,
+        }
+        return EmrServerlessJobSensorTrigger(**trigger_kwargs)
+
+    def test_serialization(self):
+        trigger = self.build_trigger(
+            target_states={"SUCCESS", "RUNNING"},
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessJobSensorTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "job_run_id": "test_job_run_id",
+            "target_states": ["RUNNING", "SUCCESS"],
+            "waiter_delay": 10,
+            "waiter_max_attempts": sys.maxsize,
+            "aws_conn_id": "aws_default",
+            "region_name": "eu-west-1",
+            "verify": False,
+            "botocore_config": {"read_timeout": 42},
+        }
+        recreated_trigger = EmrServerlessJobSensorTrigger(**kwargs)
+        assert recreated_trigger.waiter_config_overrides == trigger.waiter_config_overrides
+
+        assert trigger.waiter_name == "serverless_job_completed"
+        assert trigger.waiter_args == {
+            "applicationId": "test_application_id",
+            "jobRunId": "test_job_run_id",
+        }
+        assert trigger.attempts == sys.maxsize
+        assert trigger.status_queries == ["jobRun.state", "jobRun.stateDetails"]
+        hook = trigger.hook()
+        assert hook.aws_conn_id == "aws_default"
+        assert hook._region_name == "eu-west-1"
+        assert hook._verify is False
+        assert hook._config.read_timeout == 42
+
+    def test_failure_acceptors_precede_success_acceptors(self):
+        trigger = self.build_trigger(target_states={"FAILED", "RUNNING"})
+
+        assert trigger.waiter_config_overrides == {
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "CANCELLED",
+                    "state": "failure",
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "CANCELLING",
+                    "state": "failure",
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "FAILED",
+                    "state": "failure",
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "FAILED",
+                    "state": "success",
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "RUNNING",
+                    "state": "success",
+                },
+            ]
         }
 
 
