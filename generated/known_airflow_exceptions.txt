@@ -148,7 +148,7 @@ providers/apache/spark/src/airflow/providers/apache/spark/hooks/spark_submit.py:
 providers/arangodb/src/airflow/providers/arangodb/hooks/arangodb.py::9
 providers/atlassian/jira/src/airflow/providers/atlassian/jira/hooks/jira.py::1
 providers/celery/src/airflow/providers/celery/executors/celery_executor_utils.py::2
-providers/celery/src/airflow/providers/celery/executors/default_celery.py::2
+providers/celery/src/airflow/providers/celery/executors/default_celery.py::1
 providers/celery/tests/integration/celery/test_celery_executor.py::2
 providers/cloudant/src/airflow/providers/cloudant/hooks/cloudant.py::2
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/backcompat/backwards_compat_converters.py::3
@@ -319,7 +319,6 @@ providers/google/src/airflow/providers/google/leveldb/hooks/leveldb.py::4
 providers/google/src/airflow/providers/google/marketing_platform/hooks/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/hooks/search_ads.py::1
 providers/google/src/airflow/providers/google/marketing_platform/operators/bid_manager.py::3
-providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/sensors/display_video.py::1
 providers/google/src/airflow/providers/google/suite/hooks/calendar.py::1
 providers/google/src/airflow/providers/google/suite/hooks/sheets.py::1
@@ -348,7 +347,7 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_facto
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/data_lake.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/msgraph.py::3
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/wasb.py::2
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::9
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/batch.py::8
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/container_instances.py::10
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/msgraph.py::1

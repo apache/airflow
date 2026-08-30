@@ -70,7 +70,8 @@ runs:
         echo
       shell: bash
     - name: "Restore prek cache"
-      uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
         # yamllint disable rule:line-length
         key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ steps.versions.outputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
@@ -119,7 +120,7 @@ runs:
       shell: bash
       if: inputs.save-cache == 'true'
     - name: "Save prek cache"
-      uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
         # yamllint disable rule:line-length
         key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ steps.versions.outputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
