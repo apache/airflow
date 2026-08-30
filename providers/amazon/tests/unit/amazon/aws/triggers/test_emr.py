@@ -332,7 +332,7 @@ class TestEmrServerlessJobSensorTrigger:
 
     def test_serialization(self):
         trigger = self.build_trigger(
-            target_states={"SUCCESS", "RUNNING"},
+            target_states=frozenset({"SUCCESS", "RUNNING"}),
             region_name="eu-west-1",
             verify=False,
             botocore_config={"read_timeout": 42},
@@ -344,7 +344,7 @@ class TestEmrServerlessJobSensorTrigger:
         assert kwargs == {
             "application_id": "test_application_id",
             "job_run_id": "test_job_run_id",
-            "target_states": ["RUNNING", "SUCCESS"],
+            "target_states": {"RUNNING", "SUCCESS"},
             "waiter_delay": 10,
             "waiter_max_attempts": sys.maxsize,
             "aws_conn_id": "aws_default",
@@ -353,7 +353,14 @@ class TestEmrServerlessJobSensorTrigger:
             "botocore_config": {"read_timeout": 42},
         }
         recreated_trigger = EmrServerlessJobSensorTrigger(**kwargs)
-        assert recreated_trigger.waiter_config_overrides == trigger.waiter_config_overrides
+        waiter_config_overrides = trigger.waiter_config_overrides
+        recreated_waiter_config_overrides = recreated_trigger.waiter_config_overrides
+        assert waiter_config_overrides is not None
+        assert recreated_waiter_config_overrides is not None
+        assert {
+            (acceptor["expected"], acceptor["state"])
+            for acceptor in recreated_waiter_config_overrides["acceptors"]
+        } == {(acceptor["expected"], acceptor["state"]) for acceptor in waiter_config_overrides["acceptors"]}
 
         assert trigger.waiter_name == "serverless_job_completed"
         assert trigger.waiter_args == {

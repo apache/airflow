@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import AsyncIterator, Collection
+from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
@@ -390,7 +390,7 @@ class EmrServerlessJobSensorTrigger(AwsBaseWaiterTrigger):
         self,
         application_id: str,
         job_run_id: str,
-        target_states: Collection[str],
+        target_states: set[str] | frozenset[str],
         waiter_delay: int = 60,
         waiter_max_attempts: int = sys.maxsize,
         aws_conn_id: str | None = "aws_default",
@@ -398,7 +398,7 @@ class EmrServerlessJobSensorTrigger(AwsBaseWaiterTrigger):
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
     ) -> None:
-        normalized_target_states = sorted(set(target_states))
+        normalized_target_states = set(target_states)
         super().__init__(
             serialized_fields={
                 "application_id": application_id,
@@ -421,7 +421,7 @@ class EmrServerlessJobSensorTrigger(AwsBaseWaiterTrigger):
         )
 
     @staticmethod
-    def _build_waiter_acceptors(target_states: list[str]) -> list[dict[str, str]]:
+    def _build_waiter_acceptors(target_states: set[str]) -> list[dict[str, str]]:
         acceptors = []
         for states, waiter_state in (
             (EmrServerlessHook.JOB_FAILURE_STATES, "failure"),
