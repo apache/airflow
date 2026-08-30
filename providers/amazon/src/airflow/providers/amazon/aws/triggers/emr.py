@@ -398,30 +398,12 @@ class EmrServerlessJobSensorTrigger(AwsBaseWaiterTrigger):
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
     ) -> None:
-        serialized_target_states = sorted(set(target_states))
-        failure_acceptors = [
-            {
-                "matcher": "path",
-                "argument": "jobRun.state",
-                "expected": state,
-                "state": "failure",
-            }
-            for state in sorted(EmrServerlessHook.JOB_FAILURE_STATES)
-        ]
-        success_acceptors = [
-            {
-                "matcher": "path",
-                "argument": "jobRun.state",
-                "expected": state,
-                "state": "success",
-            }
-            for state in serialized_target_states
-        ]
+        normalized_target_states = sorted(set(target_states))
         super().__init__(
             serialized_fields={
                 "application_id": application_id,
                 "job_run_id": job_run_id,
-                "target_states": serialized_target_states,
+                "target_states": normalized_target_states,
             },
             waiter_name="serverless_job_completed",
             waiter_args={"applicationId": application_id, "jobRunId": job_run_id},
@@ -431,12 +413,30 @@ class EmrServerlessJobSensorTrigger(AwsBaseWaiterTrigger):
             return_value=None,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
-            waiter_config_overrides={"acceptors": [*failure_acceptors, *success_acceptors]},
+            waiter_config_overrides={"acceptors": self._build_waiter_acceptors(normalized_target_states)},
             aws_conn_id=aws_conn_id,
             region_name=region_name,
             verify=verify,
             botocore_config=botocore_config,
         )
+
+    @staticmethod
+    def _build_waiter_acceptors(target_states: list[str]) -> list[dict[str, str]]:
+        acceptors = []
+        for states, waiter_state in (
+            (EmrServerlessHook.JOB_FAILURE_STATES, "failure"),
+            (target_states, "success"),
+        ):
+            for state in states:
+                acceptors.append(
+                    {
+                        "matcher": "path",
+                        "argument": "jobRun.state",
+                        "expected": state,
+                        "state": waiter_state,
+                    }
+                )
+        return acceptors
 
     def hook(self) -> EmrServerlessHook:
         return EmrServerlessHook(
