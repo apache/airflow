@@ -369,43 +369,15 @@ class TestLocalExecutor:
 
         assert len(executor.event_buffer) == result_count
 
-    def test_process_workloads_drains_results_before_put(self):
-        executor = LocalExecutor(parallelism=1)
-        executor.activity_queue = mock.MagicMock()
-        executor.result_queue = mock.MagicMock()
-        executor._unread_messages = mock.MagicMock()
-        executor._check_workers = mock.MagicMock()
-        workload = mock.MagicMock()
-        workload.key = TaskInstanceKey("test_dag", "test_task", "test_run")
-        executor.queued_tasks = {workload.key: workload}
-
-        call_order = []
-        orig_read_results = executor._read_results
-        orig_put = executor.activity_queue.put
-
-        def tracking_read_results():
-            call_order.append("_read_results")
-            return orig_read_results()
-
-        def tracking_put(*args, **kwargs):
-            call_order.append("put")
-            return orig_put(*args, **kwargs)
-
-        executor._read_results = tracking_read_results
-        executor.activity_queue.put = tracking_put
-
-        executor._process_workloads([workload])
-
-        assert call_order == ["_read_results", "put"]
-
-    def test_process_workloads_drains_results_for_multiple_workloads(self):
+    @pytest.mark.parametrize("num_workloads", [1, 3])
+    def test_process_workloads_drains_results_before_put(self, num_workloads):
         executor = LocalExecutor(parallelism=1)
         executor.activity_queue = mock.MagicMock()
         executor.result_queue = mock.MagicMock()
         executor._unread_messages = mock.MagicMock()
         executor._check_workers = mock.MagicMock()
         workloads_list = []
-        for i in range(3):
+        for i in range(num_workloads):
             workload = mock.MagicMock()
             workload.key = TaskInstanceKey("test_dag", f"test_task_{i}", "test_run")
             workloads_list.append(workload)
@@ -428,7 +400,7 @@ class TestLocalExecutor:
 
         executor._process_workloads(workloads_list)
 
-        assert call_order == ["_read_results", "put", "_read_results", "put", "_read_results", "put"]
+        assert call_order == ["_read_results", "put"] * num_workloads
 
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),
