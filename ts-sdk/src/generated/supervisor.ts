@@ -282,10 +282,7 @@ export type Msg3 = string | null;
 export type EmailType = "failure" | "retry";
 export type Type15 = "EmailRequest";
 export type CallbackRequests = (
-  | DagCallbackRequest
-  | DagSkippedIntervalsCallbackRequest
-  | TaskCallbackRequest
-  | EmailRequest
+  DagCallbackRequest | DagSkippedIntervalsCallbackRequest | TaskCallbackRequest | EmailRequest
 )[];
 export type Type16 = "DagFileParseRequest";
 export type Fileloc = string;
