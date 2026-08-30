@@ -21,15 +21,19 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -39,6 +43,8 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
     clear_db_dags,
+    clear_db_deadline,
+    clear_db_deadline_alert,
     clear_db_runs,
     clear_db_serialized_dags,
 )
@@ -65,12 +71,44 @@ API_PREFIX = "/dags"
 DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
+_DEADLINE_CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.public.test_dags._noop_deadline_callback"
+
+
+async def _noop_deadline_callback(**kwargs):
+    pass
+
+
+def _deadline_callback() -> AsyncCallback:
+    return AsyncCallback(_DEADLINE_CALLBACK_PATH)
+
+
+def _deadline_alert(reference=DeadlineReference.DAGRUN_LOGICAL_DATE, hours: int = 1) -> DeadlineAlert:
+    return DeadlineAlert(reference=reference, interval=timedelta(hours=hours), callback=_deadline_callback())
+
+
+# ``dag_maker`` writes a SerializedDagModel row itself on exit, bypassing
+# ``SerializedDagModel.write_dag``. Without dropping the update interval, the later
+# ``sync_dagbag_to_db()`` short-circuits and no deadline_alert rows are ever created.
+_ALWAYS_RESERIALIZE = conf_vars({("core", "min_serialized_dag_update_interval"): "0"})
+
+
+def _count_deadline_alerts(session, dag_id: str) -> int:
+    session.expire_all()
+    return session.scalar(
+        select(func.count())
+        .select_from(DeadlineAlertModel)
+        .join(SerializedDagModel, SerializedDagModel.id == DeadlineAlertModel.serialized_dag_id)
+        .where(SerializedDagModel.dag_id == dag_id)
+    )
+
 
 class TestDagEndpoint:
     """Common class for /dags related unit tests."""
 
     @staticmethod
     def _clear_db():
+        clear_db_deadline()
+        clear_db_deadline_alert()
         clear_db_connections()
         clear_db_runs()
         clear_db_dags()
@@ -863,6 +901,35 @@ class TestGetDags(TestDagEndpoint):
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
 
+    @pytest.mark.parametrize(
+        ("deadline", "expected_alert_count"),
+        [
+            pytest.param(_deadline_alert(), 1, id="single-deadline"),
+            pytest.param(
+                [
+                    _deadline_alert(DeadlineReference.DAGRUN_LOGICAL_DATE, hours=1),
+                    _deadline_alert(DeadlineReference.DAGRUN_QUEUED_AT, hours=2),
+                ],
+                2,
+                id="multiple-deadlines",
+            ),
+        ],
+    )
+    @_ALWAYS_RESERIALIZE
+    def test_get_dags_includes_dag_with_deadline(
+        self, dag_maker, test_client, session, deadline, expected_alert_count
+    ):
+        deadline_dag_id = "test_dag_with_deadline"
+        with dag_maker(deadline_dag_id, schedule=None, start_date=DAG1_START_DATE, deadline=deadline):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == expected_alert_count
+
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        dag_ids = [dag["dag_id"] for dag in response.json()["dags"]]
+        assert deadline_dag_id in dag_ids
+
 
 class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
@@ -960,6 +1027,27 @@ class TestPatchDag(TestDagEndpoint):
         check_last_log(
             session, dag_id=DAG1_ID, event="patch_dag", logical_date=None, expected_extra=expected_extra
         )
+
+    @_ALWAYS_RESERIALIZE
+    def test_patch_dag_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_patch_deadline_dag"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.patch(f"/dags/{deadline_dag_id}", json={"is_paused": True})
+        assert response.status_code == 200
+        assert response.json()["is_paused"] is True
+
+        response = test_client.patch(f"/dags/{deadline_dag_id}", json={"is_paused": False})
+        assert response.status_code == 200
+        assert response.json()["is_paused"] is False
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -1105,6 +1193,30 @@ class TestPatchDags(TestDagEndpoint):
     def test_patch_dags_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
+
+    @_ALWAYS_RESERIALIZE
+    def test_patch_dags_includes_dag_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_bulk_patch_deadline"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.patch(
+            "/dags",
+            json={"is_paused": True},
+            params={"dag_id_pattern": "~"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        patched_ids = {dag["dag_id"] for dag in body["dags"]}
+        assert deadline_dag_id in patched_ids
+        assert all(dag["is_paused"] for dag in body["dags"] if dag["dag_id"] == deadline_dag_id)
 
 
 class TestFavoriteDag(TestDagEndpoint):
@@ -1537,6 +1649,24 @@ class TestDagDetails(TestDagEndpoint):
             session.execute(delete(Team).where(Team.name == "team-details"))
             session.commit()
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @_ALWAYS_RESERIALIZE
+    def test_dag_details_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_details_deadline"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.get(f"/dags/{deadline_dag_id}/details")
+        assert response.status_code == 200
+        assert response.json()["dag_id"] == deadline_dag_id
+
 
 class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
@@ -1639,6 +1769,25 @@ class TestGetDag(TestDagEndpoint):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
 
+    @_ALWAYS_RESERIALIZE
+    def test_get_dag_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_get_deadline_dag"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.get(f"/dags/{deadline_dag_id}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_id"] == deadline_dag_id
+        assert body["is_paused"] is False
+
 
 class TestDagWithoutFileloc(TestDagEndpoint):
     def _make_dag_without_fileloc(self, dag_maker, session, dag_id="test_dag_no_fileloc"):
@@ -1728,6 +1877,30 @@ class TestDeleteDAG(TestDagEndpoint):
 
         if details_response.status_code == 204:
             check_last_log(session, dag_id=dag_id, event="delete_dag", logical_date=None)
+
+    @_ALWAYS_RESERIALIZE
+    def test_delete_dag_with_deadline(self, dag_maker, test_client, session):
+        """Deleting a DAG with deadline alerts succeeds without FK constraint errors."""
+        deadline_dag_id = "test_delete_deadline_dag"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.get(f"{API_PREFIX}/{deadline_dag_id}")
+        assert response.status_code == 200
+
+        delete_response = test_client.delete(f"{API_PREFIX}/{deadline_dag_id}")
+        assert delete_response.status_code == 204
+
+        details_response = test_client.get(f"{API_PREFIX}/{deadline_dag_id}/details")
+        assert details_response.status_code == 404
+        assert _count_deadline_alerts(session, deadline_dag_id) == 0
 
     def test_delete_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
