@@ -84,7 +84,7 @@ class TestInfluxDB3Hook:
         """Test query with InfluxDB 3.x."""
         pd = pytest.importorskip("pandas")
 
-        self.influxdb3_hook.client = mock.Mock()
+        self.influxdb3_hook.client = mock.Mock(spec_set=["query"])
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         self.influxdb3_hook.client.query = mock.Mock(return_value=mock_df)
         self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
@@ -104,7 +104,7 @@ class TestInfluxDB3Hook:
         """Test async query with InfluxDB 3.x."""
         pd = pytest.importorskip("pandas")
 
-        self.influxdb3_hook.client = mock.Mock()
+        self.influxdb3_hook.client = mock.Mock(spec_set=["query_async"])
         mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
         self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=mock_df)
         self.influxdb3_hook.aget_conn = mock.AsyncMock(return_value=self.influxdb3_hook.client)
@@ -124,7 +124,7 @@ class TestInfluxDB3Hook:
         """Async query results must resolve to a pandas DataFrame."""
         pytest.importorskip("pandas")
 
-        self.influxdb3_hook.client = mock.Mock()
+        self.influxdb3_hook.client = mock.Mock(spec_set=["query_async"])
         self.influxdb3_hook.client.query_async = mock.AsyncMock(return_value=[{"col1": 1}])
         self.influxdb3_hook.aget_conn = mock.AsyncMock(return_value=self.influxdb3_hook.client)
 
@@ -133,7 +133,7 @@ class TestInfluxDB3Hook:
 
     def test_write(self):
         """Test write with InfluxDB 3.x."""
-        self.influxdb3_hook.client = mock.Mock()
+        self.influxdb3_hook.client = mock.Mock(spec_set=["write"])
         self.influxdb3_hook.client.write = mock.Mock()
         self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
 
