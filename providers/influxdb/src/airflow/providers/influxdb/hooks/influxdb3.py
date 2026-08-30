@@ -51,10 +51,6 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 
-class InfluxDB3AsyncQueryNotAvailableError(RuntimeError):
-    """Raised when the installed InfluxDB 3 client lacks async query support."""
-
-
 def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
     return json.loads(dataframe.to_json(orient="records", date_format="iso"))
@@ -236,11 +232,6 @@ class InfluxDB3Hook(BaseHook):
         :return: pandas DataFrame with query results
         """
         client = await asyncio.to_thread(self.get_conn)
-        if not callable(getattr(client, "query_async", None)):
-            raise InfluxDB3AsyncQueryNotAvailableError(
-                "Deferrable InfluxDB 3 queries require influxdb3-python>=0.12.0 with "
-                "InfluxDBClient3.query_async support."
-            )
 
         try:
             import pandas as pd
