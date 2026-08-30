@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useToken } from "@chakra-ui/react";
-import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
+import { Background, Controls, MiniMap, ReactFlow, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -104,7 +104,9 @@ export const AssetGraph = ({
       style={getReactFlowThemeStyle(colorMode)}
     >
       <Background />
-      <Controls showInteractive={false} />
+      <Controls showInteractive={false}>
+        <DownloadButton name={asset?.name ?? asset?.uri ?? "asset"} />
+      </Controls>
       <MiniMap
         nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
           node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
@@ -113,7 +115,6 @@ export const AssetGraph = ({
         pannable
         zoomable
       />
-      <DownloadButton name={asset?.name ?? asset?.uri ?? "asset"} />
     </ReactFlow>
   );
 };

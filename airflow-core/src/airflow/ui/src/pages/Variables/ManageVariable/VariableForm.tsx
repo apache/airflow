@@ -33,14 +33,14 @@ export type VariableBody = {
   value: string;
 };
 
-const isJsonString = (string: string) => {
+const getJsonParseError = (string: string): string | undefined => {
   try {
     JSON.parse(string);
-  } catch {
-    return false;
-  }
 
-  return true;
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 };
 
 type VariableFormProps = {
@@ -97,8 +97,10 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         control={control}
         name="value"
         render={({ field, fieldState }) => {
-          const showJsonWarning =
-            field.value.startsWith("{") || field.value.startsWith("[") ? !isJsonString(field.value) : false;
+          const jsonParseError =
+            field.value.startsWith("{") || field.value.startsWith("[")
+              ? getJsonParseError(field.value)
+              : undefined;
 
           return (
             <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
@@ -106,11 +108,11 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
                 {translate("columns.value")} <Field.RequiredIndicator />
               </Field.Label>
               <Textarea {...field} size="sm" />
-              {showJsonWarning ? (
+              {jsonParseError === undefined ? undefined : (
                 <Alert mt={2} status="warning">
-                  {translate("variables.form.invalidJson")}
+                  {translate("variables.form.invalidJson")}: {jsonParseError}
                 </Alert>
-              ) : undefined}
+              )}
               {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
             </Field.Root>
           );

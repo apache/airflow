@@ -73,7 +73,7 @@ const getColumns = (
 ];
 
 export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionScheduleModalProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
   const [pageIndex, setPageIndex] = useState(0);
   const tableState = {

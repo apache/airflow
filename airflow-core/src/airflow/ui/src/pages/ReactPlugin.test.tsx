@@ -30,7 +30,7 @@ import type {
 } from "openapi/requests/types.gen";
 import { Wrapper } from "src/utils/Wrapper";
 
-import { ReactPlugin, type PluginProps } from "./ReactPlugin";
+import { loadPlugin, ReactPlugin, type PluginProps } from "./ReactPlugin";
 
 const mockAsset = { id: 1, name: "my_asset", uri: "s3://bucket/key" } as AssetResponse;
 const mockDag = { dag_display_name: "My Dag", dag_id: "my_dag" } as DAGDetailsResponse;
@@ -140,5 +140,29 @@ describe("ReactPlugin context props", () => {
     expect(capturedProps?.assetId).toBe("1");
     expect(capturedProps?.asset).toStrictEqual(mockAsset);
     expect(capturedProps?.assetUri).toBe(mockAsset.uri);
+  });
+});
+
+const pluginA = { bundle_url: "http://localhost/a.js", name: "PluginA" } as ReactAppResponse;
+const pluginB = { bundle_url: "http://localhost/b.js", name: "PluginB" } as ReactAppResponse;
+const componentA = () => null;
+
+describe("loadPlugin", () => {
+  afterEach(() => {
+    for (const key of ["AirflowPlugin", pluginA.name, pluginB.name]) {
+      (globalThis as Record<string, unknown>)[key] = undefined;
+    }
+  });
+
+  it("does not let a malformed bundle inherit a previously-loaded plugin's component", async () => {
+    // A well-formed bundle sets globalThis.AirflowPlugin on import; a malformed one sets nothing.
+    await loadPlugin(pluginA, () => {
+      (globalThis as Record<string, unknown>).AirflowPlugin = componentA;
+
+      return Promise.resolve();
+    });
+    const { default: component } = await loadPlugin(pluginB, () => Promise.resolve());
+
+    expect(component).not.toBe(componentA);
   });
 });

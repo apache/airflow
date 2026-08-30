@@ -37,7 +37,7 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, BaseOperator, timezone
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -53,15 +53,9 @@ from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow._shared.timezones import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 EXPECTED_TRY_NUMBER_1 = 1
 
