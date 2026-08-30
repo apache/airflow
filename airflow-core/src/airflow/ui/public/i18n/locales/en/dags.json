@@ -75,6 +75,7 @@
       "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
+      "runOnLatestVersionForced": "Always uses the latest — there's no earlier version to go back to",
       "upstream": "Upstream"
     }
   },

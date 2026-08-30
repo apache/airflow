@@ -2031,6 +2031,23 @@ class TestClearDagRun:
             logical_date=None,
         )
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_whose_dag_version_was_deleted(self, test_client, session):
+        """A run that kept its bundle version after ``airflow db clean`` removed its Dag version."""
+        session.execute(
+            update(DagRun)
+            .where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+            .values(created_dag_version_id=None, bundle_version="deleted-version")
+        )
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": False},
+        )
+        assert response.status_code == 200
+        assert response.json()["state"] == "queued"
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",

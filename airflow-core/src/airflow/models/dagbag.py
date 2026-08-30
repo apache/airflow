@@ -221,7 +221,10 @@ class DBDagBag:
 
     @staticmethod
     def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
-        if not dag_run.bundle_version:
+        # A run with no version of its own can only resolve to the latest. Runs carried over from
+        # Airflow 2 are like this, as are runs whose version `airflow db clean` has since deleted --
+        # the latter keep their bundle version, so they would otherwise resolve to nothing at all.
+        if not dag_run.bundle_version or not dag_run.created_dag_version_id:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
                 return dag_version.id
 
