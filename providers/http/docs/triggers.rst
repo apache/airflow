@@ -48,13 +48,12 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
 .. code-block:: python
 
 
+    import asyncio
     import datetime
     import os
 
-    from asgiref.sync import sync_to_async
-
     from airflow.providers.http.triggers.http import HttpEventTrigger
-    from airflow.sdk import Asset, AssetWatcher, Variable, dag, task
+    from airflow.sdk import Asset, AssetWatcher, dag, task
 
     # This token must be generated through GitHub and added as an environment variable
     token = os.getenv("GITHUB_TOKEN")
@@ -66,27 +65,33 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
     }
 
 
-    async def check_github_api_response(response):
+    async def check_github_api_response(response, asset_state_store=None):
         """Determine if a new version of Airflow has been released."""
-        # Convert Variable.get to be asynchronous to be used on the Triggerer
-        get_variable_async = sync_to_async(Variable.get)
-
-        # Retrieve the previous and current release IDs (one from Variables, one from response)
-        previous_release_id = await get_variable_async(key="release_id_var", default=None)
         data = response.json()
         release_id = str(data["id"])
 
-        if release_id == previous_release_id:
-            return False
+        if asset_state_store is not None:
+            # aget/aset landed in Airflow 3.3.2; 3.3.0 and 3.3.1 expose the blocking API.
+            # Use aget/aset when available, or fall back to asyncio.to_thread to avoid blocking
+            # the triggerer's shared event loop.
+            if hasattr(asset_state_store, "aget"):
+                previous_release_id = await asset_state_store.aget("release_id", None)
+            else:
+                previous_release_id = await asyncio.to_thread(asset_state_store.get, "release_id", None)
 
-        # Parse and persist Airflow release data to be used in the downstream Task
-        release_name = data["name"]
-        release_html_url = data["html_url"]
-        set_variable_async = sync_to_async(Variable.set)
+            if release_id == previous_release_id:
+                return False
 
-        await set_variable_async(key="release_id_var", value=str(release_id))
-        await set_variable_async(key="release_name_var", value=release_name)
-        await set_variable_async(key="release_html_url_var", value=release_html_url)
+            release_name = data.get("name", "Unknown")
+            release_html_url = data.get("html_url", "Unknown")
+            if hasattr(asset_state_store, "aset"):
+                await asset_state_store.aset("release_id", release_id)
+                await asset_state_store.aset("release_name", release_name)
+                await asset_state_store.aset("release_html_url", release_html_url)
+            else:
+                await asyncio.to_thread(asset_state_store.set, "release_id", release_id)
+                await asyncio.to_thread(asset_state_store.set, "release_name", release_name)
+                await asyncio.to_thread(asset_state_store.set, "release_html_url", release_html_url)
 
         return True
 
@@ -108,10 +113,10 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
     @dag(start_date=datetime.datetime(2024, 10, 1), schedule=asset, catchup=False)
     def check_airflow_releases():
         @task()
-        def print_airflow_release_info():
-            # Retrieve and output values persisted from the ``response_check_path`` function
-            release_name = Variable.get("release_name_var")
-            release_html_url = Variable.get("release_html_url_var")
+        def print_airflow_release_info(**context):
+            store = context.get("asset_state_store")
+            release_name = store.get("release_name") if store else "Unknown"
+            release_html_url = store.get("release_html_url") if store else "Unknown"
             print(f"{release_name} has been released. Check it out at {release_html_url}")
 
         print_airflow_release_info()
@@ -144,7 +149,10 @@ Parameters
     Additional keyword arguments to pass when creating a request
 
 ``response_check_path``
-    Path to callable that evaluates whether the API response passes the conditions set by the user to trigger DAGs
+    Path to callable that evaluates whether the API response passes the conditions set by the user to trigger DAGs.
+    If the callable accepts an ``asset_state_store`` keyword argument (or ``**kwargs``), the trigger provides the
+    ``AssetStateStoreAccessors`` instance (on Airflow >= 3.3.0) or ``None`` (on older Airflow versions or when the trigger
+    is not running in an asset watcher context).
 
 ``poll_interval``
     How often, in seconds, the trigger should send a request to the API
@@ -162,5 +170,5 @@ Important Notes
 1. A ``response_check_path`` value is required.
 2. The ``response_check_path`` must contain the path to an asynchronous callable. Synchronous callables will raise an exception.
 3. The ``poll_interval`` defaults to 60 seconds. This may be changed to avoid hitting API rate limits.
-4. This trigger does not automatically record the previous API response.
-5. The previous response may have to be persisted manually though ``Variable.set()`` in the ``response_check_path`` callable to prevent the trigger from emitting events repeatedly for the same API response.
+4. On Airflow >= 3.3.0, the ``response_check_path`` callable can accept ``asset_state_store`` (e.g. ``async def check(response, asset_state_store=None)``) to read and persist state (like cursors or seen IDs) across polls without needing external variables.
+5. On Airflow versions earlier than 3.3.0, or when not running in an asset watcher context, ``asset_state_store`` is ``None``.
