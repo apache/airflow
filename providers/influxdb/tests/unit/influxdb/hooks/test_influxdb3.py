@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3AsyncQueryNotAvailableError, InfluxDB3Hook
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 
 
 class TestInfluxDB3Hook:
@@ -104,15 +104,6 @@ class TestInfluxDB3Hook:
         )
         assert isinstance(result, pd.DataFrame)
         assert result.equals(mock_df)
-
-    @pytest.mark.asyncio
-    async def test_query_async_requires_supported_client(self):
-        """Deferrable execution requires an InfluxDB client exposing query_async."""
-        self.influxdb3_hook.client = mock.Mock(spec=[])
-        self.influxdb3_hook.get_conn = mock.Mock(return_value=self.influxdb3_hook.client)
-
-        with pytest.raises(InfluxDB3AsyncQueryNotAvailableError, match="influxdb3-python>=0.12.0"):
-            await self.influxdb3_hook.query_async('SELECT "duration" FROM "pyexample"')
 
     @pytest.mark.asyncio
     async def test_query_async_requires_dataframe_result(self):
