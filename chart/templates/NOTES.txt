@@ -121,6 +121,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.securityContexts.disableDefaults }}
+
+ DEPRECATION WARNING:
+    `securityContexts.disableDefaults` equal `false` is deprecated and will default to `true` in a future release.
+    Please set `securityContexts.disableDefaults: true` explicitly, or provide values via `securityContexts.pod` / `securityContexts.containers` (or per-component overrides), before the default changes.
+
+{{- end }}
+
 {{- if not (or .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #

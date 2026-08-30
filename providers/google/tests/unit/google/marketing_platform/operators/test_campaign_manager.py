@@ -78,7 +78,7 @@ class TestGoogleCampaignManagerDeleteReportOperator:
             api_version=API_VERSION,
             task_id="test_task",
         )
-        op.execute(context=None)
+        op.execute(context={})
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             api_version=API_VERSION,
@@ -88,33 +88,25 @@ class TestGoogleCampaignManagerDeleteReportOperator:
             profile_id=PROFILE_ID, report_id=REPORT_ID
         )
 
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
+    @pytest.mark.parametrize(
+        ("report_name", "report_id"),
+        [
+            pytest.param(None, None, id="both-missing"),
+            pytest.param(REPORT_NAME, REPORT_ID, id="both-provided"),
+        ],
     )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
-    def test_execute_raises_when_both_report_name_and_id(self, mock_base_op, hook_mock):
-        op = GoogleCampaignManagerDeleteReportOperator(
-            profile_id=PROFILE_ID,
-            report_name=REPORT_NAME,
-            report_id=REPORT_ID,
-            api_version=API_VERSION,
-            task_id="test_task",
-        )
-        with pytest.raises(AirflowException, match="only one parameter"):
-            op.execute(context=None)
-
-    @mock.patch(
-        "airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerHook"
-    )
-    @mock.patch("airflow.providers.google.marketing_platform.operators.campaign_manager.BaseOperator")
-    def test_execute_raises_when_neither_report_name_nor_id(self, mock_base_op, hook_mock):
-        op = GoogleCampaignManagerDeleteReportOperator(
-            profile_id=PROFILE_ID,
-            api_version=API_VERSION,
-            task_id="test_task",
-        )
-        with pytest.raises(AirflowException, match="Please provide"):
-            op.execute(context=None)
+    def test_missing_or_conflicting_report_params_fail_at_construction(self, report_name, report_id):
+        # Provision checks on templated fields stay in `__init__` (rewritten with
+        # `is not None` polarity) so static authoring mistakes surface at Dag parse
+        # time — see https://github.com/apache/airflow/issues/70296.
+        with pytest.raises(ValueError, match="Please provide exactly one of `report_name` or `report_id`"):
+            GoogleCampaignManagerDeleteReportOperator(
+                profile_id=PROFILE_ID,
+                report_name=report_name,
+                report_id=report_id,
+                api_version=API_VERSION,
+                task_id="test_task",
+            )
 
 
 @pytest.mark.db_test

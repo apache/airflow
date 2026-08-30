@@ -295,6 +295,20 @@ repos:
         additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
         pass_filenames: false
         require_serial: true
+      - id: update-ts-sdk-readme-matrix
+        name: Update the TypeScript SDK compatibility matrix in ts-sdk/README.md
+        entry: ./scripts/ci/prek/update_ts_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^ts-sdk/capabilities\.yaml$|
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/README\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_ts_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
@@ -621,7 +635,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.16.3']
+        additional_dependencies: ['ruff==0.16.4']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'

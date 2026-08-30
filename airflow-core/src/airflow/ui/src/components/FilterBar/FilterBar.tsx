@@ -238,7 +238,7 @@ export const FilterBar = ({
       {filters.slice(0, maxVisibleFilters).map(renderFilter)}
 
       {filters.length > 0 && (
-        <Button borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
+        <Button bg="bg" borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
           <MdClear />
           {translate("common:reset")}
         </Button>

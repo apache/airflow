@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+.. note::
+    The unauthenticated ``POST /auth/token`` endpoint now accepts the ``client_credentials``
+    grant only for the client configured in ``[keycloak_auth_manager] client_id``. Previously
+    the credentials of any confidential client in the realm were accepted and exchanged for an
+    Airflow token. If a deployment authenticates with a service account belonging to a different
+    client, either point ``[keycloak_auth_manager] client_id`` at that client or issue the
+    credentials against the configured one -- other clients now receive ``403``.
+
 0.9.0
 .....
 
