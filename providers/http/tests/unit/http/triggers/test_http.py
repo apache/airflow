@@ -306,3 +306,22 @@ class TestHttpEventTrigger:
         assert kwargs["data"] == TEST_DATA
         assert kwargs["json"] is None
         assert kwargs["params"] is None
+
+    @pytest.mark.asyncio
+    async def test_run_response_check_single_arg(self, event_trigger):
+        async def mock_check_single(response):
+            return response == "ok"
+
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=mock_check_single)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_run_response_check_with_asset_state_store(self, event_trigger):
+        async def mock_check_with_store(response, asset_state_store):
+            return response == "ok" and asset_state_store == "mock_store"
+
+        event_trigger.asset_state_store = "mock_store"
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=mock_check_with_store)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True

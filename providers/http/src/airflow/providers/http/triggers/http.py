@@ -364,5 +364,12 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         response_check = await self._import_from_response_check_path()
         if not inspect.iscoroutinefunction(response_check):
             raise AirflowException("The response_check callable is not asynchronous.")
-        check = await response_check(response)
+        sig = inspect.signature(response_check)
+        params = list(sig.parameters.values())
+        if len(params) >= 2 or any(
+            p.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD) for p in params
+        ):
+            check = await response_check(response, self.asset_state_store)
+        else:
+            check = await response_check(response)
         return check
