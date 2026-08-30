@@ -344,3 +344,21 @@ class TestBranchDateTimeOperator:
             **{"run_after": timezone.datetime(2020, 8, 7)},
         )
         assert branch_op.choose_branch(context={"dag_run": dr}) == "branch_1"
+
+    def test_choose_branch_raises_when_both_logical_date_and_dag_run_are_none(self, dag_maker):
+        with dag_maker(
+            "branch_datetime_operator_test",
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+            schedule=INTERVAL,
+            serialized=True,
+        ):
+            branch_op = BranchDateTimeOperator(
+                task_id="datetime_branch",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                target_upper=datetime.datetime(2020, 9, 7, 11, 0, 0),
+                target_lower=datetime.datetime(2020, 6, 7, 10, 0, 0),
+                use_task_logical_date=True,
+            )
+        with pytest.raises(ValueError, match="Either `logical_date` or `run_after` should be provided"):
+            branch_op.choose_branch(context={})

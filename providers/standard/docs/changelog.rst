@@ -38,6 +38,11 @@ Changelog
 1.18.0
 ......
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AttributeError in BranchDayOfWeekOperator and BranchDateTimeOperator when dag_run is None with use_task_logical_date=True (#72031)``
+
 Features
 ~~~~~~~~
 
