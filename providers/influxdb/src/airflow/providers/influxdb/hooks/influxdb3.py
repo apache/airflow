@@ -222,20 +222,25 @@ class InfluxDB3Hook(BaseHook):
 
         return result
 
-    async def query_async(self, query: str) -> list[dict[str, Any]]:
+    async def query_async(self, query: str) -> pd.DataFrame:
         """
-        Run a SQL query from the triggerer and return JSON-serializable records.
+        Run a SQL query from the triggerer and return results as a pandas DataFrame.
 
         ``InfluxDBClient3.query_async`` runs the blocking Arrow Flight calls in the event
         loop's default executor. It is a plain coroutine that resolves once the whole result
         stream has been read -- InfluxDB 3 has no submit-then-poll query API, so there is
-        nothing to poll in between. Connection setup and DataFrame conversion are offloaded
-        with ``asyncio.to_thread`` so that no step runs on the triggerer's event loop.
+        nothing to poll in between. Connection setup is offloaded with ``asyncio.to_thread``
+        so that it does not run on the triggerer's event loop.
 
         :param query: SQL query string
-        :return: List of dictionaries representing query results
+        :return: pandas DataFrame with query results
         """
         client = await asyncio.to_thread(self.get_conn)
+        if not callable(getattr(client, "query_async", None)):
+            raise InfluxDB3AsyncQueryNotAvailableError(
+                "Deferrable InfluxDB 3 queries require influxdb3-python>=0.12.0 with "
+                "InfluxDBClient3.query_async support."
+            )
 
         try:
             import pandas as pd
@@ -253,7 +258,7 @@ class InfluxDB3Hook(BaseHook):
                 f"Result type: {type(result).__module__}.{type(result).__name__}"
             )
 
-        return await asyncio.to_thread(_convert_dataframe_to_records, result)
+        return result
 
     def write(
         self,
