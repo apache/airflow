@@ -102,7 +102,8 @@ class TestInfluxDB3Hook:
         self.influxdb3_hook.client.query_async.assert_awaited_once_with(
             query=influxdb_query, language="sql", mode="pandas"
         )
-        assert result == [{"col1": 1, "col2": 3}, {"col1": 2, "col2": 4}]
+        assert isinstance(result, pd.DataFrame)
+        assert result.equals(mock_df)
 
     @pytest.mark.asyncio
     async def test_query_async_requires_supported_client(self):

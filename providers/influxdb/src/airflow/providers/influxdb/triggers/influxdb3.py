@@ -18,9 +18,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook, _convert_dataframe_to_records
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -66,7 +67,8 @@ class InfluxDB3QueryTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = InfluxDB3Hook(conn_id=self.influxdb3_conn_id)
         try:
-            records = await hook.query_async(self.sql)
+            dataframe = await hook.query_async(self.sql)
+            records = await asyncio.to_thread(_convert_dataframe_to_records, dataframe)
         except Exception as error:
             self.log.exception("InfluxDB 3 query failed in trigger")
             yield TriggerEvent({"status": "error", "message": str(error)})
