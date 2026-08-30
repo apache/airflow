@@ -1210,7 +1210,7 @@ class NullableDatetimeRangeFilter(RangeFilter):
         self.null_lower_bound_clause = null_lower_bound_clause
 
     def _get_null_lower_bound_clause(self) -> ColumnElement[bool]:
-        null_clause = self.attribute.is_(None)
+        null_clause: ColumnElement[bool] = self.attribute.is_(None)
         if self.null_lower_bound_clause is not None:
             null_clause = and_(null_clause, self.null_lower_bound_clause)
         return null_clause
