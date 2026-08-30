@@ -36,7 +36,8 @@ if [[ -n "${JOB_START_EPOCH:-}" && -n "${JOB_TIMEOUT_MINUTES:-}" ]]; then
     TOTAL_TEST_TIMEOUT=$(python "$(dirname "${BASH_SOURCE[0]}")/compute_remaining_test_timeout.py" \
         --job-timeout-minutes "${JOB_TIMEOUT_MINUTES}" --job-start-epoch "${JOB_START_EPOCH}") || exit 1
     export TOTAL_TEST_TIMEOUT
-    echo "${COLOR_BLUE}Tests get ${TOTAL_TEST_TIMEOUT}s of the ${JOB_TIMEOUT_MINUTES}m job budget${COLOR_RESET}"
+    TIMEOUT_DISPLAY="$((TOTAL_TEST_TIMEOUT / 60))m$((TOTAL_TEST_TIMEOUT % 60))s"
+    echo "${COLOR_BLUE}Tests get ${TIMEOUT_DISPLAY} of the ${JOB_TIMEOUT_MINUTES}m job budget${COLOR_RESET}"
 elif [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
     # Letting breeze fall back to its own default here would restore the timeout that cannot
     # fire, and nothing would say so - the job would stay green until something hung.
