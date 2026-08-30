@@ -23,6 +23,8 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import NotFound
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -608,7 +610,15 @@ class GCSToGCSOperator(BaseOperator):
         )
 
         if self.move_object:
-            hook.delete(self.source_bucket, source_object)
+            try:
+                hook.delete(self.source_bucket, source_object)
+            except NotFound:
+                self.log.warning(
+                    "Object %s/%s not found when attempting to delete; assuming it was already "
+                    "deleted by a previous attempt (move_object=True). Skipping.",
+                    self.source_bucket,
+                    source_object,
+                )
 
         return f"gs://{dest_bucket}/{destination_object}"
 
