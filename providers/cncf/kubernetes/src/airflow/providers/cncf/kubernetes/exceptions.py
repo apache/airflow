@@ -39,7 +39,3 @@ class KubernetesApiError(AirflowException):
 
 class KubernetesApiPermissionError(AirflowException):
     """Raised when an error is encountered while trying access Kubernetes API."""
-
-
-class PodExecException(AirflowException):
-    """Raised when a command cannot be executed successfully in a Kubernetes pod."""

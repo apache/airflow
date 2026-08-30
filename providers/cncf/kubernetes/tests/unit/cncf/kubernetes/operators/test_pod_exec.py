@@ -23,9 +23,9 @@ import pytest
 from kubernetes.client.rest import ApiException
 from kubernetes.stream.ws_client import WSClient
 
-from airflow.providers.cncf.kubernetes.exceptions import PodExecException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 
 MODULE = "airflow.providers.cncf.kubernetes.operators.pod_exec"
 
@@ -34,7 +34,7 @@ def create_pod(
     *,
     container_names: tuple[str, ...] = ("main",),
     annotations: dict[str, str] | None = None,
-    phase: str = "Running",
+    phase: str = PodPhase.RUNNING,
     container_statuses=None,
     with_spec: bool = True,
     with_status: bool = True,
@@ -121,7 +121,9 @@ class TestKubernetesPodExecOperator:
             container_name="main",
             do_xcom_push=do_xcom_push,
         )
-        exec_client = create_exec_client(stdout=("hello\n", "world\n"), stderr=("warning\n",), returncode=0)
+        exec_client = create_exec_client(
+            stdout=("hello", "\nworld", "\n"), stderr=("warning", "\n"), returncode=0
+        )
         kubernetes_stream_mock.return_value = exec_client
 
         result = operator.execute(context={})
@@ -141,17 +143,52 @@ class TestKubernetesPodExecOperator:
             _preload_content=False,
         )
         exec_client.update.assert_called_once_with(timeout=1)
-        assert exec_client.read_stdout.call_count == 2
-        exec_client.read_stderr.assert_called_once_with()
+        assert exec_client.read_stdout.call_count == 3
+        assert exec_client.read_stderr.call_count == 2
         exec_client.close.assert_called_once_with()
         assert operator._exec_client is None
+        assert operator._exec_target is None
         log_mock.info.assert_has_calls(
             [
                 mock.call("[%s] %s", "stdout", "hello"),
                 mock.call("[%s] %s", "stdout", "world"),
+                mock.call("[%s] %s", "stderr", "warning"),
             ]
         )
-        log_mock.warning.assert_called_once_with("[%s] %s", "stderr", "warning")
+        log_mock.warning.assert_not_called()
+
+    @pytest.mark.parametrize("max_xcom_output_size", [0, -1, True, 1.5])
+    def test_rejects_invalid_max_xcom_output_size(self, max_xcom_output_size):
+        with pytest.raises(ValueError, match="must be a positive integer"):
+            create_operator(max_xcom_output_size=max_xcom_output_size)
+
+    @mock.patch(f"{MODULE}.kubernetes_stream", autospec=True)
+    def test_rejects_xcom_output_over_limit(self, kubernetes_stream_mock):
+        operator, _ = create_operator(namespace="test-namespace", do_xcom_push=True, max_xcom_output_size=3)
+        exec_client = create_exec_client(stdout=("é", "é"))
+        kubernetes_stream_mock.return_value = exec_client
+
+        with pytest.raises(RuntimeError, match="XCom limit of 3 bytes"):
+            operator.execute(context={})
+
+        exec_client.close.assert_called_once_with()
+
+    @mock.patch(f"{MODULE}.KubernetesPodExecOperator.log", spec=["info"])
+    @mock.patch(f"{MODULE}.kubernetes_stream", autospec=True)
+    def test_execute_flushes_incomplete_log_lines(self, kubernetes_stream_mock, log_mock):
+        operator, _ = create_operator(namespace="test-namespace", container_name="main")
+        kubernetes_stream_mock.return_value = create_exec_client(
+            stdout=("partial ", "stdout"), stderr=("partial ", "stderr")
+        )
+
+        operator.execute(context={})
+
+        log_mock.info.assert_has_calls(
+            [
+                mock.call("[%s] %s", "stdout", "partial stdout"),
+                mock.call("[%s] %s", "stderr", "partial stderr"),
+            ]
+        )
 
     @pytest.mark.parametrize(
         ("namespace", "hook_namespace", "expected_namespace"),
@@ -186,14 +223,14 @@ class TestKubernetesPodExecOperator:
         pod = create_pod(container_names=(), with_spec=with_spec)
         operator, _ = create_operator(pod=pod)
 
-        with pytest.raises(PodExecException, match="does not define any containers"):
+        with pytest.raises(RuntimeError, match="does not define any containers"):
             operator._resolve_container_name(pod)
 
     def test_rejects_unknown_container(self):
         pod = create_pod()
         operator, _ = create_operator(pod=pod, container_name="missing")
 
-        with pytest.raises(PodExecException, match="does not exist"):
+        with pytest.raises(ValueError, match="does not exist"):
             operator._resolve_container_name(pod)
 
     @pytest.mark.parametrize(
@@ -201,23 +238,23 @@ class TestKubernetesPodExecOperator:
         [
             (create_pod(with_status=False), "phase None"),
             (create_pod(phase="Pending"), "phase 'Pending'"),
-            (create_pod(container_statuses=[]), "is not running"),
+            (create_pod(container_statuses=[]), "is not running or container status cannot be retrieved"),
             (
                 create_pod(container_statuses=[SimpleNamespace(name="main", state=None)]),
-                "is not running",
+                "is not running or container status cannot be retrieved",
             ),
             (
                 create_pod(
                     container_statuses=[SimpleNamespace(name="main", state=SimpleNamespace(running=None))]
                 ),
-                "is not running",
+                "is not running or container status cannot be retrieved",
             ),
         ],
     )
     def test_rejects_unavailable_target(self, pod, expected_message):
         operator, _ = create_operator(pod=pod)
 
-        with pytest.raises(PodExecException, match=expected_message):
+        with pytest.raises(RuntimeError, match=expected_message):
             operator._validate_container_is_running(pod, "main")
 
     @pytest.mark.parametrize(
@@ -248,7 +285,7 @@ class TestKubernetesPodExecOperator:
         operator, hook = create_operator(namespace="test-namespace")
         hook.get_pod.side_effect = ApiException(status=404, reason="Not Found")
 
-        with pytest.raises(PodExecException, match="Unable to read pod.*Not Found"):
+        with pytest.raises(RuntimeError, match="Unable to read pod.*Not Found"):
             operator.execute(context={})
 
         kubernetes_stream_mock.assert_not_called()
@@ -258,7 +295,7 @@ class TestKubernetesPodExecOperator:
         operator, _ = create_operator(namespace="test-namespace")
         kubernetes_stream_mock.side_effect = ApiException(status=403, reason="Forbidden")
 
-        with pytest.raises(PodExecException, match="Unable to execute command.*Forbidden"):
+        with pytest.raises(RuntimeError, match="Unable to execute command.*Forbidden"):
             operator.execute(context={})
 
         assert operator._exec_client is None
@@ -273,7 +310,7 @@ class TestKubernetesPodExecOperator:
         exec_client = create_exec_client(returncode=returncode)
         kubernetes_stream_mock.return_value = exec_client
 
-        with pytest.raises(PodExecException, match=expected_message):
+        with pytest.raises(RuntimeError, match=expected_message):
             operator.execute(context={})
 
         exec_client.close.assert_called_once_with()
@@ -287,6 +324,7 @@ class TestKubernetesPodExecOperator:
 
         exec_client.close.assert_called_once_with()
         assert operator._exec_client is None
+        assert operator._exec_target is None
 
     @mock.patch(f"{MODULE}.kubernetes_stream", autospec=True)
     def test_on_kill_while_consuming_output(self, kubernetes_stream_mock):
@@ -299,6 +337,21 @@ class TestKubernetesPodExecOperator:
 
         exec_client.close.assert_called_once_with()
         assert operator._exec_client is None
+        assert operator._exec_target is None
+
+    @mock.patch(f"{MODULE}.kubernetes_stream", autospec=True)
+    def test_execute_closes_connection_when_output_consumption_fails(self, kubernetes_stream_mock):
+        operator, _ = create_operator(namespace="test-namespace")
+        exec_client = create_exec_client()
+        exec_client.update.side_effect = RuntimeError("WebSocket update failed")
+        kubernetes_stream_mock.return_value = exec_client
+
+        with pytest.raises(RuntimeError, match="WebSocket update failed"):
+            operator.execute(context={})
+
+        exec_client.close.assert_called_once_with()
+        assert operator._exec_client is None
+        assert operator._exec_target is None
 
     def test_on_kill_without_active_connection(self):
         operator, _ = create_operator()
@@ -306,13 +359,23 @@ class TestKubernetesPodExecOperator:
         operator.on_kill()
 
         assert operator._exec_client is None
+        assert operator._exec_target is None
 
-    def test_close_error_does_not_mask_task_shutdown(self):
+    @mock.patch(f"{MODULE}.KubernetesPodExecOperator.log", spec=["exception"])
+    def test_close_error_does_not_mask_task_shutdown(self, log_mock):
         operator, _ = create_operator()
         exec_client = mock.MagicMock(spec=WSClient)
         exec_client.close.side_effect = RuntimeError("connection already closed")
         operator._exec_client = exec_client
+        operator._exec_target = ("test-namespace", "existing-pod", "main")
 
         operator.on_kill()
 
         assert operator._exec_client is None
+        assert operator._exec_target is None
+        log_mock.exception.assert_called_once_with(
+            "Failed to close Kubernetes exec connection for container %s in pod %s/%s",
+            "main",
+            "test-namespace",
+            "existing-pod",
+        )

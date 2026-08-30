@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 
 from kubernetes.client.rest import ApiException
@@ -30,6 +29,8 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
 )
+from airflow.providers.cncf.kubernetes.utils.container import container_is_running
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.sdk import DAG, TriggerRule, task
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default").lower().replace("_", "-")
@@ -54,34 +55,18 @@ spec:
 """
 
 
-@task
-def wait_for_running_pod() -> None:
+@task.sensor(poke_interval=2, timeout=120, mode="reschedule")
+def wait_for_running_pod() -> bool:
     hook = KubernetesHook()
-    deadline = time.monotonic() + 120
-    last_phase = None
-
-    while time.monotonic() < deadline:
-        try:
-            pod = hook.get_pod(name=POD_NAME, namespace=NAMESPACE)
-        except ApiException as error:
-            if error.status != 404:
-                raise
-        else:
-            last_phase = pod.status.phase if pod.status else None
-            container_statuses = pod.status.container_statuses if pod.status else None
-            container_status = next(
-                (status for status in container_statuses or [] if status.name == CONTAINER_NAME), None
-            )
-            if (
-                last_phase == "Running"
-                and container_status
-                and container_status.state
-                and container_status.state.running
-            ):
-                return
-        time.sleep(2)
-
-    raise TimeoutError(f"Pod {NAMESPACE}/{POD_NAME} did not start; last phase was {last_phase!r}")
+    try:
+        pod = hook.get_pod(name=POD_NAME, namespace=NAMESPACE)
+    except ApiException as error:
+        if error.status == 404:
+            return False
+        raise
+    return bool(
+        pod.status and pod.status.phase == PodPhase.RUNNING and container_is_running(pod, CONTAINER_NAME)
+    )
 
 
 @task

@@ -25,8 +25,8 @@ from typing import TYPE_CHECKING
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 
-from airflow.providers.cncf.kubernetes.exceptions import PodExecException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
@@ -41,6 +41,14 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 __all__ = ["KubernetesPodExecOperator"]
+
+_DEFAULT_MAX_XCOM_OUTPUT_SIZE = 49_344
+
+
+def _extract_complete_lines(buffer: str, chunk: str) -> tuple[list[str], str]:
+    """Extract newline-delimited lines while retaining the incomplete remainder."""
+    *lines, remainder = f"{buffer}{chunk}".split("\n")
+    return lines, remainder
 
 
 class KubernetesPodExecOperator(BaseOperator):
@@ -61,7 +69,8 @@ class KubernetesPodExecOperator(BaseOperator):
     :param in_cluster: Use in-cluster Kubernetes configuration.
     :param cluster_context: Context to use from the kubeconfig. (templated)
     :param config_file: Path to the kubeconfig file. (templated)
-    :param do_xcom_push: Return standard output for XCom when ``True``. Defaults to ``False``.
+    :param do_xcom_push: Return standard output through XCom when ``True``. Defaults to ``False``.
+    :param max_xcom_output_size: Maximum UTF-8 byte size retained for XCom. Defaults to 49,344 bytes.
     """
 
     template_fields: Sequence[str] = (
@@ -87,9 +96,16 @@ class KubernetesPodExecOperator(BaseOperator):
         cluster_context: str | None = None,
         config_file: str | None = None,
         do_xcom_push: bool = False,
+        max_xcom_output_size: int = _DEFAULT_MAX_XCOM_OUTPUT_SIZE,
         **kwargs,
     ) -> None:
         super().__init__(do_xcom_push=do_xcom_push, **kwargs)
+        if (
+            isinstance(max_xcom_output_size, bool)
+            or not isinstance(max_xcom_output_size, int)
+            or max_xcom_output_size <= 0
+        ):
+            raise ValueError("`max_xcom_output_size` must be a positive integer")
         self.pod_name = pod_name
         self.command = command
         self.namespace = namespace
@@ -98,7 +114,9 @@ class KubernetesPodExecOperator(BaseOperator):
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.config_file = config_file
+        self.max_xcom_output_size = max_xcom_output_size
         self._exec_client: WSClient | None = None
+        self._exec_target: tuple[str, str, str] | None = None
 
     @cached_property
     def hook(self) -> KubernetesHook:
@@ -129,13 +147,11 @@ class KubernetesPodExecOperator(BaseOperator):
         containers = pod.spec.containers if pod.spec and pod.spec.containers else []
         container_names = [container.name for container in containers]
         if not container_names:
-            raise PodExecException(f"Pod {self.pod_name!r} does not define any containers")
+            raise RuntimeError(f"Pod {self.pod_name!r} does not define any containers")
 
         if self.container_name:
             if self.container_name not in container_names:
-                raise PodExecException(
-                    f"Container {self.container_name!r} does not exist in pod {self.pod_name!r}"
-                )
+                raise ValueError(f"Container {self.container_name!r} does not exist in pod {self.pod_name!r}")
             return self.container_name
 
         annotations = pod.metadata.annotations if pod.metadata and pod.metadata.annotations else {}
@@ -145,9 +161,9 @@ class KubernetesPodExecOperator(BaseOperator):
         return container_names[0]
 
     def _validate_container_is_running(self, pod: V1Pod, container_name: str) -> None:
-        if not pod.status or pod.status.phase != "Running":
+        if not pod.status or pod.status.phase != PodPhase.RUNNING:
             phase = pod.status.phase if pod.status else None
-            raise PodExecException(
+            raise RuntimeError(
                 f"Cannot execute a command in pod {self.pod_name!r} while it is in phase {phase!r}"
             )
 
@@ -158,35 +174,68 @@ class KubernetesPodExecOperator(BaseOperator):
             or container_status.state is None
             or container_status.state.running is None
         ):
-            raise PodExecException(f"Container {container_name!r} in pod {self.pod_name!r} is not running")
+            raise RuntimeError(
+                f"Container {container_name!r} in pod {self.pod_name!r} is not running or "
+                "container status cannot be retrieved"
+            )
 
-    def _log_output(self, output: str, *, stream_name: str) -> None:
-        log_method = self.log.warning if stream_name == "stderr" else self.log.info
-        for line in output.splitlines():
-            log_method("[%s] %s", stream_name, line)
+    def _log_lines(self, lines: Sequence[str], *, stream_name: str) -> None:
+        for line in lines:
+            self.log.info("[%s] %s", stream_name, line.removesuffix("\r"))
 
     def _consume_output(self, exec_client: WSClient) -> str:
         stdout_chunks: list[str] = []
-        while exec_client.is_open():
-            exec_client.update(timeout=1)
-            while exec_client.peek_stdout():
-                output = exec_client.read_stdout()
-                self._log_output(output, stream_name="stdout")
-                if self.do_xcom_push:
-                    stdout_chunks.append(output)
-            while exec_client.peek_stderr():
-                self._log_output(exec_client.read_stderr(), stream_name="stderr")
+        stdout_size = 0
+        stdout_buffer = ""
+        stderr_buffer = ""
+        try:
+            while exec_client.is_open():
+                exec_client.update(timeout=1)
+                while exec_client.peek_stdout():
+                    output = exec_client.read_stdout()
+                    stdout_lines, stdout_buffer = _extract_complete_lines(stdout_buffer, output)
+                    self._log_lines(stdout_lines, stream_name="stdout")
+                    if self.do_xcom_push:
+                        stdout_size += len(output.encode("utf-8"))
+                        if stdout_size > self.max_xcom_output_size:
+                            raise RuntimeError(
+                                "Standard output exceeded the configured XCom limit of "
+                                f"{self.max_xcom_output_size} bytes"
+                            )
+                        stdout_chunks.append(output)
+                while exec_client.peek_stderr():
+                    stderr_lines, stderr_buffer = _extract_complete_lines(
+                        stderr_buffer, exec_client.read_stderr()
+                    )
+                    self._log_lines(stderr_lines, stream_name="stderr")
+        finally:
+            if stdout_buffer:
+                self._log_lines((stdout_buffer,), stream_name="stdout")
+            if stderr_buffer:
+                self._log_lines((stderr_buffer,), stream_name="stderr")
         return "".join(stdout_chunks)
 
     def _close_exec_client(self) -> None:
         exec_client = self._exec_client
+        exec_target = self._exec_target
         self._exec_client = None
+        self._exec_target = None
         if exec_client is None:
             return
         try:
             exec_client.close()
         except Exception:
-            self.log.exception("Failed to close Kubernetes exec connection")
+            namespace, pod_name, container_name = exec_target or (
+                self.namespace,
+                self.pod_name,
+                self.container_name,
+            )
+            self.log.exception(
+                "Failed to close Kubernetes exec connection for container %s in pod %s/%s",
+                container_name,
+                namespace,
+                pod_name,
+            )
 
     def execute(self, context: Context) -> str | None:
         command = self._validate_command()
@@ -197,7 +246,7 @@ class KubernetesPodExecOperator(BaseOperator):
         try:
             pod = self.hook.get_pod(name=self.pod_name, namespace=namespace)
         except ApiException as error:
-            raise PodExecException(
+            raise RuntimeError(
                 f"Unable to read pod {namespace}/{self.pod_name}: {error.reason or error}"
             ) from error
 
@@ -207,6 +256,7 @@ class KubernetesPodExecOperator(BaseOperator):
             "Executing command in container %s of pod %s/%s", container_name, namespace, self.pod_name
         )
 
+        self._exec_target = (namespace, self.pod_name, container_name)
         try:
             exec_client = kubernetes_stream(
                 self.client.connect_get_namespaced_pod_exec,
@@ -224,19 +274,19 @@ class KubernetesPodExecOperator(BaseOperator):
             output = self._consume_output(exec_client)
             return_code = exec_client.returncode
         except ApiException as error:
-            raise PodExecException(
+            raise RuntimeError(
                 f"Unable to execute command in pod {namespace}/{self.pod_name}: {error.reason or error}"
             ) from error
         finally:
             self._close_exec_client()
 
         if return_code is None:
-            raise PodExecException(
+            raise RuntimeError(
                 f"Command in container {container_name!r} of pod {namespace}/{self.pod_name} ended "
                 "without reporting an exit code"
             )
         if return_code != 0:
-            raise PodExecException(
+            raise RuntimeError(
                 f"Command in container {container_name!r} of pod {namespace}/{self.pod_name} "
                 f"failed with exit code {return_code}"
             )
