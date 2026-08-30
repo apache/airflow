@@ -218,15 +218,15 @@ class TestCliTasks:
     @pytest.mark.parametrize(
         ("env_var_args", "expected_foo"),
         [
-            pytest.param([], "foo=None", id="without-env-vars"),
+            pytest.param([], "foo=sentinel", id="without-env-vars"),
             pytest.param(["--env-vars", '{"foo":"bar"}'], "foo=bar", id="with-env-vars"),
         ],
     )
     def test_cli_test_with_env_vars(self, monkeypatch, env_var_args, expected_foo):
-        # task_test writes both keys into the real process environment and never restores them;
-        # clear them so this case sees only what this invocation exported.
-        monkeypatch.delenv("AIRFLOW_TEST_MODE", raising=False)
-        monkeypatch.delenv("foo", raising=False)
+        # setenv (unlike delenv) always records an undo entry, so task_test's writes to the real
+        # process environment cannot leak out; the sentinel proves the command overwrote the key.
+        monkeypatch.setenv("AIRFLOW_TEST_MODE", "sentinel")
+        monkeypatch.setenv("foo", "sentinel")
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(
                 self.parser.parse_args(
