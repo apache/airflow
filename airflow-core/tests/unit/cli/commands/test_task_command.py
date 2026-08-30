@@ -215,7 +215,18 @@ class TestCliTasks:
             )
         )
 
-    def test_cli_test_with_env_vars(self):
+    @pytest.mark.parametrize(
+        ("env_var_args", "expected_foo"),
+        [
+            pytest.param([], "foo=None", id="without-env-vars"),
+            pytest.param(["--env-vars", '{"foo":"bar"}'], "foo=bar", id="with-env-vars"),
+        ],
+    )
+    def test_cli_test_with_env_vars(self, monkeypatch, env_var_args, expected_foo):
+        # task_test writes both keys into the real process environment and never restores them;
+        # clear them so this case sees only what this invocation exported.
+        monkeypatch.delenv("AIRFLOW_TEST_MODE", raising=False)
+        monkeypatch.delenv("foo", raising=False)
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(
                 self.parser.parse_args(
@@ -225,13 +236,12 @@ class TestCliTasks:
                         "example_passing_params_via_test_command",
                         "env_var_test_task",
                         DEFAULT_DATE.isoformat(),
-                        "--env-vars",
-                        '{"foo":"bar"}',
+                        *env_var_args,
                     ]
                 )
             )
         output = stdout.getvalue()
-        assert "foo=bar" in output
+        assert expected_foo in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
     @mock.patch(
