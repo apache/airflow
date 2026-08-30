@@ -60,7 +60,7 @@ query_task = InfluxDB3Operator(
 # [START howto_operator_influxdb3_deferrable]
 deferrable_query_task = InfluxDB3Operator(
     task_id="query_data_deferrable",
-    sql="SELECT * FROM \"temperature\" WHERE time > now() - INTERVAL '1 hour'",
+    sql="""SELECT * FROM "temperature" WHERE time > now() - INTERVAL '1 hour'""",
     influxdb3_conn_id="influxdb3_default",
     deferrable=True,
 )
