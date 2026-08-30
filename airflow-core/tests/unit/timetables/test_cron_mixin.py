@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.timetables._cron import CronMixin
 
 SAMPLE_TZ = "UTC"
@@ -39,3 +41,20 @@ def test_dom_and_dow_conflict():
     assert "(or)" in desc
     assert "Every minute, on day 1 of the month" in desc
     assert "Every minute, only on Monday" in desc
+
+
+@pytest.mark.parametrize(
+    ("expression", "equivalent"),
+    [
+        pytest.param("0 0 ? * MON", "0 0 * * MON", id="question-mark-day-of-month"),
+        pytest.param("0 0 1 * ?", "0 0 1 * *", id="question-mark-day-of-week"),
+        pytest.param("0 0 ? * ?", "0 0 * * *", id="question-mark-both"),
+    ],
+)
+def test_question_mark_is_not_a_dom_dow_conflict(expression, equivalent):
+    # croniter expands "?" to "*", so it must describe the same as the "*" form
+    # instead of being reported as a day-of-month/day-of-week conflict.
+    desc = CronMixin(expression, SAMPLE_TZ).description
+
+    assert "(or)" not in desc
+    assert desc == CronMixin(equivalent, SAMPLE_TZ).description
