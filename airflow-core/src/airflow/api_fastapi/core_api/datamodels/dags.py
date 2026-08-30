@@ -62,6 +62,13 @@ def _get_file_token_serializer() -> URLSafeSerializer:
     """
     return URLSafeSerializer(conf.get_mandatory_value("api", "secret_key"))
 
+def create_file_token(*, bundle_name: str | None, relative_fileloc: str | None) -> str:
+    """Create a signed token identifying a Dag file."""
+    payload = {
+        "bundle_name": bundle_name,
+        "relative_fileloc": relative_fileloc,
+    }
+    return _get_file_token_serializer().dumps(payload)
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -148,15 +155,14 @@ class DAGResponse(BaseModel):
         return True
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def file_token(self) -> str:
-        """Return file token."""
-        payload = {
-            "bundle_name": self.bundle_name,
-            "relative_fileloc": self.relative_fileloc,
-        }
-        return _get_file_token_serializer().dumps(payload)
+   @computed_field
+@property
+def file_token(self) -> str:
+    """Return file token."""
+    return create_file_token(
+        bundle_name=self.bundle_name,
+        relative_fileloc=self.relative_fileloc,
+    )
 
 
 class DAGPatchBody(StrictBaseModel):

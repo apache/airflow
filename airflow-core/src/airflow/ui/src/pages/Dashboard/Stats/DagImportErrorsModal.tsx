@@ -22,10 +22,16 @@ import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
-import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+import {
+  useDagParsingServiceReparseDagFile,
+  useImportErrorServiceGetImportErrors,
+} from "openapi/queries";
+import { AiOutlineFileSync } from "react-icons/ai";
+import { IconButton } from "src/components/ui";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { Accordion, ClipboardIconButton, Modal } from "src/components/ui";
+import { Accordion, ClipboardIconButton, IconButton, Modal } from "src/components/ui";
+import { AiOutlineFileSync } from "react-icons/ai";
 import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
@@ -50,7 +56,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
   );
 
   const { t: translate } = useTranslation(["dashboard", "components"]);
-
+  const { isPending, mutate } = useDagParsingServiceReparseDagFile();
   const onOpenChange = () => {
     setSearchQuery("");
     setPage(1);
@@ -119,11 +125,20 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   {importError.filename}
                 </HStack>
               </Accordion.ItemTrigger>
-              <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
-                <ClipboardRoot value={importError.filename}>
-                  <ClipboardIconButton variant="outline" />
-                </ClipboardRoot>
-              </Box>
+              <Box alignItems="center" display="flex" flexShrink={0} gap={2} pr={2}>
+  <IconButton
+    label={translate("components:reparseDag")}
+    loading={isPending}
+    onClick={() => mutate({ fileToken: importError.file_token })}
+    variant="outline"
+  >
+    <AiOutlineFileSync />
+  </IconButton>
+
+  <ClipboardRoot value={importError.filename}>
+    <ClipboardIconButton variant="outline" />
+  </ClipboardRoot>
+</Box>
             </HStack>
             <Accordion.ItemContent>
               <Text color="fg.muted" fontSize="sm" mb={1}>
