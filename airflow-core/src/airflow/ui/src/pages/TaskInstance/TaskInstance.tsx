@@ -28,9 +28,11 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { getDefaultTaskInstanceTabPath } from "src/utils/links";
 
 import { Header } from "./Header";
 
@@ -43,8 +45,13 @@ export const TaskInstance = () => {
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
+  // When another tab is the default, the index route redirects to it, so the Logs
+  // tab must point at the explicit /logs path to stay reachable.
+  const [defaultTab] = useDefaultTaskInstanceTab();
+  const logsTabValue = getDefaultTaskInstanceTabPath(defaultTab) === "" ? "" : "logs";
+
   const tabs = [
-    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    { icon: <MdReorder />, label: translate("tabs.logs"), matchPaths: ["logs"], value: logsTabValue },
     { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     {
       icon: <PiBracketsCurlyBold />,

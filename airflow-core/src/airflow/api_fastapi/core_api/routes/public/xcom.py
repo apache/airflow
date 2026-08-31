@@ -26,6 +26,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
     QueryLimit,
@@ -40,8 +41,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryXComTaskIdPrefixPatternSearch,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     datetime_range_filter_factory,
     filter_param_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
@@ -92,7 +95,11 @@ def get_xcom_entry(
         dag_ids=dag_id,
         map_indexes=map_index,
         limit=1,
-    ).options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+    ).options(
+        joinedload(XComModel.task),
+        joinedload(XComModel.dag_run).joinedload(DR.dag_model),
+        *eager_load_teams(XComModel.dag_run, DR.dag_model),
+    )
 
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
@@ -170,6 +177,7 @@ def get_xcom_entries(
     ],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DR))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DR))],
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(XComModel.dag_id))],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -194,7 +202,11 @@ def get_xcom_entries(
     query = (
         query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
         .join(DagModel, DR.dag_id == DagModel.dag_id)
-        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(
+            joinedload(XComModel.task),
+            joinedload(XComModel.dag_run).joinedload(DR.dag_model),
+            *eager_load_teams(XComModel.dag_run, DR.dag_model),
+        )
     )
 
     if task_id != "~":
@@ -221,6 +233,7 @@ def get_xcom_entries(
             map_index_filter,
             logical_date_range,
             run_after_range,
+            teams,
         ],
         order_by=order_by,
         offset=offset,
@@ -315,7 +328,11 @@ def create_xcom_entry(
             XComModel.map_index == request_body.map_index,
         )
         .limit(1)
-        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(
+            joinedload(XComModel.task),
+            joinedload(XComModel.dag_run).joinedload(DR.dag_model),
+            *eager_load_teams(XComModel.dag_run, DR.dag_model),
+        )
     )
 
     return XComResponseNative.model_validate(xcom)
@@ -356,7 +373,11 @@ def update_xcom_entry(
             XComModel.map_index == patch_body.map_index,
         )
         .limit(1)
-        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(
+            joinedload(XComModel.task),
+            joinedload(XComModel.dag_run).joinedload(DR.dag_model),
+            *eager_load_teams(XComModel.dag_run, DR.dag_model),
+        )
     )
     xcom_entry = session.scalar(xcom_query)
 

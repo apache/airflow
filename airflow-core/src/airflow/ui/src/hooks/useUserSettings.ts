@@ -24,8 +24,14 @@ import {
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
+import type { DefaultTaskInstanceTab } from "src/constants/tab";
+
+/** Page shown at the app root. */
+export type LandingPageOption = "dags" | "dashboard";
 
 /**
  * User-configurable defaults surfaced in the Settings page and consumed as
@@ -52,3 +58,11 @@ export const useClearPreventRunningTaskDefault = () =>
 /** Default selection for the "Mark as" task-instance dialog toggle (past / future / … ). */
 export const useMarkTaskInstanceDefaultOptions = () =>
   useLocalStorage<Array<string>>(MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY, []);
+
+/** Tab shown first when a task instance is opened without an explicit tab in the URL. */
+export const useDefaultTaskInstanceTab = () =>
+  useLocalStorage<DefaultTaskInstanceTab>(DEFAULT_TASK_INSTANCE_TAB_KEY, "logs");
+
+/** Page the app root ("/") lands on: the dashboard or the Dags list. */
+export const useDefaultLandingPage = () =>
+  useLocalStorage<LandingPageOption>(DEFAULT_LANDING_PAGE_KEY, "dashboard");
