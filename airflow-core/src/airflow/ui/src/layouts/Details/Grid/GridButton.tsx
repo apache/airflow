@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, type FlexProps } from "@chakra-ui/react";
+import { Box, Flex, type FlexProps, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
-import { BasicTooltip } from "src/components/BasicTooltip";
 import Time from "src/components/Time";
+import { Tooltip } from "src/components/ui";
 import { renderDuration } from "src/utils/datetimeUtils";
 
 type Props = {
@@ -50,54 +50,70 @@ export const GridButton = ({
 }: Props) => {
   const { t: translate } = useTranslation();
 
-  const tooltipContent = (
-    <>
-      <Time datetime={runAfter} />
-      <br />
-      {translate("common:runId")}: {runId}
-      <br />
-      {translate("state")}:{" "}
-      {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
-      <br />
-      {translate("duration")}: {renderDuration(duration)}
-    </>
-  );
-
-  return isGroup ? (
-    <BasicTooltip content={tooltipContent}>
-      <Flex
-        background={`${state}.solid`}
-        borderRadius={2}
-        height="10px"
-        minW="14px"
-        pb="2px"
-        px="2px"
-        {...rest}
-      >
-        {children}
-      </Flex>
-    </BasicTooltip>
-  ) : (
-    <BasicTooltip content={tooltipContent}>
-      <Link
-        replace
-        to={{
-          pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-          search: searchParams.toString(),
-        }}
-      >
-        <Flex
-          background={`${state}.solid`}
-          borderRadius={2}
-          height="10px"
-          pb="2px"
-          px="2px"
-          width="14px"
-          {...rest}
-        >
-          {children}
-        </Flex>
-      </Link>
-    </BasicTooltip>
+  return (
+    <Tooltip
+      content={
+        <VStack align="start" gap={1}>
+          <Text>
+            <Time datetime={runAfter} />
+          </Text>
+          <Text>
+            {translate("common:runId")}: {runId}
+          </Text>
+          <Text>
+            {translate("state")}:{" "}
+            {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+          </Text>
+          <Text>
+            {translate("duration")}: {renderDuration(duration)}
+          </Text>
+        </VStack>
+      }
+      openDelay={500}
+      portalled
+      positioning={{
+        offset: {
+          crossAxis: 5,
+          mainAxis: 5,
+        },
+        placement: "bottom",
+      }}
+    >
+      <Box as="span" display="inline-block">
+        {isGroup ? (
+          <Flex
+            background={`${state}.solid`}
+            borderRadius={2}
+            height="10px"
+            minW="14px"
+            pb="2px"
+            px="2px"
+            {...rest}
+          >
+            {children}
+          </Flex>
+        ) : (
+          <Link
+            replace
+            to={{
+              pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+              search: searchParams.toString(),
+            }}
+          >
+            <Flex
+              background={`${state}.solid`}
+              borderRadius={2}
+              height="10px"
+              pb="2px"
+              px="2px"
+              width="14px"
+              {...rest}
+            >
+              {children}
+            </Flex>
+          </Link>
+        )}
+      </Box>
+    </Tooltip>
   );
 };
