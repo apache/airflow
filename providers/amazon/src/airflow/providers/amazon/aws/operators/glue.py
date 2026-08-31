@@ -140,7 +140,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         Glue job's ``--conf`` argument so the Glue Spark job sends OL events to the same backend as Airflow.
         Defaults to the ``openlineage.spark_inject_transport_info`` config value.
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
-    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 75)
     :param resume_glue_job_on_retry: deprecated, use ``durable`` instead.
     :param durable: When ``True``, the Glue job run id is persisted to task state before polling
         begins. A worker crash on retry reconnects to the existing run instead of starting a
