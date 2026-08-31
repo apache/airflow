@@ -18,9 +18,8 @@
  */
 import { Field, Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
 import { AsyncSelect } from "chakra-react-select";
-import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { useMatches, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
@@ -36,16 +35,16 @@ import { TabEntity } from "src/constants/tab";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";
 
-import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
+import { Control } from "./SearchDagsControl";
 
 const formatOptionLabel = (option: DagSearchOption) => (
-  <Flex alignItems="center" gap={2}>
-    <StateBadge state={option.state} />
-    <Text>{option.label}</Text>
+  <Flex alignItems="center" gap={2} minW={0}>
+    <StateBadge flexShrink={0} state={option.state} />
+    <Text truncate>{option.label}</Text>
   </Flex>
 );
 
-export const SearchDags = ({ setIsOpen }: { readonly setIsOpen: Dispatch<SetStateAction<boolean>> }) => {
+export const SearchDags = ({ onClose }: { readonly onClose: () => void }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
   const matches = useMatches();
@@ -57,7 +56,7 @@ export const SearchDags = ({ setIsOpen }: { readonly setIsOpen: Dispatch<SetStat
       const additionalPath = getTabPath(matches, TabEntity.Dag);
       const targetPath = additionalPath === "/backfills" && !selected.isBackfillable ? "" : additionalPath;
 
-      setIsOpen(false);
+      onClose();
       void Promise.resolve(navigate(`/dags/${selected.value}${targetPath}`));
     }
   };
@@ -99,7 +98,20 @@ export const SearchDags = ({ setIsOpen }: { readonly setIsOpen: Dispatch<SetStat
     <Field.Root>
       <AsyncSelect
         backspaceRemovesValue={true}
-        components={{ DropdownIndicator }}
+        // The popover is the card. Drop the floating menu's own positioning and chrome so the
+        // results flow inside it directly under the input, instead of reading as a second card.
+        chakraStyles={{
+          menu: () => ({ marginTop: 2, width: "100%" }),
+          menuList: (provided) => ({
+            ...provided,
+            background: "transparent",
+            borderRadius: 0,
+            boxShadow: "none",
+            paddingInline: 0,
+            zIndex: "auto",
+          }),
+        }}
+        components={{ Control, DropdownIndicator: null }}
         defaultOptions
         filterOption={undefined}
         formatOptionLabel={formatOptionLabel}

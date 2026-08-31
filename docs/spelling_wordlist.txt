@@ -15,6 +15,7 @@ actionCard
 Acyclic
 acyclic
 adb
+adbc
 additionalProperties
 adf
 adhoc
@@ -1409,6 +1410,7 @@ ReadOnlyCredentials
 readthedocs
 Realtime
 realtime
+rebalance
 rebase
 Rebasing
 Recency
@@ -1897,6 +1899,7 @@ Vertica
 vertica
 Vespa
 vespa
+Vianet
 videointelligence
 views
 virtualenv
@@ -1927,6 +1930,7 @@ webpage
 Webserver
 webserver
 webservers
+webViewLink
 Werkzeug
 werkzeug
 whitespace

@@ -38,7 +38,7 @@ export const RunTypeLegend = () => {
   return (
     <Tooltip
       content={
-        <Box>
+        <div>
           <Text fontSize="xs" fontWeight="bold" mb={1}>
             {translate("dag:grid.runTypeLegend")}
           </Text>
@@ -48,11 +48,11 @@ export const RunTypeLegend = () => {
               <Text fontSize="xs">{translate(`common:runTypes.${runType}`)}</Text>
             </Flex>
           ))}
-        </Box>
+        </div>
       }
       portalled
     >
-      <Box as="span" cursor="pointer">
+      <Box color="fg.muted" cursor="pointer" p={2}>
         <LuInfo />
       </Box>
     </Tooltip>
