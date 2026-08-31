@@ -20,7 +20,7 @@ Dag Testing
 ===========
 
 To ease and speed up the process of developing Dags, you can use
-py:meth:`~airflow.models.dag.DAG.test`, which will run a dag in a single process.
+py:meth:`~airflow.models.dag.DAG.test`, which will run a Dag in a single process.
 
 To set up the IDE:
 
@@ -35,7 +35,7 @@ To set up the IDE:
 2. Run and debug the Dag file.
 
 
-You can also run the dag in the same manner with the Airflow CLI command ``airflow dags test``:
+You can also run the Dag in the same manner with the Airflow CLI command ``airflow dags test``:
 
 .. code-block:: bash
 
@@ -43,7 +43,7 @@ You can also run the dag in the same manner with the Airflow CLI command ``airfl
     airflow dags test example_branch_operator 2018-01-01
 
 By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags`` and this is
-the directory used by Airflow scheduler and webserver to scan dags for. You can place your dags there
+the directory used by Airflow scheduler and webserver to scan Dags for. You can place your Dags there
 to test them.
 
 The Dags can be run in the main version of Airflow but they also work
