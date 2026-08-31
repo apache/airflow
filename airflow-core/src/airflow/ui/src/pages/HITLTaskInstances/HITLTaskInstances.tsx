@@ -34,9 +34,9 @@ import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { IconButton, RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { IconButton, RouterLink } from "src/system-components";
 import { useAutoRefresh, useDocumentTitle } from "src/utils";
 import { getHITLState, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";

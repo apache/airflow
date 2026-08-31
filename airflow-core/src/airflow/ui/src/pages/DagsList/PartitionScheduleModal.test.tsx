@@ -24,7 +24,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as OpenapiQueries from "openapi/queries";
 import type { PartitionedDagRunResponse } from "openapi/requests/types.gen";
 import type { TableState } from "src/components/DataTable/types";
-import type * as Ui from "src/components/ui";
+import type * as Ui from "src/system-components";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";
@@ -42,7 +42,7 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: () => 2,
 }));
 
-vi.mock("src/components/ui", async (importOriginal) => {
+vi.mock("src/system-components", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
 
   return {

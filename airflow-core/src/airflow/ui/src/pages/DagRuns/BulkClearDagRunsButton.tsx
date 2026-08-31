@@ -24,10 +24,10 @@ import { CgRedo } from "react-icons/cg";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
-import { Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
+import { Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

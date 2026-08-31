@@ -24,7 +24,7 @@ import type {
   ConnectionHookMetaData,
   StandardHookFields,
 } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 import type { ParamsSpec } from "./useDagParams";
 

@@ -30,10 +30,10 @@ import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
+import { RouterLink } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 

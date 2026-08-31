@@ -28,8 +28,8 @@ import {
   useTaskInstanceServiceGetMappedTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "src/queries/gridViewQueryKeys";
+import { toaster } from "src/system-components";
 import { createErrorToaster } from "src/utils";
 
 type DeleteDagRunParams = {

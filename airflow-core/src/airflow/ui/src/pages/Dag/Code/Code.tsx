@@ -34,13 +34,13 @@ import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
-import { IconButton, Modal, ProgressBar } from "src/components/ui";
-import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { useMonacoTheme } from "src/context/colorMode";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
+import { IconButton, Modal, ProgressBar } from "src/system-components";
+import { LazyClipboard } from "src/system-components/LazyClipboard";
 import { renderDuration } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";

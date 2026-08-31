@@ -31,10 +31,10 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch, useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+import { RouterLink } from "src/system-components";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";

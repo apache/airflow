@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import { usePoolServiceGetPoolsKey, usePoolServicePatchPool } from "openapi/queries";
 import type { PoolBody } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 export const useEditPool = (
   initialPool: PoolBody,

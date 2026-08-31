@@ -25,10 +25,10 @@ import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/re
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchTaskGroup } from "src/queries/usePatchTaskGroup";
 import { usePatchTaskGroupDryRun } from "src/queries/usePatchTaskGroupDryRun";
+import { Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 
 type Props = {
   readonly groupTaskInstance: LightGridTaskInstanceSummary;

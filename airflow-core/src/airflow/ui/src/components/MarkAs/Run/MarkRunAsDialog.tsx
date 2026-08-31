@@ -23,8 +23,8 @@ import { useTranslation } from "react-i18next";
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
-import { Modal } from "src/components/ui";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
+import { Modal } from "src/system-components";
 
 type Props = {
   readonly dagRun: DAGRunResponse;

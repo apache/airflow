@@ -21,9 +21,6 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Direction } from "src/components/Graph/DirectionDropdown";
-import { Select } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
-import { Switch } from "src/components/ui/Switch";
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
   useClearPreventRunningTaskDefault,
@@ -35,6 +32,9 @@ import {
   useMarkTaskInstanceDefaultOptions,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
+import { Select } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
+import { Switch } from "src/system-components/Switch";
 import { useDocumentTitle } from "src/utils";
 import type { Option } from "src/utils/option";
 

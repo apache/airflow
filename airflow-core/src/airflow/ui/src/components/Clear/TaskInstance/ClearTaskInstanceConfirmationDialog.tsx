@@ -22,8 +22,8 @@ import { useTranslation } from "react-i18next";
 import { GoAlertFill } from "react-icons/go";
 
 import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { Dialog } from "src/system-components";
 import { getRelativeTime } from "src/utils/datetimeUtils";
 
 type Props = {

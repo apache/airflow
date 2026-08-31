@@ -26,8 +26,8 @@ import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
-import { Pagination } from "src/components/ui/Pagination";
+import { Modal } from "src/system-components";
+import { Pagination } from "src/system-components/Pagination";
 import { renderDuration } from "src/utils/datetimeUtils";
 import { translateCompletionRule } from "src/utils/deadlines";
 

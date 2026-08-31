@@ -22,7 +22,7 @@ import { FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
-import { Popover } from "src/components/ui";
+import { Popover } from "src/system-components";
 import { translateCompletionRule } from "src/utils/deadlines";
 
 const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {

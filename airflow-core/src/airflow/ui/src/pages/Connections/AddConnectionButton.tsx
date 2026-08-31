@@ -20,8 +20,8 @@ import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdAdd } from "react-icons/md";
 
-import { Modal } from "src/components/ui";
 import { useAddConnection } from "src/queries/useAddConnection";
+import { Modal } from "src/system-components";
 
 import ConnectionForm from "./ConnectionForm";
 import type { ConnectionBody } from "./Connections";

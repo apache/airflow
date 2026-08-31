@@ -24,8 +24,8 @@ import { FiEdit, FiEye } from "react-icons/fi";
 
 import NoteIcon from "src/components/NoteIcon";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Dialog } from "src/components/ui";
-import { MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/components/ui/ResizableWrapper";
+import { Dialog } from "src/system-components";
+import { MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/system-components/ResizableWrapper";
 
 export const MAX_NOTE_LENGTH = 1000;
 

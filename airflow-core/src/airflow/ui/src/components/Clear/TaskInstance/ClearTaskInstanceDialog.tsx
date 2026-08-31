@@ -27,14 +27,14 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { taskInstanceKey } from "src/components/ActionAccordion/columns";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import Time from "src/components/Time";
-import { Checkbox, Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import {
   useClearPreventRunningTaskDefault,
   useClearTaskInstanceDefaultOptions,
 } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { Checkbox, Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";

@@ -44,8 +44,8 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { JsonEditor } from "src/components/JsonEditor";
 import TriggerDAGForm from "src/components/TriggerDag/TriggerDAGForm";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
-import { Modal, toaster } from "src/components/ui";
-import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { Modal, toaster } from "src/system-components";
+import { RadioCardItem, RadioCardRoot } from "src/system-components/RadioCard";
 import { toNullablePartitionKey } from "src/utils";
 
 type Props = {

@@ -21,8 +21,8 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton } from "src/components/ui";
 import { useDeletePool } from "src/queries/useDeletePool";
+import { IconButton } from "src/system-components";
 
 type Props = {
   readonly poolName: string;

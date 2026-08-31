@@ -21,8 +21,8 @@ import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
-import { IconButton, Modal } from "src/components/ui";
 import { useEditPool } from "src/queries/useEditPool";
+import { IconButton, Modal } from "src/system-components";
 
 import PoolForm, { type PoolBody } from "./PoolForm";
 

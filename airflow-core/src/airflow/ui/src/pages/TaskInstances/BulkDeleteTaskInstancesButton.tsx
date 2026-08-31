@@ -24,8 +24,8 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { getColumns } from "src/components/ActionAccordion/columns";
 import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
-import { Accordion, Modal } from "src/components/ui";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
+import { Accordion, Modal } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

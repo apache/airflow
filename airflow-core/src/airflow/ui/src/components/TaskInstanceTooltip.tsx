@@ -25,7 +25,7 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Tooltip, type TooltipProps } from "src/components/ui";
+import { Tooltip, type TooltipProps } from "src/system-components";
 import { getDuration, renderDuration, sortStateEntries } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */

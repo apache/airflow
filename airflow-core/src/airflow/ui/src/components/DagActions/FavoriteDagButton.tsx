@@ -20,8 +20,8 @@ import type { ButtonProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdStar, MdStarOutline } from "react-icons/md";
 
-import { IconButton } from "src/components/ui";
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
+import { IconButton } from "src/system-components";
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;

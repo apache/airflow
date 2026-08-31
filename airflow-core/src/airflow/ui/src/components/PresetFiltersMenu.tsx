@@ -27,9 +27,9 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton, Popover, Tooltip } from "src/components/ui";
 import { presetFiltersDefaultKey, presetFiltersKey, tableSortKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { IconButton, Popover, Tooltip } from "src/system-components";
 
 type PresetFilter = {
   readonly name: string;

@@ -20,7 +20,7 @@ import { Button, type ButtonProps, type Dialog as ChakraDialog, Flex } from "@ch
 import type { ComponentProps, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Dialog } from "src/components/ui/Dialog";
+import { Dialog } from "src/system-components/Dialog";
 
 export type ModalProps = {
   readonly bodyProps?: ChakraDialog.BodyProps;

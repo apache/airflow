@@ -28,8 +28,8 @@ import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Modal, RouterLink } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
+import { Modal, RouterLink } from "src/system-components";
 import { useAutoRefresh } from "src/utils";
 
 type BackfillDagRunsModalProps = {

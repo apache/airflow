@@ -30,7 +30,7 @@ import {
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
-import { RouterLink, Tooltip } from "src/components/ui";
+import { RouterLink, Tooltip } from "src/system-components";
 import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";

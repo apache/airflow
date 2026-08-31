@@ -20,8 +20,8 @@ import { Box, Input, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { MdClose } from "react-icons/md";
 
-import { IconButton } from "src/components/ui";
 import type { ValidationError } from "src/hooks/useDateRangeFilter";
+import { IconButton } from "src/system-components";
 
 type DateInputProps = {
   readonly disabled?: boolean;

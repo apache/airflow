@@ -26,9 +26,9 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
 import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
+import { RouterLink } from "src/system-components";
 
 type TaskRow = { row: { original: TaskResponse } };
 

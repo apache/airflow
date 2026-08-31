@@ -23,7 +23,7 @@ import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 
 import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";

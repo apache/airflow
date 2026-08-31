@@ -24,8 +24,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton } from "src/components/ui";
 import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
+import { IconButton } from "src/system-components";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;

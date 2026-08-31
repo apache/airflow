@@ -30,11 +30,11 @@ import {
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { Checkbox, Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { Checkbox, Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";

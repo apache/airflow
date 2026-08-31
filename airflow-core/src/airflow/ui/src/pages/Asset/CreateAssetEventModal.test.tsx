@@ -25,7 +25,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as OpenapiQueries from "openapi/queries";
 import type { AssetEventResponse, AssetResponse, DAGDetailsResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
-import type * as Ui from "src/components/ui";
+import type * as Ui from "src/system-components";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";
@@ -41,7 +41,7 @@ const materializeSubmitParams = vi.hoisted<DagRunTriggerParams>(() => ({
   partitionKey: undefined,
 }));
 
-vi.mock("src/components/ui", async (importOriginal) => {
+vi.mock("src/system-components", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
 
   return {

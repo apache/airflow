@@ -23,8 +23,8 @@ import { FiAlertTriangle } from "react-icons/fi";
 
 import { useAuthLinksServiceGenerateToken } from "openapi/queries";
 import type { GenerateTokenResponse } from "openapi/requests/types.gen";
-import { Modal, toaster } from "src/components/ui";
-import { ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/components/ui/Clipboard";
+import { Modal, toaster } from "src/system-components";
+import { ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/system-components/Clipboard";
 
 type TokenGenerationModalProps = {
   readonly isOpen: boolean;

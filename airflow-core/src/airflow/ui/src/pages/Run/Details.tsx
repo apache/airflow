@@ -27,8 +27,8 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
 
 export const Details = () => {

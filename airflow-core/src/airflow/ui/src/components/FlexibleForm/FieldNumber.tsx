@@ -17,9 +17,9 @@
  * under the License.
  */
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+import { NumberInputField, NumberInputRoot } from "src/system-components/NumberInput";
 
 import type { FlexibleFormElementProps } from ".";
-import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
 export const FieldNumber = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);

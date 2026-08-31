@@ -21,9 +21,9 @@ import { useTranslation } from "react-i18next";
 
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
+import { Switch, Tooltip, type SwitchProps } from "src/system-components";
 
 import { ConfirmationModal } from "./ConfirmationModal";
-import { Switch, Tooltip, type SwitchProps } from "./ui";
 
 type Props = {
   readonly dagDisplayName?: string;

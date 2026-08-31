@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
 import type { ExpressionType } from "src/components/AssetExpression";
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 
 import { AssetSchedule } from "./AssetSchedule";
 

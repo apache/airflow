@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
 import Time from "src/components/Time";
-import { Select } from "src/components/ui";
+import { Select } from "src/system-components";
 
 type Props = {
   readonly defaultValue: string;

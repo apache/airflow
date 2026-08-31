@@ -26,7 +26,7 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Accordion } from "src/components/ui";
+import { Accordion } from "src/system-components";
 
 import { DataTable } from "../DataTable";
 import { getColumns, type RowSelection } from "./columns";

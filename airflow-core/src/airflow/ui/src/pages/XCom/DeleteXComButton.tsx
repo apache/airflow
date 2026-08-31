@@ -25,7 +25,7 @@ import { useXcomServiceGetXcomEntriesKey } from "openapi/queries";
 import { XcomService } from "openapi/requests/services.gen";
 import type { XComResponse, DeleteXcomEntryData } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton, toaster } from "src/components/ui";
+import { IconButton, toaster } from "src/system-components";
 
 type DeleteXComButtonProps = {
   readonly xcom: XComResponse;

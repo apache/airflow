@@ -24,8 +24,8 @@ import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useShortcut } from "src/hooks/useShortcut";
+import { InputWithAddon } from "src/system-components";
 
-import { InputWithAddon } from "../../ui";
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
 import { isValidFilterValue } from "../utils";

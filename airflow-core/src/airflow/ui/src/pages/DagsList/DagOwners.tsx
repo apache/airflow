@@ -20,7 +20,7 @@ import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { LimitedItemsList } from "src/components/LimitedItemsList";
-import { RouterLink } from "src/components/ui";
+import { RouterLink } from "src/system-components";
 import { getSafeExternalUrl } from "src/utils/links";
 
 const DEFAULT_OWNERS: Array<string> = [];

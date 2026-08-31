@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsUiKey } from "openapi/queries";
 import type { CreateBackfillData } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);

@@ -23,7 +23,7 @@ import { MdSettings } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
-import { IconButton, Tooltip } from "src/components/ui";
+import { IconButton, Tooltip } from "src/system-components";
 
 type Props = {
   readonly dependencyType: "data" | "scheduling";

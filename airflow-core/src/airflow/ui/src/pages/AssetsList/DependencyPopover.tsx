@@ -22,8 +22,8 @@ import { FiUsers } from "react-icons/fi";
 
 import type { DagScheduleAssetReference, TaskOutletAssetReference } from "openapi/requests/types.gen";
 import { TeamName } from "src/components/TeamName";
-import { Popover, RouterLink, Tooltip } from "src/components/ui";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { Popover, RouterLink, Tooltip } from "src/system-components";
 
 type Props = {
   readonly dependencies: Array<DagScheduleAssetReference | TaskOutletAssetReference>;

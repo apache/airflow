@@ -24,9 +24,9 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
-import { toaster } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { toaster } from "src/system-components";
 import { createErrorToaster, toNullablePartitionKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {

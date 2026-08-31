@@ -31,9 +31,9 @@ import {
   getWedgePadding,
 } from "src/components/Breadcrumb";
 import { SearchDags } from "src/components/SearchDags";
-import { IconButton, Popover, Tooltip } from "src/components/ui";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { IconButton, Popover, Tooltip } from "src/system-components";
 
 type Props = {
   readonly children: ReactNode;

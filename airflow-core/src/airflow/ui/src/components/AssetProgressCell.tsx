@@ -23,7 +23,7 @@ import { usePartitionedDagRunServiceGetPendingPartitionedDagRun } from "openapi/
 import type { NextRunAssetEventResponse, PartitionedDagRunAssetResponse } from "openapi/requests/types.gen";
 import { AssetExpression } from "src/components/AssetExpression";
 import { RollupKeyChecklist } from "src/components/RollupKeyChecklist";
-import { Popover, RouterLink } from "src/components/ui";
+import { Popover, RouterLink } from "src/system-components";
 
 type Props = {
   readonly dagId: string;

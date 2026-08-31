@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 
 export const HealthBadge = ({
   isLoading,

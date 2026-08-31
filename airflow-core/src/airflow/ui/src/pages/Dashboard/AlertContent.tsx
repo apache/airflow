@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import type { UIAlert } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Alert } from "src/components/ui";
+import { Alert } from "src/system-components";
 
 // Clamp by height rather than `-webkit-line-clamp`: alert text is rendered as markdown
 // (a stack of block-level headings/paragraphs/lists), and line-clamp only counts inline

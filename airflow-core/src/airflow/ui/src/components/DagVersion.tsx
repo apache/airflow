@@ -20,9 +20,9 @@ import { Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DagVersionResponse } from "openapi/requests/types.gen";
+import { Tooltip } from "src/system-components";
 
 import Time from "./Time";
-import { Tooltip } from "./ui";
 
 export const DagVersion = ({ version }: { readonly version: DagVersionResponse | null | undefined }) => {
   const { t: translate } = useTranslation("components");

@@ -24,8 +24,8 @@ import { PiFilePy } from "react-icons/pi";
 
 import type { PluginImportErrorResponse } from "openapi/requests/types.gen";
 import { SearchBar } from "src/components/SearchBar";
-import { Accordion, ClipboardIconButton, Modal } from "src/components/ui";
-import { Pagination } from "src/components/ui/Pagination";
+import { Accordion, ClipboardIconButton, Modal } from "src/system-components";
+import { Pagination } from "src/system-components/Pagination";
 
 type PluginImportErrorsModalProps = {
   readonly importErrors: Array<PluginImportErrorResponse>;

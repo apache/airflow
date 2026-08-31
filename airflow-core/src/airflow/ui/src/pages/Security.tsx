@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
-import { ProgressBar } from "src/components/ui";
+import { ProgressBar } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 
 import { ErrorPage } from "./Error";

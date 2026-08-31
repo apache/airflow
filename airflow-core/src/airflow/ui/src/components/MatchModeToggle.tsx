@@ -19,8 +19,8 @@
 import { HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Switch } from "src/components/ui";
 import type { MatchMode } from "src/hooks/useMatchMode";
+import { Switch } from "src/system-components";
 
 type Props = {
   readonly mode: MatchMode;

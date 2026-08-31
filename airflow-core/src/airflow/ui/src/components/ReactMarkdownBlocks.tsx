@@ -21,8 +21,8 @@ import { renderToString as renderKatexToString } from "katex";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { LazyClipboard } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
+import { LazyClipboard } from "src/system-components";
 import { renderMermaidDiagram } from "src/utils/renderMermaid";
 import { SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 

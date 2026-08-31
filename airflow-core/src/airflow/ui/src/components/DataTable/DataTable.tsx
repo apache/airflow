@@ -38,7 +38,7 @@ import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
-import { IconButton, Pagination, ProgressBar, Toaster } from "src/components/ui";
+import { IconButton, Pagination, ProgressBar, Toaster } from "src/system-components";
 
 type DataTableProps<TData> = {
   readonly cardDef?: CardDef<TData>;

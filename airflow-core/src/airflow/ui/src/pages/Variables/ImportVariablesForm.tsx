@@ -25,8 +25,8 @@ import { LuFileUp } from "react-icons/lu";
 
 import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
+import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components/RadioCard";
 
 type ImportVariablesFormProps = {
   readonly onClose: () => void;

@@ -25,9 +25,8 @@ import { useDebouncedCallback } from "use-debounce";
 import { AdvancedSearchToggle, type AdvancedSearchToggleProps } from "src/components/AdvancedSearchToggle";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { IconButton } from "src/system-components";
 import { getMetaKey } from "src/utils";
-
-import { IconButton } from "./ui";
 
 const debounceDelay = 200;
 

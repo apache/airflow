@@ -27,10 +27,10 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
-import { Modal, Menu } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
+import { Modal, Menu } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

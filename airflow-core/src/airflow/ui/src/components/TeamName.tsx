@@ -18,8 +18,7 @@
  */
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
-
-import { RouterLink } from "./ui";
+import { RouterLink } from "src/system-components";
 
 type Props = {
   readonly teamName?: string | null;

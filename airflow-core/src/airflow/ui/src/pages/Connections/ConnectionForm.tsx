@@ -27,10 +27,10 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
-import { Accordion } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import { useParamStore } from "src/queries/useParamStore";
+import { Accordion } from "src/system-components";
 
 import StandardFields from "./ConnectionStandardFields";
 import type { ConnectionBody } from "./Connections";

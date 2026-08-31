@@ -26,7 +26,7 @@ import type {
   NextRunAssetEventResponse,
 } from "openapi/requests/types.gen";
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
-import { RouterLink } from "src/components/ui";
+import { RouterLink } from "src/system-components";
 
 import Time from "../Time";
 

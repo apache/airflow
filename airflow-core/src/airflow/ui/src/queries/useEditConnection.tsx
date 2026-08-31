@@ -21,8 +21,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceGetConnectionsKey, useConnectionServicePatchConnection } from "openapi/queries";
-import { toaster } from "src/components/ui";
 import type { ConnectionBody } from "src/pages/Connections/Connections";
+import { toaster } from "src/system-components";
 
 export const useEditConnection = (
   initialConnection: ConnectionBody,

@@ -19,7 +19,7 @@
 import { Menu as ChakraMenu } from "@chakra-ui/react";
 import { forwardRef, useContext } from "react";
 
-import { Tooltip } from "src/components/ui/Tooltip";
+import { Tooltip } from "src/system-components/Tooltip";
 
 import { MenuContext } from "./MenuRoot";
 

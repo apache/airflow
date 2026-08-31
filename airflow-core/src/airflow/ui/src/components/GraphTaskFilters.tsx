@@ -32,14 +32,14 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Select } from "src/components/ui";
-import { Menu } from "src/components/ui/Menu";
-import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { useGroups } from "src/context/groups";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { IconButton, Select } from "src/system-components";
+import { Menu } from "src/system-components/Menu";
+import { NumberInputField, NumberInputRoot } from "src/system-components/NumberInput";
 
 export const GraphTaskFilters = () => {
   const { t: translate } = useTranslation(["dag", "tasks"]);

@@ -21,8 +21,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useVariableServiceGetVariablesKey, useVariableServicePostVariable } from "openapi/queries";
-import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
+import { toaster } from "src/system-components";
 
 export const useAddVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();

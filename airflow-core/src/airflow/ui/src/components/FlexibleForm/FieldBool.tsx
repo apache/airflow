@@ -17,9 +17,9 @@
  * under the License.
  */
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+import { Switch } from "src/system-components";
 
 import type { FlexibleFormElementProps } from ".";
-import { Switch } from "../ui";
 
 export const FieldBool = ({ name, namespace = "default" }: FlexibleFormElementProps) => {
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);

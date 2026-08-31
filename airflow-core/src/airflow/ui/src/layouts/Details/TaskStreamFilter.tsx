@@ -22,8 +22,8 @@ import { useTranslation } from "react-i18next";
 import { FiFilter, FiInfo } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { IconButton, Tooltip } from "src/components/ui";
-import { Menu } from "src/components/ui/Menu";
+import { IconButton, Tooltip } from "src/system-components";
+import { Menu } from "src/system-components/Menu";
 
 export const TaskStreamFilter = () => {
   const { t: translate } = useTranslation(["common", "dag"]);

@@ -25,8 +25,8 @@ import { PiFilePy } from "react-icons/pi";
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { Accordion, ClipboardIconButton, Modal } from "src/components/ui";
-import { Pagination } from "src/components/ui/Pagination";
+import { Accordion, ClipboardIconButton, Modal } from "src/system-components";
+import { Pagination } from "src/system-components/Pagination";
 
 type ImportDAGErrorModalProps = {
   readonly onClose: () => void;

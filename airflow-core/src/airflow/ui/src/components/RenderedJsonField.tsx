@@ -20,8 +20,8 @@ import { Flex, type FlexProps } from "@chakra-ui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import Editor, { type OnMount } from "src/components/MonacoEditor";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useMonacoTheme } from "src/context/colorMode";
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 
 const MAX_HEIGHT = 300;
 const MIN_HEIGHT = 40;

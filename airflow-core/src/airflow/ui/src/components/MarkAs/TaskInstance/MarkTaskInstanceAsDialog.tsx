@@ -24,11 +24,11 @@ import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/t
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
+import { Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 
 type Props = {
   readonly onClose: () => void;

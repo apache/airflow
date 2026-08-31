@@ -30,7 +30,7 @@ import {
 } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Modal, ProgressBar, toaster } from "src/components/ui";
+import { Modal, ProgressBar, toaster } from "src/system-components";
 
 type XComModalProps = {
   readonly dagId: string;

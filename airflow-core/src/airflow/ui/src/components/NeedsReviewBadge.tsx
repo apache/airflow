@@ -24,7 +24,7 @@ import { Link } from "react-router-dom";
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
 import { StateBadge } from "src/components/StateBadge";
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 
 type Props = {
   readonly pendingActions: Array<HITLDetail>;

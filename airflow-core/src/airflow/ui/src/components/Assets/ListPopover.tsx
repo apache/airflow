@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import type { AssetAliasResponse, AssetWatcherResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Popover } from "src/components/ui";
+import { Popover } from "src/system-components";
 
 type ListPopoverProps = {
   readonly items: Array<{ key: string; label: ReactNode }>;

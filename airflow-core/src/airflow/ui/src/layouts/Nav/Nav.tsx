@@ -31,10 +31,10 @@ import { DagIcon } from "src/assets/DagIcon";
 import { Logo } from "src/components/Logo";
 import { useTimezone } from "src/context/timezone";
 import { useConfig } from "src/queries/useConfig";
+import { Tooltip } from "src/system-components";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
-import { Tooltip } from "../../components/ui";
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";

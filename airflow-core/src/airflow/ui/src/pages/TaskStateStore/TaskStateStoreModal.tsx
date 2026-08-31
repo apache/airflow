@@ -30,9 +30,9 @@ import {
 } from "openapi/queries";
 import { DateTimeInput } from "src/components/DateTimeInput";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Modal, ProgressBar } from "src/components/ui";
 import { useTimezone } from "src/context/timezone";
 import { useStoreMutation } from "src/queries/useStoreMutation";
+import { Modal, ProgressBar } from "src/system-components";
 
 dayjs.extend(tz);
 

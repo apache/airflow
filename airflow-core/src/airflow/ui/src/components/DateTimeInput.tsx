@@ -26,7 +26,6 @@ import { MdAccessTime, MdCalendarToday } from "react-icons/md";
 import { DateInput } from "src/components/FilterBar/filters/DateInput";
 import { DateRangeCalendar } from "src/components/FilterBar/filters/DateRangeCalendar";
 import { isValidDateValue } from "src/components/FilterBar/utils";
-import { Popover } from "src/components/ui";
 import { useTimezone } from "src/context/timezone";
 import type { ValidationError } from "src/hooks/useDateRangeFilter";
 import {
@@ -36,6 +35,7 @@ import {
   validateDateInput,
   validateTimeInput,
 } from "src/hooks/useDateRangeFilter";
+import { Popover } from "src/system-components";
 
 dayjs.extend(timezone);
 

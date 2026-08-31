@@ -22,8 +22,8 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { PoolResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
-import { Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { Tooltip } from "src/system-components";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
 export const UNLIMITED_SLOTS = -1;

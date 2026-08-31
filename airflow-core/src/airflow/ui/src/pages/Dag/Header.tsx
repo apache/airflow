@@ -31,8 +31,8 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { TeamName } from "src/components/TeamName";
-import { RouterLink } from "src/components/ui";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { RouterLink } from "src/system-components";
 
 import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";

@@ -21,9 +21,9 @@ import { useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp, FiSearch } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { IconButton } from "src/system-components";
 
 export type LogSearchInputProps = {
   readonly currentMatchIndex: number;

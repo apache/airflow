@@ -26,9 +26,9 @@ import { useLocalStorage } from "usehooks-ts";
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse, UIAlert } from "openapi/requests/types.gen";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
-import { IconButton } from "src/components/ui";
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
 import { useConfig } from "src/queries/useConfig";
+import { IconButton } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 
 import { ReactPlugin } from "../ReactPlugin";

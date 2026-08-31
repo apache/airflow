@@ -29,8 +29,8 @@ import { DataTable } from "src/components/DataTable";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
+import { Modal } from "src/system-components";
 
 type PartitionScheduleModalProps = {
   readonly dagId: string;

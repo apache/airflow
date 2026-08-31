@@ -32,7 +32,7 @@ import {
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui/Toaster";
+import { toaster } from "src/system-components/Toaster";
 import { createErrorToaster } from "src/utils";
 import type { HITLResponseParams } from "src/utils/hitl";
 

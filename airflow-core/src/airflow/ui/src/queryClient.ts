@@ -19,8 +19,8 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
 
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
-import { toaster } from "src/components/ui";
 import i18n from "src/i18n/config";
+import { toaster } from "src/system-components";
 import { getErrorStatus } from "src/utils";
 
 // Dynamically set the base URL for XHR requests based on the meta tag.

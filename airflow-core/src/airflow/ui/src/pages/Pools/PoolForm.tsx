@@ -23,8 +23,8 @@ import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { useConfig } from "src/queries/useConfig.tsx";
+import { Checkbox } from "src/system-components/Checkbox";
 
 export type PoolBody = {
   description: string | undefined;

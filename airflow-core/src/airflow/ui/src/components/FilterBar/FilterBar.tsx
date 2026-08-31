@@ -24,7 +24,7 @@ import { MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
 import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
-import { Menu } from "src/components/ui";
+import { Menu } from "src/system-components";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import { BooleanFilter } from "./filters/BooleanFilter";

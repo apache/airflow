@@ -33,10 +33,10 @@ import {
   useDagServiceGetDagDetails,
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { IconButton } from "src/components/ui";
-import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
 import { useTimezone } from "src/context/timezone";
+import { IconButton } from "src/system-components";
+import { ButtonGroupToggle } from "src/system-components/ButtonGroupToggle";
 
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";

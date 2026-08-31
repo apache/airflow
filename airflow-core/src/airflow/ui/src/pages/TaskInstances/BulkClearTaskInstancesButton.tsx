@@ -24,10 +24,10 @@ import { CgRedo } from "react-icons/cg";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Checkbox, Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useBulkClearDryRun } from "src/queries/useBulkClearDryRun";
 import { useBulkClearTaskInstances } from "src/queries/useBulkClearTaskInstances";
+import { Checkbox, Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 
 type Props = {
   readonly clearSelections: VoidFunction;

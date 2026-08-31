@@ -20,8 +20,8 @@ import { flexRender, type Header, type Table } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { LuColumns3 } from "react-icons/lu";
 
-import { Menu, IconButton } from "src/components/ui";
-import { Checkbox } from "src/components/ui/Checkbox";
+import { Menu, IconButton } from "src/system-components";
+import { Checkbox } from "src/system-components/Checkbox";
 
 type Props<TData> = {
   readonly table: Table<TData>;

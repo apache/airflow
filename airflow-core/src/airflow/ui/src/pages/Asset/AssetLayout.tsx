@@ -26,10 +26,10 @@ import { Outlet, useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset } from "openapi/queries";
 import { BreadcrumbRow, CrumbStack, CrumbText } from "src/components/Breadcrumb";
-import { ProgressBar } from "src/components/ui";
 import { GroupsProvider } from "src/context/groups";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { NavTabs } from "src/layouts/Details/NavTabs";
+import { ProgressBar } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 
 import { AssetGraph } from "./AssetGraph";

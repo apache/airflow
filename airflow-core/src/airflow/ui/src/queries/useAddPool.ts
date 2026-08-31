@@ -21,8 +21,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePoolServiceGetPoolsKey, usePoolServicePostPool } from "openapi/queries";
-import { toaster } from "src/components/ui";
 import type { PoolBody } from "src/pages/Pools/PoolForm";
+import { toaster } from "src/system-components";
 
 export const useAddPool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();

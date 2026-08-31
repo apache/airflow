@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 
-import { Menu } from "src/components/ui";
+import { Menu } from "src/system-components";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";

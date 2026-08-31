@@ -22,7 +22,7 @@ import { FiDatabase } from "react-icons/fi";
 
 import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { Select } from "src/components/ui";
+import { Select } from "src/system-components";
 
 import { DataTable } from "../DataTable";
 import type { CardDef, TableState } from "../DataTable/types";

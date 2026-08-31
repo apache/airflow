@@ -26,11 +26,11 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { Checkbox, Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
+import { Checkbox, Modal } from "src/system-components";
+import SegmentedControl from "src/system-components/SegmentedControl";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {

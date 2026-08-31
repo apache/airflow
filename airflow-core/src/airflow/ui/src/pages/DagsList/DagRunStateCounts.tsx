@@ -21,8 +21,8 @@ import { useTranslation } from "react-i18next";
 
 import type { DagRunState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { RouterLink } from "src/system-components";
 
 const DISPLAYED_STATES: ReadonlyArray<DagRunState> = ["success", "failed", "running", "queued"];
 

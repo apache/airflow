@@ -22,9 +22,9 @@ import { MdError } from "react-icons/md";
 
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
+import { Accordion } from "src/system-components";
 
 import ReactMarkdown from "../ReactMarkdown";
-import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 

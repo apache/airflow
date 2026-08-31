@@ -24,9 +24,9 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
 import { useLogs } from "src/queries/useLogs";
+import { RouterLink } from "src/system-components";
 import { getTaskInstanceLink } from "src/utils/links";
 
 export const TaskLogPreview = ({

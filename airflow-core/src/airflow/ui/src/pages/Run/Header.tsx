@@ -32,11 +32,11 @@ import { NotePreview } from "src/components/NotePreview";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
 import { useDagRunNote } from "src/queries/useDagRunNote";
+import { RouterLink } from "src/system-components";
 import { getDuration } from "src/utils";
 
 import { DeadlineStatus } from "./DeadlineStatus";

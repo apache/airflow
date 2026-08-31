@@ -21,7 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useVariableServiceBulkVariables, useVariableServiceGetVariablesKey } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 type Props = {
   readonly clearSelections: VoidFunction;

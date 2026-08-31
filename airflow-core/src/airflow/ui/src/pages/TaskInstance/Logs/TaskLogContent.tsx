@@ -25,11 +25,11 @@ import utc from "dayjs/plugin/utc";
 import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar } from "src/components/ui";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useTimezone } from "src/context/timezone";
 import { useShortcut } from "src/hooks/useShortcut";
 import type { ParsedLogEntry } from "src/queries/useLogs";
+import { ProgressBar } from "src/system-components";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import { HighlightedText } from "./HighlightedText";

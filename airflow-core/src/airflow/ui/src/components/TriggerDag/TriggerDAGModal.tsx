@@ -21,9 +21,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import { Modal, Tooltip } from "src/components/ui";
-import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useTrigger } from "src/queries/useTrigger";
+import { Modal, Tooltip } from "src/system-components";
+import { RadioCardItem, RadioCardRoot } from "src/system-components/RadioCard";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";

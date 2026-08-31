@@ -27,8 +27,8 @@ import {
   useAssetStateStoreServiceSetAssetStateStore,
 } from "openapi/queries";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Modal, ProgressBar } from "src/components/ui";
 import { useStoreMutation } from "src/queries/useStoreMutation";
+import { Modal, ProgressBar } from "src/system-components";
 
 type Props = {
   readonly assetId: number;

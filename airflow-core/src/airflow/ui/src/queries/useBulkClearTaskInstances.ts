@@ -27,7 +27,7 @@ import {
 } from "openapi/queries";
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 

@@ -25,9 +25,9 @@ import { LuCheck } from "react-icons/lu";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Menu, Tooltip } from "src/components/ui";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { IconButton, Menu, Tooltip } from "src/system-components";
 
 import { allowedStates } from "../utils";
 import MarkRunAsDialog from "./MarkRunAsDialog";

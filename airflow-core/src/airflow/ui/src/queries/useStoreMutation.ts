@@ -19,7 +19,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 import { createErrorToaster } from "src/utils";
 
 type StoreMutationOperation = "create" | "delete" | "update";

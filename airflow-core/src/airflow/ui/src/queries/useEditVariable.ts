@@ -21,8 +21,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useVariableServiceGetVariablesKey, useVariableServicePatchVariable } from "openapi/queries";
-import { toaster } from "src/components/ui";
 import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
+import { toaster } from "src/system-components";
 
 export const useEditVariable = (
   initialVariable: VariableBody,

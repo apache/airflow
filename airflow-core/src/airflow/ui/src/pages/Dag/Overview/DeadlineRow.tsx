@@ -22,7 +22,7 @@ import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import type { DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
+import { RouterLink } from "src/system-components";
 import { translateCompletionRule } from "src/utils/deadlines";
 
 type DeadlineRowProps = {

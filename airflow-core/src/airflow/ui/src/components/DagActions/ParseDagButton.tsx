@@ -20,8 +20,8 @@ import type { ButtonProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 
-import { IconButton } from "src/components/ui";
 import { useDagParsing } from "src/queries/useDagParsing.ts";
+import { IconButton } from "src/system-components";
 
 type Props = {
   readonly dagId: string;

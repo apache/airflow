@@ -24,7 +24,7 @@ import { FiEdit } from "react-icons/fi";
 import MarkdownModal from "src/components/MarkdownModal";
 import NoteIcon from "src/components/NoteIcon";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
 
 type Props = {
   readonly header: string;

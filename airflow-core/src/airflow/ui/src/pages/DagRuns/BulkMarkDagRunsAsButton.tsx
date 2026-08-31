@@ -27,8 +27,8 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
-import { Modal, Menu } from "src/components/ui";
 import { useBulkPatchDagRun } from "src/queries/useBulkPatchDagRun";
+import { Modal, Menu } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

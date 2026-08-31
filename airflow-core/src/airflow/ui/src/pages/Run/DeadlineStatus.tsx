@@ -25,7 +25,7 @@ import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui/Tooltip";
+import { Tooltip } from "src/system-components/Tooltip";
 import { renderDuration } from "src/utils/datetimeUtils";
 import { translateCompletionRule } from "src/utils/deadlines";
 

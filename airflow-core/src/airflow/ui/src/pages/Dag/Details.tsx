@@ -25,8 +25,8 @@ import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 import { renderDuration } from "src/utils";
 
 export const Details = () => {
