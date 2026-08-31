@@ -30,10 +30,11 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
+  const { renderDuration } = useDurationFormat();
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDagDetails({

@@ -26,14 +26,16 @@ import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Popover } from "src/system-components";
 
 import { translateCompletionRule } from "src/utils/deadlines";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   const { t: translate } = useTranslation("dag");
+  const { locale } = useDurationFormat();
 
   return (
     <Box py={2} width="100%">
       <Text color="fg.muted" fontSize="xs">
-        {translateCompletionRule(translate, alert)}
+        {translateCompletionRule(translate, alert, locale)}
         {Boolean(alert.name) && (
           <Text as="span" color="fg.subtle" fontSize="xs">
             {" "}

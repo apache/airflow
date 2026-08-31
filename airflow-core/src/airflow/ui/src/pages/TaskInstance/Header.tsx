@@ -35,10 +35,11 @@ import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
-import { getDuration, renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed, renderDuration } = useDurationFormat();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
 
@@ -58,7 +59,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
             label: translate("duration"),
             value: Boolean(taskInstance.duration)
               ? renderDuration(taskInstance.duration)
-              : getDuration(taskInstance.start_date, taskInstance.end_date),
+              : formatElapsed(taskInstance.start_date, taskInstance.end_date),
           },
         ]
       : []),

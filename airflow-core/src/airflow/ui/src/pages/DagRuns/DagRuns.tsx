@@ -52,7 +52,8 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -93,10 +94,17 @@ const {
 type ColumnProps = {
   readonly dagId?: string;
   readonly open: boolean;
+  readonly renderDuration: (duration: number | null | undefined) => string | undefined;
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({
+  dagId,
+  multiTeam,
+  open,
+  renderDuration,
+  translate,
+}: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -237,6 +245,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
 
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -360,6 +369,7 @@ export const DagRuns = () => {
     dagId,
     multiTeam: multiTeamEnabled,
     open,
+    renderDuration,
     translate,
   });
 

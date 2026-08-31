@@ -25,12 +25,8 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import {
-  formatDate,
-  getDurationTickStep,
-  renderCompactDuration,
-  renderDuration,
-} from "src/utils/datetimeUtils";
+import { formatDate, getDurationTickStep } from "src/utils/datetimeUtils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
@@ -43,6 +39,7 @@ export const SlowestTaskInstancesChart = ({
   readonly taskInstances: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
+  const { renderDuration } = useDurationFormat();
   const { selectedTimezone } = useTimezone();
   const [labelColorToken, fallbackColorToken] = useToken("colors", ["fg.muted", "gray.solid"]);
 
@@ -90,7 +87,7 @@ export const SlowestTaskInstancesChart = ({
         const duration = durations[index];
 
         if (duration !== undefined) {
-          ctx.fillText(renderCompactDuration(duration), bar.x + 6, bar.y);
+          ctx.fillText(renderDuration(duration) ?? "0s", bar.x + 6, bar.y);
         }
       });
       ctx.restore();
@@ -129,7 +126,7 @@ export const SlowestTaskInstancesChart = ({
               legend: { display: false },
               tooltip: {
                 callbacks: {
-                  label: (context) => renderDuration(context.parsed.x, false) ?? "0",
+                  label: (context) => renderDuration(context.parsed.x) ?? "0s",
                   title: ([context]) => {
                     const taskInstance = context === undefined ? undefined : taskInstances[context.dataIndex];
 
@@ -146,7 +143,7 @@ export const SlowestTaskInstancesChart = ({
                 beginAtZero: true,
                 ticks: {
                   callback: (value) =>
-                    renderCompactDuration(typeof value === "number" ? value : Number(value)),
+                    renderDuration(typeof value === "number" ? value : Number(value)) ?? "0s",
                   stepSize: getDurationTickStep(maxDuration),
                 },
                 title: { align: "end", display: true, text: translate("common:duration") },

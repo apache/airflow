@@ -27,11 +27,11 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
-
-import { getDuration } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
@@ -48,7 +48,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
       ? [
           {
             label: translate("duration"),
-            value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date),
+            value: formatElapsed(taskInstance.min_start_date, taskInstance.max_end_date),
           },
         ]
       : []),

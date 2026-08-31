@@ -23,55 +23,198 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import {
   getDuration,
   getDurationTickStep,
+  getElapsedSeconds,
   humanizeSeconds,
-  renderCompactDuration,
   renderDuration,
   getRelativeTime,
 } from "./datetimeUtils";
 
 dayjs.extend(dayjsDuration);
 
-describe("getDuration & formatDuration", () => {
-  it("handles durations less than 60 seconds", () => {
-    const start = "2024-03-14T10:00:00.000Z";
-    const end = "2024-03-14T10:00:05.5111111Z";
+// CLDR's own strings shift between ICU releases — de narrow "1 Std." became "1h" in ICU 78 — and the
+// runtime ICU differs across CI, contributor machines and browsers. So localized cases assert the
+// composition we control (which units, what precision, which style, joined in order) and leave the
+// wording to the platform. Only the English cases pin literals, as those encode our band policy.
+const expectDuration = (
+  locale: string,
+  style: "long" | "narrow",
+  parts: Array<[Intl.NumberFormatOptions["unit"], number, number?]>,
+) => {
+  const formatted = parts.map(([unit, value, fractionDigits = 0]) =>
+    new Intl.NumberFormat(locale, {
+      maximumFractionDigits: fractionDigits,
+      style: "unit",
+      unit,
+      unitDisplay: style,
+    }).format(value),
+  );
 
-    expect(getDuration(start, end)).toBe("00:00:05.511");
+  return formatted.length > 1
+    ? new Intl.ListFormat(locale, { style, type: "unit" }).format(formatted)
+    : formatted[0];
+};
+
+describe("renderDuration", () => {
+  it.each([
+    [0, "0s"],
+    [0.0000004, "<1ms"],
+    [0.0009, "<1ms"],
+    [0.001, "1ms"],
+    [0.083, "83ms"],
+    [0.9994, "999ms"],
+    // Rounding up out of the millisecond band must promote to seconds, not print "1000ms".
+    [0.9996, "1s"],
+    [1, "1s"],
+    [1.5, "1.5s"],
+    [9.87456, "9.87s"],
+    // Three significant digits means one decimal from 10s up, two below it.
+    [14.846, "14.8s"],
+    [15, "15s"],
+    [45, "45s"],
+    [59.9, "59.9s"],
+    // Rounding at the band's precision spills into the next band.
+    [59.96, "1m"],
+    [60, "1m"],
+    [65.25, "1m 5s"],
+    [545, "9m 5s"],
+    [540, "9m"],
+    [3599.6, "1h"],
+    [3600, "1h"],
+    [3725.4, "1h 2m"],
+    [5400, "1h 30m"],
+    [86_399.6, "1d"],
+    [86_400, "1d"],
+    [90_061.2, "1d 1h"],
+    // Rounds rather than truncates: 1d 4h 30m is nearer 1d 5h.
+    [102_600, "1d 5h"],
+    [281_445, "3d 6h"],
+  ])("formats %s seconds as %s", (seconds, expected) => {
+    expect(renderDuration(seconds, "en")).toBe(expected);
   });
 
-  it("handles durations spanning multiple days", () => {
-    const start = "2024-03-14T10:00:00.000Z";
-    const end = "2024-03-17T15:30:45.000Z";
+  it.each([[null], [undefined], [Number.NaN], [Number.POSITIVE_INFINITY], [-5]])(
+    "returns undefined without a usable duration (%s)",
+    (seconds) => {
+      expect(renderDuration(seconds, "en")).toBeUndefined();
+    },
+  );
 
-    expect(getDuration(start, end)).toBe("3d05:30:45");
+  it("accepts dayjs durations as well as numbers", () => {
+    expect(renderDuration(dayjs.duration(10, "seconds"), "en")).toBe("10s");
+    expect(renderDuration(dayjs.duration(0.083, "seconds"), "en")).toBe("83ms");
+    expect(renderDuration(dayjs.duration(3725.4, "seconds"), "en")).toBe("1h 2m");
   });
 
-  it("handles exactly 24 hours", () => {
-    const start = "2024-03-14T10:00:00.000Z";
-    const end = "2024-03-15T10:00:00.000Z";
+  it.each([
+    ["de", 0.083, [["millisecond", 83]]],
+    ["de", 14.846, [["second", 14.8, 1]]],
+    [
+      "de",
+      3725.4,
+      [
+        ["hour", 1],
+        ["minute", 2],
+      ],
+    ],
+    [
+      "fr",
+      281_445,
+      [
+        ["day", 3],
+        ["hour", 6],
+      ],
+    ],
+    [
+      "ru",
+      3725.4,
+      [
+        ["hour", 1],
+        ["minute", 2],
+      ],
+    ],
+    [
+      "ja",
+      65.25,
+      [
+        ["minute", 1],
+        ["second", 5],
+      ],
+    ],
+    [
+      "ar",
+      3725.4,
+      [
+        ["hour", 1],
+        ["minute", 2],
+      ],
+    ],
+    [
+      "pl",
+      545,
+      [
+        ["minute", 9],
+        ["second", 5],
+      ],
+    ],
+    [
+      "zh-CN",
+      545,
+      [
+        ["minute", 9],
+        ["second", 5],
+      ],
+    ],
+    ["pt", 604_800, [["day", 7]]],
+    ["it", 604_800, [["day", 7]]],
+  ] as Array<[string, number, Array<[Intl.NumberFormatOptions["unit"], number, number?]>]>)(
+    "localizes %s duration of %s seconds",
+    (locale, seconds, parts) => {
+      expect(renderDuration(seconds, locale)).toBe(expectDuration(locale, "narrow", parts));
+    },
+  );
 
-    expect(getDuration(start, end)).toBe("1d00:00:00");
+  // Properties CLDR has held stable for decades, unlike the unit abbreviations themselves.
+  it("uses the locale's decimal separator and script", () => {
+    expect(renderDuration(14.846, "fr")).toContain("14,8");
+    expect(renderDuration(14.846, "en")).toContain("14.8");
+    expect(renderDuration(3725.4, "ru")).toMatch(/\p{Script=Cyrillic}/u);
+    expect(renderDuration(3725.4, "de")).not.toBe(renderDuration(3725.4, "en"));
   });
 
-  it("handles hours and minutes without days", () => {
-    const start = "2024-03-14T10:00:00.000Z";
-    const end = "2024-03-14T12:30:00.000Z";
-
-    expect(getDuration(start, end)).toBe("02:30:00");
+  it.each([["en"], ["de"], ["ru"]])("marks sub-millisecond durations as under 1ms in %s", (locale) => {
+    expect(renderDuration(0.0004, locale)).toBe(`<${expectDuration(locale, "narrow", [["millisecond", 1]])}`);
   });
 
-  it("omits milliseconds when withMilliseconds is false", () => {
-    const start = "2024-03-14T10:00:00.000Z";
-    const end = "2024-03-14T10:00:05.511Z";
+  it("falls back to English rather than throwing on a language Intl rejects", () => {
+    expect(renderDuration(3725.4, "not a locale!")).toBe("1h 2m");
+  });
+});
 
-    expect(getDuration(start, end, false)).toBe("00:00:05");
+describe("getDuration", () => {
+  it.each([
+    ["2024-03-14T10:00:00.000Z", "2024-03-14T10:00:00.083Z", "83ms"],
+    ["2024-03-14T10:00:00.000Z", "2024-03-14T10:00:05.5111111Z", "5.51s"],
+    ["2024-03-14T10:00:00.000Z", "2024-03-14T10:00:14.846Z", "14.8s"],
+    ["2024-03-14T10:00:00.000Z", "2024-03-14T12:30:00.000Z", "2h 30m"],
+    ["2024-03-14T10:00:00.000Z", "2024-03-15T10:00:00.000Z", "1d"],
+    ["2024-03-14T10:00:00.000Z", "2024-03-17T15:30:45.000Z", "3d 6h"],
+  ])("renders %s to %s as %s", (start, end, expected) => {
+    expect(getDuration(start, end, "en")).toBe(expected);
   });
 
-  it("handles small, null or undefined values", () => {
+  it("forwards the locale to the formatter", () => {
+    expect(getDuration("2024-03-14T10:00:00.000Z", "2024-03-14T12:30:00.000Z", "de")).toBe(
+      expectDuration("de", "narrow", [
+        ["hour", 2],
+        ["minute", 30],
+      ]),
+    );
+  });
+
+  it("handles null or undefined values", () => {
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
     expect(getDuration(null, "2024-03-14T10:00:10.000Z")).toBe(undefined);
-    expect(renderDuration(0.00001)).toBe(undefined);
   });
 
   it("falls back to current time when endDate is null (running task)", () => {
@@ -80,24 +223,36 @@ describe("getDuration & formatDuration", () => {
 
     const start = "2024-03-14T10:00:00.000Z";
 
-    expect(getDuration(start, null)).toBe("00:00:10");
-    expect(getDuration(start, undefined)).toBe("00:00:10");
+    expect(getDuration(start, null, "en")).toBe("10s");
+    expect(getDuration(start, undefined, "en")).toBe("10s");
 
     vi.useRealTimers();
   });
+});
 
-  it("handles both numbers and duration objects", () => {
-    expect(renderDuration(dayjs.duration(10, "seconds"))).toBe("00:00:10");
-    expect(renderDuration(10)).toBe("00:00:10");
+describe("getElapsedSeconds", () => {
+  it.each([
+    ["2024-03-14T10:00:00.000Z", "2024-03-14T10:00:14.846Z", 14.846],
+    ["2024-03-14T10:00:00.000Z", "2024-03-14T12:30:00.000Z", 9000],
+  ])("measures %s to %s as %s seconds", (start, end, expected) => {
+    expect(getElapsedSeconds(start, end)).toBe(expected);
   });
 
-  it("handles floating point milliseconds", () => {
-    expect(renderDuration(dayjs.duration(10.000499738, "seconds"))).toBe("00:00:10");
-    expect(renderDuration(10.000499738)).toBe("00:00:10");
-    expect(renderDuration(dayjs.duration(10.0005, "seconds"))).toBe("00:00:10.001");
-    expect(renderDuration(10.0005)).toBe("00:00:10.001");
-    expect(renderDuration(dayjs.duration(10.838999738, "seconds"))).toBe("00:00:10.839");
-    expect(renderDuration(10.838999738)).toBe("00:00:10.839");
+  it.each([[null], [undefined], ["not a date"]])("returns undefined without a usable start (%s)", (start) => {
+    expect(getElapsedSeconds(start, "2024-03-14T10:00:10.000Z")).toBeUndefined();
+  });
+
+  it("returns undefined when the end date is unparsable", () => {
+    expect(getElapsedSeconds("2024-03-14T10:00:00.000Z", "not a date")).toBeUndefined();
+  });
+
+  it("measures against now when the end date is absent (running task)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-03-14T10:00:10.000Z"));
+
+    expect(getElapsedSeconds("2024-03-14T10:00:00.000Z", null)).toBe(10);
+
+    vi.useRealTimers();
   });
 });
 
@@ -113,40 +268,35 @@ describe("getRelativeTime", () => {
     vi.useRealTimers();
   });
 
-  it("returns relative time for a valid date", () => {
-    const date = "2024-03-14T10:00:00.000Z";
-
-    expect(getRelativeTime(date)).toBe("a few seconds ago");
-  });
-
-  it("returns an empty string for undefined dates", () => {
-    expect(getRelativeTime(undefined)).toBe("");
-  });
-
-  it("handles future dates", () => {
-    const futureDate = "2024-03-14T10:00:20.000Z";
-
-    expect(getRelativeTime(futureDate)).toBe("in a few seconds");
-  });
-});
-
-describe("renderCompactDuration", () => {
   it.each([
-    [0, "0s"],
-    [-5, "0s"],
-    [Number.NaN, "0s"],
-    [Number.POSITIVE_INFINITY, "0s"],
-    [0.25, "250ms"],
-    [45, "45s"],
-    [540, "9m"],
-    [545, "9m 5s"],
-    [3600, "1h"],
-    [5400, "1h 30m"],
-    [86_400, "1d"],
-    [102_600, "1d 4h"],
-  ])("formats %s seconds as %s", (seconds, expected) => {
-    expect(renderCompactDuration(seconds)).toBe(expected);
+    ["2024-03-14T10:00:00.000Z", "10 seconds ago"],
+    ["2024-03-14T10:00:20.000Z", "in 10 seconds"],
+    // The largest unit the gap reaches wins, rather than "2700 seconds ago".
+    ["2024-03-14T09:15:10.000Z", "45 minutes ago"],
+    ["2024-03-14T07:00:10.000Z", "3 hours ago"],
+    ["2024-03-11T10:00:10.000Z", "3 days ago"],
+    ["2024-02-14T10:00:10.000Z", "4 weeks ago"],
+    ["2024-01-14T10:00:10.000Z", "2 months ago"],
+    ["2022-03-14T10:00:10.000Z", "2 years ago"],
+  ])("describes %s as %s", (date, expected) => {
+    expect(getRelativeTime(date, "en")).toBe(expected);
   });
+
+  it.each([["de"], ["fr"], ["ru"], ["ja"]])("localizes relative time for %s", (locale) => {
+    expect(getRelativeTime("2024-03-14T10:00:00.000Z", locale)).toBe(
+      new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-10, "second"),
+    );
+    expect(getRelativeTime("2024-03-14T10:00:00.000Z", locale)).not.toBe(
+      getRelativeTime("2024-03-14T10:00:00.000Z", "en"),
+    );
+  });
+
+  it.each([[undefined], [null], [""], ["not a date"]])(
+    "returns an empty string without a usable date (%s)",
+    (date) => {
+      expect(getRelativeTime(date, "en")).toBe("");
+    },
+  );
 });
 
 describe("getDurationTickStep", () => {
@@ -174,16 +324,43 @@ describe("getDurationTickStep", () => {
 
 describe("humanizeSeconds", () => {
   it.each([
-    [3600, "an hour"],
-    [86_400, "a day"],
-  ])("humanizes %s seconds as %s", (seconds, expected) => {
-    expect(humanizeSeconds(seconds)).toBe(expected);
+    [3600, "1 hour"],
+    [86_400, "1 day"],
+    [3725.4, "1 hour, 2 minutes"],
+    [0.083, "83 milliseconds"],
+  ])("spells out %s seconds as %s in English", (seconds, expected) => {
+    expect(humanizeSeconds(seconds, "en")).toBe(expected);
   });
 
-  it.each([[null], [undefined], [Number.NaN], [Number.POSITIVE_INFINITY]])(
-    "returns undefined without a finite interval (%s)",
+  // The prose form is localized by the same CLDR data as the compact one.
+  it.each([
+    ["de", 3600, [["hour", 1]]],
+    ["de", 86_400, [["day", 1]]],
+    ["ru", 3600, [["hour", 1]]],
+    [
+      "fr",
+      3725.4,
+      [
+        ["hour", 1],
+        ["minute", 2],
+      ],
+    ],
+  ] as Array<[string, number, Array<[Intl.NumberFormatOptions["unit"], number, number?]>]>)(
+    "spells out %s duration of %s seconds",
+    (locale, seconds, parts) => {
+      expect(humanizeSeconds(seconds, locale)).toBe(expectDuration(locale, "long", parts));
+    },
+  );
+
+  it("differs from the compact form and from English", () => {
+    expect(humanizeSeconds(3600, "en")).not.toBe(renderDuration(3600, "en"));
+    expect(humanizeSeconds(3600, "de")).not.toBe(humanizeSeconds(3600, "en"));
+  });
+
+  it.each([[null], [undefined], [Number.NaN], [Number.POSITIVE_INFINITY], [-5]])(
+    "returns undefined without a usable interval (%s)",
     (seconds) => {
-      expect(humanizeSeconds(seconds)).toBeUndefined();
+      expect(humanizeSeconds(seconds, "en")).toBeUndefined();
     },
   );
 });

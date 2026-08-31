@@ -41,22 +41,22 @@ describe("buildGanttTimeAxisTicks", () => {
 
     expect(ticks).toHaveLength(GANTT_TIME_AXIS_TICK_COUNT);
     expect(ticks[0]?.leftPct).toBe(0);
-    expect(ticks[0]?.label).toBe("00:00:00");
+    expect(ticks[0]?.label).toBe("0s");
     expect(ticks[0]?.labelAlign).toBe("left");
     expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.leftPct).toBe(100);
     expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.labelAlign).toBe("right");
-    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.label).toBe("00:01:00");
+    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.label).toBe("1m");
     expect(ticks[1]?.labelAlign).toBe("center");
     expect(ticks.every((tick) => typeof tick.label === "string" && tick.label.length > 0)).toBe(true);
   });
 
   it("supports a single tick", () => {
-    const ticks = buildGanttTimeAxisTicks(1000, 1000, 1);
+    const ticks = buildGanttTimeAxisTicks(1000, 1000, { tickCount: 1 });
 
     expect(ticks).toHaveLength(1);
     expect(ticks[0]?.leftPct).toBe(0);
     expect(ticks[0]?.labelAlign).toBe("left");
-    expect(ticks[0]?.label).toBe("00:00:00");
+    expect(ticks[0]?.label).toBe("0s");
   });
 });
 

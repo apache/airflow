@@ -26,8 +26,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
-
-import { renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 dayjs.extend(duration);
 
@@ -37,6 +36,7 @@ type LatestRun = DAGWithLatestDagRunsResponse["latest_dag_runs"][number];
 
 const RecentRunTooltipContent = ({ run }: { readonly run: LatestRun }) => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
 
   return (
     <Box>

@@ -352,20 +352,16 @@ export type GanttAxisTick = {
 };
 
 /** Elapsed time from the chart origin (`minMs`), formatted like grid duration labels (no wall-clock). */
-const formatElapsedMsForGanttAxis = (elapsedMs: number): string => {
+const formatElapsedMsForGanttAxis = (elapsedMs: number, locale?: string): string => {
   const seconds = Math.max(0, elapsedMs / 1000);
 
-  if (seconds <= 0.01) {
-    return "00:00:00";
-  }
-
-  return renderDuration(seconds, false) ?? "00:00:00";
+  return renderDuration(seconds, locale) ?? "0s";
 };
 
 export const buildGanttTimeAxisTicks = (
   minMs: number,
   maxMs: number,
-  tickCount: number = GANTT_TIME_AXIS_TICK_COUNT,
+  { locale, tickCount = GANTT_TIME_AXIS_TICK_COUNT }: { locale?: string; tickCount?: number } = {},
 ): Array<GanttAxisTick> => {
   const spanMs = Math.max(1, maxMs - minMs);
   const denominator = Math.max(1, tickCount - 1);
@@ -378,7 +374,7 @@ export const buildGanttTimeAxisTicks = (
       tickCount === 1 ? "left" : tickIndex === 0 ? "left" : tickIndex === lastIndex ? "right" : "center";
 
     ticks.push({
-      label: formatElapsedMsForGanttAxis(elapsedMs),
+      label: formatElapsedMsForGanttAxis(elapsedMs, locale),
       labelAlign,
       leftPct: (tickIndex / denominator) * 100,
     });
