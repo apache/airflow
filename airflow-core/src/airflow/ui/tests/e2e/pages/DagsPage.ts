@@ -87,21 +87,13 @@ export class DagsPage extends BasePage {
    * Clear the search input and wait for list to reset
    */
   public async clearSearch(): Promise<void> {
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 10_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
-
     // Click the clear button instead of programmatically clearing the input.
     // The SearchBar component uses a 200ms debounce on keystroke changes,
     // but the clear button calls onChange("") directly, bypassing the debounce.
     await this.page.getByTestId("clear-search").click();
-    await responsePromise;
+    // Clearing goes back to a query the page already holds, which react-query answers from cache
+    // instead of refetching, so the dropped search param is the only signal there is.
+    await expect(this.page).not.toHaveURL(/name_pattern=/u);
     await this.waitForDagList();
   }
 
@@ -119,23 +111,33 @@ export class DagsPage extends BasePage {
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
   ): Promise<void> {
-    // Set up response listener before the click so we don't miss a fast response.
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 10_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
+    // Set up response listener before the click so we don't miss a fast response. /ui/dags shares
+    // its prefix with the page's other endpoints and is refetched on a poll interval, so only the
+    // filters a request carries tell this fetch from one that predates it.
+    const responsePromise = this.page.waitForResponse(
+      (response: Response) => {
+        const url = new URL(response.url());
+        const filters = url.searchParams;
+
+        return (
+          url.pathname.endsWith("/ui/dags") &&
+          (status === "needs_review"
+            ? filters.get("has_pending_actions") === "true"
+            : filters.get("last_dag_run_state") === status) &&
+          response.status() === 200
+        );
+      },
+      { timeout: 10_000 },
+    );
 
     if (status === "needs_review") {
       // A boolean filter is active the moment it is picked from the menu.
       await this.openAddFilterMenu();
       await this.needsReviewFilter.click();
     } else {
-      if (await this.lastRunStatePill.isVisible().catch(() => false)) {
+      // A pill is only in the DOM once it collapses out of edit mode, so sampling its
+      // visibility races that. The URL carries the same fact and never animates.
+      if (new URL(this.page.url()).searchParams.has("last_dag_run_state")) {
         // An existing pill already holds a value, so re-opening it leaves the menu shut.
         await this.lastRunStatePill.click();
         await this.lastRunStateFilter.click();
@@ -145,8 +147,8 @@ export class DagsPage extends BasePage {
         await this.page.getByTestId("add-filter-last_dag_run_state").click();
       }
       await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
-      // Selecting blurs the pill, which collapses it ~150ms later. Wait for that so a
-      // follow-up call sees the pill rather than racing it and reopening the menu.
+      // Selecting blurs the pill, which collapses it ~150ms later. Hand back a settled bar
+      // instead of one mid-transition.
       await expect(this.lastRunStatePill).toBeVisible({ timeout: 5000 });
     }
     await responsePromise;
