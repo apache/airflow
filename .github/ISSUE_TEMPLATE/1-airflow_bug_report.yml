@@ -147,6 +147,7 @@ body:
         - common-dataquality
         - common-io
         - common-messaging
+        - common-search
         - common-sql
         - databricks
         - datadog
