@@ -108,7 +108,8 @@ _MASKED_CREDENTIAL_SENTINEL = "***"
 
 
 def _same_endpoint(requested: str | int | None, stored: str | int | None) -> bool:
-    """Return True when request and stored host/port refer to the same destination.
+    """
+    Return True when request and stored host/port refer to the same destination.
 
     The UI sends empty string for hidden unused host/port fields; the ORM stores
     those as NULL. Treat blank as unset so connection types that do not use
@@ -122,7 +123,8 @@ def _same_endpoint(requested: str | int | None, stored: str | int | None) -> boo
 
 
 def _supplies_own_credentials(test_body: ConnectionBody) -> bool:
-    """Return True when the request includes a real (non-masked) password.
+    """
+    Return True when the request includes a real (non-masked) password.
 
     The UI always posts the masked sentinel for unchanged secrets. That is not
     a caller-supplied credential and must not skip restoring stored extras.
