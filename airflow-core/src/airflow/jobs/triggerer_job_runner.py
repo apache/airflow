@@ -330,8 +330,8 @@ class messages:
         # Format of list[str] is the exc traceback format
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
-        # Ids the runner has a live coroutine for
-        running_ids: set[int] = set()
+        # Ids the runner has a live coroutine for; None when the message carries no information
+        running_ids: set[int] | None = None
 
     class TriggerStateSync(BaseModel):
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
@@ -785,13 +785,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """Remove triggers that are no longer needed."""
         Trigger.clean_unused()
 
-    def check_for_unhandled_triggers(self, running_ids: set[int]) -> None:
+    def check_for_unhandled_triggers(self, running_ids: set[int] | None) -> None:
         """
         Re-create triggers we track as running that the runner has no coroutine for.
 
         Only valid between finished-removal and to_create-addition in ``_handle_request``, where the
         two sides agree. Dropping the leftovers lets :meth:`update_triggers` rebuild them.
         """
+        if running_ids is None:
+            return
         unhandled = self.running_triggers - running_ids
         if not unhandled:
             return

@@ -3328,6 +3328,16 @@ class TestCheckForUnhandledTriggers:
 
         assert build.call_args.args[1] == {2}
 
+    def test_message_without_running_ids_is_ignored(self, jobless_supervisor):
+        """``None`` means the message carried no information, which must not read as "nothing running"."""
+        jobless_supervisor.running_triggers = {1, 2, 3}
+        jobless_supervisor.cancelling_triggers = {1, 2, 3}
+
+        jobless_supervisor.check_for_unhandled_triggers(None)
+
+        assert jobless_supervisor.running_triggers == {1, 2, 3}
+        assert jobless_supervisor.cancelling_triggers == {1, 2, 3}
+
     def test_handle_request_checks_before_adding_to_create(self, jobless_supervisor, mocker):
         """The check fires after finished processing but before to_create is added to running_triggers."""
         mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
