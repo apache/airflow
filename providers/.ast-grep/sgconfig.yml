@@ -25,4 +25,4 @@
 #   https://github.com/ast-grep/ast-grep
 #   https://ast-grep.github.io/guide/introduction
 ruleDirs:
-  - ast-grep-rules
+  - rules
