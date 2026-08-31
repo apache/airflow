@@ -27,6 +27,8 @@ import warnings
 import yaml
 from rich.console import Console
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
@@ -159,11 +161,20 @@ def get_eligible_classes(all_classes):
 def iter_check_template_fields(module: str):
     """
     1. This method imports the providers module and retrieves all the classes defined within it.
+       Modules that only import under an optional provider dependency are skipped.
     2. It then filters and selects classes related to operators or sensors by checking if the class name ends with "Operator" or "Sensor."
     3. For each operator class, it validates the template fields by inspecting the class instance fields.
     """
     with warnings.catch_warnings(record=True):
-        imported_module = importlib.import_module(module)
+        try:
+            imported_module = importlib.import_module(module)
+        except AirflowOptionalProviderFeatureException:
+            # The module gates a cross-provider feature behind an optional
+            # dependency that is not installed here (e.g. the Google Dataflow
+            # operators need apache-airflow-providers-apache-beam). There are no
+            # classes to inspect, and a missing optional provider is not what
+            # this hook reports on.
+            return
         classes = inspect.getmembers(imported_module, inspect.isclass)
     op_classes = get_eligible_classes(classes)
 
