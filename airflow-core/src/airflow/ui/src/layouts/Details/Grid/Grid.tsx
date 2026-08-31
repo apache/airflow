@@ -41,6 +41,7 @@ import { TaskNames } from "./TaskNames";
 import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
+import { useGridScrollRestoration } from "./useGridScrollRestoration";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -178,15 +179,22 @@ export const Grid = ({
   const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
+  // Stable ref shared by the virtualizer and the scroll-restoration hook (Grid is not auto-memoized).
+  const getScrollElement = useCallback(
+    (): HTMLDivElement | null =>
+      usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
+    [usesSharedScroll, sharedScrollContainerRef],
+  );
+
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
-    // @tanstack/react-virtual: pass element resolver inline; hook tracks scroll container via its own subscriptions.
-    getScrollElement: () =>
-      usesSharedScroll ? (sharedScrollContainerRef?.current ?? null) : scrollContainerRef.current,
+    getScrollElement,
     overscan: 5,
     scrollPaddingStart: usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX,
   });
+
+  useGridScrollRestoration({ dagId, getScrollElement, rowCount: flatNodes.length });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
