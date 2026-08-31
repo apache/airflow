@@ -3864,6 +3864,18 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+        bundle_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Bundle Names
         dag_display_name:
           anyOf:
           - type: string

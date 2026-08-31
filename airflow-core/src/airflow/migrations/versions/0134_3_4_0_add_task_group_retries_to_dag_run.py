@@ -25,7 +25,7 @@ TaskGroup-level retries (the ``retries`` argument on ``TaskGroup``); see
 https://github.com/apache/airflow/issues/21867.
 
 Revision ID: 0dd0802788b0
-Revises: 8d3f1a6b2c47
+Revises: f8c2a1d94e03
 Create Date: 2026-06-05 00:00:00.000000
 
 """
@@ -38,7 +38,7 @@ from alembic import op
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 revision = "0dd0802788b0"
-down_revision = "8d3f1a6b2c47"
+down_revision = "f8c2a1d94e03"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"

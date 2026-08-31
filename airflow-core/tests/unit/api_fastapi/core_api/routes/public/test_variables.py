@@ -1605,3 +1605,34 @@ class TestBulkVariables(TestVariableEndpoint):
 
         session.commit()
         assert session.scalars(select(Variable.key).where(Variable.key.in_(keys))).all() == []
+
+    @pytest.mark.parametrize("num_variables", [1, 25])
+    def test_bulk_update_resolves_existence_in_single_query(self, session, num_variables):
+        """Bulk update looks up all targeted variables in one query, not one per key (no N+1)."""
+        keys = [f"bulk_update_var_{i}" for i in range(num_variables)]
+        for key in keys:
+            Variable.set(key=key, value="old_value", session=session)
+        session.commit()
+
+        request = BulkBody[VariableBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"key": key, "value": "new_value"} for key in keys],
+                        "action_on_non_existence": "skip",
+                    }
+                ]
+            }
+        )
+        service = BulkVariableService(session=session, request=request)
+
+        with assert_queries_count(1):
+            response = service.handle_request()
+
+        assert response.update is not None
+        assert sorted(response.update.success) == sorted(keys)
+
+        session.commit()
+        updated_variables = session.scalars(select(Variable).where(Variable.key.in_(keys))).all()
+        assert {variable.val for variable in updated_variables} == {"new_value"}

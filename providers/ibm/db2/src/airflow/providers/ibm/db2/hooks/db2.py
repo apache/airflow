@@ -74,7 +74,7 @@ class Db2Hook(DbApiHook):
 
     def get_conn(self) -> Any:
         """
-        Return ibm_db_dbi connection object.
+        Return ``ibm_db_dbi`` connection object.
 
         :return: Db2 connection object
         """
