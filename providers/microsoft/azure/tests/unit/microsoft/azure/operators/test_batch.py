@@ -146,6 +146,35 @@ class TestAzureBatchOperator:
             timeout=2,
         )
 
+    @pytest.mark.parametrize(
+        ("operator_kwargs", "expected_retry_total"),
+        [
+            pytest.param({}, 3, id="default"),
+            pytest.param({"batch_max_retries": 7}, 7, id="explicit"),
+        ],
+    )
+    def test_batch_max_retries_reaches_the_batch_client(
+        self, mocked_batch_client, operator_kwargs, expected_retry_total
+    ):
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            sku_starts_with=self.test_vm_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            **operator_kwargs,
+        )
+        operator.hook.get_conn()
+        assert mocked_batch_client.call_args.kwargs["retry_total"] == expected_retry_total
+
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures(self, wait_mock):
         wait_mock.return_value = True
