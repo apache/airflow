@@ -57,7 +57,11 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
             waiter_args={"ids": [collection_id]} if collection_id else {"names": [collection_name]},
             failure_message="OpenSearch Serverless Collection creation failed.",
             status_message="Status of OpenSearch Serverless Collection is",
-            status_queries=["status"],
+            status_queries=[
+                "collectionDetails[0].status",
+                "collectionDetails[0].failureMessage",
+                "collectionErrorDetails[0].errorMessage",
+            ],
             return_key="collection_id" if collection_id else "collection_name",
             return_value=collection_id if collection_id else collection_name,
             waiter_delay=waiter_delay,
