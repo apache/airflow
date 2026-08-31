@@ -22,7 +22,6 @@ import os
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
-from enum import Enum
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
@@ -63,39 +62,6 @@ if TYPE_CHECKING:
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-
-
-class SnowparkContainerJobStatus(str, Enum):
-    """Statuses of a Snowpark Container Services job service."""
-
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    CANCELLING = "CANCELLING"
-    SUSPENDING = "SUSPENDING"
-    DELETING = "DELETING"
-    DONE = "DONE"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-
-
-CONTAINER_JOB_TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
-    {
-        SnowparkContainerJobStatus.DONE,
-        SnowparkContainerJobStatus.FAILED,
-        SnowparkContainerJobStatus.CANCELLED,
-        SnowparkContainerJobStatus.INTERNAL_ERROR,
-    }
-)
-CONTAINER_JOB_NON_TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
-    {
-        SnowparkContainerJobStatus.PENDING,
-        SnowparkContainerJobStatus.RUNNING,
-        SnowparkContainerJobStatus.CANCELLING,
-        SnowparkContainerJobStatus.SUSPENDING,
-        SnowparkContainerJobStatus.DELETING,
-    }
-)
 
 
 def _try_to_boolean(value: Any):

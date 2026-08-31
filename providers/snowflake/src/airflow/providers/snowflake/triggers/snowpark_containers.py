@@ -22,10 +22,10 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
-from airflow.providers.snowflake.hooks.snowflake import (
-    CONTAINER_JOB_NON_TERMINAL_STATUSES,
-    CONTAINER_JOB_TERMINAL_STATUSES,
-    SnowflakeHook,
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.utils.snowpark_containers import (
+    NON_TERMINAL_STATUSES,
+    TERMINAL_STATUSES,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -140,11 +140,11 @@ class SnowparkContainerJobTrigger(BaseTrigger):
                 yield TriggerEvent({"status": "error", "job_name": self.job_name, "message": str(e)})
                 return
 
-            if status in CONTAINER_JOB_TERMINAL_STATUSES:
+            if status in TERMINAL_STATUSES:
                 yield TriggerEvent({"status": status, "job_name": self.job_name})
                 return
 
-            if status not in CONTAINER_JOB_NON_TERMINAL_STATUSES:
+            if status not in NON_TERMINAL_STATUSES:
                 yield TriggerEvent(
                     {
                         "status": "error",

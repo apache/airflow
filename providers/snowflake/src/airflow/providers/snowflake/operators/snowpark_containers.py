@@ -26,13 +26,13 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.standard.operators import BaseOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
-from airflow.providers.snowflake.hooks.snowflake import (
-    CONTAINER_JOB_NON_TERMINAL_STATUSES,
-    CONTAINER_JOB_TERMINAL_STATUSES,
-    SnowflakeHook,
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
+from airflow.providers.snowflake.utils.snowpark_containers import (
+    NON_TERMINAL_STATUSES,
+    TERMINAL_STATUSES,
     SnowparkContainerJobStatus,
 )
-from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -68,8 +68,8 @@ class SnowparkContainerJobOperator(BaseOperator):
         When disabled, the job is submitted and the operator returns
         immediately. (default value: True)
     :param drop_on_completion: drop the job service after the job finishes
-        successfully. Failed jobs are not dropped, allowing inspection
-        in Snowflake. (default value: True)
+        successfully or on a timeout. Failed jobs are not dropped, allowing
+        inspection in Snowflake. (default value: True)
     :param poll_interval: the interval in seconds to poll the query status.
         (default value: 10)
     :param snowflake_conn_id: Reference to
@@ -79,8 +79,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         operator submits the job and returns immediately without deferring.
         (default value: False)
     :param timeout: Maximum seconds to wait for the job to reach a terminal
-        state. When it elapses the job service is dropped and the task fails.
-        (default value: 86400)
+        state. When it elapses the task fails. (default value: 86400)
     :param database: name of database (will overwrite database defined
         in connection)
     :param schema: name of schema (will overwrite schema defined in
@@ -191,24 +190,31 @@ class SnowparkContainerJobOperator(BaseOperator):
 
     def _poll_for_status(self) -> str:
         """Poll until the job reaches a terminal state."""
+        status = None
         end_time = time.time() + self.timeout
         while True:
             if time.time() >= end_time:
-                self._drop_service()
+                self._log_container_output(status)
+                if self.drop_on_completion:
+                    self._drop_service()
                 raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
             response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
             status = response.get("status")
-            if status in CONTAINER_JOB_TERMINAL_STATUSES:
+            if status in TERMINAL_STATUSES:
                 return status
-            if status not in CONTAINER_JOB_NON_TERMINAL_STATUSES:
+            if status not in NON_TERMINAL_STATUSES:
                 raise RuntimeError(f"Job {self.job_name} returned unexpected status: {status}")
             time.sleep(self.poll_interval)
 
-    def _log_container_output(self, status: str) -> None:
-        """Fetch and log container output for all replicas."""
+    def _log_container_output(self, status: str | None) -> None:
+        """Fetch and log container output for all replicas. Best-effort so it never blocks cleanup."""
         for instance_id in range(self.replicas):
             sql = f"SELECT SYSTEM$GET_SERVICE_LOGS('{self.job_name}', {instance_id}, '{self.container_name}')"
-            response = self._run_one(sql)[0]
+            try:
+                response = self._run_one(sql)[0]
+            except Exception as e:
+                self.log.warning("Could not retrieve logs for instance_id %d: %s", instance_id, e)
+                continue
             if not response:
                 continue
             if status != SnowparkContainerJobStatus.DONE:
@@ -257,7 +263,9 @@ class SnowparkContainerJobOperator(BaseOperator):
             if self.execution_timeout is not None:
                 # Hand the execution deadline to the trigger so it emits a timeout event that drops the
                 # service. The framework's defer timeout would otherwise kill the task with no cleanup.
-                execution_deadline = now + self.execution_timeout.total_seconds()
+                execution_deadline = (
+                    context["ti"].start_date.timestamp() + self.execution_timeout.total_seconds()
+                )
                 # Pad the backstop past that deadline so the trigger fires first.
                 defer_timeout = self.execution_timeout + poll_buffer
             self.defer(
@@ -284,7 +292,9 @@ class SnowparkContainerJobOperator(BaseOperator):
         self.job_name = event["job_name"]
         status = event["status"]
         if status == "timeout":
-            self._drop_service()
+            self._log_container_output(status)
+            if self.drop_on_completion:
+                self._drop_service()
             raise TimeoutError(event.get("message", f"Job '{self.job_name}' did not complete: {status}"))
         if status == "error":
             raise RuntimeError(event.get("message", f"Job '{self.job_name}' did not complete: {status}"))
