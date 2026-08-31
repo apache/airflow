@@ -44,9 +44,9 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+    from airflow.sdk.bases.xcom import XComIterable
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.execution_time.lazy_sequence import XComIterable
 
 
 ExternalDateTimeTrigger: type[DateTimeTrigger] | None
@@ -341,7 +341,7 @@ class IterableOperator(BaseOperator):
                 if exceptions:
                     raise self.expand_input.wrap_exceptions(exceptions)
                 if do_xcom_push:
-                    from airflow.sdk.execution_time.lazy_sequence import XComIterable
+                    from airflow.sdk.bases.xcom import XComIterable
 
                     return XComIterable(
                         task_id=self.task_id,

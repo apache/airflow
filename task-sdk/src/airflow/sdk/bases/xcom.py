@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import Iterable, Iterator, Sequence
 from typing import Any, Protocol
 
 import structlog
@@ -572,3 +573,149 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+
+
+class XComIterable(Sequence):
+    """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
+
+    def __init__(
+        self,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        length: int | None = None,
+    ):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.length = length or 0
+        self.index = self.length
+
+    def __iter__(self) -> Iterator[Any]:
+        return _XComIterator(self)
+
+    def __len__(self) -> int:
+        return self.length
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        """Allow direct indexing so this works like a sequence."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if isinstance(key, slice):
+            # TODO: This issues one XCom.get_one call per element — N round-trips for a full slice.
+            # XComIterable stores results under distinct keys (return_value_0, return_value_1, …)
+            # with the same map_index, so the existing GetXComSequenceSlice endpoint (which ranges
+            # over map_index for a single key) cannot be reused.  A new POST endpoint that accepts
+            # a list of keys and returns values in a single query is needed; once that lands, replace
+            # this loop with a single batched fetch.
+            start, stop, step = key.indices(len(self))
+            return [self[i] for i in range(start, stop, step)]
+
+        if not (0 <= key < self.length):
+            raise IndexError(key)
+
+        return XCom.get_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{key}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def append(self, value: Any):
+        from airflow.sdk.execution_time.xcom import XCom
+
+        try:
+            XCom.set(
+                key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+                value=value,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+                map_index=self.map_index,
+            )
+        finally:
+            self.index += 1
+            self.length += 1
+
+    async def aappend(self, value: Any):
+        from airflow.sdk.execution_time.xcom import XCom
+
+        try:
+            await XCom.aset(
+                key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+                value=value,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                run_id=self.run_id,
+                map_index=self.map_index,
+            )
+        finally:
+            self.index += 1
+            self.length += 1
+
+    def flatten(self) -> XComIterable:
+        """Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes)."""
+        return FlattenedXComIterable(
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            length=self.length,
+        )
+
+    def serialize(self) -> dict:
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "length": self.length,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
+
+
+class FlattenedXComIterable(XComIterable):
+    """An XComIterable whose iterator recursively expands nested iterables (except str/bytes)."""
+
+    def __iter__(self) -> Iterator[Any]:
+        for item in super().__iter__():
+            yield from self._flatten(item)
+
+    @classmethod
+    def _flatten(cls, item: Any) -> Iterator[Any]:
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+            for sub in item:
+                yield from cls._flatten(sub)
+        else:
+            yield item
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        return FlattenedXComIterable(**data)
+
+
+class _XComIterator:
+    """Iterator for XComIterable."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._iterable):
+            raise StopIteration
+
+        value = self._iterable[self._index]
+        self._index += 1
+        return value
