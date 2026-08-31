@@ -18,12 +18,10 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import tz from "dayjs/plugin/timezone";
 import i18n from "i18next";
 
 dayjs.extend(dayjsDuration);
-dayjs.extend(relativeTime);
 dayjs.extend(tz);
 
 export const DATE_FORMAT = "YYYY-MM-DD";
@@ -34,6 +32,8 @@ const DEFAULT_LOCALE = "en";
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 86_400;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
 
 type DurationUnit = "day" | "hour" | "millisecond" | "minute" | "second";
 
@@ -155,7 +155,7 @@ const getDurationParts = (seconds: number): Array<DurationPart> => {
     const hours = Math.floor(seconds / SECONDS_PER_HOUR);
     const remainingMinutes = Math.round((seconds - hours * SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
 
-    if (remainingMinutes === SECONDS_PER_MINUTE) {
+    if (remainingMinutes === MINUTES_PER_HOUR) {
       return getDurationParts((hours + 1) * SECONDS_PER_HOUR);
     }
 
@@ -170,7 +170,7 @@ const getDurationParts = (seconds: number): Array<DurationPart> => {
   const days = Math.floor(seconds / SECONDS_PER_DAY);
   const remainingHours = Math.round((seconds - days * SECONDS_PER_DAY) / SECONDS_PER_HOUR);
 
-  if (remainingHours === 24) {
+  if (remainingHours === HOURS_PER_DAY) {
     return getDurationParts((days + 1) * SECONDS_PER_DAY);
   }
 
@@ -316,10 +316,55 @@ export const getRelativeTime = (
 
   const elapsed = dayjs(date).diff(dayjs(), "second", true);
   const magnitude = Math.abs(elapsed);
+  const index = RELATIVE_TIME_UNITS.findIndex((entry) => magnitude >= entry.seconds);
+  const candidate = RELATIVE_TIME_UNITS[index] ?? RELATIVE_TIME_FALLBACK_UNIT;
+  const rounded = Math.round(elapsed / candidate.seconds);
+
+  // Rounding can saturate the unit the magnitude was picked from -- 59.7 minutes rounds to 60 -- so
+  // promote to the next unit up rather than printing "60 minutes ago" where "an hour ago" is meant.
+  const larger = index > 0 ? RELATIVE_TIME_UNITS[index - 1] : undefined;
   const { seconds, unit } =
-    RELATIVE_TIME_UNITS.find((candidate) => magnitude >= candidate.seconds) ?? RELATIVE_TIME_FALLBACK_UNIT;
+    larger !== undefined && Math.abs(rounded) * candidate.seconds >= larger.seconds ? larger : candidate;
 
   return getRelativeTimeFormatter(locale).format(Math.round(elapsed / seconds), unit);
+};
+
+/**
+ * Every non-zero unit down to fractional seconds, for a `title` alongside the rounded form.
+ *
+ * `renderDuration` deliberately rounds to two units, which makes "1h 2m" cover a 60-second band --
+ * too coarse to compare two similar runs. This keeps the exact number one hover away.
+ */
+export const renderExactDuration = (
+  duration: number | null | undefined,
+  locale: string = i18n.language || DEFAULT_LOCALE,
+): string | undefined => {
+  if (duration === null || duration === undefined) {
+    return undefined;
+  }
+
+  const total = Number(duration);
+
+  if (!Number.isFinite(total) || total < 0) {
+    return undefined;
+  }
+
+  if (total < 1) {
+    return formatParts(getDurationParts(total), locale, "narrow");
+  }
+
+  const days = Math.floor(total / SECONDS_PER_DAY);
+  const hours = Math.floor((total % SECONDS_PER_DAY) / SECONDS_PER_HOUR);
+  const minutes = Math.floor((total % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+  const seconds = Number((total % SECONDS_PER_MINUTE).toFixed(3));
+  const parts: Array<DurationPart> = [
+    { unit: "day" as const, value: days },
+    { unit: "hour" as const, value: hours },
+    { unit: "minute" as const, value: minutes },
+    { fractionDigits: 3, unit: "second" as const, value: seconds },
+  ].filter((part) => part.value > 0);
+
+  return formatParts(parts, locale, "narrow");
 };
 
 export const getTimezoneOffsetString = (timezone: string): string => dayjs().tz(timezone).format("Z");

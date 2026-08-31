@@ -18,7 +18,6 @@
  */
 
 export { capitalize } from "./capitalize";
-export { getDuration, renderDuration } from "./datetimeUtils";
 export { createErrorToaster, getErrorStatus } from "./errorHandling";
 export { getMetaKey } from "./getMetaKey";
 export { toNullablePartitionKey } from "./partitionKey";

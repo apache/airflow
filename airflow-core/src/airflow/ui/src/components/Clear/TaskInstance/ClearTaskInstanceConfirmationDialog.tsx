@@ -27,7 +27,7 @@ import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
 import { Dialog } from "src/system-components";
 
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { getRelativeTime } from "src/utils/datetimeUtils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 type Props = {
   readonly dagDetails?: {
@@ -56,6 +56,7 @@ const ClearTaskInstanceConfirmationDialog = ({
   preventRunningTask,
 }: Props) => {
   const { t: translate } = useTranslation();
+  const { formatRelative } = useDurationFormat();
   const useExplicitTaskIds = dagDetails?.taskIds !== undefined;
   const { data, isFetching } = useClearTaskInstancesDryRun({
     dagId: dagDetails?.dagId ?? "",
@@ -127,7 +128,7 @@ const ClearTaskInstanceConfirmationDialog = ({
                         state: taskCurrentState,
                         time:
                           firstInstance?.start_date !== null && firstInstance?.start_date !== undefined
-                            ? getRelativeTime(firstInstance.start_date)
+                            ? formatRelative(firstInstance.start_date)
                             : undefined,
                         user:
                           (firstInstance?.unixname?.trim().length ?? 0) > 0

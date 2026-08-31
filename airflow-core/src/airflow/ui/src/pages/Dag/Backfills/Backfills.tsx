@@ -29,15 +29,22 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+
 import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 
-const getColumns = (
-  onSelectBackfill: (backfillId: number) => void,
-  translate: TFunction,
-  formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined,
-): Array<ColumnDef<BackfillResponse>> => [
+type ColumnProps = {
+  readonly formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined;
+  readonly onSelectBackfill: (backfillId: number) => void;
+  readonly translate: TFunction;
+};
+
+const getColumns = ({
+  formatElapsed,
+  onSelectBackfill,
+  translate,
+}: ColumnProps): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -154,7 +161,7 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns(onSelectBackfill, translate, formatElapsed);
+  const columns = getColumns({ formatElapsed, onSelectBackfill, translate });
 
   return (
     <>

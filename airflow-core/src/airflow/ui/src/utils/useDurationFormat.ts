@@ -16,11 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type dayjsDuration from "dayjs/plugin/duration";
 import { useMemo } from "react";
+
+import type dayjsDuration from "dayjs/plugin/duration";
 import { useTranslation } from "react-i18next";
 
-import { getDuration, humanizeSeconds, renderDuration } from "./datetimeUtils";
+import {
+  getDuration,
+  getRelativeTime,
+  humanizeSeconds,
+  renderDuration,
+  renderExactDuration,
+} from "./datetimeUtils";
 
 /**
  * Duration formatters bound to the language currently on screen.
@@ -43,12 +50,16 @@ export const useDurationFormat = () => {
       /** Elapsed time between two timestamps, counting an absent end as still running. */
       formatElapsed: (startDate?: string | null, endDate?: string | null) =>
         getDuration(startDate, endDate, locale),
+      /** Relative wall-clock time, e.g. "2 hours ago". */
+      formatRelative: (date: string | null | undefined) => getRelativeTime(date, locale),
       /** Spelled-out duration for prose, e.g. "1 hour, 2 minutes". */
       humanizeDuration: (seconds: number | null | undefined) => humanizeSeconds(seconds, locale),
       locale,
       /** Compact duration for tables, charts and tooltips, e.g. "1h 2m". */
       renderDuration: (duration: dayjsDuration.Duration | number | null | undefined) =>
         renderDuration(duration, locale),
+      /** Every unit down to fractional seconds, for a `title` beside the rounded form. */
+      renderExactDuration: (duration: number | null | undefined) => renderExactDuration(duration, locale),
     }),
     [locale],
   );

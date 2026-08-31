@@ -27,6 +27,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
+
 import { useDurationFormat } from "src/utils/useDurationFormat";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
