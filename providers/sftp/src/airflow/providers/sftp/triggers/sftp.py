@@ -24,9 +24,11 @@ from typing import Any
 
 from dateutil.parser import parse as parse_date
 
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.sftp.operators.sftp import SFTPOperation
 from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.timezone import convert_to_utc
 
 
 class SFTPTrigger(BaseTrigger):
@@ -86,7 +88,7 @@ class SFTPTrigger(BaseTrigger):
 
         if isinstance(self.newer_than, str):
             self.newer_than = parse_date(self.newer_than)
-        _newer_than = timezone.convert_to_utc(self.newer_than) if self.newer_than else None
+        _newer_than = convert_to_utc(self.newer_than) if self.newer_than else None
         while True:
             try:
                 if self.file_pattern:
@@ -101,9 +103,7 @@ class SFTPTrigger(BaseTrigger):
                             mod_time = datetime.fromtimestamp(float(file.attrs.mtime)).strftime(
                                 "%Y%m%d%H%M%S"
                             )
-                            mod_time_utc = timezone.convert_to_utc(
-                                datetime.strptime(mod_time, "%Y%m%d%H%M%S")
-                            )
+                            mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                             if _newer_than <= mod_time_utc:
                                 files_sensed.append(file.filename)
                         else:
@@ -119,7 +119,7 @@ class SFTPTrigger(BaseTrigger):
                 else:
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:
-                        mod_time_utc = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
+                        mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                         if _newer_than <= mod_time_utc:
                             yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
                             return
@@ -140,3 +140,86 @@ class SFTPTrigger(BaseTrigger):
 
     def _get_async_hook(self) -> SFTPHookAsync:
         return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
+
+
+class SFTPOperationTrigger(BaseTrigger):
+    """
+    Trigger for SFTPOperator deferrable mode.
+
+    Fires when a file transfer (PUT, GET, or DELETE) completes
+    on the SFTP server, freeing the worker slot during the transfer.
+
+    :param ssh_conn_id: The SSH connection ID to use.
+    :param local_filepath: Local file path(s) to transfer.
+    :param remote_filepath: Remote file path(s) on the SFTP server.
+    :param operation: The SFTP operation - put, get, or delete.
+    :param confirm: Whether to confirm the file transfer.
+    :param create_intermediate_dirs: Whether to create intermediate dirs.
+    :param remote_host: Remote host to connect to (overrides connection).
+    :param concurrency: Number of threads for directory transfers.
+    :param prefetch: Whether to prefetch during file retrieval.
+    """
+
+    def __init__(
+        self,
+        ssh_conn_id: str | None = None,
+        local_filepath: str | list[str] | None = None,
+        remote_filepath: str | list[str] = "",
+        operation: str = SFTPOperation.PUT,
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
+        remote_host: str | None = None,
+        concurrency: int = 1,
+        prefetch: bool = True,
+    ) -> None:
+        super().__init__()
+        self.ssh_conn_id = ssh_conn_id
+        self.local_filepath = local_filepath
+        self.remote_filepath = remote_filepath
+        self.operation = operation
+        self.confirm = confirm
+        self.create_intermediate_dirs = create_intermediate_dirs
+        self.remote_host = remote_host
+        self.concurrency = concurrency
+        self.prefetch = prefetch
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize the trigger for storage in the database."""
+        return (
+            f"{self.__class__.__module__}.{self.__class__.__name__}",
+            {
+                "ssh_conn_id": self.ssh_conn_id,
+                "local_filepath": self.local_filepath,
+                "remote_filepath": self.remote_filepath,
+                "operation": self.operation,
+                "confirm": self.confirm,
+                "create_intermediate_dirs": self.create_intermediate_dirs,
+                "remote_host": self.remote_host,
+                "concurrency": self.concurrency,
+                "prefetch": self.prefetch,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Run the file transfer asynchronously and yield a TriggerEvent when done."""
+        try:
+            if self.ssh_conn_id is None:
+                raise ValueError("ssh_conn_id must be set for SFTPTrigger")
+            hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
+            await hook.transfer(
+                operation=self.operation,
+                local_filepath=self.local_filepath,
+                remote_filepath=self.remote_filepath,
+                confirm=self.confirm,
+                create_intermediate_dirs=self.create_intermediate_dirs,
+                concurrency=self.concurrency,
+                prefetch=self.prefetch,
+            )
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "local_filepath": self.local_filepath,
+                }
+            )
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
