@@ -17,13 +17,16 @@
  * under the License.
  */
 import { useEffect, useRef, type PropsWithChildren } from "react";
+
 import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
+
+import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
+
 import { allGroupsKey, openGroupsKey } from "src/constants/localStorage";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
-import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
 
 import { GroupsContext, type GroupsContextType } from "./Context";
 
