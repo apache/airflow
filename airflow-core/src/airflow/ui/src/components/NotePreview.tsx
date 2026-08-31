@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack } from "@chakra-ui/react";
 import { type MouseEvent, useState } from "react";
+
+import { Box, Button, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
+
+import { IconButton } from "src/system-components";
 
 import MarkdownModal from "src/components/MarkdownModal";
 import NoteIcon from "src/components/NoteIcon";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { IconButton } from "src/components/ui";
 
 type Props = {
   readonly header: string;

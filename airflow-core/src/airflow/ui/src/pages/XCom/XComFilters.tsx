@@ -19,6 +19,7 @@
 import { useParams } from "react-router-dom";
 
 import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";

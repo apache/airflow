@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Icon, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Icon, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { GoAlertFill } from "react-icons/go";
 
 import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
+
+import { Dialog } from "src/system-components";
+
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { getRelativeTime } from "src/utils/datetimeUtils";
 

@@ -17,10 +17,11 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
-import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
-import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { UIAlert } from "openapi/requests/types.gen";
+
+import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
+import { BasePage } from "tests/e2e/pages/BasePage";
 
 /**
  * Home/Dashboard Page Object
