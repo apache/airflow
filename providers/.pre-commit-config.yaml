@@ -286,6 +286,6 @@ repos:
       - id: ast-grep
         name: Check providers import httpx2 rather than httpx
         types: [python]
-        # Pinned to this directory's config rather than relying on ast-grep walking up
+        # Pinned to the providers config rather than relying on ast-grep walking up
         # from the working directory, so a future root sgconfig.yml cannot shadow it.
-        args: ["--config", "./sgconfig.yml"]
+        args: ["--config", "./.ast-grep/sgconfig.yml"]
