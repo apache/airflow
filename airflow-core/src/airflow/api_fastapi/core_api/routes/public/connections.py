@@ -104,6 +104,35 @@ def _ensure_executor_is_configured(executor: str | None) -> None:
         )
 
 
+_MASKED_CREDENTIAL_SENTINEL = "***"
+
+
+def _same_endpoint(requested: str | int | None, stored: str | int | None) -> bool:
+    """Return True when request and stored host/port refer to the same destination.
+
+    The UI sends empty string for hidden unused host/port fields; the ORM stores
+    those as NULL. Treat blank as unset so connection types that do not use
+    host/port still reuse stored credentials.
+    """
+
+    def _norm(value: str | int | None) -> str | int | None:
+        return None if value is None or value == "" else value
+
+    return _norm(requested) == _norm(stored)
+
+
+def _supplies_own_credentials(test_body: ConnectionBody) -> bool:
+    """Return True when the request includes a real (non-masked) password.
+
+    The UI always posts the masked sentinel for unchanged secrets. That is not
+    a caller-supplied credential and must not skip restoring stored extras.
+    """
+    if "password" not in test_body.model_fields_set:
+        return False
+    password = test_body.password
+    return bool(password) and password != _MASKED_CREDENTIAL_SENTINEL
+
+
 @connections_router.delete(
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -353,10 +382,10 @@ def test_connection(
             # Stored credentials are only reused to test the connection's own
             # host/port; testing a different destination must supply its own.
             fields_set = test_body.model_fields_set
-            if ("host" in fields_set and test_body.host != existing_conn.host) or (
-                "port" in fields_set and test_body.port != existing_conn.port
-            ):
-                if "password" not in fields_set:
+            host_changed = "host" in fields_set and not _same_endpoint(test_body.host, existing_conn.host)
+            port_changed = "port" in fields_set and not _same_endpoint(test_body.port, existing_conn.port)
+            if host_changed or port_changed:
+                if not _supplies_own_credentials(test_body):
                     raise HTTPException(
                         status.HTTP_400_BAD_REQUEST,
                         "The host or port to test differs from the stored connection. "
