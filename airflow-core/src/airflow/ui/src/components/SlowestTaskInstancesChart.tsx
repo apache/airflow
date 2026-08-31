@@ -31,6 +31,25 @@ import { useDurationFormat } from "src/utils/useDurationFormat";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 const CHART_HEIGHT = "340px";
+const BAR_END_LABEL_FONT = "11px system-ui, sans-serif";
+const BAR_END_LABEL_GUTTER_PX = 16;
+const BAR_END_LABEL_FALLBACK_RESERVE_PX = 96;
+
+const measureContext = document.createElement("canvas").getContext("2d");
+
+// The old fixed 64px reserve was sized for the always-English "1h 2m". CLDR narrow is far wider in
+// several shipped locales (German "1 Std., 2 Min." is roughly 80px), so measure what is drawn.
+const measureBarEndLabelReserve = (labels: Array<string>): number => {
+  if (measureContext === null) {
+    return BAR_END_LABEL_FALLBACK_RESERVE_PX;
+  }
+
+  measureContext.font = BAR_END_LABEL_FONT;
+
+  const widest = labels.reduce((max, label) => Math.max(max, measureContext.measureText(label).width), 0);
+
+  return Math.ceil(widest) + BAR_END_LABEL_GUTTER_PX;
+};
 const RUN_LABEL_FORMAT = "MMM DD HH:mm";
 
 export const SlowestTaskInstancesChart = ({
@@ -74,13 +93,17 @@ export const SlowestTaskInstancesChart = ({
   const durations = taskInstances.map((taskInstance) => taskInstance.duration ?? 0);
   const maxDuration = Math.max(...durations, 0);
 
+  const barEndLabelReserve = measureBarEndLabelReserve(
+    durations.map((duration) => renderDuration(duration) ?? "0s"),
+  );
+
   const barEndLabels: Plugin<"bar"> = {
     afterDatasetsDraw: (chart) => {
       const { ctx } = chart;
       const meta = chart.getDatasetMeta(0);
 
       ctx.save();
-      ctx.font = "11px system-ui, sans-serif";
+      ctx.font = BAR_END_LABEL_FONT;
       ctx.fillStyle = getComputedCSSVariableValue(labelColorToken ?? "oklch(0.5 0 0)");
       ctx.textBaseline = "middle";
       meta.data.forEach((bar, index) => {
@@ -120,7 +143,7 @@ export const SlowestTaskInstancesChart = ({
           }}
           options={{
             indexAxis: "y",
-            layout: { padding: { right: 64 } },
+            layout: { padding: { right: barEndLabelReserve } },
             maintainAspectRatio: false,
             plugins: {
               legend: { display: false },

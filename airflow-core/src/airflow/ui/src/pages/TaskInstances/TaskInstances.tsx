@@ -90,6 +90,7 @@ const {
 type ColumnProps = {
   readonly dagId?: string;
   readonly renderDuration: (duration: number | null | undefined) => string | undefined;
+  readonly renderExactDuration: (duration: number | null | undefined) => string | undefined;
   readonly runId?: string;
   readonly taskId?: string;
   readonly translate: TFunction;
@@ -99,6 +100,7 @@ const taskInstanceColumns = ({
   dagId,
   multiTeam,
   renderDuration,
+  renderExactDuration,
   runId,
   taskId,
   translate,
@@ -242,7 +244,9 @@ const taskInstanceColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => (
+      <span title={renderExactDuration(original.duration)}>{renderDuration(original.duration)}</span>
+    ),
     header: translate("duration"),
   },
   {
@@ -271,7 +275,7 @@ const taskInstanceColumns = ({
 
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
-  const { renderDuration } = useDurationFormat();
+  const { renderDuration, renderExactDuration } = useDurationFormat();
   const { dagId, groupId, runId, taskId } = useParams();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
@@ -411,6 +415,7 @@ export const TaskInstances = () => {
     dagId,
     multiTeam: multiTeamEnabled,
     renderDuration,
+    renderExactDuration,
     runId,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,

@@ -59,11 +59,17 @@ const REPROCESS_BEHAVIOR_VALUES = [
 const isReprocessBehavior = (value: string | null): value is ReprocessBehavior =>
   (REPROCESS_BEHAVIOR_VALUES as ReadonlyArray<string | null>).includes(value);
 
-const getColumns = (
-  onSelectBackfill: (backfillId: number) => void,
-  translate: TFunction,
-  formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined,
-): Array<ColumnDef<BackfillResponse>> => [
+type ColumnProps = {
+  readonly formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined;
+  readonly onSelectBackfill: (backfillId: number) => void;
+  readonly translate: TFunction;
+};
+
+const getColumns = ({
+  formatElapsed,
+  onSelectBackfill,
+  translate,
+}: ColumnProps): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -209,7 +215,7 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns(onSelectBackfill, translate, formatElapsed);
+  const columns = getColumns({ formatElapsed, onSelectBackfill, translate });
 
   return (
     <>

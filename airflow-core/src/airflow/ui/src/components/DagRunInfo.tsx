@@ -25,7 +25,7 @@ import { Tooltip } from "src/system-components";
 
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { getRelativeTime } from "src/utils/datetimeUtils";
+
 import { useDurationFormat } from "src/utils/useDurationFormat";
 
 type Props = {
@@ -38,7 +38,7 @@ type Props = {
 
 const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props) => {
   const { t: translate } = useTranslation();
-  const { formatElapsed } = useDurationFormat();
+  const { formatElapsed, formatRelative } = useDurationFormat();
 
   return (
     <Tooltip
@@ -46,7 +46,7 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
         <VStack align="left" gap={0}>
           {state === undefined ? (
             <Text>
-              {translate("dagDetails.nextRun")}: {getRelativeTime(runAfter)}
+              {translate("dagDetails.nextRun")}: {formatRelative(runAfter)}
             </Text>
           ) : (
             <>

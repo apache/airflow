@@ -33,10 +33,11 @@ import {
   TASK_BAR_HEIGHT_PX,
 } from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import {
   type GanttDataItem,
@@ -57,7 +58,9 @@ const MIN_BAR_WIDTH_PX = GANTT_STATE_ICON_SIZE_PX;
 const MIN_SEGMENT_RENDER_PX = 5;
 
 /** Minimum horizontal gap (px) between time-axis labels before one is dropped. */
-const MIN_TICK_SPACING_PX = 80;
+// Sized for the widest CLDR narrow label, not the old "HH:MM:SS": German runs ~14 chars
+// ("1 Std., 2 Min."), roughly 84px at font-size xs, so 80px let ticks collide in wider locales.
+const MIN_TICK_SPACING_PX = 110;
 
 /** Short mark above the axis bottom border, aligned with each timestamp. */
 const GANTT_AXIS_TICK_HEIGHT_PX = 6;
@@ -150,7 +153,7 @@ export const GanttTimeline = ({
   const spanMs = Math.max(1, maxMs - minMs);
 
   // Derive tick count from available width so labels never overlap.
-  // Each "HH:MM:SS" label is ~8 chars at font-size xs; allow MIN_TICK_SPACING_PX per tick.
+  // Allow MIN_TICK_SPACING_PX per tick so labels never overlap.
   const tickCount =
     bodyWidthPx > 0 ? Math.max(2, Math.floor(bodyWidthPx / MIN_TICK_SPACING_PX)) : GANTT_TIME_AXIS_TICK_COUNT;
   const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, { locale, tickCount });

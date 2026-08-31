@@ -95,6 +95,7 @@ type ColumnProps = {
   readonly dagId?: string;
   readonly open: boolean;
   readonly renderDuration: (duration: number | null | undefined) => string | undefined;
+  readonly renderExactDuration: (duration: number | null | undefined) => string | undefined;
   readonly translate: TFunction;
 } & GetColumnsParams;
 
@@ -103,6 +104,7 @@ const runColumns = ({
   multiTeam,
   open,
   renderDuration,
+  renderExactDuration,
   translate,
 }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
   {
@@ -195,7 +197,9 @@ const runColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => (
+      <span title={renderExactDuration(original.duration)}>{renderDuration(original.duration)}</span>
+    ),
     header: translate("duration"),
   },
   {
@@ -245,7 +249,7 @@ const runColumns = ({
 
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
-  const { renderDuration } = useDurationFormat();
+  const { renderDuration, renderExactDuration } = useDurationFormat();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -370,6 +374,7 @@ export const DagRuns = () => {
     multiTeam: multiTeamEnabled,
     open,
     renderDuration,
+    renderExactDuration,
     translate,
   });
 

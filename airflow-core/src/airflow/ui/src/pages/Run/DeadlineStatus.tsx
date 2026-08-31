@@ -29,6 +29,7 @@ import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
+
 import { translateCompletionRule } from "src/utils/deadlines";
 import { useDurationFormat } from "src/utils/useDurationFormat";
 

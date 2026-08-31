@@ -26,6 +26,7 @@ import {
   getElapsedSeconds,
   humanizeSeconds,
   renderDuration,
+  renderExactDuration,
   getRelativeTime,
 } from "./datetimeUtils";
 
@@ -178,7 +179,12 @@ describe("renderDuration", () => {
     expect(renderDuration(14.846, "fr")).toContain("14,8");
     expect(renderDuration(14.846, "en")).toContain("14.8");
     expect(renderDuration(3725.4, "ru")).toMatch(/\p{Script=Cyrillic}/u);
-    expect(renderDuration(3725.4, "de")).not.toBe(renderDuration(3725.4, "en"));
+    expect(renderDuration(3725.4, "de")).toBe(
+      expectDuration("de", "narrow", [
+        ["hour", 1],
+        ["minute", 2],
+      ]),
+    );
   });
 
   it.each([["en"], ["de"], ["ru"]])("marks sub-millisecond durations as under 1ms in %s", (locale) => {
@@ -227,6 +233,40 @@ describe("getDuration", () => {
     expect(getDuration(start, undefined, "en")).toBe("10s");
 
     vi.useRealTimers();
+  });
+});
+
+describe("renderExactDuration", () => {
+  // renderDuration rounds to two units, so "1h 2m" spans a full minute. The exact form backs the
+  // `title` on the duration columns, where two similar runs have to be told apart.
+  it.each([
+    [3725.412, "1h 2m 5.412s"],
+    [102_600, "1d 4h 30m"],
+    [281_445, "3d 6h 10m 45s"],
+    [3600, "1h"],
+    [45.5, "45.5s"],
+    [0.083, "83ms"],
+  ])("renders %s seconds in full as %s", (seconds, expected) => {
+    expect(renderExactDuration(seconds, "en")).toBe(expected);
+  });
+
+  it("keeps precision the rounded form drops", () => {
+    expect(renderDuration(3725.412, "en")).toBe("1h 2m");
+    expect(renderExactDuration(3725.412, "en")).toBe("1h 2m 5.412s");
+  });
+
+  it.each([[null], [undefined], [Number.NaN], [-5]])("returns undefined for %s", (seconds) => {
+    expect(renderExactDuration(seconds, "en")).toBeUndefined();
+  });
+
+  it("localizes like the rounded form", () => {
+    expect(renderExactDuration(3725.412, "de")).toBe(
+      expectDuration("de", "narrow", [
+        ["hour", 1],
+        ["minute", 2],
+        ["second", 5.412, 3],
+      ]),
+    );
   });
 });
 
@@ -279,6 +319,19 @@ describe("getRelativeTime", () => {
     ["2024-01-14T10:00:10.000Z", "2 months ago"],
     ["2022-03-14T10:00:10.000Z", "2 years ago"],
   ])("describes %s as %s", (date, expected) => {
+    expect(getRelativeTime(date, "en")).toBe(expected);
+  });
+
+  // Rounding used to saturate the unit the magnitude was picked from, printing the unit's own
+  // ceiling instead of promoting: "60 minutes ago" where dayjs's fromNow said "an hour ago".
+  it.each([
+    // 59.7 minutes: rounds to 60, which used to print "60 minutes ago".
+    ["2024-03-14T09:00:28.000Z", "1 hour ago"],
+    // 23.9 hours -> "24 hours ago" before.
+    ["2024-03-13T10:06:50.000Z", "yesterday"],
+    // 365.2 days -> "12 months ago" before.
+    ["2023-03-15T04:10:10.000Z", "last year"],
+  ])("promotes %s to the next unit up rather than saturating", (date, expected) => {
     expect(getRelativeTime(date, "en")).toBe(expected);
   });
 
