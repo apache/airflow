@@ -24,7 +24,7 @@ from typing import Any
 import attrs
 
 from airflow.sdk.definitions._internal.types import NOTSET
-from airflow.sdk.log import mask_secret
+from airflow.sdk.log import amask_secret, mask_secret
 
 log = logging.getLogger(__name__)
 
@@ -59,10 +59,35 @@ class Variable:
             raise
 
     @classmethod
+    async def aget(cls, key: str, default: Any = NOTSET, deserialize_json: bool = False):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.context import _async_get_variable
+
+        try:
+            return await _async_get_variable(key, deserialize_json=deserialize_json)
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.VARIABLE_NOT_FOUND and default is not NOTSET:
+                await amask_secret(default, name=key)
+                return default
+            raise
+
+    @classmethod
     def set(cls, key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
         from airflow.sdk.execution_time.context import _set_variable
 
         _set_variable(key, value, description, serialize_json=serialize_json)
+
+    @classmethod
+    async def aset(
+        cls,
+        key: str,
+        value: Any,
+        description: str | None = None,
+        serialize_json: bool = False,
+    ) -> None:
+        from airflow.sdk.execution_time.context import _async_set_variable
+
+        await _async_set_variable(key, value, description, serialize_json=serialize_json)
 
     @classmethod
     def keys(cls, prefix: str | None = None) -> Sequence[str]:
@@ -89,7 +114,35 @@ class Variable:
         return lazy_object_proxy.Proxy(lambda: _get_variable_keys(prefix=prefix))
 
     @classmethod
+    async def akeys(cls, prefix: str | None = None) -> Sequence[str]:
+        """
+        Return Variable keys that start with the given prefix.
+
+        Unlike :meth:`keys`, the result is **not** lazily evaluated — the async
+        call is awaited immediately and the resolved list is returned.
+
+        .. note::
+            Only keys stored in the metadata database are returned — secrets backends
+            are **not** consulted. This asymmetry with :meth:`aget` (which does consult
+            secrets backends) is a deliberate design decision: most secrets backends
+            either do not expose a listing API at all, or do so inefficiently and
+            without prefix filtering. See
+            https://github.com/apache/airflow/issues/61166 for context.
+
+        :param prefix: Optional key prefix to filter by. If None, all keys are returned.
+        """
+        from airflow.sdk.execution_time.context import _async_get_variable_keys
+
+        return await _async_get_variable_keys(prefix=prefix)
+
+    @classmethod
     def delete(cls, key: str) -> None:
         from airflow.sdk.execution_time.context import _delete_variable
 
         _delete_variable(key=key)
+
+    @classmethod
+    async def adelete(cls, key: str) -> None:
+        from airflow.sdk.execution_time.context import _async_delete_variable
+
+        await _async_delete_variable(key=key)

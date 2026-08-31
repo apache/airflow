@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import collections
 import contextlib
 import functools
@@ -334,6 +335,23 @@ def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -
     return val
 
 
+async def _async_mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -> Any:
+    await amask_secret(raw, key)
+    if not deserialize_json:
+        return raw
+    val = json.loads(raw)
+    if isinstance(val, str):
+        await amask_secret(val, key)
+    elif isinstance(val, dict):
+        # Masked by the dict's own inner key names, which is what ``add_mask`` uses.
+        await amask_secret(val)
+    elif isinstance(val, list):
+        # Pass the Variable's key so list elements inherit the Variable's sensitivity
+        # instead of being added to the global mask patterns.
+        await amask_secret(val, key)
+    return val
+
+
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
@@ -373,6 +391,48 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     )
 
 
+async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
+    from airflow.sdk.execution_time.cache import SecretCache
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+    # Check cache first
+    try:
+        var_val = SecretCache.get_variable(key)
+        if var_val is not None:
+            return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
+    except SecretCache.NotPresentException:
+        pass  # Continue to check backends
+
+    backends = ensure_secrets_backend_loaded()
+
+    # Iterate over backends if not in cache (or expired)
+    for secrets_backend in backends:
+        try:
+            var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+            if var_val is not None:
+                # Save raw value before deserialization to maintain cache consistency
+                SecretCache.save_variable(key, var_val)
+                return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
+        except AirflowSecretsBackendAccessDenied:
+            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+            raise
+        except Exception:
+            log.exception(
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+
+    raise AirflowRuntimeError(
+        ErrorResponse(
+            error=ErrorType.VARIABLE_NOT_FOUND,
+            detail={"message": f"Variable {key} not found"},
+        )
+    )
+
+
 _VARIABLE_KEYS_PAGE_SIZE = 1000
 
 
@@ -384,6 +444,27 @@ def _get_variable_keys(prefix: str | None = None) -> list[str]:
     offset = 0
     while True:
         msg = SUPERVISOR_COMMS.send(
+            GetVariableKeys(prefix=prefix, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=offset)
+        )
+        if isinstance(msg, ErrorResponse):
+            raise AirflowRuntimeError(msg)
+        if not isinstance(msg, VariableKeysResult):
+            raise TypeError(f"Unexpected response type for GetVariableKeys: {type(msg).__name__}")
+        all_keys.extend(msg.keys)
+        if len(msg.keys) < _VARIABLE_KEYS_PAGE_SIZE:
+            break
+        offset += len(msg.keys)
+    return all_keys
+
+
+async def _async_get_variable_keys(prefix: str | None = None) -> list[str]:
+    from airflow.sdk.exceptions import AirflowRuntimeError
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    all_keys: list[str] = []
+    offset = 0
+    while True:
+        msg = await SUPERVISOR_COMMS.asend(
             GetVariableKeys(prefix=prefix, limit=_VARIABLE_KEYS_PAGE_SIZE, offset=offset)
         )
         if isinstance(msg, ErrorResponse):
@@ -445,6 +526,61 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     SecretCache.invalidate_variable(key)
 
 
+async def _async_set_variable(
+    key: str,
+    value: Any,
+    description: str | None = None,
+    serialize_json: bool = False,
+) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    import json
+
+    from airflow.sdk.execution_time.cache import SecretCache
+    from airflow.sdk.execution_time.secrets.execution_api import (
+        ExecutionAPISecretsBackend,
+    )
+    from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    # check for write conflicts on the worker
+    for secrets_backend in ensure_secrets_backend_loaded():
+        if isinstance(secrets_backend, ExecutionAPISecretsBackend):
+            continue
+        try:
+            var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+            if var_val is not None:
+                _backend_name = type(secrets_backend).__name__
+                log.warning(
+                    "The variable %s is defined in the %s secrets backend, which takes "
+                    "precedence over reading from the API Server. The value from the API Server will be "
+                    "updated, but to read it you have to delete the conflicting variable "
+                    "from %s",
+                    key,
+                    _backend_name,
+                    _backend_name,
+                )
+        except Exception:
+            log.exception(
+                "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    try:
+        if serialize_json:
+            value = json.dumps(value, indent=2)
+    except Exception as e:
+        log.exception(e)
+
+    await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))
+
+    # Invalidate cache after setting the variable
+    SecretCache.invalidate_variable(key)
+
+
 def _delete_variable(key: str) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
@@ -455,6 +591,23 @@ def _delete_variable(key: str) -> None:
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
+    if TYPE_CHECKING:
+        assert isinstance(msg, OKResponse)
+
+    # Invalidate cache after deleting the variable
+    SecretCache.invalidate_variable(key)
+
+
+async def _async_delete_variable(key: str) -> None:
+    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
+    #   or `airflow.sdk.execution_time.variable`
+    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
+    #   will make that module depend on Task SDK, which is not ideal because we intend to
+    #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time.cache import SecretCache
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    msg = await SUPERVISOR_COMMS.asend(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 
