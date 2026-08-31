@@ -18,8 +18,9 @@
  */
 import { Navigate } from "react-router-dom";
 
-import { useDefaultLandingPage } from "src/hooks/useUserSettings";
 import { Dashboard } from "src/pages/Dashboard";
+
+import { useDefaultLandingPage } from "src/hooks/useUserSettings";
 
 export const LandingPage = () => {
   const [defaultLandingPage] = useDefaultLandingPage();

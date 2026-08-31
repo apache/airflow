@@ -20,6 +20,7 @@ import { Box, Table, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
 import Time from "src/components/Time";
 
 export const TriggererInfo = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {

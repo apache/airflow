@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState, type ChangeEvent } from "react";
+
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useEffect, useState, type ChangeEvent } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
+
 import { useTimezone } from "src/context/timezone";
 
 dayjs.extend(timezone);
