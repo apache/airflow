@@ -407,6 +407,8 @@ pre-installed when Airflow is installed.
 +---------------------+------------------------------------------------------+--------------------------------------+--------------+
 | common-messaging    | ``pip install 'apache-airflow[common-messaging]'``   | Core Messaging Operators             |              |
 +---------------------+------------------------------------------------------+--------------------------------------+--------------+
+| common-search       | ``pip install 'apache-airflow[common-search]'``      | Common Search hooks and helpers      |              |
++---------------------+------------------------------------------------------+--------------------------------------+--------------+
 | common-sql          | ``pip install 'apache-airflow[common-sql]'``         | Core SQL Operators                   |      *       |
 +---------------------+------------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``                | FTP hooks and operators              |      *       |

@@ -5,6 +5,7 @@ cncf.kubernetes
 common.compat
 common.io
 common.messaging
+common.search
 common.sql
 docker
 elasticsearch
