@@ -30,6 +30,9 @@ from typing import TYPE_CHECKING
 from .dag_file import (
     MODIFIED_DAG_MODULE_NAME as MODIFIED_DAG_MODULE_NAME,
     UNUSUAL_MODULE_PREFIX as UNUSUAL_MODULE_PREFIX,
+    get_unique_dag_module_name as get_unique_dag_module_name,
+    might_contain_dag as might_contain_dag,
+    might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
 from .file_discovery import (
     find_path_from_directory as find_path_from_directory,
