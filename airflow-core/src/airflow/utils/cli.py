@@ -355,8 +355,6 @@ def get_bagged_dag(
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
             return check_dag(dag)
-        if dag:
-            break
     raise AirflowException(
         f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
     )
