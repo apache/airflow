@@ -22,7 +22,8 @@ from unittest import mock
 import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
@@ -73,15 +74,49 @@ class TestDatabricksSQLStatementsSensor:
         [
             (STATEMENT, STATEMENT_ID),
             (STATEMENT, ""),
+            ("", ""),
         ],
     )
     def test_both_statements_included_validated_at_init(self, statement, statement_id):
-        with pytest.raises(ValueError, match="Cannot provide both"):
+        with pytest.raises(ValueError, match="Provide exactly one of"):
             DatabricksSQLStatementsSensor(
                 statement=statement,
                 statement_id=statement_id,
                 task_id=TASK_ID,
                 warehouse_id=WAREHOUSE_ID,
+            )
+
+    @pytest.mark.parametrize(
+        ("statement", "statement_id"),
+        [
+            ("{{ None }}", STATEMENT_ID),
+            (STATEMENT, "{{ None }}"),
+            ("{{ None }}", "{{ None }}"),
+        ],
+    )
+    def test_both_provided_with_template_renders_to_none_validated_at_init(self, statement, statement_id):
+        """
+        Both statement and statement_id are provided; at least one is a template that
+        would render to None under render_template_as_native_obj=True. The constructor
+        must raise before any rendering occurs, so the check is pinned to __init__.
+        If the exclusivity check were moved to execute(), this test would fail because
+        the constructor would succeed and if rendered before execute() the template
+        would render to None making it appear only one value was provided so the moved
+        check would not catch the exclusivity violation
+        """
+        dag = DAG(
+            dag_id="test_native_obj_dag",
+            start_date=timezone.datetime(2025, 1, 1),
+            schedule=None,
+            render_template_as_native_obj=True,
+        )
+        with pytest.raises(ValueError, match="Provide exactly one of"):
+            DatabricksSQLStatementsSensor(
+                task_id=TASK_ID,
+                warehouse_id=WAREHOUSE_ID,
+                statement=statement,
+                statement_id=statement_id,
+                dag=dag,
             )
 
     @pytest.mark.parametrize(
@@ -97,6 +132,32 @@ class TestDatabricksSQLStatementsSensor:
         )
         with pytest.raises(ValueError, match="One of either statement or statement_id"):
             op.execute(None)
+
+    @pytest.mark.parametrize(
+        ("statement", "statement_id"),
+        [
+            (None, "{{ None }}"),
+            ("{{ None }}", None),
+        ],
+    )
+    def test_both_missing_after_template_rendered_validated_at_execute(self, statement, statement_id):
+        dag = DAG(
+            dag_id="test_native_obj_dag",
+            start_date=timezone.datetime(2025, 1, 1),
+            schedule=None,
+            render_template_as_native_obj=True,
+        )
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            warehouse_id=WAREHOUSE_ID,
+            statement=statement,
+            statement_id=statement_id,
+            dag=dag,
+        )
+        context = {"dag": dag}
+        op.render_template_fields(context)
+        with pytest.raises(ValueError, match="One of either statement or statement_id"):
+            op.execute(context)
 
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):
