@@ -20,10 +20,12 @@ import { useParams } from "react-router-dom";
 
 import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const XComFilters = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.KEY_PATTERN,
@@ -33,6 +35,10 @@ export const XComFilters = () => {
 
   if (dagId === "~") {
     searchParamKeys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
+
+    if (multiTeamEnabled) {
+      searchParamKeys.push(SearchParamsKeys.TEAMS);
+    }
   }
 
   if (runId === "~") {
