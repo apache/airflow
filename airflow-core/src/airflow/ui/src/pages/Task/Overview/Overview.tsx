@@ -20,7 +20,7 @@ import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
@@ -37,6 +37,9 @@ const defaultHour = "24";
 export const Overview = () => {
   const { dagId = "", groupId, taskId } = useParams();
   const { t: translate } = useTranslation("dag");
+
+  const [searchParams] = useSearchParams();
+  const limit = Number(searchParams.get(SearchParamsKeys.LIMIT) ?? "10");
 
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
@@ -62,7 +65,7 @@ export const Overview = () => {
     {
       dagId,
       dagRunId: "~",
-      limit: 14,
+      limit,
       orderBy: ["-run_after"],
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
