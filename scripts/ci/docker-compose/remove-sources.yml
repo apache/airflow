@@ -62,6 +62,7 @@ services:
       - ../../../empty:/opt/airflow/providers/common/dataquality/src
       - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/messaging/src
+      - ../../../empty:/opt/airflow/providers/common/search/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/databricks/src
       - ../../../empty:/opt/airflow/providers/datadog/src

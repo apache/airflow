@@ -126,6 +126,9 @@ labelPRBasedOnFilePath:
   provider:common-messaging:
     - providers/common/messaging/**
 
+  provider:common-search:
+    - providers/common/search/**
+
   provider:common-sql:
     - providers/common/sql/**
 

@@ -14,22 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from airflow.providers.common.search.log.shared_response import (
-    AttributeDict,
-    AttributeList,
-    Hit,
-    HitMeta,
-    SearchResponse as OpensearchResponse,
-    resolve_nested,
-)
+---
+package-name: apache-airflow-providers-common-search
+name: Common Search
+description: |
+  ``Common Search Provider`` with shared building blocks for search-backed remote task logging
+  (Elasticsearch, OpenSearch, ...).
 
-__all__ = [
-    "AttributeDict",
-    "AttributeList",
-    "Hit",
-    "HitMeta",
-    "OpensearchResponse",
-    "resolve_nested",
-]
+state: ready
+lifecycle: incubation
+source-date-epoch: 1751587200
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 1.0.0
+
+integrations:
+  - integration-name: Common Search
+    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-search/
+    tags: [software]
