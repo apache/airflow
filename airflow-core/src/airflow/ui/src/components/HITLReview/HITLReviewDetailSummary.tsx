@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 import Time from "src/components/Time.tsx";
-import { RouterLink } from "src/system-components/RouterLink";
+import { RouterLink } from "src/system-components";
 import { getRelativeTime } from "src/utils/datetimeUtils.ts";
 import { getTaskInstanceLink } from "src/utils/links.ts";
 

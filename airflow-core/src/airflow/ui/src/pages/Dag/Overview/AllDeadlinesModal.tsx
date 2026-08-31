@@ -23,8 +23,7 @@ import { useTranslation } from "react-i18next";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { useDeadlines } from "src/queries/useDeadlines";
-import { Modal } from "src/system-components";
-import { Pagination } from "src/system-components/Pagination";
+import { Modal, Pagination } from "src/system-components";
 
 import { DeadlineRow } from "./DeadlineRow";
 

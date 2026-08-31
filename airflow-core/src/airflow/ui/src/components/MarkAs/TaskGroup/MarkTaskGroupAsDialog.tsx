@@ -27,8 +27,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { usePatchTaskGroup } from "src/queries/usePatchTaskGroup";
 import { usePatchTaskGroupDryRun } from "src/queries/usePatchTaskGroupDryRun";
-import { Modal } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
+import { Modal, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly groupTaskInstance: LightGridTaskInstanceSummary;

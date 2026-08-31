@@ -34,8 +34,7 @@ import {
 
 import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode/useColorMode";
-import { Menu, Tooltip } from "src/system-components";
-import { RouterLink } from "src/system-components/RouterLink";
+import { Menu, Tooltip, RouterLink } from "src/system-components";
 import type { NavItemResponse } from "src/utils/types";
 
 import LanguageModal from "./LanguageModal";

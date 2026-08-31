@@ -33,8 +33,7 @@ import { useSearchParams } from "react-router-dom";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { IconButton, Menu, Select } from "src/system-components";
-import { LazyClipboard } from "src/system-components/LazyClipboard";
+import { IconButton, Menu, Select, LazyClipboard } from "src/system-components";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 

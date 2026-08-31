@@ -27,8 +27,7 @@ import type { NextRunAssetEventResponse } from "openapi/requests/types.gen";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Popover, RouterLink } from "src/system-components";
-import { Tooltip } from "src/system-components/Tooltip";
+import { Popover, RouterLink, Tooltip } from "src/system-components";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";
 

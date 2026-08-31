@@ -39,8 +39,7 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
-import { IconButton, Modal, ProgressBar } from "src/system-components";
-import { LazyClipboard } from "src/system-components/LazyClipboard";
+import { IconButton, Modal, ProgressBar, LazyClipboard } from "src/system-components";
 import { renderDuration } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";

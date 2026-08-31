@@ -26,8 +26,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
-import { Modal } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
+import { Modal, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

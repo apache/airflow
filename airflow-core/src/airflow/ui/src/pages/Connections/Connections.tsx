@@ -40,8 +40,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
-import { Tooltip } from "src/system-components";
-import { ActionBar } from "src/system-components/ActionBar";
+import { Tooltip, ActionBar } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";

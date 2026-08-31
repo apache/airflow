@@ -40,8 +40,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
-import { Tooltip } from "src/system-components";
-import { ActionBar } from "src/system-components/ActionBar";
+import { Tooltip, ActionBar } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 

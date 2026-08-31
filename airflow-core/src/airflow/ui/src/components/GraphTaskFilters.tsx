@@ -37,9 +37,7 @@ import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { useGroups } from "src/context/groups";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { IconButton, Select } from "src/system-components";
-import { Menu } from "src/system-components/Menu";
-import { NumberInputField, NumberInputRoot } from "src/system-components/NumberInput";
+import { IconButton, Select, Menu, NumberInputField, NumberInputRoot } from "src/system-components";
 
 export const GraphTaskFilters = () => {
   const { t: translate } = useTranslation(["dag", "tasks"]);

@@ -44,8 +44,13 @@ import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { IconButton, Switch, Tooltip } from "src/system-components";
-import { type ButtonGroupOption, ButtonGroupToggle } from "src/system-components/ButtonGroupToggle";
+import {
+  IconButton,
+  Switch,
+  Tooltip,
+  type ButtonGroupOption,
+  ButtonGroupToggle,
+} from "src/system-components";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";

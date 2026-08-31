@@ -33,8 +33,7 @@ import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLate
 import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { Checkbox, Modal } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";

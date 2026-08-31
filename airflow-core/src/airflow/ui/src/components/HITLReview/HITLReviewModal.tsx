@@ -24,9 +24,7 @@ import { FiInfo } from "react-icons/fi";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
 import { HITLReviewDetail } from "src/components/HITLReview/HITLReviewDetail.tsx";
-import { Modal, Tooltip } from "src/system-components";
-import { ButtonGroupToggle } from "src/system-components/ButtonGroupToggle";
-import { Dialog } from "src/system-components/Dialog";
+import { Modal, Tooltip, ButtonGroupToggle, Dialog } from "src/system-components";
 
 import { HITLReviewListSection } from "./HITLReviewListSection.tsx";
 import { useHITLReviewModalSelection } from "./useHITLReviewModalSelection.ts";

@@ -29,8 +29,7 @@ import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLate
 import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
-import { Checkbox, Modal } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {

@@ -48,8 +48,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { RouterLink } from "src/system-components";
-import { ActionBar } from "src/system-components/ActionBar";
+import { RouterLink, ActionBar } from "src/system-components";
 import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";

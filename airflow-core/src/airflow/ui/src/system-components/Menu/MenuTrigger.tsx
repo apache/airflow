@@ -19,8 +19,7 @@
 import { Menu as ChakraMenu } from "@chakra-ui/react";
 import { forwardRef, useContext } from "react";
 
-import { Tooltip } from "src/system-components/Tooltip";
-
+import { Tooltip } from "../Tooltip";
 import { MenuContext } from "./MenuRoot";
 
 type MenuTriggerProps = ChakraMenu.TriggerProps;

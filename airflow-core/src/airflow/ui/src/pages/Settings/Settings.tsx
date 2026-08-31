@@ -32,9 +32,7 @@ import {
   useMarkTaskInstanceDefaultOptions,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
-import { Select } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
-import { Switch } from "src/system-components/Switch";
+import { Select, SegmentedControl, Switch } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 import type { Option } from "src/utils/option";
 

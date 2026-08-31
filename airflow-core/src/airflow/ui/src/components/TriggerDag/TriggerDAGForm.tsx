@@ -26,8 +26,7 @@ import { FiPlay } from "react-icons/fi";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
-import { Checkbox } from "src/system-components/Checkbox";
-import { RadioCardItem, RadioCardRoot } from "src/system-components/RadioCard";
+import { Checkbox, RadioCardItem, RadioCardRoot } from "src/system-components";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";

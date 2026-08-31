@@ -29,8 +29,7 @@ import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
-import { Modal, Menu } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
+import { Modal, Menu, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

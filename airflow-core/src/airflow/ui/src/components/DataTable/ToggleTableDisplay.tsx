@@ -19,7 +19,7 @@
 import { useTranslation } from "react-i18next";
 import { FiAlignJustify, FiGrid } from "react-icons/fi";
 
-import { ButtonGroupToggle } from "src/system-components/ButtonGroupToggle";
+import { ButtonGroupToggle } from "src/system-components";
 
 type Display = "card" | "table";
 

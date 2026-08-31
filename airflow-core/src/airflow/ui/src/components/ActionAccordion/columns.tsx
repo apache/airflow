@@ -22,7 +22,7 @@ import type { TFunction } from "i18next";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
-import { Checkbox } from "src/system-components/Checkbox";
+import { Checkbox } from "src/system-components";
 
 // Stable per-row key; dag_run_id keeps the same task distinct across runs (past/future
 // expansion), and map_index disambiguates the mapped instances of one task.

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
-import { NumberInputField, NumberInputRoot } from "src/system-components/NumberInput";
+import { NumberInputField, NumberInputRoot } from "src/system-components";
 
 import type { FlexibleFormElementProps } from ".";
 

@@ -18,6 +18,7 @@
  */
 
 export * from "./Accordion";
+export * from "./ActionBar";
 export * from "./Alert";
 export * from "./ButtonGroupToggle";
 export * from "./Checkbox";
@@ -28,11 +29,15 @@ export * from "./InputWithAddon";
 export * from "./LazyClipboard";
 export * from "./Menu";
 export * from "./Modal";
+export * from "./NumberInput";
 export * from "./Pagination";
 export * from "./Popover";
 export * from "./ProgressBar";
+export * from "./RadioCard";
 export * from "./ResetButton";
+export * from "./ResizableWrapper";
 export * from "./RouterLink";
+export { default as SegmentedControl } from "./SegmentedControl";
 export * from "./Select";
 export * from "./Switch";
 export * from "./Toaster";

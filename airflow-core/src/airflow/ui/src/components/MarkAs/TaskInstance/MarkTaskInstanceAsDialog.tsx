@@ -27,8 +27,7 @@ import Time from "src/components/Time";
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
-import { Modal } from "src/system-components";
-import SegmentedControl from "src/system-components/SegmentedControl";
+import { Modal, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly onClose: () => void;
