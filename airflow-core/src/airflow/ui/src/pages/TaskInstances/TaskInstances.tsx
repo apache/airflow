@@ -48,8 +48,9 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
+import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
 import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
@@ -88,6 +89,7 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly renderDuration: (duration: number | null | undefined) => string | undefined;
   readonly runId?: string;
   readonly taskId?: string;
   readonly translate: TFunction;
@@ -96,6 +98,7 @@ type ColumnProps = {
 const taskInstanceColumns = ({
   dagId,
   multiTeam,
+  renderDuration,
   runId,
   taskId,
   translate,
@@ -268,6 +271,7 @@ const taskInstanceColumns = ({
 
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
   const { dagId, groupId, runId, taskId } = useParams();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
@@ -406,6 +410,7 @@ export const TaskInstances = () => {
   const columns = taskInstanceColumns({
     dagId,
     multiTeam: multiTeamEnabled,
+    renderDuration,
     runId,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,

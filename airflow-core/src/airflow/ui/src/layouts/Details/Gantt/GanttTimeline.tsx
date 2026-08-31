@@ -33,6 +33,7 @@ import {
   TASK_BAR_HEIGHT_PX,
 } from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
@@ -115,6 +116,7 @@ export const GanttTimeline = ({
   scrollContainerRef,
   virtualizerScrollPaddingStart,
 }: Props) => {
+  const { locale } = useDurationFormat();
   const location = useLocation();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [bodyWidthPx, setBodyWidthPx] = useState(0);
@@ -151,7 +153,7 @@ export const GanttTimeline = ({
   // Each "HH:MM:SS" label is ~8 chars at font-size xs; allow MIN_TICK_SPACING_PX per tick.
   const tickCount =
     bodyWidthPx > 0 ? Math.max(2, Math.floor(bodyWidthPx / MIN_TICK_SPACING_PX)) : GANTT_TIME_AXIS_TICK_COUNT;
-  const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, tickCount);
+  const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, { locale, tickCount });
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,

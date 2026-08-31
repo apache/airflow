@@ -44,7 +44,7 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
-import { renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
 import { FileLocation } from "./FileLocation";
@@ -52,6 +52,7 @@ import { VersionCompareSelect } from "./VersionCompareSelect";
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common", "components"]);
+  const { renderDuration } = useDurationFormat();
   const { dagId } = useParams();
 
   const selectedVersion = useSelectedVersion();

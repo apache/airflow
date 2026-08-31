@@ -25,9 +25,8 @@ import { Tooltip } from "src/system-components";
 
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-
-import { getDuration } from "src/utils";
 import { getRelativeTime } from "src/utils/datetimeUtils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 type Props = {
   readonly endDate?: string | null;
@@ -39,6 +38,7 @@ type Props = {
 
 const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
 
   return (
     <Tooltip
@@ -70,7 +70,7 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
               )}
               {Boolean(startDate) && (
                 <Text>
-                  {translate("duration")}: {getDuration(startDate, endDate)}
+                  {translate("duration")}: {formatElapsed(startDate, endDate)}
                 </Text>
               )}
             </>

@@ -29,9 +29,8 @@ import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
-
-import { renderDuration } from "src/utils/datetimeUtils";
 import { translateCompletionRule } from "src/utils/deadlines";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
 
@@ -43,6 +42,7 @@ type DeadlineStatusProps = {
 
 export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
+  const { locale, renderDuration } = useDurationFormat();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
@@ -84,7 +84,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       <VStack alignItems="flex-start" gap={0.5}>
         {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
           <Text fontSize="xs" key={deadlineAlert.id}>
-            {translateCompletionRule(translate, deadlineAlert)}
+            {translateCompletionRule(translate, deadlineAlert, locale)}
           </Text>
         ))}
       </VStack>
@@ -151,14 +151,14 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   }
 
   const alert = dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-  const completionRule = translateCompletionRule(translate, alert);
+  const completionRule = translateCompletionRule(translate, alert, locale);
   const deadlineTime = dayjs(dl.deadline_time);
 
   let actualDurationLabel: string | undefined;
 
   if (dl.missed && runEndDate !== undefined) {
     const diff = dayjs(runEndDate).diff(deadlineTime);
-    const dur = renderDuration(Math.abs(diff) / 1000, false);
+    const dur = renderDuration(Math.abs(diff) / 1000);
 
     if (dur !== undefined) {
       actualDurationLabel =

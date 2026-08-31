@@ -29,14 +29,14 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-
-import { getDuration } from "src/utils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 
 const getColumns = (
   onSelectBackfill: (backfillId: number) => void,
   translate: TFunction,
+  formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined,
 ): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
@@ -104,7 +104,7 @@ const getColumns = (
       <Text>
         {row.original.completed_at === null
           ? ""
-          : getDuration(row.original.created_at, row.original.completed_at)}
+          : formatElapsed(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
@@ -119,6 +119,7 @@ const getColumns = (
 
 export const Backfills = () => {
   const { t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -153,7 +154,7 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns(onSelectBackfill, translate);
+  const columns = getColumns(onSelectBackfill, translate, formatElapsed);
 
   return (
     <>
