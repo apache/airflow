@@ -785,6 +785,10 @@
         "9.35.0": {
             "associated_airflow_version": "3.3.1",
             "date_released": "2026-08-23T20:10:23Z"
+        },
+        "9.35.1": {
+            "associated_airflow_version": "3.3.1",
+            "date_released": "2026-08-29T23:54:32Z"
         }
     },
     "anthropic": {
@@ -7351,6 +7355,10 @@
         "3.8.0": {
             "associated_airflow_version": "3.3.1",
             "date_released": "2026-08-08T06:51:32Z"
+        },
+        "3.8.1": {
+            "associated_airflow_version": "3.3.1",
+            "date_released": "2026-08-29T23:54:32Z"
         }
     },
     "facebook": {
@@ -10001,6 +10009,10 @@
         "15.0.0": {
             "associated_airflow_version": "3.3.1",
             "date_released": "2026-08-23T20:10:23Z"
+        },
+        "15.0.1": {
+            "associated_airflow_version": "3.3.1",
+            "date_released": "2026-08-29T23:54:32Z"
         }
     },
     "microsoft.mssql": {
