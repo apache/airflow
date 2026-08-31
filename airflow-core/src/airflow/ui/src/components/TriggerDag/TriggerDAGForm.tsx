@@ -18,7 +18,7 @@
  */
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
@@ -33,6 +33,7 @@ import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
+import RecentConfigSelect from "./RecentConfigSelect";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
 import { dataIntervalModeOptions, type DagRunTriggerParams } from "./types";
 
@@ -91,11 +92,12 @@ const TriggerDAGForm = ({
     },
   });
 
-  // Pre-fill form when prefillConfig is provided (priority over conf)
-  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
-  useEffect(() => {
-    if (prefillConfig && open) {
-      const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
+  // Apply a config to the form and param store, resetting the other fields to their defaults.
+  // Only 'conf' (parameters) is ever restored, never logicalDate, runId, or partitionKey, to avoid 409 conflicts.
+  // Shared by the prefill effect below (re-trigger with a prior run's config) and RecentConfigSelect.
+  const applyConf = useCallback(
+    (confObj: Record<string, unknown> | undefined) => {
+      const confString = confObj ? JSON.stringify(confObj, undefined, 2) : "";
 
       reset({
         conf: confString,
@@ -119,20 +121,19 @@ const TriggerDAGForm = ({
         }
         setConf(confString);
       }
+    },
+    [initialParamDict, initialParamsDict.paramsDict, isPartitioned, reset, setConf, setInitialParamDict],
+  );
+
+  // Pre-fill form when prefillConfig is provided (priority over conf)
+  useEffect(() => {
+    if (prefillConfig && open) {
+      applyConf(prefillConfig.conf);
       setHasAppliedPrefill(true);
     } else if (!open) {
       setHasAppliedPrefill(false);
     }
-  }, [
-    prefillConfig,
-    open,
-    reset,
-    setConf,
-    initialParamsDict.paramsDict,
-    initialParamDict,
-    setInitialParamDict,
-    isPartitioned,
-  ]);
+  }, [prefillConfig, open, applyConf]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
@@ -241,6 +242,7 @@ const TriggerDAGForm = ({
             <Spacer />
           </>
         ) : undefined}
+        <RecentConfigSelect dagId={dagId} onSelectConf={applyConf} open={open} />
         <ConfigForm
           control={control}
           errors={errors}
