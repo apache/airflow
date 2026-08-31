@@ -26,6 +26,7 @@ from cadwyn import (
 )
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    AssetEventDagRunReference,
     DagRun,
     TaskInstance,
     TIAwaitingInputStatePayload,
@@ -168,3 +169,25 @@ class AddPartitionDateField(VersionChange):
         """Strip ``partition_date`` from the previous-run response."""
         if isinstance(response.body, dict):
             response.body.pop("partition_date", None)
+
+
+class AddConsumedAssetEventPartitionKeyField(VersionChange):
+    """Expose the upstream partition key on the asset events that triggered a consumer Dag run."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(AssetEventDagRunReference).field("partition_key").didnt_exist,
+    )
+
+    # Only ``TIRunContext`` can carry these events: ``DagRun.safe_extract_from_orm`` defaults
+    # ``consumed_asset_events`` to ``[]`` whenever the relationship is not already loaded, and
+    # ``/run`` is the only route that loads it -- so bare ``DagRun`` responses never carry one.
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_partition_key_from_consumed_asset_events(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_key`` from each consumed asset event for older clients."""
+        dag_run = response.body.get("dag_run")
+        if isinstance(dag_run, dict):
+            for event in dag_run.get("consumed_asset_events") or ():
+                if isinstance(event, dict):
+                    event.pop("partition_key", None)
