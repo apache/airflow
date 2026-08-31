@@ -70,7 +70,7 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         **kwargs,
     ):
         if statement is not None and statement_id is not None:
-            raise ValueError("Cannot provide both statement and statement_id.")
+            raise ValueError("Provide exactly one of statement or statement_id.")
 
         if not warehouse_id:
             raise ValueError("warehouse_id must be provided.")
