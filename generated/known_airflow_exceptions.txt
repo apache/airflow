@@ -21,7 +21,7 @@ airflow-core/src/airflow/utils/db.py::1
 airflow-core/src/airflow/utils/db_cleanup.py::1
 airflow-core/src/airflow/utils/db_manager.py::3
 airflow-core/src/airflow/utils/dot_renderer.py::3
-airflow-core/src/airflow/utils/helpers.py::4
+airflow-core/src/airflow/utils/helpers.py::1
 airflow-core/src/airflow/utils/process_utils.py::1
 airflow-core/tests/unit/models/test_dag.py::1
 airflow-core/tests/unit/models/test_taskinstance.py::3
