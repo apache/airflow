@@ -627,6 +627,27 @@ repos:
         language: python
         pass_filenames: false
         files: ^dev/registry/registry_tools/types\.py$|^registry/src/_data/types\.json$
+      - id: check-pnpm-overrides-lockfile-sync
+        name: Check pnpm.overrides is mirrored in each UI workspace's lockfile
+        description: |
+          Each UI workspace pins security-advisory overrides via `pnpm.overrides` in its
+          package.json, which pnpm mirrors into an `overrides:` block at the top of that
+          workspace's pnpm-lock.yaml. Some regenerated lockfiles (notably from grouped
+          dependabot updates) come back without that block, which silently drops the pins
+          and later fails a frozen install with a bare ERR_PNPM_LOCKFILE_CONFIG_MISMATCH.
+          This check compares the two sides directly and names the drift up front.
+        entry: ./scripts/ci/prek/check_pnpm_overrides_lockfile_sync.py
+        language: python
+        pass_filenames: false
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/ui/(package\.json|pnpm-lock\.yaml)$|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/(package\.json|pnpm-lock\.yaml)$|
+          ^providers/edge3/src/airflow/providers/edge3/plugins/www/(package\.json|pnpm-lock\.yaml)$|
+          ^providers/fab/src/airflow/providers/fab/www/(package\.json|pnpm-lock\.yaml)$|
+          ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/(package\.json|pnpm-lock\.yaml)$|
+          ^dev/react-plugin-tools/react_plugin_template/(package\.json|pnpm-lock\.yaml)$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
