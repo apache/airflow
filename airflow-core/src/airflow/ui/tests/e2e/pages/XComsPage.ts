@@ -99,10 +99,9 @@ export class XComsPage extends BasePage {
   public async verifyExpandCollapse(): Promise<void> {
     await this.navigate();
 
-    await expect(async () => {
-      await this.expandAllButton.first().click({ timeout: 5000 });
-      await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 3000 });
-    }).toPass({ intervals: [2000], timeout: 15_000 });
+    await expect(this.expandAllButton.first()).toBeVisible({ timeout: 5000 });
+    await this.expandAllButton.first().click();
+    await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 15_000 });
 
     await this.collapseAllButton.first().click();
   }
