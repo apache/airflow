@@ -17,6 +17,11 @@
  * under the License.
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import {
+  DEFAULT_TASK_INSTANCE_TAB_PATHS,
+  type DefaultTaskInstanceTab,
+  type TaskInstanceTabValue,
+} from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
 
 export const getTaskInstanceLink = (
@@ -28,16 +33,21 @@ export const getTaskInstanceLink = (
         mapIndex?: number;
         taskId: string;
       },
+  tab?: TaskInstanceTabValue,
 ): string => {
+  const tabPath = tab === undefined ? "" : `/${tab}`;
+
   if ("dag_id" in tiOrParams) {
     return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
-    }`;
+    }${tabPath}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;
 
-  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
+  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${
+    mapIndex >= 0 ? `/mapped/${mapIndex}` : ""
+  }${tabPath}`;
 };
 
 export const getRedirectPath = (targetPath: string): string => {
@@ -92,6 +102,13 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
 
   return "";
 };
+
+// Resolve a stored default-tab preference to a route path. Logs maps to "" (the index
+// route), and any unknown value falls back to "" so the index keeps rendering in place.
+export const getDefaultTaskInstanceTabPath = (value: unknown): string =>
+  typeof value === "string" && value in DEFAULT_TASK_INSTANCE_TAB_PATHS
+    ? DEFAULT_TASK_INSTANCE_TAB_PATHS[value as DefaultTaskInstanceTab]
+    : "";
 
 const SAFE_EXTERNAL_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 
