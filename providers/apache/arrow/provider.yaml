@@ -50,4 +50,11 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.apache.arrow.hooks.adbc.AdbcHook
+    hook-name: "ADBC Connection"
     connection-type: adbc
+    ui-field-behaviour:
+      hidden-fields:
+        - port
+        - schema
+      relabeling:
+        host: Connection URL
