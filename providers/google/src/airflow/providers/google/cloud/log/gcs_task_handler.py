@@ -113,6 +113,8 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self) -> GCSHook | None:
