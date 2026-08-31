@@ -122,7 +122,7 @@ const taskInstanceColumns = ({
       <RouterLink
         fontWeight="bold"
         onClick={(event) => event.stopPropagation()}
-        to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+        to={getTaskInstanceLink(original.task_instance, "required_actions")}
       >
         <TruncatedText text={original.subject} />
       </RouterLink>
@@ -180,7 +180,7 @@ const taskInstanceColumns = ({
             <RouterLink
               fontWeight="bold"
               onClick={(event) => event.stopPropagation()}
-              to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+              to={getTaskInstanceLink(original.task_instance, "required_actions")}
             >
               <TruncatedText text={original.task_instance.task_display_name} />
             </RouterLink>
