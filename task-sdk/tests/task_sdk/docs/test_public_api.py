@@ -53,6 +53,7 @@ def test_airflow_sdk_no_unexpected_exports():
         "definitions",
         "exceptions",
         "execution_time",
+        "importers",
         "io",
         "lineage",
         "listener",

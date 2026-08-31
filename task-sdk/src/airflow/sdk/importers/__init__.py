@@ -21,8 +21,8 @@ from __future__ import annotations
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
     DagDefinition,
-    DagImportError,
     DagImporterRegistry,
+    DagImportError,
     DagImportResult,
     DagImportWarning,
     DagSourceCode,
