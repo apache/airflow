@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Badge, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+
 import { Tooltip } from "src/system-components";
+
+import Time from "src/components/Time";
+
 import { renderDuration } from "src/utils/datetimeUtils";
 import { translateCompletionRule } from "src/utils/deadlines";
 

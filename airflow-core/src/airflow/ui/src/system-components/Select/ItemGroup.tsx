@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef, type ReactNode } from "react";
+
+import { Select as ChakraSelect } from "@chakra-ui/react";
 
 type ItemGroupProps = {
   readonly label: ReactNode;

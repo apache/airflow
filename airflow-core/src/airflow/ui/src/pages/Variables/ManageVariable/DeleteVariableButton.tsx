@@ -20,8 +20,9 @@ import { Button, Code, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { useDeleteVariable } from "src/queries/useDeleteVariable";
 import { IconButton, Modal } from "src/system-components";
+
+import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {
   readonly deleteKey: string;

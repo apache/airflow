@@ -16,17 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
+
+import { toaster } from "src/system-components";
+
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
-import { toaster } from "src/system-components";
 import { createErrorToaster, toNullablePartitionKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {

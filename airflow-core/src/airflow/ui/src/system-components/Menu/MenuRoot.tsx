@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Menu as ChakraMenu } from "@chakra-ui/react";
 import { createContext, useId } from "react";
+
+import { Menu as ChakraMenu } from "@chakra-ui/react";
 
 export type MenuContextValue = {
   readonly tooltipLabel?: string;

@@ -16,24 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useEffect, useMemo, useState } from "react";
+
+import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { taskInstanceKey } from "src/components/ActionAccordion/columns";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import Time from "src/components/Time";
+
 import {
   useClearPreventRunningTaskDefault,
   useClearTaskInstanceDefaultOptions,
 } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";

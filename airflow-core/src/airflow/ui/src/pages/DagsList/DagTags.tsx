@@ -19,9 +19,12 @@
 import { FiTag } from "react-icons/fi";
 
 import type { DagTagResponse } from "openapi/requests/types.gen";
-import { LimitedItemsList } from "src/components/LimitedItemsList";
-import { SearchParamsKeys } from "src/constants/searchParams";
+
 import { RouterLink } from "src/system-components";
+
+import { LimitedItemsList } from "src/components/LimitedItemsList";
+
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 const MAX_TAGS = 3;
 

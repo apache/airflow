@@ -17,13 +17,16 @@
  * under the License.
  */
 import { useState } from "react";
+
 import { useTranslation } from "react-i18next";
 import { FiActivity, FiWifi, FiWifiOff } from "react-icons/fi";
 
 import type { ConnectionResponse, ConnectionBody } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
+
 import { useConfig } from "src/queries/useConfig";
 import { useTestConnection } from "src/queries/useTestConnection";
-import { IconButton } from "src/system-components";
 
 type TestConnectionOption = "Disabled" | "Enabled" | "Hidden";
 type Props = {

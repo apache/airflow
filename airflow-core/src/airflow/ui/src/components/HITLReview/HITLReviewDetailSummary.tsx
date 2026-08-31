@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Table, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Table, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen.ts";
-import Time from "src/components/Time.tsx";
+
 import { RouterLink } from "src/system-components";
+
+import Time from "src/components/Time.tsx";
+
 import { getRelativeTime } from "src/utils/datetimeUtils.ts";
 import { getTaskInstanceLink } from "src/utils/links.ts";
 

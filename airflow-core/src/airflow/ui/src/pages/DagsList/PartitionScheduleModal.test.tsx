@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { PartitionedDagRunResponse } from "openapi/requests/types.gen";
-import type { TableState } from "src/components/DataTable/types";
+
 import type * as Ui from "src/system-components";
+
+import type { TableState } from "src/components/DataTable/types";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";

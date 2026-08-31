@@ -23,9 +23,12 @@ import { BiTargetLock } from "react-icons/bi";
 import { type PoolServiceGetPoolsDefaultResponse, useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { usePoolServiceGetPools } from "openapi/queries/queries";
 import type { ApiError } from "openapi/requests";
+
+import { RouterLink, Tooltip } from "src/system-components";
+
 import { PoolBar, UNLIMITED_SLOTS } from "src/components/PoolBar";
 import { StateIcon } from "src/components/StateIcon";
-import { RouterLink, Tooltip } from "src/system-components";
+
 import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 

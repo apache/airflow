@@ -23,9 +23,12 @@ import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
-import DeleteDialog from "src/components/DeleteDialog";
-import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
+
 import { IconButton } from "src/system-components";
+
+import DeleteDialog from "src/components/DeleteDialog";
+
+import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;

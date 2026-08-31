@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Pagination as ChakraPagination } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Button, Pagination as ChakraPagination } from "@chakra-ui/react";
 import { HiMiniEllipsisHorizontal } from "react-icons/hi2";
 
 import { paginationContext } from "./context";

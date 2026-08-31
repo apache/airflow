@@ -16,17 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Button, Center, CloseButton, FileUpload, HStack, Spinner } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
 
 import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
-import { ErrorAlert } from "src/components/ErrorAlert";
-import { useImportVariables } from "src/queries/useImportVariables";
+
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components";
+
+import { ErrorAlert } from "src/components/ErrorAlert";
+
+import { useImportVariables } from "src/queries/useImportVariables";
 
 type ImportVariablesFormProps = {
   readonly onClose: () => void;

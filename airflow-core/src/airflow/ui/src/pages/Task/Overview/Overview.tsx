@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+
+import { ReactPlugin } from "src/pages/ReactPlugin";
+
 import { DurationChart } from "src/components/DurationChart";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
-import { ReactPlugin } from "src/pages/ReactPlugin";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const defaultHour = "24";

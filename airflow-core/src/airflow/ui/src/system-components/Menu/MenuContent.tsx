@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Menu as ChakraMenu, Portal } from "@chakra-ui/react";
 import { forwardRef, type RefObject } from "react";
+
+import { Menu as ChakraMenu, Portal } from "@chakra-ui/react";
 
 type MenuContentProps = {
   readonly portalled?: boolean;

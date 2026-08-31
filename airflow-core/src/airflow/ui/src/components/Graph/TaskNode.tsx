@@ -21,9 +21,10 @@ import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
 
-import { TaskIcon } from "src/assets/TaskIcon";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
+import { TaskIcon } from "src/assets/TaskIcon";
 import { useGroups } from "src/context/groups";
 
 import { NodeWrapper } from "./NodeWrapper";

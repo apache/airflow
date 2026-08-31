@@ -21,8 +21,10 @@ import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
-import { useEditVariable } from "src/queries/useEditVariable";
+
 import { IconButton, Modal } from "src/system-components";
+
+import { useEditVariable } from "src/queries/useEditVariable";
 
 import type { VariableBody } from "./VariableForm";
 import VariableForm from "./VariableForm";

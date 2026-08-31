@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Popover as ChakraPopover } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Popover as ChakraPopover } from "@chakra-ui/react";
 
 export const Arrow = forwardRef<HTMLDivElement, ChakraPopover.ArrowProps>((props, ref) => (
   <ChakraPopover.Arrow {...props} ref={ref}>

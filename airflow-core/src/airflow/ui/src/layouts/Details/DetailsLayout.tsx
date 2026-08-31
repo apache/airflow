@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
-import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+
+import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
+import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
@@ -38,17 +39,20 @@ import {
   useDagWarningServiceListDagWarnings,
 } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+
+import { IconButton, ProgressBar, Toaster } from "src/system-components";
+
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
+
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
-import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";

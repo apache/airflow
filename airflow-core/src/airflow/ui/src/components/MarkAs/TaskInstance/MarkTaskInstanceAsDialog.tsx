@@ -16,18 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
-import { Modal, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly onClose: () => void;

@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Accordion, HStack } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Accordion, HStack } from "@chakra-ui/react";
 import { LuChevronDown } from "react-icons/lu";
 
 type AccordionItemTriggerProps = {

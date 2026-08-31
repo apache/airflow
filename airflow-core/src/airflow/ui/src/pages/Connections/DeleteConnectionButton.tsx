@@ -20,8 +20,9 @@ import { Button, Code, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { useDeleteConnection } from "src/queries/useDeleteConnection";
 import { Modal, IconButton } from "src/system-components";
+
+import { useDeleteConnection } from "src/queries/useDeleteConnection";
 
 type Props = {
   readonly connectionId: string;

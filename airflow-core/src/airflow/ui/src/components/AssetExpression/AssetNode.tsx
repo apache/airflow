@@ -25,8 +25,10 @@ import type {
   AssetExpressionAsset,
   NextRunAssetEventResponse,
 } from "openapi/requests/types.gen";
-import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
+
 import { RouterLink } from "src/system-components";
+
+import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 
 import Time from "../Time";
 

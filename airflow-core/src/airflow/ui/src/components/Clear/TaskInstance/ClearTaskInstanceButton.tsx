@@ -22,10 +22,13 @@ import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
+
 import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { IconButton } from "src/system-components";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 

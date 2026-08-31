@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Pagination as ChakraPagination } from "@chakra-ui/react";
 import type { HTMLAttributes } from "react";
+
+import { Pagination as ChakraPagination } from "@chakra-ui/react";
 
 import { Ellipsis } from "./Ellipsis";
 import { Item } from "./Item";

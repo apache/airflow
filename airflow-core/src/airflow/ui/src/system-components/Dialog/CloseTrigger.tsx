@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, Dialog as ChakraDialog, type CloseButtonProps } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { CloseButton, Dialog as ChakraDialog, type CloseButtonProps } from "@chakra-ui/react";
 
 type Props = {
   readonly closeButtonProps?: CloseButtonProps;

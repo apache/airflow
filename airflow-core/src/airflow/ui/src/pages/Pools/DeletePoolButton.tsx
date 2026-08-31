@@ -20,9 +20,11 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import DeleteDialog from "src/components/DeleteDialog";
-import { useDeletePool } from "src/queries/useDeletePool";
 import { IconButton } from "src/system-components";
+
+import DeleteDialog from "src/components/DeleteDialog";
+
+import { useDeletePool } from "src/queries/useDeletePool";
 
 type Props = {
   readonly poolName: string;

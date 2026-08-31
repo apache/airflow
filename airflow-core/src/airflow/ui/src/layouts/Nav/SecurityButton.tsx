@@ -21,6 +21,7 @@ import { FiLock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
+
 import { Menu } from "src/system-components";
 
 import { NavButton } from "./NavButton";

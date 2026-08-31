@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Progress as ChakraProgress } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Progress as ChakraProgress } from "@chakra-ui/react";
 
 export const ProgressBar = forwardRef<HTMLDivElement, ChakraProgress.RootProps>((props, ref) => (
   // default to indeterminate

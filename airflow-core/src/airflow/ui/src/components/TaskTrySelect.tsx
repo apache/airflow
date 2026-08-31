@@ -21,8 +21,11 @@ import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
-import { StateBadge } from "src/components/StateBadge";
+
 import { Select } from "src/system-components";
+
+import { StateBadge } from "src/components/StateBadge";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";

@@ -23,9 +23,12 @@ import {
   useTaskInstanceServiceGetHitlDetailTryDetail,
   useTaskInstanceServiceGetMappedTaskInstance,
 } from "openapi/queries";
-import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { SearchParamsKeys } from "src/constants/searchParams";
+
 import { ProgressBar } from "src/system-components";
+
+import { TaskTrySelect } from "src/components/TaskTrySelect";
+
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";

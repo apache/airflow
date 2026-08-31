@@ -20,9 +20,11 @@ import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import { PoolBar, UNLIMITED_SLOTS } from "src/components/PoolBar";
 import { StateIcon } from "src/components/StateIcon";
-import { Tooltip } from "src/system-components";
 
 import DeletePoolButton from "./DeletePoolButton";
 import EditPoolButton from "./EditPoolButton";

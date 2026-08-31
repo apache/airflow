@@ -21,9 +21,12 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import DeleteDialog from "src/components/DeleteDialog";
-import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
+
 import { IconButton } from "src/system-components";
+
+import DeleteDialog from "src/components/DeleteDialog";
+
+import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
 
 type DeleteTaskInstanceButtonProps = {
   readonly taskInstance: TaskInstanceResponse;

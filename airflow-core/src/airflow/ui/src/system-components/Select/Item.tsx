@@ -17,8 +17,9 @@
  * under the License.
  */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Select as ChakraSelect } from "@chakra-ui/react";
 
 export const Item = forwardRef<HTMLDivElement, ChakraSelect.ItemProps>((props, ref) => {
   const { children, item, ...rest } = props;

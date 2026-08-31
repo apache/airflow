@@ -21,14 +21,17 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRunStats } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
 
 export const Details = () => {

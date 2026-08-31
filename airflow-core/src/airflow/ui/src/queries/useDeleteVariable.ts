@@ -20,7 +20,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { useVariableServiceDeleteVariable, useVariableServiceGetVariablesKey } from "openapi/queries";
+
 import { toaster } from "src/system-components";
+
 import { createErrorToaster } from "src/utils";
 
 export const useDeleteVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {

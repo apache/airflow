@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type ButtonProps, type Dialog as ChakraDialog, Flex } from "@chakra-ui/react";
 import type { ComponentProps, ReactNode } from "react";
+
+import { Button, type ButtonProps, type Dialog as ChakraDialog, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { Dialog } from "../Dialog";

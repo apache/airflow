@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineDifference, MdOutlineOpenInFull, MdWrapText } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -30,16 +31,19 @@ import {
 } from "openapi/queries";
 import type { ApiError } from "openapi/requests/core/ApiError";
 import type { DAGSourceResponse } from "openapi/requests/types.gen";
+
+import { IconButton, Modal, ProgressBar, LazyClipboard } from "src/system-components";
+
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
 import Time from "src/components/Time";
+
 import { useMonacoTheme } from "src/context/colorMode";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
-import { IconButton, Modal, ProgressBar, LazyClipboard } from "src/system-components";
 import { renderDuration } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";

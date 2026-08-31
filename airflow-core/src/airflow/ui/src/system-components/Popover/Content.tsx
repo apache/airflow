@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Popover as ChakraPopover, Portal } from "@chakra-ui/react";
 import { type RefObject, forwardRef } from "react";
+
+import { Popover as ChakraPopover, Portal } from "@chakra-ui/react";
 
 type PopoverContentProps = {
   readonly portalled?: boolean;

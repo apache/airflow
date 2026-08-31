@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack, type ButtonProps } from "@chakra-ui/react";
 import { useState, type ReactElement } from "react";
+
+import { Heading, VStack, type ButtonProps } from "@chakra-ui/react";
 
 import { Dialog, IconButton, MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/system-components";
 

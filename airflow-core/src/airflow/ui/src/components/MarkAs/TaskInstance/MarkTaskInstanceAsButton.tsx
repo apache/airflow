@@ -16,18 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import type { ButtonProps } from "@chakra-ui/react";
 import { HStack, useDisclosure } from "@chakra-ui/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { IconButton, Menu, Tooltip } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { IconButton, Menu, Tooltip } from "src/system-components";
 
 import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";

@@ -21,7 +21,9 @@ import { FiGlobe } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { MenuItem } from "openapi/requests/types.gen";
+
 import { Menu } from "src/system-components";
+
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";

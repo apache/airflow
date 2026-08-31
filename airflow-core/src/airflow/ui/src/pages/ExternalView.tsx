@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
+
 import { ProgressBar } from "src/system-components";
 
 import { ErrorPage } from "./Error";

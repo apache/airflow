@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+
 import { IconButton } from "src/system-components";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Button, HStack, Input, Text, VStack } from "@chakra-ui/react";
 import type { SortingState } from "@tanstack/react-table";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { LuBookmark, LuInfo } from "react-icons/lu";
@@ -26,10 +27,12 @@ import { MdOutlinePushPin, MdPushPin } from "react-icons/md";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
+import { IconButton, Popover, Tooltip } from "src/system-components";
+
 import DeleteDialog from "src/components/DeleteDialog";
+
 import { presetFiltersDefaultKey, presetFiltersKey, tableSortKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { IconButton, Popover, Tooltip } from "src/system-components";
 
 type PresetFilter = {
   readonly name: string;

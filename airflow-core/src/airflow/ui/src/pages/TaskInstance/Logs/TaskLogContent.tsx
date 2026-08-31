@@ -16,20 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
+
 import { Box, Code, VStack } from "@chakra-ui/react";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { Range as VirtualizerRange } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
+
+import { ProgressBar } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useTimezone } from "src/context/timezone";
 import { useShortcut } from "src/hooks/useShortcut";
 import type { ParsedLogEntry } from "src/queries/useLogs";
-import { ProgressBar } from "src/system-components";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import { HighlightedText } from "./HighlightedText";

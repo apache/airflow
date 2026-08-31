@@ -21,8 +21,10 @@ import { useTranslation } from "react-i18next";
 import { LuInfo } from "react-icons/lu";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
-import { RunTypeIcon } from "src/components/RunTypeIcon";
+
 import { Tooltip } from "src/system-components";
+
+import { RunTypeIcon } from "src/components/RunTypeIcon";
 
 const runTypes: Array<DAGRunResponse["run_type"]> = [
   "scheduled",

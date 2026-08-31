@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ActionBar, CloseButton } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { ActionBar, CloseButton } from "@chakra-ui/react";
 
 export const CloseTrigger = forwardRef<HTMLButtonElement, ActionBar.CloseTriggerProps>((props, ref) => (
   <ActionBar.CloseTrigger {...props} asChild ref={ref}>

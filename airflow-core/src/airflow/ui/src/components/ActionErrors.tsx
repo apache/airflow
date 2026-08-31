@@ -19,8 +19,10 @@
 import { Stack } from "@chakra-ui/react";
 
 import type { BulkActionResponse } from "openapi/requests/types.gen";
-import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { Alert } from "src/system-components";
+
+import { ErrorAlert } from "src/components/ErrorAlert";
 
 type Props = {
   readonly actionResponse?: BulkActionResponse | null;

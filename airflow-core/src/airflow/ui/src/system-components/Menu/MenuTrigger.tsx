@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Menu as ChakraMenu } from "@chakra-ui/react";
 import { forwardRef, useContext } from "react";
+
+import { Menu as ChakraMenu } from "@chakra-ui/react";
 
 import { Tooltip } from "../Tooltip";
 import { MenuContext } from "./MenuRoot";

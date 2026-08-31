@@ -22,8 +22,9 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
-import Time from "src/components/Time";
 import { Select } from "src/system-components";
+
+import Time from "src/components/Time";
 
 type Props = {
   readonly defaultValue: string;

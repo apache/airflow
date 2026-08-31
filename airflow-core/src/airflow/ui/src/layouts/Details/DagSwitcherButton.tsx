@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { type ReactNode, useState } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BsChevronExpand } from "react-icons/bs";
+
+import { IconButton, Popover, Tooltip } from "src/system-components";
 
 import {
   CUT_PADDING,
@@ -31,9 +34,9 @@ import {
   getWedgePadding,
 } from "src/components/Breadcrumb";
 import { SearchDags } from "src/components/SearchDags";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { IconButton, Popover, Tooltip } from "src/system-components";
 
 type Props = {
   readonly children: ReactNode;

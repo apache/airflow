@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Input, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+
+import { Box, Input, Text } from "@chakra-ui/react";
 import { MdClose } from "react-icons/md";
 
-import type { ValidationError } from "src/hooks/useDateRangeFilter";
 import { IconButton } from "src/system-components";
+
+import type { ValidationError } from "src/hooks/useDateRangeFilter";
 
 type DateInputProps = {
   readonly disabled?: boolean;

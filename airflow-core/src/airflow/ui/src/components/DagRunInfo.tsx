@@ -20,9 +20,12 @@ import { VStack, Text, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Tooltip } from "src/system-components";
+
 import { getDuration } from "src/utils";
 import { getRelativeTime } from "src/utils/datetimeUtils";
 

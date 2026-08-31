@@ -16,19 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Button, Flex, Heading, Separator, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuChevronDown } from "react-icons/lu";
 import { useLocalStorage } from "usehooks-ts";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse, UIAlert } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
+
 import TimeRangeSelector from "src/components/TimeRangeSelector";
+
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
 import { useConfig } from "src/queries/useConfig";
-import { IconButton } from "src/system-components";
 import { useDocumentTitle } from "src/utils";
 
 import { ReactPlugin } from "../ReactPlugin";

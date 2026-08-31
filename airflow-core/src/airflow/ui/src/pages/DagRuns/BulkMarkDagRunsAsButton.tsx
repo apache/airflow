@@ -16,19 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Button, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Badge, Box, Button, HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Modal, Menu } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
+
 import { useBulkPatchDagRun } from "src/queries/useBulkPatchDagRun";
-import { Modal, Menu } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

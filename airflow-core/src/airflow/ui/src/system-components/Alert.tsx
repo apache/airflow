@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Alert as ChakraAlert, CloseButton } from "@chakra-ui/react";
 import { forwardRef, type ReactNode, type ReactElement } from "react";
+
+import { Alert as ChakraAlert, CloseButton } from "@chakra-ui/react";
 
 export type AlertProps = {
   readonly closable?: boolean;

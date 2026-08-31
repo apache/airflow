@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import type { ButtonGroupProps } from "@chakra-ui/react";
 import { Button, ButtonGroup } from "@chakra-ui/react";
-import type { ReactNode } from "react";
 
 import { IconButton } from ".";
 

@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+
+import { Modal } from "src/system-components";
 
 import {
   SHORTCUTS,
@@ -27,7 +30,6 @@ import {
   useShortcutRegistry,
 } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { Modal } from "src/system-components";
 import { getMetaKey } from "src/utils";
 
 import { formatShortcutCombo } from "./formatShortcutCombo";

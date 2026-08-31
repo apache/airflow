@@ -22,8 +22,10 @@ import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+
 import { Tooltip } from "src/system-components";
+
+import Time from "src/components/Time";
 
 import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";

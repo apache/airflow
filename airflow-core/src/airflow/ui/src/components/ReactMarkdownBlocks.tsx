@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useId, useState, type ReactNode } from "react";
+
 import { Box, Flex, Spinner, Text } from "@chakra-ui/react";
 import { renderToString as renderKatexToString } from "katex";
-import { useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useColorMode } from "src/context/colorMode";
 import { LazyClipboard } from "src/system-components";
+
+import { useColorMode } from "src/context/colorMode";
 import { renderMermaidDiagram } from "src/utils/renderMermaid";
 import { SyntaxHighlighter, type SyntaxTheme } from "src/utils/syntaxHighlighter";
 

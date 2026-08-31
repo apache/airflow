@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { CloseButton, Select as ChakraSelect } from "@chakra-ui/react";
 
 type Props = {
   readonly clearable?: boolean;

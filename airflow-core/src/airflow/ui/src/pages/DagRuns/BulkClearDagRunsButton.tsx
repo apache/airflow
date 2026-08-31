@@ -16,17 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
+
 import { useBulkClearDagRuns } from "src/queries/useBulkClearDagRuns";
 import { useBulkClearDagRunsDryRun } from "src/queries/useBulkClearDagRunsDryRun";
-import { Modal, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

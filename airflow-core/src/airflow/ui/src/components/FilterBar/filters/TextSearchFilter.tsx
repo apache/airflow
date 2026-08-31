@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack } from "@chakra-ui/react";
 import { useRef, type ChangeEvent } from "react";
+
+import { HStack } from "@chakra-ui/react";
 import { LuRegex } from "react-icons/lu";
 
+import { InputWithAddon } from "src/system-components";
+
 import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useShortcut } from "src/hooks/useShortcut";
-import { InputWithAddon } from "src/system-components";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";

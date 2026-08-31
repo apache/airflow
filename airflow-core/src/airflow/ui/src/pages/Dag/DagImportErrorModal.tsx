@@ -22,8 +22,10 @@ import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+
 import { ClipboardIconButton, Modal } from "src/system-components";
+
+import Time from "src/components/Time";
 
 type Props = {
   readonly importError: ImportErrorResponse;

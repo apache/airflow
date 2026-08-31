@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { NumberInput as ChakraNumberInput } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { NumberInput as ChakraNumberInput } from "@chakra-ui/react";
 
 export type NumberInputProps = {} & ChakraNumberInput.RootProps;
 

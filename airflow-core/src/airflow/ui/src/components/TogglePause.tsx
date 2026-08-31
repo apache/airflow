@@ -19,9 +19,10 @@
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { Switch, Tooltip, type SwitchProps } from "src/system-components";
+
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
-import { Switch, Tooltip, type SwitchProps } from "src/system-components";
 
 import { ConfirmationModal } from "./ConfirmationModal";
 

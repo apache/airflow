@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef } from "react";
+
 import { IconButton as ChakraIconButton } from "@chakra-ui/react";
 import type { IconButtonProps } from "@chakra-ui/react";
-import { forwardRef } from "react";
 
 import { Tooltip } from "./Tooltip";
 

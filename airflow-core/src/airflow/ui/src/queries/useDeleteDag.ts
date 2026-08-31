@@ -20,8 +20,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey, useDagServiceGetDagKey } from "openapi/queries";
-import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+
 import { toaster } from "src/system-components";
+
+import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
 import { createErrorToaster } from "src/utils";
 
 export const useDeleteDag = ({

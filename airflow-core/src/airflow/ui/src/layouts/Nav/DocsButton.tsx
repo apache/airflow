@@ -20,8 +20,9 @@ import { Box, Icon, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
-import { useConfig } from "src/queries/useConfig";
 import { Menu } from "src/system-components";
+
+import { useConfig } from "src/queries/useConfig";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";

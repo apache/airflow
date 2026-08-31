@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Accordion } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Accordion } from "@chakra-ui/react";
 
 type AccordionItemContentProps = {} & Accordion.ItemContentProps;
 

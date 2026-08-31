@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Switch as ChakraSwitch } from "@chakra-ui/react";
 import { forwardRef, type InputHTMLAttributes, type Ref, type ReactNode } from "react";
+
+import { Switch as ChakraSwitch } from "@chakra-ui/react";
 
 export type SwitchProps = {
   readonly inputProps?: InputHTMLAttributes<HTMLInputElement>;

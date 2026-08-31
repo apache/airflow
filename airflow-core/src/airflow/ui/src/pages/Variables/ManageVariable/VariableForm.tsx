@@ -21,10 +21,12 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
+import { Alert } from "src/system-components";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
+
 import { useConfig } from "src/queries/useConfig.tsx";
-import { Alert } from "src/system-components";
 
 export type VariableBody = {
   description: string | undefined;

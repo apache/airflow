@@ -20,9 +20,11 @@ import { Button, Code, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { ErrorAlert } from "src/components/ErrorAlert";
-import { useBulkDeleteConnections } from "src/queries/useBulkDeleteConnections";
 import { Modal } from "src/system-components";
+
+import { ErrorAlert } from "src/components/ErrorAlert";
+
+import { useBulkDeleteConnections } from "src/queries/useBulkDeleteConnections";
 
 type Props = {
   readonly clearSelections: () => void;

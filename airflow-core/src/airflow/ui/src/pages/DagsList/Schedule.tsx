@@ -20,8 +20,9 @@ import { Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
-import type { ExpressionType } from "src/components/AssetExpression";
 import { Tooltip } from "src/system-components";
+
+import type { ExpressionType } from "src/components/AssetExpression";
 
 import { AssetSchedule } from "./AssetSchedule";
 

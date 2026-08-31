@@ -21,11 +21,15 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskCollectionResponse } from "openapi/requests";
+
+import { ResetButton } from "src/system-components";
+
+import { AttrSelectFilter } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilter.tsx";
+
 import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { SearchBar } from "src/components/SearchBar.tsx";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams.ts";
-import { AttrSelectFilter } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilter.tsx";
-import { ResetButton } from "src/system-components";
 
 export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionResponse | undefined }) => {
   const { MAPPED, NAME_PATTERN, OFFSET, OPERATOR, RETRIES, TRIGGER_RULE }: SearchParamsKeysType =

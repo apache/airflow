@@ -16,17 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Button, Flex, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useBulkClearDryRun } from "src/queries/useBulkClearDryRun";
 import { useBulkClearTaskInstances } from "src/queries/useBulkClearTaskInstances";
-import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 
 type Props = {
   readonly clearSelections: VoidFunction;

@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Center, HStack, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Center, HStack, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import { useTrigger } from "src/queries/useTrigger";
+
 import { Modal, Tooltip, RadioCardItem, RadioCardRoot } from "src/system-components";
+
+import { useTrigger } from "src/queries/useTrigger";
 
 import RunBackfillForm from "../DagActions/RunBackfillForm";
 import TriggerDAGForm from "./TriggerDAGForm";

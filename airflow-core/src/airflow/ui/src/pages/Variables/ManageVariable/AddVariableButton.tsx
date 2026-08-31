@@ -20,8 +20,9 @@ import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdAdd } from "react-icons/md";
 
-import { useAddVariable } from "src/queries/useAddVariable";
 import { Modal, Toaster } from "src/system-components";
+
+import { useAddVariable } from "src/queries/useAddVariable";
 
 import VariableForm, { type VariableBody } from "./VariableForm";
 

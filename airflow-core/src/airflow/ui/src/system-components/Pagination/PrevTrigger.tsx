@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Pagination as ChakraPagination } from "@chakra-ui/react";
 import { forwardRef } from "react";
+
+import { Pagination as ChakraPagination } from "@chakra-ui/react";
 import { HiChevronLeft } from "react-icons/hi2";
 
 import { IconButton } from "..";

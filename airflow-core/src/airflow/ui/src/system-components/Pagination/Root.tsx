@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef } from "react";
+
 import type { ButtonProps } from "@chakra-ui/react";
 import { Pagination as ChakraPagination } from "@chakra-ui/react";
-import { forwardRef } from "react";
 
 import { paginationContext } from "./context";
 

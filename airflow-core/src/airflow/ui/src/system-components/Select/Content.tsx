@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
 import { forwardRef, type RefObject } from "react";
+
+import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
 
 type ContentProps = {
   readonly portalled?: boolean;

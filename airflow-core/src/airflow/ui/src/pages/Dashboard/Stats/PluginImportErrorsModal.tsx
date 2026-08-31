@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import type { PluginImportErrorResponse } from "openapi/requests/types.gen";
-import { SearchBar } from "src/components/SearchBar";
+
 import { Accordion, ClipboardIconButton, Modal, Pagination } from "src/system-components";
+
+import { SearchBar } from "src/components/SearchBar";
 
 type PluginImportErrorsModalProps = {
   readonly importErrors: Array<PluginImportErrorResponse>;

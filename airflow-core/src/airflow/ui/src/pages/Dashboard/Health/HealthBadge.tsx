@@ -19,9 +19,10 @@
 import { Skeleton, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { Tooltip } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Tooltip } from "src/system-components";
 
 export const HealthBadge = ({
   isLoading,

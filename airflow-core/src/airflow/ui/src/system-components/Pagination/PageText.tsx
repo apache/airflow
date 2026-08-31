@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef } from "react";
+
 import type { TextProps } from "@chakra-ui/react";
 import { Text, usePaginationContext } from "@chakra-ui/react";
-import { forwardRef } from "react";
 
 type PageTextProps = {
   readonly format?: "compact" | "long" | "short";

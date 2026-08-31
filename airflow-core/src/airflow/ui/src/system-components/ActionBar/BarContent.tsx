@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ActionBar, Portal } from "@chakra-ui/react";
 import { forwardRef, type RefObject } from "react";
+
+import { ActionBar, Portal } from "@chakra-ui/react";
 
 type ActionBarContentProps = {
   readonly portalled?: boolean;

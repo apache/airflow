@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef } from "react";
+
 import type { ButtonProps, InputProps } from "@chakra-ui/react";
 import { Button, Clipboard as ChakraClipboard, Input } from "@chakra-ui/react";
-import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { LuCheck, LuClipboard, LuLink } from "react-icons/lu";
 

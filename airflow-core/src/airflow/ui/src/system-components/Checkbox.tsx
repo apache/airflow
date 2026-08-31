@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Checkbox as ChakraCheckbox } from "@chakra-ui/react";
 import { type ReactNode, type InputHTMLAttributes, type Ref, forwardRef } from "react";
+
+import { Checkbox as ChakraCheckbox } from "@chakra-ui/react";
 
 export type CheckboxProps = {
   readonly icon?: ReactNode;

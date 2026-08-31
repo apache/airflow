@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, Button } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Flex, Heading, Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
-import { Tooltip } from "src/system-components";
 
 import { TaskLogPreview } from "./TaskLogPreview";
 

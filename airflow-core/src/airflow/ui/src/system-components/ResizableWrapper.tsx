@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 import { useEffect, useRef } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useLocalStorage } from "usehooks-ts";
 
 type ResizableWrapperProps = {

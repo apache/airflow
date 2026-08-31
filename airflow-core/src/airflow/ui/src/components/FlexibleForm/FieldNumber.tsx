@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import { NumberInputField, NumberInputRoot } from "src/system-components";
+
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 

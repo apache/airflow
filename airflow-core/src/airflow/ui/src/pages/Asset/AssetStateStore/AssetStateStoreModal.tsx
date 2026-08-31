@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Input, Text, VStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Box, Button, Input, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -26,9 +27,12 @@ import {
   useAssetStateStoreServiceListAssetStateStoreKey,
   useAssetStateStoreServiceSetAssetStateStore,
 } from "openapi/queries";
-import { JsonEditor } from "src/components/JsonEditor";
-import { useStoreMutation } from "src/queries/useStoreMutation";
+
 import { Modal, ProgressBar } from "src/system-components";
+
+import { JsonEditor } from "src/components/JsonEditor";
+
+import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
   readonly assetId: number;

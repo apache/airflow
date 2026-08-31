@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ButtonProps } from "@chakra-ui/react";
 import { forwardRef, useState } from "react";
+
+import type { ButtonProps } from "@chakra-ui/react";
 import { LuCheck, LuClipboard } from "react-icons/lu";
 
 import { IconButton } from ".";

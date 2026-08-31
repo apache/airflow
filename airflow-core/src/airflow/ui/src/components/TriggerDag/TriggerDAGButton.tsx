@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Button, useDisclosure } from "@chakra-ui/react";
 import type { DagRunType } from "openapi-gen/requests/types.gen";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
+
 import { IconButton, Menu, Tooltip } from "src/system-components";
 
 import TriggerDAGModal from "./TriggerDAGModal";

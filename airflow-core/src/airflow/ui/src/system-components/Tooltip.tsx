@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Tooltip as ChakraTooltip, Portal } from "@chakra-ui/react";
 import { type ReactNode, type RefObject, forwardRef } from "react";
+
+import { Tooltip as ChakraTooltip, Portal } from "@chakra-ui/react";
 
 export type TooltipProps = {
   readonly content: ReactNode;

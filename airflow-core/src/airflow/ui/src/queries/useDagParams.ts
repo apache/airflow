@@ -19,6 +19,7 @@
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
+
 import { toaster } from "src/system-components";
 
 export type ParamsSpec = Record<string, ParamSpec>;

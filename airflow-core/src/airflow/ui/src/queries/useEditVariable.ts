@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { useVariableServiceGetVariablesKey, useVariableServicePatchVariable } from "openapi/queries";
-import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
+
 import { toaster } from "src/system-components";
+
+import type { VariableBody } from "src/pages/Variables/ManageVariable/VariableForm";
 
 export const useEditVariable = (
   initialVariable: VariableBody,

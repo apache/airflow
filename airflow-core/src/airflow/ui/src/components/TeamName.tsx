@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { RouterLink } from "src/system-components";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { RouterLink } from "src/system-components";
 
 type Props = {
   readonly teamName?: string | null;

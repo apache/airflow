@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, HStack } from "@chakra-ui/react";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { Button, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { IoFilter } from "react-icons/io5";
 import { MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
-import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 import { Menu } from "src/system-components";
+
+import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import { BooleanFilter } from "./filters/BooleanFilter";

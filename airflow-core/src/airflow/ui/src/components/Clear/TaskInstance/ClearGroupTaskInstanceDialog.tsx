@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
@@ -28,12 +29,15 @@ import {
   useTaskInstanceServiceGetTaskInstances,
 } from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
+
 import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { Checkbox, Modal, SegmentedControl } from "src/system-components";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";

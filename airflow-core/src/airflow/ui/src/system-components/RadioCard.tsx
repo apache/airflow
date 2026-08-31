@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { RadioCard } from "@chakra-ui/react";
 import { forwardRef, type ReactNode } from "react";
+
+import { RadioCard } from "@chakra-ui/react";
 
 type RadioCardItemProps = {
   readonly description?: ReactNode;

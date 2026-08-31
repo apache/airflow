@@ -16,21 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Spinner } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
-import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
+
+import { Accordion } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
+
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import { useParamStore } from "src/queries/useParamStore";
-import { Accordion } from "src/system-components";
 
 import StandardFields from "./ConnectionStandardFields";
 import type { ConnectionBody } from "./Connections";

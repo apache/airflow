@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Group } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Group } from "@chakra-ui/react";
 
 import type { Option } from "src/utils/option";
 

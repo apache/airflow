@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef, type ReactNode } from "react";
+
 import type { CollectionItem } from "@chakra-ui/react";
 import { Select as ChakraSelect } from "@chakra-ui/react";
-import { forwardRef, type ReactNode } from "react";
 
 type ValueTextProps = {
   readonly children?: (items: Array<CollectionItem>) => ReactNode;

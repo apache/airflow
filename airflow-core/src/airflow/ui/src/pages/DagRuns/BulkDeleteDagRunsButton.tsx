@@ -23,12 +23,15 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Accordion, Modal } from "src/system-components";
+
 import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+
 import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
-import { Accordion, Modal } from "src/system-components";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;

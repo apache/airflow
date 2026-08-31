@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type ReactNode, forwardRef } from "react";
+
 import type { InputProps } from "@chakra-ui/react";
 import { Box, Input, Text } from "@chakra-ui/react";
-import { type ReactNode, forwardRef } from "react";
 
 export type InputWithAddonProps = {
   readonly endAddon?: ReactNode;

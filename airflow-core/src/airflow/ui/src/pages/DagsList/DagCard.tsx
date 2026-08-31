@@ -20,12 +20,15 @@ import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/rea
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, Tooltip } from "src/system-components";
+
 import DagRunInfo from "src/components/DagRunInfo";
 import { Stat } from "src/components/Stat";
 import { TeamName } from "src/components/TeamName";
+
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
-import { RouterLink, Tooltip } from "src/system-components";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagCardActions } from "./DagCardActions";

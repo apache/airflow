@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { MdError } from "react-icons/md";
+
+import { Accordion } from "src/system-components";
 
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
-import { Accordion } from "src/system-components";
 
 import ReactMarkdown from "../ReactMarkdown";
 import { Row } from "./Row";
