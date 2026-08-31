@@ -585,6 +585,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * Get Dags
 * Get all Dags.
 * @param data The data for the request.
+* @param data.isScheduled Filter Dags by whether their timetable can create scheduled runs.
 * @param data.limit
 * @param data.offset
 * @param data.tags
@@ -617,7 +618,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }: {
+export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, isScheduled, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -638,6 +639,7 @@ export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { asset
   hasAssetSchedule?: boolean;
   hasImportErrors?: boolean;
   isFavorite?: boolean;
+  isScheduled?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
   offset?: number;
@@ -647,7 +649,7 @@ export const ensureUseDagServiceGetDagsData = (queryClient: QueryClient, { asset
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   timetableType?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, isScheduled, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, isScheduled, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }) });
 /**
 * Get Dag
 * Get basic information about a Dag.
