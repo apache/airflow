@@ -53,7 +53,7 @@ export const HITLReviewDetailSummary = ({
         <HITLReviewRow
           label={translate("common:taskId")}
           value={
-            <RouterLink onClick={onOpenTask} to={`${getTaskInstanceLink(ti)}/required_actions`}>
+            <RouterLink onClick={onOpenTask} to={getTaskInstanceLink(ti, "required_actions")}>
               {ti.task_id}
             </RouterLink>
           }
