@@ -45,8 +45,7 @@ class TestZipImporter:
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr(
                 "dag_a.py",
-                "from airflow.sdk import DAG\n"
-                "dag = DAG('zip_dag_a')\n",
+                "from airflow.sdk import DAG\ndag = DAG('zip_dag_a')\n",
             )
             z.writestr("helper.py", "def util(): return 1\n")
 
@@ -64,8 +63,7 @@ class TestZipImporter:
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr(
                 "../evil_dag.py",
-                "from airflow.sdk import DAG\n"
-                "dag = DAG('evil_dag')\n",
+                "from airflow.sdk import DAG\ndag = DAG('evil_dag')\n",
             )
 
         importer = ZipImporter()

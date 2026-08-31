@@ -32,6 +32,11 @@ from airflow._shared.module_loading import (
     might_contain_dag as might_contain_dag,
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
+from airflow._shared.module_loading import (
+    get_unique_dag_module_name as get_unique_dag_module_name,
+    might_contain_dag as might_contain_dag,
+    might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
+)
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
@@ -122,8 +127,6 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
-
-
 def _find_imported_modules(module: ast.Module) -> Generator[str, None, None]:
     for st in module.body:
         if isinstance(st, ast.Import):
@@ -142,8 +145,6 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
     for m in _find_imported_modules(parsed):
         if m.startswith("airflow."):
             yield m
-
-
 
 
 def __getattr__(name: str):

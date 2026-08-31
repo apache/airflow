@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle
 
+from airflow.sdk.execution_time.timeout import timeout
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
     DagDefinition,
@@ -38,7 +39,6 @@ from airflow.sdk.importers.base import (
     DagImportWarning,
     DagSourceCode,
 )
-from airflow.sdk.execution_time.timeout import timeout
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -140,7 +140,8 @@ class PythonDagImporter(AbstractDagImporter):
 
         if not might_contain_dag(filepath, safe_mode):
             log.debug("File %s assumed to contain no DAGs. Skipping.", filepath)
-            result.skipped_definitions.append(definition)
+            if definition is not None:
+                result.skipped_definitions.append(definition)
             return []
 
         log.debug("Importing %s (bundle: %s)", filepath, bundle.name)
@@ -227,6 +228,7 @@ class PythonDagImporter(AbstractDagImporter):
         for dag, _mod in top_level_dags:
             dag.bundle_name = bundle.name
             dag.fileloc = repr(result.definition)
-            dag.relative_fileloc = result.definition.get_relative_loc(bundle.path)
+            if result.definition is not None:
+                dag.relative_fileloc = result.definition.get_relative_loc(bundle.path)
             result.dags.append(dag)
             log.debug("Found DAG %s", dag.dag_id)

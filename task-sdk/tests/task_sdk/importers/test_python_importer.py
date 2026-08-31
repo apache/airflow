@@ -41,10 +41,7 @@ class TestPythonDagImporter:
 
     def test_import_successful_dag(self, mock_bundle):
         dag_file = mock_bundle.path / "sample_dag.py"
-        dag_file.write_text(
-            "from airflow.sdk import DAG\n"
-            "dag = DAG('test_dag_1')\n"
-        )
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
 
         importer = PythonDagImporter()
         definition = FileDagDefinition(path=dag_file)
@@ -58,10 +55,7 @@ class TestPythonDagImporter:
 
     def test_import_syntax_error_cleans_sys_modules(self, mock_bundle):
         dag_file = mock_bundle.path / "bad_dag.py"
-        dag_file.write_text(
-            "from airflow.sdk import DAG\n"
-            "def broken(\n"
-        )
+        dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
 
         importer = PythonDagImporter()
         definition = FileDagDefinition(path=dag_file)
