@@ -90,6 +90,25 @@ def test_generate_token_without_generator():
     assert BaseWorkloadSchema.generate_token("ti-123", None) == ""
 
 
+def test_token_scope_is_a_class_level_invariant():
+    """Token scope is fixed per workload type, not caller-suppliable."""
+    assert BaseWorkloadSchema.token_scope == "workload"
+    assert ExecuteTask.token_scope == "workload"
+    assert ExecuteCallback.token_scope == "callback"
+
+
+def test_generate_token_uses_subclass_token_scope(monkeypatch):
+    """ExecuteCallback.generate_token should stamp its own 'callback' scope."""
+    monkeypatch.setattr(workloads_base.conf, "getfloat", lambda section, key: 86400.0)
+
+    generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+    token = ExecuteCallback.generate_token("cb-123", generator)
+
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["sub"] == "cb-123"
+    assert claims["scope"] == "callback"
+
+
 def test_callback_key_is_frozen_and_hashable():
     """CallbackKey must be usable as a dict key (hashable) and immutable (frozen)."""
     cid = "some-uuid-value"

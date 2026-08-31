@@ -51,7 +51,10 @@ from airflow.api_fastapi.execution_api.versions.v2026_06_30 import (
     AddTeamNameField,
     AddVariableKeysEndpoint,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_10_30 import AddArgBindingsToTIRunContext
+from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
+    AddArgBindingsToTIRunContext,
+    AddCallbackRunEndpoint,
+)
 from airflow.api_fastapi.execution_api.versions.v2026_11_13 import AddOnlyFailedToClearDagRunPayload
 
 # Minimum Execution API version that honours the ``only_failed`` clear scope. Clients (e.g. the
@@ -62,7 +65,7 @@ MIN_VERSION_ONLY_FAILED_CLEAR = "2026-11-13"
 bundle = VersionBundle(
     HeadVersion(),
     Version("2026-11-13", AddOnlyFailedToClearDagRunPayload),
-    Version("2026-10-30", AddArgBindingsToTIRunContext),
+    Version("2026-10-30", AddArgBindingsToTIRunContext, AddCallbackRunEndpoint),
     Version(
         "2026-06-30",
         AddVariableKeysEndpoint,
