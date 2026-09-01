@@ -182,7 +182,11 @@ export const Code = () => {
         <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
       )}
       <Box flex={1} minH={0}>
-        <CodeDiffViewer modifiedCode={displayedCode} originalCode={displayedCompareCode} />
+        <CodeDiffViewer
+          language={code?.language ?? "python"}
+          modifiedCode={displayedCode}
+          originalCode={displayedCompareCode}
+        />
       </Box>
     </Box>
   ) : (
@@ -205,7 +209,7 @@ export const Code = () => {
       <Box flex={1} minH={0}>
         <Editor
           beforeMount={beforeMount}
-          language="python"
+          language={code?.language ?? "python"}
           options={editorOptions}
           theme={theme}
           value={displayedCode}
