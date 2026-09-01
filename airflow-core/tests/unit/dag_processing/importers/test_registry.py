@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from airflow.dag_processing.importers import (
@@ -28,7 +29,7 @@ from airflow.dag_processing.importers import (
 
 
 class TestDagImporterRegistry:
-    """Test the DagImporterRegistry singleton."""
+    """Test the DagImporterRegistry."""
 
     def setup_method(self):
         """Reset the registry before each test."""
@@ -48,35 +49,29 @@ class TestDagImporterRegistry:
         """Registry should have Python importer by default."""
         registry = get_importer_registry()
         extensions = registry.supported_extensions()
-
         assert ".py" in extensions
 
     def test_get_importer_for_python(self):
         """Should return PythonDagImporter for .py files."""
         registry = get_importer_registry()
         importer = registry.get_importer("test.py")
-
         assert importer is not None
         assert isinstance(importer, PythonDagImporter)
 
     def test_get_importer_for_unknown(self):
         """Should return None for unknown file types."""
         registry = get_importer_registry()
-        importer = registry.get_importer("test.txt")
-
-        assert importer is None
+        assert registry.get_importer("test.txt") is None
 
     def test_can_handle_supported_files(self):
         """can_handle should return True for supported file types."""
         registry = get_importer_registry()
-
         assert registry.can_handle("dag.py")
         assert registry.can_handle(Path("subdir/dag.py"))
 
     def test_can_handle_unsupported_files(self):
         """can_handle should return False for unsupported file types."""
         registry = get_importer_registry()
-
         assert not registry.can_handle("readme.txt")
         assert not registry.can_handle("config.json")
         assert not registry.can_handle("script.sh")
@@ -84,8 +79,6 @@ class TestDagImporterRegistry:
     def test_case_insensitive_extension_matching(self):
         """Extension matching should be case-insensitive."""
         registry = get_importer_registry()
-
-        # All these should be handled
         assert registry.can_handle("dag.PY")
         assert registry.can_handle("dag.Py")
 
@@ -94,6 +87,17 @@ class TestDagImporterRegistry:
         registry1 = get_importer_registry()
         DagImporterRegistry.reset()
         registry2 = get_importer_registry()
-
-        # Should be different instances after reset
         assert registry1 is not registry2
+
+    def test_independent_registry_instances(self):
+        """Directly instantiating DagImporterRegistry creates isolated instances."""
+        assert DagImporterRegistry() is not DagImporterRegistry()
+
+    def test_register_explicit_extensions_and_override_warning(self, caplog):
+        """register() with explicit extensions overrides existing and logs warning."""
+        reg = DagImporterRegistry(register_defaults=True)
+        importer = PythonDagImporter()
+        with caplog.at_level(logging.WARNING):
+            reg.register(importer, extensions=[".py", "custom"])
+        assert reg.can_handle("test.custom")
+        assert any("Extension '.py' already registered" in r.message for r in caplog.records)

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 from contextlib import nullcontext
 from pathlib import Path
@@ -1791,3 +1792,76 @@ class TestSkippedRowLifecycle:
         assert restored.is_stale is False
         assert restored.bundle_name == "configured-bundle"
         assert restored.relative_fileloc == "legacy.py"
+
+
+class TestDagBundlesManagerImporters:
+    """Tests for DAG importer registry integration in DagBundlesManager."""
+
+    def test_create_importer_registry_precedence_and_overrides(self, caplog):
+        """Bundle importer overrides global importer, which overrides default importers."""
+        from airflow.dag_processing.importers.python_importer import PythonDagImporter
+
+        global_config = [
+            {
+                "classpath": "airflow.dag_processing.importers.python_importer.PythonDagImporter",
+                "extensions": [".py", ".custom"],
+            }
+        ]
+        bundle_config = [
+            {
+                "classpath": "airflow.dag_processing.importers.python_importer.PythonDagImporter",
+                "extensions": [".custom"],
+            }
+        ]
+        with (
+            caplog.at_level(logging.WARNING),
+            conf_vars({("dag_processor", "dag_importer_configs"): json.dumps(global_config)}),
+        ):
+            manager = DagBundlesManager()
+            registry = manager.create_importer_registry("bundle_override", bundle_config)
+
+        assert registry.can_handle("dag.py")
+        assert registry.can_handle("dag.custom")
+        importer = registry.get_importer("test.custom")
+        assert isinstance(importer, PythonDagImporter)
+        assert any("Extension '.py' already registered" in r.message for r in caplog.records)
+        assert any("Extension '.custom' already registered" in r.message for r in caplog.records)
+
+    @pytest.mark.parametrize(
+        ("global_cfg", "bundle_cfg", "match"),
+        [
+            (json.dumps({"invalid": "object"}), None, "key `dag_importer_configs` must be a list"),
+            (None, [{"extensions": [".py"]}], "Missing required 'classpath'"),
+            (None, [{"classpath": "invalid.path"}], "Failed to load DAG importer"),
+        ],
+    )
+    def test_create_importer_registry_invalid_configs(self, global_cfg, bundle_cfg, match):
+        """Invalid global or bundle configurations raise AirflowConfigException."""
+        manager = DagBundlesManager()
+        with (
+            conf_vars({("dag_processor", "dag_importer_configs"): global_cfg} if global_cfg else {}),
+            pytest.raises(AirflowConfigException, match=match),
+        ):
+            manager.create_importer_registry("test", bundle_cfg)
+
+    def test_create_importer_registry_nested_internal_importers(self):
+        """Composite importers normalize nested internal_importers."""
+        manager = DagBundlesManager()
+        importers_config = [
+            {
+                "classpath": "airflow.sdk.importers.zip_importer.ZipImporter",
+                "extensions": [".zip"],
+                "kwargs": {
+                    "internal_importers": [
+                        {
+                            "classpath": "airflow.sdk.importers.python_importer.PythonDagImporter",
+                            "extensions": [".py"],
+                        }
+                    ]
+                },
+            }
+        ]
+        registry = manager.create_importer_registry("test_bundle", importers_config)
+        importer = registry.get_importer("archive.zip")
+        assert importer is not None
+        assert ".py" in importer._internal_importers
