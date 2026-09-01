@@ -174,6 +174,14 @@ class TestSparkSubmitHook:
         )
         create_connection_without_db(
             Connection(
+                conn_id="spark_standalone_cluster_ha",
+                conn_type="spark",
+                host="spark://host1:7077,host2:7077",
+                extra='{"deploy-mode": "cluster"}',
+            )
+        )
+        create_connection_without_db(
+            Connection(
                 conn_id="spark_principal_set",
                 conn_type="spark",
                 host="yarn",
@@ -378,6 +386,19 @@ class TestSparkSubmitHook:
             "30",
             "http://spark-standalone-master:6066/v1/submissions/status/driver-20260820115651-0003",
         ]
+
+    def test_build_track_driver_status_command_ha(self):
+        # HA master list must try each host in order (mirrors operator backend).
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster_ha")
+        hook._driver_id = "driver-20260820115651-0003"
+
+        cmd = hook._build_track_driver_status_command()
+
+        assert cmd[0] == "sh"
+        assert cmd[1] == "-c"
+        assert "http://host1:6066/v1/submissions/status/driver-20260820115651-0003" in cmd[2]
+        assert "http://host2:6066/v1/submissions/status/driver-20260820115651-0003" in cmd[2]
+        assert " || " in cmd[2]
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1246,6 +1267,18 @@ class TestSparkSubmitHook:
             "DELETE",
             "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
         ]
+
+    def test_standalone_cluster_ha_kill(self):
+        # HA kill must try each master (curl ... || curl ...).
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster_ha")
+        hook._driver_id = "driver-20171128111415-0001"
+
+        kill_cmd = hook._build_spark_driver_kill_command()
+
+        assert kill_cmd[0] == "sh"
+        assert "http://host1:6066/v1/submissions/kill/driver-20171128111415-0001" in kill_cmd[2]
+        assert "http://host2:6066/v1/submissions/kill/driver-20171128111415-0001" in kill_cmd[2]
+        assert " || " in kill_cmd[2]
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")

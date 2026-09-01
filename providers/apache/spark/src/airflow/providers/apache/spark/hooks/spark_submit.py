@@ -668,20 +668,23 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
-    def _get_standalone_rest_base_url(self) -> str:
+    def _get_standalone_rest_base_urls(self) -> list[str]:
         """
-        Return the Spark standalone REST API base URL derived from the master URL.
+        Return Spark standalone REST API base URLs derived from the master URL.
 
         The master URL points at the binary RPC port (default 7077), but the REST API
         used for driver status/kill requests listens on ``spark.master.rest.port``
-        (default 6066). ``spark-submit --status/--kill`` derives its REST URL from the
-        master URL itself, so it can never connect through the binary port. Mirrors
-        ``_StandaloneSparkSubmitBackend.get_job_status``.
+        (default 6066). Mirrors ``_StandaloneSparkSubmitBackend.get_job_status`` which
+        tries each HA master in order.
         """
-        # ponytail: first host only for HA masters; per-host failover lives in the operator backend
-        first_master = self._connection["master"].replace("spark://", "").split(",")[0].strip()
-        host = first_master.split(":")[0]
-        return f"{self._connection['rest_scheme']}://{host}:{self._connection['rest_port']}"
+        scheme = self._connection["rest_scheme"]
+        port = self._connection["rest_port"]
+        masters = self._connection["master"].replace("spark://", "").split(",")
+        return [f"{scheme}://{m.strip().split(':')[0]}:{port}" for m in masters if m.strip()]
+
+    def _get_standalone_rest_base_url(self) -> str:
+        """Return the first Spark standalone REST API base URL (back-compat)."""
+        return self._get_standalone_rest_base_urls()[0]
 
     def _build_track_driver_status_command(self) -> list[str]:
         """
@@ -691,20 +694,31 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         curl_max_wait_time = 30
         spark_host = self._connection["master"]
+        # spark:// indicates Spark standalone cluster mode
         if "spark://" in spark_host:
-            # The driver id so we can poll for its status
             if not self._driver_id:
                 raise AirflowException(
                     "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
 
-            url = f"{self._get_standalone_rest_base_url()}/v1/submissions/status/{self._driver_id}"
-            connection_cmd = [
-                "/usr/bin/curl",
-                "--max-time",
-                str(curl_max_wait_time),
-                url,
+            urls = [
+                f"{base}/v1/submissions/status/{self._driver_id}"
+                for base in self._get_standalone_rest_base_urls()
             ]
+            if len(urls) == 1:
+                connection_cmd = [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    str(curl_max_wait_time),
+                    urls[0],
+                ]
+            else:
+                # HA: try each master in order (mirrors _StandaloneSparkSubmitBackend.get_job_status)
+                curl_cmds = " || ".join(
+                    f"/usr/bin/curl --fail --max-time {curl_max_wait_time} {shlex.quote(u)}"
+                    for u in urls
+                )
+                connection_cmd = ["sh", "-c", curl_cmds]
             self.log.info(connection_cmd)
         else:
             connection_cmd = self._get_spark_binary_path()
@@ -1310,15 +1324,27 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :return: full command to kill a driver
         """
+        # spark:// indicates Spark standalone cluster mode
         if "spark://" in self._connection["master"]:
             # spark-submit --kill derives its REST URL from the master URL (binary RPC
             # port), which cannot serve REST requests — use the REST API directly.
-            connection_cmd = [
-                "/usr/bin/curl",
-                "-X",
-                "DELETE",
-                f"{self._get_standalone_rest_base_url()}/v1/submissions/kill/{self._driver_id}",
+            urls = [
+                f"{base}/v1/submissions/kill/{self._driver_id}"
+                for base in self._get_standalone_rest_base_urls()
             ]
+            if len(urls) == 1:
+                connection_cmd = [
+                    "/usr/bin/curl",
+                    "-X",
+                    "DELETE",
+                    urls[0],
+                ]
+            else:
+                # HA: try each master in order
+                curl_cmds = " || ".join(
+                    f"/usr/bin/curl --fail -X DELETE {shlex.quote(u)}" for u in urls
+                )
+                connection_cmd = ["sh", "-c", curl_cmds]
         else:
             # Assume that spark-submit is present in the path to the executing user
             connection_cmd = [self._connection["spark_binary"]]
