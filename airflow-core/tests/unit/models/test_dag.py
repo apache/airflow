@@ -548,7 +548,12 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(6):
+        # DagModelOperation.find_orm_dags() is called twice per bulk_write_to_db() call (once to
+        # look up existing DagModels, once to refetch after flushing new assets), and now
+        # selectinload's five one-to-many collections each cost a follow-up statement instead of
+        # being joined into one query, so this first (insert) call costs 4 more statements than
+        # before: see GH#72393 / the collection.py selectinload change.
+        with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -565,14 +570,16 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(9):
+        # Both find_orm_dags() calls now match existing DagModels, so both incur the full 5
+        # selectinload follow-ups (GH#72393): 9 -> 14.
+        with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
-        with assert_queries_count(9):
+        with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         # Adding tags
         for dag in dags:
             dag.tags.add("test-dag2")
-        with assert_queries_count(10):
+        with assert_queries_count(15):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -591,7 +598,7 @@ class TestDag:
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(10):
+        with assert_queries_count(15):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -610,7 +617,7 @@ class TestDag:
         # Removing all tags
         for dag in dags:
             dag.tags = set()
-        with assert_queries_count(10):
+        with assert_queries_count(15):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -633,7 +640,9 @@ class TestDag:
             for i in range(1)
         ]
 
-        with assert_queries_count(6):
+        # See the comment on test_bulk_write_to_db's first assert_queries_count for why this went
+        # from 6 to 10 (GH#72393 selectinload change).
+        with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0"} == {row[0] for row in session.execute(select(DagModel.dag_id)).all()}
@@ -645,9 +654,11 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        # Both find_orm_dags() calls now match an existing DagModel, so both incur the full 5
+        # selectinload follow-ups (GH#72393): 8 -> 14.
+        with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
-        with assert_queries_count(8):
+        with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
 
     def test_bulk_write_to_db_multiple_dags(self, testing_dag_bundle):
@@ -662,7 +673,9 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(6):
+        # See the comment on test_bulk_write_to_db's first assert_queries_count for why this went
+        # from 6 to 10 (GH#72393 selectinload change).
+        with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -679,9 +692,11 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(9):
+        # Both find_orm_dags() calls now match existing DagModels, so both incur the full 5
+        # selectinload follow-ups (GH#72393): 9 -> 14.
+        with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
-        with assert_queries_count(9):
+        with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
