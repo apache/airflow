@@ -1616,7 +1616,9 @@ class AirflowConfigParser(ConfigParser):
 
         if data is None or data == "":
             try:
-                file_path = self.get(section=section, key=key + "_file", fallback=None, _extra_stacklevel=1, **kwargs)
+                file_path = self.get(
+                    section=section, key=key + "_file", fallback=None, _extra_stacklevel=1, **kwargs
+                )
             except (NoSectionError, NoOptionError):
                 file_path = None
 
