@@ -24,6 +24,7 @@ import logging
 import os
 from http import HTTPStatus
 from unittest import mock
+from urllib.parse import urljoin
 
 import aiohttp
 import pytest
@@ -35,7 +36,13 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
+from airflow.providers.http.exceptions import HttpErrorException
+from airflow.providers.http.hooks.http import (
+    HttpAsyncHook,
+    HttpHook,
+    _process_extra_options_from_connection,
+    _redirect_leaves_origin,
+)
 
 from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 
@@ -898,3 +905,315 @@ class TestHttpAsyncHook:
             async with aiohttp.ClientSession() as session:
                 await hook.run(session=session, endpoint="test.com:8080/v1/test")
                 assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_request_without_extra_headers_uses_native_redirects(self, mocked_get):
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_empty_conn")
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200, method="GET", url="http://example.com/v1"
+        )
+        async with aiohttp.ClientSession() as session:
+            await hook.run(session=session, endpoint="http://example.com/v1")
+        assert mocked_get.call_count == 1
+        assert mocked_get.call_args.kwargs.get("allow_redirects") is None
+
+    @pytest.mark.asyncio
+    async def test_async_config_records_extra_header_names(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host="api.example.com",
+                extra=json.dumps({"X-API-Key": "secret", "max_redirects": 3}),
+            )
+        )
+        hook = HttpAsyncHook(http_conn_id="http_redirect_conn")
+        config = await hook.config()
+        assert config.connection_headers == {"X-API-Key"}
+        assert config.extra_options.get("max_redirects") == 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("schema", "host", "port", "location", "keep_extra", "keep_auth"),
+        [
+            pytest.param(
+                "https",
+                "api.example.com",
+                None,
+                "https://cdn.example.com/file",
+                False,
+                False,
+                id="cross-host",
+            ),
+            pytest.param(
+                "https",
+                "api.example.com",
+                None,
+                "https://api.example.com/v2",
+                True,
+                True,
+                id="same-host",
+            ),
+            pytest.param(
+                "http",
+                "api.example.com",
+                None,
+                "https://api.example.com/v1",
+                True,
+                True,
+                id="http-https-default-port",
+            ),
+            pytest.param(
+                "http",
+                "api.example.com",
+                80,
+                "https://api.example.com:443/v1",
+                True,
+                True,
+                id="http-80-https-443",
+            ),
+            pytest.param(
+                "https",
+                "api.example.com",
+                None,
+                "https://api.example.com:8443/v1",
+                False,
+                False,
+                id="port-change",
+            ),
+            pytest.param(
+                "https",
+                "api.example.com",
+                None,
+                "https://other.example.com/v1",
+                False,
+                False,
+                id="hostname-change",
+            ),
+            pytest.param(
+                "http",
+                "api.example.com",
+                8080,
+                "https://api.example.com/v1",
+                False,
+                False,
+                id="non-default-port-upgrade",
+            ),
+            pytest.param(
+                "https",
+                "api.example.com",
+                None,
+                "/v2",
+                True,
+                True,
+                id="relative-same-host",
+            ),
+        ],
+    )
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_redirect_connection_credentials(
+        self,
+        mocked_get,
+        create_connection_without_db,
+        schema,
+        host,
+        port,
+        location,
+        keep_extra,
+        keep_auth,
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host=host,
+                schema=schema,
+                port=port,
+                login="username",
+                password="pass",
+                extra=json.dumps({"X-API-Key": "secret"}),
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
+        mocked_get.side_effect = [
+            MockAiohttpClientResponse(
+                status=302,
+                method="GET",
+                url=f"{schema}://{host}/v1",
+                headers={"Location": location},
+            ),
+            MockAiohttpClientResponse(status=200, method="GET", url=location),
+        ]
+
+        async with aiohttp.ClientSession() as session:
+            resp = await hook.run(
+                session=session,
+                endpoint="v1",
+                headers={"X-Request-Id": "req-1"},
+            )
+
+        assert resp.status == 200
+        assert mocked_get.call_count == 2
+        first_url, first_kwargs = mocked_get.call_args_list[0].args[0], mocked_get.call_args_list[0].kwargs
+        second_url, second_kwargs = mocked_get.call_args_list[1].args[0], mocked_get.call_args_list[1].kwargs
+        assert second_url == urljoin(first_url, location)
+        assert first_kwargs["headers"]["X-API-Key"] == "secret"
+        assert first_kwargs["headers"]["X-Request-Id"] == "req-1"
+        assert first_kwargs["auth"] is not None
+        assert second_kwargs["headers"]["X-Request-Id"] == "req-1"
+        assert ("X-API-Key" in second_kwargs["headers"]) is keep_extra
+        assert (second_kwargs["auth"] is not None) is keep_auth
+        for call in mocked_get.call_args_list:
+            assert call.kwargs.get("allow_redirects") is False
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_allow_redirects_false_does_not_walk(self, mocked_get, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host="api.example.com",
+                schema="https",
+                extra=json.dumps({"X-API-Key": "secret"}),
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=302,
+            method="GET",
+            url="https://api.example.com/v1",
+            headers={"Location": "https://cdn.example.com/file"},
+        )
+
+        async with aiohttp.ClientSession() as session:
+            resp = await hook.run(
+                session=session,
+                endpoint="v1",
+                extra_options={"allow_redirects": False},
+            )
+
+        assert resp.status == 302
+        assert mocked_get.call_count == 1
+        assert mocked_get.call_args.kwargs["headers"]["X-API-Key"] == "secret"
+        assert mocked_get.call_args.kwargs.get("allow_redirects") is False
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_redirect_without_location_returns_response(
+        self, mocked_get, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host="api.example.com",
+                schema="https",
+                extra=json.dumps({"X-API-Key": "secret"}),
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=302,
+            method="GET",
+            url="https://api.example.com/v1",
+        )
+
+        async with aiohttp.ClientSession() as session:
+            resp = await hook.run(session=session, endpoint="v1")
+
+        assert resp.status == 302
+        assert mocked_get.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_redirect_reads_lowercase_location_header(
+        self, mocked_get, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host="api.example.com",
+                schema="https",
+                extra=json.dumps({"X-API-Key": "secret"}),
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
+        mocked_get.side_effect = [
+            MockAiohttpClientResponse(
+                status=302,
+                method="GET",
+                url="https://api.example.com/v1",
+                headers={"location": "https://api.example.com/v2"},
+            ),
+            MockAiohttpClientResponse(status=200, method="GET", url="https://api.example.com/v2"),
+        ]
+
+        async with aiohttp.ClientSession() as session:
+            resp = await hook.run(session=session, endpoint="v1")
+
+        assert resp.status == 200
+        assert mocked_get.call_count == 2
+        assert mocked_get.call_args_list[1].kwargs["headers"]["X-API-Key"] == "secret"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("max_redirects", "expected_calls"), [(0, 1), (1, 2)])
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_too_many_redirects(
+        self, mocked_get, create_connection_without_db, max_redirects, expected_calls
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host="api.example.com",
+                schema="https",
+                extra=json.dumps({"X-API-Key": "secret"}),
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
+        mocked_get.side_effect = [
+            MockAiohttpClientResponse(
+                status=302,
+                method="GET",
+                url="https://api.example.com/v1",
+                headers={"Location": "https://cdn.example.com/a"},
+            ),
+            MockAiohttpClientResponse(
+                status=302,
+                method="GET",
+                url="https://cdn.example.com/a",
+                headers={"Location": "https://cdn.example.com/b"},
+            ),
+        ]
+
+        async with aiohttp.ClientSession() as session:
+            with pytest.raises(HttpErrorException, match="Maximum redirects exceeded"):
+                await hook.run(
+                    session=session,
+                    endpoint="v1",
+                    extra_options={"max_redirects": max_redirects},
+                )
+
+        assert mocked_get.call_count == expected_calls
+
+
+class TestRedirectLeavesOrigin:
+    @pytest.mark.parametrize(
+        ("old_url", "new_url", "leaves"),
+        [
+            ("https://api.example.com/a", "https://cdn.example.com/a", True),
+            ("https://api.example.com/a", "https://api.example.com/b", False),
+            ("http://api.example.com/a", "https://api.example.com/a", False),
+            ("http://api.example.com:80/a", "https://api.example.com/a", False),
+            ("http://api.example.com/a", "https://api.example.com:443/a", False),
+            ("https://api.example.com/a", "https://api.example.com:443/a", False),
+            ("https://api.example.com/a", "https://api.example.com:8443/a", True),
+            ("https://api.example.com/a", "http://api.example.com/a", True),
+            ("http://api.example.com:8080/a", "https://api.example.com/a", True),
+        ],
+    )
+    def test_redirect_leaves_origin(self, old_url, new_url, leaves):
+        assert _redirect_leaves_origin(old_url, new_url) is leaves

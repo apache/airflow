@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. warning::
+  ``HttpAsyncHook`` no longer forwards HTTP Connection Extra headers or
+  BasicAuth credentials when a redirect leaves the Connection host. Extra
+  headers continue to be sent to the Connection host, including on same-host
+  redirects and the default-port ``http`` → ``https`` upgrade.
+
 6.0.5
 .....
 
