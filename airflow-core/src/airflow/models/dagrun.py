@@ -532,9 +532,7 @@ class DagRun(Base, LoggingMixin):
     @property
     def dag_versions(self) -> list[DagVersion]:
         """Return the DAG versions associated with the TIs of this DagRun."""
-        # Always derive from actual TI/TIH versions. Do not special-case bundle-versioned
-        # runs via created_dag_version_id: clear(..., run_on_latest_version=True) can bump
-        # that pointer while leaving uncleared TIs on older versions (apache/airflow#71454).
+        # Always derive from actual TI/TIH versions.
         if self._prefetched_dag_version_ids is not None:
             dag_version_objects = list(self._prefetched_dag_version_ids.values())
         else:

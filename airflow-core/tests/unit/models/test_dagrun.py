@@ -1388,12 +1388,12 @@ class TestDagRun:
         assert {dv.id for dv in versions} == ti_version_ids
         assert None not in versions
 
-    def test_dag_run_dag_versions_after_partial_run_on_latest_version(self, dag_maker, session):
-        """dag_versions must include uncleared TI versions after a partial run_on_latest_version clear.
+    def test_bundled_dag_run_dag_versions_after_partial_run_on_latest_version(self, dag_maker, session):
+        """Bundled dag_versions include uncleared TI versions after a partial run_on_latest_version clear.
 
-        Repro for apache/airflow#71454: clearing a subset with run_on_latest_version=True bumps
-        created_dag_version_id / bundle_version to latest while uncleared TIs stay on the old
-        version. The property must report both.
+        Clearing a subset with run_on_latest_version=True bumps created_dag_version_id
+        and bundle_version to latest while uncleared TIs stay on the old version.
+        The property must report both.
         """
         with dag_maker(
             "test_dag_run_dag_versions_partial_latest",
