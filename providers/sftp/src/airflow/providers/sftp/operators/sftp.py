@@ -25,9 +25,9 @@ from typing import Any
 
 import paramiko
 
+from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPOperation
-from airflow.providers.sftp.triggers.sftp import SFTPOperationTrigger
 
 
 class SFTPOperator(BaseOperator):
@@ -93,7 +93,7 @@ class SFTPOperator(BaseOperator):
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
         prefetch: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -168,6 +168,24 @@ class SFTPOperator(BaseOperator):
 
         if not self.sftp_hook:
             raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
+
+        if self.deferrable:
+            from airflow.providers.sftp.triggers.sftp import SFTPOperationTrigger
+
+            self.defer(
+                trigger=SFTPOperationTrigger(
+                    ssh_conn_id=self.ssh_conn_id,
+                    local_filepath=self.local_filepath,
+                    remote_filepath=self.remote_filepath,
+                    operation=self.operation,
+                    confirm=self.confirm,
+                    create_intermediate_dirs=self.create_intermediate_dirs,
+                    remote_host=self.remote_host,
+                    concurrency=self.concurrency,
+                    prefetch=self.prefetch,
+                ),
+                method_name="execute_complete",
+            )
 
         try:
             for idx, remote_fp in enumerate(remote_filepath_array):

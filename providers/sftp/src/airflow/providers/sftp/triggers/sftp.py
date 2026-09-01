@@ -25,8 +25,7 @@ from typing import Any
 from dateutil.parser import parse as parse_date
 
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.sftp.operators.sftp import SFTPOperation
-from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
+from airflow.providers.sftp.hooks.sftp import SFTPHookAsync, SFTPOperation
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.timezone import convert_to_utc
 
