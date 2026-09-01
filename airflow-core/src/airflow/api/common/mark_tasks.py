@@ -285,6 +285,7 @@ def _set_dag_run_terminal_state(
             select(TaskInstance).filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == run_id,
+                TaskInstance.task_id.in_(task_ids),
                 or_(
                     TaskInstance.state.is_(None),
                     and_(
