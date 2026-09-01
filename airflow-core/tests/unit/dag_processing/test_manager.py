@@ -264,7 +264,19 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 # lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
 # per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
 # of them are already recorded.
-FIXED_PER_CALL = 9
+#
+# FIXED_PER_CALL includes 10 statements from DagModelOperation.find_orm_dags(), which
+# DAG.bulk_write_to_db() calls twice per persistence call (once to look up existing DagModels,
+# once to refetch them after flushing newly-created assets so relationships are current). Each
+# call eager-loads five one-to-many collections (tags, schedule_asset_references,
+# schedule_asset_alias_references, task_outlet_asset_references, dag_owner_links) via
+# selectinload, one follow-up "WHERE dag_id IN (...)" statement per collection, on top of the
+# base DagModel select: 6 statements x 2 calls = 12, replacing the 2 statements (1 per call) it
+# cost when all five collections were joinedload'd into one query. See GH#72393: joinedload on
+# multiple one-to-many collections in a single query multiplies result rows (a production case
+# saw 500 dag_ids balloon into 3,907 rows), which is far more expensive for a client to receive
+# and deserialize than the extra round trips selectinload costs here.
+FIXED_PER_CALL = 19
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 # A file that failed to parse and so defines no Dags. Two of the five are import_error SELECTs: the

@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 import structlog
 from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import load_only, selectinload
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -587,19 +587,33 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
+        # NOTE: These relationships are eager-loaded with selectinload (a separate follow-up
+        # "WHERE dag_id IN (...)" query per collection) rather than joinedload (a single query
+        # joining every collection at once). Five joinedload() calls on one-to-many collections
+        # in a single query cause a cartesian-product row explosion: a run against a production
+        # deployment showed 500 input dag_ids producing 3,907 result rows. The database executed
+        # that query quickly, but the client had to receive, deserialize, and de-duplicate all
+        # those duplicate rows (including redundant copies of DagModel's JSON columns), which
+        # was observed causing multi-second delays. selectinload trades the single big query for
+        # up to five smaller follow-up queries, but each returns only the rows that actually
+        # exist, with no multiplication. See https://github.com/apache/airflow/issues/72393.
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
                 select(DagModel)
-                .options(joinedload(DagModel.tags, innerjoin=False))
+                .options(selectinload(DagModel.tags))
                 .where(DagModel.dag_id.in_(self.dags))
-                .options(joinedload(DagModel.schedule_asset_references))
-                .options(joinedload(DagModel.schedule_asset_alias_references))
-                .options(joinedload(DagModel.task_outlet_asset_references))
-                .options(joinedload(DagModel.dag_owner_links))
+                .options(selectinload(DagModel.schedule_asset_references))
+                .options(selectinload(DagModel.schedule_asset_alias_references))
+                .options(selectinload(DagModel.task_outlet_asset_references))
+                .options(selectinload(DagModel.dag_owner_links))
             ),
             of=DagModel,
             session=session,
         )
+        # selectinload's follow-up queries don't produce duplicate parent rows the way
+        # joinedload's single-query join did, so .unique() is no longer strictly required here.
+        # It's kept as a cheap, harmless safety net (Session.scalars still requires .unique() be
+        # called when *any* loader option could yield duplicates, and it's a no-op otherwise).
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
