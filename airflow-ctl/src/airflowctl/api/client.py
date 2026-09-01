@@ -325,10 +325,32 @@ def _should_retry_api_request(exception: BaseException) -> bool:
     return isinstance(exception, httpx.RequestError)
 
 
+def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
+    """Read an integer tuning knob, keeping a bad value from taking the whole CLI down at import."""
+    value = os.getenv(name)
+    # Docker and Kubernetes spell "not configured" as an empty value, not an absent one.
+    if not value:
+        return default
+
+    parsed: int | None
+    try:
+        parsed = int(value)
+    except ValueError:
+        parsed = None
+    if parsed is not None and parsed >= minimum:
+        return parsed
+
+    # stderr, not the logger: logging is unconfigured at import and structlog would use stdout.
+    sys.stderr.write(
+        f"Warning: ignoring {name}={value!r}, expected an integer >= {minimum}; using {default}.\n"
+    )
+    return default
+
+
 # API Client Retry Configuration
-API_RETRIES = int(os.getenv("AIRFLOW_CLI_API_RETRIES", "3"))
-API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MIN", "1"))
-API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MAX", "10"))
+API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
+API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
+API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
 
 
 class Client(httpx.Client):
