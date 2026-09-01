@@ -29,7 +29,7 @@ def get_provider(args, api_client: Client = NEW_API_CLIENT) -> dict[str, Any]:
     """Get information for an installed provider."""
     response = api_client.providers.get(provider_name=args.provider_name)
     if args.full:
-        result = response.provider_info
+        result = response.provider_info.model_dump(by_alias=True, exclude_none=True)
     else:
         result = {"Provider": response.package_name, "Version": response.version}
 
