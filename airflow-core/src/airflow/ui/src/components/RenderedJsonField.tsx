@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, type FlexProps, VStack } from "@chakra-ui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Box, Flex, type FlexProps, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 
