@@ -1107,39 +1107,33 @@ class TestSnowflakeNotebookOperator:
         if AIRFLOW_V_3_0_PLUS:
             clear_db_dag_bundles()
 
-    @pytest.fixture
-    def mock_execute_query(self):
-        with mock.patch(f"{HOOK_MODULE}.execute_query") as execute_query:
-            yield execute_query
-
-    @pytest.fixture
-    def mock_get_sql_api_query_status(self):
-        with mock.patch(f"{HOOK_MODULE}.get_sql_api_query_status") as get_status:
-            yield get_status
-
-    def test_execute_success_immediate(self, mock_execute_query, mock_get_sql_api_query_status):
-        """Notebook completes immediately without polling or deferring."""
+    def test_execute_success_immediate(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """Notebook completes on the first status check, without deferring."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id="snowflake_default",
             notebook=NOTEBOOK,
             do_xcom_push=False,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [{"status": "success"}]
         operator.execute(context=None)
 
     def test_execute_failure_immediate(self, mock_execute_query, mock_get_sql_api_query_status):
-        """Notebook fails immediately, raises AirflowException."""
+        """Notebook that fails on the first status check raises."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id="snowflake_default",
             notebook=NOTEBOOK,
             do_xcom_push=False,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [{"status": "error", "message": "Notebook failed"}]
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute(context=None)
 
     @mock.patch(f"{HOOK_MODULE}.execute_query")
@@ -1159,7 +1153,9 @@ class TestSnowflakeNotebookOperator:
 
         assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger)
 
-    def test_execute_polling_success(self, mock_execute_query, mock_get_sql_api_query_status):
+    def test_execute_polling_success(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
         """Non-deferrable mode polls until success."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
@@ -1167,18 +1163,16 @@ class TestSnowflakeNotebookOperator:
             notebook=NOTEBOOK,
             do_xcom_push=False,
             deferrable=False,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [
-            # Initial status check in execute()
             {"status": "running"},
-            # 1st poll
             {"status": "running"},
-            # 2nd poll — success
             {"status": "success"},
         ]
 
-        with mock.patch("time.sleep"), mock.patch(f"{HOOK_MODULE}.check_query_output"):
+        with mock.patch("time.sleep"):
             operator.execute(context=None)
 
     def test_execute_polling_failure(self, mock_execute_query, mock_get_sql_api_query_status):
@@ -1189,6 +1183,7 @@ class TestSnowflakeNotebookOperator:
             notebook=NOTEBOOK,
             do_xcom_push=False,
             deferrable=False,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [
@@ -1196,16 +1191,19 @@ class TestSnowflakeNotebookOperator:
             {"status": "error", "message": "Notebook execution failed"},
         ]
 
-        with pytest.raises(AirflowException):
+        with mock.patch("time.sleep"), pytest.raises(RuntimeError):
             operator.execute(context=None)
 
-    def test_execute_xcom_push(self, mock_execute_query, mock_get_sql_api_query_status):
+    def test_execute_xcom_push(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
         """XCom push stores query_ids when do_xcom_push is True."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id="snowflake_default",
             notebook=NOTEBOOK,
             do_xcom_push=True,
+            durable=False,
         )
         mock_execute_query.return_value = ["uuid1"]
         mock_get_sql_api_query_status.side_effect = [{"status": "success"}]
@@ -1228,14 +1226,14 @@ class TestSnowflakeNotebookOperator:
             operator.execute_complete(context=None, event=event)
 
     def test_execute_complete_failure(self):
-        """execute_complete raises AirflowException on error event."""
+        """execute_complete raises on an error event."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id=CONN_ID,
             notebook=NOTEBOOK,
             deferrable=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             operator.execute_complete(
                 context=None,
                 event={"status": "error", "message": "Notebook failed"},
