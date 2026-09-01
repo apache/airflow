@@ -22,9 +22,19 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.datadog.sensors.datadog import DatadogSensor
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+)
+from airflow.providers.datadog.sensors.datadog import (
+    DatadogMonitorSensorAsync,
+    DatadogSensor,
+    TaskDeferralError,
+)
+from airflow.providers.datadog.triggers.datadog import DatadogMonitorTrigger
 
 at_least_one_event = [
     {
@@ -133,3 +143,58 @@ class TestDatadogSensor:
         )
         with pytest.raises(AirflowException):
             sensor.poke({})
+
+
+monitor_ok = {"overall_state": "OK"}
+monitor_alert = {"overall_state": "Alert"}
+monitor_missing = {"errors": ["Monitor not found"]}
+
+
+class TestDatadogMonitorSensorAsync:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="datadog_default",
+                conn_type="datadog",
+                login="login",
+                password="password",
+                extra=json.dumps({"api_key": "api_key", "app_key": "app_key"}),
+            )
+        )
+
+    def test_execute_defers_with_trigger(self):
+        sensor = DatadogMonitorSensorAsync(task_id="t", monitor_id=1)
+        with pytest.raises(TaskDeferred) as ctx:
+            sensor.execute({})
+        assert isinstance(ctx.value.trigger, DatadogMonitorTrigger)
+
+    def test_execute_complete_raises_on_non_success(self):
+        sensor = DatadogMonitorSensorAsync(task_id="t", monitor_id=1)
+        with pytest.raises(AirflowException, match="DatadogMonitorTrigger failed"):
+            sensor.execute_complete({}, {"status": "error"})
+
+    def test_execute_complete_succeeds(self):
+        sensor = DatadogMonitorSensorAsync(task_id="t", monitor_id=1)
+        assert sensor.execute_complete({}, {"status": "success", "state": "OK"}) is None
+
+    def test_resume_execution_trigger_failure_fails_despite_soft_fail(self):
+        sensor = DatadogMonitorSensorAsync(task_id="t", monitor_id=1, soft_fail=True)
+        with pytest.raises(TaskDeferralError):
+            sensor.resume_execution(
+                next_method="__fail__", next_kwargs={"error": "Trigger failure"}, context={}
+            )
+
+    def test_resume_execution_timeout_skips_with_soft_fail(self):
+        sensor = DatadogMonitorSensorAsync(task_id="t", monitor_id=1, soft_fail=True)
+        with pytest.raises(AirflowSkipException):
+            sensor.resume_execution(
+                next_method="__fail__", next_kwargs={"error": "Trigger/execution timeout"}, context={}
+            )
+
+    def test_resume_execution_timeout_fails_without_soft_fail(self):
+        sensor = DatadogMonitorSensorAsync(task_id="t", monitor_id=1)
+        with pytest.raises(AirflowSensorTimeout):
+            sensor.resume_execution(
+                next_method="__fail__", next_kwargs={"error": "Trigger/execution timeout"}, context={}
+            )
