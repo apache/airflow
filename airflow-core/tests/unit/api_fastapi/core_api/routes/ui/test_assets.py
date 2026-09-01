@@ -808,6 +808,21 @@ class TestGetAssetsUi:
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["referenced"]
 
+    def test_filter_by_has_events(self, test_client, session):
+        evented = AssetModel(name="evented", uri="s3://bucket/evented", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/never", group="asset")
+        session.add_all([evented, never])
+        session.add(AssetActive.for_asset(evented))
+        session.add(AssetActive.for_asset(never))
+        session.flush()
+
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.now()))
+        session.commit()
+
+        response = test_client.get("/assets?has_events=true")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["evented"]
+
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of
         how many assets are returned (a lazy-loading regression would issue queries per asset).
