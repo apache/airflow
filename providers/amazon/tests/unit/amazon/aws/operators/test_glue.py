@@ -734,7 +734,13 @@ class TestGlueJobOperator:
             assert glue._find_job_run_id_by_task_uuid("missing-task-uuid") is None
 
         assert glue.hook.conn.get_job_runs.call_count == 2
-        assert "pages without a match" in caplog
+        assert {
+            "event": (
+                f"Glue job run UUID scan for job_name={JOB_NAME} exceeded 2 pages without a match; "
+                "submitting a fresh Glue job run"
+            ),
+            "log_level": "error",
+        } in caplog
 
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_task_uuid_scan_stops_when_started_on_predates_cutoff(self, mock_get_conn):
@@ -832,7 +838,13 @@ class TestGlueJobOperator:
         with caplog.at_level("ERROR"):
             assert glue._find_previous_job_run({"ti": mock_ti}, "test-task-uuid") is None
 
-        assert "Failed to find previous Glue job run by task UUID" in caplog
+        assert {
+            "event": (
+                f"Failed to find previous Glue job run by task UUID for job_name={JOB_NAME}; "
+                "submitting a fresh Glue job run"
+            ),
+            "log_level": "error",
+        } in caplog
 
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_find_previous_job_run_scan_non_client_error_propagates(self, mock_get_conn):
@@ -862,7 +874,13 @@ class TestGlueJobOperator:
             assert glue._find_previous_job_run({"ti": mock_ti}, "unused-uuid") is None
 
         glue.hook.conn.get_job_runs.assert_not_called()
-        assert "Failed to get previous Glue job run state" in caplog
+        assert {
+            "event": (
+                "Failed to get previous Glue job run state for run_id=previous_run_12345; "
+                "submitting a fresh Glue job run"
+            ),
+            "log_level": "error",
+        } in caplog
 
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_find_previous_job_run_xcom_non_client_error_propagates(self, mock_get_conn):
