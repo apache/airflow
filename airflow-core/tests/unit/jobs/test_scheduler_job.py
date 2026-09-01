@@ -10994,6 +10994,49 @@ class TestSchedulerJob:
         assert notifications.skip_callback_requests == []
         assert notifications.skipped_intervals_listener_events == []
 
+    @conf_vars({("scheduler", "create_cron_data_intervals"): "False"})
+    def test_create_dag_runs_emits_skipped_intervals_for_multi_day_cron_gap(self, session, dag_maker):
+        """CronTriggerTimetable gaps must fire skip callbacks via _create_dag_runs()."""
+        with dag_maker(
+            dag_id="test_multi_day_cron_gap_skip",
+            schedule="@daily",
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+            data_interval=DataInterval.exact(DEFAULT_DATE),
+            state=State.SUCCESS,
+        )
+
+        new_start = DEFAULT_DATE + timedelta(days=3)
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = new_start
+        dag_model.next_dagrun_data_interval = DataInterval.exact(new_start)
+        dag_model.next_dagrun_create_after = new_start
+        session.merge(dag_model)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+        notifications = self.job_runner._create_dag_runs([dag_model], session)
+        session.commit()
+
+        skip_requests = notifications.skip_callback_requests
+
+        assert len(skip_requests) == 1
+        request = skip_requests[0]
+        assert isinstance(request, DagSkippedIntervalsCallbackRequest)
+        assert request.dag_id == dag.dag_id
+        assert request.filepath == dag_model.relative_fileloc
+        assert request.bundle_name == dag_model.bundle_name
+        assert request.skipped_range == (DEFAULT_DATE, new_start)
+
     def test_create_dag_runs_returns_skipped_intervals_callback_request(self, session, dag_maker):
         with dag_maker(
             dag_id="test_create_dag_runs_skipped_intervals_callback",
