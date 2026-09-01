@@ -161,6 +161,11 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "logLevel": {
+    "hide": "Hide Log Levels",
+    "hotkey": "l",
+    "show": "Show Log Levels"
+  },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -341,6 +346,7 @@
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleLogLevel": "Toggle log levels",
       "toggleSource": "Toggle source",
       "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
       "toggleTimestamp": "Toggle timestamps",
