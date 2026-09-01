@@ -255,7 +255,8 @@ def get_dag_details(
         is not None
     )
 
-    # Count active (running + queued) Dag runs for this Dag
+    # Count only running Dag runs: this stat shows runs that are actually
+    # executing and holding max_active_runs slots right now.
     active_runs_count = (
         session.scalar(
             select(func.count())
