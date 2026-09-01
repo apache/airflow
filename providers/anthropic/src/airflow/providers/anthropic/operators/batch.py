@@ -17,25 +17,67 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from anthropic import NotFoundError
+
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
 from airflow.providers.anthropic.hooks.anthropic import (
     AnthropicHook,
+    BatchStatus,
     evaluate_batch_counts,
     validate_execute_complete_event,
 )
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 
+_DURABLE_UNSET = object()
+_BATCH_RESUME_SUCCEEDED = "succeeded"
+_BATCH_RESUME_FAILED = "failed"
+_BATCH_RESUME_NOT_FOUND = "not_found"
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "anthropic_batch_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context: Context) -> Any:
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
+    from anthropic.types.messages import MessageBatch
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
-class AnthropicBatchOperator(BaseOperator):
+class AnthropicBatchOperator(ResumableJobMixin, BaseOperator):
     """
     Submit an Anthropic Message Batch and wait for it to complete.
 
@@ -49,10 +91,8 @@ class AnthropicBatchOperator(BaseOperator):
     and persist them to object storage; results can be very large and must not be pushed
     to XCom. Results are retained for 29 days after the batch is created.
 
-    .. note::
-        A retry re-submits a brand-new batch. Prefer ``retries=0`` on this task (the
-        submitted ``batch_id`` is pushed to XCom under key ``batch_id`` immediately, so
-        a crashed run never loses track of an in-flight batch).
+    Synchronous waits on Airflow 3.3+ persist the batch ID before polling. A task retry
+    reconnects to active work and recovers successful work without submitting another batch.
 
     .. seealso::
         For more information, take a look at the guide:
@@ -77,9 +117,13 @@ class AnthropicBatchOperator(BaseOperator):
     :param fail_on_partial_error: If ``True``, fail the task when any request errored or
         expired. Defaults to ``False`` (succeed and log a warning so the successful
         results are not discarded).
+    :param durable: Reconnect synchronous task retries to a previously submitted batch.
+        Requires Airflow 3.3+ and defaults to ``True``. This has no effect on deferrable
+        or ``wait_for_completion=False`` execution.
     """
 
     template_fields: Sequence[str] = ("requests", "model")
+    external_id_key: str = "anthropic_batch_id"
 
     def __init__(
         self,
@@ -91,8 +135,11 @@ class AnthropicBatchOperator(BaseOperator):
         timeout: float = 24 * 60 * 60,
         wait_for_completion: bool = True,
         fail_on_partial_error: bool = False,
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.requests = requests
         self.model = model
@@ -103,6 +150,7 @@ class AnthropicBatchOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.fail_on_partial_error = fail_on_partial_error
         self.batch_id: str | None = None
+        self._recovered_batch: MessageBatch | None = None
 
     @cached_property
     def hook(self) -> AnthropicHook:
@@ -112,14 +160,15 @@ class AnthropicBatchOperator(BaseOperator):
     def execute(self, context: Context) -> str | None:
         if not self.requests:
             raise ValueError("AnthropicBatchOperator requires at least one request; got an empty list.")
-        batch = self.hook.create_batch(self.requests, model=self.model)
-        self.batch_id = batch.id
-        # Push immediately so a crash between submit and completion never loses the batch.
-        context["ti"].xcom_push(key="batch_id", value=batch.id)
-        self.log.info("Submitted Anthropic Message Batch %s (%d requests)", batch.id, len(self.requests))
+
+        if self.wait_for_completion and not self.deferrable:
+            self.execute_resumable(context)
+            return self.batch_id
+
+        batch_id = self.submit_job(context)
 
         if not self.wait_for_completion:
-            return self.batch_id
+            return batch_id
 
         if self.deferrable:
             self.defer(
@@ -130,27 +179,84 @@ class AnthropicBatchOperator(BaseOperator):
                 timeout=self.execution_timeout or timedelta(seconds=self.timeout + self.poll_interval + 60),
                 trigger=AnthropicBatchTrigger(
                     conn_id=self.conn_id,
-                    batch_id=self.batch_id,
+                    batch_id=batch_id,
                     poll_interval=self.poll_interval,
                     end_time=time.time() + self.timeout,
                 ),
                 method_name="execute_complete",
             )
 
-        self.log.info("Waiting for batch %s to complete", self.batch_id)
+        return batch_id
+
+    def submit_job(self, context: Context) -> str:
+        batch = self.hook.create_batch(requests=self.requests, model=self.model)
+        self._set_batch_id(context=context, batch_id=batch.id)
+        self.log.info("Submitted Anthropic Message Batch %s (%d requests)", batch.id, len(self.requests))
+        return batch.id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        batch_id = self._require_batch_id(external_id)
+        try:
+            batch = self.hook.get_batch(batch_id)
+        except NotFoundError:
+            self.log.info("Stored Anthropic Message Batch %s no longer exists", batch_id)
+            return _BATCH_RESUME_NOT_FOUND
+        self._recovered_batch = batch
+        return self._get_batch_resume_status(batch)
+
+    def is_job_active(self, status: str) -> bool:
+        return status in (BatchStatus.IN_PROGRESS, BatchStatus.CANCELING)
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == _BATCH_RESUME_SUCCEEDED
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        batch_id = self._require_batch_id(external_id)
+        self._set_batch_id(context=context, batch_id=batch_id)
+        self.log.info("Waiting for batch %s to complete", batch_id)
         try:
             batch = self.hook.wait_for_batch(
-                self.batch_id, wait_seconds=self.poll_interval, timeout=self.timeout
+                batch_id=batch_id,
+                wait_seconds=self.poll_interval,
+                timeout=self.timeout,
             )
         except Exception:
-            # Any failure after submission (timeout, SDK 5xx, auth expiry) leaves the batch
-            # running and billing; cancel it best-effort before the task fails.
-            self.log.warning("Batch %s failed while waiting; requesting cancellation.", self.batch_id)
+            self.log.warning("Batch %s failed while waiting; requesting cancellation.", batch_id)
             self._cancel_batch_quietly()
             raise
         counts = batch.request_counts
         self._apply_policy(counts.canceled, counts.errored, counts.expired, counts.succeeded)
-        return self.batch_id
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+        batch_id = self._require_batch_id(external_id)
+        self._set_batch_id(context=context, batch_id=batch_id)
+        if self._recovered_batch is not None and self._recovered_batch.id == batch_id:
+            counts = self._recovered_batch.request_counts
+            self._apply_policy(counts.canceled, counts.errored, counts.expired, counts.succeeded)
+        return batch_id
+
+    def _get_batch_resume_status(self, batch: MessageBatch) -> str:
+        if batch.processing_status != BatchStatus.ENDED:
+            return batch.processing_status
+        counts = batch.request_counts
+        total = counts.canceled + counts.errored + counts.expired + counts.succeeded
+        if total and counts.canceled == total:
+            return _BATCH_RESUME_FAILED
+        if self.fail_on_partial_error and (counts.errored or counts.expired):
+            return _BATCH_RESUME_FAILED
+        return _BATCH_RESUME_SUCCEEDED
+
+    @staticmethod
+    def _require_batch_id(external_id: JsonValue) -> str:
+        if not isinstance(external_id, str):
+            raise TypeError(f"Expected Anthropic batch ID to be a string, got {type(external_id).__name__}.")
+        return external_id
+
+    def _set_batch_id(self, *, context: Context, batch_id: str) -> None:
+        if self.batch_id == batch_id:
+            return
+        self.batch_id = batch_id
+        context["ti"].xcom_push(key="batch_id", value=batch_id)
 
     def execute_complete(self, context: Context, event: Any = None) -> str:
         """
