@@ -436,11 +436,14 @@ class TestDagFileProcessorManager:
         ],
     )
     def test_find_files_in_bundle_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
+        from airflow.dag_processing.importers import DagImporterRegistry
+
         (tmp_path / "with_keywords.py").write_text("from airflow.sdk import DAG\n")
         (tmp_path / "no_keywords.py").write_text("from mycompany.pipelines import flow\n")
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.name = "testing"
         bundle.path = tmp_path
+        bundle.importer_registry = DagImporterRegistry()
 
         with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
             manager = DagFileProcessorManager(max_runs=1)

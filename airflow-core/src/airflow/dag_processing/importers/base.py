@@ -163,44 +163,42 @@ class AbstractDagImporter(ABC):
 
 class DagImporterRegistry:
     """
-    Registry for DAG importers. Singleton that manages importers by file extension.
+    Registry for DAG importers that manages importers by file extension.
 
     Each file extension can only be handled by one importer at a time. If multiple
     importers claim the same extension, the last registered one wins and a warning
     is logged. The built-in PythonDagImporter handles .py and .zip extensions.
     """
 
-    _instance: DagImporterRegistry | None = None
     _importers: dict[str, AbstractDagImporter]
-    _lock = threading.Lock()
 
-    def __new__(cls) -> DagImporterRegistry:
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-                cls._instance._importers = {}
-                cls._instance._register_default_importers()
-        return cls._instance
+    def __init__(self, register_defaults: bool = True):
+        self._importers = {}
+        if register_defaults:
+            self._register_default_importers()
 
     def _register_default_importers(self) -> None:
         from airflow.dag_processing.importers.python_importer import PythonDagImporter
 
-        self.register(PythonDagImporter())
+        self.register(importer=PythonDagImporter())
 
-    def register(self, importer: AbstractDagImporter) -> None:
+    def register(self, importer: AbstractDagImporter, extensions: list[str] | None = None) -> None:
         """
         Register an importer for its supported extensions.
 
         Each extension can only have one importer. If an extension is already registered,
         the new importer will override it and a warning will be logged.
         """
-        for ext in importer.supported_extensions():
-            ext_lower = ext.lower()
+        if extensions is None:
+            ext_attr = getattr(importer, "supported_extensions", None)
+            extensions = ext_attr() if callable(ext_attr) else (ext_attr or [])
+        for ext in extensions:
+            ext_lower = ext.lower() if ext.startswith(".") else f".{ext.lower()}"
             if ext_lower in self._importers:
                 existing = self._importers[ext_lower]
                 log.warning(
                     "Extension '%s' already registered by %s, overriding with %s",
-                    ext,
+                    ext_lower,
                     type(existing).__name__,
                     type(importer).__name__,
                 )
@@ -258,9 +256,19 @@ class DagImporterRegistry:
     @classmethod
     def reset(cls) -> None:
         """Reset the singleton (for testing)."""
-        cls._instance = None
+        global _global_registry
+        with _global_registry_lock:
+            _global_registry = None
+
+
+_global_registry: DagImporterRegistry | None = None
+_global_registry_lock = threading.Lock()
 
 
 def get_importer_registry() -> DagImporterRegistry:
     """Get the global importer registry instance."""
-    return DagImporterRegistry()
+    global _global_registry
+    with _global_registry_lock:
+        if _global_registry is None:
+            _global_registry = DagImporterRegistry()
+        return _global_registry

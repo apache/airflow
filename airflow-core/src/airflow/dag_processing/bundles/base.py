@@ -40,6 +40,7 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.dag_processing.importers import DagImporterRegistry
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
@@ -322,6 +323,7 @@ class BaseDagBundle(ABC):
         """Where bundle versions are stored locally for this bundle."""
 
         self._view_url_template = view_url_template
+        self._importer_registry: DagImporterRegistry | None = None
 
     def initialize(self) -> None:
         """
@@ -443,6 +445,16 @@ class BaseDagBundle(ABC):
             finally:
                 fcntl.flock(lock_file, LOCK_UN)
                 self._locked = False
+
+    @property
+    def importer_registry(self) -> DagImporterRegistry:
+        """Get the DAG importer registry for this bundle."""
+        if self._importer_registry is None:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            manager = DagBundlesManager()
+            self._importer_registry = manager.get_importer_registry(self.name)
+        return self._importer_registry
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name})"

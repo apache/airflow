@@ -67,7 +67,7 @@ from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
-from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.file import might_contain_dag
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -958,12 +958,10 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
-        # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        rel_paths = [
-            Path(x).relative_to(bundle.path)
-            for x in list_py_file_paths(bundle.path, safe_mode=self.dag_discovery_safe_mode)
-        ]
+        importer_registry = bundle.importer_registry
+        dag_files = importer_registry.list_dag_files(bundle.path, safe_mode=self.dag_discovery_safe_mode)
+        rel_paths = [Path(x).relative_to(bundle.path) for x in dag_files]
         self.log.info(
             "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
             len(rel_paths),

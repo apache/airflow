@@ -31,6 +31,9 @@ from .dag_file import (
     MODIFIED_DAG_MODULE_NAME as MODIFIED_DAG_MODULE_NAME,
     UNUSUAL_MODULE_PREFIX as UNUSUAL_MODULE_PREFIX,
 )
+from .dag_importers import (
+    load_dag_importers as load_dag_importers,
+)
 from .file_discovery import (
     find_path_from_directory as find_path_from_directory,
 )
