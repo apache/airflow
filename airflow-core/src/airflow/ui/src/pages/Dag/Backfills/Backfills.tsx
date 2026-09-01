@@ -30,15 +30,14 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { type DurationFormat, useDurationFormat } from "src/utils/useDurationFormat";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 
 type ColumnProps = {
-  readonly formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined;
   readonly onSelectBackfill: (backfillId: number) => void;
   readonly translate: TFunction;
-};
+} & Pick<DurationFormat, "formatElapsed">;
 
 const getColumns = ({
   formatElapsed,

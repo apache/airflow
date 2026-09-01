@@ -38,6 +38,7 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -53,7 +54,6 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -94,19 +94,10 @@ const {
 type ColumnProps = {
   readonly dagId?: string;
   readonly open: boolean;
-  readonly renderDuration: (duration: number | null | undefined) => string | undefined;
-  readonly renderExactDuration: (duration: number | null | undefined) => string | undefined;
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({
-  dagId,
-  multiTeam,
-  open,
-  renderDuration,
-  renderExactDuration,
-  translate,
-}: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -197,9 +188,7 @@ const runColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => (
-      <span title={renderExactDuration(original.duration)}>{renderDuration(original.duration)}</span>
-    ),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {
@@ -249,7 +238,6 @@ const runColumns = ({
 
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
-  const { renderDuration, renderExactDuration } = useDurationFormat();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -373,8 +361,6 @@ export const DagRuns = () => {
     dagId,
     multiTeam: multiTeamEnabled,
     open,
-    renderDuration,
-    renderExactDuration,
     translate,
   });
 

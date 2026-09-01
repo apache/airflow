@@ -21,13 +21,7 @@ import { useMemo } from "react";
 import type dayjsDuration from "dayjs/plugin/duration";
 import { useTranslation } from "react-i18next";
 
-import {
-  getDuration,
-  getRelativeTime,
-  humanizeSeconds,
-  renderDuration,
-  renderExactDuration,
-} from "./datetimeUtils";
+import { getDuration, getRelativeTime, renderDuration, renderExactDuration } from "./datetimeUtils";
 
 /**
  * Duration formatters bound to the language currently on screen.
@@ -41,6 +35,12 @@ import {
  * Components should always format durations through this hook. Reach for the raw functions in
  * `datetimeUtils` only outside React, and pass a locale explicitly there.
  */
+/**
+ * The formatters this hook returns. Column builders and other helpers that receive them should
+ * `Pick` from this rather than restating the signatures, so they cannot drift from the hook.
+ */
+export type DurationFormat = ReturnType<typeof useDurationFormat>;
+
 export const useDurationFormat = () => {
   const { i18n } = useTranslation();
   const locale = i18n.language;
@@ -52,8 +52,6 @@ export const useDurationFormat = () => {
         getDuration(startDate, endDate, locale),
       /** Relative wall-clock time, e.g. "2 hours ago". */
       formatRelative: (date: string | null | undefined) => getRelativeTime(date, locale),
-      /** Spelled-out duration for prose, e.g. "1 hour, 2 minutes". */
-      humanizeDuration: (seconds: number | null | undefined) => humanizeSeconds(seconds, locale),
       locale,
       /** Compact duration for tables, charts and tooltips, e.g. "1h 2m". */
       renderDuration: (duration: dayjsDuration.Duration | number | null | undefined) =>
