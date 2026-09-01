@@ -360,6 +360,73 @@ class TestDagFileProcessorManager:
                 session.rollback()
 
     @pytest.mark.usefixtures("clear_parse_import_errors")
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_remove_file_clears_import_error_with_non_zero_refresh_interval(self, tmp_path):
+        """Import error for a deleted file must not survive a skipped bundle refresh."""
+        path_to_parse = tmp_path / "temp_dag.py"
+        path_to_parse.write_text("an invalid airflow DAG")
+
+        bundle_config = [
+            {
+                "name": "testing",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(tmp_path), "refresh_interval": 300},
+            }
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400)
+            manager.run()
+
+            with create_session() as session:
+                assert len(session.scalars(select(ParseImportError)).all()) == 1
+
+            path_to_parse.unlink()
+
+            # A long-running Dag processor has already seen this bundle, so the next refresh is
+            # skipped while we are still inside ``refresh_interval``. Reset only the cheap
+            # "is it time to check the bundles" throttle so ``refresh_interval`` is the sole gate.
+            manager._bundles_last_refreshed = 0.0
+            manager._num_run = 0
+            with mock.patch.object(
+                manager, "clear_orphaned_import_errors", wraps=manager.clear_orphaned_import_errors
+            ) as on_refresh_cleanup:
+                manager.run()
+
+            # The scenario is only meaningful if the refresh really was skipped, which also
+            # means the post-refresh cleanup never ran.
+            on_refresh_cleanup.assert_not_called()
+
+            with create_session() as session:
+                import_errors = session.scalars(select(ParseImportError)).all()
+                assert [e.filename for e in import_errors] == []
+                session.rollback()
+
+    @pytest.mark.usefixtures("clear_parse_import_errors")
+    def test_clear_import_errors_for_missing_files_keeps_zip_inner_file_errors(self, session, tmp_path):
+        """Entries inside an archive are left for the next full refresh to check."""
+        zip_path = tmp_path / "test_zip.zip"
+        _create_zip_bundle_with_valid_and_broken_dags(zip_path)
+
+        session.add(
+            ParseImportError(
+                filename="test_zip.zip/broken_dag.py",
+                bundle_name="testing",
+                timestamp=timezone.utcnow(),
+                stacktrace="zip import error",
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.clear_import_errors_for_missing_files(
+            bundle_name="testing", bundle_path=tmp_path, session=session
+        )
+        session.flush()
+
+        import_errors = session.scalars(select(ParseImportError)).all()
+        assert [e.filename for e in import_errors] == ["test_zip.zip/broken_dag.py"]
+
+    @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_clear_orphaned_import_errors_keeps_zip_inner_file_errors(self, session, tmp_path):
         zip_path = tmp_path / "test_zip.zip"
         _create_zip_bundle_with_valid_and_broken_dags(zip_path)
