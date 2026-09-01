@@ -101,6 +101,7 @@ def get_provider_info():
                         "label": "Disable TCP keepalive",
                         "schema": {"type": ["boolean", "null"]},
                     },
+                    "ssl_ca_cert": {"label": "SSL CA cert", "schema": {"type": ["string", "null"]}},
                     "xcom_sidecar_container_image": {
                         "label": "XCom sidecar image",
                         "schema": {"type": ["string", "null"]},
