@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+
 import { useGroups } from "src/context/groups";
 
 import { ROW_HEIGHT } from "./constants";
@@ -109,7 +111,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             transition="background-color 0.2s"
           >
             {node.isGroup ? (
-              <Link asChild data-testid={node.id} display="block" width="100%">
+              <Link
+                _hover={{ textDecoration: "none" }}
+                asChild
+                data-testid={node.id}
+                display="block"
+                width="100%"
+              >
                 <RouterLink
                   data-group-id={node.id}
                   onClick={onClick}
@@ -153,7 +161,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                 </RouterLink>
               </Link>
             ) : (
-              <Link asChild data-testid={node.id} display="inline">
+              <Link _hover={{ textDecoration: "none" }} asChild data-testid={node.id} display="inline">
                 <RouterLink
                   onClick={onRowClick}
                   replace

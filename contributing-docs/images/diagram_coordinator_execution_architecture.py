@@ -24,8 +24,7 @@
 """
 Architecture diagram for the Coordinator execution path (Java and Go language SDKs).
 
-Both plug into the *same* Python Supervisor via the **Coordinator** layer, rather
-than running a standalone worker:
+Both plug into the *same* Python Supervisor via the **Coordinator** layer:
 
 * ``CoordinatorManager.for_queue()`` resolves the task's ``queue`` to a
   ``BaseCoordinator`` via ``[sdk] queue_to_coordinator`` / ``[sdk] coordinators``
@@ -277,11 +276,11 @@ def generate_coordinator_execution_architecture_diagram():
     _node(
         g,
         "note",
-        "How it differs",
+        "Process boundary",
         "vs Python task: same Supervisor, but a separate language subprocess over<br/>"
-        "loopback TCP instead of a forked Python process over a UNIX socketpair<br/>"
-        "vs the Go edge worker: the coordinator task does <b>not</b> hold the JWT and does<br/>"
-        "<b>not</b> call the Execution API directly — the Python Supervisor proxies every call",
+        "loopback TCP instead of a forked Python process over a UNIX socketpair.<br/>"
+        "The language task does <b>not</b> hold the JWT or call the Execution API directly;<br/>"
+        "the Python Supervisor proxies every call.",
         shape="note",
         theme=NOTE,
     )

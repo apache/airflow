@@ -20,7 +20,7 @@ import { Button, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { Modal } from "src/components/ui";
+import { Modal } from "src/system-components";
 
 type DeleteDialogProps = {
   readonly deleteButtonText?: string;
@@ -43,7 +43,7 @@ const DeleteDialog = ({
   title,
   warningText,
 }: DeleteDialogProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Modal

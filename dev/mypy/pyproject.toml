@@ -52,7 +52,7 @@ dependencies = [
 Documentation = "https://airflow.apache.org/docs/apache-airflow-mypy/stable/index.html"
 Downloads = "https://archive.apache.org/dist/airflow/airflow-mypy/"
 Homepage = "https://airflow.apache.org/"
-"Release Notes" = "https://airflow.apache.org/docs/apache-airflow-mypy/stable/changelog.html"
+"Release Notes" = "https://airflow.apache.org/docs/apache-airflow-mypy/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
@@ -77,6 +77,16 @@ path = "src/airflow_mypy/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow_mypy"]
+
+[dependency-groups]
+# To build docs:
+#
+#    uv run --group docs build-docs
+#
+docs = [
+    "apache-airflow-core",
+    "apache-airflow-devel-common[docs]"
+]
 
 [tool.ruff]
 extend = "../../pyproject.toml"
@@ -128,3 +138,7 @@ showcontent = true
 
 [tool.uv]
 required-version = ">=0.11.8"
+
+[tool.uv.sources]
+apache-airflow-core = { path = "../../airflow-core", editable = true }
+apache-airflow-devel-common = { path = "../../devel-common", editable = true }

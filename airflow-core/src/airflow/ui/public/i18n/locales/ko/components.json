@@ -119,6 +119,10 @@
     "file": "파일",
     "location": "{{name}}의 {{line}}번째 줄"
   },
+  "passwordToggle": {
+    "hide": "값 숨기기",
+    "show": "값 보기"
+  },
   "reparseDag": "Dag 재구문 분석",
   "slowestTaskInstances": {
     "empty": "이 범위에 완료된 태스크 인스턴스가 없습니다",

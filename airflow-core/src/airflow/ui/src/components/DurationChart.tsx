@@ -35,10 +35,10 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
+
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
 import {
-  DEFAULT_DATETIME_FORMAT,
   formatDate,
   getDurationTickStep,
   renderCompactDuration,
@@ -195,9 +195,7 @@ export const DurationChart = ({
                 label: translate("durationChart.runDuration"),
               },
             ],
-            labels: entries.map((entry: RunResponse) =>
-              dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT),
-            ),
+            labels: entries.map((entry: RunResponse) => formatDate(entry.run_after, selectedTimezone)),
           }}
           datasetIdKey="id"
           options={{
