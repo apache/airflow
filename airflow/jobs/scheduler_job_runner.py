@@ -1523,11 +1523,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
 
         if total_active_runs and total_active_runs >= dag.max_active_runs:
+            active_runs_query = session.scalars(
+                select(DagRun.run_id)
+                .where(
+                    DagRun.dag_id == dag.dag_id,
+                    DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])
+                )
+            ).all()
+
+            active_tasks_str = "None"
+            if active_runs_query:
+                active_tasks_query = session.execute(
+                    select(TI.run_id, TI.task_id, TI.state)
+                    .where(
+                        TI.dag_id == dag.dag_id,
+                        TI.run_id.in_(active_runs_query),
+                        TI.state.in_([TaskInstanceState.RUNNING, TaskInstanceState.QUEUED])
+                    )
+                ).all()
+
+                active_tasks_str = ", ".join(
+                    f"[{r.task_id} in {r.run_id} ({r.state})]" for r in active_tasks_query
+                )
+            active_runs_str = ", ".join(active_runs_query) if active_runs_query else "None"
+            
             self.log.info(
-                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs. "
+                "Active Runs: %s | Active Tasks: %s",
                 dag_model.dag_id,
                 total_active_runs,
                 dag.max_active_runs,
+                active_runs_str,
+                active_tasks_str,
             )
             dag_model.next_dagrun_create_after = None
             return False
