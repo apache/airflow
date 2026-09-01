@@ -55,6 +55,8 @@ Schema (optional)
 
 Extra (optional)
     Specify headers and default requests parameters in json format.
+    Headers from Extra are sent to the Connection host and are not forwarded
+    when a redirect changes host.
     Following default requests parameters are taken into account:
 
     * ``stream``
