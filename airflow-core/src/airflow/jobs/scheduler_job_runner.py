@@ -2806,6 +2806,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 logical_date = next_info.logical_date
                 partition_key = next_info.partition_key
                 run_after = next_info.run_after
+                skipped_summary = self._collect_skipped_intervals(
+                    serdag=serdag,
+                    new_info=next_info,
+                    session=session,
+                    listener_has_impls=listener_has_impls,
+                )
                 created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
@@ -2837,12 +2843,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         records=consumed_asset_records, dag_id=dag_model.dag_id, session=session
                     )
 
-                skipped_summary = self._collect_skipped_intervals(
-                    serdag=serdag,
-                    new_info=next_info,
-                    session=session,
-                    listener_has_impls=listener_has_impls,
-                )
                 if skipped_summary is not None:
                     if listener_has_impls:
                         skipped_intervals_listener_events.append((serdag.dag_id, skipped_summary))
