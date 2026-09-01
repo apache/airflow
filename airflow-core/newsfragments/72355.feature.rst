@@ -1,0 +1,1 @@
+Support loading JSON configuration settings from files via the *_file suffix in conf.getjson().
