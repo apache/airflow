@@ -119,7 +119,7 @@ def import_errors(*, session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
         ParseImportError(
             bundle_name=bundle,
-            filename=filename,
+            source_reference=filename,
             stacktrace=stacktrace,
             timestamp=timestamp,
         )
@@ -565,7 +565,7 @@ class TestGetImportErrors:
         session.add(
             ParseImportError(
                 bundle_name=other_bundle,
-                filename=shared_filename,
+                source_reference=shared_filename,
                 stacktrace="wrong bundle error",
                 timestamp=TIMESTAMP1,
             )
@@ -618,7 +618,7 @@ class TestGetImportErrors:
         # has no Dag for it.
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
-            filename=FILENAME1,
+            source_reference=FILENAME1,
             stacktrace=STACKTRACE1,
             timestamp=TIMESTAMP1,
         )
@@ -968,7 +968,7 @@ class TestImportErrorFileAuthorization:
     ) -> ParseImportError:
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
-            filename=self.LONELY_FILE_RELATIVE,
+            source_reference=self.LONELY_FILE_RELATIVE,
             stacktrace=self.LONELY_STACKTRACE,
             timestamp=TIMESTAMP1,
         )
@@ -985,7 +985,7 @@ class TestImportErrorFileAuthorization:
     ) -> ParseImportError:
         error = ParseImportError(
             bundle_name=BUNDLE_NAME,
-            filename=self.MIXED_FILE_RELATIVE,
+            source_reference=self.MIXED_FILE_RELATIVE,
             stacktrace=self.MIXED_STACKTRACE,
             timestamp=TIMESTAMP2,
         )
@@ -1134,7 +1134,7 @@ class TestImportErrorFileAuthorization:
             session.add_all([team, bundle])
             error = ParseImportError(
                 bundle_name="team_b_bundle",
-                filename="team_b_unregistered.py",
+                source_reference="team_b_unregistered.py",
                 stacktrace="team b stack trace",
                 timestamp=TIMESTAMP1,
             )
