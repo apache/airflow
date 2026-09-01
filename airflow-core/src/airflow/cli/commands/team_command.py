@@ -339,20 +339,14 @@ def team_inspect(args, *, session=NEW_SESSION):
         select(Variable.key).where(Variable.team_name == team_name).order_by(Variable.key)
     ).all()
 
-    print(f"Team: {team_name}")
-    print()
-
-    def print_section(title: str, values: list[str]) -> None:
-        print(title)
-        print("-" * len(title))
-        if values:
-            for value in values:
-                print(value)
-        else:
-            print("(none)")
-        print()
-
-    print_section("DAG Bundles", bundle_names)
-    print_section("Pools", pool_names)
-    print_section("Connections", connection_ids)
-    print_section("Variables", variable_keys)
+    AirflowConsole().print_as(
+        data=[team],
+        output=args.output,
+        mapper=lambda x: {
+            "name": x.name,
+            "dag_bundles": bundle_names,
+            "pools": pool_names,
+            "connections": connection_ids,
+            "variables": variable_keys,
+        },
+    )
