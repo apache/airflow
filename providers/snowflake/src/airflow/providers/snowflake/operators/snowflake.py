@@ -22,7 +22,7 @@ import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsAbs, cast
 
 import requests
 
@@ -665,30 +665,34 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
 
     :param notebook: Fully-qualified notebook name
         (e.g. ``MY_DB.MY_SCHEMA.MY_NOTEBOOK``).
-    :param parameters: Optional list of string parameters to pass to the
-        notebook.  Values must be strings (the type hint declares
+    :param notebook_parameters: Optional list of string parameters to pass to
+        the notebook.  Values must be strings (the type hint declares
         ``list[str]``).  Parameters are accessible in the notebook via
         ``sys.argv``.
     """
 
     template_fields: Sequence[str] = tuple(
-        set(SnowflakeSqlApiOperator.template_fields) | {"notebook", "parameters"}
+        set(SnowflakeSqlApiOperator.template_fields) | {"notebook", "notebook_parameters"}
     )
+    # The SQL is generated from `notebook`/`notebook_parameters`, never loaded from a
+    # file, so the inherited `.sql`/`.json` extensions would only cause harm: a notebook
+    # parameter that happens to end in one gets replaced by the contents of a file of
+    # that name.
+    template_ext: Sequence[str] = ()
+    # Same reason the parent's `parameters` renderer is dropped: it describes SQL bind
+    # parameters, not notebook arguments.
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     def __init__(
         self,
         *,
         notebook: str,
-        parameters: list[str] | None = None,
+        notebook_parameters: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
         self.notebook = notebook
-        self.parameters = parameters
-        sql = self._build_execute_notebook_query()
-        super().__init__(sql=sql, statement_count=1, **kwargs)
-        # SQLExecuteQueryOperator.__init__ owns a `parameters` attribute (for SQL bind
-        # parameters) and resets it to None. Restore our notebook parameters.
-        self.parameters = parameters
+        self.notebook_parameters = notebook_parameters
+        super().__init__(sql=self._build_execute_notebook_query(), statement_count=1, **kwargs)
 
     def execute(self, context: Context) -> None:
         """Rebuild SQL from rendered template fields, then execute."""
@@ -698,9 +702,9 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
     def _build_execute_notebook_query(self) -> str:
         """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
         params_clause = ""
-        if self.parameters:
+        if self.notebook_parameters:
             # Escape backslashes first (Snowflake interprets `\` in string literals),
             # then single quotes.
-            sanitized = [p.replace("\\", "\\\\").replace("'", "''") for p in self.parameters]
+            sanitized = [p.replace("\\", "\\\\").replace("'", "''") for p in self.notebook_parameters]
             params_clause = ", ".join(f"'{p}'" for p in sanitized)
         return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"

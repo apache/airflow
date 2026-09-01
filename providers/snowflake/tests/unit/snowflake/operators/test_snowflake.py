@@ -1026,7 +1026,7 @@ class TestSnowflakeNotebookOperatorSQL:
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             notebook=NOTEBOOK,
-            parameters=["param1", "target_db=PROD"],
+            notebook_parameters=["param1", "target_db=PROD"],
         )
         assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('param1', 'target_db=PROD')"
 
@@ -1034,7 +1034,7 @@ class TestSnowflakeNotebookOperatorSQL:
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             notebook=NOTEBOOK,
-            parameters=["O'Brien", "it's"],
+            notebook_parameters=["O'Brien", "it's"],
         )
         assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien', 'it''s')"
 
@@ -1042,42 +1042,83 @@ class TestSnowflakeNotebookOperatorSQL:
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             notebook=NOTEBOOK,
-            parameters=["C:\\data", "a\\'b"],
+            notebook_parameters=["C:\\data", "a\\'b"],
         )
         assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('C:\\\\data', 'a\\\\''b')"
 
-    def test_parameters_survives_parent_init(self):
-        """Parent SQLExecuteQueryOperator.__init__ owns a `parameters` attribute; ensure ours survives."""
+    def test_notebook_parameters_do_not_collide_with_parent_bind_parameters(self):
+        """`notebook_parameters` must stay distinct from the parent's SQL bind `parameters`."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             notebook=NOTEBOOK,
-            parameters=["a", "b"],
+            notebook_parameters=["a", "b"],
         )
-        assert operator.parameters == ["a", "b"]
+        assert operator.notebook_parameters == ["a", "b"]
+        assert operator.parameters is None
+
+    def test_parameter_ending_in_sql_or_json_is_not_replaced_by_file_contents(self, tmp_path):
+        """A parameter that looks like a filename stays a literal value."""
+        (tmp_path / "config.json").write_text('{"secret": "from file"}')
+        (tmp_path / "query.sql").write_text("SELECT 1")
+        with DAG(
+            "test_notebook_template_ext",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            template_searchpath=str(tmp_path),
+        ) as dag:
+            operator = SnowflakeNotebookOperator(
+                task_id=TASK_ID,
+                notebook=NOTEBOOK,
+                notebook_parameters=["config.json", "query.sql", "plain"],
+                dag=dag,
+            )
+        operator.resolve_template_files()
+        assert operator.notebook_parameters == ["config.json", "query.sql", "plain"]
+        assert operator._build_execute_notebook_query() == (
+            "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('config.json', 'query.sql', 'plain')"
+        )
 
     def test_execute_rebuilds_sql_from_rendered_parameters(self):
         """Simulate template rendering mutating parameters; execute() should rebuild SQL with escaping."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             notebook=NOTEBOOK,
-            parameters=["{{ params.name }}"],
+            notebook_parameters=["{{ params.name }}"],
         )
         # Simulate Airflow template rendering mutating the attribute in-place
-        operator.parameters = ["O'Brien"]
+        operator.notebook_parameters = ["O'Brien"]
         operator.sql = operator._build_execute_notebook_query()
         assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien')"
+
+    def test_real_template_rendering_escapes_rendered_value(self):
+        """Rendering mutates the fields in place, so the rebuild must escape the rendered value."""
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook="{{ params.db }}.NB",
+            notebook_parameters=["{{ params.name }}", "plain"],
+        )
+        operator.render_template_fields({"params": {"db": "MY_DB.MY_SCHEMA", "name": "O'Brien"}})
+        assert operator.notebook == "MY_DB.MY_SCHEMA.NB"
+        assert operator.notebook_parameters == ["O'Brien", "plain"]
+        assert operator._build_execute_notebook_query() == (
+            "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.NB('O''Brien', 'plain')"
+        )
 
     def test_build_sql_empty_params(self):
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             notebook=NOTEBOOK,
-            parameters=[],
+            notebook_parameters=[],
         )
         assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
 
+    def test_sql_renderer_is_preserved(self):
+        """Dropping the parent's `parameters` renderer must not lose SQL highlighting."""
+        assert SnowflakeNotebookOperator.template_fields_renderers == {"sql": "sql"}
+
     def test_template_fields(self):
         assert "notebook" in SnowflakeNotebookOperator.template_fields
-        assert "parameters" in SnowflakeNotebookOperator.template_fields
+        assert "notebook_parameters" in SnowflakeNotebookOperator.template_fields
         assert "snowflake_conn_id" in SnowflakeNotebookOperator.template_fields
 
     def test_statement_count_is_one(self):

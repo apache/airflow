@@ -53,7 +53,7 @@ with DAG(
         task_id="execute_notebook_with_params",
         notebook=SNOWFLAKE_NOTEBOOK,
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
-        parameters=["param1", "target_db=PROD"],
+        notebook_parameters=["param1", "target_db=PROD"],
     )
     # [END howto_operator_snowflake_notebook_with_params]
 
