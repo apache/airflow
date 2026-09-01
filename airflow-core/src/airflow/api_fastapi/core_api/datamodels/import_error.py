@@ -29,7 +29,7 @@ class ImportErrorResponse(BaseModel):
 
     id: int = Field(alias="import_error_id")
     timestamp: datetime
-    filename: str
+    source_reference: str = Field(alias="filename")
     bundle_name: str | None
     stacktrace: str = Field(alias="stack_trace")
 

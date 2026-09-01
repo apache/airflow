@@ -65,7 +65,10 @@ class DagWarning(Base):
     def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        self.warning_type = DagWarningType(warning_type).value  # make sure valid type
+        try:
+            self.warning_type = DagWarningType(warning_type).value
+        except ValueError:
+            self.warning_type = str(warning_type)
         self.message = message
 
     def __eq__(self, other) -> bool:
