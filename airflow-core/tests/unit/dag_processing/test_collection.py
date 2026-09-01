@@ -1081,7 +1081,7 @@ class TestUpdateDagParsingResults:
 
         import_error = session.scalar(
             select(ParseImportError).where(
-                ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name
+                ParseImportError.source_reference == filename, ParseImportError.bundle_name == bundle_name
             )
         )
 
@@ -1119,7 +1119,9 @@ class TestUpdateDagParsingResults:
         session.flush()
 
         # Sanity check of pre-condition
-        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        import_errors = set(
+            session.execute(select(ParseImportError.source_reference, ParseImportError.bundle_name))
+        )
         assert import_errors == {("abc.py", bundle_name), ("def.py", bundle_name)}
 
         dag = DAG(dag_id="test")
@@ -1140,7 +1142,9 @@ class TestUpdateDagParsingResults:
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
 
-        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        import_errors = set(
+            session.execute(select(ParseImportError.source_reference, ParseImportError.bundle_name))
+        )
 
         assert import_errors == {("def.py", bundle_name)}
 
@@ -1223,7 +1227,9 @@ class TestUpdateDagParsingResults:
         session.add(other_file_error)
         session.flush()
 
-        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        import_errors = set(
+            session.execute(select(ParseImportError.source_reference, ParseImportError.bundle_name))
+        )
         assert import_errors == {("no_dags.py", bundle_name), ("other.py", bundle_name)}
 
         # Simulate parsing the file: it was parsed successfully (no import errors),
@@ -1241,7 +1247,9 @@ class TestUpdateDagParsingResults:
             files_parsed=files_parsed,
         )
 
-        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        import_errors = set(
+            session.execute(select(ParseImportError.source_reference, ParseImportError.bundle_name))
+        )
         assert import_errors == {("other.py", bundle_name)}, "Import error for parsed file should be cleared"
 
     @pytest.mark.usefixtures("clean_db")
