@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import functools
 import time
+import warnings
+from typing import TYPE_CHECKING, Any, cast
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -29,20 +31,29 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.microsoft.azure.hooks.synapse import (
+    AzureSynapseHook,
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
     AzureSynapsePipelineRunStatus,
+    AzureSynapseSparkBatchRunStatus,
 )
 from airflow.providers.microsoft.azure.operators.synapse import (
+    _DURABLE_UNSET,
     AzureSynapsePipelineRunLink,
     AzureSynapseRunPipelineOperator,
     AzureSynapseRunSparkBatchOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.microsoft.azure.triggers.synapse import AzureSynapsePipelineTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.taskinstance import create_task_instance as _create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+
+if TYPE_CHECKING:
+    from azure.synapse.spark.models import SparkBatchJobOptions
+
+    from airflow.providers.common.compat.sdk import Context
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -72,6 +83,7 @@ class TestAzureSynapseRunSparkBatchOperator:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, create_mock_connection):
         self.mock_ti = MagicMock()
+        self.mock_ti.stats_tags = {}
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
             "task_id": TASK_ID,
@@ -157,6 +169,221 @@ class TestAzureSynapseRunSparkBatchOperator:
         )
         op.execute(context=self.mock_context)
         assert op.job_id == 456
+
+    def test_submit_only_does_not_poll_or_persist(self) -> None:
+        task_state_store = MagicMock(spec=["get", "set"])
+        hook = MagicMock(spec=AzureSynapseHook)
+        hook.run_spark_job.return_value = MagicMock(spec=["id"], **JOB_RUN_RESPONSE)
+        op = AzureSynapseRunSparkBatchOperator(
+            task_id="test",
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            spark_pool="test_pool",
+            payload=cast("SparkBatchJobOptions", {}),
+            wait_for_termination=False,
+        )
+        op.hook = hook
+
+        op.execute(context={**self.mock_context, "task_state_store": task_state_store})
+
+        hook.run_spark_job.assert_called_once_with(payload={})
+        hook.wait_for_job_run_status.assert_not_called()
+        task_state_store.get.assert_not_called()
+        task_state_store.set.assert_not_called()
+        self.mock_ti.xcom_push.assert_called_once_with(key="job_id", value=JOB_RUN_RESPONSE["id"])
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+)
+class TestAzureSynapseRunSparkBatchOperatorResumable:
+    @staticmethod
+    def make_operator(**kwargs: Any) -> AzureSynapseRunSparkBatchOperator:
+        return AzureSynapseRunSparkBatchOperator(
+            task_id="synapse_resumable",
+            azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
+            spark_pool="test_pool",
+            payload=cast("SparkBatchJobOptions", {}),
+            check_interval=1,
+            timeout=3,
+            **kwargs,
+        )
+
+    @staticmethod
+    def make_context(stored_job_id: int | None = None) -> Context:
+        task_state_store = MagicMock(spec=["get", "set"])
+        task_state_store.get.return_value = stored_job_id
+        task_instance = MagicMock(spec=["stats_tags", "xcom_push"])
+        task_instance.stats_tags = {}
+        return cast("Context", {"task_state_store": task_state_store, "ti": task_instance})
+
+    @staticmethod
+    def make_hook(job_id: int = JOB_RUN_RESPONSE["id"]) -> MagicMock:
+        hook = MagicMock(spec=AzureSynapseHook)
+        hook.run_spark_job.return_value = MagicMock(spec=["id"], id=job_id)
+        return hook
+
+    def test_first_run_persists_job_id_before_polling(self) -> None:
+        operator = self.make_operator()
+        operator.hook = self.make_hook()
+        context = self.make_context()
+        task_state_store = cast("MagicMock", context["task_state_store"])
+        events: list[tuple[Any, ...]] = []
+        task_state_store.set.side_effect = lambda key, value: events.append(("persist", key, value))
+
+        with patch.object(
+            operator,
+            "poll_until_complete",
+            autospec=True,
+            side_effect=lambda external_id, context: events.append(("poll", external_id)),
+        ):
+            operator.execute(context=context)
+
+        assert events == [
+            ("persist", "synapse_spark_batch_id", JOB_RUN_RESPONSE["id"]),
+            ("poll", JOB_RUN_RESPONSE["id"]),
+        ]
+
+    @pytest.mark.parametrize(
+        ("prior_status", "expected_submit_count", "expected_poll_id"),
+        [
+            (AzureSynapseSparkBatchRunStatus.RUNNING, 0, 91),
+            (AzureSynapseSparkBatchRunStatus.SUCCESS, 0, None),
+            (AzureSynapseSparkBatchRunStatus.ERROR, 1, JOB_RUN_RESPONSE["id"]),
+        ],
+    )
+    def test_retry_behavior(
+        self,
+        prior_status: str,
+        expected_submit_count: int,
+        expected_poll_id: int | None,
+    ) -> None:
+        operator = self.make_operator()
+        operator.hook = self.make_hook()
+        operator.hook.get_job_run_status.return_value = prior_status
+        context = self.make_context(stored_job_id=91)
+
+        with patch.object(operator, "poll_until_complete", autospec=True) as mock_poll:
+            operator.execute(context=context)
+
+        assert operator.hook.run_spark_job.call_count == expected_submit_count
+        cast("MagicMock", context["ti"]).xcom_push.assert_any_call(key="job_id", value=91)
+        if expected_poll_id is None:
+            mock_poll.assert_not_called()
+        else:
+            mock_poll.assert_called_once_with(expected_poll_id, context)
+
+    def test_durable_false_submits_fresh(self) -> None:
+        operator = self.make_operator(durable=False)
+        operator.hook = self.make_hook()
+        context = self.make_context(stored_job_id=91)
+
+        with patch.object(operator, "poll_until_complete", autospec=True) as mock_poll:
+            operator.execute(context=context)
+
+        operator.hook.get_job_run_status.assert_not_called()
+        operator.hook.run_spark_job.assert_called_once_with(payload={})
+        mock_poll.assert_called_once_with(JOB_RUN_RESPONSE["id"], context)
+        cast("MagicMock", context["task_state_store"]).set.assert_not_called()
+
+    def test_missing_task_state_store_submits_fresh(self) -> None:
+        operator = self.make_operator()
+        operator.hook = self.make_hook()
+        task_instance = MagicMock(spec=["stats_tags", "xcom_push"])
+        task_instance.stats_tags = {}
+        context = cast("Context", {"ti": task_instance})
+
+        with patch.object(operator, "poll_until_complete", autospec=True) as mock_poll:
+            operator.execute(context=context)
+
+        operator.hook.run_spark_job.assert_called_once_with(payload={})
+        mock_poll.assert_called_once_with(JOB_RUN_RESPONSE["id"], context)
+
+    def test_default_args_durable_reaches_operator(self) -> None:
+        operator = AzureSynapseRunSparkBatchOperator(
+            task_id="synapse_default_args",
+            payload=cast("SparkBatchJobOptions", {}),
+            default_args={"durable": False},
+        )
+
+        assert operator.durable is False
+
+    @pytest.mark.parametrize(
+        ("status", "is_active", "is_succeeded"),
+        [
+            (
+                status,
+                status not in AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES,
+                status == AzureSynapseSparkBatchRunStatus.SUCCESS,
+            )
+            for status in (
+                AzureSynapseSparkBatchRunStatus.NOT_STARTED,
+                AzureSynapseSparkBatchRunStatus.STARTING,
+                AzureSynapseSparkBatchRunStatus.RUNNING,
+                AzureSynapseSparkBatchRunStatus.IDLE,
+                AzureSynapseSparkBatchRunStatus.BUSY,
+                AzureSynapseSparkBatchRunStatus.SHUTTING_DOWN,
+                AzureSynapseSparkBatchRunStatus.ERROR,
+                AzureSynapseSparkBatchRunStatus.DEAD,
+                AzureSynapseSparkBatchRunStatus.KILLED,
+                AzureSynapseSparkBatchRunStatus.SUCCESS,
+            )
+        ],
+    )
+    def test_status_helpers(self, status: str, is_active: bool, is_succeeded: bool) -> None:
+        operator = self.make_operator()
+
+        assert operator.is_job_active(status) is is_active
+        assert operator.is_job_succeeded(status) is is_succeeded
+
+    @pytest.mark.parametrize("job_id", [0, 91])
+    def test_poll_reconnects_job_id_for_wait_and_cancellation(self, job_id: int) -> None:
+        operator = self.make_operator()
+        operator.hook = self.make_hook()
+        operator.hook.wait_for_job_run_status.return_value = True
+        context = self.make_context(stored_job_id=job_id)
+
+        operator.poll_until_complete(job_id, context)
+        operator.on_kill()
+
+        assert operator.job_id == job_id
+        operator.hook.wait_for_job_run_status.assert_called_once_with(
+            job_id=job_id,
+            expected_statuses=AzureSynapseSparkBatchRunStatus.SUCCESS,
+            check_interval=1,
+            timeout=3,
+        )
+        operator.hook.cancel_job_run.assert_called_once_with(job_id=job_id)
+
+    def test_get_job_status_uses_persisted_job_id(self) -> None:
+        operator = self.make_operator()
+        operator.hook = self.make_hook()
+        operator.hook.get_job_run_status.return_value = AzureSynapseSparkBatchRunStatus.RUNNING
+        context = self.make_context(stored_job_id=91)
+
+        status = operator.get_job_status(91, context)
+
+        assert status == AzureSynapseSparkBatchRunStatus.RUNNING
+        assert operator.job_id == 91
+        operator.hook.get_job_run_status.assert_called_once_with(job_id=91)
+        cast("MagicMock", context["ti"]).xcom_push.assert_called_once_with(key="job_id", value=91)
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value: bool) -> None:
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+
+        assert result is False
 
 
 class TestAzureSynapseRunPipelineOperator:

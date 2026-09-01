@@ -20,7 +20,7 @@ import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 from airflow.providers.common.compat.sdk import (
@@ -42,14 +42,48 @@ from airflow.providers.microsoft.azure.triggers.synapse import (
     AzureSynapsePipelineTrigger,
 )
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: bool | object) -> bool:
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub that always submits fresh work."""
+
+        external_id_key: str = "synapse_spark_batch_id"
+
+        def __init__(self, *, durable: bool | object = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context: Context) -> Any:
+            operator = cast("AzureSynapseRunSparkBatchOperator", self)
+            external_id = operator.submit_job(context)
+            operator.poll_until_complete(external_id, context)
+            return operator.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions
+    from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
 
-class AzureSynapseRunSparkBatchOperator(BaseOperator):
+class AzureSynapseRunSparkBatchOperator(ResumableJobMixin, BaseOperator):
     """
     Execute a Spark job on Azure Synapse.
 
@@ -65,6 +99,8 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Time in seconds to check on a job run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
+    :param durable: When True, retries reconnect to an active Synapse Spark batch instead of submitting
+        a duplicate. Requires Airflow 3.3+ and applies only when ``wait_for_termination`` is True.
     """
 
     template_fields: Sequence[str] = (
@@ -74,6 +110,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
     template_fields_renderers = {"parameters": "json"}
 
     ui_color = "#0678d4"
+    external_id_key: str = "synapse_spark_batch_id"
 
     def __init__(
         self,
@@ -84,10 +121,13 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         payload: SparkBatchJobOptions,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        **kwargs,
+        durable: bool | None = None,
+        **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
-        self.job_id: Any = None
+        self.job_id: int | None = None
         self.azure_synapse_conn_id = azure_synapse_conn_id
         self.wait_for_termination = wait_for_termination
         self.spark_pool = spark_pool
@@ -96,11 +136,18 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         self.check_interval = check_interval
 
     @cached_property
-    def hook(self):
+    def hook(self) -> AzureSynapseHook:
         """Create and return an AzureSynapseHook (cached)."""
         return AzureSynapseHook(azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool)
 
     def execute(self, context: Context) -> None:
+        if self.wait_for_termination:
+            self.execute_resumable(context)
+            return
+
+        self.submit_job(context)
+
+    def submit_job(self, context: Context) -> JsonValue:
         self.log.info("Executing the Synapse spark job.")
         response = self.hook.run_spark_job(payload=self.payload)
         self.log.info(response)
@@ -109,22 +156,37 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         # retrieval the executed job's ``id`` for downstream tasks especially if performing an
         # asynchronous wait.
         context["ti"].xcom_push(key="job_id", value=self.job_id)
+        return self.job_id
 
-        if self.wait_for_termination:
-            self.log.info("Waiting for job run %s to terminate.", self.job_id)
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.job_id = cast("int", external_id)
+        context["ti"].xcom_push(key="job_id", value=self.job_id)
+        return self.hook.get_job_run_status(job_id=self.job_id)
 
-            if self.hook.wait_for_job_run_status(
-                job_id=self.job_id,
-                expected_statuses=AzureSynapseSparkBatchRunStatus.SUCCESS,
-                check_interval=self.check_interval,
-                timeout=self.timeout,
-            ):
-                self.log.info("Job run %s has completed successfully.", self.job_id)
-            else:
-                raise AirflowException(f"Job run {self.job_id} has failed or has been cancelled.")
+    def is_job_active(self, status: str) -> bool:
+        return status not in AzureSynapseSparkBatchRunStatus.TERMINAL_STATUSES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == AzureSynapseSparkBatchRunStatus.SUCCESS
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.job_id = cast("int", external_id)
+        self.log.info("Waiting for job run %s to terminate.", self.job_id)
+        if self.hook.wait_for_job_run_status(
+            job_id=self.job_id,
+            expected_statuses=AzureSynapseSparkBatchRunStatus.SUCCESS,
+            check_interval=self.check_interval,
+            timeout=self.timeout,
+        ):
+            self.log.info("Job run %s has completed successfully.", self.job_id)
+            return
+        raise AirflowException(f"Job run {self.job_id} has failed or has been cancelled.")
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        return None
 
     def on_kill(self) -> None:
-        if self.job_id:
+        if self.job_id is not None:
             self.hook.cancel_job_run(
                 job_id=self.job_id,
             )
