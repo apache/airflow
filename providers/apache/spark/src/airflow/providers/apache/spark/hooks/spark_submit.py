@@ -715,8 +715,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             else:
                 # HA: try each master in order (mirrors _StandaloneSparkSubmitBackend.get_job_status)
                 curl_cmds = " || ".join(
-                    f"/usr/bin/curl --fail --max-time {curl_max_wait_time} {shlex.quote(u)}"
-                    for u in urls
+                    f"/usr/bin/curl --fail --max-time {curl_max_wait_time} {shlex.quote(u)}" for u in urls
                 )
                 connection_cmd = ["sh", "-c", curl_cmds]
             self.log.info(connection_cmd)
@@ -1341,9 +1340,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 ]
             else:
                 # HA: try each master in order
-                curl_cmds = " || ".join(
-                    f"/usr/bin/curl --fail -X DELETE {shlex.quote(u)}" for u in urls
-                )
+                curl_cmds = " || ".join(f"/usr/bin/curl --fail -X DELETE {shlex.quote(u)}" for u in urls)
                 connection_cmd = ["sh", "-c", curl_cmds]
         else:
             # Assume that spark-submit is present in the path to the executing user
