@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Response, status
@@ -74,10 +75,13 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
+
+log = logging.getLogger(__name__)
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -313,8 +317,16 @@ def patch_dag(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
+    is_paused_changed = "is_paused" in data and data["is_paused"] != dag.is_paused
+
     for key, val in data.items():
         setattr(dag, key, val)
+
+    if is_paused_changed:
+        try:
+            get_listener_manager().hook.on_dag_pause_status_change(dag=dag, is_paused=data["is_paused"])
+        except Exception:
+            log.exception("Error while calling listener")
 
     return dag
 

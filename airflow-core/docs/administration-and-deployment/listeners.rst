@@ -36,6 +36,21 @@ Lifecycle Events
 
 Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like  ``SchedulerJob``.
 
+Dag Pause Status Events
+------------------------
+
+Dag pause status events occur when a :class:`~airflow.models.dag.DagModel`'s ``is_paused`` field changes,
+e.g. when a Dag is paused or unpaused through the REST API, the ``airflow dags pause``/``airflow dags unpause``
+CLI commands, or the Airflow UI.
+
+- ``on_dag_pause_status_change``
+
+.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
+    :language: python
+    :start-after: [START howto_listen_dag_pause_status_change_task]
+    :end-before: [END howto_listen_dag_pause_status_change_task]
+
+
 DagRun State Change Events
 --------------------------
 
