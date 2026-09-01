@@ -131,7 +131,7 @@ def compile_assets(provider_name: str):
     for try_num in range(3):
         print(f"### Trying to install {provider_name} dependencies: attempt: {try_num + 1} ###")
         result = subprocess.run(
-            ["pnpm", "install", "--frozen-lockfile"],
+            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
             cwd=os.fspath(www_directory),
             text=True,
             check=False,
