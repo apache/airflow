@@ -2145,6 +2145,19 @@ def test_rendered_map_index_updates_sent_progressively(create_runtime_ti, mock_s
     assert ti.rendered_map_index == "Label: test_task"
 
 
+def test_execute_task_with_numeric_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Test that map_index_template producing a numeric value returns a string without error."""
+
+    task = BaseOperator(task_id="test_task", map_index_template="123")
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_numeric_map_index_template")
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "123"
+    assert isinstance(ti.rendered_map_index, str)
+
+
 class TestSerializeOutletEvents:
     """Tests for the wire format produced by ``_serialize_outlet_events``."""
 
