@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 import warnings
 from collections.abc import Generator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -695,6 +695,186 @@ class TestGlueJobOperator:
         assert glue._job_run_id == "existing_run_123"
         mock_initialize_job.assert_not_called()
         mock_ti.xcom_push.assert_any_call(key="glue_job_run_id", value="existing_run_123")
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_task_uuid_scan_paginates_until_match(self, mock_get_conn):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = [
+            {"JobRuns": [], "NextToken": "next-page"},
+            {
+                "JobRuns": [
+                    {
+                        "Id": JOB_RUN_ID,
+                        "Arguments": {GlueJobOperator.TASK_UUID_ARG: "test-task-uuid"},
+                        "JobRunState": "RUNNING",
+                    }
+                ]
+            },
+        ]
+
+        assert glue._find_job_run_id_by_task_uuid("test-task-uuid") == (JOB_RUN_ID, "RUNNING")
+        assert glue.hook.conn.get_job_runs.call_args_list == [
+            mock.call(JobName=JOB_NAME, MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE),
+            mock.call(
+                JobName=JOB_NAME,
+                MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE,
+                NextToken="next-page",
+            ),
+        ]
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_task_uuid_scan_stops_after_page_limit(self, mock_get_conn, caplog):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.TASK_UUID_SCAN_MAX_PAGES = 2
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {"JobRuns": [], "NextToken": "next-page"}
+
+        with caplog.at_level("ERROR"):
+            assert glue._find_job_run_id_by_task_uuid("missing-task-uuid") is None
+
+        assert glue.hook.conn.get_job_runs.call_count == 2
+        assert "pages without a match" in caplog
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_task_uuid_scan_stops_when_started_on_predates_cutoff(self, mock_get_conn):
+        cutoff = datetime(2024, 6, 1, 12, 0, tzinfo=timezone.utc)
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {
+            "JobRuns": [
+                {
+                    "Id": "older-run",
+                    "JobRunState": "SUCCEEDED",
+                    "StartedOn": datetime(2024, 5, 31, 12, 0, tzinfo=timezone.utc),
+                    "Arguments": {},
+                }
+            ],
+            "NextToken": "next-page",
+        }
+
+        assert glue._find_job_run_id_by_task_uuid("test-task-uuid", cutoff=cutoff) is None
+        glue.hook.conn.get_job_runs.assert_called_once_with(
+            JobName=JOB_NAME, MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE
+        )
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_find_previous_job_run_uses_dag_run_start_date_as_cutoff(self, mock_get_conn):
+        cutoff = datetime(2024, 6, 1, 12, 0, tzinfo=timezone.utc)
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {
+            "JobRuns": [
+                {
+                    "Id": "older-run",
+                    "JobRunState": "SUCCEEDED",
+                    "StartedOn": datetime(2024, 5, 31, 12, 0, tzinfo=timezone.utc),
+                    "Arguments": {},
+                }
+            ],
+            "NextToken": "next-page",
+        }
+        mock_ti = mock.MagicMock()
+        mock_ti.task_id = TASK_ID
+        mock_ti.xcom_pull.return_value = None
+        dag_run = mock.MagicMock()
+        dag_run.start_date = cutoff
+
+        assert glue._find_previous_job_run({"ti": mock_ti, "dag_run": dag_run}, "test-task-uuid") is None
+        glue.hook.conn.get_job_runs.assert_called_once_with(
+            JobName=JOB_NAME, MaxResults=GlueJobOperator.TASK_UUID_SCAN_PAGE_SIZE
+        )
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_task_uuid_scan_continues_when_started_on_is_not_before_cutoff(self, mock_get_conn):
+        cutoff = datetime(2024, 6, 1, 12, 0, tzinfo=timezone.utc)
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = [
+            {
+                "JobRuns": [
+                    {
+                        "Id": "newer-unrelated",
+                        "JobRunState": "SUCCEEDED",
+                        "StartedOn": cutoff,
+                        "Arguments": {},
+                    }
+                ],
+                "NextToken": "next-page",
+            },
+            {
+                "JobRuns": [
+                    {
+                        "Id": JOB_RUN_ID,
+                        "JobRunState": "RUNNING",
+                        "StartedOn": cutoff,
+                        "Arguments": {GlueJobOperator.TASK_UUID_ARG: "test-task-uuid"},
+                    }
+                ]
+            },
+        ]
+
+        assert glue._find_job_run_id_by_task_uuid("test-task-uuid", cutoff=cutoff) == (JOB_RUN_ID, "RUNNING")
+        assert glue.hook.conn.get_job_runs.call_count == 2
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_find_previous_job_run_scan_client_error_returns_none(self, mock_get_conn, caplog):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = ClientError(
+            {"Error": {"Code": "AccessDeniedException", "Message": "not authorized"}},
+            "GetJobRuns",
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.task_id = TASK_ID
+        mock_ti.xcom_pull.return_value = None
+
+        with caplog.at_level("ERROR"):
+            assert glue._find_previous_job_run({"ti": mock_ti}, "test-task-uuid") is None
+
+        assert "Failed to find previous Glue job run by task UUID" in caplog
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_find_previous_job_run_scan_non_client_error_propagates(self, mock_get_conn):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.side_effect = RuntimeError("scan bug")
+        mock_ti = mock.MagicMock()
+        mock_ti.task_id = TASK_ID
+        mock_ti.xcom_pull.return_value = None
+
+        with pytest.raises(RuntimeError, match="scan bug"):
+            glue._find_previous_job_run({"ti": mock_ti}, "test-task-uuid")
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_find_previous_job_run_xcom_client_error_returns_none(self, mock_get_conn, caplog):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_run.side_effect = ClientError(
+            {"Error": {"Code": "EntityNotFoundException", "Message": "missing"}},
+            "GetJobRun",
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.task_id = TASK_ID
+        mock_ti.xcom_pull.return_value = "previous_run_12345"
+
+        with caplog.at_level("ERROR"):
+            assert glue._find_previous_job_run({"ti": mock_ti}, "unused-uuid") is None
+
+        glue.hook.conn.get_job_runs.assert_not_called()
+        assert "Failed to get previous Glue job run state" in caplog
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_find_previous_job_run_xcom_non_client_error_propagates(self, mock_get_conn):
+        glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_run.side_effect = RuntimeError("lookup bug")
+        mock_ti = mock.MagicMock()
+        mock_ti.task_id = TASK_ID
+        mock_ti.xcom_pull.return_value = "previous_run_12345"
+
+        with pytest.raises(RuntimeError, match="lookup bug"):
+            glue._find_previous_job_run({"ti": mock_ti}, "unused-uuid")
 
 
 class TestGlueJobOperatorOpenLineageInjection:

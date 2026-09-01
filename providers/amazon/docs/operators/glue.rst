@@ -189,6 +189,13 @@ with this task instance's identity, and reconnects if it finds one that is still
 XCom check only ever succeeds on Airflow 2.x -- every Airflow 3 release clears task XComs before
 each non-deferral attempt, so on Airflow 3.0-3.2 every retry pays the full scan.
 
+.. note::
+  The task-UUID scan fallback requires ``glue:GetJobRuns`` in the task's IAM policy, in addition
+  to ``glue:StartJobRun`` and ``glue:GetJobRun``. Anyone relying on this fallback -- via
+  ``resume_glue_job_on_retry=True`` below Airflow 3.3, or when task state store has nothing for
+  this task on Airflow 3.3+ -- needs that extra action. Without it the scan fails, is logged as
+  an error, and the operator submits a fresh run instead of reconnecting.
+
 That older mechanism only activates below 3.3 when ``resume_glue_job_on_retry=True`` is set
 explicitly -- ``durable=True`` does not turn it on there. Upgrading the provider alone, with no
 DAG change, does not turn it on either: below 3.3, behavior is unchanged from before this feature
