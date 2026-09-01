@@ -100,6 +100,7 @@ class TestGetDagWarnings:
 
         for dag_warning in response_json["dag_warnings"]:
             assert "dag_display_name" in dag_warning
+            assert "context" in dag_warning
             dag_id = dag_warning["dag_id"]
             assert dag_warning["dag_display_name"] == expected_display_names[dag_id]
 
@@ -111,11 +112,9 @@ class TestGetDagWarnings:
         response = unauthorized_test_client.get("/dagWarnings", params={})
         assert response.status_code == 403
 
-    def test_get_dag_warnings_bad_request(self, test_client):
-        response = test_client.get("/dagWarnings", params={"warning_type": "invalid"})
+    def test_get_dag_warnings_non_matching_type(self, test_client):
+        response = test_client.get("/dagWarnings", params={"warning_type": "non-existent-type"})
         response_json = response.json()
-        assert response.status_code == 422
-        assert (
-            response_json["detail"][0]["msg"]
-            == "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool' or 'runtime varying value'"
-        )
+        assert response.status_code == 200
+        assert response_json["total_entries"] == 0
+        assert response_json["dag_warnings"] == []

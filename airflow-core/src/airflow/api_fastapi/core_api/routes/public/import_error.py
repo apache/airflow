@@ -94,7 +94,7 @@ def get_import_error(
     file_dag_ids = set(
         session.scalars(
             select(DagModel.dag_id).where(
-                DagModel.relative_fileloc == error.filename,
+                DagModel.relative_fileloc == error.source_reference,
                 DagModel.bundle_name == error.bundle_name,
             )
         ).all()
@@ -146,12 +146,12 @@ def get_import_errors(
                 [
                     "id",
                     "timestamp",
-                    "filename",
+                    "source_reference",
                     "bundle_name",
                     "stacktrace",
                 ],
                 ParseImportError,
-                {"import_error_id": "id"},
+                {"import_error_id": "id", "filename": "source_reference"},
             ).dynamic_depends()
         ),
     ],
@@ -177,7 +177,7 @@ def get_import_errors(
         select(ParseImportError.id, ParseImportError.bundle_name)
         .outerjoin(
             files_with_any_dags,
-            (ParseImportError.filename == files_with_any_dags.c.relative_fileloc)
+            (ParseImportError.source_reference == files_with_any_dags.c.relative_fileloc)
             & (ParseImportError.bundle_name == files_with_any_dags.c.bundle_name),
         )
         .where(files_with_any_dags.c.relative_fileloc.is_(None))
@@ -232,14 +232,14 @@ def get_import_errors(
         .outerjoin(
             files_with_any_dags,
             and_(
-                ParseImportError.filename == files_with_any_dags.c.relative_fileloc,
+                ParseImportError.source_reference == files_with_any_dags.c.relative_fileloc,
                 ParseImportError.bundle_name == files_with_any_dags.c.bundle_name,
             ),
         )
         .outerjoin(
             file_dags_cte,
             and_(
-                ParseImportError.filename == file_dags_cte.c.relative_fileloc,
+                ParseImportError.source_reference == file_dags_cte.c.relative_fileloc,
                 ParseImportError.bundle_name == file_dags_cte.c.bundle_name,
             ),
         )
@@ -262,7 +262,7 @@ def get_import_errors(
         filtered_import_errors_stmt.with_only_columns(
             ParseImportError.id,
             ParseImportError.timestamp,
-            ParseImportError.filename,
+            ParseImportError.source_reference,
             ParseImportError.bundle_name,
             ParseImportError.stacktrace,
         )

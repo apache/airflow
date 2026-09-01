@@ -1101,6 +1101,7 @@ export type DAGSourceResponse = {
     dag_id: string;
     version_number: number | null;
     dag_display_name: string;
+    language?: string | null;
 };
 
 /**
@@ -1132,9 +1133,12 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType;
+    warning_type: string;
     message: string;
     timestamp: string;
+    context?: {
+        [key: string]: unknown;
+    } | null;
     dag_display_name: string;
 };
 
