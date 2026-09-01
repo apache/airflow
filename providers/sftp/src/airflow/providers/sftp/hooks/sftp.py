@@ -407,13 +407,16 @@ class SFTPHook(SSHHook):
         """
         if Path(local_full_path).exists():
             raise AirflowException(f"{local_full_path} already exists")
-        Path(local_full_path).mkdir(parents=True)
+        dest = Path(local_full_path).resolve()
+        dest.mkdir(parents=True)
         files, dirs, _ = self.get_tree_map(remote_full_path)
         for dir_path in dirs:
-            new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+            new_local_path = str(dest / os.path.relpath(dir_path, remote_full_path))
+            self._validate_within_directory(str(dest), new_local_path)
             Path(new_local_path).mkdir(parents=True, exist_ok=True)
         for file_path in files:
-            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+            new_local_path = str(dest / os.path.relpath(file_path, remote_full_path))
+            self._validate_within_directory(str(dest), new_local_path)
             self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
@@ -449,12 +452,13 @@ class SFTPHook(SSHHook):
             files, dirs, _ = self.get_tree_map(remote_full_path)
             for dir_path in dirs:
                 new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+                self._validate_within_directory(local_full_path, new_local_path)
                 Path(new_local_path).mkdir(parents=True, exist_ok=True)
             for file in files:
+                new_local_path = os.path.join(local_full_path, os.path.relpath(file, remote_full_path))
+                self._validate_within_directory(local_full_path, new_local_path)
                 remote_file_paths.append(file)
-                new_local_file_paths.append(
-                    os.path.join(local_full_path, os.path.relpath(file, remote_full_path))
-                )
+                new_local_file_paths.append(new_local_path)
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
@@ -800,7 +804,10 @@ class SFTPHook(SSHHook):
                 if self.isdir(remote):
                     self.delete_directory(remote, include_files=True)
                 else:
-                    self.delete_file(remote)
+                    try:
+                        self.delete_file(remote)
+                    except FileNotFoundError:
+                        self.log.warning("Remote file %s does not exist. Skipping delete.", remote)
 
 
 class SFTPHookAsync(BaseHook):
