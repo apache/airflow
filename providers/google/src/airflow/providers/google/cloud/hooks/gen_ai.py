@@ -144,7 +144,7 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         :param source_model: Required. A pre-trained model optimized for performing natural
             language tasks such as classification, summarization, extraction, content
             creation, and ideation.
-        :param train_dataset: Required. Cloud Storage URI of your training dataset. The dataset
+        :param training_dataset: Required. Cloud Storage URI of your training dataset. The dataset
             must be formatted as a JSONL file. For best results, provide at least 100 to 500 examples.
         :param tuning_job_config: Optional. Configuration of the Tuning job to be created.
         """
