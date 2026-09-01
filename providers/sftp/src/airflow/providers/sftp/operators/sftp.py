@@ -27,6 +27,7 @@ import paramiko
 
 from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.sftp.exceptions import SFTPOperationError
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPOperation
 
 
@@ -200,7 +201,7 @@ class SFTPOperator(BaseOperator):
                     prefetch=self.prefetch,
                 )
         except Exception as e:
-            raise AirflowException(
+            raise SFTPOperationError(
                 f"Error while processing {self.operation.upper()} operation, error: {e}"
             ) from e
 
