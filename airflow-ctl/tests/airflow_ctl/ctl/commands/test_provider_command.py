@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import ProviderDetailsResponse
+from airflowctl.api.datamodels.generated import ProviderDetailsResponse, ProviderInfoResponse
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import provider_command
 
@@ -30,17 +30,22 @@ class TestProviderCommands:
     parser = cli_parser.get_parser()
     provider_name = "apache-airflow-providers-standard"
     provider_info = {
-        "package-name": provider_name,
         "name": "Standard",
-        "description": "Standard provider",
-        "versions": ["1.0.0"],
+        "connection-types": [
+            {
+                "connection-type": "fs",
+                "hook-class-name": "airflow.providers.standard.hooks.filesystem.FSHook",
+                "hook-name": "File (path)",
+            }
+        ],
+        "extra-links": ["airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink"],
     }
     provider_response = ProviderDetailsResponse(
         package_name=provider_name,
         version="1.0.0",
         description="Standard provider",
         documentation_url=None,
-        provider_info=provider_info,
+        provider_info=ProviderInfoResponse.model_validate(provider_info),
     )
 
     @pytest.mark.parametrize(
@@ -55,7 +60,7 @@ class TestProviderCommands:
     def test_get_provider(self, api_client_maker, extra_args, expected):
         api_client = api_client_maker(
             path=f"/api/v2/providers/{self.provider_name}",
-            response_json=self.provider_response.model_dump(mode="json"),
+            response_json=self.provider_response.model_dump(mode="json", by_alias=True),
             expected_http_status_code=200,
             kind=ClientKind.CLI,
         )

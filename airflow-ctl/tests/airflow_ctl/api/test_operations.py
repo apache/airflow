@@ -90,6 +90,7 @@ from airflowctl.api.datamodels.generated import (
     PoolResponse,
     ProviderCollectionResponse,
     ProviderDetailsResponse,
+    ProviderInfoResponse,
     ProviderResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
@@ -1742,13 +1743,17 @@ class TestProvidersOperations:
         version="version",
         description="description",
         documentation_url=None,
-        provider_info={"package-name": "package_name", "name": "Provider"},
+        provider_info=ProviderInfoResponse.model_validate(
+            {"name": "Provider", "extra-links": ["airflow.providers.package.links.Link"]}
+        ),
     )
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/providers/package_name"
-            return httpx.Response(200, json=json.loads(self.provider_details_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.provider_details_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.providers.get("package_name")

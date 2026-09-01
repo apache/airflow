@@ -35,6 +35,14 @@ MOCK_PROVIDERS = {
             "description": "`Amazon Web Services (AWS) <https://aws.amazon.com/>`__.\n",
             "versions": ["1.0.0"],
             "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-amazon/1.0.0/",
+            "connection-types": [
+                {
+                    "connection-type": "aws",
+                    "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                    "hook-name": "Amazon Web Services",
+                }
+            ],
+            "extra-links": ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"],
         },
     ),
     "apache-airflow-providers-apache-cassandra": ProviderInfo(
@@ -101,10 +109,19 @@ class TestGetProvider:
         assert body["package_name"] == "apache-airflow-providers-amazon"
         assert body["version"] == "1.0.0"
         assert body["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
-        assert body["provider_info"] == {
-            **MOCK_PROVIDERS["apache-airflow-providers-amazon"].data,
-            "description": "Amazon Web Services (AWS) https://aws.amazon.com/",
-        }
+        provider_info = body["provider_info"]
+        assert provider_info["name"] == "Amazon"
+        assert provider_info["connection-types"] == [
+            {
+                "connection-type": "aws",
+                "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                "hook-name": "Amazon Web Services",
+            }
+        ]
+        assert provider_info["extra-links"] == ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"]
+        # Only keys explicitly declared in ProviderInfoResponse are serialized
+        assert "versions" not in provider_info
+        assert "documentation-url" not in provider_info
 
     @mock.patch(
         "airflow.providers_manager.ProvidersManager.providers",
