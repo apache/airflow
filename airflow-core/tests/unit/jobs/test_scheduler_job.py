@@ -9445,6 +9445,51 @@ class TestSchedulerJob:
         assert isinstance(request, TaskCallbackRequest)
         assert request.bundle_version == expected_bv
 
+    @pytest.mark.parametrize(
+        ("dag_run_bv", "dag_version_bv", "expected_bv"),
+        [
+            pytest.param(None, "abc123-sha", None, id="disable_bundle_versioning"),
+            pytest.param("abc123-sha", "abc123-sha", "abc123-sha", id="versioning_enabled"),
+        ],
+    )
+    def test_external_kill_email_bundle_version_follows_dag_run(
+        self, dag_maker, session, dag_run_bv, dag_version_bv, expected_bv
+    ):
+        """
+        EmailRequest.bundle_version must mirror dag_run.bundle_version, not
+        dag_version.bundle_version -- the same invariant asserted for
+        TaskCallbackRequest above by test_external_kill_callback_bundle_version_follows_dag_run.
+        With disable_bundle_versioning=True the trigger path leaves dag_run.bundle_version=None
+        even though DagVersion was written with a SHA -- the failure/retry email must inherit
+        None so the DAG Processor renders it against the same on-disk code as the task, instead
+        of pinning to a version the run was never pinned to.
+        """
+        with dag_maker(dag_id=f"ext_kill_email_bv_{dag_run_bv or 'none'}", fileloc="/test_path1/"):
+            EmptyOperator(task_id="t1", email="test@example.com", email_on_failure=True)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        ti = dr.get_task_instance(task_id="t1", session=session)
+        dag_version = ti.dag_version
+        dag_version.bundle_version = dag_version_bv
+        dr.bundle_version = dag_run_bv
+        ti.state = State.QUEUED
+        session.merge(dag_version)
+        session.merge(dr)
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        executor.event_buffer[ti.key] = State.FAILED, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        self.job_runner.executor.callback_sink.send.assert_called_once()
+        request = self.job_runner.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, EmailRequest)
+        assert request.bundle_version == expected_bv
+
     def test_heartbeat_timeout_callback_bundle_version_follows_dag_run(self, dag_maker, session):
         """
         Same invariant as the external-kill path, exercised through
