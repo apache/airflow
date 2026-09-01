@@ -513,7 +513,7 @@ class TestCli:
         first = vars(cli_parser.get_parser(dag_parser=True).parse_args(["dags", "pause"]))
         cli_parser.get_parser.cache_clear()
         second = vars(cli_parser.get_parser(dag_parser=True).parse_args(["dags", "pause"]))
-
+        assert "treat_dag_id_as_regex" in first
         assert first.keys() == second.keys()
 
     def test_positive_int(self):
