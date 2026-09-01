@@ -942,6 +942,26 @@ class TestPatchDag(TestDagEndpoint):
         response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 401
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dags.get_listener_manager")
+    def test_patch_dag_fires_pause_status_listener_hook_on_change(self, mock_get_listener_manager, test_client):
+        mock_listener_manager = mock.MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
+        assert response.status_code == 200
+
+        mock_listener_manager.hook.on_dag_pause_status_change.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_pause_status_change.call_args
+        assert call_args.kwargs["is_paused"] is True
+        assert call_args.kwargs["dag"].dag_id == DAG1_ID
+
+        mock_listener_manager.hook.on_dag_pause_status_change.reset_mock()
+
+        # Patching to the same value again is a no-op and should not re-fire the hook.
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
+        assert response.status_code == 200
+        mock_listener_manager.hook.on_dag_pause_status_change.assert_not_called()
+
     def test_patch_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 403
