@@ -34,6 +34,9 @@ if AIRFLOW_V_3_3_PLUS:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from airflow.providers.common.compat.sdk import BaseNotifier
     from airflow.sdk import Context
 
 
@@ -42,6 +45,7 @@ class DeferForApprovalProtocol(Protocol):
 
     approval_timeout: timedelta | None
     allow_modifications: bool
+    approval_notifiers: Sequence[BaseNotifier]
     prompt: str
     task_id: str
     defer: Any
@@ -62,11 +66,17 @@ class LLMApprovalMixin:
     before approving.  The (possibly modified) output is then returned as the
     task result.
 
+    ``approval_notifiers`` are called once the review is open, so a reviewer
+    learns about it without watching the Required Actions page, the way
+    :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
+    ``notifiers``.
+
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
+    - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``prompt`` (``str``)
     """
 
@@ -164,6 +174,9 @@ class LLMApprovalMixin:
             multiple=False,
             params=hitl_params,
         )
+
+        for notifier in self.approval_notifiers:
+            notifier(context)
 
         if AIRFLOW_V_3_3_PLUS:
             # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
