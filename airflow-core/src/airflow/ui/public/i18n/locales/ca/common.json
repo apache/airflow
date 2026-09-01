@@ -8,6 +8,7 @@
     "Variables": "Variables"
   },
   "allOperators": "Tots els operadors",
+  "allTeams": "Tots els equips",
   "appearance": {
     "appearance": "Aparença",
     "darkMode": "Mode fosc",
@@ -23,6 +24,7 @@
   },
   "backfill_one": "Reompliment",
   "backfill_other": "Reompliments",
+  "breadcrumb": "Ruta de navegació",
   "browse": {
     "auditLog": "Registre d'auditoria",
     "deadlines": "Terminis",
@@ -57,7 +59,8 @@
     "owner": "Propietari",
     "params": "Paràmetres",
     "schedule": "Programació",
-    "tags": "Etiquetes"
+    "tags": "Etiquetes",
+    "team": "Equip"
   },
   "dagId": "ID del Dag",
   "dagRun": {
@@ -72,6 +75,7 @@
     "expectedDuration": "Durada esperada",
     "lastSchedulingDecision": "Última decisió de programació",
     "mappedPartitionKey": "Clau de partició mapejada",
+    "partitionDate": "Data de la partició",
     "partitionKey": "Clau de partició",
     "queuedAt": "Enviat a cua a les",
     "runAfter": "Executar després de",
@@ -83,9 +87,8 @@
   "dagRun_one": "Execució de Dag",
   "dagRun_other": "Execucions de Dag",
   "dagRunId": "ID d'Execució del Dag",
+  "dagRunState": "Estat de l'execució de Dag",
   "dagWarnings": "Advertències/errors del Dag",
-  "defaultToGraphView": "Visualització de gràfic per defecte",
-  "defaultToGridView": "Visualització de graella per defecte",
   "delete": "Eliminar",
   "diff": "Diferència",
   "diffCompareWith": "Comparar amb",
@@ -119,6 +122,8 @@
       "title": "Accés denegat"
     }
   },
+  "event_one": "Esdeveniment",
+  "event_other": "Esdeveniments",
   "expand": {
     "collapse": "Col·lapsar",
     "expand": "Expandir",
@@ -134,18 +139,27 @@
   },
   "filter": "Filtre",
   "filters": {
+    "addFilter": "Afegir filtre",
+    "date": "Data",
     "durationFrom": "Duració Des de",
     "durationTo": "Duració Fins a",
     "endTime": "Hora de finalització",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
+    "removeFilter": "Eliminar filtre",
     "runAfterFrom": "Executar Després de",
     "runAfterTo": "Executar Després de",
     "searchAsset": "Cercar Asset",
     "selectDateRange": "Seleccionar interval de dates",
-    "startTime": "Hora d'inici"
+    "selectDateTime": "Seleccionar data i hora",
+    "startTime": "Hora d'inici",
+    "time": "Hora"
+  },
+  "fullscreen": {
+    "tooltip": "Prem {{hotkey}} per activar la pantalla completa"
   },
   "generateToken": "Generar token",
+  "includedIn": "Inclòs a",
   "key": "Clau",
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
@@ -166,6 +180,7 @@
     "assets": "Assets",
     "browse": "Navegar",
     "dags": "Dags",
+    "dashboard": "Tauler",
     "docs": "Docs",
     "home": "Inici",
     "legacyFabViews": "Vistes obsoletes",
@@ -176,17 +191,41 @@
   "note": {
     "add": "Afegir una nota",
     "dagRun": "Nota de l'execució del Dag",
+    "edit": "Editar la nota",
     "label": "Nota",
     "placeholder": "Afegir una nota...",
-    "taskInstance": "Nota de la instància de la tasca"
+    "preview": "Previsualitzar",
+    "taskInstance": "Nota de la instància de la tasca",
+    "write": "Escriure"
   },
+  "overallStatus": "Estat general",
+  "partition_one": "Partició",
+  "partition_other": "Particions",
   "partitionedDagRun_one": "Execució de Dag particionada",
   "partitionedDagRun_other": "Execucions de Dag particionades",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Esdeveniments d'Asset rebuts"
   },
+  "pause": "Pausar",
   "pendingDagRun_one": "{{count}} execució de Dag pendent",
   "pendingDagRun_other": "{{count}} execucions de Dag pendents",
+  "presetFilters": {
+    "deleteTitle": "Eliminar el filtre predefinit",
+    "deleteWarning": "Els filtres predefinits només s'emmagatzemen en aquest navegador.",
+    "duplicate": "El filtre predefinit \"{{name}}\" ja desa exactament aquesta configuració.",
+    "empty": "Encara no hi ha filtres predefinits",
+    "info": {
+      "default": "Fixeu un filtre predefinit com a predeterminat i s'aplicarà automàticament quan arribeu a aquesta pàgina sense cap filtre aplicat.",
+      "save": "Deseu els filtres i l'ordenació actuals com a filtre predefinit amb nom per tornar-hi en qualsevol moment.",
+      "storage": "Els filtres predefinits s'emmagatzemen en aquest navegador."
+    },
+    "namePlaceholder": "Nom del filtre predefinit",
+    "nothingToSave": "No hi ha res per desar. Apliqueu filtres o un ordre per a ndesar un filtre predefinit.",
+    "save": "Desar",
+    "setDefault": "Establir com a predeterminat",
+    "title": "Filtres predefinits",
+    "unsetDefault": "Desmarcar com a predeterminat"
+  },
   "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
@@ -218,8 +257,103 @@
   },
   "selectLanguage": "Seleccionar idioma",
   "selected": "Seleccionat",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Omet les tasques que s'estan executant en rellançar instàncies de tasca.",
+        "label": "Evitar rellançar tasques en execució"
+      },
+      "runSelection": {
+        "helper": "Opcions seleccionades per defecte en rellançar una execució de Dag.",
+        "label": "Selecció predeterminada per rellançar execucions"
+      },
+      "taskSelection": {
+        "helper": "Opcions seleccionades per defecte en rellançar instàncies de tasca.",
+        "label": "Selecció predeterminada per rellançar tasques"
+      },
+      "title": "Rellançament"
+    },
+    "description": "Aquestes preferències només es desen en aquest navegador i s'apliquen a tota l'aplicació.",
+    "general": {
+      "landingPage": {
+        "helper": "Pàgina que es mostra en obrir Airflow.",
+        "label": "Pàgina d'inici",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Tauler"
+        }
+      },
+      "title": "General"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Direcció de disposició dels gràfics de Dags i Assets que no hàgiu configurat individualment.",
+        "label": "Direcció predeterminada del gràfic"
+      },
+      "title": "Gràfic"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opcions seleccionades per defecte en marcar l'estat d'una instància de tasca.",
+        "label": "Selecció predeterminada de marcatge"
+      },
+      "title": "Marcatge"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Pestanya que es mostra primer en obrir una instància de tasca. Els enllaços a una pestanya específica continuen obrint-la.",
+        "label": "Pestanya predeterminada de la instància de tasca"
+      },
+      "title": "Instància de tasca"
+    },
+    "title": "Configuració"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Codi",
+      "dagView": "Vista de Dag",
+      "filters": "Filtres",
+      "global": "Global",
+      "logs": "Registres",
+      "navigation": "Navegació",
+      "runActions": "Accions d'execució i de tasca",
+      "search": "Cerca"
+    },
+    "descriptions": {
+      "clearRun": "Rellançar $t(dagRun_one)",
+      "clearTaskInstance": "Rellançar $t(taskInstance_one)",
+      "downloadLogs": "Descarregar registres",
+      "focusFilterSearch": "Enfocar la cerca de filtres",
+      "focusLogSearch": "Cercar als registres",
+      "focusSearch": "Enfocar la cerca",
+      "markRunFailed": "Marcar $t(dagRun_one) com a fallida",
+      "markRunSuccess": "Marcar $t(dagRun_one) com a exitosa",
+      "markTaskFailed": "Marcar $t(task_one) com a fallida",
+      "markTaskGroupFailed": "Marcar $t(taskGroup_one) com a fallit",
+      "markTaskGroupSuccess": "Marcar $t(taskGroup_one) com a exitós",
+      "markTaskSuccess": "Marcar $t(task_one) com a exitosa",
+      "navigateTasks": "Navegar per $t(task_other)",
+      "openGraphFilters": "Obrir els filtres del gràfic",
+      "scrollBottom": "Desplaçar-se fins al final",
+      "scrollTop": "Desplaçar-se fins al principi",
+      "searchDags": "Cercar $t(dag_other)",
+      "showHelp": "Mostrar $t(shortcuts.title)",
+      "toggleExpand": "Expandir o col·lapsar tots els grups",
+      "toggleFullscreen": "Alternar la pantalla completa",
+      "toggleGraphGrid": "Alternar entre la vista de gràfic i de graella",
+      "toggleSource": "Alternar el codi font",
+      "toggleTaskGroup": "Expandir o col·lapsar $t(taskGroup_one)",
+      "toggleTimestamp": "Alternar les marques de temps",
+      "toggleWrap": "Alternar $t(wrap.wrap)"
+    },
+    "empty": "No hi ha dreceres de teclat disponibles en aquesta pàgina.",
+    "title": "Dreceres de teclat"
+  },
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
+  "slot": "Slot",
+  "slot_one": "Slot",
+  "slot_other": "Slots",
   "source": {
     "hide": "Amagar origen",
     "hotkey": "s",
@@ -248,6 +382,7 @@
     "up_for_retry": "A reintentar",
     "upstream_failed": "Fallit aigües amunt"
   },
+  "switchDag": "Canviar de $t(dag_one)",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",
@@ -257,7 +392,10 @@
     "filterReset_other": "Restablir filtres",
     "from": "De",
     "maxActiveRuns": "Màxim d'execucions actives",
+    "noResultsFound": "No s'han trobat resultats",
     "noTagsFound": "No s'han trobat etiquetes",
+    "noTeamsFound": "No s'han trobat equips",
+    "ownerPlaceholder": "Filtrar per propietari",
     "tagMode": {
       "all": "Totes",
       "any": "Qualsevol"
@@ -267,10 +405,13 @@
     "updatedAt": "Actualitzat a"
   },
   "task": {
+    "dependsOnPast": "Depèn del passat",
     "documentation": "Documentació de la tasca",
     "lastInstance": "Última instància",
     "operator": "Operador",
-    "triggerRule": "Regla d'execució"
+    "retries": "Reintents",
+    "triggerRule": "Regla d'execució",
+    "waitForDownstream": "Espera aigües avall"
   },
   "task_one": "Tasca",
   "task_other": "Tasques",
@@ -281,10 +422,12 @@
   "taskGroup_other": "Grups de tasques",
   "taskId": "ID de la tasca",
   "taskInstance": {
+    "additionalAttributes": "Atributs addicionals de la instància de tasca",
     "dagVersion": "Versió del Dag",
     "executor": "Executor",
     "executorConfig": "Configuració de l'executor",
     "hostname": "Nom del Host",
+    "id": "ID",
     "maxTries": "Màxim de reintents",
     "pid": "PID",
     "pool": "Pool",
@@ -294,11 +437,13 @@
     "queuedWhen": "Enviat a cua a les",
     "renderedMapIndex": "Índex del mapa renderitzat",
     "scheduledWhen": "Programat a les",
+    "trigger": "Disparador",
     "triggerer": {
       "assigned": "Triggerer assignat",
       "class": "Classe del trigger",
       "createdAt": "Hora de creació del trigger",
       "id": "ID del trigger",
+      "job": "Treball del Triggerer",
       "latestHeartbeat": "Darrer batec del triggerer",
       "title": "Informació del Triggerer"
     },
@@ -306,6 +451,12 @@
   },
   "taskInstance_one": "Instància de tasca",
   "taskInstance_other": "Instàncies de tasca",
+  "teams": {
+    "more_one": "i {{count}} més",
+    "more_other": "i {{count}} més",
+    "none": "Sense equip",
+    "title": "Equips"
+  },
   "timeRange": {
     "last12Hours": "Darreres 12 hores",
     "last24Hours": "Darreres 24 hores",
@@ -390,6 +541,7 @@
   "total": "Total {{state}}",
   "triggered": "Executat",
   "tryNumber": "Número d'intent",
+  "unpause": "Reprendre",
   "user": "Usuari",
   "validation": {
     "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
