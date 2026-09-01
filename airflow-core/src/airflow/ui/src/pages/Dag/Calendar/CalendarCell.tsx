@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { BasicTooltip } from "src/components/BasicTooltip";
+import { Tooltip } from "src/components/ui";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import type { CalendarCellData, CalendarColorMode } from "./types";
@@ -146,8 +146,21 @@ export const CalendarCell = ({
   }
 
   return (
-    <BasicTooltip content={<CalendarTooltip cellData={cellData} viewMode={viewMode} />}>
+    <Tooltip
+      content={<CalendarTooltip cellData={cellData} viewMode={viewMode} />}
+      lazyMount
+      openDelay={500}
+      portalled
+      positioning={{
+        offset: {
+          crossAxis: 5,
+          mainAxis: 5,
+        },
+        placement: "bottom",
+      }}
+      unmountOnExit
+    >
       {cellBox}
-    </BasicTooltip>
+    </Tooltip>
   );
 };

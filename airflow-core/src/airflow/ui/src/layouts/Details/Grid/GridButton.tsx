@@ -69,6 +69,7 @@ export const GridButton = ({
           </Text>
         </VStack>
       }
+      lazyMount
       openDelay={500}
       portalled
       positioning={{
@@ -78,6 +79,7 @@ export const GridButton = ({
         },
         placement: "bottom",
       }}
+      unmountOnExit
     >
       <Box as="span" display="inline-block">
         {isGroup ? (
