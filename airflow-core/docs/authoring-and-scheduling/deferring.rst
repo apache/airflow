@@ -86,8 +86,7 @@ When writing a deferrable operators these are the main points to consider:
     from datetime import timedelta
     from typing import Any
 
-    from airflow.configuration import conf
-    from airflow.sdk import BaseSensorOperator, Context
+    from airflow.sdk import BaseSensorOperator, Context, conf
     from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 
 
