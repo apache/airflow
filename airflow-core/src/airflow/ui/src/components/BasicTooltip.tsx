@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Portal } from "@chakra-ui/react";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import { Box, Portal } from "@chakra-ui/react";
 
 type Props = {
   readonly children: ReactNode;
