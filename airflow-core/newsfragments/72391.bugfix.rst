@@ -1,0 +1,1 @@
+Import errors for deleted Dag files are now cleared while a bundle refresh is being skipped, instead of staying visible for up to ``refresh_interval`` seconds.
