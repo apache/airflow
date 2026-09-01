@@ -34,6 +34,8 @@ How It Works
 1. Sends requests to an API every ``poll_interval`` seconds (default 60).
 2. Uses the callable at ``response_check_path`` to evaluate the API response.
 3. If the callable returns ``True``, a ``TriggerEvent`` is emitted. This will trigger DAGs using this ``AssetWatcher`` for scheduling.
+4. If the request fails or the callable raises, the error is logged with its traceback and the trigger polls again after ``poll_interval`` seconds.
+5. After ``max_consecutive_failures`` consecutive failed polls (default 10) the trigger reports the error instead of absorbing it, so a persistently broken watcher surfaces in the triggerer log; the triggerer then restarts it.
 
 .. note::
    This trigger requires **Airflow >= 3.0** due to dependencies on ``AssetWatcher`` and event-driven scheduling infrastructure.
@@ -146,6 +148,9 @@ Parameters
 
 ``poll_interval``
     How often, in seconds, the trigger should send a request to the API
+
+``max_consecutive_failures``
+    How many consecutive failed polls the trigger absorbs before reporting the error to the triggerer. A successful poll resets the count.
 
 
 Important Notes

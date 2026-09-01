@@ -298,6 +298,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
     :parama poll_interval: How often, in seconds, the trigger should send a request to the API.
+    :param max_consecutive_failures: How many consecutive failed polls the trigger tolerates
+        before giving up and reporting the error instead of retrying.
     """
 
     def __init__(
@@ -311,10 +313,14 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
         poll_interval: float = 60.0,
+        max_consecutive_failures: int = 10,
     ):
         super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
         self.response_check_path = response_check_path
         self.poll_interval = poll_interval
+        if max_consecutive_failures < 1:
+            raise ValueError("max_consecutive_failures must be greater or equal to 1")
+        self.max_consecutive_failures = max_consecutive_failures
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpEventTrigger arguments and classpath."""
@@ -330,26 +336,46 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                 "extra_options": self.extra_options,
                 "response_check_path": self.response_check_path,
                 "poll_interval": self.poll_interval,
+                "max_consecutive_failures": self.max_consecutive_failures,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via a http hook until the response passes the response check."""
         hook = super()._get_async_hook()
-        try:
-            while True:
+        failures = 0
+        while True:
+            try:
                 response = await super()._get_response(hook)
-                if await self._run_response_check(response):
-                    break
-                await asyncio.sleep(self.poll_interval)
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "response": HttpResponseSerializer.serialize(response),
-                }
-            )
-        except Exception as e:
-            self.log.error("status: error, message: %s", str(e))
+                check_passed = await self._run_response_check(response)
+                event = (
+                    TriggerEvent(
+                        {
+                            "status": "success",
+                            "response": HttpResponseSerializer.serialize(response),
+                        }
+                    )
+                    if check_passed
+                    else None
+                )
+            except Exception:
+                failures += 1
+                if failures >= self.max_consecutive_failures:
+                    # Stop absorbing: the triggerer records the traceback and restarts the
+                    # watcher, and anything deferred on this trigger fails instead of hanging.
+                    raise
+                self.log.exception(
+                    "Poll failed (%s/%s), retrying in %s seconds",
+                    failures,
+                    self.max_consecutive_failures,
+                    self.poll_interval,
+                )
+            else:
+                failures = 0
+                if event is not None:
+                    yield event
+                    return
+            await asyncio.sleep(self.poll_interval)
 
     async def _import_from_response_check_path(self):
         """Import the response check callable from the path provided by the user."""
