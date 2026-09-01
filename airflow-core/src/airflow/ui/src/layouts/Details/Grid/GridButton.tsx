@@ -22,7 +22,7 @@ import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 import { useDurationFormat } from "src/utils";
 
 
@@ -71,6 +71,7 @@ export const GridButton = ({
           </Text>
         </VStack>
       }
+      lazyMount
       openDelay={500}
       portalled
       positioning={{
@@ -80,6 +81,7 @@ export const GridButton = ({
         },
         placement: "bottom",
       }}
+      unmountOnExit
     >
       <Box as="span" display="inline-block">
         {isGroup ? (
