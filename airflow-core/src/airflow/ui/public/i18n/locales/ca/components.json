@@ -7,10 +7,20 @@
     "backwards": "Executar enrere",
     "dateRange": "Interval de dates",
     "errorStartDateBeforeEndDate": "La data d'inici ha de ser anterior a la data de finalització",
+    "exceptionReason": {
+      "alreadyExists": "Ja existeix",
+      "inFlight": "En curs",
+      "unknown": "Desconegut"
+    },
     "maxRuns": "Màxim d'execucions actives",
     "missingAndErroredRuns": "Execucions absents i amb errors",
     "missingRuns": "Execucions absents",
+    "notCreatedReason": "Motiu de no creació",
     "overrideExistingParams": "Substituir paràmetres en les execucions existents",
+    "partitionRange": "Interval de particions",
+    "partitionsAffected_one": "Es reomplirà {{count}} partició:",
+    "partitionsAffected_other": "Es reompliran {{count}} particions:",
+    "partitionsNone": "No hi ha cap partició que coincideixi amb l'interval seleccionat.",
     "permissionDenied": "Execució de prova fallida: l'usuari no té permís per crear reompliments.",
     "reprocessBehavior": "Comportament de reprocessament",
     "run": "Executar reompliment",
@@ -29,7 +39,8 @@
     "validation": {
       "datesRequired": "S'ha de proporcionar tant la data d'inici com la data de finalització.",
       "startBeforeEnd": "La data d'inici de l'interval de dates ha de ser anterior o igual a la data de finalització de l'interval de dates."
-    }
+    },
+    "viewSlots": "Veure els slots del reompliment núm. {{id}}"
   },
   "banner": {
     "backfillInProgress": "Reompliment en curs",
@@ -65,6 +76,7 @@
     "lastDagRun_other": "Últimes {{count}} execucions del Dag",
     "lastTaskInstance_one": "Última instància de tasca",
     "lastTaskInstance_other": "Últimes {{count}} instàncies de tasca",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Durada en cua",
     "runAfter": "Executar després",
     "runDuration": "Durada d'execució"
@@ -112,7 +124,15 @@
     "file": "Fitxer",
     "location": "línia {{line}} a {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Amagar el valor",
+    "show": "Mostrar el valor"
+  },
   "reparseDag": "Reanalitzar el Dag",
+  "slowestTaskInstances": {
+    "empty": "No hi ha cap instància de tasca completada en aquest interval",
+    "title": "Instàncies de tasca més lentes"
+  },
   "sortedAscending": "ordenat de manera ascendent",
   "sortedDescending": "ordenat de manera descendent",
   "sortedUnsorted": "no ordenat",
@@ -137,6 +157,7 @@
     "loading": "Carregant informació del Dag...",
     "loadingFailed": "No s'ha pogut carregar la informació del Dag. Si us plau, torneu-ho a intentar.",
     "manualRunDenied": "Aquest Dag no permet execucions manuals",
+    "partitionKeyHelp": "Opcional: només s'aplica als Dags particionats",
     "runIdHelp": "Opcional - es generarà si no es proporciona",
     "selectDescription": "Executar una única execució d'aquest Dag",
     "selectLabel": "Execució única",

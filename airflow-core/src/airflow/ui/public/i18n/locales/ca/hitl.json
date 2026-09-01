@@ -24,6 +24,20 @@
     "success": "Resposta de {{taskId}} exitosa",
     "title": "Instància de tasca humana - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Seleccioneu una acció requerida per veure'n els detalls"
+    },
+    "list": {
+      "completedRequiredActions": "Accions requerides completades ({{count}})",
+      "loadError": "No s'han pogut carregar les accions requerides",
+      "loadingActions": "Carregant les accions requerides...",
+      "pendingRequiredActions": "Accions requerides pendents ({{count}})"
+    },
+    "openReviewDrawer": "Obrir el calaix de revisió",
+    "pageLimitHint": "Aquí només es mostren les primeres accions. Utilitzeu \"$t(review.viewAll)\" per veure-les totes.",
+    "viewAll": "Veure totes les accions requerides"
+  },
   "state": {
     "approvalReceived": "Aprovació rebuda",
     "approvalRequired": "Aprovació requerida",

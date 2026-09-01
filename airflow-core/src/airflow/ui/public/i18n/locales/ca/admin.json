@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "Secció"
-    }
+    },
+    "config_one": "Configuració",
+    "config_other": "Configuracions"
   },
   "connections": {
     "add": "Afegir connexió",
@@ -95,7 +97,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "Treball",
+    "job_other": "Treballs"
   },
   "plugins": {
     "columns": {
@@ -103,6 +107,8 @@
     },
     "importError_one": "Error d'importació d'extensió",
     "importError_other": "Errors d'importació d'extensió",
+    "plugin_one": "Extensió",
+    "plugin_other": "Extensions",
     "searchPlaceholder": "Cercar per fitxer"
   },
   "pools": {
@@ -136,7 +142,9 @@
     "columns": {
       "packageName": "Nom del paquet",
       "version": "Versió"
-    }
+    },
+    "provider_one": "Provider",
+    "provider_other": "Providers"
   },
   "variables": {
     "add": "Afegir variable",
@@ -176,6 +184,7 @@
           "title": "Ignorar"
         }
       },
+      "parsingFile": "Analitzant el fitxer...",
       "title": "Importar Variables",
       "upload": "Penjar un fitxer JSON",
       "uploadPlaceholder": "Penjar un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...})"
