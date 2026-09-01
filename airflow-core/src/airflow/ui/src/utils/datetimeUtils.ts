@@ -42,62 +42,63 @@ type DurationPart = { fractionDigits?: number; unit: DurationUnit; value: number
 /** `narrow` ("1h 2m") suits dense tables and charts; `long` ("1 hour, 2 minutes") suits prose. */
 type DurationStyle = "long" | "narrow";
 
-// Durations render in every table row and chart tick callback, and Intl formatters are costly to
-// construct, so instances are reused. A stored language Intl rejects must not blank out every
-// duration in the UI, hence the fallback instead of letting the RangeError escape.
-const unitFormatters = new Map<string, Intl.NumberFormat>();
+// Intl constructors are costly and durations render in every table row and chart tick callback, so
+// instances are reused. A stored language Intl rejects must not blank out every duration in the UI,
+// hence the fallback to DEFAULT_LOCALE rather than letting the RangeError escape.
+const createIntlCache = <T>() => {
+  const cache = new Map<string, T>();
+
+  return (variant: string, locale: string, construct: (forLocale: string) => T): T => {
+    const key = `${locale}|${variant}`;
+    const cached = cache.get(key);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    let formatter: T;
+
+    try {
+      formatter = construct(locale);
+    } catch {
+      formatter = construct(DEFAULT_LOCALE);
+    }
+
+    cache.set(key, formatter);
+
+    return formatter;
+  };
+};
+
+const unitFormatter = createIntlCache<Intl.NumberFormat>();
+const listFormatter = createIntlCache<Intl.ListFormat>();
+const relativeTimeFormatter = createIntlCache<Intl.RelativeTimeFormat>();
 
 const getUnitFormatter = (locale: string, style: DurationStyle, part: DurationPart): Intl.NumberFormat => {
   const { fractionDigits = 0, unit } = part;
-  const key = `${locale}|${unit}|${fractionDigits}|${style}`;
-  const cached = unitFormatters.get(key);
 
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const options: Intl.NumberFormatOptions = {
-    maximumFractionDigits: fractionDigits,
-    style: "unit",
-    unit,
-    unitDisplay: style,
-  };
-  let formatter: Intl.NumberFormat;
-
-  try {
-    formatter = new Intl.NumberFormat(locale, options);
-  } catch {
-    formatter = new Intl.NumberFormat(DEFAULT_LOCALE, options);
-  }
-
-  unitFormatters.set(key, formatter);
-
-  return formatter;
+  return unitFormatter(
+    `${unit}|${fractionDigits}|${style}`,
+    locale,
+    (forLocale) =>
+      new Intl.NumberFormat(forLocale, {
+        maximumFractionDigits: fractionDigits,
+        style: "unit",
+        unit,
+        unitDisplay: style,
+      }),
+  );
 };
 
-const listFormatters = new Map<string, Intl.ListFormat>();
+const getListFormatter = (locale: string, style: DurationStyle): Intl.ListFormat =>
+  listFormatter(style, locale, (forLocale) => new Intl.ListFormat(forLocale, { style, type: "unit" }));
 
-const getListFormatter = (locale: string, style: DurationStyle): Intl.ListFormat => {
-  const key = `${locale}|${style}`;
-  const cached = listFormatters.get(key);
-
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const options: Intl.ListFormatOptions = { style, type: "unit" };
-  let formatter: Intl.ListFormat;
-
-  try {
-    formatter = new Intl.ListFormat(locale, options);
-  } catch {
-    formatter = new Intl.ListFormat(DEFAULT_LOCALE, options);
-  }
-
-  listFormatters.set(key, formatter);
-
-  return formatter;
-};
+const getRelativeTimeFormatter = (locale: string): Intl.RelativeTimeFormat =>
+  relativeTimeFormatter(
+    "auto",
+    locale,
+    (forLocale) => new Intl.RelativeTimeFormat(forLocale, { numeric: "auto" }),
+  );
 
 // Unit names, decimal separators, plural forms and the joiner all come from CLDR, so "1h 2m" is
 // "1 ч 2 мин" in ru. This reproduces Intl.DurationFormat's narrow style exactly (verified across
@@ -281,31 +282,6 @@ const RELATIVE_TIME_UNITS: Array<{ seconds: number; unit: Intl.RelativeTimeForma
   { seconds: 1, unit: "second" },
 ];
 
-const RELATIVE_TIME_FALLBACK_UNIT = { seconds: 1, unit: "second" } as const;
-
-const relativeTimeFormatters = new Map<string, Intl.RelativeTimeFormat>();
-
-const getRelativeTimeFormatter = (locale: string): Intl.RelativeTimeFormat => {
-  const cached = relativeTimeFormatters.get(locale);
-
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const options: Intl.RelativeTimeFormatOptions = { numeric: "auto" };
-  let formatter: Intl.RelativeTimeFormat;
-
-  try {
-    formatter = new Intl.RelativeTimeFormat(locale, options);
-  } catch {
-    formatter = new Intl.RelativeTimeFormat(DEFAULT_LOCALE, options);
-  }
-
-  relativeTimeFormatters.set(locale, formatter);
-
-  return formatter;
-};
-
 export const getRelativeTime = (
   date: string | null | undefined,
   locale: string = i18n.language || DEFAULT_LOCALE,
@@ -317,7 +293,8 @@ export const getRelativeTime = (
   const elapsed = dayjs(date).diff(dayjs(), "second", true);
   const magnitude = Math.abs(elapsed);
   const index = RELATIVE_TIME_UNITS.findIndex((entry) => magnitude >= entry.seconds);
-  const candidate = RELATIVE_TIME_UNITS[index] ?? RELATIVE_TIME_FALLBACK_UNIT;
+  // Anything under a minute falls through to the smallest unit in the table.
+  const candidate = RELATIVE_TIME_UNITS[index] ?? RELATIVE_TIME_UNITS.at(-1)!;
   const rounded = Math.round(elapsed / candidate.seconds);
 
   // Rounding can saturate the unit the magnitude was picked from -- 59.7 minutes rounds to 60 -- so

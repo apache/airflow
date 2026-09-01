@@ -31,7 +31,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { type DurationFormat, useDurationFormat } from "src/utils/useDurationFormat";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
@@ -60,10 +60,9 @@ const isReprocessBehavior = (value: string | null): value is ReprocessBehavior =
   (REPROCESS_BEHAVIOR_VALUES as ReadonlyArray<string | null>).includes(value);
 
 type ColumnProps = {
-  readonly formatElapsed: (startDate?: string | null, endDate?: string | null) => string | undefined;
   readonly onSelectBackfill: (backfillId: number) => void;
   readonly translate: TFunction;
-};
+} & Pick<DurationFormat, "formatElapsed">;
 
 const getColumns = ({
   formatElapsed,

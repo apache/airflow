@@ -38,6 +38,7 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
@@ -50,7 +51,6 @@ import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
 import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
@@ -89,8 +89,6 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
-  readonly renderDuration: (duration: number | null | undefined) => string | undefined;
-  readonly renderExactDuration: (duration: number | null | undefined) => string | undefined;
   readonly runId?: string;
   readonly taskId?: string;
   readonly translate: TFunction;
@@ -99,8 +97,6 @@ type ColumnProps = {
 const taskInstanceColumns = ({
   dagId,
   multiTeam,
-  renderDuration,
-  renderExactDuration,
   runId,
   taskId,
   translate,
@@ -244,9 +240,7 @@ const taskInstanceColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => (
-      <span title={renderExactDuration(original.duration)}>{renderDuration(original.duration)}</span>
-    ),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {
@@ -275,7 +269,6 @@ const taskInstanceColumns = ({
 
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
-  const { renderDuration, renderExactDuration } = useDurationFormat();
   const { dagId, groupId, runId, taskId } = useParams();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
@@ -414,8 +407,6 @@ export const TaskInstances = () => {
   const columns = taskInstanceColumns({
     dagId,
     multiTeam: multiTeamEnabled,
-    renderDuration,
-    renderExactDuration,
     runId,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,
