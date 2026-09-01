@@ -225,6 +225,12 @@ connection-types:
           type:
             - boolean
             - 'null'
+      ssl_ca_cert:
+        label: SSL CA cert
+        schema:
+          type:
+            - string
+            - 'null'
       xcom_sidecar_container_image:
         label: XCom sidecar image
         schema:
