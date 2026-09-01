@@ -32,7 +32,6 @@ from tabulate import tabulate
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.dag_processing.importers import get_importer_registry
 from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
@@ -54,6 +53,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.dag_processing.importers import DagImporterRegistry
     from airflow.models.dagwarning import DagWarning
 
 
@@ -216,10 +216,22 @@ class DagBag(LoggingMixin):
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
+        importer_registry: DagImporterRegistry | None = None,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
+
+        if importer_registry is None:
+            if bundle_name:
+                from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+                importer_registry = DagBundlesManager().get_importer_registry(bundle_name)
+            else:
+                from airflow.dag_processing.importers import get_importer_registry
+
+                importer_registry = get_importer_registry()
+        self.importer_registry = importer_registry
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -314,8 +326,7 @@ class DagBag(LoggingMixin):
 
         self.captured_warnings.pop(filepath, None)
 
-        registry = get_importer_registry()
-        importer = registry.get_importer(filepath)
+        importer = self.importer_registry.get_importer(filepath)
 
         if importer is None:
             self.log.debug("No importer found for file: %s", filepath)
@@ -495,8 +506,7 @@ class DagBag(LoggingMixin):
         # Ensure dag_folder is a str -- it may have been a pathlib.Path
         dag_folder = correct_maybe_zipped(str(dag_folder))
 
-        registry = get_importer_registry()
-        files_to_parse = registry.list_dag_files(dag_folder, safe_mode=safe_mode)
+        files_to_parse = self.importer_registry.list_dag_files(dag_folder, safe_mode=safe_mode)
 
         for filepath in files_to_parse:
             try:

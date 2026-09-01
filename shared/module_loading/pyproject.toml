@@ -31,6 +31,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "apache-airflow-devel-common",
+    "apache-airflow-shared-configuration",
 ]
 mypy = [
     "apache-airflow-devel-common[mypy]",

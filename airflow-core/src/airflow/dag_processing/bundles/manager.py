@@ -28,7 +28,7 @@ from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import and_, delete, exists, or_, select, update
 
-from airflow._shared.module_loading import import_string
+from airflow._shared.module_loading import import_string, load_dag_importers
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
@@ -43,6 +43,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
+
+    from airflow.dag_processing.importers import DagImporterRegistry
 
 log = logging.getLogger(__name__)
 
@@ -86,6 +88,7 @@ class _ExternalBundleConfig(BaseModel):
     classpath: str
     kwargs: dict
     team_name: str | None = None
+    importers: list[dict[str, Any]] | None = None
 
 
 class _InternalBundleConfig(BaseModel):
@@ -99,6 +102,7 @@ class _InternalBundleConfig(BaseModel):
     bundle_class: type[BaseDagBundle]
     kwargs: dict
     team_name: str | None = None
+    importers: list[dict[str, Any]] | None = None
 
 
 def _bundle_item_exc(msg):
@@ -261,6 +265,7 @@ class DagBundlesManager(LoggingMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
+        self._bundle_importers: dict[str, DagImporterRegistry] = {}
         self.parse_config()
 
     def parse_config(self) -> None:
@@ -300,6 +305,7 @@ class DagBundlesManager(LoggingMixin):
                 bundle_class=class_,
                 kwargs=bundle_config.kwargs,
                 team_name=bundle_config.team_name,
+                importers=bundle_config.importers,
             )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
@@ -649,9 +655,14 @@ class DagBundlesManager(LoggingMixin):
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        return cfg_bundle.bundle_class(
-            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+        bundle = cfg_bundle.bundle_class(
+            name=name,
+            version=version,
+            version_data=version_data,
+            **cfg_bundle.kwargs,
         )
+        bundle._importer_registry = self.get_importer_registry(name)
+        return bundle
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
@@ -661,11 +672,52 @@ class DagBundlesManager(LoggingMixin):
         """
         for name, cfg in self._bundle_config.items():
             try:
-                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                bundle = cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                bundle._importer_registry = self.get_importer_registry(name)
+                yield bundle
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
                 # Skip this bundle and continue with others
                 continue
+
+    def create_importer_registry(
+        self, bundle_name: str, importers_config: list[dict[str, Any]] | None
+    ) -> DagImporterRegistry:
+        """Create and configure a DagImporterRegistry for a bundle with 3-tier precedence."""
+        from airflow.dag_processing.importers import DagImporterRegistry
+
+        registry = DagImporterRegistry()
+
+        # Global configuration
+        global_importers = conf.getjson("dag_processor", "dag_importer_configs", fallback=None)
+        if global_importers:
+            if not isinstance(global_importers, list):
+                raise AirflowConfigException(
+                    "Section `dag_processor` key `dag_importer_configs` must be a list "
+                    f"but got {global_importers.__class__.__name__}"
+                )
+            self._load_importers_into_registry(registry, global_importers, context="global configuration")
+
+        # Bundle explicit mapping
+        if importers_config:
+            self._load_importers_into_registry(registry, importers_config, context=f"bundle '{bundle_name}'")
+
+        return registry
+
+    def _load_importers_into_registry(
+        self, registry: DagImporterRegistry, configs: list[dict[str, Any]], context: str
+    ) -> None:
+        """Dynamically load and register custom DAG importers."""
+        for importer, extensions in load_dag_importers(configs, context=context):
+            registry.register(importer, extensions=extensions)
+
+    def get_importer_registry(self, bundle_name: str) -> DagImporterRegistry:
+        """Get the DAG importer registry for a bundle."""
+        if bundle_name not in self._bundle_importers:
+            cfg = self._bundle_config.get(bundle_name)
+            importers_config = cfg.importers if cfg else None
+            self._bundle_importers[bundle_name] = self.create_importer_registry(bundle_name, importers_config)
+        return self._bundle_importers[bundle_name]
 
     def get_all_bundle_names(self) -> Iterable[str]:
         """
