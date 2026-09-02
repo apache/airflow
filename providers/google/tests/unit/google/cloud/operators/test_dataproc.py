@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 import inspect
+import warnings
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import ANY, MagicMock, Mock, call
@@ -44,6 +45,7 @@ from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_JOB_LINK_DEPRECATED,
 )
 from airflow.providers.google.cloud.operators.dataproc import (
+    _DURABLE_UNSET,
     ClusterGenerator,
     DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
@@ -61,6 +63,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocUpdateClusterOperator,
     InstanceFlexibilityPolicy,
     InstanceSelection,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
@@ -73,7 +76,7 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 
 from tests_common.test_utils.compat import DagSerialization, timezone
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -2490,6 +2493,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             polling_interval_seconds=15,
             cancel_on_kill=False,
             request_id=REQUEST_ID,
+            durable=False,
         )
         assert op.start_from_trigger is True
         assert (
@@ -2507,6 +2511,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             "request_id": REQUEST_ID,
         }
         assert op.start_trigger_args.next_method == "execute_complete"
+        assert op.durable is False
 
     def test_start_from_trigger_without_deferrable_does_not_set_args(self):
         op = DataprocSubmitJobOperator(
@@ -2520,6 +2525,226 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         assert op.start_from_trigger is True
         assert op.start_trigger_args.trigger_kwargs == {}
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestDataprocSubmitJobOperatorDurable:
+    @staticmethod
+    def _make_operator(**kwargs):
+        return DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job={},
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _context(task_store):
+        task_instance = MagicMock(spec_set=["stats_tags", "xcom_push"])
+        task_instance.stats_tags = {}
+        return {"ti": task_instance, "task_state_store": task_store}
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_persists_job_id_on_fresh_submit(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+        op = self._make_operator()
+
+        result = op.execute(context=self._context(task_store))
+
+        task_store.set.assert_called_once_with("dataproc_job_id", TEST_JOB_ID)
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job={},
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        assert result == TEST_JOB_ID
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_reconnects_to_active_job_and_restores_runtime_state(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.get_job.return_value = dataproc.Job(
+            reference={"job_id": TEST_JOB_ID},
+            status={"state": JobStatus.State.RUNNING},
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = TEST_JOB_ID
+        context = self._context(task_store)
+        op = self._make_operator()
+
+        result = op.execute(context=context)
+
+        mock_hook.return_value.submit_job.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            timeout=None,
+        )
+        context["ti"].xcom_push.assert_called_once_with(
+            key="dataproc_job",
+            value={"job_id": TEST_JOB_ID, "region": GCP_REGION, "project_id": GCP_PROJECT},
+        )
+        assert op.job_id == TEST_JOB_ID
+        assert result == TEST_JOB_ID
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_recovers_completed_job_without_waiting_or_resubmitting(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.get_job.return_value = dataproc.Job(
+            reference={"job_id": TEST_JOB_ID},
+            status={"state": JobStatus.State.DONE},
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = TEST_JOB_ID
+        op = self._make_operator()
+
+        result = op.execute(context=self._context(task_store))
+
+        mock_hook.return_value.submit_job.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_not_called()
+        assert op.job_id == TEST_JOB_ID
+        assert result == TEST_JOB_ID
+
+    @pytest.mark.parametrize("state", [JobStatus.State.ERROR, JobStatus.State.CANCELLED])
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_resubmits_after_terminal_failure(self, mock_hook, state):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.get_job.return_value = dataproc.Job(
+            reference={"job_id": "failed-job"},
+            status={"state": state},
+        )
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = "failed-job"
+        op = self._make_operator()
+
+        result = op.execute(context=self._context(task_store))
+
+        task_store.set.assert_called_once_with("dataproc_job_id", TEST_JOB_ID)
+        mock_hook.return_value.submit_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            job={},
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        assert result == TEST_JOB_ID
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_resubmits_when_stored_job_is_not_found(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.get_job.side_effect = NotFound("gone")
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = "missing-job"
+        op = self._make_operator()
+
+        result = op.execute(context=self._context(task_store))
+
+        task_store.set.assert_called_once_with("dataproc_job_id", TEST_JOB_ID)
+        assert result == TEST_JOB_ID
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_durable_false_does_not_use_task_state(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        op = self._make_operator(durable=False)
+
+        result = op.execute(context=self._context(task_store))
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        assert result == TEST_JOB_ID
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_asynchronous_mode_does_not_use_task_state(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        op = self._make_operator(asynchronous=True)
+
+        result = op.execute(context=self._context(task_store))
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_not_called()
+        assert result == TEST_JOB_ID
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_deferrable_mode_does_not_use_task_state(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        op = self._make_operator(deferrable=True)
+
+        with pytest.raises(TaskDeferred):
+            op.execute(context=self._context(task_store))
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_openlineage_injection_runs_before_completed_job_recovery(self, mock_hook):
+        mock_hook.return_value.project_id = GCP_PROJECT
+        mock_hook.return_value.get_job.return_value = dataproc.Job(
+            reference={"job_id": TEST_JOB_ID},
+            status={"state": JobStatus.State.DONE},
+        )
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = TEST_JOB_ID
+        context = self._context(task_store)
+        op = self._make_operator(openlineage_inject_parent_job_info=True)
+
+        with mock.patch.object(
+            op,
+            "_inject_openlineage_properties_into_dataproc_job",
+            autospec=True,
+        ) as mock_inject:
+            op.execute(context=context)
+
+        mock_inject.assert_called_once_with(context)
+        mock_hook.return_value.submit_job.assert_not_called()
+
+    def test_default_args_durable_reaches_operator(self):
+        op = self._make_operator(default_args={"durable": False})
+
+        assert op.durable is False
+
+
+class TestDataprocSubmitJobOperatorPre33Compatibility:
+    def test_unset_durable_is_disabled_without_warning(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            assert _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET) is False
+
+    @pytest.mark.parametrize("durable", [True, False])
+    def test_explicit_durable_is_disabled_with_warning(self, durable):
+        with pytest.warns(UserWarning, match="has no effect"):
+            assert _warn_and_disable_durable_pre_3_3(durable) is False
 
 
 @pytest.mark.db_test
