@@ -171,11 +171,13 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_run_immediately, encode_timezone
 
-        return {
+        data: dict[str, Any] = {
             "expression": self._expression,
             "timezone": encode_timezone(self._timezone),
-            "run_immediately": encode_run_immediately(self._run_immediately),
         }
+        if self._run_immediately is not False:
+            data["run_immediately"] = encode_run_immediately(self._run_immediately)
+        return data
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """
@@ -249,10 +251,12 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
             delta = self._delta.total_seconds()
         else:
             delta = encode_relativedelta(self._delta)
-        return {
+        data: dict[str, Any] = {
             "delta": delta,
-            "run_immediately": encode_run_immediately(self._run_immediately),
         }
+        if self._run_immediately is not False:
+            data["run_immediately"] = encode_run_immediately(self._run_immediately)
+        return data
 
     @staticmethod
     def _relativedelta_in_seconds(delta: relativedelta) -> int:
