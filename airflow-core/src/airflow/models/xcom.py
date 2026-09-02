@@ -259,6 +259,7 @@ class XComModel(TaskInstanceDependencies):
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
+        prior_dates_before: datetime | None = None,
         limit: int | None = None,
     ) -> Select[tuple[XComModel]]:
         """
@@ -279,6 +280,15 @@ class XComModel(TaskInstanceDependencies):
         :param include_prior_dates: If *False* (default), only XComs from the
             specified DAG run are returned. If *True*, all matching XComs are
             returned regardless of the run it belongs to.
+        :param prior_dates_before: Reference datetime used to bound
+            ``include_prior_dates``. When provided (and ``include_prior_dates``
+            is *True*), only XComs whose run date is on or before this value are
+            returned. Callers that know the pulling task instance's own run date
+            (e.g. the Execution API) should pass it here so cross-DAG pulls are
+            bounded by the *caller's* run rather than the pulled-from DAG. When
+            *None*, the reference datetime is derived from the DAG run identified
+            by ``run_id`` scoped to the XCom's own ``dag_id`` (fallback for
+            direct model-level callers).
         :param session: Database session. If not given, a new session will be
             created for this function.
         :param limit: Limiting returning XComs
@@ -314,16 +324,27 @@ class XComModel(TaskInstanceDependencies):
             query = query.where(cls.map_index == map_indexes)
 
         if include_prior_dates:
-            dag_run_date_for_run_id = (
-                select(func.coalesce(DagRun.logical_date, DagRun.run_after))
-                .where(DagRun.run_id == run_id, DagRun.dag_id == cls.dag_id)
-                .correlate(cls)
-                .scalar_subquery()
-            )
+            if prior_dates_before is not None:
+                # The caller resolved the reference datetime (e.g. from the pulling task
+                # instance's own DAG run at the Execution API layer). Bound directly on it so
+                # cross-DAG pulls key the cutoff on the *caller's* run, not the pulled-from DAG.
+                query = query.where(
+                    func.coalesce(DagRun.logical_date, DagRun.run_after) <= prior_dates_before
+                )
+            else:
+                # Fallback for direct model-level callers: derive the reference datetime from the
+                # DAG run identified by (run_id, cls.dag_id). Scoping on cls.dag_id keeps run_id
+                # collisions across DAGs disambiguated.
+                dag_run_date_for_run_id = (
+                    select(func.coalesce(DagRun.logical_date, DagRun.run_after))
+                    .where(DagRun.run_id == run_id, DagRun.dag_id == cls.dag_id)
+                    .correlate(cls)
+                    .scalar_subquery()
+                )
 
-            query = query.where(
-                func.coalesce(DagRun.logical_date, DagRun.run_after) <= dag_run_date_for_run_id
-            )
+                query = query.where(
+                    func.coalesce(DagRun.logical_date, DagRun.run_after) <= dag_run_date_for_run_id
+                )
         else:
             query = query.where(cls.run_id == run_id)
 
