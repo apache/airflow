@@ -101,7 +101,8 @@ class AnthropicBatchOperator(ResumableJobMixin, BaseOperator):
     to XCom. Results are retained for 29 days after the batch is created.
 
     Synchronous waits on Airflow 3.3+ persist the batch ID before polling. A task retry
-    reconnects to active work and recovers successful work without submitting another batch.
+    reconnects to in-progress work or recovers a completed batch when its result policy succeeds.
+    Canceled, missing, or policy-failed work is replaced.
 
     .. seealso::
         For more information, take a look at the guide:
@@ -214,7 +215,7 @@ class AnthropicBatchOperator(ResumableJobMixin, BaseOperator):
         return self._get_batch_resume_status(batch)
 
     def is_job_active(self, status: str) -> bool:
-        return status in (BatchStatus.IN_PROGRESS, BatchStatus.CANCELING)
+        return status == BatchStatus.IN_PROGRESS
 
     def is_job_succeeded(self, status: str) -> bool:
         return status == _BATCH_RESUME_SUCCEEDED
@@ -248,8 +249,7 @@ class AnthropicBatchOperator(ResumableJobMixin, BaseOperator):
         if batch.processing_status != BatchStatus.ENDED:
             return batch.processing_status
         counts = batch.request_counts
-        total = counts.canceled + counts.errored + counts.expired + counts.succeeded
-        if total and counts.canceled == total:
+        if counts.canceled:
             return _BATCH_RESUME_FAILED
         if self.fail_on_partial_error and (counts.errored or counts.expired):
             return _BATCH_RESUME_FAILED

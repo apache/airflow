@@ -147,13 +147,12 @@ class TestAnthropicBatchOperatorExecute:
         not AIRFLOW_V_3_3_PLUS,
         reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
     )
-    @pytest.mark.parametrize("processing_status", ["in_progress", "canceling"])
     @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
-    def test_sync_retry_reconnects_to_active_batch(self, mock_hook_prop, processing_status):
+    def test_sync_retry_reconnects_to_active_batch(self, mock_hook_prop):
         hook = mock.MagicMock(spec=AnthropicHook)
         hook.get_batch.return_value = _batch(
             batch_id="batch_existing",
-            processing_status=processing_status,
+            processing_status=BatchStatus.IN_PROGRESS,
             processing=1,
         )
         hook.wait_for_batch.return_value = _batch(batch_id="batch_existing", succeeded=1)
@@ -200,10 +199,24 @@ class TestAnthropicBatchOperatorExecute:
             pytest.param(_batch(batch_id="batch_failed", errored=1), True, id="failed"),
             pytest.param(_batch(batch_id="batch_expired", expired=1), True, id="expired"),
             pytest.param(_batch(batch_id="batch_canceled", canceled=1), False, id="canceled"),
+            pytest.param(
+                _batch(batch_id="batch_partially_canceled", canceled=1, succeeded=1),
+                False,
+                id="partially-canceled",
+            ),
+            pytest.param(
+                _batch(
+                    batch_id="batch_canceling",
+                    processing_status=BatchStatus.CANCELING,
+                    processing=1,
+                ),
+                False,
+                id="canceling",
+            ),
         ],
     )
     @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
-    def test_sync_retry_resubmits_terminal_batch(
+    def test_sync_retry_replaces_non_resumable_batch(
         self,
         mock_hook_prop,
         stored_batch,
@@ -343,6 +356,46 @@ class TestAnthropicBatchOperatorExecute:
         assert task_store.get("anthropic_batch_id") == "batch_1"
         first_context["ti"].xcom_push.assert_called_once_with(key="batch_id", value="batch_1")
         retry_context["ti"].xcom_push.assert_called_once_with(key="batch_id", value="batch_1")
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+    )
+    @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
+    def test_retry_replaces_batch_canceled_by_previous_attempt(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        hook.create_batch.side_effect = [
+            _batch(batch_id="batch_1"),
+            _batch(batch_id="batch_2"),
+        ]
+        hook.get_batch.return_value = _batch(
+            batch_id="batch_1",
+            processing_status=BatchStatus.CANCELING,
+            processing=1,
+        )
+        waited_batch_ids: list[str] = []
+
+        def wait_for_batch(*, batch_id: str, wait_seconds: float, timeout: float) -> mock.MagicMock:
+            waited_batch_ids.append(batch_id)
+            if len(waited_batch_ids) == 1:
+                raise AnthropicBatchTimeout("too slow")
+            return _batch(batch_id=batch_id, succeeded=1)
+
+        hook.wait_for_batch.side_effect = wait_for_batch
+        mock_hook_prop.return_value = hook
+        task_store = FakeTaskStateStore()
+
+        first_op = AnthropicBatchOperator(task_id="t", requests=REQUESTS, deferrable=False)
+        with pytest.raises(AnthropicBatchTimeout, match="too slow"):
+            first_op.execute(_context(task_store))
+
+        retry_op = AnthropicBatchOperator(task_id="t", requests=REQUESTS, deferrable=False)
+        assert retry_op.execute(_context(task_store)) == "batch_2"
+
+        assert hook.create_batch.call_count == 2
+        hook.cancel_batch.assert_called_once_with("batch_1")
+        assert waited_batch_ids == ["batch_1", "batch_2"]
+        assert task_store.get("anthropic_batch_id") == "batch_2"
 
     @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
     def test_deferrable_defers_with_trigger(self, mock_hook_prop):

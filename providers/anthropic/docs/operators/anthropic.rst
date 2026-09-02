@@ -69,7 +69,8 @@ Parameters
 .. note::
 
     On Airflow 3.3+, synchronous waits persist the batch ID before polling. A retry reconnects
-    to an active batch or recovers its successful result. Deferrable tasks,
+    to an in-progress batch or recovers a completed batch when its result policy succeeds.
+    Canceled, missing, or policy-failed batches are replaced. Deferrable tasks,
     ``wait_for_completion=False``, and older Airflow versions still submit a new batch on retry.
 
 Example
