@@ -34,6 +34,11 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context
 
+# Older google-cloud-batch clients preserve these newer wire values as ints.
+# https://github.com/googleapis/googleapis/blob/02fc2b28bc702c8bb45735631ea0ad66893067fb/google/cloud/batch/v1/job.proto#L199-L205
+_CANCELLATION_IN_PROGRESS_STATE: int = 7
+_CANCELLED_STATE: int = 8
+
 
 class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
     """
@@ -159,13 +164,14 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
 
     @staticmethod
     def _raise_for_terminal_job(job: Job) -> None:
-        if job.status.state == JobStatus.State.FAILED:
+        job_state: int = int(job.status.state)
+        if job_state == JobStatus.State.FAILED:
             raise RuntimeError(f"Batch job with name {job.name} has failed its execution.")
-        if job.status.state == JobStatus.State.DELETION_IN_PROGRESS:
+        if job_state == JobStatus.State.DELETION_IN_PROGRESS:
             raise RuntimeError(f"Batch job with name {job.name} is being deleted.")
-        if job.status.state == JobStatus.State.CANCELLATION_IN_PROGRESS:
+        if job_state == _CANCELLATION_IN_PROGRESS_STATE:
             raise RuntimeError(f"Batch job with name {job.name} is being cancelled.")
-        if job.status.state == JobStatus.State.CANCELLED:
+        if job_state == _CANCELLED_STATE:
             raise RuntimeError(f"Batch job with name {job.name} was cancelled.")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:

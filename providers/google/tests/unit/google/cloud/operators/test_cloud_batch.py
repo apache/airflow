@@ -68,7 +68,7 @@ OPERATOR_ARGS: dict[str, Any] = {
 }
 
 
-def _job_with_state(state: batch_v1.JobStatus.State) -> batch_v1.Job:
+def _job_with_state(state: batch_v1.JobStatus.State | int) -> batch_v1.Job:
     return batch_v1.Job(name=FULL_JOB_NAME, status=batch_v1.JobStatus(state=state))
 
 
@@ -191,8 +191,8 @@ class TestCloudBatchSubmitJobOperator:
         [
             (batch_v1.JobStatus.State.FAILED, "has failed its execution"),
             (batch_v1.JobStatus.State.DELETION_IN_PROGRESS, "is being deleted"),
-            (batch_v1.JobStatus.State.CANCELLATION_IN_PROGRESS, "is being cancelled"),
-            (batch_v1.JobStatus.State.CANCELLED, "was cancelled"),
+            (7, "is being cancelled"),
+            (8, "was cancelled"),
         ],
     )
     @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
