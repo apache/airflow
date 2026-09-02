@@ -296,12 +296,12 @@ class TestSageMakerUnifiedStudioNotebookOperator:
         assert trigger.waiter_delay == 20
         assert trigger.timeout_configuration == {"runTimeoutInMinutes": 120}
 
-        serialized_payload = trigger.serialize()[1]
+        _, kwargs = trigger.serialize()
 
-        assert serialized_payload["region_name"] == "us-west-2"
-        assert serialized_payload["verify"] == "/tmp/custom-ca.pem"
-        assert serialized_payload["botocore_config"] == botocore_config
-        assert serialized_payload["waiter_max_attempts"] == 360
+        assert kwargs["region_name"] == "us-west-2"
+        assert kwargs["verify"] == "/tmp/custom-ca.pem"
+        assert kwargs["botocore_config"] == botocore_config
+        assert kwargs["waiter_max_attempts"] == 360
 
         assert exc_info.value.method_name == "execute_complete"
         mock_hook.wait_for_notebook_run.assert_not_called()
