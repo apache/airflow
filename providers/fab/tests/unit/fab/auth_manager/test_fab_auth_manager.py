@@ -276,6 +276,19 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.serialize_user(user)
         assert result == {"sub": str(user.id)}
 
+    def test_refresh_user_returns_user_for_authenticated(self, auth_manager_with_appbuilder):
+        user = Mock()
+        user.is_anonymous = False
+        assert auth_manager_with_appbuilder.refresh_user(user=user) is user
+
+    def test_refresh_user_returns_none_for_anonymous(self, auth_manager_with_appbuilder):
+        user = Mock()
+        user.is_anonymous = True
+        assert auth_manager_with_appbuilder.refresh_user(user=user) is None
+
+    def test_refresh_user_returns_none_for_no_user(self, auth_manager_with_appbuilder):
+        assert auth_manager_with_appbuilder.refresh_user(user=None) is None
+
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
