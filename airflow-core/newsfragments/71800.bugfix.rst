@@ -1,0 +1,7 @@
+``get_otel_logger()`` now shuts down the ``MeterProvider`` it replaces.
+
+Re-initialising the OTel metrics pipeline in a long-lived process previously left the
+previous provider's ``PeriodicExportingMetricReader`` thread running. The abandoned reader
+kept exporting instruments that were no longer being recorded to, publishing frozen
+cumulative totals under a second ``start_time_unix_nano`` and conflicting with the live
+stream for the same series.
