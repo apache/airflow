@@ -1102,18 +1102,29 @@ class TestDagRun:
         assert runs == []
 
     def test_get_queued_dag_runs_includes_cancelled_backfill_runs(
-        self, dag_maker, session, testing_dag_bundle
+        self, session, testing_dag_bundle
     ):
         """Cleared queued runs from a cancelled backfill must schedule despite stale is_paused."""
         from airflow.models.backfill import Backfill, BackfillDagRun
 
-        with dag_maker(
+        dag = DAG(
             dag_id="test_cancelled_backfill",
             schedule="@daily",
             catchup=True,
-            serialized=True,
-        ) as dag:
-            EmptyOperator(task_id="t1", owner="airflow")
+            start_date=DEFAULT_DATE,
+        )
+        EmptyOperator(task_id="t1", dag=dag, owner="airflow")
+
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name="testing",
+            has_task_concurrency_limits=False,
+            next_dagrun=DEFAULT_DATE,
+            next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
+            is_stale=False,
+        )
+        session.add(orm_dag)
+        session.flush()
 
         scheduler_dag = sync_dag_to_db(dag, session=session)
         logical_date = DEFAULT_DATE
