@@ -1672,11 +1672,140 @@ export type PoolResponse = {
 };
 
 /**
+ * Asset URI scheme handling provided by a provider.
+ */
+export type ProviderAssetUriInfo = {
+    schemes: Array<(string)>;
+    handler?: string | null;
+    factory?: string | null;
+    to_openlineage_converter?: string | null;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
     providers: Array<ProviderResponse>;
     total_entries: number;
+};
+
+/**
+ * Configuration option contributed by a provider.
+ */
+export type ProviderConfigOptionInfo = {
+    description?: string | null;
+    version_added?: string | null;
+    type?: string | null;
+    example?: string | number | null;
+    default?: string | number | null;
+    sensitive?: boolean | null;
+};
+
+/**
+ * Configuration section contributed by a provider.
+ */
+export type ProviderConfigSectionInfo = {
+    description?: string | null;
+    options?: {
+        [key: string]: ProviderConfigOptionInfo;
+    };
+};
+
+/**
+ * Connection type provided by a provider.
+ */
+export type ProviderConnectionTypeInfo = {
+    'connection-type': string;
+    'hook-class-name': string;
+    'hook-name'?: string | null;
+};
+
+/**
+ * Detailed provider serializer for responses.
+ */
+export type ProviderDetailsResponse = {
+    package_name: string;
+    description: string;
+    version: string;
+    documentation_url: string | null;
+    provider_info: ProviderInfoResponse;
+};
+
+/**
+ * SQL dialect provided by a provider.
+ */
+export type ProviderDialectInfo = {
+    'dialect-type'?: string | null;
+    'dialect-class-name'?: string | null;
+};
+
+/**
+ * Typed provider metadata (from ``provider.yaml``) exposed by the API.
+ */
+export type ProviderInfoResponse = {
+    name?: string | null;
+    filesystems?: Array<(string)> | null;
+    integrations?: Array<ProviderIntegrationInfo> | null;
+    operators?: Array<ProviderIntegrationModulesInfo> | null;
+    sensors?: Array<ProviderIntegrationModulesInfo> | null;
+    hooks?: Array<ProviderIntegrationModulesInfo> | null;
+    triggers?: Array<ProviderIntegrationModulesInfo> | null;
+    bundles?: Array<ProviderIntegrationModulesInfo> | null;
+    'asset-uris'?: Array<ProviderAssetUriInfo> | null;
+    dialects?: Array<ProviderDialectInfo> | null;
+    transfers?: Array<ProviderTransferInfo> | null;
+    'connection-types'?: Array<ProviderConnectionTypeInfo> | null;
+    'extra-links'?: Array<(string)> | null;
+    'secrets-backends'?: Array<(string)> | null;
+    logging?: Array<(string)> | null;
+    'remote-logging'?: Array<ProviderRemoteLoggingInfo> | null;
+    'auth-backends'?: Array<(string)> | null;
+    'auth-managers'?: Array<(string)> | null;
+    notifications?: Array<(string)> | null;
+    executors?: Array<(string)> | null;
+    'db-managers'?: Array<(string)> | null;
+    cli?: Array<(string)> | null;
+    config?: {
+    [key: string]: ProviderConfigSectionInfo;
+} | null;
+    'task-decorators'?: Array<ProviderTaskDecoratorInfo> | null;
+    plugins?: Array<ProviderPluginInfo> | null;
+    queues?: Array<(string)> | null;
+};
+
+/**
+ * Integration provided by a provider.
+ */
+export type ProviderIntegrationInfo = {
+    'integration-name': string;
+    'external-doc-url'?: string | null;
+    'how-to-guide'?: Array<(string)> | null;
+    logo?: string | null;
+    tags?: Array<(string)> | null;
+};
+
+/**
+ * Python modules an integration contributes for one kind of functionality.
+ */
+export type ProviderIntegrationModulesInfo = {
+    'integration-name': string;
+    'python-modules': Array<(string)>;
+};
+
+/**
+ * Plugin provided by a provider.
+ */
+export type ProviderPluginInfo = {
+    name?: string | null;
+    'plugin-class'?: string | null;
+};
+
+/**
+ * Remote logging IO handler provided by a provider.
+ */
+export type ProviderRemoteLoggingInfo = {
+    classpath: string;
+    scheme: string;
 };
 
 /**
@@ -1687,6 +1816,24 @@ export type ProviderResponse = {
     description: string;
     version: string;
     documentation_url: string | null;
+};
+
+/**
+ * TaskFlow decorator provided by a provider.
+ */
+export type ProviderTaskDecoratorInfo = {
+    name?: string | null;
+    'class-name'?: string | null;
+};
+
+/**
+ * Transfer operator provided by a provider.
+ */
+export type ProviderTransferInfo = {
+    'source-integration-name': string;
+    'target-integration-name': string;
+    'python-module': string;
+    'how-to-guide'?: string | null;
 };
 
 /**
@@ -4377,6 +4524,12 @@ export type GetProvidersData = {
 };
 
 export type GetProvidersResponse = ProviderCollectionResponse;
+
+export type GetProviderData = {
+    providerName: string;
+};
+
+export type GetProviderResponse = ProviderDetailsResponse;
 
 export type ListAssetStateStoreData = {
     assetId: number;
@@ -7759,6 +7912,33 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/providers/{provider_name}': {
+        get: {
+            req: GetProviderData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ProviderDetailsResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
