@@ -272,10 +272,7 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 # schedule_asset_alias_references, task_outlet_asset_references, dag_owner_links) via
 # selectinload, one follow-up "WHERE dag_id IN (...)" statement per collection, on top of the
 # base DagModel select: 6 statements x 2 calls = 12, replacing the 2 statements (1 per call) it
-# cost when all five collections were joinedload'd into one query. See GH#72393: joinedload on
-# multiple one-to-many collections in a single query multiplies result rows (a production case
-# saw 500 dag_ids balloon into 3,907 rows), which is far more expensive for a client to receive
-# and deserialize than the extra round trips selectinload costs here.
+# cost when all five collections were joinedload'd into one query instead. See #72393.
 FIXED_PER_CALL = 19
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5

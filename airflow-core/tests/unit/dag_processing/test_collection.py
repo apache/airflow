@@ -170,6 +170,132 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
     assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
+def _loader_strategies(stmt) -> dict[str, str]:
+    """
+    Map relationship name -> its "lazy" loader strategy (e.g. "selectin", "joined") for a Select.
+
+    Inspects the ORM loader options actually attached to the statement, not just the number of
+    queries it happens to cost -- a query-count assertion can be "corrected" by someone who
+    doesn't realize they've reintroduced row-explosion, but a loader-strategy assertion can't be
+    satisfied by joinedload no matter how the counts are adjusted.
+    """
+    strategies = {}
+    for opt in stmt._with_options:
+        path = list(opt.path.path)
+        if len(path) < 2 or not opt.context:
+            continue
+        relationship_name = path[1].key
+        strategy = dict(opt.context[0].strategy or ())
+        if "lazy" in strategy:
+            strategies[relationship_name] = strategy["lazy"]
+    return strategies
+
+
+@pytest.mark.db_test
+class TestFindOrmDagsLoaderStrategy:
+    """
+    Regression coverage for #72393: find_orm_dags() row-explosion via joinedload.
+
+    ``DagModelOperation.find_orm_dags`` eager-loads five one-to-many collections on DagModel.
+    Combining multiple ``joinedload()`` calls on one-to-many collections into a single query
+    multiplies result rows (tags x asset refs x owner links per dag_id); ``selectinload`` avoids
+    that by issuing one follow-up query per collection instead. A pinned query-count assertion
+    alone doesn't protect against this regressing, since a future contributor could "fix" a
+    failing count assertion by simply loosening the pinned number without understanding why it
+    moved. These tests instead assert on the loader strategy directly, and on the actual number
+    of rows the base query returns, which a joinedload regression cannot hide from.
+    """
+
+    relationships = (
+        "tags",
+        "schedule_asset_references",
+        "schedule_asset_alias_references",
+        "task_outlet_asset_references",
+        "dag_owner_links",
+    )
+
+    def test_find_orm_dags_uses_selectinload(self, session):
+        """Every one-to-many collection find_orm_dags loads must use selectin, never joined."""
+        dag_op = DagModelOperation(dags={}, bundle_name="testing", bundle_version=None)
+
+        captured: dict = {}
+        real_scalars = session.scalars
+
+        def capture(stmt, *args, **kwargs):
+            captured["stmt"] = stmt
+            return real_scalars(stmt, *args, **kwargs)
+
+        with mock.patch.object(session, "scalars", side_effect=capture):
+            dag_op.find_orm_dags(session=session)
+
+        strategies = _loader_strategies(captured["stmt"])
+        assert set(strategies) == set(self.relationships), (
+            f"find_orm_dags should eager-load exactly {self.relationships}, got {sorted(strategies)}"
+        )
+        for relationship_name, strategy in strategies.items():
+            assert strategy == "selectin", (
+                f"DagModel.{relationship_name} is loaded via {strategy!r}, not 'selectin'. "
+                "Loading more than one one-to-many collection with joinedload() in a single "
+                "query causes a cartesian-product row explosion -- see #72393."
+            )
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_find_orm_dags_does_not_multiply_rows(self, dag_maker, session):
+        """
+        The base query find_orm_dags() issues must return exactly one row per Dag.
+
+        Give a single Dag multiple tags, owner links, and task outlet asset references, so a
+        regression back to joining all five collections into one query would multiply this into
+        many rows. Execute find_orm_dags()'s captured statement at the raw driver level (bypassing
+        the ORM's own row processing, since ``.unique()`` would otherwise quietly hide exactly the
+        multiplication this test exists to catch) and assert the row count stays at 1.
+        """
+        with dag_maker(
+            dag_id="row_explosion_probe",
+            schedule=None,
+            tags={"tag-a", "tag-b", "tag-c"},
+            owner_links={"owner-a": "https://example.com/a", "owner-b": "https://example.com/b"},
+        ):
+            EmptyOperator(task_id="produce", outlets=[Asset("probe-asset-1"), Asset("probe-asset-2")])
+        # dag_maker's own __exit__ already syncs the Dag (tags, owner links, asset references
+        # included) to the db and commits -- calling sync_dagbag_to_db() again here would
+        # double-insert the task outlet asset references and fail on a unique constraint.
+
+        # Sanity check: the fan-out relationships actually have more than one row each, or a
+        # regression to joinedload wouldn't multiply anything and this test would be meaningless.
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DagTag).where(DagTag.dag_id == "row_explosion_probe")
+            )
+            == 3
+        )
+
+        dag_op = DagModelOperation(
+            dags={"row_explosion_probe": None}, bundle_name="testing", bundle_version=None
+        )
+        captured: dict = {}
+        real_scalars = session.scalars
+
+        def capture(stmt, *args, **kwargs):
+            captured["stmt"] = stmt
+            return real_scalars(stmt, *args, **kwargs)
+
+        with mock.patch.object(session, "scalars", side_effect=capture):
+            orm_dags = dag_op.find_orm_dags(session=session)
+        assert set(orm_dags) == {"row_explosion_probe"}
+
+        compiled = captured["stmt"].compile(session.bind, compile_kwargs={"literal_binds": True})
+        cursor = session.connection().connection.cursor()
+        cursor.execute(str(compiled))
+        raw_rows = cursor.fetchall()
+        assert len(raw_rows) == 1, (
+            f"find_orm_dags()'s base query returned {len(raw_rows)} raw rows for 1 dag_id with "
+            "3 tags, 2 owner links, and 2 task outlet asset references; expected exactly 1. A "
+            "count above 1 means one-to-many collections are being joined into the base query "
+            "again instead of selectinload'd separately -- see #72393."
+        )
+
+
 @pytest.mark.db_test
 class TestAssetModelOperation:
     @staticmethod

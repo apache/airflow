@@ -549,10 +549,10 @@ class TestDag:
         ]
 
         # DagModelOperation.find_orm_dags() is called twice per bulk_write_to_db() call (once to
-        # look up existing DagModels, once to refetch after flushing new assets), and now
-        # selectinload's five one-to-many collections each cost a follow-up statement instead of
-        # being joined into one query, so this first (insert) call costs 4 more statements than
-        # before: see GH#72393 / the collection.py selectinload change.
+        # look up existing DagModels, once to refetch after flushing new assets). Its five
+        # one-to-many collections are now loaded via selectinload, each costing a follow-up
+        # statement instead of being joined into one query, so this first (insert) call costs
+        # 4 more statements than before.
         with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
@@ -571,7 +571,7 @@ class TestDag:
 
         # Re-sync should do fewer queries
         # Both find_orm_dags() calls now match existing DagModels, so both incur the full 5
-        # selectinload follow-ups (GH#72393): 9 -> 14.
+        # selectinload follow-ups: 9 -> 14.
         with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with assert_queries_count(14):
@@ -641,7 +641,7 @@ class TestDag:
         ]
 
         # See the comment on test_bulk_write_to_db's first assert_queries_count for why this went
-        # from 6 to 10 (GH#72393 selectinload change).
+        # from 6 to 10 (selectinload change).
         with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
@@ -655,7 +655,7 @@ class TestDag:
 
         # Re-sync should do fewer queries
         # Both find_orm_dags() calls now match an existing DagModel, so both incur the full 5
-        # selectinload follow-ups (GH#72393): 8 -> 14.
+        # selectinload follow-ups: 8 -> 14.
         with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with assert_queries_count(14):
@@ -674,7 +674,7 @@ class TestDag:
         ]
 
         # See the comment on test_bulk_write_to_db's first assert_queries_count for why this went
-        # from 6 to 10 (GH#72393 selectinload change).
+        # from 6 to 10 (selectinload change).
         with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
@@ -693,7 +693,7 @@ class TestDag:
 
         # Re-sync should do fewer queries
         # Both find_orm_dags() calls now match existing DagModels, so both incur the full 5
-        # selectinload follow-ups (GH#72393): 9 -> 14.
+        # selectinload follow-ups: 9 -> 14.
         with assert_queries_count(14):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with assert_queries_count(14):

@@ -587,16 +587,12 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        # NOTE: These relationships are eager-loaded with selectinload (a separate follow-up
-        # "WHERE dag_id IN (...)" query per collection) rather than joinedload (a single query
-        # joining every collection at once). Five joinedload() calls on one-to-many collections
-        # in a single query cause a cartesian-product row explosion: a run against a production
-        # deployment showed 500 input dag_ids producing 3,907 result rows. The database executed
-        # that query quickly, but the client had to receive, deserialize, and de-duplicate all
-        # those duplicate rows (including redundant copies of DagModel's JSON columns), which
-        # was observed causing multi-second delays. selectinload trades the single big query for
-        # up to five smaller follow-up queries, but each returns only the rows that actually
-        # exist, with no multiplication. See https://github.com/apache/airflow/issues/72393.
+        # Use selectinload, not joinedload, for these one-to-many collections. joinedload
+        # combines them into a single multi-way join, which multiplies result rows (tags x
+        # asset refs x owner links per dag_id) and forces the caller to receive and
+        # de-duplicate an exploded result set. selectinload issues one extra
+        # "WHERE dag_id IN (...)" query per collection instead, so each query returns only
+        # real rows. See #72393.
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
                 select(DagModel)
@@ -610,10 +606,8 @@ class DagModelOperation(NamedTuple):
             of=DagModel,
             session=session,
         )
-        # selectinload's follow-up queries don't produce duplicate parent rows the way
-        # joinedload's single-query join did, so .unique() is no longer strictly required here.
-        # It's kept as a cheap, harmless safety net (Session.scalars still requires .unique() be
-        # called when *any* loader option could yield duplicates, and it's a no-op otherwise).
+        # .unique() is no longer strictly required now that selectinload doesn't duplicate
+        # parent rows, but it's kept as a cheap, harmless safety net.
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
