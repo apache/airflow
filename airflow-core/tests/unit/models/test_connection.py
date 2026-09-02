@@ -320,6 +320,16 @@ class TestConnection:
                 f"RFC3986 warning not expected for connection '{connection.conn_id}'."
             )
 
+    @pytest.mark.parametrize("port", [0, 65535, None])
+    def test_allows_valid_port_boundaries(self, port):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == port
+
+    @pytest.mark.parametrize("port", [-1, 65536, "123", 1.5, ""])
+    def test_rejects_invalid_direct_port_values(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test-port", conn_type="http", port=port)
+
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
         [

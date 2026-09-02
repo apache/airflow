@@ -198,6 +198,34 @@ class TestConnections:
         assert connection.host == "localhost"
         assert connection.port == 5432
 
+    @pytest.mark.parametrize(
+        ("payload", "expected_port"),
+        [
+            ({"port": 0}, 0),
+            ({"port": "0"}, 0),
+            ({"port": 65535}, 65535),
+            ({"port": ""}, None),
+        ],
+    )
+    def test_from_json_port_boundaries(self, payload, expected_port):
+        connection = Connection.from_json(json.dumps(payload), conn_id="test_conn")
+        assert connection.port == expected_port
+
+    @pytest.mark.parametrize("payload", [{"port": -1}, {"port": 65536}, {"port": 1.5}, {"port": "1.5"}])
+    def test_from_json_rejects_invalid_port(self, payload):
+        with pytest.raises(ValueError, match="port"):
+            Connection.from_json(json.dumps(payload), conn_id="test_conn")
+
+    @pytest.mark.parametrize("port", [0, 65535, None])
+    def test_direct_constructor_allows_valid_port_boundaries(self, port):
+        connection = Connection(conn_id="test_conn", conn_type="http", port=port)
+        assert connection.port == port
+
+    @pytest.mark.parametrize("port", [-1, 65536, "123", 1.5, ""])
+    def test_direct_constructor_rejects_invalid_port_values(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test_conn", conn_type="http", port=port)
+
     def test_from_json_without_conn_type(self):
         """Test that from_json works without conn_type (backward compatibility with AF 2)."""
         json_data = {
