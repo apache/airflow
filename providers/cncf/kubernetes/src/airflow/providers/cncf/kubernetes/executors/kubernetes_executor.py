@@ -334,6 +334,15 @@ class KubernetesExecutor(BaseExecutor):
 
         try:
             kube_executor_config = PodGenerator.from_obj(executor_config)
+            if kube_executor_config is not None:
+                # Round-trip through a fresh Configuration rather than queuing the pod_override
+                # as constructed by user code. In-cluster, kubernetes-client 36.x's default
+                # Configuration carries a refresh_api_key_hook local closure that pickle cannot
+                # serialize; queuing this object as-is crashes the scheduler (not just the task)
+                # when task_queue.put() pickles it. See PodGenerator.deserialize_model_dict.
+                kube_executor_config = PodGenerator.deserialize_model_dict(
+                    PodGenerator.serialize_pod(kube_executor_config)
+                )
         except Exception:
             self.log.error("Invalid executor_config for %s. Executor_config: %s", key, executor_config)
             self.fail(key=key, info="Invalid executor_config passed")
