@@ -208,18 +208,23 @@ def mocked_blob_file_system():
             },
         ),
         (
+            # Custom domain / private endpoint: adls connections set account_host (a real
+            # adlfs parameter, carried through the extras overlay) rather than a full URL in
+            # host, which adlfs would ignore. This is the path the filesystem docs point at.
             Connection(
                 conn_id="testconn",
                 conn_type="adls",
-                host="https://custom.blob.core.mydomain.io",
+                host="testaccountname",
                 login="client_id",
                 password="client_secret",
                 extra={
                     "tenant_id": "tenant_id",
+                    "account_host": "custom.blob.core.mydomain.io",
                 },
             ),
             {
-                "account_url": "https://custom.blob.core.mydomain.io",
+                "account_name": "testaccountname",
+                "account_host": "custom.blob.core.mydomain.io",
                 "client_id": "client_id",
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
