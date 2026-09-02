@@ -22,12 +22,15 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+from openai import NotFoundError
+
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import BatchStatus, OpenAIHook, validate_execute_complete_event
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 _DURABLE_UNSET: object = object()
+_MISSING_BATCH_STATUS: str = "missing"
 
 
 def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
@@ -261,7 +264,10 @@ class OpenAITriggerBatchOperator(ResumableJobMixin, BaseOperator):
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         self.batch_id = cast("str", external_id)
-        return self.hook.get_batch(batch_id=self.batch_id).status
+        try:
+            return self.hook.get_batch(batch_id=self.batch_id).status
+        except NotFoundError:
+            return _MISSING_BATCH_STATUS
 
     def is_job_active(self, status: str) -> bool:
         return BatchStatus.is_in_progress(status)

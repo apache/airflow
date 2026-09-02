@@ -23,6 +23,7 @@ from types import ModuleType
 from typing import Any
 from unittest.mock import Mock
 
+import httpx
 import pytest
 from openai.types.batch import Batch
 from openai.types.responses import Response
@@ -271,6 +272,38 @@ class TestOpenAITriggerBatchOperatorResumable:
             wait_seconds=operator.wait_seconds,
             timeout=operator.timeout,
         )
+
+    def test_retry_submits_fresh_when_persisted_batch_is_missing(self) -> None:
+        operator = self._operator()
+        operator.hook = hook = self._hook()
+        store = FakeTaskStateStore({"openai_batch_id": BATCH_ID})
+        request = httpx.Request(method="GET", url=f"https://api.openai.com/v1/batches/{BATCH_ID}")
+        hook.get_batch.side_effect = openai.NotFoundError(
+            "Batch not found",
+            response=httpx.Response(status_code=404, request=request),
+            body={"error": {"message": "Batch not found"}},
+        )
+
+        result = operator.execute(self._context(store))
+
+        assert result == NEW_BATCH_ID
+        assert store.values["openai_batch_id"] == NEW_BATCH_ID
+        hook.create_batch.assert_called_once_with(file_id=FILE_ID, endpoint=BATCH_ENDPOINT)
+
+    def test_retry_propagates_other_api_errors(self) -> None:
+        operator = self._operator()
+        operator.hook = hook = self._hook()
+        store = FakeTaskStateStore({"openai_batch_id": BATCH_ID})
+        error = openai.APIConnectionError(
+            request=httpx.Request(method="GET", url=f"https://api.openai.com/v1/batches/{BATCH_ID}")
+        )
+        hook.get_batch.side_effect = error
+
+        with pytest.raises(openai.APIConnectionError) as exc_info:
+            operator.execute(self._context(store))
+
+        assert exc_info.value is error
+        hook.create_batch.assert_not_called()
 
     def test_durable_false_submits_fresh_without_touching_store(self):
         operator = self._operator(durable=False)
