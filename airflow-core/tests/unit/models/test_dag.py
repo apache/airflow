@@ -120,6 +120,7 @@ from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
+    DecreasingPriorityStrategy,
     FactorPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
@@ -398,6 +399,7 @@ class TestDag:
         [
             (StaticTestPriorityWeightStrategy, 99),
             (FactorPriorityWeightStrategy, 3),
+            (DecreasingPriorityStrategy, 4),
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
