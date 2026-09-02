@@ -6262,6 +6262,157 @@ class TestSchedulerJob:
         )
 
     @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize("catchup", [False, True])
+    def test_mapped_outlet_asset_events_consumed_with_catchup(self, catchup, session, dag_maker):
+        """Every mapped outlet event is consumed in one tick regardless of catchup.
+
+        Catchup on widens the consume predicate to scheduled-asset references; the
+        queued mapped events must still all land on a single consumer run with the
+        queue cleared, same as catchup off.
+        """
+        asset = Asset(uri="test://mapped-outlet-catchup", name="mapped_outlet_catchup")
+
+        with dag_maker(
+            dag_id="mapped-outlet-catchup-consumer",
+            schedule=[asset],
+            catchup=catchup,
+            max_active_runs=16,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+        consumer_dag = dag_maker.dag
+        consumer_dag_id = consumer_dag.dag_id
+        consume_task = consumer_dag.get_task("consume")
+
+        with dag_maker(dag_id="mapped-outlet-catchup-producer", schedule=None, session=session):
+
+            @task(outlets=[asset])
+            def produce(item):
+                return item
+
+            produce.expand(item=[1, 2, 3])
+
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+        for map_index in range(3):
+            dag_maker.run_ti("produce", dag_run=producer_run, map_index=map_index, session=session)
+        session.commit()
+
+        self._tick_asset_dagruns(session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        consumed = self._consumed_by_timestamp_then_id(created_run)
+        assert [e.source_map_index for e in consumed] == [0, 1, 2]
+        trig = self._triggering_asset_events(created_run, consume_task, asset, session)
+        assert {e.source_map_index for e in trig} == {0, 1, 2}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.need_serialized_dag
+    def test_mapped_outlet_only_successful_indices_are_consumed(self, session, dag_maker):
+        """Only mapped indices that succeed emit an event; a non-producing index is absent.
+
+        Indices 0 and 2 run and emit; index 1 never produces, so the consumer run
+        sees exactly the two events and nothing is left queued.
+        """
+        asset = Asset(uri="test://mapped-outlet-partial", name="mapped_outlet_partial")
+
+        with dag_maker(
+            dag_id="mapped-outlet-partial-consumer",
+            schedule=[asset],
+            max_active_runs=16,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+        consumer_dag = dag_maker.dag
+        consumer_dag_id = consumer_dag.dag_id
+        consume_task = consumer_dag.get_task("consume")
+
+        with dag_maker(dag_id="mapped-outlet-partial-producer", schedule=None, session=session):
+
+            @task(outlets=[asset])
+            def produce(item):
+                return item
+
+            produce.expand(item=[1, 2, 3])
+
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+        for map_index in (0, 2):
+            dag_maker.run_ti("produce", dag_run=producer_run, map_index=map_index, session=session)
+        session.commit()
+
+        events = session.scalars(
+            select(AssetEvent).where(AssetEvent.source_dag_id == producer_run.dag_id)
+        ).all()
+        assert {e.source_map_index for e in events} == {0, 2}
+
+        self._tick_asset_dagruns(session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        consumed = self._consumed_by_timestamp_then_id(created_run)
+        assert [e.source_map_index for e in consumed] == [0, 2]
+        trig = self._triggering_asset_events(created_run, consume_task, asset, session)
+        assert {e.source_map_index for e in trig} == {0, 2}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.need_serialized_dag
+    def test_mapped_outlet_or_condition_consumes_fan_out(self, session, dag_maker):
+        """An OR schedule consumes every mapped event from the asset that fired.
+
+        Only asset_a's mapped producer runs; one tick attaches all three events to
+        a single consumer run and clears the queue, with no dependence on asset_b.
+        """
+        asset_a = Asset(uri="test://mapped-outlet-or-a", name="mapped_outlet_or_a")
+        asset_b = Asset(uri="test://mapped-outlet-or-b", name="mapped_outlet_or_b")
+
+        with dag_maker(
+            dag_id="mapped-outlet-or-consumer",
+            schedule=asset_a | asset_b,
+            max_active_runs=16,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+        consumer_dag = dag_maker.dag
+        consumer_dag_id = consumer_dag.dag_id
+        consume_task = consumer_dag.get_task("consume")
+
+        with dag_maker(dag_id="mapped-outlet-or-producer", schedule=None, session=session):
+
+            @task(outlets=[asset_a])
+            def produce(item):
+                return item
+
+            produce.expand(item=[1, 2, 3])
+
+        producer_run = dag_maker.create_dagrun(run_id="producer-run")
+        for map_index in range(3):
+            dag_maker.run_ti("produce", dag_run=producer_run, map_index=map_index, session=session)
+        session.commit()
+
+        self._tick_asset_dagruns(session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer_dag_id)).one()
+        consumed = self._consumed_by_timestamp_then_id(created_run)
+        assert [e.source_map_index for e in consumed] == [0, 1, 2]
+        assert {e.asset.uri for e in consumed} == {asset_a.uri}
+        trig = self._triggering_asset_events(created_run, consume_task, asset_a, session)
+        assert {e.source_map_index for e in trig} == {0, 1, 2}
+        assert (
+            session.scalars(
+                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == consumer_dag_id)
+            ).all()
+            == []
+        )
+
+    @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_triggered_skips_stale_triggered_date(self, session, dag_maker):
         asset = Asset(uri="test://asset-for-stale-trigger-date", name="asset-for-stale-trigger-date")
         with dag_maker(dag_id="asset-consumer-stale-trigger-date", schedule=[asset], session=session):
