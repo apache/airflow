@@ -42,22 +42,66 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	simpleDag.AddTask(transform)
 	simpleDag.AddTask(load)
 
+	nativeDag := dagbag.AddDag("native_dag", v1.DagSpec{
+		Schedule:    "@daily",
+		Description: "Example Go-authored Dag",
+		Tags:        []string{"example", "go-sdk"},
+	})
+	nativeDag.AddTask(nativeExtract, v1.TaskSpec{Queue: "go-task"})
+	nativeDag.AddTask(
+		nativeTransform,
+		[]string{"nativeExtract"},
+		v1.TaskSpec{Queue: "go-task"},
+	)
+	nativeDag.AddTask(
+		nativeLoad,
+		[]string{"nativeTransform"},
+		v1.TaskSpec{Queue: "go-task"},
+	)
+
 	// Tasks defined in other packages register through the same dagbag.
 	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
-	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
+	concurrentDag.AddTaskWithName(
+		"pull_xcoms_concurrently",
+		concurrentxcom.PullXComsConcurrently,
+	)
 
 	bindingDag := dagbag.AddDag("taskflow_binding_dag")
 	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
 	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
 	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
 	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
-	bindingDag.AddTaskWithName("via_struct_no_tags", taskflowbinding.ViaStructNoTags)
-	bindingDag.AddTaskWithName("via_struct_arg_tag", taskflowbinding.ViaStructArgTag)
-	bindingDag.AddTaskWithName("via_struct_unmatched_arg", taskflowbinding.ViaStructUnmatchedArg)
+	bindingDag.AddTaskWithName(
+		"via_struct_no_tags",
+		taskflowbinding.ViaStructNoTags,
+	)
+	bindingDag.AddTaskWithName(
+		"via_struct_arg_tag",
+		taskflowbinding.ViaStructArgTag,
+	)
+	bindingDag.AddTaskWithName(
+		"via_struct_unmatched_arg",
+		taskflowbinding.ViaStructUnmatchedArg,
+	)
 	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
 	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
 	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
 
+	return nil
+}
+
+func nativeExtract(log *slog.Logger) error {
+	log.Info("Extracting native Dag data")
+	return nil
+}
+
+func nativeTransform(log *slog.Logger) error {
+	log.Info("Transforming native Dag data")
+	return nil
+}
+
+func nativeLoad(log *slog.Logger) error {
+	log.Info("Loading native Dag data")
 	return nil
 }
 

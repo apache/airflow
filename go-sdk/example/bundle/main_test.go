@@ -23,7 +23,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -48,6 +50,34 @@ func (m *mockVars) UnmarshalJSONVariable(ctx context.Context, key string, pointe
 }
 
 var _ sdk.VariableClient = (*mockVars)(nil)
+
+func TestRegisterDags(t *testing.T) {
+	registry := v1.New()
+	require.NoError(t, (&myBundle{}).RegisterDags(registry))
+
+	dags := registry.(v1.EnumerableBundle).OrderedDags()
+	require.Len(t, dags, 4)
+
+	simpleDag := dags[0]
+	assert.Equal(t, "simple_dag", simpleDag.DagID)
+	assert.Equal(t, v1.DagSpec{}, simpleDag.Spec)
+	require.Len(t, simpleDag.Tasks, 3)
+	assert.Equal(t, "extract", simpleDag.Tasks[0].ID)
+	assert.Empty(t, simpleDag.Tasks[0].Downstream)
+	assert.Equal(t, "transform", simpleDag.Tasks[1].ID)
+	assert.Empty(t, simpleDag.Tasks[1].Downstream)
+	assert.Equal(t, "load", simpleDag.Tasks[2].ID)
+	assert.Empty(t, simpleDag.Tasks[2].Downstream)
+
+	nativeDag := dags[1]
+	assert.Equal(t, "native_dag", nativeDag.DagID)
+	assert.Equal(t, "@daily", nativeDag.Spec.Schedule)
+	assert.Equal(t, []string{"example", "go-sdk"}, nativeDag.Spec.Tags)
+	require.Len(t, nativeDag.Tasks, 3)
+	assert.Equal(t, []string{"nativeTransform"}, nativeDag.Tasks[0].Downstream)
+	assert.Equal(t, []string{"nativeLoad"}, nativeDag.Tasks[1].Downstream)
+	assert.Empty(t, nativeDag.Tasks[2].Downstream)
+}
 
 func Test_transform(t *testing.T) {
 	log := slog.Default()

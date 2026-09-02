@@ -32,7 +32,7 @@ type BundleProvider interface {
 	//	func (m *myBundle) RegisterDags(dagbag bundlev1.Registry) error {
 	//		dag := dagbag.AddDag("simple_dag")
 	//		dag.AddTask(extract)
-	//		dag.AddTask(transform)
+	//		dag.AddTask(transform, []string{"extract"})
 	//		return nil
 	//	}
 	//
