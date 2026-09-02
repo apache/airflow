@@ -222,6 +222,37 @@ class TestBaseOperator:
         assert test_task.email_on_retry is False
         assert test_task.email_on_failure is True
 
+    def test_default_ignore_first_depends_on_past(self):
+        """The default comes from ``[scheduler] ignore_first_depends_on_past_by_default`` (``True``)."""
+        test_task = BaseOperator(task_id="test_default_ignore_first_depends_on_past")
+        assert test_task.ignore_first_depends_on_past is True
+
+    def test_ignore_first_depends_on_past_override(self):
+        test_task = BaseOperator(task_id="test_ignore_first_dop", ignore_first_depends_on_past=False)
+        assert test_task.ignore_first_depends_on_past is False
+
+    def test_default_ignore_first_depends_on_past_follows_config(self):
+        """
+        The module-level default must be read from config, not hardcoded.
+
+        Guards against the regression where ``[scheduler]
+        ignore_first_depends_on_past_by_default`` became a dead config that no
+        code read (the default was hardcoded, silently ignoring the option).
+        """
+        import importlib
+
+        from airflow.sdk.definitions._internal import abstractoperator
+
+        with mock.patch.dict(
+            "os.environ", {"AIRFLOW__SCHEDULER__IGNORE_FIRST_DEPENDS_ON_PAST_BY_DEFAULT": "False"}
+        ):
+            try:
+                reloaded = importlib.reload(abstractoperator)
+                assert reloaded.DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST is False
+            finally:
+                # Restore the module-level constant to its config default for other tests.
+                importlib.reload(abstractoperator)
+
     def test_incorrect_default_args(self):
         default_args = {"test_param": True, "extra_param": True}
         op = FakeOperator(default_args=default_args)
