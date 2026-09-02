@@ -268,7 +268,7 @@ class TestHttpEventTrigger:
         self, mock_hook, mock_sleep, failing_call, event_trigger, client_response, monkeypatch
     ):
         """
-        Tests the HttpEventTrigger reports the failure with its traceback and fires on a later poll.
+        Tests the HttpEventTrigger reports the failure and fires on a later poll.
         """
         error = HttpErrorException("503:Service Unavailable")
         if failing_call == "request":
@@ -292,7 +292,8 @@ class TestHttpEventTrigger:
         )
         assert mock_hook.return_value.run.call_count == 2
         mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
-        assert mock_logger.exception.call_count == 1
+        assert mock_logger.warning.call_count == 1
+        assert mock_logger.exception.call_count == 0
 
     @staticmethod
     def build_trigger_with_failure_cap(max_consecutive_failures: int) -> HttpEventTrigger:
@@ -306,27 +307,37 @@ class TestHttpEventTrigger:
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
-    async def test_trigger_gives_up_after_max_consecutive_failures(self, mock_hook, mock_sleep):
+    async def test_trigger_gives_up_after_max_consecutive_failures(self, mock_hook, mock_sleep, monkeypatch):
         trigger = self.build_trigger_with_failure_cap(3)
         mock_hook.return_value.run.side_effect = HttpErrorException("503:Service Unavailable")
+        mock_logger = mock.Mock()
+        monkeypatch.setattr(type(trigger), "log", mock_logger)
 
         with pytest.raises(HttpErrorException):
             await trigger.run().asend(None)
 
         assert mock_hook.return_value.run.call_count == 3
-        assert mock_sleep.await_count == 2
+        assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 2
+        assert mock_logger.warning.call_count == 2
+        assert mock_logger.exception.call_count == 0
 
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
-    async def test_trigger_resets_failure_count_after_a_successful_poll(
+    async def test_trigger_resets_failure_count_after_a_completed_poll(
         self, mock_hook, mock_sleep, client_response
     ):
-        trigger = self.build_trigger_with_failure_cap(2)
+        """
+        Two failures, a poll whose ``response_check`` returns False, then two more failures:
+        the count must go back to zero rather than merely drop, or the cap of 3 would trip.
+        """
+        trigger = self.build_trigger_with_failure_cap(3)
         error = HttpErrorException("503:Service Unavailable")
         mock_hook.return_value.run.side_effect = [
             error,
+            error,
             self._mock_run_result(client_response),
+            error,
             error,
             self._mock_run_result(client_response),
         ]
@@ -335,7 +346,8 @@ class TestHttpEventTrigger:
         event = await trigger.run().asend(None)
 
         assert event.payload["status"] == "success"
-        assert mock_hook.return_value.run.call_count == 4
+        assert mock_hook.return_value.run.call_count == 6
+        assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 5
 
     def test_max_consecutive_failures_must_be_positive(self):
         with pytest.raises(ValueError, match="max_consecutive_failures"):

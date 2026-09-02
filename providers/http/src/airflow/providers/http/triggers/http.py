@@ -298,8 +298,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
     :parama poll_interval: How often, in seconds, the trigger should send a request to the API.
-    :param max_consecutive_failures: How many consecutive failed polls the trigger tolerates
-        before giving up and reporting the error instead of retrying.
+    :param max_consecutive_failures: How many consecutive polling failures are tolerated. The
+        effective time before the trigger fails is roughly this times ``poll_interval``.
     """
 
     def __init__(
@@ -358,19 +358,22 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                     if check_passed
                     else None
                 )
-            except Exception:
+            except Exception as exc:
                 failures += 1
                 if failures >= self.max_consecutive_failures:
-                    # Stop absorbing: the triggerer records the traceback and restarts the
-                    # watcher, and anything deferred on this trigger fails instead of hanging.
+                    # The triggerer logs the traceback into this trigger's log and restarts the
+                    # watcher; anything deferred on this trigger fails instead of hanging.
                     raise
-                self.log.exception(
-                    "Poll failed (%s/%s), retrying in %s seconds",
+                self.log.warning(
+                    "Poll failed (%s/%s): %r, retrying in %s seconds",
                     failures,
                     self.max_consecutive_failures,
+                    exc,
                     self.poll_interval,
                 )
             else:
+                # "Not yet" clears the count too, or a healthy watcher would escalate after
+                # max_consecutive_failures ordinary polls.
                 failures = 0
                 if event is not None:
                     yield event
