@@ -1107,8 +1107,13 @@ class TestDagRun:
         """Cleared queued runs from a cancelled backfill must schedule despite stale is_paused."""
         from airflow.models.backfill import Backfill, BackfillDagRun
 
-        with dag_maker(dag_id="test_cancelled_backfill", schedule="@daily", catchup=True) as dag:
-            EmptyOperator(task_id="t1")
+        with dag_maker(
+            dag_id="test_cancelled_backfill",
+            schedule="@daily",
+            catchup=True,
+            serialized=True,
+        ) as dag:
+            EmptyOperator(task_id="t1", owner="airflow")
 
         scheduler_dag = sync_dag_to_db(dag, session=session)
         logical_date = DEFAULT_DATE
