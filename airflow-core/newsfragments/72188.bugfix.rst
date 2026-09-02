@@ -1,0 +1,1 @@
+Fix scheduler crash-loop on MySQL-compatible backends without CTE-in-DML support (e.g. Vitess) by using a subquery instead of a CTE in asset orphanage queries
