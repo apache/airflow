@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -27,7 +28,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
-from airflow.providers.common.compat.sdk import Stats
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
@@ -176,6 +177,39 @@ class TestJobsApiRoutes:
                     "task_id": TASK_ID,
                 },
             )
+
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_returns_highest_priority_job_first(self, mock_stats_incr, session: Session):
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            # The oldest job carries the lowest priority, so a FIFO-only query returns "low" first.
+            queued_dttm = timezone.utcnow()
+            for offset, (task_id, priority_weight) in enumerate([("low", 1), ("high", 100), ("medium", 10)]):
+                session.add(
+                    EdgeJobModel(
+                        dag_id=DAG_ID,
+                        task_id=task_id,
+                        run_id=RUN_ID,
+                        try_number=1,
+                        map_index=-1,
+                        state=TaskInstanceState.QUEUED,
+                        queue=QUEUE,
+                        concurrency_slots=1,
+                        command=MOCK_COMMAND_STR,
+                        priority_weight=priority_weight,
+                        queued_dttm=queued_dttm + timedelta(seconds=offset),
+                    )
+                )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(3)]
+
+            assert [job.task_id for job in fetched if job] == ["high", "medium", "low"]
 
     @patch(f"{Stats.__module__}.Stats.incr")
     def test_fetch_filters_by_worker_team_name(self, mock_stats_incr, session: Session):

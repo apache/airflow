@@ -89,7 +89,7 @@ def fetch(
             EdgeJobModel.state == TaskInstanceState.QUEUED,
             EdgeJobModel.concurrency_slots <= body.free_concurrency,
         )
-        .order_by(EdgeJobModel.queued_dttm)
+        .order_by(EdgeJobModel.priority_weight.desc(), EdgeJobModel.queued_dttm)
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))

@@ -47,6 +47,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.2.0": "8c275b6fbaa8",
     "3.4.0": "a09c3ee8e1d3",
     "3.5.0": "c6b3c3d093fd",
+    "4.4.0": "d5a2f8b41c07",
 }
 
 
