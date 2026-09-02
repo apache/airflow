@@ -103,6 +103,17 @@ def _build_query_params(**values: Any) -> dict[str, Any]:
     return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
 
 
+def _has_json_body(response: httpx.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Media types are case-insensitive and may carry parameters (RFC 9110), so a proxy in
+    # front of the API server that rewrites "application/json" into
+    # "application/json; charset=utf-8" must not defeat the check — otherwise the friendly
+    # error handling built on ServerResponseError is silently skipped and callers get a
+    # bare httpx.HTTPStatusError instead.
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -112,16 +123,23 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.status_code < 400:
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         # httpx runs response event hooks before it reads the body, so the body has to be
         # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
         response.read()
 
+        try:
+            detail = response.json()
+        except ValueError:
+            # Undecodable body despite a JSON content-type (truncated response, or a proxy
+            # mislabelling its own error page) — leave it to raise_for_status().
+            return None
+
         error_kind = "Client" if response.status_code < 500 else "Server"
         return cls(
-            message=f"{error_kind} error message: {response.json()}",
+            message=f"{error_kind} error message: {detail}",
             request=response.request,
             response=response,
         )

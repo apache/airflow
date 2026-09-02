@@ -175,6 +175,35 @@ class TestClient:
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
 
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            pytest.param("application/json; charset=utf-8", id="charset"),
+            pytest.param("application/json;charset=UTF-8", id="charset-no-space"),
+            pytest.param("Application/JSON", id="mixed-case"),
+            pytest.param("application/problem+json", id="problem-json"),
+        ],
+    )
+    def test_error_parsing_json_media_type_variants(self, content_type):
+        responses = [
+            httpx.Response(404, json={"detail": "Not found"}, headers={"content-type": content_type})
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert err.value.args == ("Not found",)
+
+    def test_error_parsing_media_type_merely_prefixed_with_json(self):
+        responses = [
+            httpx.Response(404, json={"detail": "Not found"}, headers={"content-type": "application/jsonp"})
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(httpx.HTTPStatusError) as err:
+            client.get("http://error")
+        assert not isinstance(err.value, ServerResponseError)
+
     def test_server_response_error_pickling(self):
         responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
         client = make_client_w_responses(responses)
