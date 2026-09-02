@@ -303,7 +303,7 @@ class AnthropicHook(BaseHook):
     - ``workload_identity``: configure `Workload Identity Federation
       <https://platform.claude.com/docs/en/manage-claude/workload-identity-federation>`__
       (keyless OIDC auth) with ``identity_token_file``, ``federation_rule_id``,
-      ``organization_id``, ``service_account_id`` and optional ``workspace_id`` / ``scope``.
+      ``organization_id`` and optional ``service_account_id``, ``workspace_id`` / ``scope``.
 
     When the ``anthropic`` platform has no API Key and no ``workload_identity`` block, the
     client is built with no static credential so the SDK resolves them from the environment
@@ -388,12 +388,24 @@ class AnthropicHook(BaseHook):
         Anthropic access token. See
         https://platform.claude.com/docs/en/manage-claude/workload-identity-federation.
         """
+        required_fields = (
+            "identity_token_file",
+            "federation_rule_id",
+            "organization_id",
+        )
+        missing_fields = [field for field in required_fields if not wif.get(field)]
+        if missing_fields:
+            raise AnthropicError(
+                "The workload_identity configuration is missing or has empty required fields: "
+                f"{', '.join(missing_fields)}."
+            )
         kwargs: dict[str, Any] = {
             "identity_token_provider": IdentityTokenFile(wif["identity_token_file"]),
             "federation_rule_id": wif["federation_rule_id"],
             "organization_id": wif["organization_id"],
-            "service_account_id": wif["service_account_id"],
         }
+        if wif.get("service_account_id"):
+            kwargs["service_account_id"] = wif["service_account_id"]
         if wif.get("workspace_id"):
             kwargs["workspace_id"] = wif["workspace_id"]
         if wif.get("scope"):

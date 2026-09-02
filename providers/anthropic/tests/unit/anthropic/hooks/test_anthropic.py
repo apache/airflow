@@ -729,6 +729,69 @@ class TestAnthropicHookGetConn:
         )
         mock_anthropic.assert_called_once_with(credentials=mock_wic.return_value, base_url=None)
 
+    @pytest.mark.parametrize("service_account_id", [None, ""])
+    @mock.patch(f"{HOOK_PATH}.Anthropic")
+    @mock.patch(f"{HOOK_PATH}.IdentityTokenFile")
+    @mock.patch(f"{HOOK_PATH}.WorkloadIdentityCredentials")
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_workload_identity_federation_service_account_is_optional(
+        self, mock_get_connection, mock_wic, mock_itf, mock_anthropic, service_account_id
+    ):
+        workload_identity = {
+            "identity_token_file": "/var/run/secrets/anthropic.com/token",
+            "federation_rule_id": "fdrl_x",
+            "organization_id": "org_x",
+        }
+        if service_account_id is not None:
+            workload_identity["service_account_id"] = service_account_id
+        mock_get_connection.return_value = _conn(
+            password=None,
+            extra={"workload_identity": workload_identity},
+        )
+
+        AnthropicHook().get_conn()
+
+        mock_wic.assert_called_once_with(
+            identity_token_provider=mock_itf.return_value,
+            federation_rule_id="fdrl_x",
+            organization_id="org_x",
+        )
+        mock_anthropic.assert_called_once_with(credentials=mock_wic.return_value, base_url=None)
+
+    @pytest.mark.parametrize(
+        ("missing_field", "missing_value"),
+        [
+            pytest.param(field, value, id=f"{field}-{'absent' if value is None else 'empty'}")
+            for field in (
+                "identity_token_file",
+                "federation_rule_id",
+                "organization_id",
+            )
+            for value in (None, "")
+        ],
+    )
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_workload_identity_federation_requires_fields(
+        self, mock_get_connection, missing_field, missing_value
+    ):
+        workload_identity = {
+            "identity_token_file": "/var/run/secrets/anthropic.com/token",
+            "federation_rule_id": "fdrl_x",
+            "organization_id": "org_x",
+            "service_account_id": "svac_x",
+        }
+        if missing_value is None:
+            workload_identity.pop(missing_field)
+        else:
+            workload_identity[missing_field] = missing_value
+        mock_get_connection.return_value = _conn(
+            password=None,
+            extra={"workload_identity": workload_identity},
+        )
+
+        with pytest.raises(AnthropicError, match=missing_field):
+            AnthropicHook().get_conn()
+
     @mock.patch(f"{HOOK_PATH}.Anthropic")
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_no_key_lets_sdk_resolve_credentials(self, mock_get_connection, mock_anthropic):
