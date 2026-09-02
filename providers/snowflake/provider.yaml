@@ -183,11 +183,11 @@ connection-types:
       placeholders:
         extra: |
           {
-            "authenticator": "snowflake oauth",
+            "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",
             "private_key_file": "private key",
             "session_parameters": "session parameters",
             "client_request_mfa_token": "client request mfa token",
-            "client_store_temporary_credential": "client store temporary credential",
+            "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",
             "grant_type": "refresh_token client_credentials",
             "token_endpoint": "token endpoint",
             "refresh_token": "refresh token",
@@ -207,6 +207,7 @@ connection-types:
         role: snowflake role
         private_key_file: Path of snowflake private key (PEM Format)
         private_key_content: Content to snowflake private key (PEM format)
+        workload_identity_provider: AWS, AZURE, GCP or OIDC
         insecure_mode: insecure mode
         proxy_host: Proxy server hostname
         proxy_port: Proxy server port

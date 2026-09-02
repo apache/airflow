@@ -21,7 +21,7 @@ airflow-core/src/airflow/utils/db.py::1
 airflow-core/src/airflow/utils/db_cleanup.py::1
 airflow-core/src/airflow/utils/db_manager.py::3
 airflow-core/src/airflow/utils/dot_renderer.py::3
-airflow-core/src/airflow/utils/helpers.py::4
+airflow-core/src/airflow/utils/helpers.py::1
 airflow-core/src/airflow/utils/process_utils.py::1
 airflow-core/tests/unit/models/test_dag.py::1
 airflow-core/tests/unit/models/test_taskinstance.py::3
@@ -319,7 +319,6 @@ providers/google/src/airflow/providers/google/leveldb/hooks/leveldb.py::4
 providers/google/src/airflow/providers/google/marketing_platform/hooks/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/hooks/search_ads.py::1
 providers/google/src/airflow/providers/google/marketing_platform/operators/bid_manager.py::3
-providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/sensors/display_video.py::1
 providers/google/src/airflow/providers/google/suite/hooks/calendar.py::1
 providers/google/src/airflow/providers/google/suite/hooks/sheets.py::1
