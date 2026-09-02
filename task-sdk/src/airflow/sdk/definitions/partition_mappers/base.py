@@ -23,6 +23,8 @@ import attrs
 from airflow.sdk.definitions.partition_mappers.wait_policy import WaitForAll, WaitPolicy
 
 if TYPE_CHECKING:
+    from datetime import tzinfo
+
     from airflow.sdk.definitions.partition_mappers.window import Window
 
 
@@ -49,6 +51,18 @@ class PartitionMapper:
     max_downstream_keys: int | None = attrs.field(
         default=None, kw_only=True, validator=_validate_max_downstream_keys
     )
+
+    @property
+    def tzinfo(self) -> tzinfo | None:
+        """
+        Timezone this mapper localizes keys in, if any.
+
+        Non-temporal mappers return ``None`` (the default). Temporal mappers
+        override to expose their configured timezone. Mirrors the core
+        ``PartitionMapper.tzinfo`` contract used by the scheduler-side
+        ``RollupMapper`` for DST-aware calendar windows.
+        """
+        return None
 
 
 @attrs.define
