@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import os
+import warnings
 from datetime import timedelta
+from typing import Any
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -26,14 +28,16 @@ from airflow.models import DAG, Connection
 from airflow.providers.common.compat.sdk import TaskDeferred, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
+    _DURABLE_UNSET,
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobRunsOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -94,6 +98,21 @@ def mock_response_json(response: dict):
     run_response = MagicMock(**response)
     run_response.json.return_value = response
     return run_response
+
+
+class FakeTaskStateStore:
+    def __init__(self, values: dict[str, int] | None = None) -> None:
+        self.values = values or {}
+        self.get_calls: list[str] = []
+        self.set_calls: list[tuple[str, int]] = []
+
+    def get(self, key: str) -> int | None:
+        self.get_calls.append(key)
+        return self.values.get(key)
+
+    def set(self, key: str, value: int) -> None:
+        self.set_calls.append((key, value))
+        self.values[key] = value
 
 
 # TODO: Potential performance issue, converted setup_module to a setup_connections function level fixture
@@ -405,7 +424,7 @@ class TestDbtCloudRunJobOperator:
             timeout=3,
             dag=self.dag,
         )
-        dbt_op.execute(MagicMock())
+        dbt_op.execute(self.mock_context)
         mock_trigger_job_run.assert_called_once()
 
     @pytest.mark.parametrize(
@@ -688,6 +707,7 @@ class TestDbtCloudRunJobOperator:
             retry_from_failure=True,
             **self.config,
         )
+        operator.poll_until_complete = MagicMock()
 
         assert operator.dbt_cloud_conn_id == conn_id
         assert operator.job_id == self.config["job_id"]
@@ -727,6 +747,7 @@ class TestDbtCloudRunJobOperator:
             retry_from_failure=True,
             **self.config,
         )
+        operator.poll_until_complete = MagicMock()
         self.mock_context["ti"].try_number = 1
 
         assert operator.dbt_cloud_conn_id == conn_id
@@ -762,6 +783,7 @@ class TestDbtCloudRunJobOperator:
             retry_from_failure=True,
             **self.config,
         )
+        operator.poll_until_complete = MagicMock()
         self.mock_context["ti"].try_number = 2
 
         assert operator.dbt_cloud_conn_id == conn_id
@@ -794,6 +816,7 @@ class TestDbtCloudRunJobOperator:
             dag=self.dag,
             **self.config,
         )
+        operator.poll_until_complete = MagicMock()
 
         assert operator.trigger_reason == custom_trigger_reason
 
@@ -914,6 +937,273 @@ class TestDbtCloudRunJobOperator:
                 run_id=_run_response["data"]["id"],
             )
         )
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+)
+class TestDbtCloudRunJobOperatorResumability:
+    def setup_method(self) -> None:
+        self.dag = DAG("test_dbt_cloud_job_run_resumability", schedule=None, start_date=DEFAULT_DATE)
+        self.ti = MagicMock(try_number=1, stats_tags={})
+        self.store = FakeTaskStateStore()
+        self.context = {"ti": self.ti, "task_state_store": self.store}
+
+    def create_operator(self, **kwargs: Any) -> DbtCloudRunJobOperator:
+        return DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+            **kwargs,
+        )
+
+    @staticmethod
+    def create_run_response(run_id: int, status: DbtCloudJobRunStatus) -> MagicMock:
+        return mock_response_json(
+            {
+                "data": {
+                    "id": run_id,
+                    "href": EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                        account_id=DEFAULT_ACCOUNT_ID,
+                        project_id=PROJECT_ID,
+                        run_id=run_id,
+                    ),
+                    "status": status.value,
+                }
+            }
+        )
+
+    def test_fresh_submit_persists_run_and_pushes_xcoms(self) -> None:
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.QUEUED
+        )
+        persisted_before_poll: list[int | None] = []
+
+        def wait_for_job_run_status(**_: Any) -> bool:
+            persisted_before_poll.append(self.store.get("dbt_cloud_run_id"))
+            return True
+
+        operator.hook.wait_for_job_run_status.side_effect = wait_for_job_run_status
+
+        assert operator.execute(self.context) == RUN_ID
+
+        assert self.store.values == {"dbt_cloud_run_id": RUN_ID}
+        assert persisted_before_poll == [RUN_ID]
+        self.ti.xcom_push.assert_any_call(
+            key="job_run_url",
+            value=EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+            ),
+        )
+        self.ti.xcom_push.assert_any_call(key="job_run_id", value=RUN_ID)
+        assert self.ti.xcom_push.call_count == 2
+
+    def test_xcom_failure_after_submission_keeps_durable_run_id(self) -> None:
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.QUEUED
+        )
+        self.ti.xcom_push.side_effect = RuntimeError("xcom unavailable")
+
+        with pytest.raises(RuntimeError, match="xcom unavailable"):
+            operator.execute(self.context)
+
+        assert self.store.values == {"dbt_cloud_run_id": RUN_ID}
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            DbtCloudJobRunStatus.QUEUED,
+            DbtCloudJobRunStatus.STARTING,
+            DbtCloudJobRunStatus.RUNNING,
+        ],
+    )
+    def test_active_run_reconnects_by_exact_id(self, status: DbtCloudJobRunStatus) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        operator = self.create_operator(reuse_existing_run=True)
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.return_value = self.create_run_response(run_id=RUN_ID, status=status)
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        assert operator.execute(self.context) == RUN_ID
+
+        operator.hook.get_job_run.assert_called_once_with(run_id=RUN_ID, account_id=None)
+        operator.hook.get_job_runs.assert_not_called()
+        operator.hook.trigger_job_run.assert_not_called()
+        assert operator.run_id == RUN_ID
+
+    def test_successful_run_recovers_without_submission_or_polling(self) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.SUCCESS
+        )
+
+        assert operator.execute(self.context) == RUN_ID
+
+        operator.hook.trigger_job_run.assert_not_called()
+        operator.hook.wait_for_job_run_status.assert_not_called()
+        assert operator.run_id == RUN_ID
+        self.ti.xcom_push.assert_any_call(key="job_run_id", value=RUN_ID)
+        self.ti.xcom_push.assert_any_call(
+            key="job_run_url",
+            value=EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+            ),
+        )
+
+    @pytest.mark.parametrize("status", [DbtCloudJobRunStatus.ERROR, DbtCloudJobRunStatus.CANCELLED])
+    def test_terminal_run_submits_fresh(self, status: DbtCloudJobRunStatus) -> None:
+        new_run_id = RUN_ID + 1
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.return_value = self.create_run_response(run_id=RUN_ID, status=status)
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=new_run_id, status=DbtCloudJobRunStatus.QUEUED
+        )
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        assert operator.execute(self.context) == new_run_id
+
+        assert self.store.values["dbt_cloud_run_id"] == new_run_id
+        assert operator.run_id == new_run_id
+
+    def test_terminal_run_preserves_retry_from_failure(self) -> None:
+        new_run_id = RUN_ID + 1
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        self.ti.try_number = 2
+        operator = self.create_operator(retry_from_failure=True)
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.ERROR
+        )
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=new_run_id, status=DbtCloudJobRunStatus.QUEUED
+        )
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        operator.execute(self.context)
+
+        operator.hook.trigger_job_run.assert_called_once_with(
+            account_id=None,
+            job_id=JOB_ID,
+            cause=ANY,
+            steps_override=None,
+            schema_override=None,
+            retry_from_failure=True,
+            additional_run_config={},
+        )
+
+    def test_deferrable_execution_does_not_use_task_state_store(self) -> None:
+        operator = self.create_operator(deferrable=True)
+        operator.hook = MagicMock()
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.QUEUED
+        )
+        operator.hook.get_job_run_status.return_value = DbtCloudJobRunStatus.RUNNING.value
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(self.context)
+
+        assert self.store.get_calls == []
+        assert self.store.set_calls == []
+
+    def test_no_wait_execution_does_not_use_task_state_store(self) -> None:
+        operator = self.create_operator(wait_for_termination=False)
+        operator.hook = MagicMock()
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.QUEUED
+        )
+
+        assert operator.execute(self.context) == RUN_ID
+
+        assert self.store.get_calls == []
+        assert self.store.set_calls == []
+
+    def test_durable_false_uses_fresh_execution(self) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        new_run_id = RUN_ID + 1
+        operator = self.create_operator(durable=False)
+        operator.hook = MagicMock()
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=new_run_id, status=DbtCloudJobRunStatus.QUEUED
+        )
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        assert operator.execute(self.context) == new_run_id
+
+        assert self.store.get_calls == []
+        assert self.store.set_calls == []
+
+    def test_missing_task_state_store_uses_fresh_execution(self) -> None:
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.QUEUED
+        )
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        assert operator.execute({"ti": self.ti}) == RUN_ID
+
+        operator.hook.trigger_job_run.assert_called_once()
+
+    def test_default_args_can_disable_durable_execution(self) -> None:
+        with DAG(
+            "test_default_args_durable",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            default_args={"durable": False},
+        ) as dag:
+            operator = DbtCloudRunJobOperator(task_id=TASK_ID, job_id=JOB_ID)
+
+        assert dag.task_dict[TASK_ID] is operator
+        assert operator.durable is False
+
+    @patch("airflow.providers.dbt.cloud.operators.dbt.generate_openlineage_events_from_dbt_cloud_run")
+    def test_recovered_run_is_available_to_openlineage_and_on_kill(
+        self, mock_generate_openlineage_events: MagicMock
+    ) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.return_value = self.create_run_response(
+            run_id=RUN_ID, status=DbtCloudJobRunStatus.RUNNING
+        )
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        operator.execute(self.context)
+        operator.get_openlineage_facets_on_complete(self.ti)
+        operator.on_kill()
+
+        assert operator.run_id == RUN_ID
+        mock_generate_openlineage_events.assert_called_once_with(operator=operator, task_instance=self.ti)
+        operator.hook.cancel_job_run.assert_called_once_with(run_id=RUN_ID, account_id=None)
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value: bool) -> None:
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+
+        assert result is False
 
 
 class TestDbtCloudGetJobRunArtifactOperator:
