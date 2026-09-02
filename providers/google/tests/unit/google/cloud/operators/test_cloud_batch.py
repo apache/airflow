@@ -35,18 +35,21 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchListTasksOperator,
     CloudBatchSubmitJobOperator,
 )
-from airflow.sdk.execution_time.comms import (
-    ErrorResponse,
-    ErrorType,
-    GetTaskStateStore,
-    OKResponse,
-    SetTaskStateStore,
-    TaskStateStoreResult,
-)
-from airflow.sdk.execution_time.context import TaskStateStoreAccessor
-from airflow.sdk.state import TaskScope
 
 from tests_common.test_utils.compat import DagSerialization
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.execution_time.comms import (
+        ErrorResponse,
+        ErrorType,
+        GetTaskStateStore,
+        OKResponse,
+        SetTaskStateStore,
+        TaskStateStoreResult,
+    )
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+    from airflow.sdk.state import TaskScope
 
 CLOUD_BATCH_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_batch.CloudBatchHook"
 TASK_ID = "test"
@@ -71,6 +74,9 @@ def _job_with_state(state: batch_v1.JobStatus.State) -> batch_v1.Job:
 
 @pytest.fixture
 def task_state_store() -> Iterator[tuple[TaskStateStoreAccessor, dict[str, Any], mock.Mock]]:
+    if not AIRFLOW_V_3_3_PLUS:
+        pytest.skip("Task state store recovery requires Airflow 3.3+")
+
     stored: dict[str, Any] = {}
     supervisor_comms = mock.Mock(spec=["send"])
 
