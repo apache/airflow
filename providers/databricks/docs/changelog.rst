@@ -39,6 +39,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix DatabricksSqlHook.get_conn() deprecation warning by passing user_agent_entry without leading underscore (#72102)``
 * ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
 
 Doc-only
