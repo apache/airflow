@@ -58,7 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskInstanceSupersededError
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -1448,7 +1448,12 @@ class ActivitySubprocess(WatchedSubprocess):
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(
+                ti.id,
+                self.pid,
+                datetime.now(tz=timezone.utc),
+                getattr(ti, "external_executor_id", None),
+            )
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
@@ -2631,6 +2636,19 @@ def supervise_task(
                 final_state=result.final_state,
             )
             return result.exit_code
+        except TaskInstanceSupersededError:
+            # The task instance this worker was launched for was superseded before it started
+            # running (``/run`` returned 404 not_found or 409 stale_executor_launch). The task
+            # never executed, so exit cleanly (code 0) to avoid surfacing a pod failure and
+            # consuming a task retry. Returning 0 here (rather than propagating) keeps the pod in
+            # a Succeeded/Completed state; the stale event carries the old try_number and is
+            # ignored by the scheduler, so the live attempt is unaffected.
+            log.info(
+                "Task instance superseded before startup; exiting without consuming a retry",
+                workload_type="ExecuteTask",
+                workload_id=str(ti.id),
+            )
+            return 0
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
