@@ -2612,6 +2612,178 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    def test_dags_needing_dagruns_assets_stale_flag_does_not_hide_adrq(self, dag_maker, session):
+        """A stale exceeds_max_non_backfill flag must not hide asset leftovers.
+
+        The cached flag is timetable-only. With zero active runs and queued
+        events, the Dag stays selectable even when the flag is still True.
+        """
+        asset = Asset(uri="test://asset-stale-flag", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="stale_flag_asset_consumer",
+            max_active_runs=1,
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        for _ in range(3):
+            event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id
+                )
+            )
+        dag_model.exceeds_max_non_backfill = True
+        session.flush()
+
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+        assert dag_model.dag_id in triggered_date_by_dag
+
+    @pytest.mark.parametrize("active_state", [DagRunState.QUEUED, DagRunState.RUNNING])
+    @pytest.mark.parametrize(
+        "run_type",
+        [DagRunType.ASSET_TRIGGERED, DagRunType.MANUAL],
+    )
+    def test_dags_needing_dagruns_assets_retains_adrq_at_max_active_runs(
+        self, dag_maker, session, active_state, run_type
+    ):
+        """Extra ADRQ rows stay queued while a Dag is at max_active_runs.
+
+        QUEUED and RUNNING both count toward the cap. Manual runs on the same Dag
+        count the same as asset-triggered ones — the exclusion query does not
+        special-case ``run_type``.
+        """
+        asset = Asset(uri="test://asset-retain-adrq", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="retain_adrq_at_cap",
+            max_active_runs=1,
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+
+        def _queue_event():
+            event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id
+                )
+            )
+            session.flush()
+            return event
+
+        def _adrq_count():
+            return session.scalar(
+                select(func.count())
+                .select_from(AssetDagRunQueue)
+                .where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+            )
+
+        event1 = _queue_event()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+
+        dag_maker.create_dagrun(
+            run_type=run_type,
+            state=active_state,
+            logical_date=pendulum.now("UTC"),
+        )
+        extra_events = [_queue_event() for _ in range(3)]
+        assert _adrq_count() == 4
+
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+        assert dag_model.dag_id not in triggered_date_by_dag
+        assert _adrq_count() == 4
+        remaining_ids = set(
+            session.scalars(
+                select(AssetDagRunQueue.asset_event_id).where(
+                    AssetDagRunQueue.target_dag_id == dag_model.dag_id
+                )
+            )
+        )
+        assert remaining_ids == {event1.id, *(event.id for event in extra_events)}
+
+    def test_dags_needing_dagruns_assets_max_active_runs_two(self, dag_maker, session):
+        """A third queued event is deferred until one of two active runs finishes."""
+        asset = Asset(uri="test://asset-max-active-runs-two", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="max_active_runs_two_assets",
+            max_active_runs=2,
+            schedule=[asset],
+            start_date=pendulum.now().add(days=-2),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+
+        def _queue_event():
+            event = AssetEvent(asset_id=asset_model.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id
+                )
+            )
+            session.flush()
+            return event
+
+        def _adrq_ids():
+            return set(
+                session.scalars(
+                    select(AssetDagRunQueue.asset_event_id).where(
+                        AssetDagRunQueue.target_dag_id == dag_model.dag_id
+                    )
+                )
+            )
+
+        first = _queue_event()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+
+        run1 = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.RUNNING,
+            logical_date=pendulum.now("UTC"),
+        )
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+
+        dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.QUEUED,
+            logical_date=pendulum.now("UTC").add(minutes=1),
+        )
+        extra = _queue_event()
+        remaining = {first.id, extra.id}
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+        assert dag_model.dag_id not in triggered_date_by_dag
+        assert _adrq_ids() == remaining
+
+        run1.state = DagRunState.SUCCESS
+        session.flush()
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+        assert dag_model.dag_id in triggered_date_by_dag
+        assert _adrq_ids() == remaining
+
     def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
         self, session, caplog, testing_dag_bundle
     ):
