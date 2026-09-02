@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import copy
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 try:
     # Python 3.11+
@@ -37,13 +37,42 @@ from airflow.sdk.definitions.iterableoperator import IterableOperator
 from airflow.sdk.exceptions import AirflowFailException, AirflowRescheduleException, TaskDeferred
 from airflow.sdk.execution_time.xcom import XCom
 
-from tests_common.test_utils.mock_context import mock_context
+from tests_common.test_utils.mock_context import mock_context as _mock_context_base
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     from tests_common.test_utils.compat import Context
+
+
+class MockTaskStateStoreAccessor:
+    """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
+    ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint per-index sub-task
+    progress (see ``IterableOperator._run_task``)."""
+
+    def __init__(self):
+        self._data: dict[str, Any] = {}
+
+    async def aget(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
+
+    async def aset(self, key: str, value: Any, **kwargs) -> None:
+        self._data[key] = value
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+
+def mock_context(task, run_id: str | None = None) -> Context:
+    """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
+    ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``."""
+    context = _mock_context_base(task=task, run_id=run_id)
+    context["task_state_store"] = MockTaskStateStoreAccessor()
+    return context
 
 
 class MockOperator(BaseOperator):
@@ -278,13 +307,14 @@ class TestIterableOperator:
 
     @pytest.mark.db_test
     def test_task_retries(self, dag_maker, session):
-        """Test that IterableOperator correctly reports task_retries."""
+        """Test that IterableOperator inherits retries from the wrapped operator, since
+        the whole IterableOperator is now retried via Airflow's standard retry mechanism."""
         with dag_maker(session=session) as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             iterable_op = self.create_iterable_operator(dag, expand_input, retries=3)
 
             assert isinstance(iterable_op, IterableOperator)
-            assert iterable_op.retries == 0
+            assert iterable_op.retries == 3
             assert iterable_op.task_retries == 3
 
     @pytest.mark.db_test
@@ -498,46 +528,18 @@ class TestIterableOperator:
             assert result is None
 
     @pytest.mark.db_test
-    def test_execute_with_failed_tasks_but_no_retries(self, dag_maker, session, mock_xcom_get_one):
-        """
-        Test executing IterableOperator where tasks fail but no retries are available.
-
-        This test verifies that:
-        1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
-        2. When no retries are configured (retries=0), the exception propagates and is not retried
-        3. The BaseExceptionGroup is raised containing the task failure
-        """
-        with dag_maker(session=session) as dag:
-            expand_input = ListOfDictsExpandInput(
-                [
-                    {"arg1": 1, "arg2": 10},
-                    {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
-                    {"arg1": 3, "arg2": 30},
-                ]
-            )
-            iterable_op = self.create_iterable_operator(
-                dag,
-                expand_input,
-                task_id="exec_with_failures",
-                retries=0,
-            )
-
-            context = mock_context(task=iterable_op)
-            mock_xcom_get_one(context)
-            with pytest.raises(BaseExceptionGroup):
-                iterable_op.execute(context=context)
-
-    @pytest.mark.db_test
-    def test_execute_with_failed_tasks_and_expired_reschedule_date(
+    def test_execute_with_failed_tasks_raises_regardless_of_retries(
         self, dag_maker, session, mock_xcom_get_one
     ):
         """
-        Test executing IterableOperator where certain map_index tasks fail on first attempt and are retried.
+        Test executing IterableOperator where a sub-task fails.
 
         This test verifies that:
-        1. Tasks with fail_on_first_attempt=True raise an exception on first attempt (try_number == 0)
-        2. Failed tasks are retried immediately without deferring (since reschedule_date is expired)
-        3. Retried tasks succeed on subsequent attempts (try_number > 0) and produce the expected output
+        1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
+        2. IterableOperator no longer retries failed sub-tasks in-process — retries (if any) are
+           handled by Airflow retrying the whole IterableOperator task instance
+        3. The BaseExceptionGroup is raised containing the task failure, regardless of whether the
+           wrapped operator has retries configured
         """
         with dag_maker(session=session) as dag:
             expand_input = ListOfDictsExpandInput(
@@ -556,11 +558,78 @@ class TestIterableOperator:
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
-            result = iterable_op.execute(context=context)
-            materialized = list(result)
+            with pytest.raises(BaseExceptionGroup):
+                iterable_op.execute(context=context)
 
-            assert len(materialized) == 3
-            assert materialized == [(1, 10, None), (2, 20, None), (3, 30, None)]
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_run_task_skips_sub_task_already_checkpointed_as_succeeded(self, dag_maker, session):
+        """
+        When the task_state_store already records a sub-task index as succeeded (e.g. because
+        Airflow retried the whole IterableOperator after a previous partial failure), ``_run_task``
+        must skip re-executing that sub-task entirely.
+        """
+        from unittest import mock
+
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1, "arg2": 10}])
+            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="checkpoint_skip")
+
+            context = mock_context(task=iterable_op)
+            await context["task_state_store"].aset(
+                iterable_op._checkpoint_key(0), {"status": "succeeded", "try_number": 2}
+            )
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(
+                context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
+            )
+
+            executor = mock.MagicMock()
+            _, result, raised = await iterable_op._run_task(executor, context, task)
+
+            assert result is None
+            assert raised is None
+            executor.run_sync.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_run_task_restores_try_number_from_pending_checkpoint(
+        self, dag_maker, session, mock_xcom_get_one
+    ):
+        """
+        A sub-task with a 'pending' checkpoint (e.g. left behind by a previous failed or crashed
+        attempt) restores its ``try_number`` from the checkpoint before re-executing, and records a
+        'succeeded' checkpoint once it completes.
+        """
+        from airflow.sdk.bases.operator import event_loop
+        from airflow.sdk.execution_time.executor import AsyncAwareExecutor
+
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1, "arg2": 10}])
+            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="checkpoint_pending")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            await context["task_state_store"].aset(
+                iterable_op._checkpoint_key(0), {"status": "pending", "try_number": 2}
+            )
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(
+                context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
+            )
+            assert task.try_number == 0
+
+            with event_loop() as loop:
+                with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
+                    result_task, result, raised = await iterable_op._run_task(executor, context, task)
+
+        assert raised is None
+        assert result == (1, 10, None)
+        assert result_task.try_number == 2  # restored from the checkpoint, not reset to 0
+        store = context["task_state_store"]
+        checkpoint_key = iterable_op._checkpoint_key(0)
+        assert checkpoint_key in store
+        assert store[checkpoint_key] == {"status": "succeeded", "try_number": 2}
 
     @pytest.mark.db_test
     def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self, dag_maker, session):
@@ -638,11 +707,11 @@ class TestIterableOperator:
             iterable_op.execute(context=context)
 
     @pytest.mark.db_test
-    def test_reschedule_mode_sensor_raises_airflow_fail_exception(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
-        """A sub-task that raises AirflowRescheduleException must fail the whole IterableOperator
-        immediately with a clear error rather than being silently mishandled."""
+    def test_reschedule_mode_sensor_raises_base_exception_group(self, dag_maker, session, mock_xcom_get_one):
+        """A sub-task that raises AirflowRescheduleException is no longer special-cased: it is treated
+        like any other sub-task failure and surfaces via BaseExceptionGroup. The requested
+        reschedule_date is not honored inside IterableOperator — Airflow's standard retry mechanism
+        (via the IterableOperator's own retries/retry_delay) takes over instead."""
         with dag_maker(session=session) as dag:
             expand_input = ListOfDictsExpandInput([{}, {}])
             mapped_op = MockRescheduleSensor.partial(task_id="reschedule_sensor", dag=dag)._expand(
@@ -655,7 +724,7 @@ class TestIterableOperator:
         context = mock_context(task=iterable_op)
         mock_xcom_get_one(context)
 
-        with pytest.raises(AirflowFailException, match="attempted to reschedule"):
+        with pytest.raises(BaseExceptionGroup):
             iterable_op.execute(context=context)
 
 

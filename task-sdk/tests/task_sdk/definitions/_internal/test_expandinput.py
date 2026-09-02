@@ -18,18 +18,11 @@ from __future__ import annotations
 
 import pytest
 
-try:
-    # Python 3.11+
-    BaseExceptionGroup
-except NameError:
-    from exceptiongroup import BaseExceptionGroup
-
 from airflow.sdk.definitions._internal.expandinput import (
     BatchedExpandInput,
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
 )
-from airflow.sdk.exceptions import AirflowFailException
 
 
 class TestExpandInput:
@@ -74,21 +67,6 @@ class TestExpandInput:
         assert result == expected
         assert len(expand_input) == len(expected)
 
-    @pytest.mark.parametrize(
-        "expand_input",
-        [
-            DictOfListsExpandInput({"a": [1, 2]}),
-            ListOfDictsExpandInput([{"a": 1}]),
-        ],
-        ids=["DictOfListsExpandInput", "ListOfDictsExpandInput"],
-    )
-    def test_wrap_exceptions_returns_base_exception_group(self, expand_input):
-        errors = [ValueError("first"), RuntimeError("second")]
-        result = expand_input.wrap_exceptions(errors)
-        assert isinstance(result, BaseExceptionGroup)
-        assert result.message == "Multiple sub-task failures"
-        assert list(result.exceptions) == errors
-
 
 class TestBatchedExpandInput:
     @pytest.mark.parametrize(
@@ -123,11 +101,3 @@ class TestBatchedExpandInput:
         assert len(batched) == len(expected)
         # delegate length must remain the full item count, not the batch slice
         assert len(inner) == len(items)
-
-    def test_wrap_exceptions_returns_airflow_fail_exception(self):
-        inner = DictOfListsExpandInput({"a": [1, 2]})
-        batched = BatchedExpandInput(inner, size=2)
-        errors = [ValueError("first"), RuntimeError("second")]
-        result = batched.wrap_exceptions(errors)
-        assert isinstance(result, AirflowFailException)
-        assert "Multiple sub-task failures" in str(result)

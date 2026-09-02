@@ -1669,6 +1669,7 @@ def _run_task_and_map_outcome(
     """Execute the task and map its outcome -- success or a handled exception -- to a message and state."""
     import signal
 
+    from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
     from airflow.sdk.exceptions import (
         AirflowRescheduleException,
         AirflowSkipException,
@@ -1694,21 +1695,31 @@ def _run_task_and_map_outcome(
     signal.signal(signal.SIGTERM, _on_term)
 
     msg: ToSupervisor | None = None
-    state: TaskInstanceState | None = None
     error: BaseException | None = None
 
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
-            for x in keys_to_delete:
-                log.debug("Clearing XCom with key", key=x)
-                XCom.delete(
-                    key=x,
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    run_id=ti.run_id,
-                    map_index=ti.map_index,
-                )
+            # IterableOperator checkpoints per-index sub-task progress in the task_state_store and skips
+            # already-succeeded sub-tasks on retry (see IterableOperator._run_task). Clearing XComs on
+            # retry would wipe out results already pushed for those sub-tasks, so only clear on the first
+            # attempt. ``operator_class`` covers the unmapped case; ``MappedIterableOperator`` covers the
+            # mapped/expanded case, since it wraps the delegate operator rather than being an operator_class.
+            is_iterable_operator = ti.task.operator_class == IterableOperator or isinstance(
+                ti.task, MappedIterableOperator
+            )
+            if is_iterable_operator and ti.try_number > 1:
+                log.debug("Skipping clearing of XComs for IterableOperator on retry")
+            else:
+                for x in keys_to_delete:
+                    log.debug("Clearing XCom with key", key=x)
+                    XCom.delete(
+                        key=x,
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        run_id=ti.run_id,
+                        map_index=ti.map_index,
+                    )
 
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to

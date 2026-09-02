@@ -22,15 +22,11 @@ from unittest import mock
 
 from airflow.models import DagRun
 from airflow.utils.types import DagRunType
+from airflow.providers.common.compat.sdk import timezone
 
 from tests_common.test_utils.compat import Context
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
