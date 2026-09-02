@@ -2464,9 +2464,20 @@
                             }
                         },
                         "labels": {
-                            "description": "Labels to add to the Airflow Celery workers objects.",
+                            "description": "Labels for Airflow Celery workers objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                             "type": "object",
                             "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "podLabels": {
+                            "description": "Labels for Airflow Celery workers pods. Set to an empty object to use only global labels on pods.",
+                            "type": [
+                                "object",
+                                "null"
+                            ],
+                            "default": null,
                             "additionalProperties": {
                                 "type": "string"
                             }
@@ -3701,9 +3712,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the scheduler objects and pods.",
+                    "description": "Labels for scheduler objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for scheduler pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -4257,9 +4279,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the triggerer objects and pods.",
+                    "description": "Labels for triggerer objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for triggerer pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -4986,9 +5019,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels specific to dag processor objects and pods",
+                    "description": "Labels for dag processor objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for dag processor pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -6381,9 +6425,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the API server objects and pods.",
+                    "description": "Labels for Airflow API server objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for Airflow API server pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -6934,9 +6989,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the flower objects and pods.",
+                    "description": "Labels for flower objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for flower pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -7348,9 +7414,20 @@
                     ]
                 },
                 "labels": {
-                    "description": "Labels specific to statsd objects and pods",
+                    "description": "Labels for statsd objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for statsd pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -7556,9 +7633,20 @@
                     "default": null
                 },
                 "labels": {
-                    "description": "Labels specific to OTel Collector objects and pods.",
+                    "description": "Labels to add to the OTel Collector objects, and to its pods when podLabels is not set.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for OTel Collector pods. Defaults to labels when unset. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -7663,9 +7751,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the PgBouncer objects and pods.",
+                    "description": "Labels for PgBouncer objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for PgBouncer pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -8600,9 +8699,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels to add to the redis objects and pods.",
+                    "description": "Labels for redis objects. If podLabels is not set, these labels are applied to pods but not the StatefulSet for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for redis pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }

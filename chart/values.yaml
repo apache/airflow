@@ -956,8 +956,12 @@ workers:
     # Pod annotations for the Airflow Celery workers (templated)
     podAnnotations: {}
 
-    # Labels specific to Airflow Celery workers objects
+    # Labels for Airflow Celery workers objects. If podLabels is not set, these labels are
+    # applied to pods but not the Deployment for backward compatibility.
     labels: {}
+
+    # Labels for Airflow Celery workers pods. Set to {} to use only global labels on pods.
+    podLabels: ~
 
     # Log groomer configuration for Airflow Celery workers
     logGroomerSidecar:
@@ -1366,8 +1370,12 @@ scheduler:
   # Pod annotations for scheduler pods (templated)
   podAnnotations: {}
 
-  # Labels specific to scheduler objects and pods
+  # Labels for scheduler objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for scheduler pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
@@ -1695,8 +1703,12 @@ apiServer:
   # Max number of old ReplicaSets to retain
   revisionHistoryLimit: ~
 
-  # Labels specific to Airflow API server objects and pods
+  # Labels for Airflow API server objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for Airflow API server pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   # Command to use when running the Airflow API server (templated).
   command: ~
@@ -2051,8 +2063,12 @@ triggerer:
   # Pod annotations for triggerer pods (templated)
   podAnnotations: {}
 
-  # Labels specific to triggerer objects and pods
+  # Labels for triggerer objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for triggerer pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   logGroomerSidecar:
     # Whether to deploy the Airflow triggerer log groomer sidecar.
@@ -2350,8 +2366,12 @@ dagProcessor:
     securityContexts:
       container: {}
 
-  # Labels specific to dag processor objects
+  # Labels for dag processor objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for dag processor pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   # Environment variables to add to dag processor container
   env: []
@@ -2558,8 +2578,12 @@ flower:
   # Pod annotations for flower pods (templated)
   podAnnotations: {}
 
-  # Labels specific to flower objects and pods
+  # Labels for flower objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for flower pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   env: []
 
@@ -2671,8 +2695,12 @@ statsd:
   # Pod annotations for StatsD pods (templated)
   podAnnotations: {}
 
-  # Labels specific to StatsD objects and pods
+  # Labels for StatsD objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for StatsD pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   # Environment variables to add to StatsD container
   env: []
@@ -2755,6 +2783,10 @@ otelCollector:
   topologySpreadConstraints: []
   priorityClassName: ~
   labels: {}
+
+  # Labels for OTel Collector pods. Defaults to labels when unset. Set to {} to
+  # use only global labels on pods.
+  podLabels: ~
   podAnnotations: {}
 
   securityContexts:
@@ -3001,8 +3033,12 @@ pgbouncer:
     #       mountPath: "{{ .Values.my_custom_path }}"
     #       readOnly: true
 
-  # Labels specific to PgBouncer objects and pods
+  # Labels for PgBouncer objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for PgBouncer pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   # Environment variables to add to PgBouncer container
   env: []
@@ -3107,8 +3143,12 @@ redis:
   # Container level lifecycle hooks
   containerLifecycleHooks: {}
 
-  # Labels specific to redis objects and pods
+  # Labels for redis objects. If podLabels is not set, these labels are
+  # applied to pods but not the StatefulSet for backward compatibility.
   labels: {}
+
+  # Labels for redis pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   # Pod annotations for Redis pods (templated)
   podAnnotations: {}

@@ -29,6 +29,12 @@
 {{- $securityContext := include "localPodSecurityContext" (list .Values.statsd .Values) }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" (list .Values.statsd .Values) }}
 {{- $containerLifecycleHooks := .Values.statsd.containerLifecycleHooks }}
+{{- $deploymentLabels := .Values.labels }}
+{{- $podLabels := .Values.statsd.labels }}
+{{- if ne .Values.statsd.podLabels nil }}
+  {{- $deploymentLabels = mustMerge (deepCopy .Values.statsd.labels) .Values.labels }}
+  {{- $podLabels = .Values.statsd.podLabels }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,7 +45,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
+    {{- with $deploymentLabels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- with .Values.statsd.annotations }}
@@ -61,8 +67,8 @@ spec:
         tier: airflow
         component: statsd
         release: {{ .Release.Name }}
-        {{- if or .Values.labels .Values.statsd.labels }}
-          {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or .Values.labels $podLabels }}
+          {{- mustMerge (deepCopy $podLabels) .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
       annotations:

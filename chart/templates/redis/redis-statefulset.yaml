@@ -29,6 +29,12 @@
 {{- $containerSecurityContext := include "externalContainerSecurityContext" (list .Values.redis .Values) }}
 {{- $containerLifecycleHooks := .Values.redis.containerLifecycleHooks }}
 {{- $persistence := .Values.redis.persistence.enabled }}
+{{- $deploymentLabels := .Values.labels }}
+{{- $podLabels := .Values.redis.labels }}
+{{- if ne .Values.redis.podLabels nil }}
+  {{- $deploymentLabels = mustMerge (deepCopy .Values.redis.labels) .Values.labels }}
+  {{- $podLabels = .Values.redis.podLabels }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -39,7 +45,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
+    {{- with $deploymentLabels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- if .Values.redis.annotations }}
@@ -61,8 +67,8 @@ spec:
         tier: airflow
         component: redis
         release: {{ .Release.Name }}
-        {{- if or .Values.labels .Values.redis.labels }}
-          {{- mustMerge .Values.redis.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or .Values.labels $podLabels }}
+          {{- mustMerge (deepCopy $podLabels) .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.redis.safeToEvict .Values.redis.podAnnotations }}
       annotations:
