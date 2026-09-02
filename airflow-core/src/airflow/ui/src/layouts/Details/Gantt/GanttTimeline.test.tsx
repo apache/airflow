@@ -361,7 +361,7 @@ describe("GanttTimeline segment bars", () => {
     // Bar visible by default.
     expect(screen.getAllByRole("link")).toHaveLength(1);
 
-    // `rerender` re-uses the wrapper passed to the initial `render` call — wrapping again here
+    // `rerender` reuses the wrapper passed to the initial `render` call — wrapping again here
     // would nest a second Router and throw.
     rerender(
       <GanttTimeline
