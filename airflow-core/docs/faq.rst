@@ -485,7 +485,8 @@ important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
 
-It is also important to note that the task's ``start_date`` is ignored in backfills.
+It is also important to note that the task's ``start_date`` and ``end_date`` are ignored in
+backfills and in manually triggered runs. They only bound scheduled runs.
 
 Using time zones
 ----------------
