@@ -1644,7 +1644,10 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, ResumableJob
 
     def submit_job(self, context: Context) -> str:
         statement_id: str = self._hook.post_sql_statement(json=self._build_statement_payload(context))
-        self._restore_statement_id(statement_id=statement_id, context=context)
+        if self.durable and self.wait_for_termination and not self.deferrable:
+            self.statement_id = statement_id
+        else:
+            self._restore_statement_id(statement_id=statement_id, context=context)
         self.log.info("SQL Statement submitted with statement_id: %s", statement_id)
         return statement_id
 

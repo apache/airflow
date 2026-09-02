@@ -3695,6 +3695,34 @@ class TestDatabricksSQLStatementsOperatorDurable:
         assert op.statement_id == STATEMENT_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_xcom_failure_after_submit_keeps_statement_id_for_retry(self, db_mock_class):
+        stored: dict[str, Any] = {}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.side_effect = stored.get
+        task_store.set.side_effect = stored.__setitem__
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.side_effect = [
+            SQLStatementState("RUNNING"),
+            SQLStatementState("SUCCEEDED"),
+        ]
+        first_context = self._context(task_store)
+        first_context["ti"].xcom_push.side_effect = RuntimeError("xcom unavailable")
+
+        with pytest.raises(RuntimeError, match="xcom unavailable"):
+            self._operator().execute(first_context)
+
+        assert stored == {"databricks_sql_statement_id": STATEMENT_ID}
+
+        retry_context = self._context(task_store)
+        retry = self._operator()
+        retry.execute(retry_context)
+
+        db_mock.post_sql_statement.assert_called_once()
+        retry_context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+        assert retry.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_reconnects_to_active_statement_without_resubmitting(self, db_mock_class):
         op = self._operator()
         db_mock = db_mock_class.return_value
@@ -3781,12 +3809,14 @@ class TestDatabricksSQLStatementsOperatorDurable:
         db_mock = db_mock_class.return_value
         db_mock.post_sql_statement.return_value = STATEMENT_ID
         task_store = MagicMock(spec_set=["get", "set"])
+        context = self._context(task_store)
 
-        assert op.execute(self._context(task_store)) is None
+        assert op.execute(context) is None
 
         db_mock.post_sql_statement.assert_called_once()
         task_store.get.assert_not_called()
         task_store.set.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_deferrable_does_not_use_task_state_store(self, db_mock_class):
@@ -3795,13 +3825,15 @@ class TestDatabricksSQLStatementsOperatorDurable:
         db_mock.post_sql_statement.return_value = STATEMENT_ID
         db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
         task_store = MagicMock(spec_set=["get", "set"])
+        context = self._context(task_store)
 
         with pytest.raises(TaskDeferred):
-            op.execute(self._context(task_store))
+            op.execute(context)
 
         db_mock.post_sql_statement.assert_called_once()
         task_store.get.assert_not_called()
         task_store.set.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_false_does_not_use_task_state_store(self, db_mock_class):
