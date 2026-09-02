@@ -4247,13 +4247,80 @@ def test_parent_trace_context_tracestate(tracestate, expected):
     assert span_ctx.trace_state.get("foo") == expected
 
 
-@mock.patch("airflow.models.dagrun.TraceContextTextMapPropagator.extract", side_effect=ValueError("boom"))
-def test_parent_trace_context_swallows_propagator_error(mock_extract):
-    """A propagator failure degrades to a root trace instead of failing run creation."""
+def test_parent_trace_context_carrier_read_by_configured_propagators():
+    """A carrier dict is handed to the configured propagators, not filtered down to W3C keys."""
+    from opentelemetry import baggage
+
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {
+        DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+            "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01",
+            "baggage": "tenant=acme",
+        }
+    }
+    ctx = parent_trace_context(conf)
+    assert format(otel_trace.get_current_span(ctx).get_span_context().trace_id, "032x") == _EXTERNAL_TRACE_ID
+    assert baggage.get_all(ctx) == {"tenant": "acme"}
+
+
+@pytest.fixture
+def global_propagator_without_tracecontext():
+    """Stand in for a deployment whose OTEL_PROPAGATORS does not include ``tracecontext``."""
+    from opentelemetry import propagate
+    from opentelemetry.baggage.propagation import W3CBaggagePropagator
+    from opentelemetry.propagators.composite import CompositePropagator
+
+    original = propagate.get_global_textmap()
+    propagate.set_global_textmap(CompositePropagator([W3CBaggagePropagator()]))
+    yield
+    propagate.set_global_textmap(original)
+
+
+def test_parent_trace_context_string_shorthand_ignores_configured_propagators(
+    global_propagator_without_tracecontext,
+):
+    """The bare-string shorthand is a W3C traceparent by definition, so OTEL_PROPAGATORS cannot break it."""
     from airflow.models.dagrun import parent_trace_context
 
     conf = {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"}
+    span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == _EXTERNAL_TRACE_ID
+
+
+def test_parent_trace_context_carrier_mapping_follows_configured_propagators(
+    global_propagator_without_tracecontext,
+):
+    """The mapping form is the propagator-agnostic path, so a W3C-less propagator set drops it."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {
+        DAGRUN_PARENT_TRACE_CONTEXT_KEY: {"traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"}
+    }
     assert parent_trace_context(conf) is None
+
+
+@pytest.mark.parametrize(
+    ("conf_value", "patch_target"),
+    [
+        pytest.param(
+            f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01",
+            "airflow.models.dagrun.TraceContextTextMapPropagator.extract",
+            id="string-shorthand",
+        ),
+        pytest.param(
+            {"traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            "airflow.models.dagrun.propagate.extract",
+            id="carrier-mapping",
+        ),
+    ],
+)
+def test_parent_trace_context_swallows_propagator_error(conf_value, patch_target):
+    """A propagator failure degrades to a root trace instead of failing run creation."""
+    from airflow.models.dagrun import parent_trace_context
+
+    with mock.patch(patch_target, side_effect=ValueError("boom")):
+        assert parent_trace_context({DAGRUN_PARENT_TRACE_CONTEXT_KEY: conf_value}) is None
 
 
 class TestDagRunTracing:

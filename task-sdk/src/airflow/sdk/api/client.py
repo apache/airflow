@@ -31,8 +31,7 @@ import certifi
 import httpx
 import msgspec
 import structlog
-from opentelemetry import trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry import propagate, trace
 from pydantic import BaseModel, JsonValue
 from tenacity import (
     before_log,
@@ -177,7 +176,6 @@ def getuser() -> str:
 
 log = structlog.get_logger(logger_name=__name__)
 
-_trace_propagator = TraceContextTextMapPropagator()
 _log_retry_warning = before_log(log, logging.WARNING)
 
 __all__ = [
@@ -230,7 +228,7 @@ def add_correlation_id(request: httpx.Request):
 
 
 def inject_trace_context(request: httpx.Request) -> None:
-    _trace_propagator.inject(request.headers)
+    propagate.inject(request.headers)
 
 
 def _log_and_trace_retry(retry_state) -> None:
