@@ -1,0 +1,1 @@
+Fix XComs e2e filter tests broken by the filter bar DOM restructuring in #71554.
