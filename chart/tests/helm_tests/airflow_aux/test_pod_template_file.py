@@ -1396,6 +1396,7 @@ class TestPodTemplateFile:
                         "readonlyKerberosCache": readonly_cache,
                     },
                 },
+                "kerberos": {"enabled": True},
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -1403,7 +1404,7 @@ class TestPodTemplateFile:
 
         assert (
             jmespath.search(
-                "spec.containers[?name=='base'].volumeMounts[?name=='kerberos-ccache'].readOnly |",
+                "spec.containers[?name=='base'].volumeMounts | [] | [?name=='kerberos-ccache'] | [0].readOnly",
                 docs[0],
             )
             == readonly_cache
