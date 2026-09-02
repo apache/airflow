@@ -895,16 +895,33 @@ class TestConnectionsOperations:
             assert request_body == {
                 "connection_id": self.connection_id,
                 "conn_type": self.conn_type,
-                "description": None,
-                "host": None,
-                "login": None,
                 "schema": self.schema_,
-                "port": None,
-                "password": None,
-                "extra": None,
-                "team_name": None,
             }
             assert "schema_" not in request_body
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.connections.update(connection=connection)
+        assert response == self.connection_response
+
+    def test_update_omits_unset_fields_from_request_body(self):
+        # The API treats every key present in a PATCH body as an intentional value, so sending
+        # unset fields as null clears the stored login, port, schema and description.
+        connection = ConnectionBody(
+            connection_id=self.connection_id,
+            conn_type=self.conn_type,
+            host="new-host",
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/connections/{self.connection_id}"
+            assert json.loads(request.content.decode()) == {
+                "connection_id": self.connection_id,
+                "conn_type": self.conn_type,
+                "host": "new-host",
+            }
             return httpx.Response(
                 200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
             )
@@ -1727,6 +1744,19 @@ class TestPoolsOperations:
         response = client.pools.update(pool_body=self.pool_patch_body)
         assert response == self.pool_response
 
+    def test_update_omits_unset_fields_from_request_body(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert json.loads(request.content.decode()) == {
+                "pool": self.pool_name,
+                "description": "description",
+            }
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=self.pool_patch_body)
+        assert response == self.pool_response
+
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
@@ -1994,6 +2024,18 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.update(variable=self.variable)
+        assert response == self.variable_response
+
+    def test_update_omits_unset_fields_from_request_body(self):
+        variable = VariableBody.model_validate({"key": self.key, "value": "new-value"})
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/variables/{self.key}"
+            assert json.loads(request.content.decode()) == {"key": self.key, "value": "new-value"}
+            return httpx.Response(200, json=json.loads(self.variable_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.variables.update(variable=variable)
         assert response == self.variable_response
 
 
