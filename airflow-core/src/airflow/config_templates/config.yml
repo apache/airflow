@@ -1562,6 +1562,15 @@ traces:
       type: integer
       example: ~
       default: "30000"
+    dag_tags_in_spans:
+      description: |
+        Set to ``True`` to include DAG tags as attributes on spans. Tags that contain a colon
+        (e.g. ``env:prod``) are split into a key/value pair, while plain tags such as
+        ``production`` are emitted with an empty string value.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:

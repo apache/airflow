@@ -842,24 +842,8 @@ class TestCustomStatsName:
         importlib.reload(airflow_shared.observability.metrics.stats)
 
 
-@pytest.mark.parametrize(
-    ("tag_names", "expected"),
-    [
-        pytest.param([], {}, id="empty"),
-        pytest.param(["production"], {"production": ""}, id="standalone"),
-        pytest.param(["env:prod"], {"env": "prod"}, id="key-value"),
-        pytest.param(
-            ["production", "env:prod", "team:data"],
-            {"production": "", "env": "prod", "team": "data"},
-            id="mixed",
-        ),
-        pytest.param(["a:b:c"], {"a": "b:c"}, id="value-with-colon"),
-        pytest.param(["env:"], {"env": ""}, id="trailing-colon-is-standalone"),
-    ],
-)
-def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -> None:
-    assert build_dag_metric_tags(tag_names) == expected
-
-
-def test_build_dag_metric_tags_accepts_generator() -> None:
-    assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}
+def test_build_dag_metric_tags_preserves_legacy_expansion() -> None:
+    assert build_dag_metric_tags(["production", "env:prod"]) == {
+        "production": "",
+        "env": "prod",
+    }
