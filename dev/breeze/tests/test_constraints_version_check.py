@@ -18,14 +18,29 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
+import threading
+import time
 from pathlib import Path
 from unittest import mock
+from urllib.error import HTTPError, URLError
 
 import pytest
 
 from airflow_breeze.utils.constraints_version_check import (
-    explain_package_upgrade,
+    BASELINE_SECTION,
+    FREEZE_MARKER,
+    PYPI_FETCH_MAX_ATTEMPTS,
+    PYPI_FETCH_PARALLELISM,
+    PYPI_FETCH_TIMEOUT_SECONDS,
+    RETURN_CODE_MARKER,
+    SECTION_MARKER,
+    ResolvedSection,
+    UpgradeCandidate,
+    classify_package_upgrade,
+    fetch_pypi_data,
     get_table_format,
+    iter_pypi_data,
     process_packages,
 )
 
@@ -44,7 +59,7 @@ def _pypi_payload(latest: str, *versions: str) -> bytes:
 def pypi(monkeypatch):
     """Serve every package the same two-release history: pinned 1.0.0, latest 2.0.0."""
 
-    def fake_urlopen(_url):
+    def fake_urlopen(_url, timeout=None):
         response = mock.MagicMock()
         response.read.return_value = _pypi_payload("2.0.0", "1.0.0", "2.0.0")
         return contextlib.nullcontext(response)
@@ -67,103 +82,390 @@ def _run_process_packages(packages, explain_why=True):
     )
 
 
-@mock.patch(f"{MODULE}.explain_package_upgrade", return_value="explanation")
-@mock.patch(f"{MODULE}.resolve_baseline_versions", return_value=("baseline log", {"pkg-a": "1.0.0"}))
-def test_baseline_is_resolved_once_for_all_outdated_packages(mock_baseline, mock_explain, pypi):
+def test_pypi_metadata_is_fetched_concurrently(monkeypatch):
+    """A constraints file pins hundreds of packages; fetching them serially is the job's runtime."""
+    in_flight = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def slow_fetch(pkg: str) -> dict:
+        nonlocal in_flight, peak
+        with lock:
+            in_flight += 1
+            peak = max(peak, in_flight)
+        time.sleep(0.05)
+        with lock:
+            in_flight -= 1
+        return {"pkg": pkg}
+
+    monkeypatch.setattr(f"{MODULE}.fetch_pypi_data", slow_fetch)
+
+    results = list(iter_pypi_data([f"pkg-{i}" for i in range(20)]))
+
+    assert results == [{"pkg": f"pkg-{i}"} for i in range(20)]
+    assert 1 < peak <= PYPI_FETCH_PARALLELISM
+
+
+def test_only_one_batch_is_held_in_memory_at_a_time(monkeypatch):
+    """A single project's release history can be tens of MB - all ~770 would not fit."""
+    fetched: list[str] = []
+
+    def fetch(pkg: str) -> dict:
+        fetched.append(pkg)
+        return {"pkg": pkg}
+
+    monkeypatch.setattr(f"{MODULE}.fetch_pypi_data", fetch)
+
+    packages = [f"pkg-{i}" for i in range(PYPI_FETCH_PARALLELISM * 3)]
+    stream = iter_pypi_data(packages)
+    next(stream)
+
+    # Consuming the first result must not have fetched beyond the first batch.
+    assert len(fetched) <= PYPI_FETCH_PARALLELISM
+
+
+def test_a_failed_fetch_is_yielded_against_its_own_package(monkeypatch):
+    def fetch(pkg: str) -> dict:
+        if pkg == "pkg-b":
+            raise URLError("boom")
+        return {"pkg": pkg}
+
+    monkeypatch.setattr(f"{MODULE}.fetch_pypi_data", fetch)
+
+    results = list(iter_pypi_data(["pkg-a", "pkg-b", "pkg-c"]))
+
+    assert results[0] == {"pkg": "pkg-a"}
+    assert isinstance(results[1], URLError)
+    assert results[2] == {"pkg": "pkg-c"}
+
+
+def test_fetch_uses_a_timeout(monkeypatch):
+    """Without one, a stalled PyPI connection hangs the job until the CI job timeout."""
+    calls = {}
+
+    def fake_urlopen(url, timeout=None):
+        calls["url"] = url
+        calls["timeout"] = timeout
+        response = mock.MagicMock()
+        response.read.return_value = _pypi_payload("2.0.0", "2.0.0")
+        return contextlib.nullcontext(response)
+
+    monkeypatch.setattr(f"{MODULE}.urllib.request.urlopen", fake_urlopen)
+
+    fetch_pypi_data("pkg-a")
+
+    assert calls["url"] == "https://pypi.org/pypi/pkg-a/json"
+    assert calls["timeout"] == PYPI_FETCH_TIMEOUT_SECONDS
+
+
+def test_every_row_keeps_its_own_packages_data_however_the_fetches_finish(monkeypatch, capsys):
+    """Results are matched to packages by position, so returning them out of order would put
+    another package's versions on the row - a silent mismatch rather than a visible reshuffle."""
+    count = PYPI_FETCH_PARALLELISM * 2
+    packages = [(f"pkg-{i:02d}", "1.0.0") for i in range(count)]
+
+    def fetch(pkg: str) -> dict:
+        index = int(pkg.removeprefix("pkg-"))
+        # Finish in reverse, so completion order is the opposite of constraints-file order.
+        time.sleep((count - index) * 0.01)
+        return json.loads(_pypi_payload(f"{index + 2}.0.0", "1.0.0", f"{index + 2}.0.0").decode())
+
+    monkeypatch.setattr(f"{MODULE}.fetch_pypi_data", fetch)
+
+    _run_process_packages(packages, explain_why=False)
+
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+    printed = re.findall(r"pypi\.org/project/(pkg-\d+)/(\d+\.\d+\.\d+)", plain)
+
+    assert printed == [(f"pkg-{i:02d}", f"{i + 2}.0.0") for i in range(count)]
+
+
+def test_a_throttled_fetch_is_retried(monkeypatch):
+    """PyPI can throttle a burst of parallel requests; one 429 should not fail the package."""
+    attempts = []
+
+    def urlopen(url, timeout=None):
+        attempts.append(url)
+        if len(attempts) == 1:
+            raise HTTPError(url, 429, "Too Many Requests", {}, None)
+        response = mock.MagicMock()
+        response.read.return_value = _pypi_payload("2.0.0", "2.0.0")
+        return contextlib.nullcontext(response)
+
+    monkeypatch.setattr(f"{MODULE}.urllib.request.urlopen", urlopen)
+    monkeypatch.setattr(f"{MODULE}.time.sleep", lambda _: None)
+
+    assert fetch_pypi_data("pkg-a")["info"]["version"] == "2.0.0"
+    assert len(attempts) == 2
+
+
+def test_a_throttled_fetch_waits_for_retry_after(monkeypatch):
+    """PyPI says how long to wait when it throttles; guessing shorter just gets throttled again."""
+    slept = []
+
+    def urlopen(url, timeout=None):
+        if not slept:
+            raise HTTPError(url, 429, "Too Many Requests", {"Retry-After": "7"}, None)
+        response = mock.MagicMock()
+        response.read.return_value = _pypi_payload("2.0.0", "2.0.0")
+        return contextlib.nullcontext(response)
+
+    monkeypatch.setattr(f"{MODULE}.urllib.request.urlopen", urlopen)
+    monkeypatch.setattr(f"{MODULE}.time.sleep", slept.append)
+
+    fetch_pypi_data("pkg-a")
+
+    assert slept == [7.0]
+
+
+def test_a_missing_package_is_not_retried(monkeypatch):
+    """A 404 is an answer, not congestion - retrying it just multiplies the wait."""
+    attempts = []
+
+    def urlopen(url, timeout=None):
+        attempts.append(url)
+        raise HTTPError(url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(f"{MODULE}.urllib.request.urlopen", urlopen)
+    monkeypatch.setattr(f"{MODULE}.time.sleep", lambda _: None)
+
+    with pytest.raises(HTTPError):
+        fetch_pypi_data("pkg-a")
+    assert len(attempts) == 1
+
+
+def test_a_fetch_that_stays_throttled_fails_against_its_package(monkeypatch):
+    """Retries are bounded; the last failure has to surface rather than loop forever."""
+    attempts = []
+
+    def urlopen(url, timeout=None):
+        attempts.append(url)
+        raise HTTPError(url, 503, "Service Unavailable", {}, None)
+
+    monkeypatch.setattr(f"{MODULE}.urllib.request.urlopen", urlopen)
+    monkeypatch.setattr(f"{MODULE}.time.sleep", lambda _: None)
+
+    with pytest.raises(HTTPError):
+        fetch_pypi_data("pkg-a")
+    assert len(attempts) == PYPI_FETCH_MAX_ATTEMPTS
+
+
+def test_a_failed_package_does_not_stop_the_others(pypi, monkeypatch, capsys):
+    real_fetch = fetch_pypi_data
+
+    def fetch(pkg: str):
+        if pkg == "pkg-b":
+            raise HTTPError("https://pypi.org/pypi/pkg-b/json", 503, "boom", {}, None)  # type: ignore[arg-type]
+        return real_fetch(pkg)
+
+    monkeypatch.setattr(f"{MODULE}.fetch_pypi_data", fetch)
+
+    _, _, _, status_counts = _run_process_packages(
+        [("pkg-a", "2.0.0"), ("pkg-b", "2.0.0"), ("pkg-c", "2.0.0")], explain_why=False
+    )
+
+    assert status_counts["ok"] == 2
+    printed = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+    assert "Error fetching pkg-b from PyPI: HTTP 503" in printed
+
+
+class FakeContainer:
+    """Stands in for a ``docker compose run`` of a batched script.
+
+    Replays whatever sections the script asks for, so a test that changes the batch does not
+    have to restate the log, and records the scripts and the plan files each run was given.
+    """
+
+    def __init__(self, files_path: Path):
+        self.files_path = files_path
+        self.scripts: list[str] = []
+        self.plans: list[dict[str, str]] = []
+        self.freeze: dict[str, dict[str, str]] = {}
+        self.returncodes: dict[str, int] = {}
+        self.logs: dict[str, str] = {}
+
+    def read_plan(self, script: str) -> dict[str, str]:
+        match = re.search(r"/files/(constraints-explain-\w+)", script)
+        if not match:
+            return {}
+        return {path.name: path.read_text() for path in sorted((self.files_path / match.group(1)).iterdir())}
+
+    def __call__(self, *_args, **kwargs):
+        script = kwargs["command"]
+        self.scripts.append(script)
+        self.plans.append(self.read_plan(script))
+        lines = []
+        for name in re.findall(rf"{re.escape(SECTION_MARKER)} ([\w.\-]+)", script):
+            lines.append(f"{SECTION_MARKER} {name}")
+            lines.append(self.logs.get(name, ""))
+            lines.append(f"{RETURN_CODE_MARKER} {self.returncodes.get(name, 0)}")
+            if name in self.freeze:
+                lines.append(FREEZE_MARKER)
+                lines.extend(f"{pkg}=={version}" for pkg, version in self.freeze[name].items())
+        Path(kwargs["output"].file_name).write_text("\n".join(lines) + "\n")
+        return mock.MagicMock(returncode=0)
+
+
+@pytest.fixture
+def container(monkeypatch, tmp_path):
+    """A throwaway workspace plus a container double, so no real resolution ever runs."""
+    (tmp_path / "pyproject.toml").write_text('[project]\ndependencies = [\n    "already-there",\n]\n')
+    (tmp_path / "uv.lock").write_text("the original lock\n")
+    monkeypatch.setattr(f"{MODULE}.AIRFLOW_ROOT_PATH", tmp_path)
+    monkeypatch.setattr(f"{MODULE}.FILES_PATH", tmp_path / "files")
+    fake = FakeContainer(tmp_path / "files")
+    fake.freeze[BASELINE_SECTION] = {"pkg-a": "1.0.0", "pkg-b": "1.0.0", "pkg-c": "1.0.0"}
+    monkeypatch.setattr(f"{MODULE}.execute_command_in_shell", fake)
+    return fake
+
+
+def test_every_explanation_shares_one_container(container, pypi):
+    """A container costs more than the resolution it wraps, so all of them share one."""
     packages = [("pkg-a", "1.0.0"), ("pkg-b", "1.0.0"), ("pkg-c", "1.0.0")]
+    for index, (pkg, _) in enumerate(packages):
+        container.freeze[f"{index}-{pkg}"] = {**container.freeze[BASELINE_SECTION], pkg: "2.0.0"}
 
     _, _, explanations, _ = _run_process_packages(packages)
 
-    assert mock_explain.call_count == 3
+    assert len(container.scripts) == 1
     assert len(explanations) == 3
-    mock_baseline.assert_called_once_with(
-        python_version="3.11",
-        airflow_constraints_mode="constraints",
-        github_repository="apache/airflow",
-    )
-    for call in mock_explain.call_args_list:
-        assert call.kwargs["baseline_text"] == "baseline log"
-        assert call.kwargs["baseline_versions"] == {"pkg-a": "1.0.0"}
+    for pkg, _ in packages:
+        assert any(f"Package {pkg} can be upgraded from 1.0.0 to 2.0.0" in text for text in explanations)
 
 
-@mock.patch(f"{MODULE}.explain_package_upgrade", return_value="explanation")
-@mock.patch(f"{MODULE}.resolve_baseline_versions")
-def test_baseline_is_not_resolved_when_nothing_needs_explaining(mock_baseline, mock_explain, pypi):
+def test_nothing_runs_when_no_package_needs_explaining(container, pypi):
     # Already at the latest version, so no package triggers an explanation.
     _run_process_packages([("pkg-a", "2.0.0"), ("pkg-b", "2.0.0")])
 
-    mock_explain.assert_not_called()
-    mock_baseline.assert_not_called()
+    assert container.scripts == []
 
 
-@mock.patch(f"{MODULE}.explain_package_upgrade")
-@mock.patch(f"{MODULE}.resolve_baseline_versions")
-def test_baseline_is_not_resolved_without_explain_why(mock_baseline, mock_explain, pypi):
+def test_nothing_runs_without_explain_why(container, pypi):
     _run_process_packages([("pkg-a", "1.0.0")], explain_why=False)
 
-    mock_explain.assert_not_called()
-    mock_baseline.assert_not_called()
+    assert container.scripts == []
 
 
-@mock.patch(f"{MODULE}.update_pyproject_dependency")
-@mock.patch(f"{MODULE}.preserve_files")
-@mock.patch(f"{MODULE}.sync_and_freeze")
-def test_explain_package_upgrade_syncs_only_the_pinned_resolution(
-    mock_sync, mock_preserve, mock_update_pyproject
-):
-    mock_preserve.return_value = contextlib.nullcontext()
-    mock_sync.return_value = (mock.MagicMock(returncode=0), "after log", {"pkg-a": "2.0.0"})
+def test_the_baseline_is_resolved_once_and_is_the_only_refresh(container, pypi):
+    """The baseline refresh re-reads every index page; repeating it per package is wasted."""
+    _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
 
-    explanation = explain_package_upgrade(
-        pkg="pkg-a",
-        pinned_version="1.0.0",
-        latest_version="2.0.0",
-        python_version="3.11",
-        airflow_constraints_mode="constraints",
-        github_repository="apache/airflow",
-        baseline_text="baseline log",
-        baseline_versions={"pkg-a": "1.0.0"},
+    script = container.scripts[0]
+    assert script.index(f"{SECTION_MARKER} {BASELINE_SECTION}") < script.index(f"{SECTION_MARKER} 0-pkg-a")
+    assert script.count("--refresh") == 1
+    baseline, _, rest = script.partition(f"{SECTION_MARKER} 0-pkg-a")
+    assert "--refresh" in baseline
+
+
+def test_each_resolution_starts_from_the_unpinned_workspace(container, pypi):
+    """uv prefers versions it finds locked, so a leftover lock would skew the next package."""
+    _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    script = container.scripts[0]
+    plan = container.plans[0]
+    assert plan["uv.lock"] == "the original lock\n"
+    assert script.count("cp /files/") == 4
+    for index, pkg in enumerate(["pkg-a", "pkg-b"]):
+        assert f"\"{pkg}==2.0.0; python_version=='3.11'\"" in plan[f"pyproject-{index}.toml"]
+        assert "already-there" in plan[f"pyproject-{index}.toml"]
+
+
+def test_a_package_is_classified_from_its_own_section(container, pypi):
+    """One combined log holds every resolution; each verdict must read only its own slice."""
+    container.freeze["0-pkg-a"] = {"pkg-a": "2.0.0", "pkg-b": "1.0.0"}
+    container.freeze["1-pkg-b"] = {"pkg-a": "1.0.0", "pkg-b": "1.0.0"}
+
+    _, _, explanations, _ = _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    assert "Package pkg-a can be upgraded from 1.0.0 to 2.0.0" in explanations[0]
+    assert "pkg-b still resolved to 1.0.0" in explanations[1]
+
+
+def test_a_package_without_a_section_is_reported_as_unexplained(container, pypi):
+    """A container that dies part-way must not hand another package's resolution to this one."""
+    container.freeze["0-pkg-a"] = {"pkg-a": "2.0.0"}
+
+    def truncate_after_first_package(*args, **kwargs):
+        result = container(*args, **kwargs)
+        path = Path(kwargs["output"].file_name)
+        path.write_text(path.read_text().split(f"{SECTION_MARKER} 1-pkg-b")[0])
+        return result
+
+    with mock.patch(f"{MODULE}.execute_command_in_shell", truncate_after_first_package):
+        _, _, explanations, _ = _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    assert "can be upgraded from 1.0.0 to 2.0.0" in explanations[0]
+    assert "produced no output for pkg-b" in explanations[1]
+
+
+def test_every_conflict_probe_shares_one_more_container(container, pypi):
+    """Both packages need uv's narrative; that is one extra container, not one each."""
+    container.freeze["0-pkg-a"] = {"pkg-a": "2.0.0", "other-pkg": "4.0.0"}
+    container.freeze["1-pkg-b"] = {"pkg-b": "2.0.0", "other-pkg": "3.0.0"}
+    container.freeze[BASELINE_SECTION] = {"pkg-a": "1.0.0", "pkg-b": "1.0.0", "other-pkg": "5.0.0"}
+    container.logs = {"0": "No solution found\nBecause pkg-a", "1": "No solution found\nBecause pkg-b"}
+
+    _, _, explanations, _ = _run_process_packages([("pkg-a", "1.0.0"), ("pkg-b", "1.0.0")])
+
+    assert len(container.scripts) == 2
+    assert "uv pip compile - --python 3.11" in container.scripts[1]
+    assert "other-pkg: 5.0.0 -> 4.0.0" in explanations[0]
+    assert "Because pkg-a" in explanations[0]
+    assert "other-pkg: 5.0.0 -> 3.0.0" in explanations[1]
+    assert "Because pkg-b" in explanations[1]
+
+
+CANDIDATE = UpgradeCandidate(pkg="pkg-a", pinned_version="1.0.0", latest_version="2.0.0")
+
+
+@pytest.mark.parametrize(
+    ("section", "expected", "expected_pins"),
+    [
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=0, versions={"pkg-a": "2.0.0"}),
+            "can be upgraded from 1.0.0 to 2.0.0",
+            [],
+            id="clean-upgrade",
+        ),
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=1, text="No solution found\nBecause pkg-a"),
+            "CANNOT be upgraded to 2.0.0",
+            [],
+            id="hard-conflict",
+        ),
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=0, versions={}),
+            "could not be classified",
+            [],
+            id="unreadable-freeze",
+        ),
+        pytest.param(
+            ResolvedSection(name="pkg-a", returncode=0, versions={"pkg-a": "2.0.0", "other-pkg": "4.0.0"}),
+            "only by DOWNGRADING",
+            ["pkg-a==2.0.0", "other-pkg==5.0.0"],
+            id="needs-downgrades",
+        ),
+    ],
+)
+def test_a_resolution_is_classified_by_what_it_resolved_to(section, expected, expected_pins):
+    baseline = ResolvedSection(
+        name=BASELINE_SECTION, returncode=0, versions={"pkg-a": "1.0.0", "other-pkg": "5.0.0"}
     )
 
-    mock_sync.assert_called_once()
-    assert mock_sync.call_args.kwargs["title"] == "output_after"
-    assert "can be upgraded from 1.0.0 to 2.0.0" in explanation
+    explanation, pins = classify_package_upgrade(candidate=CANDIDATE, baseline=baseline, section=section)
+
+    assert expected in explanation
+    assert pins == expected_pins
 
 
-@mock.patch(f"{MODULE}.update_pyproject_dependency")
-@mock.patch(f"{MODULE}.preserve_files")
-@mock.patch(f"{MODULE}.execute_command_in_shell")
-@mock.patch(f"{MODULE}.sync_and_freeze")
-def test_explain_package_upgrade_reads_baseline_for_downgrade_detection(
-    mock_sync, mock_conflict_probe, mock_preserve, mock_update_pyproject
-):
-    mock_preserve.return_value = contextlib.nullcontext()
+def test_a_package_the_baseline_already_upgrades_is_reported_as_stale_constraints():
+    baseline = ResolvedSection(name=BASELINE_SECTION, returncode=0, versions={"pkg-a": "2.0.0"})
 
-    def write_conflict_narrative(*_args, **kwargs):
-        # The downgrade branch reruns uv from scratch to capture the resolver narrative.
-        Path(kwargs["output"].file_name).write_text(
-            "No solution found\nBecause pkg-a==2.0.0 depends on other-pkg<5"
-        )
-        return mock.MagicMock(returncode=1)
-
-    mock_conflict_probe.side_effect = write_conflict_narrative
-    # Reaching pkg-a 2.0.0 pushed other-pkg back from 5.0.0 to 4.0.0.
-    mock_sync.return_value = (
-        mock.MagicMock(returncode=0),
-        "after log",
-        {"pkg-a": "2.0.0", "other-pkg": "4.0.0"},
+    explanation, pins = classify_package_upgrade(
+        candidate=CANDIDATE,
+        baseline=baseline,
+        section=ResolvedSection(name="pkg-a", returncode=0, versions={"pkg-a": "2.0.0"}),
     )
 
-    explanation = explain_package_upgrade(
-        pkg="pkg-a",
-        pinned_version="1.0.0",
-        latest_version="2.0.0",
-        python_version="3.11",
-        airflow_constraints_mode="constraints",
-        github_repository="apache/airflow",
-        baseline_text="baseline log",
-        baseline_versions={"pkg-a": "1.0.0", "other-pkg": "5.0.0"},
-    )
-
-    assert "only by DOWNGRADING" in explanation
-    assert "other-pkg: 5.0.0 -> 4.0.0" in explanation
+    assert "constraints file appears to be stale" in explanation
+    assert pins == []
