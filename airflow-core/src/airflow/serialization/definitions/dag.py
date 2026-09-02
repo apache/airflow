@@ -448,7 +448,7 @@ class SerializedDAG:
                 last_dagrun_info=last_automated_run_info,
                 restriction=restriction,
             )
-            log.info(
+            log.debug(
                 "get next_dagrun_info_v2",
                 last_automated_run_info=last_automated_run_info,
                 next_info=info,
