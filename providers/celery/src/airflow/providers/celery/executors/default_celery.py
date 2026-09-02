@@ -25,9 +25,9 @@ import re
 import ssl
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, AirflowException, conf
 
 if TYPE_CHECKING:
     from typing import Any
@@ -195,7 +195,9 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
     # Handle SSL configuration
     try:
         celery_ssl_active = team_conf.getboolean("celery", "SSL_ACTIVE", fallback=False)
-    except AirflowConfigException:
+    # ``team_conf`` is the Task SDK parser at module scope and core's ``ExecutorConf`` on the
+    # multi-team path. Their ``AirflowConfigException`` classes share a name but are not the same class.
+    except (AirflowConfigException, CoreAirflowConfigException):
         log.warning("Celery Executor will run without SSL")
         celery_ssl_active = False
 
