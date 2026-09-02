@@ -144,12 +144,38 @@ pattern.
        inputs/outputs. Task events only.
        **No effect when ``extract_operator_metadata`` is ``false``** — the entire extraction
        pipeline (including hook lineage) is skipped.
+   * - ``exclude_hook_lineage_assets``
+     - ``[]``
+     - List of regex patterns; hook-collected assets whose URI matches any of them are dropped.
+       Task events only. **No effect when ``hook_lineage`` is ``false``** — hook lineage is not
+       collected at all.
+   * - ``exclude_hook_lineage_hooks``
+     - ``[]``
+     - List of regex patterns; hook-collected assets reported by a hook whose **fully-qualified**
+       class name (``module.ClassName``, as with the ``operator`` scope key) matches any of them are
+       dropped. Task events only. **No effect when ``hook_lineage`` is ``false``**.
    * - ``include_full_task_info``
      - ``false``
      - Whether to include the full serialized operator state in ``AirflowRunFacet``. When
        ``false``, only a curated subset of task attributes is sent. When ``true``, all
        serializable task parameters are included, which may significantly increase event size.
        Task events only.
+
+Both exclude lists are always matched with ``re.fullmatch``, independent of the rule's
+``match_mode`` (which governs ``scope`` only). Unlike the boolean controls they are **replaced**
+rather than merged across tiers: the most specific matching rule that sets a list wins outright,
+so a task-scoped rule can narrow — or clear, with ``[]`` — a broader global exclusion. Both
+filters apply to hook-collected assets only; SQL-based hook lineage is unaffected.
+
+.. note::
+
+    **Exclusion happens after the collector cap.** These filters run when OpenLineage reads the
+    hook lineage collector, which is after
+    :ref:`[lineage] max_assets_per_collector<config:lineage__max_assets_per_collector>` has
+    already limited what the collector retained. Excluding assets reduces what gets reported, but
+    it does not create room for assets the cap already discarded — a task that writes more objects
+    than the cap allows never collected the later ones in the first place. Reducing the number of
+    assets a hook registers requires changes in the hooks themselves.
 
 ``locked`` (top-level, default ``false``) is an admin-only floor lock: when ``true``, the
 control fields carried by this rule's ``controls`` dict cannot be overridden by per-Dag /
@@ -193,6 +219,7 @@ suppresses DAG-level events for X while leaving task events enabled.
       {"scope": {"dag_id": "expensive_dag"}, "controls": {"extract_operator_metadata": false}},
       {"scope": {"dag_id": "expensive_dag", "task_id": "send_report"}, "controls": {"extract_operator_metadata": true}},
       {"scope": {"dag_id": "my_dag", "task_id": "sensitive_task"}, "controls": {"hook_lineage": false}},
+      {"scope": {"dag_id": "chunked_dag", "task_id": "upload"}, "controls": {"exclude_hook_lineage_assets": ["s3://my-bucket/staging/part_.*"]}},
       {"scope": {"dag_id": "reporting_dag"}, "controls": {"emit_dag_events": false}},
       {"scope": {"dag_id": "full_control_dag"}, "controls": {"emit": false}},
       {"scope": {"dag_id": "full_control_dag", "task_id": "critical_task"}, "controls": {"emit": true}},
@@ -212,6 +239,8 @@ In the example above:
   with a more-specific task-scoped rule and extracts normally.
 - ``sensitive_task`` in ``my_dag`` runs its extractor normally but skips the
   ``HookLineageCollector`` fallback.
+- ``upload`` in ``chunked_dag`` keeps hook lineage but drops the staging part objects it writes,
+  so only the assets that are not staging parts are reported.
 - DAG-level events for ``reporting_dag`` are suppressed; task events are still emitted.
 - Both task events and DAG-level events for ``full_control_dag`` are suppressed — except
   ``critical_task``, which re-enables task event emission via a task-scoped rule.
@@ -252,6 +281,11 @@ wins **unless** the matching conf rule is marked with ``"locked": true``.
 
     # Suppress DAG-run events but keep task events
     extend_global_openlineage_emission_policy(dag, emit_dag_events=False)
+
+    # Keep hook lineage, but drop the per-chunk objects a loop uploads
+    extend_global_openlineage_emission_policy(
+        extract, exclude_hook_lineage_assets=["s3://my-bucket/staging/part_.*"]
+    )
 
 Key semantics:
 
