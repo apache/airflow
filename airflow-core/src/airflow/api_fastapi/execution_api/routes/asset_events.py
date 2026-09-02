@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryAssetEventPartitionKeyRegex,
 )
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventResponse,
@@ -106,7 +107,12 @@ def _parse_extra_params(extra: list[str] | None) -> dict[str, str]:
     return result
 
 
-@router.get("/by-asset")
+@router.get(
+    "/by-asset",
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_400_BAD_REQUEST, "Neither name nor uri was supplied")]
+    ),
+)
 def get_asset_event_by_asset_name_uri(
     name: Annotated[str | None, Query(description="The name of the Asset")],
     uri: Annotated[str | None, Query(description="The URI of the Asset")],
