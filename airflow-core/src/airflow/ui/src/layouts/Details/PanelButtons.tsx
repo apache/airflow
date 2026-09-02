@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
+
 import {
   Box,
   createListCollection,
@@ -27,7 +29,6 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { type Dispatch, type RefObject, type SetStateAction, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt } from "react-icons/lu";
@@ -36,11 +37,18 @@ import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
+import {
+  IconButton,
+  Switch,
+  Tooltip,
+  type ButtonGroupOption,
+  ButtonGroupToggle,
+} from "src/system-components";
+
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { IconButton, Switch, Tooltip } from "src/components/ui";
-import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+
 import type { DagView } from "src/constants/dagView";
 import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";

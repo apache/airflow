@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { QueryClient } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { AssetEventResponse, AssetResponse, DAGDetailsResponse } from "openapi/requests/types.gen";
+
+import type * as Ui from "src/system-components";
+
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
-import type * as Ui from "src/components/ui";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";
@@ -41,7 +45,7 @@ const materializeSubmitParams = vi.hoisted<DagRunTriggerParams>(() => ({
   partitionKey: undefined,
 }));
 
-vi.mock("src/components/ui", async (importOriginal) => {
+vi.mock("src/system-components", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
 
   return {

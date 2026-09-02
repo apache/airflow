@@ -20,7 +20,7 @@ import { Box, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
-import { IconButton, Tooltip } from "src/components/ui";
+import { IconButton, Tooltip } from "src/system-components";
 
 export type AdvancedSearchToggleProps = {
   readonly enabled: boolean;
