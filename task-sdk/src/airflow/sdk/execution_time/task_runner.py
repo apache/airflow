@@ -301,7 +301,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
-        # TODO: Move this to `airflow.sdk.execution_time.context`
+        # TODO: Move this to `airflow/sdk/execution_time/context`
         #   once we port the entire context logic from airflow/utils/context.py ?
         from airflow.sdk.plugins_manager import integrate_macros_plugins
 
