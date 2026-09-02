@@ -4192,7 +4192,7 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
     assert recalculated_count == 2
 
 
-@mock.patch("airflow.sdk.definitions.deadline.Variable.get", return_value="7200")
+@mock.patch("airflow.serialization.definitions.deadline.Variable.get", return_value="7200")
 def test_clear_task_instances_recalculates_variable_interval_deadline(_, dag_maker, session):
     """Test that clearing tasks resolves a serialized VariableInterval deadline."""
     with dag_maker(
