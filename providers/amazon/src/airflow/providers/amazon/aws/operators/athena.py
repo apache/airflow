@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
@@ -29,13 +30,48 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "athena_query_execution_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context: Context) -> Any:
+            operator = cast("AthenaOperator", self)
+            external_id = operator.submit_job(context)
+            operator.poll_until_complete(external_id, context)
+            return operator.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.openlineage.facet import BaseFacet, Dataset, DatasetFacet
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.sdk import Context
 
 
-class AthenaOperator(AwsBaseOperator[AthenaHook]):
+class AthenaOperator(ResumableJobMixin, AwsBaseOperator[AthenaHook]):
     """
     An operator that submits a Trino/Presto query to Amazon Athena.
 
@@ -67,6 +103,11 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         To limit task execution time, use execution_timeout.
     :param log_query: Whether to log athena query and other execution params when it's executed.
         Defaults to *True*.
+    :param durable: When ``True`` (the default on Airflow 3.3+), the Athena query execution id
+        is persisted to task state before synchronous polling begins. A worker crash on retry
+        reconnects to the existing query instead of submitting a duplicate. Set to ``False`` to
+        always submit a fresh query. On earlier Airflow versions, this defaults to ``False`` and
+        an explicitly configured value is ignored with a warning.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -87,6 +128,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
     operator_extra_links = (AthenaQueryResultsLink(),)
+    external_id_key: str = "athena_query_execution_id"
 
     def __init__(
         self,
@@ -103,8 +145,11 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         log_query: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         catalog: str = "AwsDataCatalog",
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.query = query
         self.database = database
@@ -116,6 +161,8 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         self.sleep_time = sleep_time
         self.max_polling_attempts = max_polling_attempts or 999999
         self.query_execution_id: str | None = None
+        self._query_results_link_id: str | None = None
+        self._query_status: str | None = None
         self.log_query: bool = log_query
         self.deferrable = deferrable
         self.catalog: str = catalog
@@ -131,25 +178,13 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         self.query_execution_context["Catalog"] = self.catalog
         if self.output_location:
             self.result_configuration["OutputLocation"] = self.output_location
-        self.query_execution_id = self.hook.run_query(
-            self.query,
-            self.query_execution_context,
-            self.result_configuration,
-            self.client_request_token,
-            self.workgroup,
-        )
-        AthenaQueryResultsLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            query_execution_id=self.query_execution_id,
-        )
 
         if self.deferrable:
+            query_execution_id = self.submit_job(context)
+            self._set_query_execution_id(context=context, query_execution_id=query_execution_id)
             self.defer(
                 trigger=AthenaTrigger(
-                    query_execution_id=self.query_execution_id,
+                    query_execution_id=query_execution_id,
                     waiter_delay=self.sleep_time,
                     waiter_max_attempts=self.max_polling_attempts,
                     aws_conn_id=self.aws_conn_id,
@@ -159,26 +194,78 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 ),
                 method_name="execute_complete",
             )
-        # implicit else:
-        query_status = self.hook.poll_query_status(
-            self.query_execution_id,
-            max_polling_attempts=self.max_polling_attempts,
-            sleep_time=self.sleep_time,
-        )
+            return query_execution_id
+
+        self.execute_resumable(context)
+        query_status = self._query_status
+        query_execution_id = cast("str", self.query_execution_id)
 
         if query_status in AthenaHook.FAILURE_STATES:
-            error_message = self.hook.get_state_change_reason(self.query_execution_id)
+            error_message = self.hook.get_state_change_reason(query_execution_id=query_execution_id)
             raise AirflowException(
                 f"Final state of Athena job is {query_status}, query_execution_id is "
-                f"{self.query_execution_id}. Error: {error_message}"
+                f"{query_execution_id}. Error: {error_message}"
             )
         if not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
             raise AirflowException(
                 f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
-                f"query_execution_id is {self.query_execution_id}."
+                f"query_execution_id is {query_execution_id}."
             )
 
-        return self.query_execution_id
+        return query_execution_id
+
+    def _set_query_execution_id(self, *, context: Context, query_execution_id: str) -> None:
+        self.query_execution_id = query_execution_id
+        if self._query_results_link_id == query_execution_id:
+            return
+        AthenaQueryResultsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            query_execution_id=query_execution_id,
+        )
+        self._query_results_link_id = query_execution_id
+
+    def submit_job(self, context: Context) -> str:
+        query_execution_id: str = self.hook.run_query(
+            query=self.query,
+            query_context=self.query_execution_context,
+            result_configuration=self.result_configuration,
+            client_request_token=self.client_request_token,
+            workgroup=self.workgroup,
+        )
+        self.query_execution_id = query_execution_id
+        return query_execution_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        query_execution_id = cast("str", external_id)
+        self._set_query_execution_id(context=context, query_execution_id=query_execution_id)
+        query_status = self.hook.check_query_status(query_execution_id=query_execution_id)
+        if query_status not in (*AthenaHook.INTERMEDIATE_STATES, *AthenaHook.TERMINAL_STATES):
+            raise ValueError(f"Unexpected Athena query status: {query_status!r}")
+        self._query_status = query_status
+        return query_status
+
+    def is_job_active(self, status: str) -> bool:
+        return status in AthenaHook.INTERMEDIATE_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status in AthenaHook.SUCCESS_STATES
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        query_execution_id = cast("str", external_id)
+        self._set_query_execution_id(context=context, query_execution_id=query_execution_id)
+        self._query_status = self.hook.poll_query_status(
+            query_execution_id=query_execution_id,
+            max_polling_attempts=self.max_polling_attempts,
+            sleep_time=self.sleep_time,
+        )
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+        query_execution_id = cast("str", external_id)
+        self._set_query_execution_id(context=context, query_execution_id=query_execution_id)
+        return query_execution_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)

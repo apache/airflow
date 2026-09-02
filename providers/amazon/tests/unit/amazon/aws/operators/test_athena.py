@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from unittest import mock
 
 import pytest
@@ -25,7 +26,12 @@ from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
-from airflow.providers.amazon.aws.operators.athena import AthenaOperator
+from airflow.providers.amazon.aws.links.athena import AthenaQueryResultsLink
+from airflow.providers.amazon.aws.operators.athena import (
+    _DURABLE_UNSET,
+    AthenaOperator,
+    _warn_and_disable_durable_pre_3_3,
+)
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
@@ -44,7 +50,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TEST_DAG_ID = "unit_tests"
@@ -131,11 +137,11 @@ class TestAthenaOperator:
         self.athena.catalog = "MyCatalog"
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context_catalog,
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context_catalog,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
         assert mock_check_query_status.call_count == 1
 
@@ -151,11 +157,11 @@ class TestAthenaOperator:
         )
         op.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            {"Catalog": MOCK_DATA["catalog"]},
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context={"Catalog": MOCK_DATA["catalog"]},
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
         assert mock_check_query_status.call_count == 1
 
@@ -165,11 +171,11 @@ class TestAthenaOperator:
     def test_hook_run_small_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context,
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
         assert mock_check_query_status.call_count == 1
 
@@ -192,11 +198,11 @@ class TestAthenaOperator:
     def test_hook_run_big_success_query(self, mock_conn, mock_run_query, mock_check_query_status):
         self.athena.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context,
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
 
     @mock.patch.object(AthenaHook, "get_state_change_reason")
@@ -213,11 +219,11 @@ class TestAthenaOperator:
         with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context,
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
         assert mock_get_state_change_reason.call_count == 1
 
@@ -228,11 +234,11 @@ class TestAthenaOperator:
         with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context,
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
 
     @mock.patch.object(AthenaHook, "check_query_status", return_value="RUNNING")
@@ -242,11 +248,11 @@ class TestAthenaOperator:
         with pytest.raises(AirflowException):
             self.athena.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context,
-            result_configuration,
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
 
     @pytest.mark.db_test
@@ -288,6 +294,7 @@ class TestAthenaOperator:
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
+        self.athena.durable = False
         assert self.athena.execute(get_template_context(ti, self.athena)) == ATHENA_QUERY_ID
 
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
@@ -298,11 +305,11 @@ class TestAthenaOperator:
 
         op.execute({})
         mock_run_query.assert_called_once_with(
-            MOCK_DATA["query"],
-            query_context,
-            {},  # Should be an empty dict since we do not provide output_location
-            MOCK_DATA["client_request_token"],
-            MOCK_DATA["workgroup"],
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration={},  # Should be an empty dict since we do not provide output_location
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
         )
 
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
@@ -464,3 +471,248 @@ class TestAthenaOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.athena)
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestAthenaOperatorDurableExecution:
+    @staticmethod
+    def _context(task_state_store):
+        return {
+            "ti": mock.MagicMock(spec_set=["stats_tags"], stats_tags={}),
+            "task_state_store": task_state_store,
+        }
+
+    @staticmethod
+    def _make_operator(**kwargs):
+        return AthenaOperator(
+            task_id="test_athena_durable",
+            query=MOCK_DATA["query"],
+            database=MOCK_DATA["database"],
+            output_location=MOCK_DATA["outputLocation"],
+            client_request_token=MOCK_DATA["client_request_token"],
+            sleep_time=0,
+            max_polling_attempts=3,
+            aws_conn_id=None,
+            **kwargs,
+        )
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    def test_fresh_submission_persists_before_polling(self, mock_run_query, mock_poll, mock_persist):
+        operator = self._make_operator()
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = None
+        persisted_before_poll = []
+        mock_poll.side_effect = lambda *args, **kwargs: (
+            persisted_before_poll.append(task_state_store.set.call_args.args) or "SUCCEEDED"
+        )
+
+        result = operator.execute(self._context(task_state_store))
+
+        assert result == ATHENA_QUERY_ID
+        task_state_store.set.assert_called_once_with("athena_query_execution_id", ATHENA_QUERY_ID)
+        assert persisted_before_poll == [("athena_query_execution_id", ATHENA_QUERY_ID)]
+        mock_run_query.assert_called_once()
+        mock_persist.assert_called_once()
+
+    @pytest.mark.parametrize("status", AthenaHook.INTERMEDIATE_STATES)
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "check_query_status")
+    @mock.patch.object(AthenaHook, "run_query")
+    def test_active_query_reconnects_without_resubmission(
+        self, mock_run_query, mock_check_status, mock_poll, mock_persist, status
+    ):
+        operator = self._make_operator()
+        mock_check_status.return_value = status
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        result = operator.execute(self._context(task_state_store))
+
+        assert result == ATHENA_QUERY_ID
+        assert operator.query_execution_id == ATHENA_QUERY_ID
+        mock_run_query.assert_not_called()
+        task_state_store.set.assert_not_called()
+        mock_poll.assert_called_once_with(
+            query_execution_id=ATHENA_QUERY_ID,
+            max_polling_attempts=3,
+            sleep_time=0,
+        )
+        mock_persist.assert_called_once_with(
+            context=mock.ANY,
+            operator=operator,
+            region_name=mock.ANY,
+            aws_partition=mock.ANY,
+            query_execution_id=ATHENA_QUERY_ID,
+        )
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status")
+    @mock.patch.object(AthenaHook, "check_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "run_query")
+    def test_succeeded_query_recovers_without_polling_or_resubmission(
+        self, mock_run_query, mock_check_status, mock_poll, mock_persist
+    ):
+        operator = self._make_operator()
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        result = operator.execute(self._context(task_state_store))
+
+        assert result == ATHENA_QUERY_ID
+        assert operator.query_execution_id == ATHENA_QUERY_ID
+        mock_run_query.assert_not_called()
+        mock_poll.assert_not_called()
+        task_state_store.set.assert_not_called()
+        mock_persist.assert_called_once()
+
+    @pytest.mark.parametrize("status", AthenaHook.FAILURE_STATES)
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "check_query_status")
+    @mock.patch.object(AthenaHook, "run_query", return_value="new-query-id")
+    def test_terminal_query_resubmits_with_unchanged_client_token(
+        self, mock_run_query, mock_check_status, mock_poll, mock_persist, status
+    ):
+        operator = self._make_operator()
+        mock_check_status.return_value = status
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        result = operator.execute(self._context(task_state_store))
+
+        assert result == "new-query-id"
+        assert operator.query_execution_id == "new-query-id"
+        mock_run_query.assert_called_once_with(
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=MOCK_DATA["client_request_token"],
+            workgroup=MOCK_DATA["workgroup"],
+        )
+        task_state_store.set.assert_called_once_with("athena_query_execution_id", "new-query-id")
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    def test_durable_false_submits_without_reading_or_writing_store(
+        self, mock_run_query, mock_poll, mock_persist
+    ):
+        operator = self._make_operator(durable=False)
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+
+        assert operator.execute(self._context(task_state_store)) == ATHENA_QUERY_ID
+
+        task_state_store.get.assert_not_called()
+        task_state_store.set.assert_not_called()
+        mock_run_query.assert_called_once()
+
+    @mock.patch.object(AthenaOperator, "defer")
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    def test_deferrable_execution_does_not_use_task_state_store(
+        self, mock_run_query, mock_persist, mock_defer
+    ):
+        operator = self._make_operator(deferrable=True)
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+
+        operator.execute(self._context(task_state_store))
+
+        mock_defer.assert_called_once()
+        task_state_store.get.assert_not_called()
+        task_state_store.set.assert_not_called()
+        mock_run_query.assert_called_once()
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", side_effect=RuntimeError("worker stopped"))
+    @mock.patch.object(AthenaHook, "check_query_status", return_value="RUNNING")
+    @mock.patch.object(AthenaHook, "run_query")
+    @mock.patch.object(AthenaHook, "stop_query", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}})
+    def test_on_kill_cancels_reconnected_query(
+        self, mock_stop_query, mock_run_query, mock_check_status, mock_poll, mock_persist
+    ):
+        operator = self._make_operator()
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        with pytest.raises(RuntimeError, match="worker stopped"):
+            operator.execute(self._context(task_state_store))
+
+        mock_poll.side_effect = None
+        mock_poll.return_value = "CANCELLED"
+        operator.on_kill()
+
+        mock_stop_query.assert_called_once_with(ATHENA_QUERY_ID)
+        mock_run_query.assert_not_called()
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    def test_unset_client_request_token_remains_unset(self, mock_run_query, mock_poll, mock_persist):
+        operator = AthenaOperator(
+            task_id="test_athena_durable_without_token",
+            query=MOCK_DATA["query"],
+            database=MOCK_DATA["database"],
+            output_location=MOCK_DATA["outputLocation"],
+            sleep_time=0,
+            max_polling_attempts=3,
+            aws_conn_id=None,
+        )
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = None
+
+        assert operator.execute(self._context(task_state_store)) == ATHENA_QUERY_ID
+
+        mock_run_query.assert_called_once_with(
+            query=MOCK_DATA["query"],
+            query_context=query_context,
+            result_configuration=result_configuration,
+            client_request_token=None,
+            workgroup=MOCK_DATA["workgroup"],
+        )
+
+    @pytest.mark.parametrize("status", [None, "UNKNOWN"])
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "check_query_status")
+    @mock.patch.object(AthenaHook, "run_query")
+    def test_unknown_recovered_status_does_not_resubmit(
+        self, mock_run_query, mock_check_status, mock_persist, status
+    ):
+        operator = self._make_operator()
+        mock_check_status.return_value = status
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        with pytest.raises(ValueError, match="Unexpected Athena query status"):
+            operator.execute(self._context(task_state_store))
+
+        mock_run_query.assert_not_called()
+
+    def test_default_args_durable_reaches_operator(self):
+        with DAG(
+            dag_id="test_athena_durable_default_args",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            default_args={"durable": False},
+        ):
+            operator = self._make_operator()
+        assert operator.durable is False
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
