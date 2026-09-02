@@ -128,7 +128,9 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         task_state_store = context.get("task_state_store") if self.durable else None
         job: Job | None = None
 
-        if task_state_store is not None and (stored_job_name := task_state_store.get(self.external_id_key)):
+        if task_state_store is not None and (
+            stored_job_name := task_state_store.get(key=self.external_id_key)
+        ):
             if not isinstance(stored_job_name, str):
                 raise ValueError(f"Stored Cloud Batch job name is not a string: {stored_job_name!r}")
             with suppress(NotFound):
@@ -144,7 +146,7 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
             if task_state_store is not None:
                 task_state_store.set(key=self.external_id_key, value=job.name)
         else:
-            self._raise_for_terminal_job(job)
+            self._raise_for_terminal_job(job=job)
             if job.status.state == JobStatus.State.SUCCEEDED:
                 return Job.to_dict(job)
 

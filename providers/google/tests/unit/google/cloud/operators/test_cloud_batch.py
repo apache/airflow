@@ -272,20 +272,20 @@ class TestCloudBatchSubmitJobOperator:
         assert result["name"] == FULL_JOB_NAME
         mock_hook.return_value.submit_batch_job.assert_called_once()
 
-    @mock.patch(CLOUD_BATCH_HOOK_PATH)
-    def test_execute_deferrable(self, mock, task_state_store):
+    @mock.patch(CLOUD_BATCH_HOOK_PATH, autospec=True)
+    def test_execute_deferrable(self, mock_hook, task_state_store):
         store, _, supervisor_comms = task_state_store
         store.set(key="cloud_batch_job_name", value=FULL_JOB_NAME)
         supervisor_comms.reset_mock()
-        mock.return_value.submit_batch_job.return_value = JOB
+        mock_hook.return_value.submit_batch_job.return_value = JOB
         operator = CloudBatchSubmitJobOperator(**OPERATOR_ARGS, deferrable=True)
 
         with pytest.raises(expected_exception=TaskDeferred):
             operator.execute(context=_context(store))
 
-        mock.return_value.submit_batch_job.assert_called_once()
-        mock.return_value.get_job.assert_not_called()
-        mock.return_value.wait_for_job.assert_not_called()
+        mock_hook.return_value.submit_batch_job.assert_called_once()
+        mock_hook.return_value.get_job.assert_not_called()
+        mock_hook.return_value.wait_for_job.assert_not_called()
         assert not supervisor_comms.send.called
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
