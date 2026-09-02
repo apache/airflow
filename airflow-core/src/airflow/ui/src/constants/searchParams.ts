@@ -55,6 +55,7 @@ export enum SearchParamsKeys {
   GRAPH_TASK_GROUP = "graph-task_group",
   GRAPH_TASK_STATE = "graph-task_state",
   GROUP_PATTERN = "group_pattern",
+  HAS_EVENTS = "has_events",
   HOSTNAME = "hostname",
   INCLUDED_EVENTS = "included_events",
   JOB_STATE = "job_state",
