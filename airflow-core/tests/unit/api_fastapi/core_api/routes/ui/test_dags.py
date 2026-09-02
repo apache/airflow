@@ -109,7 +109,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             ({"bundle_name": "wrong_bundle", "bundle_version": "some_commit_hash"}, [], 0),
         ],
     )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_return_200(self, test_client, query_params, expected_ids, expected_total_dag_runs):
         response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
@@ -135,7 +135,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     @pytest.mark.parametrize(
         ("query_params", "expected_ids"),
         [
@@ -149,7 +149,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     @pytest.mark.parametrize("state", ["queued", "running", "failed", "success"])
     def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session, state):
         # Give DAG1 an older run in the probed state while its latest run ends in a
@@ -175,7 +175,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert any_state.status_code == 200
         assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_last_and_any_run_state_filters_combined(self, test_client, session):
         # Regression: combining the last-run and any-run state filters must return the
         # intersection, not raise. The any-run EXISTS subquery must not correlate to the
@@ -322,7 +322,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             response = test_client.get("/dags")
         assert response.status_code == 403
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_orders_latest_runs_by_run_after(self, test_client, session):
         running_run_after = pendulum.datetime(2026, 1, 1, tz="UTC")
         queued_run_after = pendulum.datetime(2026, 1, 2, tz="UTC")
@@ -428,7 +428,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_latest_run_should_return_200(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 200
@@ -647,7 +647,7 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
                 )
         session.commit()
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_returns_zero_filled_counts_per_requested_dag(self, test_client):
         response = test_client.get(
             "/dags/run_state_counts",
@@ -686,7 +686,7 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         response = test_client.get("/dags/run_state_counts", params={"dag_ids": too_many})
         assert response.status_code == 422
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_permission_filter_hides_disallowed_dags(self, test_client, session):
         # The test user is granted read on DAG1, DAG2, DAG4, DAG5 (DAG3 is paused/stale in
         # the parent fixture). Asking for a dag that exists but the caller cannot read
@@ -704,7 +704,7 @@ class TestGetDagRunStateCounts(TestPublicDagEndpoint):
         dag_ids = [entry["dag_id"] for entry in response.json()["dags"]]
         assert dag_ids == [DAG1_ID]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     @mock.patch("airflow.api_fastapi.core_api.routes.ui.dags.STATE_COUNT_CAP", 3)
     def test_caps_counts_at_state_count_cap(self, test_client, session):
         # Push SUCCESS over the (patched) cap while FAILED stays under it: states cap independently.
