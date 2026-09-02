@@ -31,7 +31,7 @@ class TestHivePlugin:
         assert max_partition in HivePlugin.macros
         assert closest_ds_partition in HivePlugin.macros
 
-    def subclasses_airflow_plugin(self):
+    def test_subclasses_airflow_plugin(self):
         assert issubclass(HivePlugin, AirflowPlugin)
 
     def test_hive_plugin_dotted_path(self):
