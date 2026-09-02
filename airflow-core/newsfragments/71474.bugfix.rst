@@ -1,0 +1,1 @@
+``send_mime_email`` now honors the host, port, STARTTLS/SSL, timeout, and retry limit configured on the SMTP connection, falling back to the ``[smtp]`` config only for fields the connection does not set. Previously only the login and password were read from the connection.
