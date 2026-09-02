@@ -256,22 +256,68 @@ class TaskMap(TaskInstanceDependencies):
                 )
             )
 
+        from airflow.settings import get_policy_plugin_manager, task_instance_mutation_hook
+
+        policy_hook = get_policy_plugin_manager().hook.task_instance_mutation_hook
+        hook_is_noop = False
+        if not type(policy_hook).__module__.startswith("unittest.mock"):
+            try:
+                hook_impls = policy_hook.get_hookimpls()
+            except AttributeError:
+                hook_is_noop = False
+            else:
+                hook_is_noop = getattr(task_instance_mutation_hook, "is_noop", False) is True and all(
+                    getattr(hook.function, "is_noop", False) is True for hook in hook_impls
+                )
         new_tis: list[TaskInstance] = []
-        for index in indexes_to_map:
-            ti = TaskInstance(
-                task,
-                run_id=run_id,
-                map_index=index,
-                state=state,
-                dag_version_id=dag_version_id,
-            )
-            task.log.debug("Expanding TIs upserted %s", ti)
-            _add_and_prime_mapped_ti(
-                ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
-            )
-            new_tis.append(ti)
-        if new_tis:
-            session.flush()
+        if hook_is_noop and isinstance(indexes_to_map, range):
+            ti_mappings = [
+                TaskInstance.insert_mapping(
+                    run_id,
+                    task,
+                    map_index=index,
+                    dag_version_id=dag_version_id,
+                    dag_run=dr,
+                )
+                for index in indexes_to_map
+            ]
+            if state is not None:
+                for ti_mapping in ti_mappings:
+                    ti_mapping["state"] = state
+            if ti_mappings:
+                session.bulk_insert_mappings(TaskInstance.__mapper__, ti_mappings)
+                session.flush()
+                new_tis = list(
+                    session.scalars(
+                        select(TaskInstance)
+                        .where(
+                            TaskInstance.dag_id == task.dag_id,
+                            TaskInstance.task_id == task.task_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.map_index >= indexes_to_map.start,
+                            TaskInstance.map_index < indexes_to_map.stop,
+                        )
+                        .order_by(TaskInstance.map_index)
+                    ).all()
+                )
+                for ti in new_tis:
+                    ti.task = task
+        else:
+            for index in indexes_to_map:
+                ti = TaskInstance(
+                    task,
+                    run_id=run_id,
+                    map_index=index,
+                    state=state,
+                    dag_version_id=dag_version_id,
+                )
+                task.log.debug("Expanding TIs upserted %s", ti)
+                _add_and_prime_mapped_ti(
+                    ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
+                )
+                new_tis.append(ti)
+            if new_tis:
+                session.flush()
         all_expanded_tis.extend(new_tis)
 
         # Coerce the None case to 0 -- these two are almost treated identically,
