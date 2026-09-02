@@ -108,6 +108,15 @@ Extra (optional)
       If not specified than hostname from **Connection Host** is used.
     * ``azure_conn_id`` - Azure Connection ID to be used for authentication via Azure Entra ID. Azure Oauth token
       is retrieved from the azure connection which is used as password for PostgreSQL connection. Scope for the Azure OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[postgres]``. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
+    * ``sqlalchemy_scheme`` - The SQLAlchemy ``drivername`` used for the URLs the hook builds
+      (``get_uri``, ``get_sqlalchemy_engine``). Must be ``postgresql`` or ``postgresql+<driver>``.
+      Since provider 7.0.0 the hook selects psycopg (v3) whenever SQLAlchemy 2.x is installed;
+      set this to ``postgresql+psycopg2`` to keep SQLAlchemy engines created from this connection
+      on psycopg2. This matters if your Dags rely on psycopg2-specific behaviour — for example,
+      psycopg2 sends string parameters without a type so PostgreSQL implicitly coerces them, while
+      the psycopg (v3) SQLAlchemy dialect renders typed casts, so inserting string values into
+      e.g. ``uuid`` columns (as ``pandas.DataFrame.to_sql`` does) fails with
+      *"column is of type uuid but expression is of type character varying"*.
 
     Example "extras" field (Amazon RDS PostgreSQL or Amazon Aurora PostgreSQL):
 

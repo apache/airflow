@@ -135,6 +135,11 @@ class PostgresHook(DbApiHook):
     :param options: Optional. Specifies command-line options to send to the server
         at connection start. For example, setting this to ``-c search_path=myschema``
         sets the session's value of the ``search_path`` to ``myschema``.
+    :param sqlalchemy_scheme: Optional. The SQLAlchemy ``drivername`` used for the URLs the hook
+        builds (``get_uri``, ``get_sqlalchemy_engine``), e.g. ``postgresql+psycopg2``. Must be
+        ``postgresql`` or ``postgresql+<driver>``. Defaults to ``postgresql+psycopg`` when
+        psycopg (v3) serves SQLAlchemy 2.x and to ``postgresql`` otherwise. Can also be set via
+        the connection extra ``sqlalchemy_scheme``; this parameter takes precedence.
     :param enable_log_db_messages: Optional. If enabled logs database messages sent to the client
         during the session. To avoid a memory leak psycopg2 only saves the last 50 messages.
         For details, see: `PostgreSQL logging configuration parameters
@@ -164,17 +169,38 @@ class PostgresHook(DbApiHook):
     default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
-        self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
+        self,
+        *args,
+        options: str | None = None,
+        enable_log_db_messages: bool = False,
+        sqlalchemy_scheme: str | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.conn: CompatConnection | None = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
+        self._sqlalchemy_scheme = sqlalchemy_scheme
 
     @staticmethod
     def __cast_nullable(value, dst_type: type) -> Any:
         return dst_type(value) if value is not None else None
+
+    @property
+    def sqlalchemy_scheme(self) -> str:
+        """SQLAlchemy ``drivername`` used for the URLs built by this hook."""
+        scheme = self._sqlalchemy_scheme or self.connection.extra_dejson.get("sqlalchemy_scheme")
+        if not scheme:
+            return "postgresql+psycopg" if USE_PSYCOPG3 else "postgresql"
+        if ":" in scheme or "/" in scheme:
+            raise ValueError("The parameter 'sqlalchemy_scheme' must not contain ':' or '/' characters!")
+        if scheme != "postgresql" and not scheme.startswith("postgresql+"):
+            raise ValueError(
+                f"The parameter 'sqlalchemy_scheme' must be 'postgresql' or 'postgresql+<driver>', "
+                f"got: {scheme!r}"
+            )
+        return scheme
 
     @property
     def sqlalchemy_url(self) -> URL:
@@ -192,7 +218,7 @@ class PostgresHook(DbApiHook):
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
-            drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
+            drivername=self.sqlalchemy_scheme,
             username=self.__cast_nullable(conn.login, str),
             password=self.__cast_nullable(conn.password, str),
             host=self.__cast_nullable(conn.host, str),
