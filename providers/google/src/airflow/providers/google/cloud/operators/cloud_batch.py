@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any
 
-from google.cloud.batch_v1 import Job, Task
+from google.api_core.exceptions import NotFound
+from google.cloud.batch_v1 import Job, JobStatus, Task
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
@@ -54,24 +56,28 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
+    :param durable: Persist the submitted job name so synchronous retries reconnect to the same job.
+        Requires Airflow 3.3+; on earlier versions, retries submit a new job.
 
     """
 
     template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "job")
     template_fields_renderers = {"job": "json"}
+    external_id_key: str = "cloud_batch_job_name"
 
     def __init__(
         self,
         project_id: str,
         region: str,
         job_name: str,
-        job: dict | Job,
+        job: dict[str, Any] | Job,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        **kwargs,
+        durable: bool = True,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -83,6 +89,7 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+        self.durable: bool = durable
         self.polling_period_seconds = polling_period_seconds
 
     def prepare_template(self) -> None:
@@ -91,20 +98,18 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         if isinstance(self.job, Job):
             self.job = Job.to_dict(self.job)
 
-    def execute(self, context: Context):
-        hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
-        job = hook.submit_batch_job(
-            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+    def execute(self, context: Context) -> dict[str, Any]:
+        hook = CloudBatchHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         if not self.deferrable:
-            completed_job = hook.wait_for_job(
-                job_name=job.name,
-                polling_period_seconds=self.polling_period_seconds,
-                timeout=self.timeout_seconds,
-            )
+            return self._execute_sync(context=context, hook=hook)
 
-            return Job.to_dict(completed_job)
+        job = hook.submit_batch_job(
+            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+        )
 
         self.defer(
             trigger=CloudBatchJobFinishedTrigger(
@@ -119,10 +124,55 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context: Context, event: dict):
+    def _execute_sync(self, *, context: Context, hook: CloudBatchHook) -> dict[str, Any]:
+        task_state_store = context.get("task_state_store") if self.durable else None
+        job: Job | None = None
+
+        if task_state_store is not None and (stored_job_name := task_state_store.get(self.external_id_key)):
+            if not isinstance(stored_job_name, str):
+                raise ValueError(f"Stored Cloud Batch job name is not a string: {stored_job_name!r}")
+            with suppress(NotFound):
+                job = hook.get_job(job_name=stored_job_name)
+
+        if job is None:
+            job = hook.submit_batch_job(
+                job_name=self.job_name,
+                job=self.job,
+                region=self.region,
+                project_id=self.project_id,
+            )
+            if task_state_store is not None:
+                task_state_store.set(key=self.external_id_key, value=job.name)
+        else:
+            self._raise_for_terminal_job(job)
+            if job.status.state == JobStatus.State.SUCCEEDED:
+                return Job.to_dict(job)
+
+        completed_job = hook.wait_for_job(
+            job_name=job.name,
+            polling_period_seconds=self.polling_period_seconds,
+            timeout=self.timeout_seconds,
+        )
+        return Job.to_dict(completed_job)
+
+    @staticmethod
+    def _raise_for_terminal_job(job: Job) -> None:
+        if job.status.state == JobStatus.State.FAILED:
+            raise RuntimeError(f"Batch job with name {job.name} has failed its execution.")
+        if job.status.state == JobStatus.State.DELETION_IN_PROGRESS:
+            raise RuntimeError(f"Batch job with name {job.name} is being deleted.")
+        if job.status.state == JobStatus.State.CANCELLATION_IN_PROGRESS:
+            raise RuntimeError(f"Batch job with name {job.name} is being cancelled.")
+        if job.status.state == JobStatus.State.CANCELLED:
+            raise RuntimeError(f"Batch job with name {job.name} was cancelled.")
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any]:
         job_status = event["status"]
         if job_status == "success":
-            hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
+            hook = CloudBatchHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            )
             job = hook.get_job(job_name=event["job_name"])
             return Job.to_dict(job)
         raise AirflowException(f"Unexpected error in the operation: {event['message']}")
