@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { Box, Flex, type FlexProps, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
@@ -25,6 +26,7 @@ import { ClipboardRoot, ClipboardIconButton, IconButton } from "src/system-compo
 
 import { JsonPreviewBadges } from "src/components/JsonPreviewBadges";
 import Editor, { type OnMount } from "src/components/MonacoEditor";
+
 import { useMonacoTheme } from "src/context/colorMode";
 import { useContainerWidth } from "src/utils";
 import { getJsonPreviewEntries } from "src/utils/jsonPreview";
