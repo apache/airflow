@@ -171,6 +171,60 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
 
 
 @pytest.mark.db_test
+class TestDagModelOperation:
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> Generator:
+        clear_db_dags()
+        yield
+        clear_db_dags()
+
+    @staticmethod
+    def _build_dags(dag_maker, names):
+        dags = {}
+        for name in names:
+            with dag_maker(dag_id=name) as dag:
+                EmptyOperator(task_id="mytask")
+            dags[name] = LazyDeserializedDAG.from_dag(dag)
+        return dags
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_existing_dag_rows_are_locked_in_a_stable_order(self, dag_maker, session):
+        dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record)
+        try:
+            DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        finally:
+            event.remove(bind, "before_cursor_execute", record)
+
+        locks = [q for q in statements if "dag_id IN" in q]
+        assert locks, statements
+        assert all("ORDER BY" in q for q in locks), f"dag rows are locked in plan order:\n{locks}"
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_new_dag_rows_are_created_in_a_stable_order(self, dag_maker, session):
+        dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
+        created: list[str] = []
+
+        def spy(*, bundle_name, bundle_version, dags, session):
+            created.extend(dag.dag_id for dag in dags)
+            return []
+
+        with (
+            mock.patch.object(DagModelOperation, "find_orm_dags", autospec=True, return_value={}),
+            mock.patch("airflow.dag_processing.collection._create_orm_dags", spy),
+        ):
+            DagModelOperation(dags, "testing", None).add_dags(session=session)
+
+        assert created == ["a_dag", "b_dag", "c_dag"], created
+
+
+@pytest.mark.db_test
 class TestAssetModelOperation:
     @staticmethod
     def clean_db():
@@ -183,6 +237,105 @@ class TestAssetModelOperation:
         self.clean_db()
         yield
         self.clean_db()
+
+    @staticmethod
+    def _build_dags_for(dag_maker, schedules):
+        """One Dag per schedule, keyed by dag_id in the order given."""
+        dags = {}
+        for index, schedule in enumerate(schedules):
+            with dag_maker(dag_id=f"dag_{index}", schedule=[schedule]) as dag:
+                EmptyOperator(task_id="mytask")
+            dags[dag.dag_id] = LazyDeserializedDAG.from_dag(dag)
+        return dags
+
+    def test_new_assets_and_aliases_are_inserted_in_a_stable_order(self, dag_maker, session):
+        """Two writers reaching the same rows must take them the same way round or they deadlock."""
+        dags = self._build_dags_for(
+            dag_maker,
+            [
+                Asset("c_asset"),
+                AssetAlias("z_alias"),
+                Asset("a_asset"),
+                AssetAlias("a_alias"),
+                Asset("b_asset"),
+            ],
+        )
+        clear_db_assets()
+
+        def inserted(op):
+            with (
+                mock.patch.object(
+                    airflow.dag_processing.collection.asset_manager,
+                    "create_assets",
+                    autospec=True,
+                    return_value=[],
+                ) as assets,
+                mock.patch.object(
+                    airflow.dag_processing.collection.asset_manager,
+                    "create_asset_aliases",
+                    autospec=True,
+                    return_value=[],
+                ) as aliases,
+            ):
+                op.sync_assets(session=session)
+                op.sync_asset_aliases(session=session)
+            return (
+                [a.name for a in assets.call_args.args[0]],
+                [a.name for a in aliases.call_args.args[0]],
+            )
+
+        forwards = inserted(AssetModelOperation.collect(dags))
+        backwards = inserted(AssetModelOperation.collect(dict(reversed(list(dags.items())))))
+
+        assert forwards == (["a_asset", "b_asset", "c_asset"], ["a_alias", "z_alias"])
+        assert forwards == backwards, "the order the Dags arrived in reached the insert"
+
+    def test_activation_rows_are_inserted_in_a_stable_order(self, session):
+        """``asset_active`` is unique on both its columns, so its insert needs one order too."""
+        clear_db_assets()
+        dags = {
+            f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[Asset(name)]))
+            for i, name in enumerate(("c_asset", "a_asset", "b_asset"))
+        }
+        op = AssetModelOperation.collect(dags)
+        orm_assets = op.sync_assets(session=session)
+        session.flush()
+
+        with mock.patch.object(session, "execute", autospec=True) as execute:
+            op.activate_assets_if_possible(orm_assets.values(), session=session)
+
+        assert [value["name"] for value in execute.call_args.args[1]] == [
+            "a_asset",
+            "b_asset",
+            "c_asset",
+        ]
+
+    def test_collection_order_decides_which_asset_is_activated(self, session):
+        """
+        ``asset_active`` is unique on name and on uri separately, so of two assets sharing a name
+        only one is activated. Sorting the rows for insertion must not move which one: a sweep has
+        to land where writing its files one at a time would, and that is collection order.
+        """
+
+        def activate(assets: list[Asset]):
+            clear_db_assets()
+            dags = {
+                f"dag_{i}": LazyDeserializedDAG.from_dag(DAG(dag_id=f"dag_{i}", schedule=[asset]))
+                for i, asset in enumerate(assets)
+            }
+            op = AssetModelOperation.collect(dags)
+            orm_assets = op.sync_assets(session=session)
+            session.flush()
+            op.activate_assets_if_possible(orm_assets.values(), session=session)
+            session.flush()
+            return [(a.name, a.uri.rstrip("/")) for a in session.scalars(select(AssetActive))]
+
+        zulu_first = [Asset(name="dup", uri="s3://zzz"), Asset(name="dup", uri="s3://aaa")]
+
+        assert activate(zulu_first) == [("dup", "s3://zzz")]
+        assert activate(list(reversed(zulu_first))) == [("dup", "s3://aaa")], (
+            "the winner is lexicographic, not the one the Dags defined first"
+        )
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
