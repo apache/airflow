@@ -224,7 +224,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeMetadataDb" $keda) .) | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -251,7 +251,10 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- /* This init container queries the migration state, so it needs the database
+                   regardless of KEDA. It exits before the worker starts and does not share
+                   its environment with the container that runs task code. */}}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeMetadataDb" true) .) | indent 10 }}
             {{- if .Values.workers.celery.waitForMigrations.env }}
               {{- tpl (toYaml .Values.workers.celery.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -336,7 +339,7 @@ spec:
             - name: DUMB_INIT_SETSID
               value: "0"
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeMetadataDb" $keda) .) | indent 10 }}
             {{- if $keda }}
             {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer) .) | indent 10 }}
             {{- end }}
@@ -458,7 +461,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeMetadataDb" $keda) .) | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.extraContainers }}
           {{- tpl (toYaml .Values.workers.celery.extraContainers) . | nindent 8 }}
