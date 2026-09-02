@@ -1,0 +1,1 @@
+Add a toggle to hide Task Group durations on the Gantt chart.
