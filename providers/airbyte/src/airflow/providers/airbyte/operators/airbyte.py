@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import datetime
 import time
+import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, cast
 
 from airbyte_api.models import JobStatusEnum
 
@@ -28,11 +30,45 @@ from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 
+_DURABLE_UNSET: object = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: object) -> bool:
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Submit a fresh job on Airflow versions before 3.3."""
+
+        external_id_key: str = "airbyte_job_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context: Context) -> Any:
+            external_id = self.submit_job(context=context)
+            self.poll_until_complete(external_id=external_id, context=context)
+            return self.get_job_result(external_id=external_id, context=context)
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
-class AirbyteTriggerSyncOperator(BaseOperator):
+class AirbyteTriggerSyncOperator(ResumableJobMixin, BaseOperator):
     """
     Submits a job to an Airbyte server to run a integration process between your source and destination.
 
@@ -57,10 +93,15 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     :param execution_timeout: Maximum time allowed for the task to run. If exceeded, the Airbyte
         Job will be cancelled and the task will fail. When both ``execution_timeout`` and
         ``timeout`` are set, the earlier deadline takes precedence.
+    :param durable: When True (the default), synchronous non-deferrable execution persists the
+        Airbyte job id before polling. A retry reconnects to an active job, returns a succeeded
+        job, or submits a new job after terminal failure. Requires Airflow 3.3+ and has no effect
+        on earlier versions.
     """
 
     template_fields: Sequence[str] = ("connection_id",)
     ui_color = "#6C51FD"
+    external_id_key: str = "airbyte_job_id"
 
     def __init__(
         self,
@@ -71,8 +112,11 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         api_version: str = "v1",
         wait_seconds: float = 3,
         timeout: float = 3600,
-        **kwargs,
+        durable: bool | None = None,
+        **kwargs: Any,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.airbyte_conn_id = airbyte_conn_id
         self.connection_id = connection_id
@@ -82,15 +126,22 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.asynchronous = asynchronous
         self.deferrable = deferrable
 
-    def execute(self, context: Context) -> None:
+    @cached_property
+    def hook(self) -> AirbyteHook:
+        return AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+
+    def execute(self, context: Context) -> int | None:
         """Create Airbyte Job and wait to finish."""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
-        job_object = hook.submit_sync_connection(connection_id=self.connection_id)
-        self.job_id = job_object.job_id
-        state = job_object.status
         trigger_poll_interval = 60
 
         now = time.time()
+
+        if not self.asynchronous and not self.deferrable:
+            self.execute_resumable(context=context)
+            return self.job_id
+
+        job_object = self._submit_sync_connection()
+        state = job_object.status
 
         # Derive absolute deadlines for deferrable execution.
         # execution_timeout is a hard task-level limit (cancels the job),
@@ -110,39 +161,65 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             poll_buffer = 2 * trigger_poll_interval
             defer_timeout = datetime.timedelta(seconds=self.execution_timeout.total_seconds() + poll_buffer)
 
-        self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
-
         if self.asynchronous:
             self.log.info("Async Task returning job_id %s", self.job_id)
             return self.job_id
 
-        if not self.deferrable:
-            self.log.debug("Running in non-deferrable mode...")
-            hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+        self.log.debug("Running in deferrable mode in job state %s...", state)
+        if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+            self.defer(
+                timeout=defer_timeout,
+                trigger=AirbyteSyncTrigger(
+                    conn_id=self.airbyte_conn_id,
+                    job_id=self.job_id,
+                    end_time=end_time,
+                    execution_deadline=execution_deadline,
+                    poll_interval=trigger_poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+        elif state == JobStatusEnum.SUCCEEDED:
+            self.log.info("Job %s completed successfully", self.job_id)
+            return None
+        elif state == JobStatusEnum.FAILED:
+            raise AirflowException(f"Job failed:\n{self.job_id}")
+        elif state == JobStatusEnum.CANCELLED:
+            raise AirflowException(f"Job was cancelled:\n{self.job_id}")
         else:
-            self.log.debug("Running in deferrable mode in job state %s...", state)
-            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
-                self.defer(
-                    timeout=defer_timeout,
-                    trigger=AirbyteSyncTrigger(
-                        conn_id=self.airbyte_conn_id,
-                        job_id=self.job_id,
-                        end_time=end_time,
-                        execution_deadline=execution_deadline,
-                        poll_interval=trigger_poll_interval,
-                    ),
-                    method_name="execute_complete",
-                )
-            elif state == JobStatusEnum.SUCCEEDED:
-                self.log.info("Job %s completed successfully", self.job_id)
-                return
-            elif state == JobStatusEnum.FAILED:
-                raise AirflowException(f"Job failed:\n{self.job_id}")
-            elif state == JobStatusEnum.CANCELLED:
-                raise AirflowException(f"Job was cancelled:\n{self.job_id}")
-            else:
-                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
+            raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
 
+        return None
+
+    def _submit_sync_connection(self) -> Any:
+        job_object = self.hook.submit_sync_connection(connection_id=self.connection_id)
+        self.job_id = job_object.job_id
+        self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
+        return job_object
+
+    def submit_job(self, context: Context) -> JsonValue:
+        self._submit_sync_connection()
+        return self.job_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.job_id = cast("int", external_id)
+        return self.hook.get_job_status(job_id=self.job_id)
+
+    def is_job_active(self, status: str) -> bool:
+        return status in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE)
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == JobStatusEnum.SUCCEEDED
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.job_id = cast("int", external_id)
+        self.hook.wait_for_job(
+            job_id=self.job_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+        )
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> int:
+        self.job_id = cast("int", external_id)
         return self.job_id
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
@@ -182,18 +259,17 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.log.info("%s completed successfully.", self.task_id)
         return None
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """Cancel the job if task is cancelled."""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         self.log.debug(
             "Job status for job_id %s prior to canceling is: %s",
             self.job_id,
-            hook.get_job_status(self.job_id),
+            self.hook.get_job_status(job_id=self.job_id),
         )
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
             try:
-                hook.cancel_job(self.job_id)
+                self.hook.cancel_job(job_id=self.job_id)
             except Exception:
                 self.log.warning(
                     "Failed to cancel Airbyte job %s during on_kill",

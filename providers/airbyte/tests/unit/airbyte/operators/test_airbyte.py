@@ -17,15 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.models import Connection
+from airflow.providers.airbyte.operators import airbyte as airbyte_module
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 from airflow.providers.common.compat.sdk import AirflowException
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 
 class TestAirbyteTriggerSyncOp:
@@ -234,8 +239,8 @@ class TestAirbyteTriggerSyncOp:
         op.job_id = self.job_id
         op.on_kill()
 
-        mock_cancel_job.assert_called_once_with(self.job_id)
-        mock_get_job_status.assert_called_once_with(self.job_id)
+        mock_cancel_job.assert_called_once_with(job_id=self.job_id)
+        mock_get_job_status.assert_called_once_with(job_id=self.job_id)
 
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
@@ -256,7 +261,7 @@ class TestAirbyteTriggerSyncOp:
         op.job_id = self.job_id
         op.on_kill()
 
-        mock_get_job_status.assert_called_once_with(self.job_id)
+        mock_get_job_status.assert_called_once_with(job_id=self.job_id)
 
     @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteHook.cancel_job")
     def test_execute_complete_timeout_cancels_job(self, mock_cancel_job, create_connection_without_db):
@@ -318,3 +323,185 @@ class TestAirbyteTriggerSyncOp:
             op.execute_complete(context={}, event=timeout_event)
 
         mock_cancel_job.assert_called_once_with(job_id=self.job_id)
+
+
+class FakeTaskStateStore:
+    def __init__(self, stored: dict[str, int] | None = None) -> None:
+        self._store = dict(stored or {})
+
+    def get(self, key: str) -> int | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: int) -> None:
+        self._store[key] = value
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin requires task_state_store, available in Airflow 3.3+",
+)
+class TestAirbyteTriggerSyncOperatorResumable:
+    connection_id = "test_airbyte_connection"
+    submitted_job_id = 42
+    stored_job_id = 7
+
+    def _make_operator(self, **kwargs) -> AirbyteTriggerSyncOperator:
+        return AirbyteTriggerSyncOperator(
+            task_id="airbyte_resumable",
+            connection_id=self.connection_id,
+            wait_seconds=0,
+            timeout=360,
+            **kwargs,
+        )
+
+    @pytest.fixture
+    def hook(self):
+        with mock.patch.object(airbyte_module, "AirbyteHook", autospec=True) as hook_class:
+            hook = hook_class.return_value
+            hook.submit_sync_connection.return_value = SimpleNamespace(
+                job_id=self.submitted_job_id,
+                status=JobStatusEnum.RUNNING,
+            )
+            yield hook
+
+    def test_first_run_persists_job_id_before_polling(self, hook):
+        operator = self._make_operator()
+        task_store = FakeTaskStateStore()
+
+        def assert_job_id_persisted(*, job_id: int, wait_seconds: float, timeout: float) -> None:
+            assert job_id == self.submitted_job_id
+            assert wait_seconds == operator.wait_seconds
+            assert timeout == operator.timeout
+            assert task_store.get("airbyte_job_id") == self.submitted_job_id
+
+        hook.wait_for_job.side_effect = assert_job_id_persisted
+
+        result = operator.execute(context={"task_state_store": task_store})
+
+        assert result == self.submitted_job_id
+        assert operator.job_id == self.submitted_job_id
+
+    @pytest.mark.parametrize(
+        "status", [JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE]
+    )
+    def test_retry_reconnects_to_active_job(self, hook, status):
+        operator = self._make_operator()
+        task_store = FakeTaskStateStore({"airbyte_job_id": self.stored_job_id})
+        hook.get_job_status.return_value = status
+
+        result = operator.execute(context={"task_state_store": task_store})
+
+        hook.submit_sync_connection.assert_not_called()
+        hook.wait_for_job.assert_called_once_with(
+            job_id=self.stored_job_id,
+            wait_seconds=operator.wait_seconds,
+            timeout=operator.timeout,
+        )
+        assert result == self.stored_job_id
+        assert operator.job_id == self.stored_job_id
+
+    def test_retry_recovers_succeeded_job(self, hook):
+        operator = self._make_operator()
+        task_store = FakeTaskStateStore({"airbyte_job_id": self.stored_job_id})
+        hook.get_job_status.return_value = JobStatusEnum.SUCCEEDED
+
+        result = operator.execute(context={"task_state_store": task_store})
+
+        hook.submit_sync_connection.assert_not_called()
+        hook.wait_for_job.assert_not_called()
+        assert result == self.stored_job_id
+        assert operator.job_id == self.stored_job_id
+
+    @pytest.mark.parametrize("status", [JobStatusEnum.FAILED, JobStatusEnum.CANCELLED])
+    def test_retry_submits_fresh_after_terminal_job(self, hook, status):
+        operator = self._make_operator()
+        task_store = FakeTaskStateStore({"airbyte_job_id": self.stored_job_id})
+        hook.get_job_status.return_value = status
+
+        result = operator.execute(context={"task_state_store": task_store})
+
+        hook.submit_sync_connection.assert_called_once_with(connection_id=self.connection_id)
+        hook.wait_for_job.assert_called_once_with(
+            job_id=self.submitted_job_id,
+            wait_seconds=operator.wait_seconds,
+            timeout=operator.timeout,
+        )
+        assert task_store.get("airbyte_job_id") == self.submitted_job_id
+        assert result == self.submitted_job_id
+
+    def test_durable_false_submits_fresh(self, hook):
+        operator = self._make_operator(durable=False)
+        task_store = FakeTaskStateStore({"airbyte_job_id": self.stored_job_id})
+
+        result = operator.execute(context={"task_state_store": task_store})
+
+        hook.get_job_status.assert_not_called()
+        hook.submit_sync_connection.assert_called_once_with(connection_id=self.connection_id)
+        assert task_store.get("airbyte_job_id") == self.stored_job_id
+        assert result == self.submitted_job_id
+
+    def test_asynchronous_mode_does_not_use_recovery(self, hook):
+        operator = self._make_operator(asynchronous=True)
+        task_store = mock.Mock(spec=["get", "set"])
+        task_store.get.return_value = self.stored_job_id
+
+        result = operator.execute(context={"task_state_store": task_store})
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        hook.get_job_status.assert_not_called()
+        hook.wait_for_job.assert_not_called()
+        assert operator.durable is True
+        assert result == self.submitted_job_id
+
+    @mock.patch.object(AirbyteTriggerSyncOperator, "defer", autospec=True)
+    def test_deferrable_mode_does_not_use_recovery(self, mock_defer, hook):
+        operator = self._make_operator(deferrable=True)
+        task_store = mock.Mock(spec=["get", "set"])
+        task_store.get.return_value = self.stored_job_id
+
+        operator.execute(context={"task_state_store": task_store})
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        hook.get_job_status.assert_not_called()
+        hook.submit_sync_connection.assert_called_once_with(connection_id=self.connection_id)
+        mock_defer.assert_called_once()
+        assert operator.durable is True
+
+    def test_default_args_durable_reaches_operator(self):
+        operator = AirbyteTriggerSyncOperator(
+            task_id="airbyte_default_args",
+            connection_id=self.connection_id,
+            default_args={"durable": False},
+        )
+
+        assert operator.durable is False
+
+    def test_on_kill_cancels_reconnected_job(self, hook):
+        operator = self._make_operator()
+        task_store = FakeTaskStateStore({"airbyte_job_id": self.stored_job_id})
+        hook.get_job_status.return_value = JobStatusEnum.RUNNING
+
+        operator.execute(context={"task_state_store": task_store})
+        operator.on_kill()
+
+        assert operator.job_id == self.stored_job_id
+        hook.cancel_job.assert_called_once_with(job_id=self.stored_job_id)
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = airbyte_module._warn_and_disable_durable_pre_3_3(airbyte_module._DURABLE_UNSET)
+
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = airbyte_module._warn_and_disable_durable_pre_3_3(value)
+
+        assert result is False
