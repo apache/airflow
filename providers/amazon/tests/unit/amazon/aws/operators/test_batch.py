@@ -18,16 +18,18 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterator
 from datetime import datetime
 from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import botocore.client
+import botocore.exceptions
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook, BatchJobNotFoundException
 from airflow.providers.amazon.aws.hooks.batch_waiters import BatchWaitersHook
 from airflow.providers.amazon.aws.operators.batch import (
     _DURABLE_UNSET,
@@ -41,7 +43,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, Context, TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -597,37 +599,42 @@ class TestBatchOperator:
         hook.get_job_all_awslogs_info.return_value = []
         return hook
 
+    @pytest.fixture
+    def batch_hook(self) -> Iterator[MagicMock]:
+        hook = self._make_hook()
+        with mock.patch.object(BatchOperator, "hook", new_callable=mock.PropertyMock, return_value=hook):
+            yield hook
+
     @staticmethod
-    def _context(task_store: Any | None = None) -> dict[str, Any]:
-        context: dict[str, Any] = {"ti": MagicMock(spec_set=["stats_tags", "xcom_push"], stats_tags={})}
+    def _context(task_store: Any | None = None, task_instance: MagicMock | None = None) -> Context:
+        if task_instance is None:
+            task_instance = MagicMock(spec_set=["stats_tags", "xcom_push"], stats_tags={})
+        context: Context = {"ti": task_instance}
         if task_store is not None:
             context["task_state_store"] = task_store
         return context
 
     @requires_resumable_job_mixin
-    def test_fresh_submit_persists_job_id_before_polling(self):
+    def test_fresh_submit_persists_job_id_before_polling(self, batch_hook: MagicMock):
         operator = self._make_operator()
-        operator.hook = self._make_hook()
         task_store = FakeTaskStateStore()
         persisted_before_poll: list[str | None] = []
-        operator.monitor_job = mock.create_autospec(
-            operator.monitor_job,
-            side_effect=lambda context: persisted_before_poll.append(task_store.get("batch_job_id")),
-        )
-
-        result = operator.execute(self._context(task_store))
+        with mock.patch.object(operator, "monitor_job", autospec=True) as monitor_job:
+            monitor_job.side_effect = lambda context: persisted_before_poll.append(
+                task_store.get("batch_job_id")
+            )
+            result = operator.execute(self._context(task_store))
 
         assert result == JOB_ID
         assert task_store.get("batch_job_id") == JOB_ID
         assert persisted_before_poll == [JOB_ID]
-        operator.hook.client.submit_job.assert_called_once()
+        batch_hook.client.submit_job.assert_called_once()
 
     @requires_resumable_job_mixin
     @pytest.mark.parametrize("status", BatchClientHook.INTERMEDIATE_STATES)
-    def test_reconnects_to_active_job_without_resubmitting(self, status: str):
+    def test_reconnects_to_active_job_without_resubmitting(self, status: str, batch_hook: MagicMock):
         operator = self._make_operator()
-        operator.hook = self._make_hook()
-        operator.hook.get_job_description.return_value = {
+        batch_hook.get_job_description.return_value = {
             "jobId": JOB_ID,
             "status": status,
             "jobDefinition": "definition-arn",
@@ -639,61 +646,89 @@ class TestBatchOperator:
 
         assert result == JOB_ID
         assert operator.job_id == JOB_ID
-        operator.hook.client.submit_job.assert_not_called()
-        operator.hook.wait_for_job.assert_called_once_with(JOB_ID)
-        operator.hook.check_job_success.assert_called_once_with(JOB_ID)
+        batch_hook.client.submit_job.assert_not_called()
+        batch_hook.wait_for_job.assert_called_once_with(JOB_ID)
+        batch_hook.check_job_success.assert_called_once_with(JOB_ID)
 
     @requires_resumable_job_mixin
-    def test_recovers_succeeded_job_without_resubmitting_or_polling(self):
+    def test_recovers_succeeded_job_without_resubmitting_or_polling(self, batch_hook: MagicMock):
         operator = self._make_operator()
-        operator.hook = self._make_hook()
-        operator.hook.get_job_description.return_value = {
+        batch_hook.get_job_description.return_value = {
             "jobId": JOB_ID,
             "status": "SUCCEEDED",
             "jobDefinition": "definition-arn",
             "jobQueue": "queue-arn",
         }
-        operator.monitor_job = mock.create_autospec(operator.monitor_job)
         task_store = FakeTaskStateStore({"batch_job_id": JOB_ID})
 
-        result = operator.execute(self._context(task_store))
+        with mock.patch.object(operator, "monitor_job", autospec=True) as monitor_job:
+            result = operator.execute(self._context(task_store))
+            monitor_job.assert_not_called()
 
         assert result == JOB_ID
-        operator.hook.client.submit_job.assert_not_called()
-        operator.monitor_job.assert_not_called()
-        operator.hook.check_job_success.assert_called_once_with(job_id=JOB_ID)
-        operator.hook.get_job_all_awslogs_info.assert_called_once_with(JOB_ID)
+        batch_hook.client.submit_job.assert_not_called()
+        batch_hook.check_job_success.assert_called_once_with(job_id=JOB_ID)
+        batch_hook.get_job_all_awslogs_info.assert_called_once_with(JOB_ID)
 
     @requires_resumable_job_mixin
-    def test_resubmits_after_stored_job_failed(self):
+    def test_resubmits_after_stored_job_failed(self, batch_hook: MagicMock):
         operator = self._make_operator()
-        operator.hook = self._make_hook(job_id="new-job-id")
-        operator.hook.get_job_description.return_value = {
+        batch_hook.client.submit_job.return_value = {"jobName": JOB_NAME, "jobId": "new-job-id"}
+        batch_hook.get_job_description.return_value = {
             "jobId": JOB_ID,
             "status": "FAILED",
             "jobDefinition": "definition-arn",
             "jobQueue": "queue-arn",
         }
-        operator.monitor_job = mock.create_autospec(operator.monitor_job)
         task_store = FakeTaskStateStore({"batch_job_id": JOB_ID})
 
-        result = operator.execute(self._context(task_store))
+        with mock.patch.object(operator, "monitor_job", autospec=True) as monitor_job:
+            result = operator.execute(self._context(task_store))
+            monitor_job.assert_called_once()
 
         assert result == "new-job-id"
         assert task_store.get("batch_job_id") == "new-job-id"
-        operator.hook.client.submit_job.assert_called_once()
-        operator.monitor_job.assert_called_once()
+        batch_hook.client.submit_job.assert_called_once()
 
     @requires_resumable_job_mixin
-    def test_restores_job_id_and_xcom_link_before_status_lookup(self):
+    def test_resubmits_when_stored_job_not_found(self, batch_hook: MagicMock):
         operator = self._make_operator()
-        operator.hook = self._make_hook()
+        batch_hook.client.submit_job.return_value = {"jobName": JOB_NAME, "jobId": "new-job-id"}
+        batch_hook.get_job_description.side_effect = BatchJobNotFoundException("job aged out")
         task_store = FakeTaskStateStore({"batch_job_id": JOB_ID})
-        context = self._context(task_store)
+
+        with mock.patch.object(operator, "monitor_job", autospec=True) as monitor_job:
+            result = operator.execute(self._context(task_store))
+            monitor_job.assert_called_once()
+
+        assert result == "new-job-id"
+        assert task_store.get("batch_job_id") == "new-job-id"
+        batch_hook.client.submit_job.assert_called_once()
+
+    @requires_resumable_job_mixin
+    def test_stored_job_status_propagates_client_error(self, batch_hook: MagicMock):
+        operator = self._make_operator()
+        batch_hook.get_job_description.side_effect = botocore.exceptions.ClientError(
+            error_response={"Error": {"Code": "InvalidClientTokenId", "Message": "invalid credentials"}},
+            operation_name="DescribeJobs",
+        )
+        task_store = FakeTaskStateStore({"batch_job_id": JOB_ID})
+
+        with pytest.raises(botocore.exceptions.ClientError):
+            operator.execute(self._context(task_store))
+
+        batch_hook.client.submit_job.assert_not_called()
+
+    @requires_resumable_job_mixin
+    def test_restores_job_id_and_xcom_link_before_status_lookup(self, batch_hook: MagicMock):
+        operator = self._make_operator()
+        task_store = FakeTaskStateStore({"batch_job_id": JOB_ID})
+        task_instance = MagicMock(spec_set=["stats_tags", "xcom_push"], stats_tags={})
+        context = self._context(task_store, task_instance=task_instance)
 
         def get_job_description(job_id: str) -> dict[str, str]:
             assert operator.job_id == JOB_ID
-            context["ti"].xcom_push.assert_any_call(
+            task_instance.xcom_push.assert_any_call(
                 key="batch_job_details",
                 value={
                     "region_name": AWS_REGION,
@@ -709,56 +744,52 @@ class TestBatchOperator:
                 "jobQueue": "queue-arn",
             }
 
-        operator.hook.get_job_description.side_effect = get_job_description
-        operator.monitor_job = mock.create_autospec(operator.monitor_job)
+        batch_hook.get_job_description.side_effect = get_job_description
 
-        operator.execute(context)
+        with mock.patch.object(operator, "monitor_job", autospec=True):
+            operator.execute(context)
 
-        operator.hook.client.terminate_job.assert_called_once_with(
+        batch_hook.client.terminate_job.assert_called_once_with(
             jobId=JOB_ID, reason="Task killed by the user"
         )
 
     @requires_resumable_job_mixin
-    def test_active_reconnect_preserves_custom_waiter_log_fetching(self):
+    def test_active_reconnect_preserves_custom_waiter_log_fetching(self, batch_hook: MagicMock):
         operator = self._make_operator(awslogs_enabled=True)
-        operator.hook = self._make_hook()
-        operator.hook.get_job_description.return_value = {
+        batch_hook.get_job_description.return_value = {
             "jobId": JOB_ID,
             "status": "RUNNING",
             "jobDefinition": "definition-arn",
             "jobQueue": "queue-arn",
         }
         operator.waiters = mock.create_autospec(BatchWaitersHook, instance=True)
-        operator._get_batch_log_fetcher = mock.create_autospec(operator._get_batch_log_fetcher)
         task_store = FakeTaskStateStore({"batch_job_id": JOB_ID})
 
-        result = operator.execute(self._context(task_store))
+        with mock.patch.object(operator, "_get_batch_log_fetcher", autospec=True) as log_fetcher:
+            result = operator.execute(self._context(task_store))
 
         assert result == JOB_ID
-        operator.waiters.wait_for_job.assert_called_once_with(
-            JOB_ID, get_batch_log_fetcher=operator._get_batch_log_fetcher
-        )
-        operator.hook.wait_for_job.assert_not_called()
-        operator.hook.check_job_success.assert_called_once_with(JOB_ID)
+        operator.waiters.wait_for_job.assert_called_once_with(JOB_ID, get_batch_log_fetcher=log_fetcher)
+        batch_hook.wait_for_job.assert_not_called()
+        batch_hook.check_job_success.assert_called_once_with(JOB_ID)
 
     @requires_resumable_job_mixin
-    def test_durable_false_submits_fresh_without_accessing_store(self):
+    def test_durable_false_submits_fresh_without_accessing_store(self, batch_hook: MagicMock):
         operator = self._make_operator(durable=False)
-        operator.hook = self._make_hook(job_id="new-job-id")
-        operator.monitor_job = mock.create_autospec(operator.monitor_job)
+        batch_hook.client.submit_job.return_value = {"jobName": JOB_NAME, "jobId": "new-job-id"}
         task_store = MagicMock(spec_set=["get", "set"])
 
-        result = operator.execute(self._context(task_store))
+        with mock.patch.object(operator, "monitor_job", autospec=True):
+            result = operator.execute(self._context(task_store))
 
         assert result == "new-job-id"
         task_store.get.assert_not_called()
         task_store.set.assert_not_called()
 
     @requires_resumable_job_mixin
-    def test_deferrable_mode_does_not_access_store(self):
+    def test_deferrable_mode_does_not_access_store(self, batch_hook: MagicMock):
         operator = self._make_operator(deferrable=True)
-        operator.hook = self._make_hook()
-        operator.hook.get_job_description.return_value = {
+        batch_hook.get_job_description.return_value = {
             "jobId": JOB_ID,
             "status": "SUBMITTED",
             "jobDefinition": "definition-arn",
@@ -771,12 +802,12 @@ class TestBatchOperator:
 
         task_store.get.assert_not_called()
         task_store.set.assert_not_called()
-        operator.hook.client.submit_job.assert_called_once()
+        batch_hook.client.submit_job.assert_called_once()
 
     @requires_resumable_job_mixin
-    def test_wait_for_completion_false_does_not_access_store(self):
+    def test_wait_for_completion_false_does_not_access_store(self, batch_hook: MagicMock):
         operator = self._make_operator(wait_for_completion=False)
-        operator.hook = self._make_hook(job_id="new-job-id")
+        batch_hook.client.submit_job.return_value = {"jobName": JOB_NAME, "jobId": "new-job-id"}
         task_store = MagicMock(spec_set=["get", "set"])
 
         result = operator.execute(self._context(task_store))
@@ -784,7 +815,7 @@ class TestBatchOperator:
         assert result == "new-job-id"
         task_store.get.assert_not_called()
         task_store.set.assert_not_called()
-        operator.hook.client.submit_job.assert_called_once()
+        batch_hook.client.submit_job.assert_called_once()
 
     @requires_resumable_job_mixin
     def test_status_helpers_classify_batch_states(self):

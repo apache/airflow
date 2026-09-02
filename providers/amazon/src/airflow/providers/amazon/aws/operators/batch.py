@@ -31,7 +31,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Final, cast
 
-from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook, BatchJobNotFoundException
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
     BatchJobDetailsLink,
@@ -73,6 +73,15 @@ except ImportError:
         def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
             self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def submit_job(self, context: Context) -> str:
+            raise NotImplementedError
+
+        def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+            raise NotImplementedError
+
+        def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+            raise NotImplementedError
 
         def execute_resumable(self, context: Context) -> str:
             external_id: str = self.submit_job(context=context)
@@ -418,7 +427,12 @@ class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
             aws_partition=self.hook.conn_partition,
             job_id=self.job_id,
         )
-        job_description: dict[str, Any] = self._persist_links(context=context)
+        try:
+            job_description: dict[str, Any] = self.hook.get_job_description(job_id=self.job_id)
+        except BatchJobNotFoundException:
+            self._restored_job_succeeded = False
+            return "NOT_FOUND"
+        self._persist_links(context=context, job_description=job_description)
         status = job_description.get("status")
         if not isinstance(status, str):
             raise ValueError(f"AWS Batch job {self.job_id} has no status")
