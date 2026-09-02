@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import warnings
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -41,6 +41,10 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
@@ -948,7 +952,10 @@ class TestDbtCloudRunJobOperatorResumability:
         self.dag = DAG("test_dbt_cloud_job_run_resumability", schedule=None, start_date=DEFAULT_DATE)
         self.ti = MagicMock(try_number=1, stats_tags={})
         self.store = FakeTaskStateStore()
-        self.context = {"ti": self.ti, "task_state_store": self.store}
+        self.context: Context = {
+            "ti": self.ti,
+            "task_state_store": cast("TaskStateStoreAccessor", self.store),
+        }
 
     def create_operator(self, **kwargs: Any) -> DbtCloudRunJobOperator:
         return DbtCloudRunJobOperator(
