@@ -43,8 +43,13 @@ from airflow.providers.google.cloud.operators.datafusion import (
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
 RESOURCE_PATH_TO_DICT_STR = "airflow.providers.google.cloud.operators.datafusion.resource_path_to_dict"
+REQUIRES_TASK_STATE_STORE = pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
 
 TASK_ID = "test_task"
 LOCATION = "test-location"
@@ -306,6 +311,7 @@ class TestCloudDataFusionStartPipelineOperator:
             timeout=300,
         )
 
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch(HOOK_STR)
     def test_first_run_persists_pipeline_id_before_polling(self, mock_hook):
         hook = self.configure_hook(mock_hook)
@@ -335,6 +341,7 @@ class TestCloudDataFusionStartPipelineOperator:
             "UNKNOWN",
         ],
     )
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch(HOOK_STR)
     def test_retry_reconnects_active_pipeline(self, mock_hook, status):
         hook = self.configure_hook(mock_hook)
@@ -366,6 +373,7 @@ class TestCloudDataFusionStartPipelineOperator:
             timeout=300,
         )
 
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch("airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink.persist")
     @mock.patch(HOOK_STR)
     def test_retry_recovers_completed_pipeline(self, mock_hook, mock_persist):
@@ -405,6 +413,7 @@ class TestCloudDataFusionStartPipelineOperator:
         "status",
         [PipelineStates.FAILED, PipelineStates.KILLED, PipelineStates.REJECTED],
     )
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch(HOOK_STR)
     def test_retry_resubmits_after_terminal_pipeline(self, mock_hook, status):
         hook = self.configure_hook(mock_hook, pipeline_id="new_pipeline_id")
@@ -435,6 +444,7 @@ class TestCloudDataFusionStartPipelineOperator:
             timeout=300,
         )
 
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch(HOOK_STR)
     def test_retry_lookup_error_does_not_submit_another_pipeline(self, mock_hook):
         hook = self.configure_hook(mock_hook)
@@ -488,6 +498,7 @@ class TestCloudDataFusionStartPipelineOperator:
         hook.get_pipeline_workflow.assert_not_called()
         hook.wait_for_pipeline_state.assert_not_called()
 
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch(HOOK_STR)
     def test_streaming_retry_reconnects_running_pipeline(self, mock_hook):
         hook = self.configure_hook(mock_hook)
@@ -517,6 +528,7 @@ class TestCloudDataFusionStartPipelineOperator:
             timeout=300,
         )
 
+    @REQUIRES_TASK_STATE_STORE
     @mock.patch(HOOK_STR)
     def test_on_kill_stops_only_recovered_pipeline_run(self, mock_hook):
         hook = self.configure_hook(mock_hook)
