@@ -878,3 +878,19 @@ def test_fold_scheduling():
         pendulum.datetime(2023, 10, 29, 1, 30, tz=utc),
         pendulum.datetime(2023, 10, 29, 2, 0, tz=utc),  # Locally 3am (not DST).
     )
+
+
+def test_cron_data_interval_timetable_run_immediately_serialization():
+    timetable = CronDataIntervalTimetable("@daily", utc, run_immediately=True)
+    serialized = timetable.serialize()
+    assert serialized == {"expression": "0 0 * * *", "timezone": "UTC", "run_immediately": True}
+    deserialized = CronDataIntervalTimetable.deserialize(serialized)
+    assert deserialized.run_immediately is True
+
+
+def test_delta_data_interval_timetable_run_immediately_serialization():
+    timetable = DeltaDataIntervalTimetable(datetime.timedelta(days=1), run_immediately=True)
+    serialized = timetable.serialize()
+    assert serialized == {"delta": 86400.0, "run_immediately": True}
+    deserialized = DeltaDataIntervalTimetable.deserialize(serialized)
+    assert deserialized.run_immediately is True

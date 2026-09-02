@@ -1,0 +1,1 @@
+Add ``run_immediately`` parameter support to ``CronDataIntervalTimetable`` and ``DeltaDataIntervalTimetable``.
