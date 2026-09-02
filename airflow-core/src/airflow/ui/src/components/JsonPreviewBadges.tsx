@@ -20,6 +20,7 @@ import { Badge, Button, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "src/system-components";
+
 import type { JsonPreviewEntry } from "src/utils/jsonPreview";
 
 const MAX_VALUE_CHARS = 40;
