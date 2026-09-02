@@ -928,7 +928,10 @@ class TestWorker:
     def test_kerberos_readonly_cache(self, readonly_cache: bool):
         docs = render_chart(
             name="test-release",
-            values={"workers": {"celery": {"readonlyKerberosCache": readonly_cache}}},
+            values={
+                "workers": {"celery": {"readonlyKerberosCache": readonly_cache}},
+                "kerberos": {"enabled": True},
+            },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
