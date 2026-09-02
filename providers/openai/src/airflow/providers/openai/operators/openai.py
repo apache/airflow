@@ -17,16 +17,62 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
-from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
+from airflow.providers.openai.hooks.openai import BatchStatus, OpenAIHook, validate_execute_complete_event
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
+_DURABLE_UNSET: object = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Disable unsupported durable mode and warn when explicitly requested."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
+# ResumableJobMixin requires Airflow 3.3; this provider still supports Airflow 2.11.
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub that always submits a fresh job."""
+
+        external_id_key: str = "openai_batch_id"
+
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
+
+        def execute_resumable(self, context: Any) -> Any:
+            external_id: Any = self.submit_job(context=context)
+            self.poll_until_complete(external_id=external_id, context=context)
+            return self.get_job_result(external_id=external_id, context=context)
+
+        def submit_job(self, context: Any) -> Any:
+            raise NotImplementedError
+
+        def poll_until_complete(self, external_id: Any, context: Any) -> None:
+            raise NotImplementedError
+
+        def get_job_result(self, external_id: Any, context: Any) -> Any:
+            raise NotImplementedError
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -134,7 +180,7 @@ class OpenAIResponseOperator(BaseOperator):
         return response.output_text
 
 
-class OpenAITriggerBatchOperator(BaseOperator):
+class OpenAITriggerBatchOperator(ResumableJobMixin, BaseOperator):
     """
     Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
 
@@ -148,6 +194,9 @@ class OpenAITriggerBatchOperator(BaseOperator):
         Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
+    :param durable: When True (the default) and waiting synchronously, persist the OpenAI batch ID before
+        polling so a worker crash reconnects to the existing batch on retry. Requires Airflow 3.3+; this
+        option has no effect on earlier versions.
 
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
@@ -155,6 +204,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("file_id",)
+    external_id_key: str = "openai_batch_id"
 
     def __init__(
         self,
@@ -165,8 +215,11 @@ class OpenAITriggerBatchOperator(BaseOperator):
         wait_seconds: float = 3,
         timeout: float = 24 * 60 * 60,
         wait_for_completion: bool = True,
+        durable: bool | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.file_id = file_id
@@ -183,23 +236,50 @@ class OpenAITriggerBatchOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> str | None:
+        if self.wait_for_completion and not self.deferrable:
+            self.execute_resumable(context)
+            return self.batch_id
+
+        batch_id = self.submit_job(context)
+        if self.wait_for_completion:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=OpenAIBatchTrigger(
+                    conn_id=self.conn_id,
+                    batch_id=batch_id,
+                    poll_interval=60,
+                    timeout=self.timeout,
+                ),
+                method_name="execute_complete",
+            )
+        return batch_id
+
+    def submit_job(self, context: Context) -> str:
         batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
         self.batch_id = batch.id
-        if self.wait_for_completion:
-            if self.deferrable:
-                self.defer(
-                    timeout=self.execution_timeout,
-                    trigger=OpenAIBatchTrigger(
-                        conn_id=self.conn_id,
-                        batch_id=self.batch_id,
-                        poll_interval=60,
-                        timeout=self.timeout,
-                    ),
-                    method_name="execute_complete",
-                )
-            else:
-                self.log.info("Waiting for batch %s to complete", self.batch_id)
-                self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+        return self.batch_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.batch_id = cast("str", external_id)
+        return self.hook.get_batch(batch_id=self.batch_id).status
+
+    def is_job_active(self, status: str) -> bool:
+        return BatchStatus.is_in_progress(status)
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == BatchStatus.COMPLETED
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.batch_id = cast("str", external_id)
+        self.log.info("Waiting for batch %s to complete", self.batch_id)
+        self.hook.wait_for_batch(
+            batch_id=self.batch_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+        )
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+        self.batch_id = cast("str", external_id)
         return self.batch_id
 
     def execute_complete(self, context: Context, event: Any = None) -> str:
@@ -220,4 +300,4 @@ class OpenAITriggerBatchOperator(BaseOperator):
         """Cancel the batch if task is cancelled."""
         if self.batch_id:
             self.log.info("on_kill: cancel the OpenAI Batch %s", self.batch_id)
-            self.hook.cancel_batch(self.batch_id)
+            self.hook.cancel_batch(batch_id=self.batch_id)
