@@ -280,6 +280,35 @@ repos:
           (?x)
           ^java-sdk/gradle\.properties$|
           ^java-sdk/sdk/schema/schema\.json$
+      - id: update-java-sdk-readme-matrix
+        name: Update the Java SDK compatibility matrix in java-sdk/README.md and Dokka module doc
+        entry: ./scripts/ci/prek/update_java_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^java-sdk/capabilities\.yaml$|
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_java_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
+      - id: update-ts-sdk-readme-matrix
+        name: Update the TypeScript SDK compatibility matrix in ts-sdk/README.md
+        entry: ./scripts/ci/prek/update_ts_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^ts-sdk/capabilities\.yaml$|
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/README\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_ts_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
@@ -485,6 +514,7 @@ repos:
           ^.*package-lock\.json$|
           ^.*/kinglear\.txt$|
           ^.*pnpm-lock\.yaml$|
+          ^java-sdk/gradle/verification-metadata\.xml$|
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.agents/skills/airflow-translations/|
@@ -495,7 +525,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 64a97fb7fa63188393d3215c6e312f5f9c6d0f78  # frozen: v1.27.0
+    rev: 451b56af716f9f0d0c2b816503a3fd0cf8b036fa  # frozen: v1.29.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -504,7 +534,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: af73b4e02731e0ff3a678b56769704d689138279  # frozen: nightly
+    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -605,7 +635,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.22']
+        additional_dependencies: ['ruff==0.16.4']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -663,6 +693,7 @@ repos:
         files: >
           (?x)
           ^airflow-core/docs/.*/diagram_[^/]*\.py$|
+          ^contributing-docs/images/diagram_[^/]*\.py$|
           ^docs/images/.*\.py$|
           ^airflow-ctl/docs/images/diagrams/.*\.py$
         pass_filenames: true
@@ -697,6 +728,21 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
           ^scripts/ci/prek/extract_permissions\.py$|
           ^airflow-core/docs/security/api_permissions_ref\.rst$
+        pass_filenames: false
+      - id: generate-fab-permissions-doc
+        name: Generate FAB auth manager REST API permission table
+        entry: ./scripts/ci/prek/fab_permissions_doc.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/fab_auth_manager\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override\.py$|
+          ^providers/fab/src/airflow/providers/fab/www/security/permissions\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^scripts/ci/prek/fab_permissions_doc\.py$|
+          ^providers/fab/docs/auth-manager/access-control\.rst$
         pass_filenames: false
       - id: update-tested-versions
         name: Update tested Python/DB/Kubernetes versions in docs
@@ -782,6 +828,7 @@ repos:
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^airflow-core/src/airflow/ui/src/i18n/dayjsLocale\.ts$|
           ^\.agents/skills/airflow-translations/|
           ^\.agents/skills/magpie-setup/|
           ^airflow-core/src/airflow/utils/db\.py$|
@@ -1034,6 +1081,27 @@ repos:
         pass_filenames: false
         require_serial: true
         verbose: true
+      - id: run-skill-eval-codex
+        name: Run skill-eval against AGENTS.md and cases (Codex runtime)
+        # Kept separate from run-skill-eval so only contributors who actually run
+        # the Codex arm build an env carrying the Codex CLI binary. promptfoo
+        # bundles its own @openai/codex-sdk, but that build ships a binary whose
+        # Developer ID certificate Apple has revoked — macOS kills it on exec —
+        # so a notarized version has to be installed explicitly.
+        entry: env AGENT_RUNTIME=codex ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies:
+          - 'promptfoo@0.121.17'
+          - '@openai/codex-sdk@0.144.6'
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+        verbose: true
       - id: view-skill-eval
         name: View skill-eval results in browser (manual)
         entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
@@ -1080,6 +1148,13 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
+      - id: check-dependency-lower-bounds
+        name: Check that dependencies in pyproject.toml have lower bounds
+        language: python
+        entry: ./scripts/ci/prek/check_dependency_lower_bounds.py
+        files: (^|/)pyproject\.toml$
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'tomli>=2.0.1', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -1370,7 +1445,7 @@ repos:
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run -p 3.12 --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
+        entry: uv run -p 3.12 --no-progress --active --group codegen --package apache-airflow-task-sdk --directory task-sdk -s dev/generate_task_sdk_models.py
         pass_filenames: false
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true
@@ -1379,8 +1454,8 @@ repos:
         language: python
         entry: >
           bash -c '
-          uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
-           uv run -p 3.12 --no-dev --no-progress --active --group codegen --project apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
+          uv run -p 3.12 --no-dev --no-progress --active --group codegen --package apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen &&
+           uv run -p 3.12 --no-dev --no-progress --active --group codegen --package apache-airflow-ctl --directory airflow-ctl/ datamodel-codegen --input="../airflow-core/src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml" --output="src/airflowctl/api/datamodels/auth_generated.py"'
         pass_filenames: false
         files:
           (?x)

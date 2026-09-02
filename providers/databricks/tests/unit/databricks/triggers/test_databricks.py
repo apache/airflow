@@ -23,10 +23,11 @@ import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
+from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState, WarehouseState
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
     DatabricksSQLStatementExecutionTrigger,
+    DatabricksWarehouseStateTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
@@ -145,6 +146,16 @@ TRIGGER_INIT_CASES = [
         },
         id="sql_statement_trigger",
     ),
+    pytest.param(
+        DatabricksWarehouseStateTrigger,
+        {
+            "warehouse_id": "wh-1",
+            "target_state": "RUNNING",
+            "databricks_conn_id": DEFAULT_CONN_ID,
+            "end_time": 1234567890.0,
+        },
+        id="warehouse_state_trigger",
+    ),
 ]
 
 
@@ -189,6 +200,9 @@ class TestDatabricksExecutionTrigger:
                 "run_page_url": RUN_PAGE_URL,
                 "repair_run": False,
                 "caller": "DatabricksExecutionTrigger",
+                "workflow_run_id": None,
+                "databricks_task_key": None,
+                "max_retries": None,
             },
         )
 
@@ -307,10 +321,208 @@ class TestDatabricksExecutionTrigger:
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_run_waits_out_waiting_for_retry_state(
+        self, mock_get_run_state, mock_sleep, mock_get_run, mock_get_run_output
+    ):
+        # A native retry surfaces WAITING_FOR_RETRY between attempts; the trigger must keep polling
+        # rather than crash on an unexpected life cycle state.
+        mock_get_run_state.side_effect = [
+            RunState(life_cycle_state="WAITING_FOR_RETRY", state_message="", result_state=""),
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"),
+        ]
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+
+        async for event in self.trigger.run():
+            assert event == TriggerEvent(
+                {
+                    "run_id": RUN_ID,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                    ).to_json(),
+                    "run_page_url": RUN_PAGE_URL,
+                    "repair_run": False,
+                    "errors": [],
+                }
+            )
+        mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.get_run_tasks")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_run_workflow_task_retry_in_flight_succeeds(
+        self, mock_get_run_state, mock_get_run_tasks, mock_sleep
+    ):
+        # First attempt fails while the parent run is still active; a later attempt succeeds and
+        # the trigger must emit a success event rather than failing on the first attempt.
+        mock_get_run_tasks.side_effect = [
+            [{"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1}],
+            [
+                {"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1},
+                {"run_id": TASK_RUN_ID2, "task_key": TASK_RUN_ID1_KEY, "start_time": 2},
+            ],
+        ]
+        mock_get_run_state.side_effect = [
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"),
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_PENDING, state_message="", result_state=""),
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"),
+        ]
+
+        trigger = DatabricksExecutionTrigger(
+            run_id=TASK_RUN_ID1,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
+            workflow_run_id=RUN_ID,
+            databricks_task_key=TASK_RUN_ID1_KEY,
+        )
+
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "run_id": TASK_RUN_ID2,
+                    "run_page_url": RUN_PAGE_URL,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                    ).to_json(),
+                    "repair_run": False,
+                    "errors": [],
+                }
+            )
+        ]
+        mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.get_run_tasks")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_run_workflow_task_failed_attempt_waits_for_parent(
+        self, mock_get_run_state, mock_get_run_tasks, mock_get_run, mock_get_run_output, mock_sleep
+    ):
+        mock_get_run_tasks.return_value = [
+            {"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1}
+        ]
+        mock_get_run_state.side_effect = [
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"),
+            RunState(life_cycle_state="RUNNING", state_message="", result_state=""),
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"),
+            RunState(life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"),
+        ]
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+
+        trigger = DatabricksExecutionTrigger(
+            run_id=TASK_RUN_ID1,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
+            workflow_run_id=RUN_ID,
+            databricks_task_key=TASK_RUN_ID1_KEY,
+        )
+
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "run_id": TASK_RUN_ID1,
+                    "run_page_url": RUN_PAGE_URL,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
+                    ).to_json(),
+                    "repair_run": False,
+                    "errors": [
+                        {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
+                        {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+                    ],
+                }
+            )
+        ]
+        mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_output")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run")
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.get_run_tasks")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    async def test_run_workflow_task_reports_failure_once_retries_exhausted(
+        self, mock_get_run_state, mock_get_run_tasks, mock_sleep, mock_get_run, mock_get_run_output
+    ):
+        mock_get_run_tasks.return_value = [
+            {"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1, "attempt_number": 1}
+        ]
+        mock_get_run_state.return_value = RunState(
+            life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
+        )
+        mock_get_run.return_value = GET_RUN_RESPONSE_TERMINATED_WITH_FAILED
+        mock_get_run_output.return_value = GET_RUN_OUTPUT_RESPONSE
+
+        trigger = DatabricksExecutionTrigger(
+            run_id=TASK_RUN_ID1,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
+            workflow_run_id=RUN_ID,
+            databricks_task_key=TASK_RUN_ID1_KEY,
+            max_retries=1,
+        )
+
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "run_id": TASK_RUN_ID1,
+                    "run_page_url": RUN_PAGE_URL,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="FAILED"
+                    ).to_json(),
+                    "repair_run": False,
+                    "errors": [
+                        {"task_key": TASK_RUN_ID1_KEY, "run_id": TASK_RUN_ID1, "error": ERROR_MESSAGE},
+                        {"task_key": TASK_RUN_ID3_KEY, "run_id": TASK_RUN_ID3, "error": ERROR_MESSAGE},
+                    ],
+                }
+            )
+        ]
+        mock_sleep.assert_not_called()
+        mock_get_run_state.assert_called_once_with(TASK_RUN_ID1)
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_run")
     async def test_on_kill_cancels_run(self, mock_cancel_run):
         await self.trigger.on_kill()
         mock_cancel_run.assert_called_once_with(RUN_ID)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.get_run_tasks")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.cancel_run")
+    async def test_on_kill_workflow_task_cancels_latest_attempt(self, mock_cancel_run, mock_get_run_tasks):
+        # The original attempt may be terminal after a retry; on_kill must cancel the latest attempt
+        # (under the same task_key) instead of the now-stale run_id the trigger was created with.
+        mock_get_run_tasks.return_value = [
+            {"run_id": TASK_RUN_ID1, "task_key": TASK_RUN_ID1_KEY, "start_time": 1},
+            {"run_id": TASK_RUN_ID2, "task_key": TASK_RUN_ID1_KEY, "start_time": 2},
+        ]
+        trigger = DatabricksExecutionTrigger(
+            run_id=TASK_RUN_ID1,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
+            workflow_run_id=RUN_ID,
+            databricks_task_key=TASK_RUN_ID1_KEY,
+        )
+
+        await trigger.on_kill()
+        mock_get_run_tasks.assert_called_once_with(RUN_ID)
+        mock_cancel_run.assert_called_once_with(TASK_RUN_ID2)
 
 
 class TestDatabricksSQLStatementExecutionTrigger:
@@ -432,3 +644,218 @@ class TestDatabricksSQLStatementExecutionTrigger:
     async def test_on_kill_cancels_statement(self, mock_cancel_sql_statement):
         await self.trigger.on_kill()
         mock_cancel_sql_statement.assert_called_once_with(STATEMENT_ID)
+
+
+WAREHOUSE_ID = "wh-1"
+WAREHOUSE_END_TIME = 9999999999.0
+WAREHOUSE_TIMEOUT_SECONDS = 30.0
+WAREHOUSE_CALLER = "DatabricksStartWarehouseOperator"
+
+
+class TestDatabricksWarehouseStateTrigger:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
+        self.trigger = DatabricksWarehouseStateTrigger(
+            warehouse_id=WAREHOUSE_ID,
+            target_state="RUNNING",
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            end_time=WAREHOUSE_END_TIME,
+        )
+
+    def test_serialize(self):
+        assert self.trigger.serialize() == (
+            "airflow.providers.databricks.triggers.databricks.DatabricksWarehouseStateTrigger",
+            {
+                "warehouse_id": WAREHOUSE_ID,
+                "target_state": "RUNNING",
+                "databricks_conn_id": DEFAULT_CONN_ID,
+                "end_time": WAREHOUSE_END_TIME,
+                "polling_period_seconds": POLLING_INTERVAL_SECONDS,
+                "retry_delay": 10,
+                "retry_limit": 3,
+                "retry_args": None,
+                "caller": "DatabricksWarehouseStateTrigger",
+            },
+        )
+
+    def test_serialize_round_trip_preserves_end_time(self):
+        trigger = DatabricksWarehouseStateTrigger(
+            warehouse_id=WAREHOUSE_ID,
+            target_state="STOPPED",
+            databricks_conn_id=DEFAULT_CONN_ID,
+            end_time=WAREHOUSE_END_TIME,
+            caller=WAREHOUSE_CALLER,
+        )
+        _, kwargs = trigger.serialize()
+        restored = DatabricksWarehouseStateTrigger(**kwargs)
+        assert restored.caller == WAREHOUSE_CALLER
+        assert restored.target_state == "STOPPED"
+        assert restored.end_time == WAREHOUSE_END_TIME
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_warehouse_state")
+    async def test_run_return_success(self, mock_a_get_warehouse_state):
+        mock_a_get_warehouse_state.return_value = WarehouseState("RUNNING")
+
+        events = [event async for event in self.trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "RUNNING",
+                    "state": WarehouseState("RUNNING").to_json(),
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_warehouse_state")
+    async def test_run_keeps_polling_stale_stopped(self, mock_a_get_warehouse_state, mock_sleep):
+        mock_a_get_warehouse_state.side_effect = [
+            WarehouseState("STOPPED"),
+            WarehouseState("RUNNING"),
+        ]
+
+        events = [event async for event in self.trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "RUNNING",
+                    "state": WarehouseState("RUNNING").to_json(),
+                }
+            )
+        ]
+        mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_warehouse_state")
+    async def test_run_return_deleted(self, mock_a_get_warehouse_state):
+        mock_a_get_warehouse_state.return_value = WarehouseState("DELETING")
+
+        events = [event async for event in self.trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "deleted",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "DELETING",
+                    "state": WarehouseState("DELETING").to_json(),
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.time.time", return_value=0)
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_warehouse_state")
+    async def test_run_timeout(self, mock_a_get_warehouse_state, mock_sleep, mock_time):
+        mock_a_get_warehouse_state.return_value = WarehouseState("STARTING")
+        trigger = DatabricksWarehouseStateTrigger(
+            warehouse_id=WAREHOUSE_ID,
+            target_state="RUNNING",
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            end_time=WAREHOUSE_TIMEOUT_SECONDS,
+        )
+
+        def advance_to_deadline(seconds):
+            mock_time.return_value = seconds
+
+        mock_sleep.side_effect = advance_to_deadline
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "timeout",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "STARTING",
+                    "state": WarehouseState("STARTING").to_json(),
+                }
+            )
+        ]
+        mock_a_get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
+        mock_sleep.assert_called_once_with(WAREHOUSE_TIMEOUT_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.time.time", return_value=0)
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_warehouse_state")
+    async def test_run_accepts_target_received_after_deadline(
+        self, mock_a_get_warehouse_state, mock_sleep, mock_time
+    ):
+        def get_state_after_deadline(_):
+            mock_time.return_value = WAREHOUSE_TIMEOUT_SECONDS + 1
+            return WarehouseState("RUNNING")
+
+        mock_a_get_warehouse_state.side_effect = get_state_after_deadline
+        trigger = DatabricksWarehouseStateTrigger(
+            warehouse_id=WAREHOUSE_ID,
+            target_state="RUNNING",
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            end_time=WAREHOUSE_TIMEOUT_SECONDS,
+        )
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "RUNNING",
+                    "state": WarehouseState("RUNNING").to_json(),
+                }
+            )
+        ]
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_warehouse_state")
+    async def test_run_times_out_when_serialized_end_time_already_passed(self, mock_a_get_warehouse_state):
+        trigger = DatabricksWarehouseStateTrigger(
+            warehouse_id=WAREHOUSE_ID,
+            target_state="RUNNING",
+            databricks_conn_id=DEFAULT_CONN_ID,
+            polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            end_time=0,
+        )
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "timeout",
+                    "warehouse_id": WAREHOUSE_ID,
+                    "target_state": "RUNNING",
+                    "last_state": "unknown",
+                }
+            )
+        ]
+        mock_a_get_warehouse_state.assert_not_called()

@@ -122,6 +122,10 @@ class Pool(Base):
         return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
 
     @staticmethod
+    def get_default_team_pool_name(team_name: str) -> str:
+        return f"default_pool_{team_name}"
+
+    @staticmethod
     @provide_session
     def create_or_update_pool(
         name: str,

@@ -376,6 +376,7 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["connection-types"]) > 3
     assert len(provider_info_dict["notifications"]) > 2
     assert len(provider_info_dict["secrets-backends"]) > 1
+    assert len(provider_info_dict["email-backends"]) > 0
     assert len(provider_info_dict["logging"]) > 1
     assert len(provider_info_dict["config"].keys()) > 1
     assert len(provider_info_dict["executors"]) > 0

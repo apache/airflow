@@ -20,6 +20,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import type { FilterValue, DateRangeValue } from "src/components/FilterBar";
+
 import { useFilterConfigs } from "src/constants/filterConfigs";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
@@ -65,6 +66,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
+  | SearchParamsKeys.DAG_RUN_STATE
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DEADLINE_TIME_RANGE
   | SearchParamsKeys.DURATION_GTE
@@ -73,18 +75,23 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.EXECUTOR_CLASS
+  | SearchParamsKeys.FAVORITE
   | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
+  | SearchParamsKeys.LAST_DAG_RUN_STATE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.MISSED
   | SearchParamsKeys.NAME_PATTERN
+  | SearchParamsKeys.NEEDS_REVIEW
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
+  | SearchParamsKeys.OWNERS
   | SearchParamsKeys.PARTITION_KEY_PATTERN
+  | SearchParamsKeys.PAUSED
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RENDERED_MAP_INDEX
@@ -97,9 +104,12 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH
+  | SearchParamsKeys.TAGS
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TASK_STATE
   | SearchParamsKeys.TEAMS
+  | SearchParamsKeys.TIMETABLE_TYPE
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
@@ -132,6 +142,12 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
           endDate: endDate ?? undefined,
           startDate: startDate ?? undefined,
         };
+      }
+    } else if (config.type === "multiselect") {
+      const values = searchParams.getAll(config.key).filter((value) => value !== "");
+
+      if (values.length > 0) {
+        initialValues[config.key] = values;
       }
     } else {
       // Handle other filter types
@@ -166,6 +182,16 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
         if (config.type === "daterange") {
           handleDateRangeChange(newParams, value as DateRangeValue | null, config);
+        } else if (config.type === "multiselect") {
+          const values = Array.isArray(value) ? value.filter((entry) => entry !== "") : [];
+
+          values.forEach((entry) => newParams.append(config.key, entry));
+
+          // The match mode belongs to this pill but is not a filter key of its own, so
+          // nothing else would ever clear it.
+          if (config.matchModeKey !== undefined && values.length === 0) {
+            newParams.delete(config.matchModeKey);
+          }
         } else if (value === null || value === undefined || value === "") {
           newParams.delete(config.key);
         } else {

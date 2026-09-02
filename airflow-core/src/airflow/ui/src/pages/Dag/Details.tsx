@@ -21,10 +21,15 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { renderDuration } from "src/utils";
 
 export const Details = () => {
@@ -34,6 +39,8 @@ export const Details = () => {
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
   });
+
+  const showTeam = useShowTeam(dag?.team_name);
 
   return (
     <Box p={2}>
@@ -53,6 +60,14 @@ export const Details = () => {
                 </HStack>
               </Table.Cell>
             </Table.Row>
+            {showTeam ? (
+              <Table.Row data-testid="team-row">
+                <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+                <Table.Cell>
+                  <TeamName teamName={dag.team_name} />
+                </Table.Cell>
+              </Table.Row>
+            ) : undefined}
             <Table.Row data-testid="description-row">
               <Table.Cell>{translate("dagDetails.description")}</Table.Cell>
               <Table.Cell>{dag.description}</Table.Cell>

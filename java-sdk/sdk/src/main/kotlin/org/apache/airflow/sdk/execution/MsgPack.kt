@@ -92,10 +92,11 @@ private fun MapValue.decodeMap(): Map<*, *> =
 private fun ExtensionValue.decodeExtensionValue(): Any? =
   when (type) {
     TimestampToJavaOffsetDateTimeModule.EXT_TYPE -> {
-      MessagePack
-        .newDefaultUnpacker(data)
-        .unpackTimestamp(ExtensionTypeHeader(type, data.size))
-        .atOffset(ZoneOffset.UTC)
+      MessagePack.newDefaultUnpacker(data).use { unpacker ->
+        unpacker
+          .unpackTimestamp(ExtensionTypeHeader(type, data.size))
+          .atOffset(ZoneOffset.UTC)
+      }
     }
     else -> throw IllegalArgumentException("Unsupported extension type: $this")
   }
@@ -143,8 +144,10 @@ class TimestampToJavaOffsetDateTimeModule : SimpleModule() {
       if (ext.type != EXT_TYPE) {
         return null
       }
-      val unpacker = MessagePack.newDefaultUnpacker(ext.data)
-      val instant = unpacker.unpackTimestamp(ExtensionTypeHeader(EXT_TYPE, ext.data.size))
+      val instant =
+        MessagePack.newDefaultUnpacker(ext.data).use { unpacker ->
+          unpacker.unpackTimestamp(ExtensionTypeHeader(EXT_TYPE, ext.data.size))
+        }
       return instant.atOffset(ZoneOffset.UTC)
     }
   }

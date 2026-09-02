@@ -64,7 +64,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -84,6 +84,7 @@ from airflow.models.connection_test import (
 )
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import CachedDBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
@@ -91,7 +92,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.hitl import HITLDetail
-from airflow.models.log import Log
+from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -343,6 +344,14 @@ class TestSchedulerJob:
         self.null_exec = None
 
     @pytest.fixture
+    def team_bundle(self, testing_team, testing_dag_bundle, session):
+        team = session.merge(testing_team)
+        bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == "testing"))
+        bundle.teams.append(team)
+        session.flush()
+        return bundle
+
+    @pytest.fixture
     def mock_executors(self):
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
@@ -405,6 +414,18 @@ class TestSchedulerJob:
 
         assert scheduler_job.executor == mock_local_executor
         assert scheduler_job.executors == [mock_local_executor]
+
+    def test_scheduler_dag_bag_is_bounded(self):
+        """The scheduler's Dag cache must evict, or it retains every version it has ever seen."""
+        from cachetools import LRUCache
+
+        job_runner = SchedulerJobRunner(Job())
+
+        assert isinstance(job_runner.scheduler_dag_bag, CachedDBDagBag)
+        assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
+        assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        # Reported separately from the API server's cache, not folded into it.
+        assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
     @pytest.mark.parametrize(
         "heartrate",
@@ -8827,6 +8848,35 @@ class TestSchedulerJob:
         assert active == [asset1, asset3, asset5]
         assert orphaned == [asset2, asset4]
 
+    def test_asset_orphaning_keeps_alias_materialized_asset_active(self, session):
+        """An asset linked only through an ``AssetAlias`` association must stay active, not orphaned.
+
+        Reproduces #58058: a task with an ``AssetAlias`` outlet materializes a concrete asset at
+        runtime (via ``Metadata``). It has no schedule/outlet/inlet reference — only the alias
+        association — so the orphanage pass used to treat it as orphaned, leaving it out of the
+        Assets tab despite having events and a live alias.
+        """
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        asset = AssetModel(uri="test://alias_materialized", name="alias_materialized_asset", group="asset")
+        alias = AssetAliasModel(name="materializing_alias", group="asset")
+        asset.aliases.append(alias)
+        session.add_all([asset, alias])
+        session.flush()
+
+        # Referenced only via the alias association, so inactive before the pass.
+        orphaned, active = self._find_assets_activation(session)
+        assert asset in orphaned
+        assert asset not in active
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        # The alias association now counts as a reference, so the asset is activated.
+        orphaned, active = self._find_assets_activation(session)
+        assert asset in active
+        assert asset not in orphaned
+
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
@@ -9784,6 +9834,191 @@ class TestSchedulerJob:
         call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
         assert call_args.kwargs["msg"] == "timed_out"
         assert call_args.kwargs["dag_run"] == dag_run
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_start_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_running receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_start_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_maker.create_dagrun(run_id="test_run", state=DagRunState.QUEUED)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._start_queued_dagruns(session)
+
+        mock_listener_manager.hook.on_dag_run_running.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_running.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_timeout_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_failed receives dag_run with _team_name set when a DAG times out."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(
+            dag_id="test_dag_timeout_team",
+            bundle_name="testing",
+            session=session,
+            dagrun_timeout=timedelta(seconds=60),
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # We set it to double dagrun timeout so the timeout path is taken.
+        dag_run.start_date = DEFAULT_DATE - timedelta(seconds=120)
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["msg"] == "timed_out"
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_success_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_success receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_success_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        self.job_runner._do_scheduling(session)
+
+        mock_listener_manager.hook.on_dag_run_success.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_success.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_failure_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_failed receives dag_run with _team_name set."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_failure_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.FAILED, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        self.job_runner._do_scheduling(session)
+
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_paused_success_notifies_listener_with_team_name(
+        self, mock_get_listener_manager, dag_maker, session, team_bundle
+    ):
+        """Test that on_dag_run_success receives dag_run with _team_name set for paused DAGs."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_paused_team", bundle_name="testing", session=session) as dag:
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun()
+        dag_run.last_scheduling_decision = DEFAULT_DATE - timedelta(minutes=1)
+        ti = dag_run.get_task_instance("test_task")
+        ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.is_paused = True
+        session.flush()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        self.job_runner._update_dag_run_state_for_paused_dags(session=session)
+
+        mock_listener_manager.hook.on_dag_run_success.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_success.call_args
+        assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_process_task_event_logs_records_the_team_owning_the_dag(self, dag_maker, session, team_bundle):
+        with dag_maker(dag_id="test_task_event_log_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        self.job_runner = SchedulerJobRunner(Job(), executors=[MagicMock()])
+        self.job_runner._process_task_event_logs(
+            deque([Log(event="test_task_event_log_team_event", dag_id="test_task_event_log_team")]), session
+        )
+
+        log = session.scalar(select(Log).where(Log.event == "test_task_event_log_team_event"))
+        assert log.team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.jobs.scheduler_job_runner.resolve_team_name", side_effect=resolve_team_name)
+    def test_process_task_event_logs_resolves_each_dag_once(
+        self, mock_resolve_team_name, dag_maker, session, team_bundle
+    ):
+        for dag_id in ("test_task_event_log_dag_1", "test_task_event_log_dag_2"):
+            with dag_maker(dag_id=dag_id, bundle_name="testing", session=session):
+                EmptyOperator(task_id="test_task")
+        session.commit()
+
+        self.job_runner = SchedulerJobRunner(Job(), executors=[MagicMock()])
+        self.job_runner._process_task_event_logs(
+            deque(
+                Log(event="test_task_event_log_dedupe", dag_id=dag_id)
+                for dag_id in (
+                    "test_task_event_log_dag_1",
+                    "test_task_event_log_dag_2",
+                    "test_task_event_log_dag_1",
+                    "test_task_event_log_dag_2",
+                    "test_task_event_log_dag_1",
+                )
+            ),
+            session,
+        )
+
+        assert mock_resolve_team_name.call_count == 2
+        logs = session.scalars(select(Log).where(Log.event == "test_task_event_log_dedupe")).all()
+        assert len(logs) == 5
+        assert {log.team_name for log in logs} == {"testing"}
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):

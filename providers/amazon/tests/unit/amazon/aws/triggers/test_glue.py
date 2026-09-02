@@ -171,13 +171,14 @@ class TestGlueJobTrigger:
         assert logs_client.get_log_events.call_count >= 2
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("job_run_state", ["FAILED", "TIMEOUT", "STOPPED", "ERROR"])
     @mock.patch.object(AwsLogsHook, "get_async_conn")
     @mock.patch.object(GlueJobHook, "get_async_conn")
-    async def test_verbose_run_job_failed(self, mock_glue_conn, mock_logs_conn):
-        """When verbose=True and the job fails, the trigger yields an error event."""
+    async def test_verbose_run_failure_states(self, mock_glue_conn, mock_logs_conn, job_run_state):
+        """When verbose=True and the run ends in a failure state, the trigger yields an error event."""
         glue_client = AsyncMock()
         glue_client.get_job_run = AsyncMock(
-            return_value={"JobRun": {"JobRunState": "FAILED", "LogGroupName": "/aws-glue/python-jobs"}}
+            return_value={"JobRun": {"JobRunState": job_run_state, "LogGroupName": "/aws-glue/python-jobs"}}
         )
         mock_glue_conn.return_value.__aenter__ = AsyncMock(return_value=glue_client)
         mock_glue_conn.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -198,7 +199,7 @@ class TestGlueJobTrigger:
         generator = trigger.run()
         event = await generator.asend(None)
         assert event.payload["status"] == "error"
-        assert "FAILED" in event.payload["message"]
+        assert job_run_state in event.payload["message"]
         assert event.payload["run_id"] == "jr_123"
 
     @pytest.mark.asyncio

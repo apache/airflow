@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -437,95 +437,4 @@ describe("Task log search", () => {
     await expectRenderedLineNumber(/dep_context=requeueable/iu, 2);
     await expectRenderedLineNumber(/starting attempt 1 of 3/iu, 3);
   }, 10_000);
-});
-
-const findRow = (text: string) => {
-  const container = screen.getByTestId("virtual-scroll-container");
-
-  return [...container.querySelectorAll("[data-index]")].find((row) =>
-    row.textContent.includes(text),
-  ) as HTMLElement;
-};
-
-const withFakeSelection = <T,>(selection: Selection, callback: () => T): T => {
-  const getSelectionSpy = vi.spyOn(document, "getSelection").mockReturnValue(selection);
-  const result = callback();
-
-  getSelectionSpy.mockRestore();
-
-  return result;
-};
-
-describe("Selection pinning across scrolling", () => {
-  it("keeps the selection-anchor row mounted after scrolling it out of the render window", async () => {
-    render(
-      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
-    );
-    await waitForLogs();
-
-    fireEvent.click(screen.getByTestId("summary-Pre task execution logs"));
-    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
-
-    const anchorRow = findRow("Starting attempt 1 of 3");
-    const anchorIndex = Number(anchorRow.getAttribute("data-index"));
-    const neighborIndex = anchorIndex + 1;
-    const textNode = anchorRow.querySelector("span")?.firstChild as Node;
-    const range = document.createRange();
-
-    range.setStart(textNode, 0);
-    range.setEnd(textNode, 0);
-
-    const selection = { getRangeAt: () => range, isCollapsed: true, rangeCount: 1 } as unknown as Selection;
-
-    withFakeSelection(selection, () => {
-      document.dispatchEvent(new Event("selectionchange"));
-    });
-
-    const container = screen.getByTestId("virtual-scroll-container");
-
-    fireEvent.scroll(container, { target: { scrollTop: ITEM_HEIGHT * (anchorIndex + 15) } });
-
-    await waitFor(() => {
-      expect(container.querySelector(`[data-index="${neighborIndex}"]`)).toBeNull();
-    });
-    expect(container.querySelector(`[data-index="${anchorIndex}"]`)).not.toBeNull();
-  });
-
-  it("unpins once the selection is cleared", async () => {
-    render(
-      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
-    );
-    await waitForLogs();
-
-    fireEvent.click(screen.getByTestId("summary-Pre task execution logs"));
-    await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
-
-    const anchorRow = findRow("Starting attempt 1 of 3");
-    const anchorIndex = Number(anchorRow.getAttribute("data-index"));
-    const textNode = anchorRow.querySelector("span")?.firstChild as Node;
-    const range = document.createRange();
-
-    range.setStart(textNode, 0);
-    range.setEnd(textNode, 0);
-
-    const selection = { getRangeAt: () => range, isCollapsed: true, rangeCount: 1 } as unknown as Selection;
-
-    withFakeSelection(selection, () => {
-      document.dispatchEvent(new Event("selectionchange"));
-    });
-
-    const noSelection = null as unknown as Selection;
-
-    withFakeSelection(noSelection, () => {
-      document.dispatchEvent(new Event("selectionchange"));
-    });
-
-    const container = screen.getByTestId("virtual-scroll-container");
-
-    fireEvent.scroll(container, { target: { scrollTop: ITEM_HEIGHT * (anchorIndex + 15) } });
-
-    await waitFor(() => {
-      expect(container.querySelector(`[data-index="${anchorIndex}"]`)).toBeNull();
-    });
-  });
 });

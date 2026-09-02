@@ -20,9 +20,13 @@ import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/rea
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, Tooltip } from "src/system-components";
+
 import DagRunInfo from "src/components/DagRunInfo";
 import { Stat } from "src/components/Stat";
-import { RouterLink, Tooltip } from "src/components/ui";
+import { TeamName } from "src/components/TeamName";
+
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -125,11 +129,7 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
         {multiTeamEnabled ? (
           <GridItem gridColumn={4} gridRow={1}>
             <Stat label={translate("dagDetails.team")}>
-              {dag.team_name === undefined || dag.team_name === null ? undefined : (
-                <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name)}`}>
-                  {dag.team_name}
-                </RouterLink>
-              )}
+              <TeamName teamName={dag.team_name} />
             </Stat>
           </GridItem>
         ) : undefined}

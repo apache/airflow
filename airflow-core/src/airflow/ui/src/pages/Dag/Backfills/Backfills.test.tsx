@@ -29,6 +29,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
+
 import type * as Utils from "src/utils";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -48,6 +49,7 @@ vi.mock("openapi/queries", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { id?: number }) =>
       key === "components:backfill.viewSlots"

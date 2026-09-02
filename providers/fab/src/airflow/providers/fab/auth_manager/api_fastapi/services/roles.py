@@ -137,31 +137,62 @@ class FABAuthManagerRoles:
                 detail=f"Role with name {name!r} does not exist.",
             )
 
+        # A field is only touched if the client actually sent it (tracked by pydantic's
+        # `model_fields_set`, independent of default values). With no update_mask that means
+        # every field present in the request body -- consistent with this endpoint requiring
+        # "PUT"-level authorization and with how the other PATCH endpoints in this API
+        # (connections, dags, dag runs, pools, variables) resolve which fields to replace.
+        fields_to_update = set(body.model_fields_set)
         if update_mask:
-            fields_to_update = {f.strip() for f in update_mask.split(",") if f.strip()}
-            update_data = RoleResponse.model_validate(existing)
-
-            for field in fields_to_update:
-                if field == "actions":
-                    update_data.permissions = body.permissions
-                elif hasattr(body, field):
-                    setattr(update_data, field, getattr(body, field))
-                else:
+            requested_fields = {f.strip() for f in update_mask.split(",") if f.strip()}
+            for field in requested_fields:
+                if field != "actions" and not hasattr(body, field):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"'{field}' in update_mask is unknown",
                     )
-        else:
-            update_data = RoleResponse(name=body.name, permissions=body.permissions or [])
+            # "actions" is the external (JSON) name for the "permissions" attribute.
+            normalized_fields = {"permissions" if field == "actions" else field for field in requested_fields}
+            fields_to_update &= normalized_fields
 
-        perms: list[tuple[str, str]] = [(ar.action.name, ar.resource.name) for ar in (body.permissions or [])]
-        cls._check_action_and_resource(security_manager, perms)
-        security_manager.bulk_sync_roles([{"role": name, "perms": perms}])
+        update_data = RoleResponse.model_validate(existing)
+        if "permissions" in fields_to_update:
+            cls._replace_role_permissions(security_manager, existing, body.permissions or [])
+            update_data.permissions = body.permissions or []
+        if "name" in fields_to_update:
+            update_data.name = body.name
 
-        new_name = update_data.name
-        if new_name and new_name != existing.name:
-            security_manager.update_role(role_id=existing.id, name=new_name)
-        return RoleResponse.model_validate(update_data)
+        if update_data.name != existing.name:
+            security_manager.update_role(role_id=existing.id, name=update_data.name)
+        return update_data
+
+    @classmethod
+    def _replace_role_permissions(
+        cls,
+        security_manager: FabAirflowSecurityManagerOverride,
+        role: Role,
+        permissions: list[ActionResource],
+    ) -> None:
+        """
+        Make the role's permissions match `permissions` exactly.
+
+        Unlike the additive sync used on role creation, a PATCH that touches the permission
+        set must also revoke permissions currently on the role that are absent from the
+        request -- otherwise permissions could be added but never removed via the API.
+        """
+        target_pairs = {(ar.action.name, ar.resource.name) for ar in permissions}
+        cls._check_action_and_resource(security_manager, list(target_pairs))
+
+        current_permissions = {(p.action.name, p.resource.name): p for p in role.permissions}
+
+        for action_name, resource_name in target_pairs - current_permissions.keys():
+            permission = security_manager.get_permission(
+                action_name, resource_name
+            ) or security_manager.create_permission(action_name, resource_name)
+            security_manager.add_permission_to_role(role, permission)
+
+        for pair in current_permissions.keys() - target_pairs:
+            security_manager.remove_permission_from_role(role, current_permissions[pair])
 
     @classmethod
     def get_permissions(cls, *, order_by: str, limit: int, offset: int) -> PermissionCollectionResponse:
