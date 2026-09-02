@@ -52,10 +52,11 @@ describe("dayjs locale", () => {
     },
   );
 
+  // The dual form comes from the `ar` plural patch applied when this module loads.
   it("renders the reported Arabic case", () => {
     syncDayjsLocale("ar");
 
-    expect(humanizeTwoHours()).toBe("2 ساعات");
+    expect(humanizeTwoHours()).toBe("ساعتين");
   });
 
   it("falls back to English for a language dayjs does not ship", () => {
@@ -71,7 +72,7 @@ describe("dayjs locale", () => {
     registerDayjsLocaleSync(instance);
     await instance.init({ ...i18nBaseOptions, lng: "ar", resources: {} });
 
-    expect(humanizeTwoHours()).toBe("2 ساعات");
+    expect(humanizeTwoHours()).toBe("ساعتين");
   });
 
   it("follows a later language switch", async () => {
