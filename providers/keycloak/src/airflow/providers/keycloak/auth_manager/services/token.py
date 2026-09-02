@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-from typing import cast
 
 from fastapi import HTTPException, status
 from keycloak import KeycloakAuthenticationError
@@ -59,9 +58,7 @@ def create_token_for(
         refresh_token=tokens["refresh_token"],
     )
 
-    return cast("KeycloakAuthManager", get_auth_manager()).generate_api_jwt(
-        user, expiration_time_in_seconds=expiration_time_in_seconds
-    )
+    return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
 
 def create_client_credentials_token(
@@ -121,6 +118,4 @@ def create_client_credentials_token(
         ),  # client_credentials may not return refresh_token (RFC6749 section 4.4.3)
     )
 
-    return cast("KeycloakAuthManager", get_auth_manager()).generate_api_jwt(
-        user, expiration_time_in_seconds=expiration_time_in_seconds
-    )
+    return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)

@@ -174,7 +174,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         Return a JWT for a client that authenticates with the ``Authorization`` header.
 
         Such a client sends no cookies, so the Keycloak tokens have to travel in the
-        claims for the request to be authorizable.
+        claims for the request to be authorized.
 
         :param user: the user to generate the token for
         :param expiration_time_in_seconds: expiration time in seconds of the token
