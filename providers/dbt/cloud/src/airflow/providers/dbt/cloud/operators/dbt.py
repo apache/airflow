@@ -20,10 +20,11 @@ import json
 import time
 import warnings
 from functools import cached_property
+from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -34,6 +35,7 @@ from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
 
 _DURABLE_UNSET = object()
+_DBT_CLOUD_RUN_NOT_FOUND_STATUS: str = "NOT_FOUND"
 
 
 if TYPE_CHECKING:
@@ -340,15 +342,29 @@ class DbtCloudRunJobOperator(ResumableJobMixin, BaseOperator):
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         run_id = cast("int", external_id)
-        job_run = self.hook.get_job_run(run_id=run_id, account_id=self.account_id).json()["data"]
+        self.run_id = run_id
+        try:
+            job_run: dict[str, Any] = self.hook.get_job_run(run_id=run_id, account_id=self.account_id).json()[
+                "data"
+            ]
+        except AirflowException as error:
+            if str(error).startswith(f"{HTTPStatus.NOT_FOUND.value}:"):
+                return _DBT_CLOUD_RUN_NOT_FOUND_STATUS
+            raise
         self._set_run(run_id=run_id, job_run_url=job_run["href"])
         return DbtCloudJobRunStatus(job_run["status"]).name
 
     def is_job_active(self, status: str) -> bool:
-        return DbtCloudJobRunStatus[status].value in DbtCloudJobRunStatus.NON_TERMINAL_STATUSES.value
+        return (
+            status != _DBT_CLOUD_RUN_NOT_FOUND_STATUS
+            and DbtCloudJobRunStatus[status].value in DbtCloudJobRunStatus.NON_TERMINAL_STATUSES.value
+        )
 
     def is_job_succeeded(self, status: str) -> bool:
-        return DbtCloudJobRunStatus[status] == DbtCloudJobRunStatus.SUCCESS
+        return (
+            status != _DBT_CLOUD_RUN_NOT_FOUND_STATUS
+            and DbtCloudJobRunStatus[status] == DbtCloudJobRunStatus.SUCCESS
+        )
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         self.run_id = cast("int", external_id)

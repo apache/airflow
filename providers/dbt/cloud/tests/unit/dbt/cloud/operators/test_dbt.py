@@ -23,9 +23,10 @@ from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from requests import exceptions as requests_exceptions
 
 from airflow.models import DAG, Connection
-from airflow.providers.common.compat.sdk import TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     _DURABLE_UNSET,
@@ -1109,6 +1110,58 @@ class TestDbtCloudRunJobOperatorResumability:
             retry_from_failure=True,
             additional_run_config={},
         )
+
+    def test_missing_run_submits_fresh(self) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        new_run_id = RUN_ID + 1
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.side_effect = AirflowException("404:Not Found")
+        operator.hook.trigger_job_run.return_value = self.create_run_response(
+            run_id=new_run_id, status=DbtCloudJobRunStatus.QUEUED
+        )
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        assert operator.execute(self.context) == new_run_id
+
+        assert self.store.values["dbt_cloud_run_id"] == new_run_id
+        operator.hook.trigger_job_run.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            AirflowException("401:Unauthorized"),
+            AirflowException("500:Internal Server Error"),
+            requests_exceptions.ConnectionError("connection failed"),
+        ],
+    )
+    def test_recovery_lookup_propagates_other_errors(self, error: Exception) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.get_job_run.side_effect = error
+
+        with pytest.raises(type(error)) as exc_info:
+            operator.execute(self.context)
+
+        assert exc_info.value is error
+        operator.hook.trigger_job_run.assert_not_called()
+
+    def test_on_kill_can_cancel_during_recovery_lookup(self) -> None:
+        self.store.values["dbt_cloud_run_id"] = RUN_ID
+        operator = self.create_operator()
+        operator.hook = MagicMock()
+        operator.hook.wait_for_job_run_status.return_value = True
+
+        def get_job_run(*, run_id: int, account_id: int | None) -> MagicMock:
+            operator.on_kill()
+            return self.create_run_response(run_id=run_id, status=DbtCloudJobRunStatus.RUNNING)
+
+        operator.hook.get_job_run.side_effect = get_job_run
+
+        assert operator.execute(self.context) == RUN_ID
+
+        operator.hook.cancel_job_run.assert_called_once_with(run_id=RUN_ID, account_id=None)
 
     def test_deferrable_execution_does_not_use_task_state_store(self) -> None:
         operator = self.create_operator(deferrable=True)
