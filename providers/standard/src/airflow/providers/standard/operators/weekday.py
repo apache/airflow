@@ -112,8 +112,13 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:
             now = context.get("logical_date")
+            dag_run = context.get("dag_run")
+            if not (now or (dag_run and dag_run.run_after)):
+                raise ValueError(
+                    "Either `logical_date` or `run_after` should be provided in the task context when "
+                    "`use_task_logical_date` is True"
+                )
             if not now:
-                dag_run = context.get("dag_run")
                 now = dag_run.run_after  # type: ignore[union-attr, assignment]
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
