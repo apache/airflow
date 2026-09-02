@@ -48,7 +48,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
 import type { DagView } from "src/constants/dagView";
-import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
+import { DEFAULT_DAG_VIEW_KEY, GANTT_HIDE_GROUP_DURATIONS_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
@@ -111,6 +111,12 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage(
     `version_indicator_display_mode`,
     VersionIndicatorOptions.ALL,
+  );
+  // Global setting: applies to all Dags. Task Group rows keep their place in the Gantt but drop
+  // their aggregate duration bar, which otherwise reads as a long-running task on its own.
+  const [hideGroupDurations, setHideGroupDurations] = useLocalStorage<boolean>(
+    GANTT_HIDE_GROUP_DURATIONS_KEY,
+    false,
   );
 
   // Helper that updates a single search param without touching the rest.
@@ -292,9 +298,11 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                 <Box left={0} p={2} position={dagView === "graph" ? "absolute" : undefined} right={0} top={0}>
                   <PanelButtons
                     dagView={dagView}
+                    hideGroupDurations={hideGroupDurations}
                     limit={limit}
                     panelGroupRef={panelGroupRef}
                     setDagView={setDagView}
+                    setHideGroupDurations={setHideGroupDurations}
                     setLimit={setLimit}
                     setShowVersionIndicatorMode={setShowVersionIndicatorMode}
                     showVersionIndicatorMode={showVersionIndicatorMode}
@@ -333,6 +341,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                         />
                         <Gantt
                           dagRunState={dagRunStateFilter}
+                          hideGroupDurations={hideGroupDurations}
                           limit={limit}
                           offset={offset}
                           runAfterGte={runAfterGte}

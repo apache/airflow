@@ -66,6 +66,8 @@ type Props = {
   readonly flatNodes: Array<GridTask>;
   readonly ganttDataItems: Array<GanttDataItem>;
   readonly gridSummaries: Array<LightGridTaskInstanceSummary>;
+  /** When true, Task Group rows keep their place (and sidebar label) but render no duration bar. */
+  readonly hideGroupDurations?: boolean;
   readonly maxMs: number;
   readonly minMs: number;
   readonly onSegmentClick?: () => void;
@@ -107,6 +109,7 @@ export const GanttTimeline = ({
   flatNodes,
   ganttDataItems,
   gridSummaries,
+  hideGroupDurations = false,
   maxMs,
   minMs,
   onSegmentClick,
@@ -279,7 +282,11 @@ export const GanttTimeline = ({
               return undefined;
             }
 
-            const allSegments = rowSegments[vItem.index] ?? [];
+            // Task Group rows still occupy a row (so they stay aligned with the sidebar/grid),
+            // but their aggregate "envelope" bar is dropped entirely when the toggle is on —
+            // it otherwise reads as a long-running task even when the tasks inside are quick.
+            const allSegments =
+              hideGroupDurations && node.isGroup === true ? [] : (rowSegments[vItem.index] ?? []);
             // Hide scheduled/queued bars that are too narrow to see. Re-derive adjacency
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
