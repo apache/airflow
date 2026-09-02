@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
 import sys
 import time
+from collections.abc import Callable, Iterator
 from subprocess import PIPE, STDOUT, Popen
 
 import pytest
@@ -31,12 +31,18 @@ from python_on_whales import DockerClient, docker
 from airflowctl_tests import console
 from airflowctl_tests.constants import (
     AIRFLOW_ROOT_PATH,
+    API_PASSWORD,
+    API_USERNAME,
+    DAG_RUN_WAIT_TIMEOUT,
+    DAG_RUN_WAIT_TIMEOUT_ENV,
     DOCKER_COMPOSE_FILE_PATH,
+    DOCKER_COMPOSE_HOST_PORT,
     DOCKER_IMAGE,
     LOGIN_COMMAND,
     LOGIN_OUTPUT,
 )
 
+from tests_common.test_utils.api_client_helpers import generate_access_token
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
 # XCom add/edit/delete race against task execution: when the target task transitions to
@@ -49,73 +55,126 @@ from tests_common.test_utils.fernet import generate_fernet_key_string
 # XComs survive the rest of the xcom commands.
 _XCOM_TARGET_PATTERN = re.compile(r'^xcom\s+(?:add|get|list|edit|delete)\s+(\S+)\s+"(manual__[^"]+)"')
 _DAG_RUN_TERMINAL_STATES = frozenset({"success", "failed"})
+_API_REQUEST_TIMEOUT = 30
+_POLL_INITIAL_DELAY = 0.5
+_POLL_MAX_DELAY = 10.0
 
 
-def _airflowctl_dag_run_state(dag_id: str, dag_run_id: str, env_vars: dict, skip_login: bool) -> str | None:
-    """Return the current state of a Dag run via airflowctl, or None if unparsable."""
-    host_envs = os.environ.copy()
-    host_envs.update(env_vars)
+class _CtlTestState:
+    docker_client: DockerClient | None = None
+    access_token: str | None = None
 
-    get_cmd = f'airflowctl dagrun get {dag_id} "{dag_run_id}" -o json'
-    if not skip_login:
-        get_cmd = f"airflowctl {LOGIN_COMMAND} && {get_cmd}"
 
-    proc = Popen(get_cmd.encode(), stdout=PIPE, stderr=STDOUT, shell=True, env=host_envs)
+def _get_access_token() -> str:
+    """Log in once per pytest session; every REST call below reuses the token."""
+    if _CtlTestState.access_token is None:
+        _CtlTestState.access_token = generate_access_token(
+            API_USERNAME, API_PASSWORD, DOCKER_COMPOSE_HOST_PORT
+        )
+    return _CtlTestState.access_token
+
+
+def _request_api(path: str) -> dict:
+    """GET a public API path on the compose stack, e.g. ``dags/my_dag/dagRuns/run_id``."""
+    response = requests.get(
+        f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/{path}",
+        headers={"Authorization": f"Bearer {_get_access_token()}"},
+        timeout=_API_REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _find_dag_run_state(dag_id: str, dag_run_id: str) -> str | None:
+    """Return the current state of a Dag run, or None while the API cannot answer."""
     try:
-        out, _ = proc.communicate(timeout=20)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+        return _request_api(f"dags/{dag_id}/dagRuns/{dag_run_id}").get("state")
+    except requests.exceptions.HTTPError as exc:
+        # A rejected request means a wrong run id or wrong credentials; polling on until
+        # the budget runs out would bury that behind a timeout.
+        if exc.response is not None and exc.response.status_code >= 500:
+            return None
+        raise
+    except requests.exceptions.RequestException:
         return None
-    out_str = out.decode()
-    if LOGIN_OUTPUT in out_str:
-        out_str = out_str.split(f"{LOGIN_OUTPUT}\n", 1)[-1].strip()
-    start, end = out_str.find("{"), out_str.rfind("}")
-    if start == -1 or end == -1:
-        return None
+
+
+def _describe_task_instances(dag_id: str, dag_run_id: str) -> str:
+    """Render the Dag run's ``task_id=state`` pairs for timeout diagnostics."""
     try:
-        return json.loads(out_str[start : end + 1]).get("state")
-    except json.JSONDecodeError:
-        return None
+        task_instances = _request_api(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances")["task_instances"]
+    except (requests.exceptions.RequestException, KeyError) as exc:
+        return f"unavailable ({exc})"
+    return ", ".join(f"{ti['task_id']}={ti['state']}" for ti in task_instances) or "none"
+
+
+def _compute_poll_delays() -> Iterator[float]:
+    """Sample often while the run is likely to finish soon, then ease off."""
+    delay = _POLL_INITIAL_DELAY
+    while True:
+        yield delay
+        delay = min(delay * 2, _POLL_MAX_DELAY)
 
 
 def _wait_for_dag_run_terminal_state(
     dag_id: str,
     dag_run_id: str,
-    env_vars: dict,
-    skip_login: bool,
-    timeout: int = 60,
+    timeout: float = DAG_RUN_WAIT_TIMEOUT,
 ) -> None:
     """Block until the Dag run reaches success/failed, or raise TimeoutError."""
     deadline = time.monotonic() + timeout
-    last_state: str | None = None
-    while time.monotonic() < deadline:
-        last_state = _airflowctl_dag_run_state(dag_id, dag_run_id, env_vars, skip_login)
-        if last_state in _DAG_RUN_TERMINAL_STATES:
+    delays = _compute_poll_delays()
+    while True:
+        state = _find_dag_run_state(dag_id, dag_run_id)
+        if state in _DAG_RUN_TERMINAL_STATES:
             return
-        time.sleep(1)
-    raise TimeoutError(
-        f"Dag run {dag_id}/{dag_run_id} did not reach terminal state in {timeout}s "
-        f"(last seen state: {last_state})"
-    )
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"Dag run {dag_id}/{dag_run_id} did not reach a terminal state in {timeout}s "
+                f"(Dag run state: {state}; task instances: {_describe_task_instances(dag_id, dag_run_id)}). "
+                f"Set {DAG_RUN_WAIT_TIMEOUT_ENV} to give a slow machine a longer budget."
+            )
+        time.sleep(min(next(delays), remaining))
 
 
-@pytest.fixture(scope="module")
+def _build_dag_run_waiter() -> Callable[[str, str], None]:
+    """Spend the timeout budget once per Dag run and replay that outcome to later commands."""
+    outcomes: dict[tuple[str, str], str | None] = {}
+
+    def _wait(dag_id: str, dag_run_id: str) -> None:
+        key = (dag_id, dag_run_id)
+        if key not in outcomes:
+            try:
+                _wait_for_dag_run_terminal_state(dag_id, dag_run_id)
+            except TimeoutError as exc:
+                outcomes[key] = str(exc)
+                raise
+            outcomes[key] = None
+        elif outcomes[key] is not None:
+            # The budget is spent, but one cheap look keeps a run that finished late from
+            # skipping the rest of the xcom commands.
+            if _find_dag_run_state(dag_id, dag_run_id) not in _DAG_RUN_TERMINAL_STATES:
+                pytest.skip(f"Dag run {dag_id}/{dag_run_id} is unusable: {outcomes[key]}")
+            outcomes[key] = None
+
+    return _wait
+
+
+@pytest.fixture(scope="session")
+def wait_for_dag_run():
+    """Fixture that provides a helper to wait for a Dag run to become terminal."""
+    return _build_dag_run_waiter()
+
+
+@pytest.fixture(scope="session")
 def api_token():
-    url = "http://localhost:8080/auth/token"
-    payload = {"username": "airflow", "password": "airflow"}
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        token = response.json().get("access_token")
-        if not token:
-            raise ValueError("Response did not contain an access_token")
-        return token
-    except requests.exceptions.RequestException as e:
-        pytest.fail(f"Failed to obtain token: {e}")
+    """Fixture that provides the API token shared by the whole test session."""
+    return _get_access_token()
 
 
 @pytest.fixture
-def run_command():
+def run_command(wait_for_dag_run):
     """Fixture that provides a helper to run airflowctl commands."""
 
     def _run_command(command: str, env_vars: dict, skip_login: bool = False) -> str:
@@ -134,7 +193,7 @@ def run_command():
         # Dag run to be terminal before running.
         xcom_match = _XCOM_TARGET_PATTERN.match(command)
         if xcom_match:
-            _wait_for_dag_run_terminal_state(xcom_match.group(1), xcom_match.group(2), env_vars, skip_login)
+            wait_for_dag_run(xcom_match.group(1), xcom_match.group(2))
 
         console.print(f"[yellow]Running command: {command}")
 
@@ -187,10 +246,6 @@ def run_command():
         return stdout_result
 
     return _run_command
-
-
-class _CtlTestState:
-    docker_client: DockerClient | None = None
 
 
 # Pytest hook to run at the start of the session

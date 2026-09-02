@@ -62,12 +62,12 @@ point it at the example bundle directory:
 
 ```bash
 export AIRFLOW__SDK__COORDINATORS='{
-  "node": {
+  "ts": {
     "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
     "kwargs": {"bundles_root": ["/absolute/path/to/airflow/ts-sdk/example/dist"]}
   }
 }'
-export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "node"}'
+export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 ```
 
 Copy `dags/typescript_example.py` into your Airflow Dags folder.

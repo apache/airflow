@@ -92,7 +92,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.hitl import HITLDetail
-from airflow.models.log import Log
+from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -10465,6 +10465,50 @@ class TestSchedulerJob:
         mock_listener_manager.hook.on_dag_run_success.assert_called_once()
         call_args = mock_listener_manager.hook.on_dag_run_success.call_args
         assert call_args.kwargs["dag_run"]._team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_process_task_event_logs_records_the_team_owning_the_dag(self, dag_maker, session, team_bundle):
+        with dag_maker(dag_id="test_task_event_log_team", bundle_name="testing", session=session):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        self.job_runner = SchedulerJobRunner(Job(), executors=[MagicMock()])
+        self.job_runner._process_task_event_logs(
+            deque([Log(event="test_task_event_log_team_event", dag_id="test_task_event_log_team")]), session
+        )
+
+        log = session.scalar(select(Log).where(Log.event == "test_task_event_log_team_event"))
+        assert log.team_name == "testing"
+
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch("airflow.jobs.scheduler_job_runner.resolve_team_name", side_effect=resolve_team_name)
+    def test_process_task_event_logs_resolves_each_dag_once(
+        self, mock_resolve_team_name, dag_maker, session, team_bundle
+    ):
+        for dag_id in ("test_task_event_log_dag_1", "test_task_event_log_dag_2"):
+            with dag_maker(dag_id=dag_id, bundle_name="testing", session=session):
+                EmptyOperator(task_id="test_task")
+        session.commit()
+
+        self.job_runner = SchedulerJobRunner(Job(), executors=[MagicMock()])
+        self.job_runner._process_task_event_logs(
+            deque(
+                Log(event="test_task_event_log_dedupe", dag_id=dag_id)
+                for dag_id in (
+                    "test_task_event_log_dag_1",
+                    "test_task_event_log_dag_2",
+                    "test_task_event_log_dag_1",
+                    "test_task_event_log_dag_2",
+                    "test_task_event_log_dag_1",
+                )
+            ),
+            session,
+        )
+
+        assert mock_resolve_team_name.call_count == 2
+        logs = session.scalars(select(Log).where(Log.event == "test_task_event_log_dedupe")).all()
+        assert len(logs) == 5
+        assert {log.team_name for log in logs} == {"testing"}
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):

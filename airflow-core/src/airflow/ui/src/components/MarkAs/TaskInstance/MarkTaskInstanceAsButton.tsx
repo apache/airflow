@@ -16,15 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import type { ButtonProps } from "@chakra-ui/react";
+import { HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { IconButton, Menu, Tooltip } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Menu, Tooltip } from "src/components/ui";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
@@ -34,9 +39,9 @@ import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 type Props = {
   readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
-};
+} & ButtonProps;
 
-const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Props) => {
+export const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -65,10 +70,10 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
   });
 
   return (
-    <Box>
+    <div>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }} tooltipLabel={label}>
         <Menu.Trigger asChild>
-          <IconButton aria-label={label}>
+          <IconButton {...rest} aria-label={label}>
             <HStack gap={1} mx={1}>
               <LuCheck />
               <span>/</span>
@@ -111,8 +116,6 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
       </Menu.Root>
 
       <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
-    </Box>
+    </div>
   );
 };
-
-export default MarkTaskInstanceAsButton;

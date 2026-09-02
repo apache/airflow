@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Button, Field, Flex, HStack, Input, Spacer, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { BackfillPostBody, DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
+import { Alert, Checkbox, RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components";
+
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
+
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
@@ -37,8 +41,6 @@ import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import type { DagRunTriggerParams } from "../TriggerDag/types";
-import { Alert } from "../ui";
-import { Checkbox } from "../ui/Checkbox";
 import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
@@ -139,12 +141,19 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
   const affectedTasks = data ?? { backfills: [], total_entries: 0 };
+  const isPartitioned = dag.timetable_partitioned;
 
   // Check if the dry run error is a permission error (403)
   const isPermissionError =
     dryRunError !== undefined && dryRunError !== null && (dryRunError as ExpandedApiError).status === 403;
 
-  const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
+  const inlineMessage = getInlineMessage({
+    backfills: affectedTasks.backfills,
+    isPartitioned,
+    isPendingDryRun,
+    totalEntries: affectedTasks.total_entries,
+    translate,
+  });
 
   return (
     <>
@@ -157,7 +166,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Alert status="info">{translate("backfill.schedulerPriorityHint")}</Alert>
         <Box>
           <Text fontSize="md" fontWeight="semibold" mb={3}>
-            {translate("backfill.dateRange")}
+            {isPartitioned ? translate("backfill.partitionRange") : translate("backfill.dateRange")}
           </Text>
           <HStack alignItems="flex-start" w="full">
             <Controller
