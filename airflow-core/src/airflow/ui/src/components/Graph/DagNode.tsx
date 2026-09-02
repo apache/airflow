@@ -25,6 +25,7 @@ import { useDagServiceGetDag } from "openapi/queries";
 import { TogglePause } from "src/components/TogglePause";
 
 import { DagIcon } from "src/assets/DagIcon";
+import { useAutoRefresh } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
@@ -32,7 +33,10 @@ import type { CustomNodeProps } from "./reactflowUtils";
 export const DagNode = ({
   data: { height, isOpen, isSelected, label, team, width },
 }: NodeProps<NodeType<CustomNodeProps, "dag">>) => {
-  const { data: dag } = useDagServiceGetDag({ dagId: label });
+  const refetchInterval = useAutoRefresh({ dagId: label });
+  const { data: dag } = useDagServiceGetDag({ dagId: label }, undefined, {
+    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+  });
 
   return (
     <NodeWrapper>
@@ -54,6 +58,7 @@ export const DagNode = ({
             dagId={dag?.dag_id ?? label}
             disabled={!Boolean(dag)}
             isPaused={dag?.is_paused}
+            schedulingState={dag?.scheduling_state}
             style={{ zIndex: 2 }}
           />
         </HStack>

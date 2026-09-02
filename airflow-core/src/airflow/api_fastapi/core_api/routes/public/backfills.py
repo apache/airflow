@@ -50,7 +50,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_backfill,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
+from airflow.exceptions import DagIsDraining, DagNotFound, DagRunTypeNotAllowed
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
@@ -323,6 +323,9 @@ def create_backfill(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
         )
+
+    except DagIsDraining as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
     except DagNotFound:
         raise HTTPException(

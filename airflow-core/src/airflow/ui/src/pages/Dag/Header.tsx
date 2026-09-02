@@ -71,7 +71,7 @@ export const Header = ({
         {
           label: translate("dagDetails.nextRun"),
           value:
-            !dag?.is_paused && Boolean(dag?.next_dagrun_run_after) ? (
+            !dag?.is_paused && dag?.scheduling_state !== "draining" && Boolean(dag?.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag?.next_dagrun_logical_date}
                 runAfter={dag?.next_dagrun_run_after as string}

@@ -24,13 +24,14 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.dagbag import DagBag
-from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.exceptions import DagIsDraining
+from airflow.models import DagModel, DagRun, TaskInstance, backfill as backfill_module
 from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
@@ -489,6 +490,65 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.status_code == 200
         backfill = session.scalars(select(Backfill).where(Backfill.dag_id == dag.dag_id)).one()
         assert backfill.triggering_user_name == "Jane Doe"
+
+    def test_create_backfill_rejects_draining_dag(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DRAINING_DAG", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        dag_model = session.get(DagModel, dag.dag_id)
+        dag_model.is_draining = True
+        session.commit()
+
+        response = test_client.post(
+            url="/backfills",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(pendulum.parse("2024-01-01")),
+                "to_date": to_iso(pendulum.parse("2024-02-01")),
+                "max_active_runs": 5,
+                "run_backwards": False,
+                "dag_run_conf": {},
+            },
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == (f"Dag '{dag.dag_id}' is draining and does not accept new runs")
+
+    def test_create_backfill_rechecks_draining_state_after_initial_commit(self, session, dag_maker):
+        with dag_maker(session=session, dag_id="TEST_DRAINING_DAG_RACE", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        original_with_row_locks = backfill_module.with_row_locks
+        lock_count = 0
+
+        def set_draining_before_second_lock(query, **kwargs):
+            nonlocal lock_count
+            lock_count += 1
+            if lock_count == 2:
+                kwargs["session"].execute(
+                    update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_draining=True)
+                )
+                kwargs["session"].commit()
+            return original_with_row_locks(query, **kwargs)
+
+        with mock.patch.object(
+            backfill_module,
+            "with_row_locks",
+            side_effect=set_draining_before_second_lock,
+        ):
+            with pytest.raises(DagIsDraining, match="is draining and does not accept new runs"):
+                _create_backfill(
+                    dag_id=dag.dag_id,
+                    from_date=pendulum.parse("2024-01-01"),
+                    to_date=pendulum.parse("2024-01-02"),
+                    max_active_runs=1,
+                    reverse=False,
+                    dag_run_conf={},
+                    triggering_user_name=None,
+                )
+
+        assert session.scalar(select(func.count()).select_from(Backfill)) == 0
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
 
     def test_dag_not_exist(self, session, test_client):
         session.scalars(select(DagModel)).all()

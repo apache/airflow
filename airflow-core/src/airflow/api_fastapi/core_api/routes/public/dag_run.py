@@ -122,6 +122,7 @@ from airflow.exceptions import DagVersionNotFound, ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -765,9 +766,21 @@ def trigger_dag_run(
     request: Request,
 ) -> DAGRunResponse:
     """Trigger a Dag."""
-    dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
+    dm = session.scalar(
+        with_row_locks(
+            select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1),
+            of=DagModel,
+            session=session,
+        )
+    )
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with dag_id: '{dag_id}' not found")
+
+    if dm.is_draining:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Dag with dag_id: '{dag_id}' is draining and does not accept new runs",
+        )
 
     if dm.has_import_errors:
         raise HTTPException(

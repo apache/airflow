@@ -79,6 +79,7 @@ const createColumns = (
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
         isPaused={original.is_paused}
+        schedulingState={original.scheduling_state}
       />
     ),
     enableSorting: false,
@@ -113,7 +114,9 @@ const createColumns = (
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      !original.is_paused && Boolean(original.next_dagrun_run_after) ? (
+      !original.is_paused &&
+      original.scheduling_state !== "draining" &&
+      Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={original.next_dagrun_logical_date}
           runAfter={original.next_dagrun_run_after as string}
@@ -190,6 +193,7 @@ const createColumns = (
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
         isPaused={original.is_paused}
+        schedulingState={original.scheduling_state}
       />
     ),
     enableSorting: false,

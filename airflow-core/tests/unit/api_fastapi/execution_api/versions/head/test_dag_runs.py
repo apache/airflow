@@ -33,7 +33,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables.trigger import CronPartitionTimetable
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, DagSchedulingState, State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
@@ -69,6 +69,29 @@ class TestDagRunTrigger:
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
         assert dag_run.run_type == DagRunType.OPERATOR_TRIGGERED
+
+    def test_trigger_dag_run_rejects_draining_dag(self, client, session, dag_maker):
+        dag_id = "test_trigger_dag_run_rejects_draining_dag"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        dag_model = session.get(DagModel, dag_id)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/test_run_id",
+            json={"logical_date": timezone.datetime(2025, 2, 20).isoformat()},
+        )
+
+        assert response.status_code == 409
+        assert response.json() == {
+            "detail": {
+                "reason": "dag_draining",
+                "message": f"Dag '{dag_id}' is draining and does not accept new runs",
+            }
+        }
 
     def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
         """partition_key accepted when Dag uses a partitioned timetable (happy-path guard)."""

@@ -82,6 +82,17 @@ describe("Header", () => {
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
   });
 
+  it("does not render next run timestamp for a draining Dag", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, is_stale: false, scheduling_state: "draining" }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
+    expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
+  });
+
   it("shows the team alongside the owner when multi-team is enabled", () => {
     mockConfig.multi_team = true;
     render(

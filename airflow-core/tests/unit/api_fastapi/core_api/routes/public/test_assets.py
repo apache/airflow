@@ -2296,6 +2296,18 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 409
         assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
+    def test_should_respond_409_for_draining_dag(self, test_client, session):
+        dag_model = session.get(DagModel, self.DAG_ASSET1_ID)
+        dag_model.is_draining = True
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize")
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == (
+            f"Dag with dag_id: '{self.DAG_ASSET1_ID}' is draining and does not accept new runs"
+        )
+
     def test_should_respond_404_on_multiple_dags(self, test_client):
         response = test_client.post("/assets/3/materialize")
         assert response.status_code == 404

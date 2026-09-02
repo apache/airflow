@@ -93,6 +93,17 @@
     "loading": "Loading run state counts",
     "tooltip": "{{state}}: {{formattedCount}} — click to filter runs"
   },
+  "schedulingActions": {
+    "cancelDrain": "Cancel drain",
+    "drain": "Drain then pause",
+    "pauseNow": "Pause now",
+    "unpause": "Unpause"
+  },
+  "schedulingState": {
+    "active": "Active",
+    "draining": "Draining",
+    "paused": "Paused"
+  },
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",
