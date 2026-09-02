@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
+from airflow.models.connection import Connection
 from airflow.providers.teradata.transfers.azure_blob_to_teradata import AzureBlobStorageToTeradataOperator
 
 AZURE_CONN_ID = "wasb_default"
@@ -58,3 +60,49 @@ class TestAzureBlobStorageToTeradataOperator:
         mock_hook_teradata.assert_called_once_with(teradata_conn_id=TERADATA_CONN_ID)
         sql = "SQL"
         mock_hook_teradata.run(sql)
+
+    @mock.patch("airflow.providers.teradata.transfers.azure_blob_to_teradata.TeradataHook")
+    @mock.patch("airflow.providers.teradata.transfers.azure_blob_to_teradata.WasbHook")
+    def test_execute_keeps_inline_credentials_out_of_the_log(
+        self, mock_hook_wasb, mock_hook_teradata, caplog
+    ):
+        access_id = "azure_client_id"
+        access_secret = "azure_client_secret"
+        mock_hook_wasb.return_value.get_connection.return_value = Connection(
+            login=access_id, password=access_secret
+        )
+
+        op = AzureBlobStorageToTeradataOperator(
+            azure_conn_id=AZURE_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            teradata_table=TERADATA_TABLE,
+            blob_source_key=BLOB_SOURCE_KEY,
+            task_id=TASK_ID,
+        )
+        with caplog.at_level(logging.INFO):
+            op.execute(context=None)
+
+        assert access_secret not in caplog.text
+        assert "ACCESS_ID= '***' ACCESS_KEY= '***'" in caplog.text
+        assert mock_hook_teradata.return_value.log_sql is False
+
+        # The statement actually sent still carries the real credentials.
+        sent_sql = mock_hook_teradata.return_value.run.call_args.args[0]
+        assert f"ACCESS_KEY= '{access_secret}'" in sent_sql
+
+    @mock.patch("airflow.providers.teradata.transfers.azure_blob_to_teradata.TeradataHook")
+    @mock.patch("airflow.providers.teradata.transfers.azure_blob_to_teradata.WasbHook")
+    def test_execute_leaves_sql_logging_alone_with_authorization_object(
+        self, mock_hook_wasb, mock_hook_teradata
+    ):
+        op = AzureBlobStorageToTeradataOperator(
+            azure_conn_id=AZURE_CONN_ID,
+            teradata_conn_id=TERADATA_CONN_ID,
+            teradata_table=TERADATA_TABLE,
+            blob_source_key=BLOB_SOURCE_KEY,
+            teradata_authorization_name="auth_obj",
+            task_id=TASK_ID,
+        )
+        op.execute(context=None)
+
+        assert mock_hook_teradata.return_value.log_sql is not False
