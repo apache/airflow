@@ -11,18 +11,25 @@
     "allRunTypes": "Todos los Tipos de Ejecución",
     "allStates": "Todos los Estados",
     "anyRunState": "Cualquier Ejecución",
+    "anyRunStatePlaceholder": "Seleccionar cualquier estado de ejecución…",
     "favorite": {
       "all": "Todos",
       "favorite": "Favoritos",
       "unfavorite": "No Favoritos"
     },
+    "favoriteState": "Estado de Favorito",
+    "favoriteStatePlaceholder": "Seleccionar estado de favorito…",
     "lastRunState": "Última Ejecución",
+    "lastRunStatePlaceholder": "Seleccionar estado de la última ejecución…",
     "noTimetableTypesFound": "No se encontraron tipos de programación",
     "paused": {
       "active": "Activo",
       "all": "Todos",
       "paused": "Pausado"
     },
+    "pausedPlaceholder": "Seleccionar estado de pausa…",
+    "pausedState": "Estado de Pausa",
+    "requiresHitlAction": "Requiere Acción HITL",
     "runIdPatternFilter": "Buscar Ejecuciones de Dag",
     "timetableType": "Tipo de Programación"
   },

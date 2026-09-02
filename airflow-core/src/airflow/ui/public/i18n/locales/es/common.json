@@ -24,6 +24,7 @@
   },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "breadcrumb": "Ruta de navegación",
   "browse": {
     "auditLog": "Log de Auditoría",
     "deadlines": "Plazos",
@@ -138,12 +139,14 @@
   },
   "filter": "Filtro",
   "filters": {
+    "addFilter": "Agregar Filtro",
     "date": "Fecha",
     "durationFrom": "Duración Desde",
     "durationTo": "Duración Hasta",
     "endTime": "Hora de Fin",
     "logicalDateFrom": "Fecha Lógica Desde",
     "logicalDateTo": "Fecha Lógica Hasta",
+    "removeFilter": "Eliminar Filtro",
     "runAfterFrom": "Ejecutar Después Desde",
     "runAfterTo": "Ejecutar Después Hasta",
     "searchAsset": "Buscar Asset",
@@ -177,6 +180,7 @@
     "assets": "Assets",
     "browse": "Navegar",
     "dags": "Dags",
+    "dashboard": "Panel de Control",
     "docs": "Docs",
     "home": "Inicio",
     "legacyFabViews": "Vistas Obsoletas",
@@ -195,11 +199,14 @@
     "write": "Escribir"
   },
   "overallStatus": "Estado General",
+  "partition_one": "Partición",
+  "partition_other": "Particiones",
   "partitionedDagRun_one": "Ejecución del Dag Particionada",
   "partitionedDagRun_other": "Ejecuciones del Dag Particionadas",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Eventos de Asset Recibidos"
   },
+  "pause": "Pausar",
   "pendingDagRun_one": "{{count}} Ejecución del Dag Pendiente",
   "pendingDagRun_other": "{{count}} Ejecuciones del Dag Pendientes",
   "presetFilters": {
@@ -267,6 +274,17 @@
       "title": "Limpieza"
     },
     "description": "Estas preferencias se guardan solo en este navegador y se aplican en toda la aplicación.",
+    "general": {
+      "landingPage": {
+        "helper": "Página que se muestra al abrir Airflow.",
+        "label": "Página de inicio",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Panel de Control"
+        }
+      },
+      "title": "General"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "Dirección de disposición para los gráficos de Dag y de Asset que no hayas configurado individualmente.",
@@ -280,6 +298,13 @@
         "label": "Selección predeterminada al marcar"
       },
       "title": "Marcado"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Pestaña que se muestra primero al abrir una instancia de tarea. Los enlaces a una pestaña específica siguen abriendo esa pestaña.",
+        "label": "Pestaña predeterminada de la instancia de tarea"
+      },
+      "title": "Instancia de Tarea"
     },
     "title": "Configuración"
   },
@@ -357,6 +382,7 @@
     "up_for_retry": "Por Reintentar",
     "upstream_failed": "Fallido en Upstream"
   },
+  "switchDag": "Cambiar de $t(dag_one)",
   "table": {
     "completedAt": "Completado en",
     "createdAt": "Creado en",
@@ -366,8 +392,10 @@
     "filterReset_other": "Restablecer filtros",
     "from": "Desde",
     "maxActiveRuns": "Máximo de Ejecuciones Activas",
+    "noResultsFound": "No se encontraron resultados",
     "noTagsFound": "No se encontraron etiquetas",
     "noTeamsFound": "No se encontraron equipos",
+    "ownerPlaceholder": "Filtrar por propietario",
     "tagMode": {
       "all": "Todos",
       "any": "Cualquiera"
@@ -513,6 +541,7 @@
   "total": "Total {{state}}",
   "triggered": "Activado",
   "tryNumber": "Intento Número",
+  "unpause": "Reanudar",
   "user": "Usuario",
   "validation": {
     "mustBeAtLeast": "Debe ser al menos {{min}}.",
