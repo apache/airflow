@@ -77,16 +77,19 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.api.datamodels._generated import AssetEventsResponse, AssetStateStoreResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
     ErrorResponse,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     OKResponse,
@@ -1022,6 +1025,73 @@ class TestTriggerSupervisorAssetStateStore:
 
         supervisor.client.asset_state_store.clear.assert_called_once_with(uri="s3://bucket/a")
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
+
+
+class TestTriggerSupervisorAssetEvents:
+    """Supervisor side of asset-event lookups made by deferred triggers.
+
+    A trigger that queries asset events reaches the supervisor twice: the frame is first
+    validated against the ``ToTriggerSupervisor`` union, then dispatched by
+    ``_handle_request``. Both are asserted here — a message missing from the union fails
+    to decode long before any handler branch runs.
+    """
+
+    @pytest.fixture
+    def supervisor(self, jobless_supervisor, mocker):
+        jobless_supervisor.client = mocker.MagicMock(spec=Client)
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg")
+        return jobless_supervisor
+
+    @pytest.mark.parametrize(
+        ("msg", "expected_kwargs"),
+        [
+            pytest.param(
+                GetAssetEventByAsset(
+                    name="orders",
+                    uri="s3://warehouse/orders",
+                    partition_key="2024-01-01",
+                    ascending=False,
+                    limit=1,
+                ),
+                {
+                    "uri": "s3://warehouse/orders",
+                    "name": "orders",
+                    "after": None,
+                    "before": None,
+                    "ascending": False,
+                    "limit": 1,
+                    "partition_key": "2024-01-01",
+                    "partition_key_regexp_pattern": None,
+                    "extra": None,
+                },
+                id="by_asset",
+            ),
+            pytest.param(
+                GetAssetEventByAssetAlias(alias_name="orders_alias", partition_key="2024-01-01"),
+                {
+                    "alias_name": "orders_alias",
+                    "after": None,
+                    "before": None,
+                    "ascending": True,
+                    "limit": None,
+                    "partition_key": "2024-01-01",
+                    "partition_key_regexp_pattern": None,
+                    "extra": None,
+                },
+                id="by_asset_alias",
+            ),
+        ],
+    )
+    def test_asset_event_lookup_is_decodable_and_replies(self, supervisor, msg, expected_kwargs):
+        assert TriggerRunnerSupervisor.decoder.validate_python(msg.model_dump()) == msg
+
+        supervisor.client.asset_events.get.return_value = AssetEventsResponse(asset_events=[])
+        supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=7)
+
+        supervisor.client.asset_events.get.assert_called_once_with(**expected_kwargs)
+        supervisor.send_msg.assert_called_once_with(
+            AssetEventsResult(asset_events=[]), request_id=7, error=None, exclude_unset=True
+        )
 
 
 def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
