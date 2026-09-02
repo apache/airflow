@@ -27,14 +27,17 @@ import {
   usePluginServiceGetPlugins,
 } from "openapi/queries";
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
+
+import { Tooltip } from "src/system-components";
+
 import { Logo } from "src/components/Logo";
+
+import { DagIcon } from "src/assets/DagIcon";
 import { useTimezone } from "src/context/timezone";
 import { useConfig } from "src/queries/useConfig";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
-import { Tooltip } from "../../components/ui";
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";

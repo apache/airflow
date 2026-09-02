@@ -16,14 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, createListCollection, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, createListCollection, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { Select, SegmentedControl, Switch } from "src/system-components";
+
 import type { Direction } from "src/components/Graph/DirectionDropdown";
-import { Select } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
-import { Switch } from "src/components/ui/Switch";
+
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
   useClearPreventRunningTaskDefault,
