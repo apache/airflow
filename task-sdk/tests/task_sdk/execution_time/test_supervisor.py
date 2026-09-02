@@ -386,6 +386,41 @@ class TestWatchedSubprocess:
             ]
         )
 
+    def test_fork_main_never_runs_post_fork_atexit_handlers(self, tmp_path, client_with_ti_start):
+        """A fork-unsafe library's atexit handler must never run in the forked task child. If it
+        did and it blocked (e.g. pyarrow's S3 client finalizer deadlocking in AWS-CRT teardown),
+        the child -- and the pod hosting it -- would never exit."""
+        marker = tmp_path / "atexit-ran"
+
+        def subprocess_main():
+            # This is run in the subprocess!
+            CommsDecoder()._get_response()
+
+            import atexit
+
+            atexit.register(marker.write_text, "atexit ran")
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        rc = proc.wait()
+
+        assert rc == 0
+        assert not marker.exists()
+
     @pytest.mark.flaky(reruns=3)
     def test_reopen_log_fd(self, captured_logs, client_with_ti_start):
         def subprocess_main():
