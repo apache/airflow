@@ -78,6 +78,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
         <Menu.Content>
           {allowedRunStates.map((menuState) => {
             const content = translate(`dags:runAndTaskActions.markAs.buttonTooltip.${menuState}`);
+
             return (
               <Tooltip
                 closeDelay={100}

@@ -79,6 +79,7 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
         <Menu.Content>
           {allowedTaskStates.map((menuState) => {
             const content = translate(`dags:runAndTaskActions.markAs.buttonTooltip.${menuState}`);
+
             return (
               <Tooltip
                 closeDelay={100}
