@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise import AppriseAsset, AppriseConfig, NotifyFormat, NotifyType, PersistentStoreMode
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
@@ -42,6 +42,15 @@ class AppriseHook(BaseHook):
 
     :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
         that has services configured in the `config` field.
+    :param storage_path: Optional filesystem path used to enable Apprise's persistent storage.
+        When set, an :class:`~apprise.AppriseAsset` backed by this path is used, so plugins that
+        support it (e.g. Matrix) cache login sessions and tokens to disk instead of
+        re-authenticating on every notification. Persistent storage stays disabled, matching
+        previous behavior, when this is left unset.
+    :param storage_mode: Optional :class:`~apprise.PersistentStoreMode` (or its string value,
+        e.g. ``"auto"``, ``"flush"``, ``"memory"``) controlling how persistent storage is
+        written to disk. Only used when ``storage_path`` is set; defaults to Apprise's own
+        default (``AUTO``) otherwise.
     """
 
     conn_name_attr = "apprise_conn_id"
@@ -49,9 +58,22 @@ class AppriseHook(BaseHook):
     conn_type = "apprise"
     hook_name = "Apprise"
 
-    def __init__(self, apprise_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        apprise_conn_id: str = default_conn_name,
+        storage_path: str | None = None,
+        storage_mode: str | PersistentStoreMode | None = None,
+    ) -> None:
         super().__init__()
         self.apprise_conn_id = apprise_conn_id
+        self.storage_path = storage_path
+        self.storage_mode = storage_mode
+
+    def _build_apprise_asset(self) -> AppriseAsset | None:
+        """Build the AppriseAsset enabling persistent storage, if a storage_path was configured."""
+        if not self.storage_path:
+            return None
+        return AppriseAsset(storage_path=self.storage_path, storage_mode=self.storage_mode)
 
     def get_config_from_conn(self, conn: Connection):
         config = conn.extra_dejson["config"]
@@ -99,7 +121,7 @@ class AppriseHook(BaseHook):
         """
         title = title or ""
 
-        apprise_obj = apprise.Apprise()
+        apprise_obj = apprise.Apprise(asset=self._build_apprise_asset())
         if config:
             apprise_obj.add(config)
         else:
@@ -143,7 +165,7 @@ class AppriseHook(BaseHook):
         """
         title = title or ""
 
-        apprise_obj = apprise.Apprise()
+        apprise_obj = apprise.Apprise(asset=self._build_apprise_asset())
         if config:
             apprise_obj.add(config)
         else:
