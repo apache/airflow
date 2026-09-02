@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
+from datetime import datetime
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -25,15 +28,18 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, WaiterError
 
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
+    _DURABLE_UNSET,
     EcsBaseOperator,
     EcsCreateClusterOperator,
     EcsDeleteClusterOperator,
     EcsDeregisterTaskDefinitionOperator,
     EcsRegisterTaskDefinitionOperator,
     EcsRunTaskOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -94,6 +100,81 @@ RESPONSE_WITHOUT_NAME = {
         }
     ],
 }
+
+
+class FakeTaskStateStore:
+    def __init__(self, stored: dict[str, str] | None = None) -> None:
+        self._store = dict(stored or {})
+
+    def get(self, key: str) -> str | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: str) -> None:
+        self._store[key] = value
+
+
+class FakeTaskInstance:
+    def __init__(self) -> None:
+        self.stats_tags: dict[str, str] = {}
+        self.xcom_values: dict[str, str] = {}
+
+    def xcom_push(self, *, key: str, value: str) -> None:
+        self.xcom_values[key] = value
+
+
+class SuccessfulEcsTaskClient:
+    def __init__(self, task_arn: str) -> None:
+        self.task_arn = task_arn
+        self.run_task_calls = 0
+        self.describe_tasks_calls: list[dict[str, Any]] = []
+        self.stop_task_calls: list[dict[str, Any]] = []
+        self.waiter = mock.MagicMock(spec_set=["wait"])
+
+    def describe_tasks(self, **kwargs: Any) -> dict[str, Any]:
+        self.describe_tasks_calls.append(kwargs)
+        return {
+            "failures": [],
+            "tasks": [
+                {
+                    "containers": [{"name": CONTAINER_NAME, "lastStatus": "STOPPED", "exitCode": 0}],
+                    "lastStatus": "STOPPED",
+                    "taskArn": self.task_arn,
+                }
+            ],
+        }
+
+    def get_waiter(self, name: str) -> MagicMock:
+        return self.waiter
+
+    def run_task(self, **kwargs: Any) -> dict[str, Any]:
+        self.run_task_calls += 1
+        return RESPONSE_WITHOUT_FAILURES
+
+    def stop_task(self, **kwargs: Any) -> dict[str, Any]:
+        self.stop_task_calls.append(kwargs)
+        return {}
+
+
+class RunningThenSuccessfulEcsTaskClient(SuccessfulEcsTaskClient):
+    def __init__(self, task_arn: str) -> None:
+        super().__init__(task_arn)
+        self.describe_task_calls = 0
+
+    def describe_tasks(self, **kwargs: Any) -> dict[str, Any]:
+        self.describe_task_calls += 1
+        if self.describe_task_calls == 1:
+            self.describe_tasks_calls.append(kwargs)
+            return {
+                "failures": [],
+                "tasks": [
+                    {
+                        "containers": [{"name": CONTAINER_NAME, "lastStatus": "RUNNING"}],
+                        "lastStatus": "RUNNING",
+                        "taskArn": self.task_arn,
+                    }
+                ],
+            }
+        return super().describe_tasks(**kwargs)
 
 
 WAITERS_TEST_CASES = [
@@ -181,6 +262,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.cluster == "c"
         assert self.ecs.overrides == {}
         assert self.ecs.awslogs_region is None
+        assert self.ecs.durable is True
 
     def test_get_task_log_fetcher_uses_region_name_when_awslogs_region_not_set(self):
         self.set_up_operator(
@@ -411,6 +493,193 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+
+    def test_retry_after_remote_success_does_not_submit_duplicate(self, monkeypatch):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client = SuccessfulEcsTaskClient(task_arn)
+        monkeypatch.setattr(EcsHook, "conn", client)
+        store = FakeTaskStateStore({"ecs_task_arn": task_arn})
+        ti = FakeTaskInstance()
+
+        self.ecs.execute({"ti": ti, "task_state_store": store})
+
+        assert client.run_task_calls == 0
+        assert client.describe_tasks_calls == [{"cluster": "c", "tasks": [task_arn]}]
+        assert self.ecs.arn == task_arn
+
+    @mock.patch.object(
+        EcsRunTaskOperator,
+        "_get_last_log_message",
+        autospec=True,
+        return_value="last log",
+    )
+    def test_retry_after_remote_success_returns_last_log(self, last_log_mock, monkeypatch):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client = SuccessfulEcsTaskClient(task_arn)
+        monkeypatch.setattr(EcsHook, "conn", client)
+        store = FakeTaskStateStore({"ecs_task_arn": task_arn})
+        ti = FakeTaskInstance()
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_stream_prefix="prefix",
+            do_xcom_push=True,
+        )
+
+        result = self.ecs.execute({"ti": ti, "task_state_store": store})
+
+        assert result == "last log"
+        assert client.run_task_calls == 0
+        assert ti.xcom_values == {"ecs_task_arn": task_arn}
+        last_log_mock.assert_called_once_with(self.ecs)
+
+    @mock.patch.object(EcsRunTaskOperator, "_get_task_log_fetcher", autospec=True)
+    def test_retry_reattaches_to_active_task_and_returns_last_log(self, log_fetcher_mock, monkeypatch):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client = RunningThenSuccessfulEcsTaskClient(task_arn)
+        monkeypatch.setattr(EcsHook, "conn", client)
+        store = FakeTaskStateStore({"ecs_task_arn": task_arn})
+        ti = FakeTaskInstance()
+        log_fetcher_mock.return_value.get_last_log_message.return_value = "last log"
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_stream_prefix="prefix",
+            do_xcom_push=True,
+        )
+
+        result = self.ecs.execute({"ti": ti, "task_state_store": store})
+
+        assert result == "last log"
+        assert client.run_task_calls == 0
+        assert client.describe_tasks_calls[0] == {"cluster": "c", "tasks": [task_arn]}
+        client.waiter.wait.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "stored_response",
+        [
+            pytest.param({"failures": [], "tasks": []}, id="not-found"),
+            pytest.param(
+                {
+                    "failures": [],
+                    "tasks": [
+                        {
+                            "containers": [{"name": CONTAINER_NAME, "lastStatus": "STOPPED", "exitCode": 1}],
+                            "lastStatus": "STOPPED",
+                        }
+                    ],
+                },
+                id="failed",
+            ),
+            pytest.param(
+                {
+                    "failures": [],
+                    "tasks": [
+                        {
+                            "containers": [],
+                            "lastStatus": "STOPPED",
+                            "stopCode": "TaskFailedToStart",
+                        }
+                    ],
+                },
+                id="failed-to-start",
+            ),
+        ],
+    )
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_retry_resubmits_terminal_task(self, client_mock, stored_response):
+        old_task_arn = "arn:aws:ecs:us-east-1:012345678910:task/old"
+        new_task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        successful_response = SuccessfulEcsTaskClient(new_task_arn).describe_tasks()
+        client_mock.describe_tasks.side_effect = [stored_response, successful_response]
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+        store = FakeTaskStateStore({"ecs_task_arn": old_task_arn})
+        ti = FakeTaskInstance()
+
+        self.ecs.execute({"ti": ti, "task_state_store": store})
+
+        client_mock.run_task.assert_called_once()
+        assert store.get("ecs_task_arn") == new_task_arn
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_retry_preserves_skip_exit_code(self, client_mock):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client_mock.describe_tasks.return_value = {
+            "failures": [],
+            "tasks": [
+                {
+                    "containers": [{"lastStatus": "STOPPED", "exitCode": 42}],
+                    "lastStatus": "STOPPED",
+                }
+            ],
+        }
+        store = FakeTaskStateStore({"ecs_task_arn": task_arn})
+        self.set_up_operator(skip_on_exit_code=42)
+
+        with pytest.raises(AirflowSkipException):
+            self.ecs.execute({"ti": FakeTaskInstance(), "task_state_store": store})
+
+        client_mock.run_task.assert_not_called()
+
+    @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended", autospec=True)
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_persists_task_arn_before_polling(self, client_mock, wait_mock):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+        client_mock.describe_tasks.return_value = SuccessfulEcsTaskClient(task_arn).describe_tasks()
+        store = FakeTaskStateStore()
+        ti = FakeTaskInstance()
+        wait_mock.side_effect = lambda _operator: (
+            store.get("ecs_task_arn") == task_arn
+            or pytest.fail("ECS task ARN was not persisted before polling")
+        )
+
+        self.ecs.execute({"ti": ti, "task_state_store": store})
+
+        assert store.get("ecs_task_arn") == task_arn
+
+    def test_durable_false_never_touches_task_state_store(self, monkeypatch):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client = SuccessfulEcsTaskClient(task_arn)
+        monkeypatch.setattr(EcsHook, "conn", client)
+        store = mock.MagicMock(spec_set=["get", "set"])
+        self.set_up_operator(durable=False)
+
+        self.ecs.execute({"ti": FakeTaskInstance(), "task_state_store": store})
+
+        assert client.run_task_calls == 1
+        store.get.assert_not_called()
+        store.set.assert_not_called()
+
+    def test_default_args_durable_reaches_operator(self):
+        with DAG(
+            dag_id="test_ecs_durable_default_args",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+            default_args={"durable": False},
+        ):
+            self.set_up_operator()
+
+        assert self.ecs.durable is False
+
+    def test_reconnected_task_is_not_stopped_on_waiter_error(self, monkeypatch):
+        task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        client = RunningThenSuccessfulEcsTaskClient(task_arn)
+        client.waiter.wait.side_effect = WaiterError("wait", "failed", {})
+        monkeypatch.setattr(EcsHook, "conn", client)
+        store = FakeTaskStateStore({"ecs_task_arn": task_arn})
+        ti = FakeTaskInstance()
+
+        with pytest.raises(WaiterError):
+            self.ecs.execute({"ti": ti, "task_state_store": store})
+
+        assert client.stop_task_calls == []
+        self.ecs.on_kill()
+        assert client.stop_task_calls == [
+            {
+                "cluster": "c",
+                "task": task_arn,
+                "reason": "Task killed by the user",
+            }
+        ]
 
     def test_task_id_parsing(self):
         id = EcsRunTaskOperator._get_ecs_task_id(f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}")
@@ -838,13 +1107,20 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        mock_context = {
+            "ti": mock_ti,
+            "task_instance": mock_ti,
+            "task_state_store": task_state_store,
+        }
 
         with pytest.raises(TaskDeferred) as deferred:
             self.ecs.execute(mock_context)
 
         assert isinstance(deferred.value.trigger, TaskDoneTrigger)
         assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        task_state_store.get.assert_not_called()
+        task_state_store.set.assert_not_called()
 
     @mock.patch.object(EcsRunTaskOperator, "client")
     def test_with_defer_passes_awslogs_region_to_trigger(self, client_mock):
@@ -928,6 +1204,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             {"tasks": [{"containers": [{"name": "resolved-container"}]}]},
         ]
         self.ecs._start_task()
+        self.ecs._resolve_container_name()
         assert client_mock.describe_tasks.call_count == 2
         assert self.ecs.container_name == "resolved-container"
 
@@ -944,6 +1221,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.return_value = {"tasks": [{"containers": [{"name": None}]}]}
 
         self.ecs._start_task()
+        self.ecs._resolve_container_name()
 
         assert client_mock.describe_tasks.call_count == 2
         assert self.ecs.container_name is None
@@ -960,6 +1238,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         )
         client_mock.run_task.return_value = RESPONSE_WITHOUT_NAME
         self.ecs._start_task()
+        self.ecs._resolve_container_name()
         assert client_mock.describe_tasks.call_count == 0
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -1052,6 +1331,21 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         # Cleanup attempted despite failure.
         client_mock.stop_task.assert_called_once()
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
