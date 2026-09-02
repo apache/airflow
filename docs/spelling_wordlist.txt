@@ -242,6 +242,7 @@ chatbot
 chatbots
 CheckOperator
 checkpointed
+checkpointing
 checksums
 childs
 chmod
