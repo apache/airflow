@@ -837,7 +837,6 @@ class DbtCloudHook(HttpHook):
                 details.append(f"{field}={value}")
         return " | ".join(details)
 
-    @fallback_to_default_account
     def log_job_run_failure_details(
         self,
         run_id: int,
