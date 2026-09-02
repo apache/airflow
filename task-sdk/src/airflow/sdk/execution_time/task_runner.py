@@ -2370,6 +2370,12 @@ def finalize(
             )
         except Exception:
             log.exception("error calling listener")
+        try:
+            get_listener_manager().hook.on_task_instance_up_for_retry(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+            )
+        except Exception:
+            log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
             _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:

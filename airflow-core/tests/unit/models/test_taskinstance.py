@@ -2399,6 +2399,70 @@ class TestTaskInstance:
         assert "error" in callback_args
         assert callback_args["error"] == error_message
 
+    @provide_session
+    def test_handle_failure_up_for_retry_calls_both_listeners(self, dag_maker, *, session: Session):
+        """A retry-eligible failure fires on_task_instance_up_for_retry, and still fires
+        on_task_instance_failed too (for backward compatibility with existing listeners)."""
+
+        class CustomOp(BaseOperator):
+            def execute(self, context): ...
+
+        clear_db_runs()
+
+        from airflow.listeners.listener import get_listener_manager
+
+        listener_on_failed = mock.MagicMock()
+        listener_on_up_for_retry = mock.MagicMock()
+        get_listener_manager().pm.hook.on_task_instance_failed = listener_on_failed
+        get_listener_manager().pm.hook.on_task_instance_up_for_retry = listener_on_up_for_retry
+
+        with dag_maker(dag_id="test_handle_failure_retry", schedule=None) as dag:
+            task1 = CustomOp(task_id="test_handle_failure_retry_task", retries=1)
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task1.task_id, session=session)
+        ti1.task = task1
+        ti1.state = State.RUNNING
+
+        error_message = "transient failure"
+        ti1.handle_failure(error_message)
+
+        assert ti1.state == State.UP_FOR_RETRY
+        listener_on_failed.assert_called_once()
+        listener_on_up_for_retry.assert_called_once()
+        assert listener_on_up_for_retry.call_args.kwargs["error"] == error_message
+
+    @provide_session
+    def test_handle_failure_terminal_does_not_call_up_for_retry_listener(self, dag_maker, *, session: Session):
+        """A terminal failure (no retries left) fires on_task_instance_failed but not
+        on_task_instance_up_for_retry."""
+
+        class CustomOp(BaseOperator):
+            def execute(self, context): ...
+
+        clear_db_runs()
+
+        from airflow.listeners.listener import get_listener_manager
+
+        listener_on_failed = mock.MagicMock()
+        listener_on_up_for_retry = mock.MagicMock()
+        get_listener_manager().pm.hook.on_task_instance_failed = listener_on_failed
+        get_listener_manager().pm.hook.on_task_instance_up_for_retry = listener_on_up_for_retry
+
+        with dag_maker(dag_id="test_handle_failure_terminal", schedule=None) as dag:
+            task1 = CustomOp(task_id="test_handle_failure_terminal_task", retries=0)
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task1.task_id, session=session)
+        ti1.task = task1
+        ti1.state = State.RUNNING
+
+        ti1.handle_failure("terminal failure")
+
+        assert ti1.state == State.FAILED
+        listener_on_failed.assert_called_once()
+        listener_on_up_for_retry.assert_not_called()
+
     def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):
         session = settings.Session()
         with dag_maker():

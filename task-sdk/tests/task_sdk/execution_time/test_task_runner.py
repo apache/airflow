@@ -4583,6 +4583,11 @@ class TestTaskRunnerCallsListeners:
             self.error = error
 
         @hookimpl
+        def on_task_instance_up_for_retry(self, previous_state, task_instance, error):
+            self.state.append(TaskInstanceState.UP_FOR_RETRY)
+            self.error = error
+
+        @hookimpl
         def on_task_instance_skipped(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.SKIPPED)
 
@@ -4729,6 +4734,34 @@ class TestTaskRunnerCallsListeners:
         finalize(runtime_ti, state, context, log, error)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
+        assert listener.error == error
+
+    def test_task_runner_calls_listeners_up_for_retry(
+        self, mocked_parse, mock_supervisor_comms, create_runtime_ti, listener_manager
+    ):
+        """A retry-eligible failure calls both on_task_instance_failed (unchanged, for
+        backward compatibility) and the new on_task_instance_up_for_retry."""
+        listener = self.CustomListener()
+        listener_manager(listener)
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                raise ValueError("transient")
+
+        task = CustomOperator(task_id="test_task_runner_calls_listeners_up_for_retry")
+        runtime_ti = create_runtime_ti(dag_id="test_dag", task=task, should_retry=True)
+
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.UP_FOR_RETRY
+        assert listener.state == [
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.UP_FOR_RETRY,
+        ]
         assert listener.error == error
 
     def test_task_runner_calls_listeners_failed_when_terminal_send_fails(
