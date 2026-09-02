@@ -150,7 +150,10 @@ Parameters
     How often, in seconds, the trigger should send a request to the API
 
 ``max_consecutive_failures``
-    How many consecutive polling failures are tolerated. The effective time before the trigger fails is approximately ``max_consecutive_failures`` × ``poll_interval``. Any poll that completes resets the count, including one where ``response_check`` returns ``False``.
+    Maximum number of consecutive polling failures before the trigger raises.
+    The effective failure tolerance is approximately
+    ``max_consecutive_failures`` × ``poll_interval``.
+    Any poll that completes resets the count, including one where ``response_check`` returns ``False``.
 
 
 Important Notes

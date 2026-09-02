@@ -298,8 +298,8 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
     :parama poll_interval: How often, in seconds, the trigger should send a request to the API.
-    :param max_consecutive_failures: How many consecutive polling failures are tolerated. The
-        effective time before the trigger fails is roughly this times ``poll_interval``.
+    :param max_consecutive_failures: Maximum number of consecutive polling failures before the
+        trigger raises. The effective failure tolerance is roughly this times ``poll_interval``.
     """
 
     def __init__(
