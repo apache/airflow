@@ -39,6 +39,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" .) | nindent 4 }}
     {{- if .Values.multiNamespaceMode }}
     namespace: "{{ .Release.Namespace }}"
     {{- end }}

@@ -39,6 +39,7 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
+    {{- include "airflow.standardPodLabels" (dict "root" . "component" "worker") | nindent 4 }}
     {{- if or .Values.labels .Values.workers.kubernetes.labels }}
       {{- mustMerge .Values.workers.kubernetes.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}

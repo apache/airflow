@@ -31,6 +31,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "redis-policy") | nindent 4 }}
     {{- if or .Values.labels .Values.redis.labels }}
       {{- mustMerge .Values.redis.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}

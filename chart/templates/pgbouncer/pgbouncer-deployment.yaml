@@ -41,6 +41,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "pgbouncer") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -67,6 +68,7 @@ spec:
         tier: airflow
         component: pgbouncer
         release: {{ .Release.Name }}
+        {{- include "airflow.standardPodLabels" (dict "root" . "component" "pgbouncer") | nindent 8 }}
         {{- if or .Values.labels .Values.pgbouncer.labels }}
           {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}

@@ -61,6 +61,9 @@ As an example, let's say you want to set ``priorityClassName`` on your workers:
      metadata:
        name: placeholder-name
        labels:
+         app.kubernetes.io/part-of: airflow
+         app.kubernetes.io/component: worker
+         app.kubernetes.io/instance: {{ .Release.Name }}
          tier: airflow
          component: worker
          release: {{ .Release.Name }}

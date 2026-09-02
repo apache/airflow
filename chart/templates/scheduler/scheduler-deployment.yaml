@@ -49,6 +49,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     executor: {{ .Values.executor | replace "," "-" | replace ":" "-" | trunc 63 | trimSuffix "-" | trimSuffix ":" | trimSuffix "_" | trimSuffix "." | quote }}
+    {{- include "airflow.standardLabels" (dict "root" . "component" "scheduler") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -83,6 +84,7 @@ spec:
         tier: airflow
         component: scheduler
         release: {{ .Release.Name }}
+        {{- include "airflow.standardPodLabels" (dict "root" . "component" "scheduler") | nindent 8 }}
         {{- if or .Values.labels .Values.scheduler.labels }}
           {{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
