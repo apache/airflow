@@ -57,15 +57,25 @@ except ImportError:
             self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context: Context) -> Any:
-            external_id = self.submit_job(context=context)
-            self.poll_until_complete(external_id=external_id, context=context)
-            return self.get_job_result(external_id=external_id, context=context)
+            resumable_job = cast("_ResumableJob", self)
+            external_id = resumable_job.submit_job(context=context)
+            resumable_job.poll_until_complete(external_id=external_id, context=context)
+            return resumable_job.get_job_result(external_id=external_id, context=context)
 
 
 if TYPE_CHECKING:
+    from typing import Protocol
+
     from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import Context
+
+    class _ResumableJob(Protocol):
+        def submit_job(self, context: Context) -> JsonValue: ...
+
+        def poll_until_complete(self, external_id: JsonValue, context: Context) -> None: ...
+
+        def get_job_result(self, external_id: JsonValue, context: Context) -> Any: ...
 
 
 class AirbyteTriggerSyncOperator(ResumableJobMixin, BaseOperator):
