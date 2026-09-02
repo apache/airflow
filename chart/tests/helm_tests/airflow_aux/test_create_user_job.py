@@ -18,7 +18,34 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import render_chart as _render_chart
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Merge ``override`` into ``base``, recursing into nested dicts."""
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def render_chart(values=None, **kwargs):
+    """Render with the create-user job switched on and credentials supplied.
+
+    The chart does not create a user by default and refuses to run the job without a
+    username and password, so tests covering the job have to opt in the same way a
+    deployment would. Values passed by a test win over these.
+    """
+    opt_in = {
+        "createUserJob": {
+            "enabled": True,
+            "defaultUser": {"username": "admin", "password": "admin"},
+        }
+    }
+    return _render_chart(values=_deep_merge(opt_in, values or {}), **kwargs)
 
 
 class TestCreateUserJob:

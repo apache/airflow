@@ -1427,17 +1427,22 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
-  # Whether the create user job should be created
-  enabled: true
+  # Whether the create user job should be created.
+  # Disabled by default: an account created here exists on every install with the
+  # same credentials, so enable it only together with credentials of your own.
+  enabled: false
 
-  # Create initial user.
+  # Initial user to create. Only used when `createUserJob.enabled` is true, and both
+  # `username` and `password` must be supplied - the chart ships no defaults for them,
+  # so that enabling the job cannot create an account whose credentials are the same on
+  # every installation.
   defaultUser:
     role: Admin
-    username: admin
+    username: ""
     email: admin@example.com
     firstName: admin
     lastName: user
-    password: admin
+    password: ""
 
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
