@@ -138,8 +138,8 @@ class OpenAITriggerBatchOperator(BaseOperator):
     """
     Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
 
-    :param file_id: Required. The ID of the batch file to trigger.
-    :param endpoint: Required. The OpenAI Batch API endpoint to trigger.
+    :param file_id: Required. The ID of the batch file to trigger. (templated)
+    :param endpoint: Required. The OpenAI Batch API endpoint to trigger. (templated)
     :param conn_id: Optional. The OpenAI connection ID to use. Defaults to 'openai_default'.
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
@@ -148,13 +148,18 @@ class OpenAITriggerBatchOperator(BaseOperator):
         Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
+    :param metadata: Optional. A set of key-value pairs that can be attached to the batch. (templated)
+    :param completion_window: Optional. The time window for the batch to complete. Defaults to 24 hours,
+        the only value OpenAI currently accepts.
+    :param poll_interval: Optional. Number of seconds between checks. Only used when ``deferrable`` is True.
+        Defaults to 60 seconds.
 
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
         :ref:`howto/operator:OpenAITriggerBatchOperator`
     """
 
-    template_fields: Sequence[str] = ("file_id",)
+    template_fields: Sequence[str] = ("file_id", "endpoint", "metadata")
 
     def __init__(
         self,
@@ -165,16 +170,24 @@ class OpenAITriggerBatchOperator(BaseOperator):
         wait_seconds: float = 3,
         timeout: float = 24 * 60 * 60,
         wait_for_completion: bool = True,
+        *,
+        metadata: dict[str, str] | None = None,
+        completion_window: Literal["24h"] = "24h",
+        poll_interval: float = 60,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
-        self.conn_id = conn_id
         self.file_id = file_id
         self.endpoint = endpoint
+        self.conn_id = conn_id
         self.deferrable = deferrable
         self.wait_seconds = wait_seconds
         self.timeout = timeout
         self.wait_for_completion = wait_for_completion
+        self.metadata = metadata
+        self.completion_window = completion_window
+        self.poll_interval = poll_interval
+
         self.batch_id: str | None = None
 
     @cached_property
@@ -183,7 +196,12 @@ class OpenAITriggerBatchOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> str | None:
-        batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
+        batch = self.hook.create_batch(
+            file_id=self.file_id,
+            endpoint=self.endpoint,
+            metadata=self.metadata,
+            completion_window=self.completion_window,
+        )
         self.batch_id = batch.id
         if self.wait_for_completion:
             if self.deferrable:
@@ -192,7 +210,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
                     trigger=OpenAIBatchTrigger(
                         conn_id=self.conn_id,
                         batch_id=self.batch_id,
-                        poll_interval=60,
+                        poll_interval=self.poll_interval,
                         timeout=self.timeout,
                     ),
                     method_name="execute_complete",
