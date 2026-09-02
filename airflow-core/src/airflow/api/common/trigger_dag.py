@@ -22,12 +22,15 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from airflow._shared.timezones import timezone
-from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.exceptions import DagIsDraining, DagNotFound, DagRunAlreadyExists
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -81,6 +84,16 @@ def _trigger_dag(
     """
     if (dag := dag_bag.get_latest_version_of_dag(dag_id, session=session)) is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
+
+    dag_model = session.scalar(
+        with_row_locks(
+            select(DagModel).where(DagModel.dag_id == dag_id),
+            of=DagModel,
+            session=session,
+        )
+    )
+    if dag_model and dag_model.is_draining:
+        raise DagIsDraining(f"Dag '{dag_id}' is draining and does not accept new runs")
 
     run_after = run_after or timezone.coerce_datetime(timezone.utcnow())
     coerced_logical_date: datetime | None = None

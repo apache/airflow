@@ -695,13 +695,11 @@ How do I stop the sync perms happening multiple times per webserver?
 Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
-Why did the pause Dag toggle turn red?
---------------------------------------
+Why did changing the Dag scheduling state fail?
+------------------------------------------------
 
-If pausing or unpausing a Dag fails for any reason, the Dag toggle will
-revert to its previous state and turn red. If you observe this behavior,
-try pausing the Dag again, or check the console or server logs if the
-issue recurs.
+If activating, draining, or pausing a Dag fails, the scheduling-state control reverts to its previous
+state. Try the action again, or check the console or API server logs if the issue recurs.
 
 
 API Server

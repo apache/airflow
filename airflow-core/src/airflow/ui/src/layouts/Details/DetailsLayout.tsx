@@ -48,6 +48,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { useAutoRefresh } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -90,7 +91,10 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
-  const { data: dag } = useDagServiceGetDag({ dagId });
+  const refetchInterval = useAutoRefresh({ dagId });
+  const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
+    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+  });
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
@@ -232,6 +236,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     dagDisplayName={dag.dag_display_name}
                     dagId={dag.dag_id}
                     isPaused={dag.is_paused}
+                    schedulingState={dag.scheduling_state}
                     size="md"
                   />
                 )}
@@ -240,6 +245,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   dagDisplayName={dag.dag_display_name}
                   dagId={dag.dag_id}
                   isPaused={dag.is_paused}
+                  schedulingState={dag.scheduling_state}
                   variant="outline"
                   withText
                 />

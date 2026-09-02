@@ -16,10 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
+import type { ComponentProps } from "react";
+import { useState } from "react";
 
-import { Switch, Tooltip, type SwitchProps } from "src/system-components";
+import { Spinner, useDisclosure } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { MdHourglassTop, MdPause, MdPlayArrow } from "react-icons/md";
+
+import type { DagSchedulingState } from "openapi/requests/types.gen";
+
+import { IconButton, Menu } from "src/system-components";
 
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
@@ -30,38 +36,115 @@ type Props = {
   readonly dagDisplayName?: string;
   readonly dagId: string;
   readonly isPaused?: boolean;
+  readonly schedulingState?: DagSchedulingState;
   readonly skipConfirm?: boolean;
-} & SwitchProps;
+} & Omit<ComponentProps<typeof IconButton>, "children" | "label">;
 
-export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...rest }: Props) => {
+export const TogglePause = ({
+  dagDisplayName,
+  dagId,
+  disabled,
+  isPaused,
+  schedulingState,
+  skipConfirm,
+  ...rest
+}: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation();
-  const { mutate: togglePause } = useTogglePause({ dagId });
+  const { t: translate } = useTranslation(["common", "dags"]);
+  const { isPending, mutate: togglePause } = useTogglePause({ dagId });
   const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
+  const [pendingState, setPendingState] = useState<DagSchedulingState>();
+  const state = schedulingState ?? (isPaused === true ? "paused" : "active");
+  const displayName = dagDisplayName ?? dagId;
 
-  const onToggle = () =>
+  const setSchedulingState = (nextState: DagSchedulingState) =>
     togglePause({
       dagId,
       requestBody: {
-        is_paused: !isPaused,
+        scheduling_state: nextState,
       },
     });
 
-  const onChange = () => (showConfirmation && skipConfirm !== true ? onOpen() : onToggle());
+  const requestStateChange = (nextState: DagSchedulingState) => {
+    if (showConfirmation && skipConfirm !== true) {
+      setPendingState(nextState);
+      onOpen();
+    } else {
+      setSchedulingState(nextState);
+    }
+  };
 
-  const label = `${isPaused ? translate("common:unpause") : translate("common:pause")} ${dagDisplayName ?? dagId}`;
+  const actionLabel =
+    pendingState === "draining"
+      ? translate("dags:schedulingActions.drain")
+      : pendingState === "paused"
+        ? translate("dags:schedulingActions.pauseNow")
+        : translate(
+            state === "draining" ? "dags:schedulingActions.cancelDrain" : "dags:schedulingActions.unpause",
+          );
+  const stateLabel = translate(`dags:schedulingState.${state}`);
 
   return (
     <>
-      <Tooltip content={label}>
-        <Switch
-          checked={isPaused === undefined ? undefined : !isPaused}
-          data-testid="toggle-pause"
-          onCheckedChange={onChange}
-          {...rest}
-        />
-      </Tooltip>
-      <ConfirmationModal header={`${label}?`} onConfirm={onToggle} onOpenChange={onClose} open={open} />
+      <Menu.Root tooltipLabel={`${stateLabel}: ${displayName}`}>
+        <Menu.Trigger asChild>
+          <IconButton
+            aria-label={`${stateLabel}: ${displayName}`}
+            colorPalette={state === "active" ? "green" : state === "draining" ? "orange" : "gray"}
+            data-testid="toggle-pause"
+            {...rest}
+            disabled={disabled === true || isPending}
+          >
+            {state === "active" ? (
+              <MdPlayArrow />
+            ) : state === "draining" ? (
+              <Spinner size="xs" />
+            ) : (
+              <MdPause />
+            )}
+          </IconButton>
+        </Menu.Trigger>
+        <Menu.Content>
+          {state === "active" ? (
+            <Menu.Item data-testid="drain-dag" onClick={() => requestStateChange("draining")} value="drain">
+              <MdHourglassTop />
+              {translate("dags:schedulingActions.drain")}
+            </Menu.Item>
+          ) : (
+            <Menu.Item
+              data-testid="activate-dag"
+              onClick={() => requestStateChange("active")}
+              value="activate"
+            >
+              <MdPlayArrow />
+              {translate(
+                state === "draining"
+                  ? "dags:schedulingActions.cancelDrain"
+                  : "dags:schedulingActions.unpause",
+              )}
+            </Menu.Item>
+          )}
+          {state === "paused" ? undefined : (
+            <Menu.Item data-testid="pause-dag-now" onClick={() => requestStateChange("paused")} value="pause">
+              <MdPause />
+              {translate("dags:schedulingActions.pauseNow")}
+            </Menu.Item>
+          )}
+        </Menu.Content>
+      </Menu.Root>
+      <ConfirmationModal
+        header={`${actionLabel} ${displayName}?`}
+        onConfirm={() => {
+          if (pendingState !== undefined) {
+            setSchedulingState(pendingState);
+          }
+        }}
+        onOpenChange={() => {
+          setPendingState(undefined);
+          onClose();
+        }}
+        open={open}
+      />
     </>
   );
 };

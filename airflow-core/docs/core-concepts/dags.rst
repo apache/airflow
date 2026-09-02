@@ -802,14 +802,14 @@ Dag pausing, deactivation and deletion
 The Dags have several states when it comes to being "not running". Dags can be paused, deactivated
 and finally all metadata for the Dag can be deleted.
 
-Dag can be paused via UI when it is present in the ``DAGS_FOLDER``, and scheduler stored it in
-the database, but the user chose to disable it via the UI. The "pause" and "unpause" actions are available
-via UI and API. Paused Dags are not scheduled by the Scheduler, but you can trigger them via UI for
-manual runs. In the UI, you can see paused Dags (in ``Paused`` tab). The Dags that are un-paused
-can be found in the ``Active`` tab. When a Dag is paused, any running tasks are allowed to complete and all
-downstream tasks are put in to a state of "Scheduled". When the Dag is unpaused, any "scheduled" tasks will
-begin running according to the Dag logic. Dags with no "scheduled" tasks will begin running according to
-their schedule.
+A Dag can be paused through the UI or API after the scheduler has stored it in the database. Paused Dags do
+not schedule task instances, although you can trigger manual runs. When a Dag is paused, running tasks are
+allowed to complete and downstream tasks remain in the ``scheduled`` state until the Dag is unpaused.
+
+You can also drain a Dag before pausing it. Draining prevents scheduled, asset-triggered, manual, operator,
+and backfill Dag runs from being created while allowing already queued or running Dag runs to continue
+scheduling tasks. After those Dag runs finish, the scheduler automatically changes the Dag to paused. While
+a Dag is draining, you can cancel the drain to make it active again or pause it immediately.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen

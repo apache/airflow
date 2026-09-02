@@ -853,6 +853,7 @@ export type DAGDetailsResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    scheduling_state?: DagSchedulingState;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_parse_duration: number | null;
@@ -927,7 +928,8 @@ export type DAGDetailsResponse = {
  * Dag Serializer for updatable bodies.
  */
 export type DAGPatchBody = {
-    is_paused: boolean;
+    is_paused?: boolean | null;
+    scheduling_state?: DagSchedulingState | null;
 };
 
 /**
@@ -937,6 +939,7 @@ export type DAGResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    scheduling_state?: DagSchedulingState;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_parse_duration: number | null;
@@ -1207,6 +1210,11 @@ export type DagScheduleAssetReference = {
     updated_at: string;
     team_name?: string | null;
 };
+
+/**
+ * States controlling whether a Dag can create and schedule work.
+ */
+export type DagSchedulingState = 'active' | 'draining' | 'paused';
 
 /**
  * Dag Stats Collection serializer for responses.
@@ -2426,6 +2434,7 @@ export type DAGWithLatestDagRunsResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    scheduling_state?: DagSchedulingState;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_parse_duration: number | null;

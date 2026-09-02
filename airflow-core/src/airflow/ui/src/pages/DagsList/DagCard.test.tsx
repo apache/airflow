@@ -380,6 +380,20 @@ describe("DagCard", () => {
     expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
   });
 
+  it("DagCard should not render next run timestamp for a draining Dag", () => {
+    renderCard({ ...mockDag, scheduling_state: "draining" });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+  });
+
+  it("disables manual triggering for a draining Dag", () => {
+    renderCard({ ...mockDag, scheduling_state: "draining" });
+
+    expect(screen.getByTestId("trigger-dag-button")).toBeDisabled();
+  });
+
   it("DagCard should render StateBadge as success", () => {
     renderCard(mockDag);
     const stateBadge = screen.getByTestId("state-badge");

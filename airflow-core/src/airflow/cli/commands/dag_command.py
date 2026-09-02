@@ -30,7 +30,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
@@ -59,7 +59,7 @@ from airflow.utils.helpers import ask_yesno, chunks
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -270,7 +270,7 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
     else:
         query = query.where(DagModel.dag_id == args.dag_id)
 
-    query = query.where(DagModel.is_paused != is_paused)
+    query = query.where(or_(DagModel.is_paused != is_paused, DagModel.is_draining))
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
@@ -290,7 +290,7 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
 
     def _update_is_paused(dag_model: DagModel) -> bool:
         old_is_paused = dag_model.is_paused
-        dag_model.is_paused = is_paused
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED if is_paused else DagSchedulingState.ACTIVE)
         return old_is_paused
 
     old_values = [

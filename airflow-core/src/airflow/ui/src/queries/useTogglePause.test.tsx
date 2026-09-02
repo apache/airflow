@@ -60,6 +60,7 @@ const buildDagsList = (isPaused: boolean): DAGWithLatestDagRunsCollectionRespons
       next_dagrun_run_after: null,
       owners: ["airflow"],
       pending_actions: 0,
+      scheduling_state: isPaused ? "paused" : "active",
       tags: [],
       timetable_description: null,
       timetable_partitioned: false,
@@ -160,6 +161,29 @@ describe("useTogglePause", () => {
     const cached = queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(dagsListKey);
 
     expect(cached?.dags[0]?.is_paused).toBe(false);
+    expect(cached?.dags[0]?.scheduling_state).toBe("active");
+  });
+
+  it("optimistically marks a Dag as draining without hard-pausing it", async () => {
+    server.use(
+      http.patch("*/api/v2/dags/:dagId", () =>
+        HttpResponse.json({ dag_id: DAG_ID, is_paused: false, scheduling_state: "draining" }),
+      ),
+    );
+
+    const { dagsListKey, queryClient } = seedClient(false);
+    const { result } = renderHook(() => useTogglePause({ dagId: DAG_ID }), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    result.current.mutate({ dagId: DAG_ID, requestBody: { scheduling_state: "draining" } });
+
+    await waitFor(() => {
+      const dag = queryClient.getQueryData<DAGWithLatestDagRunsCollectionResponse>(dagsListKey)?.dags[0];
+
+      expect(dag?.is_paused).toBe(false);
+      expect(dag?.scheduling_state).toBe("draining");
+    });
   });
 
   it("invalidates the dags list query on settle so filtered lists refetch", async () => {
