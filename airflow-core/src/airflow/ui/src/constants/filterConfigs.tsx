@@ -520,6 +520,13 @@ export const useFilterConfigs = () => {
       label: translate("dags:filters.timetableType"),
       type: FilterTypes.MULTISELECT,
     },
+    [SearchParamsKeys.TO_RANGE]: {
+      endKey: SearchParamsKeys.TO_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      startKey: SearchParamsKeys.TO_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiUser />,
