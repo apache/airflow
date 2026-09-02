@@ -1404,7 +1404,7 @@ repos:
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/prek/check_template_fields.py
-        files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/[^/]+|airflow-core)/src/airflow/(.*/)?(sensors|operators)/.*\.py$
         require_serial: true
       - id: check-execution-api-versions
         name: Check execution API datamodel changes have corresponding version updates
