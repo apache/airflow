@@ -20,7 +20,7 @@ import importlib
 import sys
 import warnings
 from types import ModuleType
-from typing import Any
+from typing import Any, Literal, cast
 from unittest.mock import Mock
 
 import httpx
@@ -47,7 +47,7 @@ CONN_ID = "test_conn_id"
 BATCH_ID = "batch_id"
 NEW_BATCH_ID = "new_batch_id"
 FILE_ID = "file_id"
-BATCH_ENDPOINT = "/v1/chat/completions"
+BATCH_ENDPOINT: Literal["/v1/chat/completions"] = "/v1/chat/completions"
 
 
 @pytest.fixture
@@ -196,8 +196,8 @@ class TestOpenAITriggerBatchOperatorResumable:
         hook.get_batch.return_value = Mock(spec=Batch, status=status)
         return hook
 
-    def _context(self, store: FakeTaskStateStore) -> dict[str, Any]:
-        return {"task_state_store": store, "ti": Mock(stats_tags={})}
+    def _context(self, store: FakeTaskStateStore) -> Context:
+        return cast("Context", {"task_state_store": store, "ti": Mock(stats_tags={})})
 
     def test_first_run_persists_batch_id_before_waiting(self):
         operator = self._operator()
