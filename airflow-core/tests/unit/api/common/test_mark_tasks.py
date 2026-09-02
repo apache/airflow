@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api.common.mark_tasks import (
     find_task_relatives,
     set_dag_run_state_to_failed,
@@ -29,6 +30,8 @@ from airflow.api.common.mark_tasks import (
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+
+from tests_common.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -59,6 +62,75 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker[SerializedDAG]):
     assert task_dict["running"].state == TaskInstanceState.FAILED
     assert task_dict["pending"].state == TaskInstanceState.SKIPPED
     assert "teardown" not in task_dict
+
+
+def test_set_dag_run_state_to_failed_skips_pending_tis_in_bulk(dag_maker: DagMaker[SerializedDAG]):
+    """Pending TIs that never started are skipped by one UPDATE; one that did keeps its start_date."""
+    with dag_maker("TEST_DAG_1") as dag:
+        EmptyOperator(task_id="never_started")
+        EmptyOperator(task_id="never_started_2")
+        EmptyOperator(task_id="up_for_retry")
+    dr = dag_maker.create_dagrun()
+    session = dag_maker.session
+    started_at = timezone.datetime(2024, 1, 1, 12, 0, 0)
+    for ti in dr.get_task_instances(session=session):
+        if ti.task_id == "up_for_retry":
+            ti.state = TaskInstanceState.UP_FOR_RETRY
+            ti.start_date = started_at
+    session.flush()
+
+    updated_tis, killed_tis = set_dag_run_state_to_failed(
+        dag=dag, run_id=dr.run_id, commit=True, session=session
+    )
+    session.flush()
+
+    assert killed_tis == []
+    assert {ti.task_id for ti in updated_tis} == {"never_started", "never_started_2", "up_for_retry"}
+    # The returned objects reflect the new state without a reload...
+    assert all(ti.state == TaskInstanceState.SKIPPED for ti in updated_tis)
+    # ...and so does the database.
+    session.expire_all()
+    task_dict = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    for task_id in ("never_started", "never_started_2"):
+        ti = task_dict[task_id]
+        assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.start_date is not None
+        assert ti.end_date == ti.start_date
+        assert ti.duration == 0
+    ti = task_dict["up_for_retry"]
+    assert ti.state == TaskInstanceState.SKIPPED
+    assert ti.start_date == started_at
+    assert ti.end_date is not None
+    assert ti.duration == pytest.approx((ti.end_date - started_at).total_seconds())
+
+
+def test_set_dag_run_state_to_failed_mapped_task_only_fails_running_map_indexes(
+    dag_maker: DagMaker[SerializedDAG],
+):
+    """Only the running map indexes fail; the pending siblings of the same mapped task are skipped."""
+    with dag_maker("TEST_DAG_1") as dag:
+        MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+    dr = dag_maker.create_dagrun()
+    session = dag_maker.session
+    for ti in dr.get_task_instances(session=session):
+        if ti.map_index == 1:
+            ti.set_state(TaskInstanceState.RUNNING, session=session)
+    session.flush()
+
+    updated_tis, killed_tis = set_dag_run_state_to_failed(
+        dag=dag, run_id=dr.run_id, commit=True, session=session
+    )
+    session.flush()
+
+    assert [ti.map_index for ti in killed_tis] == [1]
+    assert len(updated_tis) == 3
+    session.expire_all()
+    states = {ti.map_index: ti.state for ti in dr.get_task_instances(session=session)}
+    assert states == {
+        0: TaskInstanceState.SKIPPED,
+        1: TaskInstanceState.FAILED,
+        2: TaskInstanceState.SKIPPED,
+    }
 
 
 @pytest.mark.parametrize(
