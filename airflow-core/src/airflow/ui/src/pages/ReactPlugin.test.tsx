@@ -28,6 +28,7 @@ import type {
   ReactAppResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { loadPlugin, ReactPlugin, type PluginProps } from "./ReactPlugin";

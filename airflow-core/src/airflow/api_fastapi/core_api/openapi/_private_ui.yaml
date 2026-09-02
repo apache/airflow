@@ -1142,6 +1142,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Last Updated At Lt
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       responses:
         '200':
           description: Successful Response
@@ -3368,6 +3376,11 @@ components:
           - type: string
           - type: 'null'
           title: Alert Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id
