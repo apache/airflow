@@ -145,6 +145,7 @@ class TestCloudDataFusionCreateInstanceOperator:
 
 
 class TestCloudDataFusionDeleteInstanceOperator:
+    @mock.patch("airflow.providers.google.cloud.links.base.AIRFLOW_V_3_0_PLUS", False)
     @mock.patch(HOOK_STR)
     def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
         op = CloudDataFusionDeleteInstanceOperator(
@@ -254,10 +255,18 @@ class TestCloudDataFusionStartPipelineOperator:
         return op
 
     @staticmethod
-    def make_context(task_state_store: FakeTaskStateStore) -> dict[str, Any]:
+    def make_context(
+        task_state_store: FakeTaskStateStore,
+        *,
+        task: CloudDataFusionStartPipelineOperator | None = None,
+    ) -> dict[str, Any]:
         task_instance = mock.MagicMock()
         task_instance.stats_tags = {}
-        return {"task_state_store": task_state_store, "ti": task_instance}
+        return {
+            "task": task if task is not None else mock.MagicMock(extra_links_params={}),
+            "task_state_store": task_state_store,
+            "ti": task_instance,
+        }
 
     @staticmethod
     def configure_hook(mock_hook: mock.MagicMock, pipeline_id: str = PIPELINE_ID) -> mock.MagicMock:
@@ -288,7 +297,8 @@ class TestCloudDataFusionStartPipelineOperator:
         )
         op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
 
-        op.execute(context=self.make_context(FakeTaskStateStore()))
+        context = self.make_context(FakeTaskStateStore(), task=op)
+        op.execute(context=context)
         mock_hook.return_value.get_instance.assert_called_once_with(
             instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
         )
@@ -309,6 +319,14 @@ class TestCloudDataFusionStartPipelineOperator:
             namespace=NAMESPACE,
             instance_url=INSTANCE_URL,
             timeout=300,
+        )
+        context["ti"].xcom_push.assert_called_once_with(
+            key="pipeline_conf",
+            value={
+                "namespace": NAMESPACE,
+                "pipeline_name": PIPELINE_NAME,
+                "uri": INSTANCE_URL,
+            },
         )
 
     @REQUIRES_TASK_STATE_STORE
