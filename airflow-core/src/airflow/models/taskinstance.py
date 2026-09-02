@@ -1927,6 +1927,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
+        needs_prepare = False
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
@@ -1937,7 +1938,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 # If the task instance is in the running state, it means it raised an exception and
                 # about to retry so we record the task instance history. For other states, the task
                 # instance was cleared and already recorded in the task instance history.
-                ti.prepare_db_for_next_try(session)
+                needs_prepare = True
 
             ti.state = State.UP_FOR_RETRY
 
@@ -1947,6 +1948,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             )
         except Exception:
             log.exception("error calling listener")
+
+        if needs_prepare:
+            ti.prepare_db_for_next_try(session)
 
         return ti
 
