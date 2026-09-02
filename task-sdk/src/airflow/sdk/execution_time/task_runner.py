@@ -223,6 +223,12 @@ def _make_task_span(msg: StartupDetails):
         yield span
 
 
+def _set_dag_tags_on_span(span: trace.Span, dag_tags: Iterable[str]) -> None:
+    """Attach DAG tags to a task span as a native string-array attribute."""
+    if tags := sorted(dag_tags):
+        span.set_attribute("airflow.dag.tags", tags)
+
+
 class TaskRunnerMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
@@ -2427,6 +2433,7 @@ def main():
                 span_ctx_mgr = _make_task_span(msg=startup_details)
                 span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
+                _set_dag_tags_on_span(span, ti.task.dag.tags)
             except AirflowRescheduleException as reschedule:
                 log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
                 SUPERVISOR_COMMS.send(
