@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING
 import pendulum
 import pytest
 from dateutil import relativedelta
-from kubernetes.client import Configuration, models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
@@ -112,7 +111,14 @@ from airflow.serialization.serialized_objects import (
 )
 from airflow.utils.db import LazySelectSequence
 
+from tests_common.test_utils.markers import skip_if_kubernetes_client_not_installed
 from unit.models import DEFAULT_DATE
+
+try:
+    from kubernetes.client import Configuration, models as k8s
+except ImportError:
+    Configuration = None  # type: ignore[assignment]
+    k8s = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from pydantic.types import JsonValue
@@ -301,6 +307,22 @@ class MockLazySelectSequence(LazySelectSequence):
         return len(self._data)
 
 
+def build_v1pod_serde_param():
+    """Build the serde case for a Kubernetes pod, skipped when the client library is absent."""
+    pod = (
+        None
+        if k8s is None
+        else k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="test",
+                annotations={"test": "annotation"},
+                creation_timestamp=timezone.utcnow(),
+            )
+        )
+    )
+    return pytest.param(pod, DAT.POD, equals, id="v1pod", marks=skip_if_kubernetes_client_not_installed)
+
+
 @pytest.mark.parametrize(
     ("input", "encoded_type", "cmp_func"),
     [
@@ -321,17 +343,7 @@ class MockLazySelectSequence(LazySelectSequence):
         (["array_item", 2], None, equals),
         (("tuple_item", 3), DAT.TUPLE, equals),
         (set(["set_item", 3]), DAT.SET, equals),
-        (
-            k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(
-                    name="test",
-                    annotations={"test": "annotation"},
-                    creation_timestamp=timezone.utcnow(),
-                )
-            ),
-            DAT.POD,
-            equals,
-        ),
+        build_v1pod_serde_param(),
         (
             DAG(
                 "fake-dag",

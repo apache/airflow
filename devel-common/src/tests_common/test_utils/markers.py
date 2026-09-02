@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from importlib.util import find_spec
 
 import pytest
 
@@ -31,3 +32,18 @@ skip_if_not_on_main = pytest.mark.skipif(
     os.environ.get("DEFAULT_BRANCH", "main") != "main",
     reason="This test is only run on main branch in CI",
 )
+
+
+def skip_if_not_installed(module: str) -> pytest.MarkDecorator:
+    """Skip the test when ``module`` cannot be imported."""
+    try:
+        installed = find_spec(module) is not None
+    except ModuleNotFoundError:
+        # find_spec imports the parent packages, so an absent provider raises instead of returning None
+        installed = False
+    return pytest.mark.skipif(not installed, reason=f"{module} is not installed")
+
+
+skip_if_kubernetes_client_not_installed = skip_if_not_installed("kubernetes")
+
+skip_if_cncf_kubernetes_not_installed = skip_if_not_installed("airflow.providers.cncf.kubernetes")
