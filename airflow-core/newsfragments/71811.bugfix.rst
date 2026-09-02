@@ -1,0 +1,1 @@
+Fix dag processor crash with ``ValueError: write to closed file`` when a killed parsing subprocess still had buffered log output.
