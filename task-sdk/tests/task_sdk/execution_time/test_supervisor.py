@@ -27,6 +27,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
@@ -4703,6 +4704,125 @@ class TestMakeBufferedSocketReader:
         finally:
             r.close()
             w.close()
+
+    def test_eof_after_complete_line_dispatches_record_and_returns_false(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+            w.sendall(b"complete line\n")
+            w.close()
+            result = True
+            while result:
+                result = cb(r)
+            assert received == [b"complete line\n"]
+            assert result is False
+        finally:
+            r.close()
+
+    def test_empty_eof_dispatches_nothing_and_returns_false(self):
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+            w.close()
+            result = cb(r)
+            assert received == []
+            assert result is False
+        finally:
+            r.close()
+
+    def test_large_record_across_many_small_reads(self):
+        """A single large JSON line delivered across many small socket reads must
+        arrive as exactly one byte-identical record."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        payload = b"a" * (5 * 1024 * 1024)
+        line = payload + b"\n"
+        try:
+            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+
+            def writer():
+                chunk = 4096
+                for i in range(0, len(line), chunk):
+                    w.sendall(line[i : i + chunk])
+                w.close()
+
+            t = threading.Thread(target=writer, daemon=True)
+            t.start()
+            while not received:
+                if not cb(r):
+                    break
+            t.join(timeout=10)
+            assert received == [line]
+        finally:
+            r.close()
+
+    def test_eof_with_incomplete_record_not_sent_to_generator(self):
+        """An unterminated fragment at EOF (writer died mid-record, didn't flush) must
+        never reach the JSON decoder as if it were a complete record."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), on_close=on_close, drop_incomplete_at_eof=True
+            )
+            w.sendall(b'{"incomplete": "record"')  # no trailing newline
+            w.close()
+            result = True
+            while result:
+                result = cb(r)
+            assert received == []
+            assert result is False
+        finally:
+            r.close()
+
+    def test_eof_with_incomplete_record_logs_bounded_warning_without_payload(self, mocker):
+        """The EOF-fragment diagnostic must report only bounded metadata (e.g. byte
+        count) -- never the fragment content, which may contain secrets."""
+        mock_logger = mocker.patch("airflow.sdk.execution_time.supervisor.log")
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), on_close=on_close, drop_incomplete_at_eof=True
+            )
+            w.sendall(b'{"secret": "do-not-leak-me"')
+            w.close()
+            result = True
+            while result:
+                result = cb(r)
+            mock_logger.warning.assert_called_once()
+            call_str = str(mock_logger.warning.call_args)
+            assert "do-not-leak-me" not in call_str
+            assert "secret" not in call_str
+        finally:
+            r.close()
+
+    def test_eof_with_incomplete_record_forwarded_by_default(self):
+        """Default behavior (drop_incomplete_at_eof=False, used by stdout/stderr
+        forwarding) must still forward a trailing unterminated fragment at EOF --
+        e.g. print(..., end="") right before process exit is ordinary output, not
+        a malformed record. Only JSON log channels opt into dropping it."""
+        received: list[bytes] = []
+        on_close = MagicMock()
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(self._collecting_gen(received), on_close=on_close)
+            w.sendall(b"final output, no newline")
+            w.close()
+            result = True
+            while result:
+                result = cb(r)
+            assert received == [b"final output, no newline"]
+            assert result is False
+        finally:
+            r.close()
 
 
 class TestLengthPrefixedFrameReader:
