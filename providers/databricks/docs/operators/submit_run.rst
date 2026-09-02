@@ -23,7 +23,7 @@
 DatabricksSubmitRunOperator
 ===========================
 
-Use the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` to submit
+Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` to submit
 a new Databricks job via Databricks `api/2.2/jobs/runs/submit <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_ API endpoint.
 
 
@@ -224,6 +224,45 @@ operator always submits a fresh run on retry, exactly as before this feature exi
 DatabricksSubmitRunDeferrableOperator
 =====================================
 
-Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator.
+Deferrable version of the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` operator.
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+
+.. _howto/operator:DatabricksSubmitRunOperator:retry-args:
+
+Retry args in deferrable mode
+-----------------------------
+
+When ``deferrable=True``, the ``databricks_retry_args`` dictionary is serialized across the
+trigger boundary and must contain only values that Airflow serde can serialize. Primitive
+values such as ``int``, ``float``, ``str``, ``bool``, ``None``, ``dict``, and ``list`` are
+the common safe choices.
+
+For controlling attempt count and delay in deferrable mode, leave
+``databricks_retry_args`` unset and use the dedicated operator parameters
+``retry_limit`` and ``retry_delay``. When ``databricks_retry_args`` is set,
+these dedicated parameters are ignored for the hook retry policy.
+
+Serialization validation only verifies that values can cross the trigger boundary; it does
+not verify that the supplied keys and values are valid or meaningful ``tenacity.Retrying``
+keyword arguments. Custom tenacity strategy objects (``stop``, ``wait``, ``before``, etc.)
+require callable objects, which are not serialization-safe in deferrable mode. The hook always
+replaces supplied ``retry`` and ``after`` values, so setting them has no effect in either mode.
+
+**Not supported** in deferrable mode (will raise ``ValueError`` when the task defers; the
+Databricks run has already been submitted at that point):
+
+.. code-block:: python
+
+    from tenacity import stop_after_attempt, wait_incrementing
+
+    # Tenacity strategy objects — NOT serializable
+    databricks_retry_args = {"stop": stop_after_attempt(3)}
+    databricks_retry_args = {"wait": wait_incrementing(start=30, increment=30)}
+
+If you need custom ``stop`` or ``wait`` strategies, use the non-deferrable
+:class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` (``deferrable=False``).
+Setting non-empty ``databricks_retry_args`` replaces the hook's default retry policy rather
+than merging with it, so supply both ``stop`` and ``wait``. Otherwise, Tenacity defaults to
+``stop_never`` and ``wait_none()``, which retries persistently retryable API errors forever
+without backoff.
