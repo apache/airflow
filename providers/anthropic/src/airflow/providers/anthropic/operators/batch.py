@@ -64,10 +64,19 @@ except ImportError:
             super().__init__(**kwargs)
             self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
+        def submit_job(self, context: Context) -> JsonValue:
+            raise NotImplementedError
+
+        def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+            raise NotImplementedError
+
+        def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
+            raise NotImplementedError
+
         def execute_resumable(self, context: Context) -> Any:
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
+            external_id: JsonValue = self.submit_job(context=context)
+            self.poll_until_complete(external_id=external_id, context=context)
+            return self.get_job_result(external_id=external_id, context=context)
 
 
 if TYPE_CHECKING:
