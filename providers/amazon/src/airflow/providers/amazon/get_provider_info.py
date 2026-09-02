@@ -1155,6 +1155,9 @@ def get_provider_info():
                 "python-module": "airflow.providers.amazon.aws.transfers.s3_to_dynamodb",
             },
         ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.amazon.aws.decorators.eks.eks_pod_task", "name": "eks_pod"}
+        ],
         "extra-links": [
             "airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink",
             "airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink",
