@@ -163,6 +163,8 @@ Variables with task-specific ``JWT`` token). Local CLI will only return keys exc
 Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
 information in other way (e.g., via environment variables), those values will not be masked.
 
+API responses intentionally do not expose sensitive values in clear text. This policy applies to sensitive connection details, variables, and configuration values returned through Airflow's API. Users should not rely on the API to retrieve sensitive values; access to such values should instead be handled through the appropriate secure mechanisms described in this document.
+
 Audit log users
 ...............
 
