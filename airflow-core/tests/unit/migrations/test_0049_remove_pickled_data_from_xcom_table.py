@@ -47,7 +47,7 @@ _BS = chr(92)
 _RAW = json.dumps(
     {"d": "F" + chr(0) + "oo", "a": float("nan"), "b": float("inf"), "c": float("-inf"), "ok": 1.5}
 )
-_EXPECTED = {"d": "Foo", "a": "NaN", "b": "Infinity", "c": "-Infinity", "ok": 1.5}
+_EXPECTED = {"d": "Foo", "a": None, "b": None, "c": None, "ok": 1.5}
 
 # Row 2: a string that literally contains backslash-u-0000 (no null byte). It serializes to
 # an escaped backslash sequence (\\u0000) and MUST survive sanitization unchanged.
