@@ -282,11 +282,12 @@ export const GanttTimeline = ({
               return undefined;
             }
 
-            // Task Group rows still occupy a row (so they stay aligned with the sidebar/grid),
-            // but their aggregate "envelope" bar is dropped entirely when the toggle is on —
-            // it otherwise reads as a long-running task even when the tasks inside are quick.
-            const allSegments =
-              hideGroupDurations && node.isGroup === true ? [] : (rowSegments[vItem.index] ?? []);
+            // Task Group rows keep their aggregate "envelope" bar even when the toggle is
+            // on - hiding it entirely used to read as missing/lost time. Instead, the bar is
+            // rendered with a hatched overlay below to mark it as an aggregate, not an
+            // individual task's actual runtime.
+            const allSegments = rowSegments[vItem.index] ?? [];
+            const isHatchedGroupBar = hideGroupDurations && node.isGroup === true;
             // Hide scheduled/queued bars that are too narrow to see. Re-derive adjacency
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
@@ -394,6 +395,19 @@ export const GanttTimeline = ({
                                 <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={state} />
                               )}
                             </Badge>
+                            {isHatchedGroupBar ? (
+                              <Box
+                                aria-hidden
+                                borderRadius={`${barRadius}px`}
+                                inset={0}
+                                pointerEvents="none"
+                                position="absolute"
+                                style={{
+                                  backgroundImage:
+                                    "repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.4) 0px, rgba(255, 255, 255, 0.4) 3px, transparent 3px, transparent 6px)",
+                                }}
+                              />
+                            ) : undefined}
                           </Link>
                         </Box>
                       </TaskInstanceTooltip>
