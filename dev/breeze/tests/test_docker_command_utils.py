@@ -269,6 +269,42 @@ def _fake_ctx_output(*names: str) -> str:
             "desktop-linux",
             "[info]Using 'desktop-linux' as context",
         ),
+        (
+            _fake_ctx_output("a", "default", "colima"),
+            "colima",
+            "[info]Using 'colima' as context",
+        ),
+        (
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "Name": "desktop-linux",
+                            "DockerEndpoint": "unix:///nonexistent/docker-desktop.sock",
+                        }
+                    ),
+                    json.dumps({"Name": "colima", "DockerEndpoint": "unix://colima"}),
+                ]
+            ),
+            "colima",
+            "[info]Using 'colima' as context",
+        ),
+        (
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "Name": "desktop-linux",
+                            "DockerEndpoint": "unix://desktop-linux",
+                            "Error": "Cannot connect to the Docker daemon",
+                        }
+                    ),
+                    json.dumps({"Name": "default", "DockerEndpoint": "unix://default"}),
+                ]
+            ),
+            "default",
+            "[info]Using 'default' as context",
+        ),
     ],
 )
 def test_autodetect_docker_context(context_output: str, selected_context: str, console_output: str):
@@ -277,8 +313,7 @@ def test_autodetect_docker_context(context_output: str, selected_context: str, c
         mock_run_command.return_value.stdout = context_output
         with mock.patch("airflow_breeze.utils.docker_command_utils.console_print") as mock_console_print:
             assert autodetect_docker_context() == selected_context
-            mock_console_print.assert_called_once()
-            assert console_output in mock_console_print.call_args[0][0]
+            assert any(console_output in call.args[0] for call in mock_console_print.call_args_list)
 
 
 SOCKET_INFO = json.dumps(

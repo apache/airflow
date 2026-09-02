@@ -24,6 +24,7 @@ import os
 import platform
 import re
 import shlex
+import socket
 import subprocess
 import sys
 import time
@@ -839,14 +840,52 @@ def remove_docker_volumes(volumes: list[str] | None = None) -> None:
 # because the docker socket to use is created in the .docker/ directory in the user's home directory
 # and it does not require the user to belong to the "docker" group.
 # The "rancher-desktop" context is the preferred context for the Rancher dockerd (moby) Container Engine.
+# The "colima" context is created by Colima's default profile (a common lightweight Docker runtime on macOS).
 # The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
 # user running the docker command.
-PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "rancher-desktop", "default"]
+PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "rancher-desktop", "colima", "default"]
+
+
+def _is_docker_context_usable(context: dict) -> bool:
+    """
+    Return whether a docker context looks usable for breeze.
+
+    Skips WSL-only Windows pipes, contexts docker reports as errored, and absolute
+    Unix sockets that are missing or not accepting connections (typical when Docker
+    Desktop or Colima left a stale context after the engine stopped).
+    """
+    if context.get("Error"):
+        return False
+    endpoint = context.get("DockerEndpoint") or ""
+    # On Windows, some contexts are used for WSL2. We don't want to use those.
+    if endpoint == "npipe:////./pipe/dockerDesktopLinuxEngine":
+        return False
+    if not endpoint.startswith("unix://"):
+        return True
+    socket_path = endpoint.removeprefix("unix://")
+    # Non-absolute paths are unusual (and used in unit tests); treat them as usable.
+    if not socket_path.startswith("/"):
+        return True
+    if not os.path.exists(socket_path):
+        return False
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(0.2)
+    try:
+        sock.connect(socket_path)
+    except OSError:
+        return False
+    finally:
+        sock.close()
+    return True
 
 
 def autodetect_docker_context():
     """
     Auto-detects which docker context to use.
+
+    Prefers known developer-friendly contexts, but only if their endpoint is
+    reachable — so a leftover ``desktop-linux`` context after quitting Docker
+    Desktop does not win over a working Colima or default socket.
 
     :return: name of the docker context to use
     """
@@ -874,8 +913,11 @@ def autodetect_docker_context():
             context = known_contexts[preferred_context_name]
         except KeyError:
             continue
-        # On Windows, some contexts are used for WSL2. We don't want to use those.
-        if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
+        if not _is_docker_context_usable(context):
+            console_print(
+                f"[warning]Skipping preferred docker context {preferred_context_name!r}: "
+                f"endpoint is not usable.[/]"
+            )
             continue
         console_print(f"[info]Using {preferred_context_name!r} as context.[/]")
         return preferred_context_name
