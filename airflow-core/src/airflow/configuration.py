@@ -41,6 +41,7 @@ from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
+from airflow._shared.configuration.secrets_backends import Backend, sorted_backends
 from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
@@ -760,7 +761,7 @@ def initialize_secrets_backends(
         from airflow.models import Connection
 
         custom_secret_backend._set_connection_class(Connection)
-        backend_list.append(custom_secret_backend)
+        backend_list.append((Backend.CUSTOM, custom_secret_backend))
 
     for class_name in default_backends:
         from airflow.models import Connection
@@ -768,9 +769,9 @@ def initialize_secrets_backends(
         secrets_backend_cls = import_string(class_name)
         backend = secrets_backend_cls()
         backend._set_connection_class(Connection)
-        backend_list.append(backend)
+        backend_list.append((Backend.from_path(class_name), backend))
 
-    return backend_list
+    return sorted_backends(conf, backend_list, worker_mode)
 
 
 def initialize_auth_manager() -> BaseAuthManager:

@@ -150,6 +150,17 @@ def mock_config_data_css_only():
         yield
 
 
+@pytest.fixture
+def mock_backends_order():
+    with conf_vars(
+        {
+            ("api", "expose_config"): "True",
+            ("secrets", "backends_order"): "custom,environment_variable,metastore",
+        }
+    ):
+        yield
+
+
 class TestGetConfig:
     def test_should_response_200(self, mock_config_data, test_client):
         """
@@ -195,3 +206,54 @@ class TestGetConfig:
         assert theme["globalCss"] == {"button": {"text-transform": "uppercase"}}
         assert "icon" not in theme
         assert "icon_dark_mode" not in theme
+
+
+class TestGetBackendsOrder:
+    def test_should_respond_200_json(self, mock_backends_order, test_client):
+        response = test_client.get("/backends_order", headers={"Accept": "application/json"})
+        assert response.status_code == 200
+        assert response.json() == {
+            "sections": [
+                {
+                    "name": "secrets",
+                    "options": [
+                        {
+                            "key": "backends_order",
+                            "value": "custom,environment_variable,metastore",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def test_should_respond_200_text(self, mock_backends_order, test_client):
+        response = test_client.get("/backends_order", headers={"Accept": "text/plain"})
+        assert response.status_code == 200
+        assert response.text == "[secrets]\nbackends_order = custom,environment_variable,metastore\n"
+
+    @conf_vars({("api", "expose_config"): "True", ("secrets", "backends_order"): None})
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/backends_order")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Option [secrets/backends_order] not found."}
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/backends_order")
+        assert response.status_code == 401
+
+    def test_should_respond_406_not_acceptable(self, mock_backends_order, test_client):
+        response = test_client.get("/backends_order", headers={"Accept": "text/html"})
+        assert response.status_code == 406
+        assert response.json() == {"detail": "Only application/json or text/plain is supported"}
+
+    def test_should_respond_403_unauthorized(self, mock_backends_order, unauthorized_test_client):
+        response = unauthorized_test_client.get("/backends_order")
+        assert response.status_code == 403
+
+    @conf_vars({("api", "expose_config"): "False"})
+    def test_should_respond_403_expose_config_disabled(self, test_client):
+        response = test_client.get("/backends_order")
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "Your Airflow administrator chose not to expose the configuration, most likely for security reasons."
+        }

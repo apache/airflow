@@ -27,6 +27,7 @@ import pytest
 from pydantic import ValidationError
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
+from airflow.sdk._shared.configuration import secrets_backends
 from airflow.sdk._shared.state import TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
@@ -1280,20 +1281,14 @@ class TestSecretsBackend:
         """Test that ExecutionAPISecretsBackend is in the worker search path."""
         from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-        assert (
-            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            in DEFAULT_SECRETS_SEARCH_PATH_WORKERS
-        )
+        assert secrets_backends.EXECUTION_API_BACKEND_PATH in DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     def test_metastore_backend_in_server_chain(self):
         """Test that MetastoreBackend is in the API server search path."""
         from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
-        assert "airflow.secrets.metastore.MetastoreBackend" in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
-        assert (
-            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            not in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
-        )
+        assert secrets_backends.METASTORE_BACKEND_PATH in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
+        assert secrets_backends.EXECUTION_API_BACKEND_PATH not in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
     def test_get_connection_uses_backend_chain(self, mock_supervisor_comms):
         """Test that _get_connection properly iterates through backends."""
