@@ -55,8 +55,12 @@ Schema (optional)
 
 Extra (optional)
     Specify headers and default requests parameters in json format.
-    Headers from Extra are sent to the Connection host and are not forwarded
-    when a redirect changes host.
+    Extra headers are sent on the first request and on redirects that stay on
+    the same origin. They are not forwarded when a redirect leaves that origin
+    (hostname change, port change, or scheme change other than default-port
+    ``http`` → ``https``). Extra headers stay on default-port ``http`` →
+    ``https``; Connection BasicAuth and caller ``Authorization`` / ``Cookie``
+    follow aiohttp's origin rules.
     Following default requests parameters are taken into account:
 
     * ``stream``

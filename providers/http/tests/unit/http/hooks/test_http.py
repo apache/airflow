@@ -30,16 +30,17 @@ import aiohttp
 import pytest
 import requests
 import tenacity
+from multidict import CIMultiDict
 from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.hooks.http import (
     HttpAsyncHook,
     HttpHook,
+    _build_connection_header_middleware,
     _process_extra_options_from_connection,
     _redirect_leaves_origin,
 )
@@ -917,6 +918,7 @@ class TestHttpAsyncHook:
             await hook.run(session=session, endpoint="http://example.com/v1")
         assert mocked_get.call_count == 1
         assert mocked_get.call_args.kwargs.get("allow_redirects") is None
+        assert mocked_get.call_args.kwargs.get("middlewares") is None
 
     @pytest.mark.asyncio
     async def test_async_config_records_extra_header_names(self, create_connection_without_db):
@@ -934,142 +936,71 @@ class TestHttpAsyncHook:
         assert config.extra_options.get("max_redirects") == 3
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("schema", "host", "port", "location", "keep_extra", "keep_auth"),
-        [
-            pytest.param(
-                "https",
-                "api.example.com",
-                None,
-                "https://cdn.example.com/file",
-                False,
-                False,
-                id="cross-host",
-            ),
-            pytest.param(
-                "https",
-                "api.example.com",
-                None,
-                "https://api.example.com/v2",
-                True,
-                True,
-                id="same-host",
-            ),
-            pytest.param(
-                "http",
-                "api.example.com",
-                None,
-                "https://api.example.com/v1",
-                True,
-                True,
-                id="http-https-default-port",
-            ),
-            pytest.param(
-                "http",
-                "api.example.com",
-                80,
-                "https://api.example.com:443/v1",
-                True,
-                True,
-                id="http-80-https-443",
-            ),
-            pytest.param(
-                "https",
-                "api.example.com",
-                None,
-                "https://api.example.com:8443/v1",
-                False,
-                False,
-                id="port-change",
-            ),
-            pytest.param(
-                "https",
-                "api.example.com",
-                None,
-                "https://other.example.com/v1",
-                False,
-                False,
-                id="hostname-change",
-            ),
-            pytest.param(
-                "http",
-                "api.example.com",
-                8080,
-                "https://api.example.com/v1",
-                False,
-                False,
-                id="non-default-port-upgrade",
-            ),
-            pytest.param(
-                "https",
-                "api.example.com",
-                None,
-                "/v2",
-                True,
-                True,
-                id="relative-same-host",
-            ),
-        ],
-    )
     @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
-    async def test_async_redirect_connection_credentials(
-        self,
-        mocked_get,
-        create_connection_without_db,
-        schema,
-        host,
-        port,
-        location,
-        keep_extra,
-        keep_auth,
+    async def test_async_extra_headers_pass_middleware_without_forcing_redirects(
+        self, mocked_get, create_connection_without_db
     ):
         create_connection_without_db(
             Connection(
                 conn_id="http_redirect_conn",
                 conn_type="http",
-                host=host,
-                schema=schema,
-                port=port,
-                login="username",
-                password="pass",
+                host="api.example.com",
+                schema="https",
                 extra=json.dumps({"X-API-Key": "secret"}),
             )
         )
         hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
-        mocked_get.side_effect = [
-            MockAiohttpClientResponse(
-                status=302,
-                method="GET",
-                url=f"{schema}://{host}/v1",
-                headers={"Location": location},
-            ),
-            MockAiohttpClientResponse(status=200, method="GET", url=location),
-        ]
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200, method="GET", url="https://api.example.com/v1"
+        )
 
         async with aiohttp.ClientSession() as session:
-            resp = await hook.run(
-                session=session,
-                endpoint="v1",
-                headers={"X-Request-Id": "req-1"},
-            )
+            await hook.run(session=session, endpoint="v1")
 
-        assert resp.status == 200
-        assert mocked_get.call_count == 2
-        first_url, first_kwargs = mocked_get.call_args_list[0].args[0], mocked_get.call_args_list[0].kwargs
-        second_url, second_kwargs = mocked_get.call_args_list[1].args[0], mocked_get.call_args_list[1].kwargs
-        assert second_url == urljoin(first_url, location)
-        assert first_kwargs["headers"]["X-API-Key"] == "secret"
-        assert first_kwargs["headers"]["X-Request-Id"] == "req-1"
-        assert first_kwargs["auth"] is not None
-        assert second_kwargs["headers"]["X-Request-Id"] == "req-1"
-        assert ("X-API-Key" in second_kwargs["headers"]) is keep_extra
-        assert (second_kwargs["auth"] is not None) is keep_auth
-        for call in mocked_get.call_args_list:
-            assert call.kwargs.get("allow_redirects") is False
+        assert mocked_get.call_count == 1
+        kwargs = mocked_get.call_args.kwargs
+        assert kwargs.get("allow_redirects") is not False
+        middlewares = kwargs.get("middlewares")
+        assert middlewares
+        assert callable(middlewares[0])
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
-    async def test_async_allow_redirects_false_does_not_walk(self, mocked_get, create_connection_without_db):
+    async def test_async_extra_headers_compose_middlewares(self, mocked_get, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_redirect_conn",
+                conn_type="http",
+                host="api.example.com",
+                schema="https",
+                extra=json.dumps({"X-API-Key": "secret"}),
+            )
+        )
+        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200, method="GET", url="https://api.example.com/v1"
+        )
+
+        async def session_mw(req, handler):
+            return await handler(req)
+
+        async def extra_mw(req, handler):
+            return await handler(req)
+
+        async with aiohttp.ClientSession(middlewares=(session_mw,)) as session:
+            await hook.run(session=session, endpoint="v1", extra_options={"middlewares": (extra_mw,)})
+
+        middlewares = mocked_get.call_args.kwargs["middlewares"]
+        assert middlewares[0] is not session_mw
+        assert middlewares[0] is not extra_mw
+        assert middlewares[1] is session_mw
+        assert middlewares[2] is extra_mw
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_async_allow_redirects_false_is_a_single_call(
+        self, mocked_get, create_connection_without_db
+    ):
         create_connection_without_db(
             Connection(
                 conn_id="http_redirect_conn",
@@ -1100,9 +1031,9 @@ class TestHttpAsyncHook:
         assert mocked_get.call_args.kwargs.get("allow_redirects") is False
 
     @pytest.mark.asyncio
-    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
-    async def test_async_redirect_without_location_returns_response(
-        self, mocked_get, create_connection_without_db
+    @mock.patch("aiohttp.ClientSession.head", new_callable=mock.AsyncMock)
+    async def test_async_head_with_extra_does_not_force_allow_redirects(
+        self, mocked_head, create_connection_without_db
     ):
         create_connection_without_db(
             Connection(
@@ -1113,91 +1044,117 @@ class TestHttpAsyncHook:
                 extra=json.dumps({"X-API-Key": "secret"}),
             )
         )
-        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
-        mocked_get.return_value = MockAiohttpClientResponse(
-            status=302,
-            method="GET",
-            url="https://api.example.com/v1",
+        hook = HttpAsyncHook(method="HEAD", http_conn_id="http_redirect_conn")
+        mocked_head.return_value = MockAiohttpClientResponse(
+            status=200, method="HEAD", url="https://api.example.com/v1"
         )
 
         async with aiohttp.ClientSession() as session:
-            resp = await hook.run(session=session, endpoint="v1")
+            await hook.run(session=session, endpoint="v1")
 
-        assert resp.status == 302
-        assert mocked_get.call_count == 1
+        assert mocked_head.call_count == 1
+        kwargs = mocked_head.call_args.kwargs
+        assert kwargs.get("allow_redirects") is not True
+        assert kwargs.get("middlewares")
+
+
+class _FakeClientRequest:
+    def __init__(self, url: str, headers):
+        self.url = url
+        self.headers = headers
+
+
+async def _passthrough_handler(req):
+    return req
+
+
+class TestConnectionHeaderMiddleware:
+    @pytest.mark.asyncio
+    async def test_cross_host_strips_extra_keeps_caller_auth_headers(self):
+        middleware = _build_connection_header_middleware({"X-API-Key"})
+        headers = CIMultiDict(
+            {
+                "X-API-Key": "secret",
+                "Authorization": "Bearer token",
+                "Cookie": "sid=1",
+                "Proxy-Authorization": "Basic abc",
+            }
+        )
+        first = _FakeClientRequest("https://api.example.com/v1", headers)
+        await middleware(first, _passthrough_handler)
+        assert first.headers["X-API-Key"] == "secret"
+        assert first.headers["Authorization"] == "Bearer token"
+        assert first.headers["Cookie"] == "sid=1"
+        assert first.headers["Proxy-Authorization"] == "Basic abc"
+
+        second = _FakeClientRequest(
+            "https://cdn.example.com/file",
+            CIMultiDict(headers),
+        )
+        await middleware(second, _passthrough_handler)
+        assert "X-API-Key" not in second.headers
+        assert second.headers["Authorization"] == "Bearer token"
+        assert second.headers["Cookie"] == "sid=1"
+        assert second.headers["Proxy-Authorization"] == "Basic abc"
 
     @pytest.mark.asyncio
-    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
-    async def test_async_redirect_reads_lowercase_location_header(
-        self, mocked_get, create_connection_without_db
-    ):
-        create_connection_without_db(
-            Connection(
-                conn_id="http_redirect_conn",
-                conn_type="http",
-                host="api.example.com",
-                schema="https",
-                extra=json.dumps({"X-API-Key": "secret"}),
-            )
-        )
-        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
-        mocked_get.side_effect = [
-            MockAiohttpClientResponse(
-                status=302,
-                method="GET",
-                url="https://api.example.com/v1",
-                headers={"location": "https://api.example.com/v2"},
+    @pytest.mark.parametrize(
+        ("first_url", "second_url", "keep_extra"),
+        [
+            pytest.param(
+                "https://api.example.com/v1",
+                "https://api.example.com/v2",
+                True,
+                id="same-host",
             ),
-            MockAiohttpClientResponse(status=200, method="GET", url="https://api.example.com/v2"),
-        ]
+            pytest.param(
+                "https://api.example.com/v1",
+                urljoin("https://api.example.com/v1", "/v2"),
+                True,
+                id="relative",
+            ),
+            pytest.param(
+                "http://api.example.com/v1",
+                "https://api.example.com/v1",
+                True,
+                id="default-port-http-https",
+            ),
+            pytest.param(
+                "https://api.example.com/v1",
+                "https://api.example.com:8443/v1",
+                False,
+                id="port-change",
+            ),
+            pytest.param(
+                "https://api.example.com/v1",
+                "https://other.example.com/v1",
+                False,
+                id="hostname-change",
+            ),
+        ],
+    )
+    async def test_origin_leave_controls_extra(self, first_url, second_url, keep_extra):
+        middleware = _build_connection_header_middleware({"X-API-Key"})
+        first = _FakeClientRequest(first_url, CIMultiDict({"X-API-Key": "secret"}))
+        await middleware(first, _passthrough_handler)
+        assert first.headers["X-API-Key"] == "secret"
 
-        async with aiohttp.ClientSession() as session:
-            resp = await hook.run(session=session, endpoint="v1")
-
-        assert resp.status == 200
-        assert mocked_get.call_count == 2
-        assert mocked_get.call_args_list[1].kwargs["headers"]["X-API-Key"] == "secret"
+        second = _FakeClientRequest(second_url, CIMultiDict({"X-API-Key": "secret"}))
+        await middleware(second, _passthrough_handler)
+        assert ("X-API-Key" in second.headers) is keep_extra
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(("max_redirects", "expected_calls"), [(0, 1), (1, 2)])
-    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
-    async def test_async_too_many_redirects(
-        self, mocked_get, create_connection_without_db, max_redirects, expected_calls
-    ):
-        create_connection_without_db(
-            Connection(
-                conn_id="http_redirect_conn",
-                conn_type="http",
-                host="api.example.com",
-                schema="https",
-                extra=json.dumps({"X-API-Key": "secret"}),
-            )
-        )
-        hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_conn")
-        mocked_get.side_effect = [
-            MockAiohttpClientResponse(
-                status=302,
-                method="GET",
-                url="https://api.example.com/v1",
-                headers={"Location": "https://cdn.example.com/a"},
-            ),
-            MockAiohttpClientResponse(
-                status=302,
-                method="GET",
-                url="https://cdn.example.com/a",
-                headers={"Location": "https://cdn.example.com/b"},
-            ),
-        ]
+    async def test_accept_in_extra_strips_accept_only(self):
+        middleware = _build_connection_header_middleware({"Accept"})
+        headers = CIMultiDict({"Accept": "application/json", "X-Request-Id": "req-1"})
+        first = _FakeClientRequest("https://api.example.com/v1", headers)
+        await middleware(first, _passthrough_handler)
+        assert first.headers["Accept"] == "application/json"
 
-        async with aiohttp.ClientSession() as session:
-            with pytest.raises(HttpErrorException, match="Maximum redirects exceeded"):
-                await hook.run(
-                    session=session,
-                    endpoint="v1",
-                    extra_options={"max_redirects": max_redirects},
-                )
-
-        assert mocked_get.call_count == expected_calls
+        second = _FakeClientRequest("https://cdn.example.com/file", CIMultiDict(headers))
+        await middleware(second, _passthrough_handler)
+        assert "Accept" not in second.headers
+        assert second.headers["X-Request-Id"] == "req-1"
 
 
 class TestRedirectLeavesOrigin:

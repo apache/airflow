@@ -21,7 +21,7 @@ import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 import aiohttp
 import tenacity
@@ -39,6 +39,7 @@ from airflow.providers.http.exceptions import HttpErrorException, HttpMethodExce
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from aiohttp.client_middlewares import ClientMiddlewareType
     from aiohttp.client_reqrep import ClientResponse
     from requests.adapters import HTTPAdapter
 
@@ -98,9 +99,6 @@ def _process_extra_options_from_connection(
     return conn_extra_options, passed_extra_options
 
 
-# aiohttp.ClientSession.request default; keep the walker in lockstep with native redirects.
-_DEFAULT_ASYNC_MAX_REDIRECTS = 10
-_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 
 
@@ -126,12 +124,21 @@ def _redirect_leaves_origin(old_url: str, new_url: str) -> bool:
     return changed_port or changed_scheme
 
 
-def _drop_connection_headers(headers: dict[str, Any], connection_header_names: set[str]) -> dict[str, Any]:
-    return {key: value for key, value in headers.items() if key.lower() not in connection_header_names}
+def _build_connection_header_middleware(names: set[str]) -> ClientMiddlewareType:
+    """Pop Connection Extra headers on hops that leave the first-request origin."""
+    origin_url: str | None = None
 
+    async def middleware(req, handler):
+        nonlocal origin_url
+        request_url = str(req.url)
+        if origin_url is None:
+            origin_url = request_url
+        elif _redirect_leaves_origin(origin_url, request_url):
+            for name in names:
+                req.headers.pop(name, None)
+        return await handler(req)
 
-def _get_redirect_location(headers: Any) -> str | None:
-    return headers.get("Location") or headers.get("location") or None
+    return middleware
 
 
 def _retryable_error_async(exception: BaseException) -> bool:
@@ -490,11 +497,13 @@ class AsyncHttpSession(LoggingMixin):
         request: Callable[..., Awaitable[ClientResponse]],
         config: SessionConfig,
         method: str | None = None,
+        session: aiohttp.ClientSession | None = None,
     ) -> None:
         super().__init__()
         self.method = method or hook.method
         self._hook = hook
         self._request = request
+        self._session = session
         self.config = config
 
     @property
@@ -611,66 +620,24 @@ class AsyncHttpSession(LoggingMixin):
         extra_options: dict[str, Any],
     ) -> ClientResponse:
         extra_options = dict(extra_options)
-        connection_header_names = {name.lower() for name in self.config.connection_headers}
-        allow_redirects = extra_options.get("allow_redirects", True)
-
-        if not connection_header_names or not allow_redirects:
-            return await self._call_request(
-                url,
-                data=data,
-                json=json,
-                headers=headers,
-                auth=self.auth,
-                extra_options=extra_options,
+        connection_header_names = set(self.config.connection_headers)
+        if connection_header_names:
+            session_middlewares = ()
+            if self._session is not None:
+                session_middlewares = getattr(self._session, "_middlewares", None) or ()
+            extra_options["middlewares"] = (
+                _build_connection_header_middleware(connection_header_names),
+                *session_middlewares,
+                *(extra_options.get("middlewares") or ()),
             )
-
-        # Take over hops only when Extra headers exist; force aiohttp not to follow
-        # so Extra cannot re-enable native redirects (allow_redirects=True in Extra).
-        extra_options["allow_redirects"] = False
-        max_redirects = extra_options.pop("max_redirects", None)
-        if max_redirects is None:
-            max_redirects = _DEFAULT_ASYNC_MAX_REDIRECTS
-
-        current_url = url
-        current_headers = dict(headers)
-        current_auth = self.auth
-        redirects_followed = 0
-
-        while True:
-            response = await self._call_request(
-                current_url,
-                data=data,
-                json=json,
-                headers=current_headers,
-                auth=current_auth,
-                extra_options=extra_options,
-            )
-            if response.status not in _REDIRECT_STATUSES:
-                return response
-
-            location = _get_redirect_location(response.headers)
-            if not location:
-                return response
-
-            if redirects_followed >= max_redirects:
-                await response.release()
-                raise aiohttp.TooManyRedirects(
-                    response.request_info,
-                    (),
-                    status=response.status,
-                    message="Maximum redirects exceeded",
-                )
-
-            next_url = urljoin(current_url, location)
-            if _redirect_leaves_origin(current_url, next_url):
-                current_headers = _drop_connection_headers(current_headers, connection_header_names)
-                current_auth = None
-
-            await response.release()
-            current_url = next_url
-            redirects_followed += 1
-
-        raise NotImplementedError  # should not reach this, but makes mypy happy
+        return await self._call_request(
+            url,
+            data=data,
+            json=json,
+            headers=headers,
+            auth=self.auth,
+            extra_options=extra_options,
+        )
 
 
 class HttpAsyncHook(BaseHook):
@@ -784,7 +751,7 @@ class HttpAsyncHook(BaseHook):
         async with aiohttp.ClientSession() as session:
             request = self._get_request_func(session=session, method=method)
             config = await self.config()
-            yield AsyncHttpSession(hook=self, request=request, config=config, method=method)
+            yield AsyncHttpSession(hook=self, request=request, config=config, method=method, session=session)
 
     async def run(
         self,
@@ -811,7 +778,7 @@ class HttpAsyncHook(BaseHook):
             if session is not None:
                 request = self._get_request_func(session=session)
                 config = await self.config()
-                return await AsyncHttpSession(hook=self, request=request, config=config).run(
+                return await AsyncHttpSession(hook=self, request=request, config=config, session=session).run(
                     endpoint=endpoint, data=data, json=json, headers=headers, extra_options=extra_options
                 )
 
