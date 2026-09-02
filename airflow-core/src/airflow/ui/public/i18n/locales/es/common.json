@@ -25,9 +25,9 @@
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
-    "auditLog": "Auditoría de Log",
+    "auditLog": "Log de Auditoría",
     "deadlines": "Plazos",
-    "jobs": "Trabajos",
+    "jobs": "Jobs",
     "requiredActions": "Acciones Requeridas",
     "xcoms": "XComs"
   },
@@ -141,7 +141,7 @@
     "date": "Fecha",
     "durationFrom": "Duración Desde",
     "durationTo": "Duración Hasta",
-    "endTime": "Hora Final",
+    "endTime": "Hora de Fin",
     "logicalDateFrom": "Fecha Lógica Desde",
     "logicalDateTo": "Fecha Lógica Hasta",
     "runAfterFrom": "Ejecutar Después Desde",
@@ -149,7 +149,7 @@
     "searchAsset": "Buscar Asset",
     "selectDateRange": "Seleccionar Rango de Fechas",
     "selectDateTime": "Seleccionar Fecha y Hora",
-    "startTime": "Hora Inicial",
+    "startTime": "Hora de Inicio",
     "time": "Hora"
   },
   "fullscreen": {
@@ -209,11 +209,11 @@
     "empty": "Aún no hay filtros preestablecidos",
     "info": {
       "default": "Fija un filtro preestablecido como predeterminado y se aplicará automáticamente al llegar a esta página sin filtros aplicados.",
-      "save": "Guarda los filtros y el ordenamiento actuales como un filtro preestablecido con nombre, y vuelve a él cuando quieras.",
+      "save": "Guarda los filtros y el orden actual como un filtro preestablecido con nombre, y vuelve a él cuando quieras.",
       "storage": "Los filtros preestablecidos se almacenan en este navegador."
     },
     "namePlaceholder": "Nombre del filtro preestablecido",
-    "nothingToSave": "No hay nada que guardar. Aplica filtros u ordenamiento para guardar un filtro preestablecido.",
+    "nothingToSave": "No hay nada que guardar. Aplica filtros o cambia el orden para guardar un filtro preestablecido.",
     "save": "Guardar",
     "setDefault": "Establecer como predeterminado",
     "title": "Filtros Preestablecidos",
@@ -415,7 +415,7 @@
       "class": "Clase del Trigger",
       "createdAt": "Tiempo de Creación del Trigger",
       "id": "ID del Trigger",
-      "job": "Trabajo del Triggerer",
+      "job": "Job del Triggerer",
       "latestHeartbeat": "Último Heartbeat del Triggerer",
       "title": "Información del Triggerer"
     },

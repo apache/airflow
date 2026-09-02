@@ -87,7 +87,7 @@
       "executorClass": "Clase de Executor",
       "hostname": "Nombre de Host",
       "id": "ID",
-      "jobType": "Tipo de Trabajo",
+      "jobType": "Tipo de Job",
       "latestHeartbeat": "Último Heartbeat",
       "unixname": "Nombre de Unix"
     },
@@ -98,8 +98,8 @@
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
     },
-    "job_one": "Trabajo",
-    "job_other": "Trabajos"
+    "job_one": "Job",
+    "job_other": "Jobs"
   },
   "plugins": {
     "columns": {
@@ -126,7 +126,7 @@
       "nameMaxLength": "El nombre puede contener un máximo de 256 caracteres",
       "nameRequired": "El nombre es requerido",
       "slots": "Slots",
-      "slotsHelperText": "Usa -1 para slots ilimitados."
+      "slotsHelperText": "Use -1 para slots ilimitados."
     },
     "noPoolsFound": "No se encontraron pools",
     "pool_one": "Pool",
