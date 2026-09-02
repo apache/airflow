@@ -78,8 +78,7 @@ class TestAirbyteTriggerSyncOp:
             job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
         )
 
-        # Ensure that wall-clock time is used during operator execution flow.
-        mock_time.time.assert_called()
+        mock_time.time.assert_not_called()
         mock_time.monotonic.assert_not_called()
 
     @mock.patch("airflow.providers.airbyte.operators.airbyte.time")
@@ -131,6 +130,59 @@ class TestAirbyteTriggerSyncOp:
             job_id=self.job_id,
             end_time=1000.0 + self.timeout,
             execution_deadline=None,
+            poll_interval=60,
+        )
+
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.time")
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteTriggerSyncOperator.defer")
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteSyncTrigger")
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    def test_execute_deferrable_deadlines_exclude_submission_time(
+        self,
+        mock_create_job,
+        mock_airbyte_trigger,
+        mock_defer,
+        mock_time,
+        create_connection_without_db,
+    ) -> None:
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+        mock_time.time.side_effect = [1000.0, 1060.0]
+
+        mock_response = SimpleNamespace(
+            job_response=JobResponse(
+                connection_id="connection-mock",
+                job_id=1,
+                start_time="today",
+                job_type=JobTypeEnum.SYNC,
+                status=JobStatusEnum.RUNNING,
+            )
+        )
+
+        def submit_after_latency(*, request: JobCreateRequest) -> SimpleNamespace:
+            assert request == JobCreateRequest(connection_id=self.connection_id, job_type=JobTypeEnum.SYNC)
+            mock_time.time()
+            return mock_response
+
+        mock_create_job.side_effect = submit_after_latency
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            timeout=self.timeout,
+            deferrable=True,
+            execution_timeout=timedelta(seconds=60),
+        )
+
+        op.execute({})
+
+        mock_defer.assert_called_once()
+        mock_airbyte_trigger.assert_called_once_with(
+            conn_id=self.airbyte_conn_id,
+            job_id=self.job_id,
+            end_time=1060.0 + self.timeout,
+            execution_deadline=1120.0,
             poll_interval=60,
         )
 

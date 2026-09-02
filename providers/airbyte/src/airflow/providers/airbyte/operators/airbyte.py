@@ -134,14 +134,13 @@ class AirbyteTriggerSyncOperator(ResumableJobMixin, BaseOperator):
         """Create Airbyte Job and wait to finish."""
         trigger_poll_interval = 60
 
-        now = time.time()
-
         if not self.asynchronous and not self.deferrable:
             self.execute_resumable(context=context)
             return self.job_id
 
         job_object = self._submit_sync_connection()
         state = job_object.status
+        now = time.time()
 
         # Derive absolute deadlines for deferrable execution.
         # execution_timeout is a hard task-level limit (cancels the job),
