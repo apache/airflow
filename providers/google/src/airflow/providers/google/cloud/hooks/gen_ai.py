@@ -88,11 +88,11 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         """
         Generate embeddings for words, phrases, sentences, and code.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param model: Required. The model to use.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param contents: Optional. The contents to use for embedding.
         :param config: Optional. Configuration for embeddings.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         client = self.get_genai_client(project_id=project_id, location=location)
 
@@ -112,11 +112,11 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         Make an API request to generate content using a model.
 
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param model: Required. The model to use.
         :param contents: Required. The multi-part content of a message that a user or a program
             gives to the generative model, in order to elicit a specific response.
         :param generation_config: Optional. Generation configuration settings.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         client = self.get_genai_client(project_id=project_id, location=location)
         response = client.models.generate_content(
@@ -139,14 +139,14 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         """
         Create a tuning job to adapt model behavior with a labeled dataset.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param source_model: Required. A pre-trained model optimized for performing natural
-            language tasks such as classification, summarization, extraction, content
-            creation, and ideation.
+                    language tasks such as classification, summarization, extraction, content
+                    creation, and ideation.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param training_dataset: Required. Cloud Storage URI of your training dataset. The dataset
             must be formatted as a JSONL file. For best results, provide at least 100 to 500 examples.
         :param tuning_job_config: Optional. Configuration of the Tuning job to be created.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         client = self.get_genai_client(project_id=project_id, location=location)
 
@@ -176,15 +176,15 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         """
         Use Count Tokens API to calculate the number of input tokens before sending a request to Gemini API.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param contents: Required. The multi-part content of a message that a user or a program
-            gives to the generative model, in order to elicit a specific response.
         :param model: Required. Model,
-            supporting prompts with text-only input, including natural language
-            tasks, multi-turn text and code chat, and code generation. It can
-            output text and code.
+                    supporting prompts with text-only input, including natural language
+                    tasks, multi-turn text and code chat, and code generation. It can
+                    output text and code.
+        :param contents: Required. The multi-part content of a message that a user or a program
+                    gives to the generative model, in order to elicit a specific response.
         :param config: Optional. Configuration for Count Tokens.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         client = self.get_genai_client(project_id=project_id, location=location)
         response = client.models.count_tokens(
@@ -206,10 +206,10 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         """
         Create CachedContent to reduce the cost of requests containing repeat content.
 
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param model: Required. The name of the publisher model to use for cached content.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param cached_content_config: Optional. Configuration of the Cached Content.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         client = self.get_genai_client(project_id=project_id, location=location)
         resp = client.caches.create(
