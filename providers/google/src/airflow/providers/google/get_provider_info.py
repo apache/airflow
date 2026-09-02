@@ -1545,6 +1545,20 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
                 "hook-name": "LevelDB",
                 "connection-type": "leveldb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "password", "schema", "port"],
+                    "relabeling": {},
+                },
+                "conn-fields": {
+                    "create_if_missing": {
+                        "label": "Create a database if it does not exist",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "error_if_exists": {
+                        "label": "Raise an exception if the database already exists",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                },
             },
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
@@ -1604,6 +1618,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink",
             "airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink",
             "airflow.providers.google.cloud.links.cloud_run.CloudRunJobLoggingLink",
+            "airflow.providers.google.cloud.links.cloud_run.CloudRunJobExecutionDetailsLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink",
             "airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink",
             "airflow.providers.google.cloud.links.dataproc.DataprocLink",

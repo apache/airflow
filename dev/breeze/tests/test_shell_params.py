@@ -20,10 +20,12 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+import yaml
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.path_utils import SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH
 
 console = Console(width=400, color_system="standard")
 
@@ -229,3 +231,26 @@ def test_shell_params_to_env_var_conversion(
                 console.print(env_vars)
                 error = True
         assert not error, "Some values are not as expected."
+
+
+def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, monkeypatch):
+    docker_env_path = tmp_path / "_generated_docker.env"
+    compose_env_path = tmp_path / "_generated_docker_compose.env"
+    with (
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_ENV_PATH", docker_env_path),
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_COMPOSE_ENV_PATH", compose_env_path),
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_LOCK_PATH", tmp_path / "_generated.lock"),
+    ):
+        monkeypatch.delenv("PYTHONWARNINGS", raising=False)
+        _ = ShellParams().env_variables_for_docker_commands
+        docker_env = docker_env_path.read_text()
+        compose_env = compose_env_path.read_text()
+        monkeypatch.setenv("PYTHONWARNINGS", "default")
+        _ = ShellParams().env_variables_for_docker_commands
+        assert docker_env_path.read_text() == docker_env
+        assert compose_env_path.read_text() == compose_env
+
+
+def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
+    base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
+    assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]

@@ -21,15 +21,19 @@ import ast
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
+from itertools import repeat
 from pathlib import Path
 from typing import TextIO
 
 import requests
 from click import Choice
 from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
 
 try:
     import tomllib
@@ -39,6 +43,8 @@ except ImportError:
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
+PYPI_LOOKUP_PARALLELISM = 8
 
 
 def _read_version_from_pyproject(pyproject_path: Path) -> str:
@@ -380,11 +386,19 @@ def check_providers_not_downgraded(config_params: ConfigParams) -> None:
     Fail generation if any released provider is downgraded compared to the latest constraints.
 
     Released provider versions only ever move forward on PyPI, so a lower version in the freshly
-    generated constraints signals a resolution problem (a broken dependency forcing an old provider
-    back in) rather than an intended change. We stop here so it is caught instead of being published.
-    """
-    from packaging.version import InvalidVersion, Version
+    generated constraints means the version we had pinned is no longer installable - yanked, or
+    left without a file for the Python being resolved. We stop here so it is caught instead of
+    being published.
 
+    A release candidate is exempt: it pins the wave being voted on, which sorts below the released
+    versions a constraints branch may already carry, so the comparison says nothing there.
+    """
+    if config_params.allow_pre_releases:
+        console.print(
+            "[yellow]Pre-releases are allowed - skipping the provider downgrade check, a candidate "
+            "sorts below the releases the constraints branch carries."
+        )
+        return
     if not config_params.latest_constraints_file.exists():
         console.print("[yellow]No previous constraints file downloaded - skipping provider downgrade check.")
         return
@@ -408,10 +422,10 @@ def check_providers_not_downgraded(config_params: ConfigParams) -> None:
         for provider, latest_version, current_version in sorted(downgraded):
             console.print(f"[red]  * {provider}: {latest_version} -> {current_version}")
         console.print(
-            "[yellow]Released providers should never be downgraded. This usually means a broken "
-            "dependency version forced an older provider back in during resolution. Investigate the "
-            "diff above and, if needed, add an exclusion in the "
-            f"`additional_constraints_for_highest_resolution` list in [/] {__file__}"
+            "[yellow]Released providers should never be downgraded. The providers are pinned at the "
+            "newest version PyPI serves for this Python, so a lower one means the version we had is "
+            "gone - yanked, or no longer offering a file this Python can install. Investigate the "
+            "diff above before publishing.[/]"
         )
         write_provider_downgrade_slack_message(config_params, downgraded)
         sys.exit(1)
@@ -459,16 +473,82 @@ def get_all_active_provider_distributions(python_version: str | None = None) -> 
     ]
 
 
-def build_provider_pre_release_requirements(python_version: str) -> list[str]:
-    """Requirements that let only the providers resolve to a pre-release.
+def is_file_installable(pypi_file: dict, target_python: Version) -> bool:
+    """Whether a file PyPI lists for a release can be installed on ``target_python``."""
+    if pypi_file.get("yanked"):
+        return False
+    requires_python = pypi_file.get("requires_python")
+    if not requires_python:
+        return True
+    try:
+        return target_python in SpecifierSet(requires_python)
+    except InvalidSpecifier:
+        return True
 
-    uv considers a pre-release for a package only when some requirement for it mentions one, so a
-    pre-release lower bound on each provider confines the allowance to them. `--pre` would apply to
-    the whole resolution and could put a pre-release of any third-party dependency into the
-    constraints a release ships.
+
+def find_newest_version_in_pypi(
+    distribution: str, python_version: str, allow_pre_releases: bool
+) -> str | None:
+    """Return the newest version of ``distribution`` PyPI can install for ``python_version``.
+
+    A pre-release is only ever considered when ``allow_pre_releases`` is set, and even then it wins
+    only by sorting above every final release - so a provider with a candidate in the wave being
+    voted on resolves to that candidate while one without keeps its last release. Versions PyPI can
+    no longer serve for the Python being resolved - fully yanked, or excluded by ``requires_python``
+    - are passed over, because pinning one leaves the resolution nothing to install. ``None``
+    (nothing installable at all, e.g. a provider whose first release is still in this wave) leaves
+    the distribution unpinned rather than pinned to a version that cannot be had.
     """
+    response = requests.get(PYPI_JSON_API_URL.format(distribution=distribution), timeout=60)
+    if response.status_code == 404:
+        console.print(f"[yellow]{distribution} is not published in PyPI - leaving it unpinned.")
+        return None
+    response.raise_for_status()
+    target_python = Version(python_version)
+    newest_version: Version | None = None
+    for version, files in response.json().get("releases", {}).items():
+        try:
+            parsed_version = Version(version)
+        except InvalidVersion:
+            continue
+        if parsed_version.is_prerelease and not allow_pre_releases:
+            continue
+        if not any(is_file_installable(pypi_file, target_python) for pypi_file in files):
+            continue
+        if newest_version is None or parsed_version > newest_version:
+            newest_version = parsed_version
+    if newest_version is None:
+        console.print(f"[yellow]{distribution} has no installable version in PyPI - leaving it unpinned.")
+        return None
+    return str(newest_version)
+
+
+def build_pinned_provider_requirements(python_version: str, allow_pre_releases: bool) -> list[str]:
+    """Exact pins for every active provider, at the newest version PyPI holds for it.
+
+    Naming the versions retrieved from PyPI leaves the providers nothing to resolve: the constraints
+    pin what is actually published rather than whatever the resolver settles on. It is what makes a
+    release candidate land on the wave being voted on, whose providers are published only as rc
+    versions - handing uv a pre-release strategy instead left it free to answer with any version
+    satisfying the lower bounds. It also keeps pre-releases confined to the providers: no
+    third-party dependency can answer with one, because no requirement here mentions a pre-release
+    of anything else.
+    """
+    distributions = get_all_active_provider_distributions(python_version)
+    console.print(f"[bright_blue]Retrieving the newest PyPI version of {len(distributions)} providers.")
+    with ThreadPoolExecutor(max_workers=PYPI_LOOKUP_PARALLELISM) as executor:
+        newest_versions = list(
+            executor.map(
+                find_newest_version_in_pypi,
+                distributions,
+                repeat(python_version),
+                repeat(allow_pre_releases),
+            )
+        )
     return [
-        f"{distribution}>=0.0.0rc0" for distribution in get_all_active_provider_distributions(python_version)
+        f"{distribution}=={version}"
+        for distribution, version in zip(distributions, newest_versions)
+        if version is not None
     ]
 
 
@@ -532,38 +612,34 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #   that the resolver will not downgrade the provider.
     # * opentelemetry-exporter-prometheus>=0.47b0 — this package only ever publishes beta versions
     #   (airflow-core requires ``>=0.47b0`` and released constraints already pin a beta, e.g.
-    #   ``==0.65b0``). For a release candidate the resolution runs with ``--prerelease explicit``,
-    #   which permits a pre-release only for a package some requirement marks as such and drops the
-    #   if-necessary fallback; without this entry the package cannot resolve and generation fails
-    #   with "No solution found". Keeping it here (rather than the provider pre-release list) marks
-    #   it as an always-allowed pre-release across every resolution, matching how it already ships.
+    #   ``==0.65b0``). Marking it as a pre-release here rather than relying on uv's if-necessary
+    #   fallback keeps the choice deliberate and identical across every resolution.
+    # * opentelemetry-semantic-conventions>=0.48b0 — same story: a beta-only package, pulled in as a
+    #   hard dependency of opentelemetry-sdk (via opentelemetry-exporter-otlp and shared/observability).
+    #   The floor only marks it as a pre-release and must stay at the version paired with our
+    #   ``opentelemetry-*>=1.27.0`` floor — opentelemetry-sdk exact-pins the semantic conventions
+    #   version it ships with, so a higher floor here would conflict with any sdk older than that pairing.
+    #
+    # These two are the only pre-releases in the constraints we tag, and removing the need for the
+    # exception is tracked at https://github.com/apache/airflow/issues/71176
+    #
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
         "gremlinpython>=3.8.0",
         "opentelemetry-exporter-prometheus>=0.47b0",
+        "opentelemetry-semantic-conventions>=0.48b0",
     ]
 
-    # Constraints cut for a release candidate have to pin the candidates themselves - the providers
-    # for that wave exist on PyPI only as rcN versions, and uv will not resolve to a pre-release
-    # unless asked. The final release regenerates these without it, so a released constraints file
-    # can never carry an rc pin.
-    #
-    # Scoped to the providers rather than passing `--pre`, which applies to the whole resolution
-    # and would let any dependency answer with a pre-release - putting, say, a beta of a
-    # third-party library into the constraints a release ships. uv has no per-package pre-release
-    # flag, so the scoping is expressed the way it does support: `explicit` permits a pre-release
-    # only for a package some requirement marks as such, and the rc lower bound below is that mark.
-    # `explicit` rather than the default `if-necessary-or-explicit` also drops the fallback that
-    # would otherwise let an unmarked package resolve to a pre-release when no final satisfies.
-    pre_release_requirements: list[str] = []
-    pre_release_strategy: list[str] = []
-    if config_params.allow_pre_releases:
-        pre_release_requirements = build_provider_pre_release_requirements(config_params.python)
-        pre_release_strategy = ["--prerelease", "explicit"]
-        console.print(
-            f"[bright_blue]Allowing pre-releases for {len(pre_release_requirements)} provider "
-            "distributions - no other package can resolve to one."
-        )
+    # Every run pins the providers at the versions PyPI holds when it is generated. Only a run for
+    # a release candidate considers the rc versions of the wave being voted on; a final regenerates
+    # these against the published releases, so a released constraints file can never carry an rc pin.
+    pinned_provider_requirements = build_pinned_provider_requirements(
+        config_params.python, config_params.allow_pre_releases
+    )
+    console.print(
+        f"[bright_blue]Pinning {len(pinned_provider_requirements)} provider distributions to the "
+        f"{'newest' if config_params.allow_pre_releases else 'newest final'} versions in PyPI."
+    )
 
     result = run_command(
         cmd=[
@@ -578,8 +654,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             f"apache-airflow-task-sdk=={AIRFLOW_TASK_SDK_VERSION}",
             "./airflow-ctl",
             *additional_constraints_for_highest_resolution,
-            *pre_release_requirements,
-            *pre_release_strategy,
+            *pinned_provider_requirements,
             "--reinstall",  # We need to pull the provider distributions from PyPI or dist, not the local ones
             "--resolution",
             "highest",
@@ -592,7 +667,9 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     if result.returncode != 0:
         console.print(
             "[red]Failed to install airflow with PyPI providers with highest resolution.[/]\n"
-            "[yellow]Please check the output above for details. One of they ways how to resolve it, in "
+            "[yellow]Please check the output above for details. The providers are pinned at the newest "
+            "versions PyPI serves, so two of them requiring incompatible dependencies fails here rather "
+            "than quietly settling on an older provider. One of they ways how to resolve it, in "
             "case it is caused by a specific broken dependency version, is to exclude it above in the "
             f"`additional_constraints_for_highest_resolution` list in [/] {__file__}"
         )
@@ -682,8 +759,9 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     "--allow-pre-releases",
     is_flag=True,
     default=False,
-    help="Allow pre-release versions of Airflow and providers to be pinned. Used when constraints "
-    "are generated for a release candidate, whose providers are only on PyPI as rc versions.",
+    help="Let the provider pins use pre-release versions when those are newer than any final "
+    "release. Used when constraints are generated for a release candidate, whose providers are "
+    "only on PyPI as rc versions.",
     envvar="ALLOW_PRE_RELEASES",
 )
 def generate_constraints(

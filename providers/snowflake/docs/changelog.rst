@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+6.16.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 6.16.0
 ......
 
@@ -39,11 +57,11 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Log check_query_output response via format string in Snowflake SQL API hook (#67848)``
+* ``Fix snowflake provider installs picking an unimportable pyOpenSSL (#71145)``
 
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 * ``Use common.compat.sdk for timezone imports in providers (#70492)``
 * ``Move the SnowparkContainerJobOperator required-argument check to execute() (#70332, #70874)``
 
@@ -54,6 +72,8 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 6.15.0
 ......

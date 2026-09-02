@@ -23,6 +23,8 @@ import { initReactI18next } from "react-i18next";
 
 import { VersionService } from "openapi/requests/services.gen";
 
+import { registerDayjsLocaleSync } from "./dayjsLocale";
+
 export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ar", name: "العربية" },
@@ -132,6 +134,10 @@ export const i18nBaseOptions = {
 const initI18n = (version: string) => {
   const queryString = version ? `?v=${version}` : "";
 
+  // Subscribed before init so it precedes every react-i18next component listener, and
+  // because i18next emits `languageChanged` from init itself for the detected language.
+  registerDayjsLocaleSync(i18n);
+
   void i18n
     .use(Backend)
     .use(LanguageDetector)
@@ -144,12 +150,16 @@ const initI18n = (version: string) => {
     });
 };
 
-void VersionService.getVersion()
-  .then((data) => {
-    initI18n(data.version);
-  })
-  .catch(() => {
-    initI18n("");
-  });
+// Falling back to an empty version on failure would drop the `?v=` cache
+// buster from the translation loadPath, letting a CDN/browser keep serving a
+// translation bundle cached from before the running version, indefinitely
+// missing any keys added since. A timestamp isn't the true version, but it
+// still busts the cache on every retry.
+export const resolveI18nVersion = (): Promise<string> =>
+  VersionService.getVersion()
+    .then((data) => data.version)
+    .catch(() => Date.now().toString());
+
+void resolveI18nVersion().then(initI18n);
 
 export { default } from "i18next";

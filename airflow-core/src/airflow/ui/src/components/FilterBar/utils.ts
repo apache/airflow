@@ -26,6 +26,16 @@ export const isValidFilterValue = (type: string, value: FilterValue): boolean =>
     return false;
   }
 
+  if (type === "boolean") {
+    return value === "true";
+  }
+
+  // Must precede the daterange branch: an empty array is neither null nor "", so without
+  // this an emptied multiselect would keep its pill and re-write its param.
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
   if (type === "daterange" && typeof value === "object") {
     const rangeValue = value as DateRangeValue;
 
@@ -40,8 +50,17 @@ export const getDefaultFilterValue = (config: FilterConfig): FilterValue => {
     return config.defaultValue;
   }
 
+  // Activates the filter as soon as it is picked from the Add Filter menu.
+  if (config.type === "boolean") {
+    return "true";
+  }
+
   if (config.type === "daterange") {
     return { endDate: undefined, startDate: undefined };
+  }
+
+  if (config.type === "multiselect") {
+    return [];
   }
 
   return "";
@@ -57,6 +76,10 @@ export const isEmptyFilterValue = (value: FilterValue): boolean => {
 
   if (typeof value === "string") {
     return value.trim() === "";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
   }
 
   if (typeof value === "object") {
