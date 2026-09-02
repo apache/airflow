@@ -127,7 +127,9 @@ class TestBatchedOperator:
                 assert isinstance(iterable_op, IterableOperator)
 
     def test_mapped_iterable_operator_retries_preserved(self):
-        """Ensure delegate's retries survive unmap, while MappedIterableOperator reports 0 retries."""
+        """Ensure MappedIterableOperator delegates retries to and from the wrapped operator, so that
+        Airflow's standard retry mechanism (applied to the whole IterableOperator) sees the same
+        retries the user configured on the delegate."""
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
         from airflow.sdk.definitions.iterableoperator import MappedIterableOperator
@@ -141,16 +143,11 @@ class TestBatchedOperator:
             )
 
             assert isinstance(iterable_op, MappedIterableOperator)
-            assert iterable_op.retries == 0
+            assert iterable_op.retries == 3
 
-            with pytest.raises(
-                ValueError,
-                match="MappedIterableOperator always has retries=0; retries are handled by indexed tasks.",
-            ):
-                iterable_op.retries = 3
-
+            iterable_op.retries = 5
             mapped_op = iterable_op.delegate
-            assert mapped_op.retries == 3
+            assert mapped_op.retries == 5
 
             unmapped = mapped_op.unmap({"retry_delay": 1.0})
-            assert unmapped.retries == 3
+            assert unmapped.retries == 5

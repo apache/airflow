@@ -20,12 +20,17 @@ from __future__ import annotations
 import copy
 import os
 import warnings
-from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
 from itertools import repeat
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk import BaseXCom, TaskInstanceState, timezone
+try:
+    # Python 3.11+
+    BaseExceptionGroup
+except NameError:
+    from exceptiongroup import BaseExceptionGroup
+
+from airflow.sdk import BaseXCom, TaskInstanceState
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
 from airflow.sdk.definitions.context import clone_context
@@ -33,8 +38,6 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
     AirflowFailException,
-    AirflowRescheduleException,
-    AirflowRescheduleTaskInstanceException,
     TaskDeferred,
 )
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
@@ -43,22 +46,11 @@ from airflow.sdk.execution_time.task_runner import IndexedTaskInstance
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.providers.standard.triggers.temporal import DateTimeTrigger
     from airflow.sdk.bases.xcom import XComIterable
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
 
-
-ExternalDateTimeTrigger: type[DateTimeTrigger] | None
-
-try:
-    from airflow.providers.standard.triggers.temporal import DateTimeTrigger as ExternalDateTimeTrigger
-except ModuleNotFoundError:
-    # If the providers package with DateTimeTrigger is not available (e.g. in
-    # minimal installs or tests), set the symbol to None so callers can
-    # explicitly check for availability. Using hasattr(self, DateTimeTrigger)
-    # is incorrect because hasattr expects a string attribute name.
-    ExternalDateTimeTrigger = None
+_ITERABLE_CHECKPOINT_KEY_PREFIX = "_iterable_task_"
 
 
 class IterableOperator(BaseOperator):
@@ -67,17 +59,22 @@ class IterableOperator(BaseOperator):
 
     The IterableOperator wraps a :class:`MappedOperator` together with an
     :class:`ExpandInput` and is responsible for creating and running the
-    per-index runtime task instances. The IterableOperator itself is a
-    lightweight, non-retrying wrapper — retries, timeouts and deferred
-    execution are handled by the individual indexed task instances that the
-    IterableOperator creates for each element produced by the
-    ``expand_input``.
+    per-index runtime task instances. The IterableOperator itself participates
+    in Airflow's native retry mechanism — its ``retries`` and ``retry_delay``
+    are inherited from the wrapped operator so that when any sub-task needs
+    a retry the whole IterableOperator is retried by Airflow. Already-succeeded
+    sub-tasks are skipped on each retry attempt because their state is
+    checkpointed in the ``task_state_store``.
 
     The IterableOperator executes the mapped operator instances using a
     concurrent executor with a configurable number of workers. By default
     the worker count is taken from the mapped operator's ``partial_kwargs``
     (``task_concurrency``) if present, otherwise falls back to
     ``os.cpu_count()`` and finally to ``1``.
+
+    **Crash recovery:** When the worker crashes mid-iteration and the task is re-run (e.g. via a
+    manual clear), already-succeeded sub-tasks are skipped and pending/failed sub-tasks are recreated
+    with their accumulated ``try_number`` so that retries are not wasted.
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
@@ -89,9 +86,7 @@ class IterableOperator(BaseOperator):
 
     :param kwargs: Additional keyword arguments forwarded to
         :class:`BaseOperator` when instantiating the IterableOperator
-        (e.g. ``dag``, ``start_date``). Note that the IterableOperator
-        overrides retry-related parameters because retries are managed by
-        the per-index tasks.
+        (e.g. ``dag``, ``start_date``).
 
     :returns: An :class:`XComIterable` if the mapped operator pushes XComs, otherwise ``None``.
 
@@ -101,8 +96,10 @@ class IterableOperator(BaseOperator):
         instance will propagate as an error rather than pausing and resuming the task.
 
         Reschedule-mode sensors (those that raise :class:`~airflow.sdk.exceptions.AirflowRescheduleException`)
-        are also not supported. A reschedule raised by an indexed task instance will fail the whole
-        IterableOperator immediately with a clear error rather than being silently mishandled.
+        are also not meaningfully supported: the exception is treated like any other sub-task failure and
+        counts towards the IterableOperator's own ``retries``, but the requested ``reschedule_date`` is not
+        honored — the worker is not released and the next attempt follows the IterableOperator's own
+        ``retry_delay`` instead of waiting until ``reschedule_date``.
 
     .. warning::
         **``execution_timeout`` is only enforced for async sub-tasks.**
@@ -140,12 +137,7 @@ class IterableOperator(BaseOperator):
                 "email": operator.email,
                 "email_on_retry": operator.email_on_retry,
                 "email_on_failure": operator.email_on_failure,
-                "retries": 0,  # We should not retry the IterableOperator, only the indexed runtime ti's should be retried
-                # Known v1 limitation: there is no durable per-index checkpoint. On a worker crash mid-iteration,
-                # clearing or re-running the parent TI reconstructs every IndexedTaskInstance with xcom_pushed=False
-                # and re-executes from index 0, duplicating any external effects that already completed. Until
-                # durable checkpointing is implemented, iteration should be constrained to idempotent work.
-                # AIP-103 Task State Management could be a solution to this known v1 limitation.
+                "retries": operator.retries,
                 "retry_delay": operator.retry_delay,
                 "retry_exponential_backoff": operator.retry_exponential_backoff,
                 "max_retry_delay": operator.max_retry_delay,
@@ -276,106 +268,64 @@ class IterableOperator(BaseOperator):
         tasks: Iterable[IndexedTaskInstance],
     ) -> XComIterable | None:
         exceptions: list[Exception] = []
-        reschedule_date = timezone.utcnow()
-        failed_tasks: deque[IndexedTaskInstance] = deque()
         do_xcom_push = True
 
         self.log.info("Running tasks with %d workers", self.max_workers)
 
-        while True:
-            with event_loop() as loop:
-                with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
-                    for task, _result, raised in executor.map(
-                        self._run_task,
-                        repeat(executor),
-                        repeat(context),
-                        tasks,
-                    ):
-                        do_xcom_push = task.do_xcom_push
+        with event_loop() as loop:
+            with AsyncAwareExecutor(loop=loop, max_workers=self.max_workers) as executor:
+                for task, _result, raised in executor.map(
+                    self._run_task,
+                    repeat(executor),
+                    repeat(context),
+                    tasks,
+                ):
+                    do_xcom_push = task.do_xcom_push
 
-                        if raised is None:
-                            continue
+                    if raised is None:
+                        continue
 
-                        if isinstance(raised, TaskDeferred):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
-                                "Deferrable operators are not supported inside IterableOperator."
-                            )
-
-                        if isinstance(raised, AirflowRescheduleException):
-                            if not isinstance(raised, AirflowRescheduleTaskInstanceException):
-                                raise AirflowFailException(
-                                    f"Sub-task {task.task_id}[{task.index}] attempted to reschedule. "
-                                    "Reschedule-mode sensors are not supported inside IterableOperator."
-                                )
-                            reschedule_date = max(reschedule_date, raised.reschedule_date)
-                            self.log.exception(
-                                "An exception occurred for task_id %s with index %s, it has been rescheduled at %s",
-                                task.task_id,
-                                task.index,
-                                reschedule_date,
-                            )
-                            failed_tasks.append(raised.task)
-                            continue
-
-                        # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
-                        # KeyboardInterrupt, SystemExit) must never be swallowed: they
-                        # signal conditions where continuing iteration is meaningless
-                        # because every subsequent task would fail for the same reason.
-                        # Re-raise immediately to stop all task iteration.
-                        if not isinstance(raised, Exception):
-                            raise AirflowFailException(
-                                f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
-                                f"{type(raised).__name__}: {raised}"
-                            ) from raised
-
-                        self.log.exception(
-                            "An exception occurred for task_id %s with index %s",
-                            task.task_id,
-                            task.index,
-                            exc_info=raised,
+                    if isinstance(raised, TaskDeferred):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
+                            "Deferrable operators are not supported inside IterableOperator."
                         )
-                        exceptions.append(raised)
 
-            if not failed_tasks:
-                if exceptions:
-                    raise self.expand_input.wrap_exceptions(exceptions)
-                if do_xcom_push:
-                    from airflow.sdk.bases.xcom import XComIterable
+                    # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
+                    # KeyboardInterrupt, SystemExit) must never be swallowed: they
+                    # signal conditions where continuing iteration is meaningless
+                    # because every subsequent task would fail for the same reason.
+                    # Re-raise immediately to stop all task iteration.
+                    if not isinstance(raised, Exception):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
+                            f"{type(raised).__name__}: {raised}"
+                        ) from raised
 
-                    return XComIterable(
-                        task_id=self.task_id,
-                        dag_id=self.dag_id,
-                        run_id=context["run_id"],
-                        length=len(self.expand_input),
-                        map_index=context["ti"].map_index,
+                    self.log.exception(
+                        "An exception occurred for task_id %s with index %s",
+                        task.task_id,
+                        task.index,
+                        exc_info=raised,
                     )
-                return None
+                    exceptions.append(raised)
 
-            # If the retry time is still in the future we defer the operator so the worker
-            # slot is released. If the retry time has already passed we immediately re-run
-            # the failed tasks without deferring.
-            if reschedule_date > timezone.utcnow():
-                if ExternalDateTimeTrigger is not None:
-                    self.defer(
-                        trigger=ExternalDateTimeTrigger(reschedule_date),
-                        method_name=self.execute_failed_tasks.__name__,
-                        kwargs={
-                            "failed_tasks": {
-                                failed_task.index: failed_task.try_number for failed_task in failed_tasks
-                            },
-                        },
-                    )
-                else:
-                    self.log.warning(
-                        "DateTimeTrigger is not available; failed tasks cannot be rescheduled at %s and will be retried immediately",
-                        reschedule_date,
-                    )
+        if exceptions:
+            raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
+        if do_xcom_push:
+            from airflow.sdk.bases.xcom import XComIterable
 
-            tasks = list(failed_tasks)
-            failed_tasks.clear()
-            exceptions.clear()
-            reschedule_date = timezone.utcnow()
+            return XComIterable(
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+                run_id=context["run_id"],
+                length=len(self.expand_input),
+                map_index=context["ti"].map_index,
+            )
+        return None
+
+    def _checkpoint_key(self, index: int) -> str:
+        return f"{_ITERABLE_CHECKPOINT_KEY_PREFIX}{index}"
 
     async def _run_task(
         self,
@@ -383,18 +333,38 @@ class IterableOperator(BaseOperator):
         context: Context,
         task: IndexedTaskInstance,
     ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
+        task_state_store = context["task_state_store"]
+        checkpoint = await task_state_store.aget(self._checkpoint_key(task.index))
+        if isinstance(checkpoint, dict):
+            if checkpoint.get("status") == "succeeded":
+                self.log.info(
+                    "Skipping task instance %s for %s which already finished successfully after %s attempts",
+                    task.index,
+                    task.task_id,
+                    checkpoint.get("try_number", 0) + 1,
+                )
+                return task, None, None
+            task.try_number = checkpoint.get("try_number", 0)
+
         try:
             if task.is_async:
                 result = await self._run_async_operator(context, task)
             else:
                 result = await executor.run_sync(self._run_operator, context, task)
 
-            # Push XCom asynchronously (non-blocking)
             if result is not None and task.do_xcom_push:
                 await self._xcom_push(task, result)
 
+            await task_state_store.aset(
+                self._checkpoint_key(task.index),
+                {"status": "succeeded", "try_number": task.try_number},
+            )
             return task, result, None
         except BaseException as e:
+            await task_state_store.aset(
+                self._checkpoint_key(task.index),
+                {"status": "pending", "try_number": task.try_number},
+            )
             return task, None, e
 
     def _run_operator(self, context: Context, task_instance: IndexedTaskInstance):
@@ -467,33 +437,6 @@ class IterableOperator(BaseOperator):
         )
         return self._run_tasks(context=context, tasks=tasks)
 
-    def execute_failed_tasks(
-        self,
-        context: Context,
-        failed_tasks: dict[str, int],
-        event: dict[Any, Any],
-    ):
-        """
-        Execute failed tasks after resuming from deferred state.
-
-        :param context: The execution context.
-        :param failed_tasks: A dict mapping task index to its try_number.
-        :param event: The event that triggered the resume.
-        """
-        jinja_env = self.get_template_env(dag=self.dag)
-        tasks = (
-            self._create_task(
-                context=context,
-                index=index,
-                try_number=failed_tasks[str(index)],
-                jinja_env=jinja_env,
-                mapped_kwargs=value,
-            )
-            for index, value in enumerate(self.expand_input.iter_values(context=context))
-            if str(index) in failed_tasks
-        )
-        return self._run_tasks(context=context, tasks=tasks)
-
 
 class MappedIterableOperator(MappedOperator):
     """A thin wrapper around an existing MappedOperator that unmaps an MappedOperator within an IterableOperator."""
@@ -524,14 +467,11 @@ class MappedIterableOperator(MappedOperator):
 
     @property
     def retries(self) -> int:
-        return 0  # We should not retry the IterableOperator, only the indexed runtime ti's should be retried
+        return self.delegate.retries
 
     @retries.setter
     def retries(self, value: int) -> None:
-        if value != 0:
-            raise ValueError(
-                "MappedIterableOperator always has retries=0; retries are handled by indexed tasks."
-            )
+        self.delegate.retries = value
 
     def __repr__(self):
         return f"<MappedIterable({self.task_type}): {self.task_id}>"

@@ -43,11 +43,7 @@ from typing import TYPE_CHECKING, Any, cast
 from airflow.sdk import BaseAsyncOperator, BaseOperator, TaskInstanceState, timezone
 from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
-from airflow.sdk.exceptions import (
-    AirflowRescheduleException,
-    AirflowRescheduleTaskInstanceException,
-    TaskDeferred,
-)
+from airflow.sdk.exceptions import TaskDeferred
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.context import context_get_outlet_events, set_current_context
 from airflow.sdk.execution_time.task_runner import (
@@ -303,14 +299,6 @@ class TaskExecutor(LoggingMixin):
                         self.task_instance.task, "on_failure_callback", self._context, self.log
                     )
                 raise exc_value
-            # AirflowRescheduleException (base) is raised by reschedule-mode sensors.
-            # Pass it through without consuming the retry budget so _run_tasks can
-            # detect and reject it with a clear "not supported" error, mirroring the
-            # TaskDeferred treatment below.
-            if isinstance(exc_value, AirflowRescheduleException) and not isinstance(
-                exc_value, AirflowRescheduleTaskInstanceException
-            ):
-                raise exc_value
             if not isinstance(exc_value, TaskDeferred):
                 if self.task_instance.next_try_number > self.task_instance.max_tries:
                     self.log.error(
@@ -334,10 +322,6 @@ class TaskExecutor(LoggingMixin):
                     _run_task_state_change_callbacks(
                         self.task_instance.task, "on_retry_callback", self._context, self.log
                     )
-                raise AirflowRescheduleTaskInstanceException(
-                    task=self.task_instance,
-                    reschedule_date=self.task_instance.next_retry_datetime(),
-                )
             raise exc_value
 
         self.task_instance.state = TaskInstanceState.SUCCESS

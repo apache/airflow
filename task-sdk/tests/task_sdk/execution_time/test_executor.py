@@ -26,11 +26,7 @@ from task_sdk.execution_time.test_task_runner import get_inline_dag
 from airflow.sdk import BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.bases.operator import event_loop
-from airflow.sdk.exceptions import (
-    AirflowRescheduleException,
-    AirflowRescheduleTaskInstanceException,
-    TaskDeferred,
-)
+from airflow.sdk.exceptions import AirflowRescheduleException, TaskDeferred
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
 
 from tests_common.test_utils.mock_context import mock_context
@@ -282,10 +278,10 @@ class TestTaskExecutor:
             with TaskExecutor(task_instance=ti):
                 raise deferred
 
-    def test_exit_with_reschedule_exception_passes_through(self, make_indexed_ti):
-        """AirflowRescheduleException (base, from a reschedule-mode sensor) must propagate
-        unchanged through __exit__ without consuming the retry budget or setting task state,
-        so _run_tasks can detect and reject it with a clear error."""
+    def test_exit_with_reschedule_exception_is_retried_like_any_other_exception(self, make_indexed_ti):
+        """AirflowRescheduleException (base, from a reschedule-mode sensor) is no longer special-cased:
+        it is retried the same way as any other exception, since retries are now handled by Airflow's
+        standard mechanism at the IterableOperator level rather than by the indexed sub-task."""
         ti = make_indexed_ti(try_number=0, max_tries=3)
         from datetime import timedelta
 
@@ -297,20 +293,20 @@ class TestTaskExecutor:
             with TaskExecutor(task_instance=ti):
                 raise exc
 
-        # State and try_number must be unchanged — this is not a retry-eligible failure.
-        assert ti.try_number == 0
-        assert ti.state != TaskInstanceState.FAILED
+        assert ti.try_number == 1  # incremented, same as any other retryable exception
+        assert ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
 
     def test_exit_reschedules_when_retries_remain(self, make_indexed_ti):
         """
         When a retryable exception occurs and retries are not exhausted,
-        the task state is set to UP_FOR_RESCHEDULE and
-        AirflowRescheduleTaskInstanceException is raised.
+        the task state is set to UP_FOR_RESCHEDULE and the original exception is
+        re-raised unchanged — retries are handled by Airflow's standard mechanism
+        retrying the whole IterableOperator, not by the indexed sub-task itself.
         """
         # try_number=0 → next_try_number=1; max_tries=3 → 1 <= 3, reschedule
         ti = make_indexed_ti(try_number=0, max_tries=3)
 
-        with pytest.raises(AirflowRescheduleTaskInstanceException):
+        with pytest.raises(RuntimeError, match="transient failure"):
             with TaskExecutor(task_instance=ti):
                 raise RuntimeError("transient failure")
 
@@ -351,7 +347,7 @@ class TestTaskExecutor:
                     raise RuntimeError("err")
             assert ti.state == TaskInstanceState.FAILED
         else:
-            with pytest.raises(AirflowRescheduleTaskInstanceException):
+            with pytest.raises(RuntimeError):
                 with TaskExecutor(task_instance=ti):
                     raise RuntimeError("err")
             assert ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
@@ -470,7 +466,7 @@ class TestTaskExecutor:
         executor = TaskExecutor(task_instance=ti)
         executor._context = context
 
-        with pytest.raises(AirflowRescheduleTaskInstanceException):
+        with pytest.raises(RuntimeError, match="transient"):
             with executor:
                 raise RuntimeError("transient")
 
