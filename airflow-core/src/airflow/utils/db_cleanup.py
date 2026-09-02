@@ -202,7 +202,7 @@ config_list: list[_TableConfig] = [
         recency_column_name="expires_at",
         dag_id_column_name="dag_id",
     ),
-    _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
