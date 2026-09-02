@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final, cast
 from urllib.parse import urlparse
+
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.links.athena import AthenaQueryResultsLink
@@ -31,6 +33,7 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
 _DURABLE_UNSET = object()
+_NOT_FOUND_QUERY_STATE: Final[str] = "NOT_FOUND"
 
 
 def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
@@ -41,6 +44,16 @@ def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
             stacklevel=3,
         )
     return False
+
+
+def _is_query_not_found_error(*, error: ClientError, query_execution_id: str) -> bool:
+    error_details: dict[str, Any] = error.response.get("Error", {})
+    message: Any = error_details.get("Message")
+    return (
+        error_details.get("Code") == "InvalidRequestException"
+        and isinstance(message, str)
+        and message == f"QueryExecution {query_execution_id} was not found"
+    )
 
 
 try:
@@ -241,7 +254,12 @@ class AthenaOperator(ResumableJobMixin, AwsBaseOperator[AthenaHook]):
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         query_execution_id = cast("str", external_id)
         self._set_query_execution_id(context=context, query_execution_id=query_execution_id)
-        query_status = self.hook.check_query_status(query_execution_id=query_execution_id)
+        try:
+            query_status = self.hook.check_query_status(query_execution_id=query_execution_id)
+        except ClientError as error:
+            if _is_query_not_found_error(error=error, query_execution_id=query_execution_id):
+                return _NOT_FOUND_QUERY_STATE
+            raise
         if query_status not in (*AthenaHook.INTERMEDIATE_STATES, *AthenaHook.TERMINAL_STATES):
             raise ValueError(f"Unexpected Athena query status: {query_status!r}")
         self._query_status = query_status

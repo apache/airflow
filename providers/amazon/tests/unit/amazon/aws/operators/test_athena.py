@@ -22,6 +22,7 @@ import warnings
 from unittest import mock
 
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -478,6 +479,16 @@ class TestAthenaOperator:
 )
 class TestAthenaOperatorDurableExecution:
     @staticmethod
+    def _invalid_request_error(message: str) -> ClientError:
+        return ClientError(
+            error_response={
+                "Error": {"Code": "InvalidRequestException", "Message": message},
+                "ResponseMetadata": {"HTTPStatusCode": 400},
+            },
+            operation_name="GetQueryExecution",
+        )
+
+    @staticmethod
     def _context(task_state_store):
         return {
             "ti": mock.MagicMock(spec_set=["stats_tags"], stats_tags={}),
@@ -595,6 +606,46 @@ class TestAthenaOperatorDurableExecution:
             workgroup=MOCK_DATA["workgroup"],
         )
         task_state_store.set.assert_called_once_with("athena_query_execution_id", "new-query-id")
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
+    @mock.patch.object(AthenaHook, "check_query_status")
+    @mock.patch.object(AthenaHook, "run_query", return_value="new-query-id")
+    def test_missing_query_resubmits(self, mock_run_query, mock_check_status, mock_poll, mock_persist):
+        operator = self._make_operator()
+        mock_check_status.side_effect = self._invalid_request_error(
+            f"QueryExecution {ATHENA_QUERY_ID} was not found"
+        )
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        assert operator.execute(self._context(task_state_store)) == "new-query-id"
+
+        mock_run_query.assert_called_once()
+        task_state_store.set.assert_called_once_with("athena_query_execution_id", "new-query-id")
+
+    @mock.patch.object(AthenaQueryResultsLink, "persist")
+    @mock.patch.object(AthenaHook, "check_query_status")
+    @mock.patch.object(AthenaHook, "run_query")
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "QueryExecutionId is malformed",
+            "QueryExecution 0f8db785-a48f-42c2-84c5-d749b034234a was not found",
+        ],
+    )
+    def test_other_invalid_request_is_raised(self, mock_run_query, mock_check_status, mock_persist, message):
+        operator = self._make_operator()
+        error = self._invalid_request_error(message)
+        mock_check_status.side_effect = error
+        task_state_store = mock.MagicMock(spec_set=["get", "set"])
+        task_state_store.get.return_value = ATHENA_QUERY_ID
+
+        with pytest.raises(ClientError) as caught:
+            operator.execute(self._context(task_state_store))
+
+        assert caught.value is error
+        mock_run_query.assert_not_called()
 
     @mock.patch.object(AthenaQueryResultsLink, "persist")
     @mock.patch.object(AthenaHook, "poll_query_status", return_value="SUCCEEDED")
