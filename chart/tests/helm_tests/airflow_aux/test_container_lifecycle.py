@@ -55,7 +55,7 @@ class TestContainerLifecycleHooks:
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) is None
 
         pgbouncer_default_value = {
-            "exec": {"command": ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]}
+            "exec": {"command": ["/bin/sh", "-c", "sleep 10 && killall -INT pgbouncer && sleep 20"]}
         }
         assert pgbouncer_default_value == jmespath.search(
             "spec.template.spec.containers[0].lifecycle.preStop", docs[-1]
