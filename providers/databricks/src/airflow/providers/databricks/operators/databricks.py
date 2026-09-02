@@ -329,6 +329,14 @@ _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
 )
 
 
+def _get_forwardable_dag_params(params: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the Dag params that can be forwarded to Databricks."""
+    # A Param that resolves to None has no value to forward, and the Databricks payload has no
+    # slot for null. The dict() round-trip is what resolves each Param: ParamsDict.items() yields
+    # the Param objects themselves, none of which would ever compare equal to None.
+    return {key: value for key, value in dict(params).items() if value is not None}
+
+
 def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
     """Set dict-shaped per-task parameter fields from ``params`` if they are not already set."""
     for task_key, field in _DICT_PARAM_FIELD_BY_TASK.items():
@@ -468,7 +476,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
         If ``parameters`` is not set in ``json`` and the operator's ``params`` dict is non-empty,
         the operator's ``params`` are automatically converted to job-level ``parameters`` (a list
         of ``{"name": k, "default": v}`` entries) so that Airflow Dag params can be forwarded as
-        Databricks job parameters without hardcoding them in ``json``.
+        Databricks job parameters without hardcoding them in ``json``. Params whose value is
+        ``None`` are skipped.
 
     """
 
@@ -575,8 +584,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if "name" not in json:
             raise AirflowException("Missing required parameter: name")
         job_id = self._hook.find_job_id_by_name(json["name"])
-        if not json.get("parameters") and self.params:
-            json["parameters"] = [{"name": k, "default": v} for k, v in dict(self.params).items()]
+        if not json.get("parameters") and (forwardable_params := _get_forwardable_dag_params(self.params)):
+            json["parameters"] = [{"name": k, "default": v} for k, v in forwardable_params.items()]
         if job_id is None:
             return self._hook.create_job(json)
         self._hook.reset_job(str(job_id), json)
@@ -734,7 +743,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         ``sql_task.parameters``, ``run_job_task.job_parameters``. Tasks whose only parameter
         field is ``List[str]`` (``spark_jar_task``, ``spark_python_task``, ``spark_submit_task``)
         are skipped because there is no canonical mapping from a key/value dict to a positional
-        argument list.
+        argument list. Params whose value is ``None`` are skipped.
     """
 
     external_id_key = "databricks_run_id"
@@ -921,15 +930,14 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del json["pipeline_task"]["pipeline_name"]
 
-        if self.params:
-            params_dump = dict(self.params)
+        if forwardable_params := _get_forwardable_dag_params(self.params):
             tasks = json.get("tasks")
             if isinstance(tasks, list):
                 for task in tasks:
                     if isinstance(task, dict):
-                        _inject_airflow_params_into_task(task, params_dump)
+                        _inject_airflow_params_into_task(task, forwardable_params)
             else:
-                _inject_airflow_params_into_task(json, params_dump)
+                _inject_airflow_params_into_task(json, forwardable_params)
 
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
             self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
@@ -1221,7 +1229,8 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
         non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
         so that Airflow Dag params can be passed dynamically to Databricks runs without
-        hardcoding them in ``json``. Set ``forward_dag_params=False`` to disable this.
+        hardcoding them in ``json``. Params whose value is ``None`` are skipped. Set
+        ``forward_dag_params=False`` to disable this.
         Note that the Databricks API does not permit ``job_parameters`` to be used in combination
         with ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
         ``python_named_params``, or ``dbt_commands``; auto-forwarding is automatically skipped
@@ -1378,10 +1387,10 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         if (
             self.forward_dag_params
             and not json.get("job_parameters")
-            and self.params
             and not any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS)
+            and (forwardable_params := _get_forwardable_dag_params(self.params))
         ):
-            json["job_parameters"] = dict(self.params)
+            json["job_parameters"] = forwardable_params
 
         return json
 
