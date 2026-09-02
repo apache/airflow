@@ -18,7 +18,7 @@
 Examples
 ========
 
-.. note:: For a minimal quick start, see the `Getting Started <getting-started>` section.
+.. note:: For a minimal quick start, see the :ref:`Getting Started <getting-started>` section.
 
 Key Concepts
 ------------
