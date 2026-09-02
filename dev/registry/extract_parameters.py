@@ -95,6 +95,7 @@ class Module:
     provider_id: str
     provider_name: str
     supports_durable_execution: bool
+    supports_deferrable: bool
 
 
 def get_category(integration_name: str) -> str:
@@ -432,6 +433,41 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     return "execute_resumable" in source
 
 
+# Hand verified set that contains classes where self.defer()/self.deferrable is reachable only
+# through a helper method one call away from execute() (e.g. TriggerDagRunOperator
+# delegates to _trigger_dag_af_2()), so the source grep below can't find it.
+# Add an entry only after confirming self.defer() is genuinely reachable.
+_DEFERRABLE_EXCEPTIONS = {
+    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator",
+}
+
+
+def supports_deferrable(cls: type) -> bool:
+    """Return True if the class's resolved execute() actually references deferral.
+
+    Checking for a `deferrable` constructor parameter isn't enough: a subclass can
+    inherit the parameter while overriding execute() with code that never reads it,
+    and an operator that always defers unconditionally has no parameter
+    to find at all. Resolving execute() via getattr and checking its own source for
+    self.deferrable or self.defer answers "does this code path use deferral"
+    directly, instead of proxying through whether a setting merely exists somewhere
+    in the class hierarchy.
+    """
+    qualified_name = f"{cls.__module__}.{cls.__qualname__}"
+    if qualified_name in _DEFERRABLE_EXCEPTIONS:
+        return True
+
+    execute = getattr(cls, "execute", None)
+    if execute is None:
+        return False
+    try:
+        source = inspect.getsource(execute)
+    except (OSError, TypeError):
+        return False
+
+    return "self.deferrable" in source or "self.defer" in source
+
+
 def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
     """Split a dotted ``module.name`` path and import ``name`` from that module.
 
@@ -463,7 +499,7 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 12 Module fields.
+    and returns metadata for each discovered class with all 13 Module fields.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -512,7 +548,7 @@ def discover_classes_from_provider(
         category: str = "",
         transfer_desc: str | None = None,
     ) -> dict:
-        """Build a full module entry dict with all 12 fields."""
+        """Build a full module entry dict with all fields."""
         module_name = module_path.split(".")[-1]
         docstring = _get_first_docstring_line(cls_or_obj)
         short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
@@ -530,6 +566,7 @@ def discover_classes_from_provider(
             "provider_id": provider_id,
             "provider_name": provider_name,
             "supports_durable_execution": is_durable_capable(cls_or_obj, resumable_mixin),
+            "supports_deferrable": supports_deferrable(cls_or_obj),
         }
 
     discovered: list[dict] = []

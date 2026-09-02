@@ -3287,6 +3287,7 @@ main {
 /* Modules section header */
 .modules-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -3295,6 +3296,26 @@ main {
 
 .module-search-wrapper {
   max-width: 16rem;
+}
+
+.capability-filter-toggles {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.capability-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.capability-filter-toggle input {
+  cursor: pointer;
 }
 
 /* Modules */
@@ -3459,7 +3480,8 @@ main {
   margin-bottom: var(--space-1);
 }
 
-.provider-detail-page .modules .module .content h3 .durable-badge {
+.provider-detail-page .modules .module .content h3 .durable-badge,
+.provider-detail-page .modules .module .content h3 .deferrable-badge {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
@@ -3468,8 +3490,18 @@ main {
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   border-radius: var(--radius-lg);
+}
+
+.provider-detail-page .modules .module .content h3 .durable-badge {
   background: color-mix(in srgb, var(--color-teal-500) 15%, transparent);
-  color: var(--color-teal-400);
+  color: var(--color-teal-700);
+  color: light-dark(var(--color-teal-700), var(--color-teal-400));
+}
+
+.provider-detail-page .modules .module .content h3 .deferrable-badge {
+  background: color-mix(in srgb, var(--color-blue-500) 15%, transparent);
+  color: var(--color-blue-700);
+  color: light-dark(var(--color-blue-700), var(--color-blue-400));
 }
 
 .provider-detail-page .modules .module .content p {

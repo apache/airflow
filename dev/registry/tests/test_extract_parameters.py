@@ -37,6 +37,7 @@ from extract_parameters import (
     get_category,
     is_durable_capable,
     load_resumable_job_mixin,
+    supports_deferrable,
 )
 
 
@@ -268,10 +269,97 @@ class TestIsDurableCapable:
 
 
 # ---------------------------------------------------------------------------
+# supports_deferrable
+# ---------------------------------------------------------------------------
+class DeferrableOperator:
+    """Mirrors HttpOperator: reads self.deferrable directly in its own execute()."""
+
+    def __init__(self, *, deferrable: bool = False):
+        self.deferrable = deferrable
+
+    def execute(self, context):
+        if self.deferrable:
+            return self.execute_async(context)
+        return self.execute_sync(context)
+
+    def execute_async(self, context):
+        return None
+
+    def execute_sync(self, context):
+        return None
+
+
+class NonDeferrableOperator:
+    def __init__(self, *, some_other_param: str = ""):
+        self.some_other_param = some_other_param
+
+    def execute(self, context):
+        return None
+
+
+class OverridesExecuteWithoutDeferring(DeferrableOperator):
+    """Mirrors DiscordWebhookOperator: inherits the deferrable param but overrides
+    execute() with synchronous code that never reads it -- an inherited, dead knob."""
+
+    def execute(self, context):
+        return self.hook_call(context)
+
+    def hook_call(self, context):
+        return None
+
+
+class InheritsDeferringExecute(DeferrableOperator):
+    """Mirrors TimeDeltaSensorAsync: doesn't override execute() at all -- still
+    defers because the inherited method is what actually runs."""
+
+
+class AlwaysDeferringOperator:
+    """Mirrors DateTimeSensorAsync: defers unconditionally, no toggle to find."""
+
+    def execute(self, context):
+        self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class TestSupportsDeferrable:
+    def test_reads_deferrable_directly_qualifies(self):
+        assert supports_deferrable(DeferrableOperator) is True
+
+    def test_no_deferral_reference_disqualifies(self):
+        assert supports_deferrable(NonDeferrableOperator) is False
+
+    def test_inherited_param_but_overridden_execute_disqualifies(self):
+        """The Discord regression case: an inherited deferrable knob that the
+        subclass's own execute() never reads must not count as deferrable."""
+        assert supports_deferrable(OverridesExecuteWithoutDeferring) is False
+
+    def test_inherited_unmodified_execute_qualifies(self):
+        assert supports_deferrable(InheritsDeferringExecute) is True
+
+    def test_unconditional_defer_with_no_param_qualifies(self):
+        assert supports_deferrable(AlwaysDeferringOperator) is True
+
+    def test_exception_list_entry_qualifies_despite_no_source_match(self):
+        class FakeTriggerDagRunOperator:
+            def execute(self, context):
+                return self._trigger_dag_af_2(context)
+
+            def _trigger_dag_af_2(self, context):
+                return None
+
+        FakeTriggerDagRunOperator.__module__ = "airflow.providers.standard.operators.trigger_dagrun"
+        FakeTriggerDagRunOperator.__qualname__ = "TriggerDagRunOperator"
+
+        assert supports_deferrable(FakeTriggerDagRunOperator) is True
+
+
+# ---------------------------------------------------------------------------
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_12_fields(self):
+    def test_has_all_13_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -285,6 +373,7 @@ class TestModuleDataclass:
             provider_id="amazon",
             provider_name="Amazon",
             supports_durable_execution=False,
+            supports_deferrable=False,
         )
         assert m.id == "amazon-s3-S3Hook"
         assert m.provider_name == "Amazon"
@@ -848,6 +937,48 @@ class TestDiscoverClassesFromProviderDurableExecution:
             result = discover_classes_from_provider(yaml_path, base_classes={})
 
         assert result[0]["supports_durable_execution"] is False
+
+
+class TestDiscoverClassesFromProviderDeferrable:
+    def test_marks_deferrable_and_plain_operators(self, tmp_path):
+        class DeferrableProviderOperator(DeferrableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "DeferrableProviderOperator": DeferrableProviderOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["DeferrableProviderOperator"]["supports_deferrable"] is True
+        assert by_name["PlainProviderOperator"]["supports_deferrable"] is False
 
 
 # ---------------------------------------------------------------------------
