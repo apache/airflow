@@ -46,6 +46,7 @@ from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetche
 from airflow.providers.amazon.version_compat import NOTSET
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, TaskDeferred
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_NAME = "test_cluster"
@@ -262,7 +263,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.cluster == "c"
         assert self.ecs.overrides == {}
         assert self.ecs.awslogs_region is None
-        assert self.ecs.durable is True
+        assert self.ecs.durable is AIRFLOW_V_3_3_PLUS
 
     def test_get_task_log_fetcher_uses_region_name_when_awslogs_region_not_set(self):
         self.set_up_operator(
@@ -494,6 +495,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         check_mock.assert_called_once_with()
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     def test_retry_after_remote_success_does_not_submit_duplicate(self, monkeypatch):
         task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
         client = SuccessfulEcsTaskClient(task_arn)
@@ -507,6 +509,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert client.describe_tasks_calls == [{"cluster": "c", "tasks": [task_arn]}]
         assert self.ecs.arn == task_arn
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     @mock.patch.object(
         EcsRunTaskOperator,
         "_get_last_log_message",
@@ -532,6 +535,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert ti.xcom_values == {"ecs_task_arn": task_arn}
         last_log_mock.assert_called_once_with(self.ecs)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     @mock.patch.object(EcsRunTaskOperator, "_get_task_log_fetcher", autospec=True)
     def test_retry_reattaches_to_active_task_and_returns_last_log(self, log_fetcher_mock, monkeypatch):
         task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
@@ -553,6 +557,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert client.describe_tasks_calls[0] == {"cluster": "c", "tasks": [task_arn]}
         client.waiter.wait.assert_called_once()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     @pytest.mark.parametrize(
         "stored_response",
         [
@@ -599,6 +604,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.run_task.assert_called_once()
         assert store.get("ecs_task_arn") == new_task_arn
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     @mock.patch.object(EcsBaseOperator, "client")
     def test_retry_preserves_skip_exit_code(self, client_mock):
         task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
@@ -619,6 +625,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         client_mock.run_task.assert_not_called()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended", autospec=True)
     @mock.patch.object(EcsBaseOperator, "client")
     def test_persists_task_arn_before_polling(self, client_mock, wait_mock):
@@ -660,6 +667,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert self.ecs.durable is False
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
     def test_reconnected_task_is_not_stopped_on_waiter_error(self, monkeypatch):
         task_arn = f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
         client = RunningThenSuccessfulEcsTaskClient(task_arn)
