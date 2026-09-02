@@ -21,9 +21,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
-import { TabEntity, TabName } from "src/constants/tab";
+
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
 import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
@@ -47,6 +48,7 @@ import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
+import { LandingPage } from "src/pages/LandingPage";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Details as MappedTaskInstanceDetails } from "src/pages/MappedTaskInstance/Details";
 import { Plugins } from "src/pages/Plugins";
@@ -61,6 +63,7 @@ import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
+import { DefaultTab as TaskInstanceDefaultTab } from "src/pages/TaskInstance/DefaultTab";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
 import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
@@ -68,6 +71,8 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
+
+import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
 import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";
@@ -78,21 +83,22 @@ const pluginRoute = {
 };
 
 export const taskInstanceRoutes = [
-  { element: <Logs />, index: true, path: undefined },
-  { element: <Events />, path: "events" },
+  { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
+  { element: <Logs />, path: TaskInstanceTab.Logs },
+  { element: <Events />, path: TaskInstanceTab.Events },
   {
     children: [
-      { element: <TaskStateStore />, path: "task-state-store" },
-      { element: <XCom />, path: "xcom" },
+      { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
+      { element: <XCom />, path: TaskInstanceTab.XCom },
     ],
     element: <StorageLayout />,
   },
-  { element: <Code />, path: "code" },
-  { element: <TaskInstanceDetails />, path: "details" },
-  { element: <RenderedTemplates />, path: "rendered_templates" },
-  { element: <TaskInstances />, path: "task_instances" },
-  { element: <TaskInstanceAssetEvents />, path: "asset_events" },
-  { element: <HITLResponse />, path: "required_actions" },
+  { element: <Code />, path: TaskInstanceTab.Code },
+  { element: <TaskInstanceDetails />, path: TaskInstanceTab.Details },
+  { element: <RenderedTemplates />, path: TaskInstanceTab.RenderedTemplates },
+  { element: <TaskInstances />, path: TaskInstanceTab.TaskInstances },
+  { element: <TaskInstanceAssetEvents />, path: TaskInstanceTab.AssetEvents },
+  { element: <HITLResponse />, path: TaskInstanceTab.RequiredActions },
   pluginRoute,
 ];
 
@@ -100,8 +106,12 @@ export const routerConfig = [
   {
     children: [
       {
-        element: <Dashboard />,
+        element: <LandingPage />,
         index: true,
+      },
+      {
+        element: <Dashboard />,
+        path: "home",
       },
       {
         element: <HITLTaskInstances enableHITLReviewDrawer />,

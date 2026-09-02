@@ -21,7 +21,9 @@ import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
+
+import { RouterLink } from "src/system-components";
+
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
@@ -31,7 +33,8 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { TeamName } from "src/components/TeamName";
-import { RouterLink } from "src/components/ui";
+
+import { DagIcon } from "src/assets/DagIcon";
 import { useShowTeam } from "src/hooks/useShowTeam";
 
 import { DagOwners } from "../DagsList/DagOwners";
