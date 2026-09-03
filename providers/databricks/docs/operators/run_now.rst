@@ -46,6 +46,7 @@ All other parameters are optional and described in documentation for ``Databrick
 * ``jar_params``
 * ``spark_submit_params``
 * ``idempotency_token``
+* ``performance_target``
 * ``repair_run``
 * ``cancel_previous_runs``
 
