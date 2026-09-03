@@ -264,10 +264,37 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
   persisted to task state before polling begins, so a worker crash and retry reconnects to the
   existing pod instead of submitting a fresh one. Set ``durable=False`` to always
   submit a fresh driver on retry.
-* Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
-  containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not
-  advance to ``Succeeded`` until all sidecars exit. In that case the poll loop will wait
-  indefinitely — set ``execution_timeout`` as a hard bound.
+
+**Sidecar containers and driver container identification**
+
+Completion is detected from the driver container's own exit code rather than from
+``pod.status.phase`` alone. This matters if your driver pods have sidecar containers: the pod
+phase may not advance to ``Succeeded`` until every container exits, but the operator identifies
+the driver container specifically and finishes as soon as it exits 0, without waiting on
+unrelated sidecars.
+
+By default the driver container is identified by name, preferring a container with ``driver`` in
+its name, then one with ``spark`` in its name, falling back to the pod's only container if there
+is just one. If this heuristic doesn't match your setup, set ``k8s_driver_container_name`` to
+the exact container name:
+
+.. code-block:: python
+
+   run_spark = SparkSubmitOperator(
+       task_id="run_spark",
+       application="local:///opt/spark/examples/jars/spark-examples.jar",
+       conn_id="spark_k8s",
+       deploy_mode="cluster",
+       track_driver_via_k8s_api=True,
+       k8s_driver_container_name="spark-kubernetes-driver",
+   )
+
+If ``k8s_driver_container_name`` doesn't match any container on the pod, the task fails
+immediately with a ``ValueError`` rather than silently falling back to the heuristic.
+
+If the pod phase reports ``Failed`` but the driver container itself exited 0 (for example, a
+sidecar crashed after the driver finished), the operator logs a warning and still treats the task
+as succeeded.
 
 YARN ResourceManager API tracking
 """""""""""""""""""""""""""""""""
