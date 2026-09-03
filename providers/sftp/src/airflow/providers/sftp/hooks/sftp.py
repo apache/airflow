@@ -41,7 +41,7 @@ from paramiko.config import SSH_PORT
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, Connection
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, Connection, timezone
 from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -1154,6 +1154,53 @@ class SFTPHookAsync(BaseHook):
                     return mod_time
                 except asyncssh.SFTPNoSuchFile:
                     raise AirflowException("No files matching")
+
+    async def sense_files_by_pattern(
+        self,
+        path: str,
+        fnmatch_pattern: str,
+        newer_than: datetime.datetime | None = None,
+    ) -> list[str]:
+        """
+        Return the names of files at ``path`` matching ``fnmatch_pattern``.
+
+        If ``newer_than`` is provided, only files modified after that timestamp are returned; files
+        without a reported modification time are skipped in that case.
+
+        :param path: directory on the SFTP server to search for files matching the pattern
+        :param fnmatch_pattern: pattern used to match filenames, see the ``fnmatch`` std library module
+        :param newer_than: if provided, only files modified after this UTC timestamp are returned
+        """
+        files = await self.get_files_and_attrs_by_pattern(path=path, fnmatch_pattern=fnmatch_pattern)
+        if not newer_than:
+            return [str(file.filename) for file in files]
+
+        matched_files = []
+        for file in files:
+            if file.attrs.mtime is None:
+                continue
+            if newer_than <= self._mod_time_to_utc(file.attrs.mtime):
+                matched_files.append(str(file.filename))
+        return matched_files
+
+    async def sense_path(self, path: str, newer_than: datetime.datetime | None = None) -> bool:
+        """
+        Return whether ``path`` exists and, if ``newer_than`` is provided, was modified since.
+
+        :param path: full path to the remote file
+        :param newer_than: if provided, the file must have been modified after this UTC timestamp
+        """
+        mod_time = await self.get_mod_time(path)
+        if not newer_than:
+            return True
+        return newer_than <= self._mod_time_to_utc(mod_time)
+
+    @staticmethod
+    def _mod_time_to_utc(mod_time: int | float | str) -> datetime.datetime:
+        """Convert a modification time, either an epoch timestamp or ``%Y%m%d%H%M%S`` string, to UTC."""
+        if not isinstance(mod_time, str):
+            mod_time = datetime.datetime.fromtimestamp(float(mod_time)).strftime("%Y%m%d%H%M%S")
+        return timezone.convert_to_utc(datetime.datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
 
     async def transfer(
         self,

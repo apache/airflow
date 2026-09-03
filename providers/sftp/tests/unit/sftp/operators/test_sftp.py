@@ -33,7 +33,7 @@ from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
-from airflow.providers.sftp.triggers.sftp import SFTPOperationTrigger
+from airflow.providers.sftp.triggers.sftp import SFTPTransferTrigger
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
@@ -691,7 +691,7 @@ class TestSFTPOperatorDeferrable:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context={})
-        assert isinstance(exc.value.trigger, SFTPOperationTrigger)
+        assert isinstance(exc.value.trigger, SFTPTransferTrigger)
         assert exc.value.method_name == "execute_complete"
 
     def test_sftp_operator_execute_complete_success(self):
@@ -723,13 +723,13 @@ class TestSFTPOperatorDeferrable:
             operator.execute_complete(context={}, event=event)
 
 
-class TestSFTPOperationTrigger:
-    """Tests for SFTPOperationTrigger."""
+class TestSFTPTransferTrigger:
+    """Tests for SFTPTransferTrigger."""
 
     def test_serialize_roundtrip(self):
         """Test that serialize() produces correct output for reconstruction."""
-        trigger = SFTPOperationTrigger(
-            ssh_conn_id="ssh_default",
+        trigger = SFTPTransferTrigger(
+            sftp_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
             remote_filepath="/remote/test.txt",
             operation="put",
@@ -740,8 +740,8 @@ class TestSFTPOperationTrigger:
             prefetch=True,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPOperationTrigger"
-        assert kwargs["ssh_conn_id"] == "ssh_default"
+        assert classpath == "airflow.providers.sftp.triggers.sftp.SFTPTransferTrigger"
+        assert kwargs["sftp_conn_id"] == "ssh_default"
         assert kwargs["local_filepath"] == "/tmp/test.txt"
         assert kwargs["remote_filepath"] == "/remote/test.txt"
         assert kwargs["operation"] == "put"
@@ -754,8 +754,8 @@ class TestSFTPOperationTrigger:
         """Test run() yields TriggerEvent with status success."""
         import asyncio
 
-        trigger = SFTPOperationTrigger(
-            ssh_conn_id="ssh_default",
+        trigger = SFTPTransferTrigger(
+            sftp_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
             remote_filepath="/remote/test.txt",
             operation="put",
@@ -775,8 +775,8 @@ class TestSFTPOperationTrigger:
         """Test run() yields TriggerEvent with status error on exception."""
         import asyncio
 
-        trigger = SFTPOperationTrigger(
-            ssh_conn_id="ssh_default",
+        trigger = SFTPTransferTrigger(
+            sftp_conn_id="ssh_default",
             local_filepath="/tmp/test.txt",
             remote_filepath="/remote/test.txt",
             operation="put",

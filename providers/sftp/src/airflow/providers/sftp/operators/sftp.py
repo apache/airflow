@@ -28,7 +28,7 @@ import paramiko
 from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.exceptions import SFTPOperationError
-from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPOperation
+from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync, SFTPOperation
 
 
 class SFTPOperator(BaseOperator):
@@ -171,11 +171,11 @@ class SFTPOperator(BaseOperator):
             raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
         if self.deferrable:
-            from airflow.providers.sftp.triggers.sftp import SFTPOperationTrigger
+            from airflow.providers.sftp.triggers.sftp import SFTPTransferTrigger
 
             self.defer(
-                trigger=SFTPOperationTrigger(
-                    ssh_conn_id=self.ssh_conn_id,
+                trigger=SFTPTransferTrigger(
+                    sftp_conn_id=self.ssh_conn_id or SFTPHookAsync.default_conn_name,
                     local_filepath=self.local_filepath,
                     remote_filepath=self.remote_filepath,
                     operation=self.operation,

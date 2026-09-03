@@ -29,7 +29,18 @@ from airflow.providers.sftp.hooks.sftp import SFTPHookAsync, SFTPOperation
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class SFTPTrigger(BaseTrigger):
+class BaseSFTPTrigger(BaseTrigger):
+    """Base class for SFTP triggers, providing shared async hook construction."""
+
+    def __init__(self, sftp_conn_id: str = "sftp_default") -> None:
+        super().__init__()
+        self.sftp_conn_id = sftp_conn_id
+
+    def _get_async_hook(self) -> SFTPHookAsync:
+        return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
+
+
+class SFTPTrigger(BaseSFTPTrigger):
     """
     SFTPTrigger that fires in below listed scenarios.
 
@@ -53,10 +64,9 @@ class SFTPTrigger(BaseTrigger):
         newer_than: datetime | str | None = None,
         poke_interval: float = 5,
     ) -> None:
-        super().__init__()
+        super().__init__(sftp_conn_id=sftp_conn_id)
         self.path = path
         self.file_pattern = file_pattern
-        self.sftp_conn_id = sftp_conn_id
         self.newer_than = newer_than
         self.poke_interval = poke_interval
 
@@ -90,24 +100,9 @@ class SFTPTrigger(BaseTrigger):
         while True:
             try:
                 if self.file_pattern:
-                    files_returned_by_hook = await hook.get_files_and_attrs_by_pattern(
-                        path=self.path, fnmatch_pattern=self.file_pattern
+                    files_sensed = await hook.sense_files_by_pattern(
+                        path=self.path, fnmatch_pattern=self.file_pattern, newer_than=_newer_than
                     )
-                    files_sensed = []
-                    for file in files_returned_by_hook:
-                        if _newer_than:
-                            if file.attrs.mtime is None:
-                                continue
-                            mod_time = datetime.fromtimestamp(float(file.attrs.mtime)).strftime(
-                                "%Y%m%d%H%M%S"
-                            )
-                            mod_time_utc = timezone.convert_to_utc(
-                                datetime.strptime(mod_time, "%Y%m%d%H%M%S")
-                            )
-                            if _newer_than <= mod_time_utc:
-                                files_sensed.append(file.filename)
-                        else:
-                            files_sensed.append(file.filename)
                     if files_sensed:
                         yield TriggerEvent(
                             {
@@ -116,16 +111,9 @@ class SFTPTrigger(BaseTrigger):
                             }
                         )
                         return
-                else:
-                    mod_time = await hook.get_mod_time(self.path)
-                    if _newer_than:
-                        mod_time_utc = timezone.convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
-                        if _newer_than <= mod_time_utc:
-                            yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
-                            return
-                    else:
-                        yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
-                        return
+                elif await hook.sense_path(path=self.path, newer_than=_newer_than):
+                    yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                    return
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:
                 await asyncio.sleep(self.poke_interval)
@@ -138,18 +126,15 @@ class SFTPTrigger(BaseTrigger):
 
         yield TriggerEvent({"status": "error", "message": str(exc)})
 
-    def _get_async_hook(self) -> SFTPHookAsync:
-        return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
 
-
-class SFTPOperationTrigger(BaseTrigger):
+class SFTPTransferTrigger(BaseSFTPTrigger):
     """
     Trigger for SFTPOperator deferrable mode.
 
     Fires when a file transfer (PUT, GET, or DELETE) completes
     on the SFTP server, freeing the worker slot during the transfer.
 
-    :param ssh_conn_id: The SSH connection ID to use.
+    :param sftp_conn_id: The SFTP connection ID to use.
     :param local_filepath: Local file path(s) to transfer.
     :param remote_filepath: Remote file path(s) on the SFTP server.
     :param operation: The SFTP operation - put, get, or delete.
@@ -162,7 +147,7 @@ class SFTPOperationTrigger(BaseTrigger):
 
     def __init__(
         self,
-        ssh_conn_id: str | None = None,
+        sftp_conn_id: str = "sftp_default",
         local_filepath: str | list[str] | None = None,
         remote_filepath: str | list[str] = "",
         operation: str = SFTPOperation.PUT,
@@ -172,8 +157,7 @@ class SFTPOperationTrigger(BaseTrigger):
         concurrency: int = 1,
         prefetch: bool = True,
     ) -> None:
-        super().__init__()
-        self.ssh_conn_id = ssh_conn_id
+        super().__init__(sftp_conn_id=sftp_conn_id)
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.operation = operation
@@ -188,7 +172,7 @@ class SFTPOperationTrigger(BaseTrigger):
         return (
             f"{self.__class__.__module__}.{self.__class__.__name__}",
             {
-                "ssh_conn_id": self.ssh_conn_id,
+                "sftp_conn_id": self.sftp_conn_id,
                 "local_filepath": self.local_filepath,
                 "remote_filepath": self.remote_filepath,
                 "operation": self.operation,
@@ -203,9 +187,7 @@ class SFTPOperationTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Run the file transfer asynchronously and yield a TriggerEvent when done."""
         try:
-            if self.ssh_conn_id is None:
-                raise ValueError("ssh_conn_id must be set for SFTPTrigger")
-            hook = SFTPHookAsync(sftp_conn_id=self.ssh_conn_id)
+            hook = self._get_async_hook()
             await hook.transfer(
                 operation=self.operation,
                 local_filepath=self.local_filepath,
