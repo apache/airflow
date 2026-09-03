@@ -60,7 +60,7 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -82,7 +82,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
-from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
+from airflow.serialization.definitions.param import SerializedDagParam, SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.serialization.encoders import (
@@ -611,6 +611,10 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
+        elif isinstance(var, (DagParam, SerializedDagParam)):
+            payload = var.serialize()
+            payload["default"] = cls.serialize(payload["default"], strict=strict)
+            return cls._encode(payload, type_=DAT.DAG_PARAM)
         elif isinstance(var, LazySelectSequence):
             return cls.serialize(list(var))
         elif isinstance(var, (BaseAsset, SerializedAssetBase)):
@@ -704,6 +708,12 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
+        elif type_ == DAT.DAG_PARAM:
+            return SerializedDagParam(
+                dag_id=var["dag_id"],
+                name=var["name"],
+                default=cls.deserialize(var["default"]),
+            )
         elif type_ in (DAT.ASSET, DAT.ASSET_ALIAS, DAT.ASSET_ALL, DAT.ASSET_ANY, DAT.ASSET_REF):
             return decode_asset_like(encoded_var)
         elif type_ == DAT.CONNECTION:
@@ -1100,7 +1110,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
-                    serialize_op[template_field] = serialize_template_field(value, template_field)
+                    if isinstance(value, (DagParam, SerializedDagParam)):
+                        serialize_op[template_field] = cls.serialize(value)
+                    else:
+                        serialize_op[template_field] = serialize_template_field(value, template_field)
 
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)
@@ -1160,7 +1173,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             v = v_in  # surpass PLW2901
             # Use centralized field deserialization logic
             if k in encoded_op.get("template_fields", []):
-                pass  # Template fields are handled separately
+                if isinstance(v, dict) and v.get(Encoding.TYPE) == DAT.DAG_PARAM and Encoding.VAR in v:
+                    v = cls.deserialize(v)
             elif k == "_operator_extra_links":
                 if cls._load_operator_extra_links:
                     op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
