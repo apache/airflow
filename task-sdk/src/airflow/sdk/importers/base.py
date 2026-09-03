@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Any
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 
 if TYPE_CHECKING:
-    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk import DAG
 
 log = logging.getLogger(__name__)
@@ -175,8 +174,9 @@ class AbstractDagImporter(ABC):
     def import_definition(
         self,
         definition: DagDefinition,
-        bundle: BaseDagBundle,
         *,
+        bundle_path: Path | None = None,
+        bundle_name: str | None = None,
         safe_mode: bool = True,
     ) -> DagImportResult:
         """Import DAGs from a DAG definition."""
@@ -192,7 +192,9 @@ class AbstractDagImporter(ABC):
 
     def list_dag_definitions(
         self,
-        bundle: BaseDagBundle,
+        bundle_name: str,
+        bundle_path: Path,
+        *,
         safe_mode: bool = True,
     ) -> Iterator[DagDefinition]:
         """
@@ -211,7 +213,7 @@ class AbstractDagImporter(ABC):
 
         supported_exts = [ext.lower() for ext in self.supported_extensions]
 
-        for file_path in find_path_from_directory(bundle.path, ".airflowignore", ignore_file_syntax):
+        for file_path in find_path_from_directory(bundle_path, ".airflowignore", ignore_file_syntax):
             path = Path(file_path)
 
             if not path.is_file():

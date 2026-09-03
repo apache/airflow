@@ -27,10 +27,7 @@ import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from airflow.dag_processing.bundles.base import BaseDagBundle
+from typing import Any
 
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
@@ -138,8 +135,9 @@ class ZipImporter(AbstractDagImporter):
     def import_definition(
         self,
         definition: DagDefinition,
-        bundle: BaseDagBundle,
         *,
+        bundle_path: Path | None = None,
+        bundle_name: str | None = None,
         safe_mode: bool = True,
     ) -> DagImportResult:
         """Import DAGs from a ZIP archive DAG definition by routing internal files."""
@@ -164,7 +162,7 @@ class ZipImporter(AbstractDagImporter):
             except Exception as e:
                 result.errors.append(
                     DagImportError(
-                        source_reference=definition.get_relative_loc(bundle.path),
+                        source_reference=definition.get_relative_loc(bundle_path),
                         message=f"Failed to read ZIP archive: {e}",
                         error_type="zip_read_error",
                     )
@@ -197,7 +195,8 @@ class ZipImporter(AbstractDagImporter):
 
                         member_result = importer.import_definition(
                             definition=nested_def,
-                            bundle=bundle,
+                            bundle_path=bundle_path,
+                            bundle_name=bundle_name,
                             safe_mode=safe_mode,
                         )
 

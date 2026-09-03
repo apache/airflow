@@ -25,10 +25,8 @@ import os
 import sys
 import traceback
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from airflow.dag_processing.bundles.base import BaseDagBundle
 
 from airflow.sdk.execution_time.timeout import timeout
 from airflow.sdk.importers.base import (
@@ -61,14 +59,17 @@ class PythonDagImporter(AbstractDagImporter):
     def import_definition(
         self,
         definition: DagDefinition,
-        bundle: BaseDagBundle,
         *,
+        bundle_path: Path | None = None,
+        bundle_name: str | None = None,
         safe_mode: bool = True,
     ) -> DagImportResult:
         """
         Import DAGs from a Python DAG definition.
 
         :param definition: The definition to import from.
+        :param bundle_path: Root path of the DAG bundle.
+        :param bundle_name: Name of the DAG bundle.
         :param safe_mode: If True, skip files that don't appear to contain DAGs.
         :return: DagImportResult with imported DAGs and any errors.
         """
@@ -86,7 +87,13 @@ class PythonDagImporter(AbstractDagImporter):
             with warnings.catch_warnings(record=True) as captured_warnings:
                 with definition.as_file() as local_path:
                     filepath = os.fspath(local_path)
-                    modules = self._load_modules_from_file(filepath, safe_mode, result, bundle)
+                    modules = self._load_modules_from_file(
+                        filepath,
+                        safe_mode,
+                        result,
+                        bundle_path=bundle_path,
+                        bundle_name=bundle_name,
+                    )
         except TypeError:
             # Configuration errors (e.g., invalid timeout type) should propagate
             raise
@@ -116,7 +123,12 @@ class PythonDagImporter(AbstractDagImporter):
             )
 
         # Process imported modules to extract DAGs
-        self._process_modules(modules, result, bundle)
+        self._process_modules(
+            modules,
+            result,
+            bundle_path=bundle_path,
+            bundle_name=bundle_name,
+        )
 
         return result
 
@@ -130,7 +142,13 @@ class PythonDagImporter(AbstractDagImporter):
         )
 
     def _load_modules_from_file(
-        self, filepath: str, safe_mode: bool, result: DagImportResult, bundle: BaseDagBundle
+        self,
+        filepath: str,
+        safe_mode: bool,
+        result: DagImportResult,
+        *,
+        bundle_path: Path | None = None,
+        bundle_name: str | None = None,
     ) -> list[ModuleType]:
         from airflow import settings
         from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_name, might_contain_dag
@@ -144,7 +162,7 @@ class PythonDagImporter(AbstractDagImporter):
                 result.skipped_definitions.append(definition)
             return []
 
-        log.debug("Importing %s (bundle: %s)", filepath, bundle.name)
+        log.debug("Importing %s (bundle: %s)", filepath, bundle_name)
         mod_name = get_unique_dag_module_name(filepath)
 
         if mod_name in sys.modules:
@@ -211,7 +229,9 @@ class PythonDagImporter(AbstractDagImporter):
         self,
         mods: list[Any],
         result: DagImportResult,
-        bundle: BaseDagBundle,
+        *,
+        bundle_path: Path | None = None,
+        bundle_name: str | None = None,
     ) -> None:
         """Extract DAG objects from modules. Validation happens in bag_dag()."""
         from airflow.sdk import DAG
@@ -226,9 +246,9 @@ class PythonDagImporter(AbstractDagImporter):
         DagContext.autoregistered_dags.clear()
 
         for dag, _mod in top_level_dags:
-            dag.bundle_name = bundle.name
+            dag.bundle_name = bundle_name
             dag.fileloc = repr(result.definition)
             if result.definition is not None:
-                dag.relative_fileloc = result.definition.get_relative_loc(bundle.path)
+                dag.relative_fileloc = result.definition.get_relative_loc(bundle_path)
             result.dags.append(dag)
             log.debug("Found DAG %s", dag.dag_id)

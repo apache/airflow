@@ -19,9 +19,6 @@
 from __future__ import annotations
 
 import sys
-from types import SimpleNamespace
-
-import pytest
 
 from airflow.sdk.importers import (
     FileDagDefinition,
@@ -29,23 +26,16 @@ from airflow.sdk.importers import (
 )
 
 
-@pytest.fixture
-def mock_bundle(tmp_path):
-    bundle_dir = tmp_path / "bundle"
-    bundle_dir.mkdir(parents=True, exist_ok=True)
-    return SimpleNamespace(name="test_bundle", path=bundle_dir)
-
-
 class TestPythonDagImporter:
     """Test the PythonDagImporter implementation."""
 
-    def test_import_successful_dag(self, mock_bundle):
-        dag_file = mock_bundle.path / "sample_dag.py"
+    def test_import_successful_dag(self, tmp_path):
+        dag_file = tmp_path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
 
         importer = PythonDagImporter()
         definition = FileDagDefinition(path=dag_file)
-        result = importer.import_definition(definition=definition, bundle=mock_bundle)
+        result = importer.import_definition(definition, bundle_name="test_bundle", bundle_path=tmp_path)
 
         assert len(result.dags) == 1
         assert result.dags[0].dag_id == "test_dag_1"
@@ -53,49 +43,50 @@ class TestPythonDagImporter:
         assert result.dags[0].relative_fileloc == "sample_dag.py"
         assert len(result.errors) == 0
 
-    def test_import_syntax_error_cleans_sys_modules(self, mock_bundle):
-        dag_file = mock_bundle.path / "bad_dag.py"
+    def test_import_syntax_error_cleans_sys_modules(self, tmp_path):
+        dag_file = tmp_path / "bad_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
 
         importer = PythonDagImporter()
-        definition = FileDagDefinition(path=dag_file)
-        result = importer.import_definition(definition=definition, bundle=mock_bundle)
+        result = importer.import_definition(FileDagDefinition(path=dag_file))
 
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
-        matching_mods = [m for m in sys.modules if "bad_dag" in m]
-        assert len(matching_mods) == 0
+        assert not any("bad_dag" in m for m in sys.modules)
 
-    def test_skip_non_dag_file_in_safe_mode(self, mock_bundle):
-        helper_file = mock_bundle.path / "helper.py"
+    def test_skip_non_dag_file_in_safe_mode(self, tmp_path):
+        helper_file = tmp_path / "helper.py"
         helper_file.write_text("def util(): return 42\n")
 
         importer = PythonDagImporter()
         definition = FileDagDefinition(path=helper_file)
-        result = importer.import_definition(definition=definition, bundle=mock_bundle, safe_mode=True)
+        result = importer.import_definition(definition, safe_mode=True)
 
         assert len(result.dags) == 0
         assert len(result.errors) == 0
-        assert len(result.skipped_definitions) == 1
-        assert result.skipped_definitions[0] == definition
+        assert result.skipped_definitions == [definition]
 
-    def test_get_source_code(self, mock_bundle):
-        dag_file = mock_bundle.path / "source_dag.py"
+    def test_list_dag_definitions(self, tmp_path):
+        dag_file = tmp_path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
+        (tmp_path / "notes.txt").write_text("hello")
+
+        importer = PythonDagImporter()
+        defs = list(importer.list_dag_definitions("test_bundle", tmp_path))
+        assert len(defs) == 1
+        assert defs[0].path == dag_file
+
+    def test_get_source_code(self, tmp_path):
+        dag_file = tmp_path / "source_dag.py"
         content = "# My DAG\nfrom airflow.sdk import DAG\n"
         dag_file.write_text(content)
 
-        importer = PythonDagImporter()
-        definition = FileDagDefinition(path=dag_file)
-        src = importer.get_source_code(definition)
-
+        src = PythonDagImporter().get_source_code(FileDagDefinition(path=dag_file))
         assert src.language == "python"
         assert src.source_code == content
 
-    def test_file_dag_definition_freshness_token(self, mock_bundle):
-        dag_file = mock_bundle.path / "fresh_dag.py"
+    def test_file_dag_definition_freshness_token(self, tmp_path):
+        dag_file = tmp_path / "fresh_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\n")
-        definition = FileDagDefinition(path=dag_file)
-
         stat = dag_file.stat()
-        expected_token = f"{stat.st_mtime_ns}-{stat.st_size}"
-        assert definition.freshness_token == expected_token
+        assert FileDagDefinition(path=dag_file).freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}"
