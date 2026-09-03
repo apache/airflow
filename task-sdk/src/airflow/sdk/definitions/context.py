@@ -117,8 +117,10 @@ def clone_context(context: Context) -> Context:
     - ``inlets`` and ``outlets`` are converted to new lists (shallow copy)
       because the sequence identity must be isolated but the elements are
       typically read-only accessor objects.
-    - ``dag_run`` is deep-copied because it carries nested state that must
-      not be shared between concurrent executions.
+    - ``dag_run`` is intentionally **not** copied. It is treated as read-only
+      runtime metadata (e.g. ``run_id``, ``logical_date``, ``conf``) that all
+      concurrent sub-tasks legitimately share; copying it would only add
+      overhead without providing meaningful isolation.
     - ``outlet_events`` is intentionally **not** copied so that events emitted
       by sub-tasks are captured in the parent's accessor and serialized when
       the parent task completes. ``OutletEventAccessors.__getitem__`` uses
@@ -160,6 +162,7 @@ def clone_context(context: Context) -> Context:
     cloned_context["inlet_events"] = context["inlet_events"]
     # outlet_events is intentionally NOT copied - sub-tasks must emit into the
     # parent's accessor so events are serialized when the parent completes.
+    # dag_run is intentionally NOT copied - it is shared, read-only runtime metadata.
     cloned_context["dag_run"] = context["dag_run"]
     return cloned_context
 
