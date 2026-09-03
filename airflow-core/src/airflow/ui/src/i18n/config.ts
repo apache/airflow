@@ -23,6 +23,8 @@ import { initReactI18next } from "react-i18next";
 
 import { VersionService } from "openapi/requests/services.gen";
 
+import { registerDayjsLocaleSync } from "./dayjsLocale";
+
 export const supportedLanguages = [
   { code: "en", name: "English" },
   { code: "ar", name: "العربية" },
@@ -131,6 +133,10 @@ export const i18nBaseOptions = {
 
 const initI18n = (version: string) => {
   const queryString = version ? `?v=${version}` : "";
+
+  // Subscribed before init so it precedes every react-i18next component listener, and
+  // because i18next emits `languageChanged` from init itself for the detected language.
+  registerDayjsLocaleSync(i18n);
 
   void i18n
     .use(Backend)

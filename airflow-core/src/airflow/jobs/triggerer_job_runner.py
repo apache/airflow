@@ -202,7 +202,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job,
         capacity=None,
         queues: set[str] | None = None,
-        team_name: str | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -212,7 +211,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
         self.queues = queues
-        self.team_name = team_name
         # Set up only when _execute() starts the subprocess; keep it defined so that
         # signal handlers (or other code) firing before startup don't hit AttributeError.
         self.trigger_runner: TriggerRunnerSupervisor | None = None
@@ -274,7 +272,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 capacity=self.capacity,
                 logger=log,
                 queues=self.queues,
-                team_name=self.team_name,
+                team_name=self.job.team_name,
             )
             # Run the main DB comms loop in this process
             self.trigger_runner.run()
@@ -1735,8 +1733,22 @@ class TriggerRunner:
         """
         Get a trigger class by its classpath ("path.to.module.classname").
 
+        The resolved object must be a :class:`~airflow.triggers.base.BaseTrigger`
+        subclass. This is validated before the class is cached and, crucially,
+        before it is ever instantiated in ``create_triggers`` -- ``classpath``
+        originates from the (attacker-influenceable) deferred-task payload, so
+        without this check an arbitrary importable callable could be invoked in
+        the triggerer process.
+
         Uses a cache dictionary to speed up lookups after the first time.
         """
         if classpath not in self.trigger_cache:
-            self.trigger_cache[classpath] = import_string(classpath)
+            trigger_class = import_string(classpath)
+            if not (isinstance(trigger_class, type) and issubclass(trigger_class, BaseTrigger)):
+                raise TypeError(
+                    f"The trigger classpath {classpath!r} does not resolve to a "
+                    f"{BaseTrigger.__module__}.{BaseTrigger.__qualname__} subclass; "
+                    f"refusing to load it."
+                )
+            self.trigger_cache[classpath] = trigger_class
         return self.trigger_cache[classpath]

@@ -150,8 +150,14 @@ def patch_pool(
             "Invalid body, pool name from request body doesn't match uri parameter",
         )
 
-    pool = update_orm_from_pydantic(pool_name, patch_body, update_mask, session)
-    return pool
+    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
+    if not pool:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
+        )
+
+    updated_pool = update_orm_from_pydantic(pool, patch_body, update_mask)
+    return updated_pool
 
 
 @pools_router.post(

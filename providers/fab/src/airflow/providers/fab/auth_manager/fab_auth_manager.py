@@ -292,9 +292,17 @@ class FabAuthManager(BaseAuthManager[User]):
         def _fetch_user() -> User:
             with create_session() as session:
                 try:
-                    return session.scalars(select(User).where(User.id == user_id)).one()
+                    user = session.scalars(select(User).where(User.id == user_id)).one()
                 except NoResultFound:
                     raise ValueError(f"User with id {token['sub']} not found")
+                # A token stays syntactically valid until it expires, so the account it
+                # names has to be re-checked on every request rather than trusted from
+                # the signature alone. ``is_active`` reads the nullable ``active``
+                # column, and a null is treated as inactive here for the same reason it
+                # is on the password path in ``auth_user_db``.
+                if not user.is_active:
+                    raise ValueError(f"User with id {token['sub']} is not active")
+                return user
 
         try:
             return _fetch_user()

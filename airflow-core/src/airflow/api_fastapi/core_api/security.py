@@ -417,6 +417,32 @@ ReadableBackfillsFilterDep = Annotated[
 # does; see the comment there for why any divergence is a cross-Dag authorization bypass.
 _BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
 
+# Shared with the backfill routes: for an id named in the path this dependency answers before
+# the handler does, so the two must not describe the same condition differently.
+BACKFILL_NOT_FOUND = "Backfill not found"
+
+
+def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user: BaseUser) -> None:
+    """Authorize a backfill named by the request path against that backfill's Dag alone."""
+    # ``dag_id`` is None when the id matched no row. Answering 404 there while a backfill on a Dag
+    # the caller may not read answers 403 would tell them which backfill ids exist across Dags.
+    if dag_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
+    details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id))
+    auth_manager = get_auth_manager()
+    if auth_manager.is_authorized_dag(
+        method=method, access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        return
+    # A caller who may read the Dag can already list its backfills, so the id is no secret from
+    # them: hiding it would only cost them the reason their request was refused.
+    if method != "GET" and auth_manager.is_authorized_dag(
+        method="GET", access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
 
 def requires_access_backfill(
     method: ResourceMethod,
@@ -428,9 +454,6 @@ def requires_access_backfill(
         user: GetUserDep,
         session: SessionDep,
     ) -> None:
-        dag_id = None
-
-        # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
             # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
@@ -444,26 +467,26 @@ def requires_access_backfill(
             backfill_id = None
 
         if backfill_id is not None:
-            backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
-            dag_id = backfill.dag_id if backfill else None
+            # The path names the backfill, so its row is the only authorization subject: what the
+            # caller supplies alongside must not decide a decision the path already scoped.
+            dag_id = session.scalar(select(Backfill.dag_id).where(Backfill.id == backfill_id))
+            _authorize_backfill_in_path(method, dag_id, user)
+            return
 
-        # Try to retrieve the dag_id from the request body (POST backfill)
-        # TODO: a backfill_id that parses but matches no row also lands here, so an unknown
-        # backfill is authorized against the body's dag_id and answers 404 where an unauthorized
-        # one answers 403 - disclosing which ids exist. Not exploitable for a cross-Dag action;
-        # tracked at https://github.com/apache/airflow/issues/71080
-        if dag_id is None:
-            # Not a json body, ignore
-            with suppress(JSONDecodeError):
-                body = await request.json()
-                if isinstance(body, dict):
-                    dag_id = body.get("dag_id")
-            if dag_id is not None and not isinstance(dag_id, str):
-                # Fail closed: reject non-string dag_id before authz decision.
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="'dag_id' must be a string",
-                )
+        # Left: the routes naming their Dag in the body (create, dry run) or in the query string
+        # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
+        dag_id = None
+        # Not a json body, ignore
+        with suppress(JSONDecodeError):
+            body = await request.json()
+            if isinstance(body, dict):
+                dag_id = body.get("dag_id")
+        if dag_id is not None and not isinstance(dag_id, str):
+            # Fail closed: reject non-string dag_id before authz decision.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'dag_id' must be a string",
+            )
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
             request,

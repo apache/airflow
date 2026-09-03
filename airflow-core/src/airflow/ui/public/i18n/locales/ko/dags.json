@@ -11,18 +11,25 @@
     "allRunTypes": "모든 실행 유형",
     "allStates": "모든 상태",
     "anyRunState": "하나 이상의 실행",
+    "anyRunStatePlaceholder": "실행 상태 선택…",
     "favorite": {
       "all": "전체",
       "favorite": "즐겨찾기",
       "unfavorite": "즐겨찾기 해제"
     },
+    "favoriteState": "즐겨찾기 상태",
+    "favoriteStatePlaceholder": "즐겨찾기 상태 선택…",
     "lastRunState": "마지막 실행",
+    "lastRunStatePlaceholder": "마지막 실행 상태 선택…",
     "noTimetableTypesFound": "타임테이블 유형을 찾을 수 없습니다",
     "paused": {
       "active": "활성",
       "all": "모두",
       "paused": "일시 중지됨"
     },
+    "pausedPlaceholder": "일시 중지 상태 선택…",
+    "pausedState": "일시 중지 상태",
+    "requiresHitlAction": "필수 작업",
     "runIdPatternFilter": "Dag 실행 검색",
     "timetableType": "타임테이블 유형"
   },
@@ -77,6 +84,7 @@
       "preventRunningTasks": "실행 중인 태스크 재실행 방지",
       "queueNew": "새 태스크 대기열에 추가",
       "runOnLatestVersion": "최신 번들 버전으로 실행",
+      "runOnLatestVersionForced": "항상 최신 번들 버전을 사용합니다. 되돌아갈 이전 버전이 없습니다.",
       "upstream": "업스트림"
     }
   },

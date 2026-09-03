@@ -246,6 +246,10 @@ class TestProviderManager:
         assert "bad" not in providers_manager._remote_logging_by_scheme
         assert providers_manager._remote_logging_info_list == []
 
+    # The first test in the suite's order to hit _import_info_from_all_hooks() pays the one-time
+    # cost of cold-importing every provider hook module, which can exceed the default 60s
+    # execution timeout on slower or loaded runners.
+    @pytest.mark.execution_timeout(120)
     def test_connection_form_widgets(self, yaml_ui_metadata_counts):
         yaml_widgets, _ = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
@@ -338,8 +342,8 @@ class TestProviderManager:
     def test_dialects(self):
         provider_manager = ProvidersManager()
         dialect_class_names = list(provider_manager.dialects)
-        assert len(dialect_class_names) == 3
-        assert dialect_class_names == ["default", "mssql", "postgresql"]
+        assert len(dialect_class_names) == 4
+        assert dialect_class_names == ["default", "db2", "mssql", "postgresql"]
 
 
 class TestWithoutCheckProviderManager:

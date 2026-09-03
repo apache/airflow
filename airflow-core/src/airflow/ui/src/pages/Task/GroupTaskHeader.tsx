@@ -47,6 +47,7 @@ export const GroupTaskHeader = ({
       icon={<AiOutlineGroup />}
       stats={[]}
       title={title}
+      type="taskGroup"
     />
   );
 };

@@ -22,7 +22,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
-from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-def create_dag_bag() -> DBDagBag:
+def create_dag_bag() -> CachedDBDagBag:
     """Create DagBag with configurable LRU+TTL caching for API server usage."""
     cache_size = conf.getint("api", "dag_cache_size", fallback=64)
     cache_ttl = conf.getint("api", "dag_cache_ttl", fallback=3600)
@@ -40,7 +40,11 @@ def create_dag_bag() -> DBDagBag:
     if cache_ttl < 0:
         raise ValueError("[api] dag_cache_ttl must be greater than or equal to 0")
 
-    return DBDagBag(cache_size=cache_size, cache_ttl=cache_ttl)
+    return CachedDBDagBag(
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix="api_server.dag_bag",
+    )
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:

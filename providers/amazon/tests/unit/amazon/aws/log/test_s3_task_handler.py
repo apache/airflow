@@ -32,6 +32,7 @@ from moto import mock_aws
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO, S3TaskHandler
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import EmptyOperator
@@ -40,11 +41,6 @@ from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
-
-try:
-    from airflow.sdk.timezone import datetime
-except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -198,7 +194,7 @@ class TestS3RemoteLogIO:
             self.subject = self.s3_task_handler.io
             assert self.subject.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -382,7 +378,7 @@ class TestS3TaskHandler:
             # Verify the hook now with the config override
             assert self.s3_task_handler.io.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:

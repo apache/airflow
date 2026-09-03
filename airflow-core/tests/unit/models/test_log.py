@@ -22,9 +22,20 @@ from sqlalchemy import select
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import joinedload
 
+from airflow.models.dag import DagModel, clear_team_name_cache
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
+from airflow.models.team import Team
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_logs,
+    clear_db_teams,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -104,3 +115,80 @@ class TestLogTaskInstanceReproduction:
         assert loaded_log2.task_instance is not None
         assert loaded_log2.task_instance.dag_id == "dag_2"
         assert loaded_log2.task_instance.run_id == ti2.run_id
+
+
+DAG_IN_TEAM = "dag_owned_by_a_team"
+
+
+class TestLogTeamName:
+    def teardown_method(self):
+        clear_db_logs()
+        clear_db_dags()
+        clear_db_dag_bundles()
+        clear_db_teams()
+
+    @staticmethod
+    def _create_dag_owned_by_team(session, team_name: str, *, dag_id=DAG_IN_TEAM, bundle_name="team-bundle"):
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name, is_stale=False))
+        session.commit()
+        clear_team_name_cache()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_team_owning_the_dag_is_recorded(self, session):
+        self._create_dag_owned_by_team(session, "payments")
+
+        log = Log(event="test_event", dag_id=DAG_IN_TEAM)
+        session.add(log)
+        session.commit()
+
+        assert log.team_name == "payments"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_team_named_by_the_caller_is_kept(self, session):
+        self._create_dag_owned_by_team(session, "payments")
+
+        log = Log(event="test_event", dag_id=DAG_IN_TEAM, team_name="infra")
+        session.add(log)
+        session.commit()
+
+        assert log.team_name == "infra"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_recorded_team_outlives_the_dag_changing_teams(self, session):
+        self._create_dag_owned_by_team(session, "payments")
+        log = Log(event="test_event", dag_id=DAG_IN_TEAM)
+        session.add(log)
+        session.commit()
+
+        other_bundle = DagBundleModel(name="other-team-bundle")
+        other_bundle.teams.append(Team(name="infra"))
+        session.add(other_bundle)
+        session.flush()
+        session.scalar(
+            select(DagModel).where(DagModel.dag_id == DAG_IN_TEAM)
+        ).bundle_name = "other-team-bundle"
+        session.commit()
+        clear_team_name_cache()
+
+        assert log.team_name == "payments"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_no_team_is_recorded_for_an_event_owning_no_dag(self, session):
+        log = Log(event="test_event")
+        session.add(log)
+        session.commit()
+
+        assert log.team_name is None
+
+    def test_no_team_is_recorded_when_multi_team_is_off(self, session):
+        self._create_dag_owned_by_team(session, "payments")
+
+        log = Log(event="test_event", dag_id=DAG_IN_TEAM)
+        session.add(log)
+        session.commit()
+
+        assert log.team_name is None

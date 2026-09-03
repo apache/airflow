@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, createListCollection } from "@chakra-ui/react";
 import { useRef } from "react";
 
-import { Select } from "src/components/ui";
+import { Box, createListCollection } from "@chakra-ui/react";
+
+import { Select } from "src/system-components";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterConfig, FilterPluginProps } from "../types";

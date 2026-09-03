@@ -31,7 +31,7 @@ from time import sleep
 import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
@@ -506,7 +506,7 @@ def shell(
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
     perform_environment_checks(quiet=shell_params.quiet)
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
@@ -737,7 +737,7 @@ def start_airflow(
         use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
     if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
@@ -852,14 +852,15 @@ def _build_ts_sdk_docs(generated_path: Path) -> int:
             f"node:{TYPESCRIPT_SDK_NODE_VERSION}-bookworm-slim",
             "sh",
             "-c",
-            # `npm ci` keeps the lock file authoritative; `npm run build` strips the ASF
-            # header from the landing page and then runs TypeDoc.
-            "npm ci --no-audit --no-fund && npm run build",
+            # `npm ci` keeps the lock file authoritative; `npm test` covers the postbuild
+            # checks; `npm run build` strips the ASF header from the landing page, runs
+            # TypeDoc, then checks the generated HTML is publishable.
+            "npm ci --no-audit --no-fund && npm test && npm run build",
         ],
         check=False,
     )
     if result.returncode != 0:
-        console_print("[error]TypeDoc build failed.")
+        console_print("[error]TypeScript SDK docs build failed.")
         return result.returncode
 
     _stage_sdk_docs(
@@ -908,7 +909,7 @@ def _build_python_docs(
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         builder=builder,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     if clean_build:
         directories_to_clean = ["_build", "_doctrees", "apis"]
     else:
@@ -1279,7 +1280,7 @@ def autogenerate(
     build_params = BuildCiParams(
         github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    build_ci_image_if_needed(command_params=build_params)
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -1410,7 +1411,7 @@ def run(
     """
     import uuid
 
-    from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+    from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
     from airflow_breeze.params.shell_params import ShellParams
     from airflow_breeze.utils.ci_group import ci_group
     from airflow_breeze.utils.docker_command_utils import (
@@ -1462,8 +1463,7 @@ def run(
         console_print(f"[info]Running command in Breeze: {full_command}[/]")
         console_print(f"[info]Using project name: {unique_project_name}[/]")
 
-    # Build or pull the CI image if needed
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
 
     # Execute the command in the shell, cleaning up Docker resources afterward
     try:

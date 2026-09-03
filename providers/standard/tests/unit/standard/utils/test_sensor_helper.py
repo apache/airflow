@@ -42,10 +42,7 @@ try:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 except ImportError:  # Fallback for Airflow < 3.1
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-try:
-    from airflow.sdk import timezone
-except ImportError:  # Fallback for Airflow < 3.1
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

@@ -310,7 +310,11 @@ class TestBatchPredictionJobAsyncHook:
     )
     @pytest.mark.asyncio
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("asyncio.sleep"))
-    async def test_wait_hyperparameter_tuning_job(self, mock_sleep, state):
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobAsyncHook.get_job_service_client"))
+    async def test_wait_hyperparameter_tuning_job(self, mock_get_job_service_client, mock_sleep, state):
+        mock_client = mock.MagicMock()
+        mock_get_job_service_client.side_effect = mock.AsyncMock(return_value=mock_client)
+
         mock_job = mock.MagicMock(state=state)
         mock_async_get_batch_prediction_job = mock.AsyncMock(return_value=mock_job)
         mock_get_batch_prediction_job = mock.MagicMock(side_effect=mock_async_get_batch_prediction_job)
@@ -326,7 +330,7 @@ class TestBatchPredictionJobAsyncHook:
         with mock.patch.object(self.hook, "get_batch_prediction_job", mock_get_batch_prediction_job):
             result = await self.hook.wait_batch_prediction_job(**await_kwargs)
 
-        mock_async_get_batch_prediction_job.assert_awaited_once_with(**await_kwargs)
+        mock_async_get_batch_prediction_job.assert_awaited_once_with(**await_kwargs, client=mock_client)
         mock_sleep.assert_not_awaited()
         assert result == mock_job
 
@@ -345,7 +349,11 @@ class TestBatchPredictionJobAsyncHook:
     )
     @pytest.mark.asyncio
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("asyncio.sleep"))
-    async def test_wait_batch_prediction_job_waited(self, mock_sleep, state):
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobAsyncHook.get_job_service_client"))
+    async def test_wait_batch_prediction_job_waited(self, mock_get_job_service_client, mock_sleep, state):
+        mock_client = mock.MagicMock()
+        mock_get_job_service_client.side_effect = mock.AsyncMock(return_value=mock_client)
+
         mock_job_incomplete = mock.MagicMock(state=state)
         mock_job_complete = mock.MagicMock(state=JobState.JOB_STATE_SUCCEEDED)
         mock_async_get_batch_prediction_job = mock.AsyncMock(
@@ -367,8 +375,8 @@ class TestBatchPredictionJobAsyncHook:
 
         mock_async_get_batch_prediction_job.assert_has_awaits(
             [
-                mock.call(**await_kwargs),
-                mock.call(**await_kwargs),
+                mock.call(**await_kwargs, client=mock_client),
+                mock.call(**await_kwargs, client=mock_client),
             ]
         )
         mock_sleep.assert_awaited_once()

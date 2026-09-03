@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { Checkbox, Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";

@@ -52,6 +52,16 @@ class TestDagVersion:
         assert latest_version.version_number == 1
         assert latest_version.dag_id == dag.dag_id
 
+    @pytest.mark.need_serialized_dag
+    def test_get_version_treats_zero_as_a_real_filter(self, dag_maker, session):
+        """version_number=0 must filter (and find nothing), not fall through to 'latest'."""
+        with dag_maker("zero_guard_dag"):
+            EmptyOperator(task_id="task1")
+
+        assert DagVersion.get_version("zero_guard_dag", 0, session=session) is None
+        # version_number=None still returns the latest version.
+        assert DagVersion.get_version("zero_guard_dag", session=session).version_number == 1
+
     def test_writing_dag_version_with_changes(self, dag_maker, session):
         """This also tested the get_latest_version method"""
         with dag_maker("test1") as dag:
@@ -181,6 +191,36 @@ class TestDagVersion:
         retrieved = DagVersion.get_latest_version("test_no_version_data", session=session)
         assert retrieved.version_data is None
         assert retrieved.bundle_version == "abc123"
+
+    @pytest.mark.parametrize(
+        ("view_url_kwargs", "expected"),
+        [
+            pytest.param(
+                {"return_value": "https://example.com/tree/abc"},
+                "https://example.com/tree/abc",
+                id="bundle-still-configured",
+            ),
+            pytest.param(
+                {"side_effect": ValueError("Bundle not configured")},
+                None,
+                id="bundle-no-longer-configured",
+            ),
+        ],
+    )
+    @mock.patch("airflow.models.dag_version.DagBundlesManager", autospec=True)
+    def test_bundle_url_falls_back_to_manager_without_a_bundle_row(
+        self, mock_manager, view_url_kwargs, expected
+    ):
+        """Without a dag_bundle row the deprecated manager lookup is the only path left."""
+        mock_manager.return_value.view_url.configure_mock(**view_url_kwargs)
+        # Never persisted, so ``bundle`` resolves to None -- the same state a Dag version
+        # whose bundle row is missing ends up in.
+        dag_version = DagVersion(
+            dag_id="dag_without_bundle_row", bundle_name="removed-bundle", bundle_version="abc"
+        )
+
+        assert dag_version.bundle_url == expected
+        mock_manager.return_value.view_url.assert_called_once_with("removed-bundle", "abc")
 
 
 class TestResolveVersionData:

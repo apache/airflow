@@ -25,7 +25,8 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import type { BulkBody_BulkTaskInstanceBody_, BulkResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
 
 import { tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 

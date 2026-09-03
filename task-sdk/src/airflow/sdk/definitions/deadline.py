@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -438,6 +439,13 @@ class VariableInterval:
     key: str
 
     def resolve(self) -> timedelta:
+        warnings.warn(
+            "VariableInterval.resolve() is deprecated and will be removed in a future release. "
+            "Deadline interval resolution is handled internally during deadline evaluation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         try:
             value = Variable.get(self.key)
         except AirflowRuntimeError as e:
@@ -449,8 +457,5 @@ class VariableInterval:
             raise ValueError(
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
             ) from e
-
-        if seconds <= 0:
-            raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
 
         return timedelta(seconds=seconds)

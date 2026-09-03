@@ -51,6 +51,9 @@ from airflow_e2e_tests.constants import (
     JAVA_SDK_EXAMPLE_LIBS_PATH,
     JAVA_SDK_MAVEN_CACHE_PATH,
     JAVA_SDK_ROOT_PATH,
+    JAVA_TEST_BUNDLE_DAGS_PATH,
+    JAVA_TEST_BUNDLE_LIBS_PATH,
+    JAVA_TEST_BUNDLE_ROOT_PATH,
     KAFKA_DIR_PATH,
     LANG_SDK_NATIVE_TOOLCHAIN,
     LOCALSTACK_PATH,
@@ -376,13 +379,14 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
     _run_java_sdk_gradle(JAVA_SDK_ROOT_PATH, "publishToMavenLocal", "-PskipSigning=true", native=native)
 
-    # The example and scala_spark_example are independent Gradle builds that both
-    # consume the SDK artifact published above, so build them concurrently. Sharing
-    # a writable Gradle user home between concurrent builds is safe because each
-    # build can ping the other's lock-owner port over one shared loopback - the
-    # host's own in native mode, --network=host in the container path (see the
-    # helper's docstring); publishToMavenLocal has already unpacked the shared
-    # wrapper distribution, so neither build races to fetch it.
+    # The example, scala_spark_example, and java-test-bundle are independent
+    # Gradle builds that all consume the SDK artifact published above, so build
+    # them concurrently. Sharing a writable Gradle user home between concurrent
+    # builds is safe because each build can ping the other's lock-owner port over
+    # one shared loopback - the host's own in native mode, --network=host in the
+    # container path (see the helper's docstring); publishToMavenLocal has
+    # already unpacked the shared wrapper distribution, so no build races to
+    # fetch it.
     #
     # The Gradle `bundle` task is a Copy that never prunes its destination, so
     # JARs from an earlier build linger. A stale dependency JAR with its own
@@ -390,11 +394,15 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # start each bundle from an empty directory.
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
+    rmtree(JAVA_TEST_BUNDLE_LIBS_PATH, ignore_errors=True)
     toolchain = "host toolchain" if native else "eclipse-temurin:17-jdk"
-    console.print(f"[yellow]Building Java SDK and Scala Spark example bundles concurrently ({toolchain})...")
+    console.print(
+        f"[yellow]Building Java SDK, Scala Spark, and test-fixture bundles concurrently ({toolchain})..."
+    )
     example_bundle_workdirs = [
         JAVA_SDK_ROOT_PATH / "example",
         JAVA_SDK_ROOT_PATH / "scala_spark_example",
+        JAVA_TEST_BUNDLE_ROOT_PATH,
     ]
     with ThreadPoolExecutor(max_workers=len(example_bundle_workdirs)) as pool:
         bundle_builds = [
@@ -411,6 +419,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # expose them to the worker, and each JavaCoordinator globs its own dir.
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
+    copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
 
     # Copy the Java SDK example Dag files so Airflow can discover them.
     copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
@@ -418,12 +427,13 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         SCALA_SPARK_EXAMPLE_DAGS_PATH / "scala_spark_examples.py",
         tmp_dir / "dags" / "scala_spark_examples.py",
     )
+    copyfile(JAVA_TEST_BUNDLE_DAGS_PATH / "java_test_dags.py", tmp_dir / "dags" / "java_test_dags.py")
 
     # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
     # JRE and copies nothing from the context, so without this docker build would
     # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
     # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
-    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\n")
+    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\n")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
@@ -445,10 +455,11 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # Two JavaCoordinators on the same worker image, one bundle per queue. The
-    # scala-jdk entry pins main_class (Spark's large classpath makes Main-Class
-    # discovery ambiguous) and carries Spark's Java 17 module openings, a small
-    # driver heap, and a longer startup timeout for its large dependency classpath.
+    # One JavaCoordinator per queue on the same worker image, each serving its
+    # own bundle. The scala-jdk entry pins main_class (Spark's large classpath
+    # makes Main-Class discovery ambiguous) and carries Spark's Java 17 module
+    # openings, a small driver heap, and a longer startup timeout for its large
+    # dependency classpath.
     coordinator_config = json.dumps(
         {
             "java-jdk": {
@@ -464,9 +475,15 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                     "task_startup_timeout": 60.0,
                 },
             },
+            "java-test-jdk": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {"jars_root": ["/opt/airflow/java-test-jars"]},
+            },
         }
     )
-    queue_to_coordinator = json.dumps({"java": "java-jdk", "scala": "scala-jdk"})
+    queue_to_coordinator = json.dumps(
+        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk"}
+    )
 
     # Connection expected by the Java example bundle tasks. The JSON form
     # covers all connection fields, in particular the port: wire integers

@@ -16,17 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { usePatchTaskGroup } from "src/queries/usePatchTaskGroup";
 import { usePatchTaskGroupDryRun } from "src/queries/usePatchTaskGroupDryRun";
 

@@ -27,9 +27,11 @@ from airflow.providers.common.ai.toolsets.hook import (
     _build_json_schema_from_signature,
     _extract_description,
     _parse_param_docs,
-    _serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
+from airflow.providers.common.ai.utils.tool_definition import (
+    _SUPPORTS_RETURN_SCHEMA,
+    serialize_for_llm,
+)
 
 
 class _FakeHook:
@@ -320,20 +322,20 @@ class TestParseParamDocs:
 
 class TestSerializeForLlm:
     def test_string_passthrough(self):
-        assert _serialize_for_llm("hello") == "hello"
+        assert serialize_for_llm("hello") == "hello"
 
     def test_none_returns_null(self):
-        assert _serialize_for_llm(None) == "null"
+        assert serialize_for_llm(None) == "null"
 
     def test_dict_to_json(self):
-        result = _serialize_for_llm({"key": "value"})
+        result = serialize_for_llm({"key": "value"})
         assert result == '{"key": "value"}'
 
     def test_list_to_json(self):
-        result = _serialize_for_llm([1, 2, 3])
+        result = serialize_for_llm([1, 2, 3])
         assert result == "[1, 2, 3]"
 
     def test_non_serializable_falls_back_to_str(self):
         obj = object()
-        result = _serialize_for_llm(obj)
+        result = serialize_for_llm(obj)
         assert "object" in result

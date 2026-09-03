@@ -116,6 +116,7 @@ body:
         - alibaba
         - amazon
         - anthropic
+        - apache-arrow
         - apache-beam
         - apache-cassandra
         - apache-drill
@@ -165,6 +166,7 @@ body:
         - grpc
         - hashicorp
         - http
+        - ibm-db2
         - ibm-mq
         - imap
         - influxdb

@@ -19,7 +19,9 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
 
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
+
 import i18n from "src/i18n/config";
 import { getErrorStatus } from "src/utils";
 

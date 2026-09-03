@@ -171,3 +171,18 @@ class LangChainHook(BaseHook):
             kind="embedding",
         )
         return init_embeddings(model_id, **self._connection_kwargs(conn))
+
+    def test_connection(self) -> tuple[bool, str]:
+        """
+        Test connection by resolving the chat model.
+
+        Validates that the model identifier is valid and the provider can be
+        instantiated with the supplied credentials. Does NOT make an LLM API
+        call -- that would be expensive and fail for reasons unrelated to
+        connectivity (quotas, billing, rate limits).
+        """
+        try:
+            self.get_chat_model()
+            return True, "Model resolved successfully."
+        except Exception as e:
+            return False, str(e)

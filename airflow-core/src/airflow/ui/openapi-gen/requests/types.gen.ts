@@ -1141,6 +1141,18 @@ export type DAGWarningResponse = {
 export type DagProcessorInfoResponse = {
     status: string | null;
     latest_dag_processor_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<DagProcessorInstanceInfoResponse> | null;
+};
+
+/**
+ * Dag processor instance info serializer for responses.
+ */
+export type DagProcessorInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_dag_processor_heartbeat: string | null;
+    bundle_names: Array<(string)> | null;
 };
 
 /**
@@ -1295,6 +1307,7 @@ export type EventLogResponse = {
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1491,6 +1504,8 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
+    team_name?: string | null;
+    bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
 
@@ -1722,6 +1737,17 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  */
 export type SchedulerInfoResponse = {
     status: string | null;
+    latest_scheduler_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<SchedulerInstanceInfoResponse> | null;
+};
+
+/**
+ * Scheduler instance info serializer for responses.
+ */
+export type SchedulerInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
 
@@ -2069,6 +2095,18 @@ export type TriggerResponse = {
 export type TriggererInfoResponse = {
     status: string | null;
     latest_triggerer_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<TriggererInstanceInfoResponse> | null;
+};
+
+/**
+ * Triggerer instance info serializer for responses.
+ */
+export type TriggererInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_triggerer_heartbeat: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -2159,6 +2197,7 @@ export type XComResponse = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2175,6 +2214,7 @@ export type XComResponseNative = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: unknown;
 };
 
@@ -2192,6 +2232,7 @@ export type XComResponseString = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: string | null;
 };
 
@@ -2500,6 +2541,7 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -3489,6 +3531,10 @@ export type GetDagsData = {
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
+    /**
+     * Filter Dags by whether their timetable can create scheduled runs.
+     */
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
@@ -3735,6 +3781,7 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: number | null;
 };
 
@@ -4506,6 +4553,7 @@ export type GetXcomEntriesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     xcomKey?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4693,6 +4741,7 @@ export type GetDeadlinesData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
      */
     orderBy?: Array<(string)>;
+    teams?: Array<(string)>;
 };
 
 export type GetDeadlinesResponse = DeadlineCollectionResponse;

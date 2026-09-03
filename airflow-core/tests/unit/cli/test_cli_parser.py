@@ -496,6 +496,26 @@ class TestCli:
             with pytest.raises(SystemExit):
                 parser.parse_args([*cmd_args, "--help"])
 
+    @pytest.mark.parametrize(
+        ("selected_names", "source_commands"),
+        [
+            pytest.param(cli_config.DAG_CLI_DAGS_SUBCOMMANDS, cli_config.DAGS_COMMANDS, id="dags"),
+            pytest.param(cli_config.DAG_CLI_TASKS_SUBCOMMANDS, cli_config.TASKS_COMMANDS, id="tasks"),
+        ],
+    )
+    def test_dag_cli_subcommands_all_exist(self, selected_names, source_commands):
+        """A name that no longer exists is silently dropped, so guard against stale entries."""
+        assert set(selected_names) <= {command.name for command in source_commands}
+
+    def test_dag_cli_parser_keeps_args_when_rebuilt(self):
+        """``_remove_dag_id_opt`` must not hand argparse a one-shot generator."""
+        cli_parser.get_parser.cache_clear()
+        first = vars(cli_parser.get_parser(dag_parser=True).parse_args(["dags", "pause"]))
+        cli_parser.get_parser.cache_clear()
+        second = vars(cli_parser.get_parser(dag_parser=True).parse_args(["dags", "pause"]))
+        assert "treat_dag_id_as_regex" in first
+        assert first.keys() == second.keys()
+
     def test_positive_int(self):
         assert cli_config.positive_int(allow_zero=True)("1") == 1
         assert cli_config.positive_int(allow_zero=True)("0") == 0

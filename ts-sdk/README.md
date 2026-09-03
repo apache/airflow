@@ -167,8 +167,9 @@ Airflow launches the bundled entrypoint with `--comm=host:port` and
 startup message, finds the registered handler for the Dag/task pair, and
 reports the terminal task state back to Airflow.
 
-See [`example/`](example/) for a coordinator-runtime example that packs a
-bundle with `airflow-ts-pack` and uses a Python stub Dag.
+See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
+a coordinator-runtime example that packs a bundle with `airflow-ts-pack` and
+uses a Python stub Dag.
 
 ## Packing bundles
 
@@ -214,62 +215,69 @@ current task context when omitted.
 accepts an abort signal so tasks can clean up cooperatively when Airflow
 terminates the task subprocess with SIGTERM or SIGINT.
 
-## Development
+## Compatibility matrix
 
-```bash
-pnpm install
-pnpm test
-pnpm run typecheck
-pnpm run build
-```
+Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
+[`capabilities.yaml`](https://github.com/apache/airflow/blob/main/ts-sdk/capabilities.yaml);
+the conformance dimensions are defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+Do not edit the table by hand — update the manifest and run the
+`update-ts-sdk-readme-matrix` prek hook.
 
-The committed lockfile and `pnpm-workspace.yaml` define the dependency security
-policy. Newly released dependency versions must age for 14 days before they
-can enter the lockfile, transitive dependencies cannot use Git or arbitrary
-tarball sources, and only explicitly approved dependencies can run lifecycle
-build scripts. Review changes to both files together when updating dependencies.
+<!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
-with its own managed node + pnpm toolchain:
+*Min. Airflow version: 3.4 · supervisor schema: 2026-10-30*
 
-```bash
-prek run compile-ts-sdk
-```
+| Dimension | Tier | Supported | Since | Notes |
+|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4 |  |
+| state: `failed` | MUST | ✓ | 3.4 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4 | RetryTask |
+| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
+| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.4 |  |
+| **Runtime capabilities** |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
+| capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
+| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
+| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
+| **Native-Dag authoring** |  |  |  |  |
+| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
+| capability: `task-args` | MUST † | n/a | – |  |
+| capability: `dag-params` | MUST † | n/a | – |  |
+| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
+| capability: `branching` | SHOULD † | n/a | – |  |
+| capability: `dag-test` | SHOULD † | n/a | – |  |
+| capability: `task-group` | MAY † | n/a | – |  |
+| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
+| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
+| capability: `asset-scheduling` | MAY † | n/a | – |  |
+| capability: `object-store` | MAY † | n/a | – | no object-storage API yet |
 
-## API reference
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
 
-The public API reference is generated from the TypeScript sources with
-[TypeDoc](https://typedoc.org/) and published to
-<https://airflow.apache.org/docs/ts-sdk/stable/>.
+<!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-Build it locally (runs the pinned toolchain in a Node container, so no local
-Node install is needed):
+## Links
 
-```bash
-breeze build-docs --sdk-docs-only --sdk=typescript
-```
-
-The rendered site is staged at `generated/_build/docs/ts-sdk/stable/`, alongside
-a `stable.txt` holding the version from `ts-sdk/package.json`. To iterate on the
-docs directly instead, `npm ci && npm run build` inside `ts-sdk/docs/` writes to
-`ts-sdk/docs/_build/html/`, and `npm start` rebuilds on change.
-
-CI builds the reference on every change under `ts-sdk/src/` or `ts-sdk/docs/`,
-so a broken docs build fails the PR rather than the release.
-
-### Publishing the API docs
-
-Publishing is a separate, deliberate step — a providers-only publish wave will
-not refresh the SDK docs as a side effect. Trigger the *Publish Docs to S3*
-workflow for the release ref:
-
-```bash
-gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
-  -f ref=<RELEASE_REF> \
-  -f include-docs=ts-sdk \
-  -f destination=live
-```
-
-Use `destination=staging` first to check the output, then `live`. Confirm that
-`https://airflow.apache.org/docs/ts-sdk/stable/` resolves (allow time for cache
-invalidation) and that `/docs/ts-sdk/` redirects to it.
+- [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
+  — how Airflow runs TypeScript task handlers
+- [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/)
+  — generated from the TypeScript sources
+- [Source](https://github.com/apache/airflow/tree/main/ts-sdk) — the `ts-sdk/`
+  directory of the Apache Airflow monorepo
+- [Issues](https://github.com/apache/airflow/issues) — bug reports and feature
+  requests
+- [Website](https://airflow.apache.org) · [Slack](https://s.apache.org/airflow-slack)
+- [Developing this package](https://github.com/apache/airflow/blob/main/ts-sdk/DEVELOPMENT.md)
+  — local build, docs, and the release workflow

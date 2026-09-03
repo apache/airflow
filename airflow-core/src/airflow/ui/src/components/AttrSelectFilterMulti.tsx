@@ -19,7 +19,7 @@
 import { createListCollection } from "@chakra-ui/react";
 import type { SelectValueChangeDetails, CollectionItem } from "@chakra-ui/react";
 
-import { Select } from "src/components/ui";
+import { Select } from "src/system-components";
 
 type Props = {
   readonly dataTestId?: string;

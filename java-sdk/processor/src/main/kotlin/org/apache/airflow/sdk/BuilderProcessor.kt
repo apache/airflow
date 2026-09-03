@@ -54,8 +54,8 @@ import javax.tools.Diagnostic
  * containing:
  *
  * - One inner class per [Builder.Task]-annotated method, implementing [Task].
- * - A static `build()` method that constructs the [Dag] and registers those
- *   inner classes as tasks.
+ * - A static `build()` method that constructs the [DagDef] and registers those
+ *   inner classes as [TaskDef]s.
  *
  * [Builder.XCom]-annotated parameters are resolved via `client.getXCom` in the
  * generated `execute` body, with the result cast to the parameter's declared
@@ -102,8 +102,8 @@ class BuilderProcessor : AbstractProcessor() {
       MethodSpec
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(ClassName.get(Dag::class.java))
-        .addStatement($$"var dag = new $T($S)", ClassName.get(Dag::class.java), ann.id.ifBlank { el.simpleName })
+        .returns(ClassName.get(DagDef::class.java))
+        .addStatement($$"var dag = new $T($S)", ClassName.get(DagDef::class.java), ann.id.ifBlank { el.simpleName })
 
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
@@ -116,7 +116,8 @@ class BuilderProcessor : AbstractProcessor() {
       builderClass.addType(task.spec)
 
       buildMethod.addStatement(
-        $$"dag.addTask($S, $L.class)",
+        $$"dag.addTask(new $T($S, $L.class))",
+        ClassName.get(TaskDef::class.java),
         ann.id.ifBlank { inner.simpleName },
         innerName,
       )

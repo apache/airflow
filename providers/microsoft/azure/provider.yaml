@@ -21,12 +21,13 @@ description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
 lifecycle: production
-source-date-epoch: 1787011200
+source-date-epoch: 1787678724
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 15.0.1
   - 15.0.0
   - 14.1.0
   - 14.0.0
@@ -402,6 +403,7 @@ connection-types:
         password: secret (token credentials auth)
         tenantId: tenantId (token credentials auth)
         subscriptionId: subscriptionId (token credentials auth)
+        cloud_environment: AzurePublicCloud (default) | AzureUSGovernment | AzureChinaCloud
     conn-fields:
       tenantId:
         label: Azure Tenant ID
@@ -820,9 +822,8 @@ connection-types:
         fully_qualified_namespace: >-
           <Resource group>.servicebus.windows.net (for Azure AD authentication)
         credential: credential
-        schema: >-
-          Endpoint=sb://<Resource group>.servicebus.windows.net/;
-          SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>
+        schema: "Endpoint=sb://<Resource group>.servicebus.windows.net/;\
+          SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>"
     conn-fields:
       fully_qualified_namespace:
         label: Fully Qualified Namespace

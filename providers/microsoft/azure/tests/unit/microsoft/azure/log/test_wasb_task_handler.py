@@ -26,10 +26,10 @@ from unittest import mock
 import pytest
 from azure.common import AzureHttpError
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO, WasbTaskHandler
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -38,7 +38,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 pytestmark = pytest.mark.db_test
 
 
-DEFAULT_DATE = datetime(2020, 8, 10)
+DEFAULT_DATE = timezone.datetime(2020, 8, 10)
 
 
 class TestWasbRemoteLogIOFromConfig:

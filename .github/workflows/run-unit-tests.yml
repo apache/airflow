@@ -129,11 +129,17 @@ on:  # yamllint disable-line rule:truthy
         description: "The default branch of the repository"
         required: true
         type: string
+      job-timeout-minutes:
+        description: "How long the job may run before GitHub cancels it"
+        required: false
+        default: 65
+        type: number
 permissions:
   contents: read
 jobs:
   tests:
-    timeout-minutes: 65
+    # run_unit_tests.sh derives the tests' own timeout from what is left of this budget.
+    timeout-minutes: ${{ fromJSON(inputs.job-timeout-minutes) }}
     # yamllint disable rule:line-length
     name: "\
       ${{ case(inputs.test-scope == 'Quarantined', 'Qrnt', inputs.test-scope == 'All', '', inputs.test-scope) }}\
@@ -176,9 +182,12 @@ jobs:
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
       VERBOSE: "true"
       DEFAULT_BRANCH: "${{ inputs.default-branch }}"
-      TOTAL_TEST_TIMEOUT: "3600"  # 60 minutes in seconds
+      JOB_TIMEOUT_MINUTES: "${{ inputs.job-timeout-minutes }}"
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
+      - name: "Record job start time"
+        shell: bash
+        run: echo "JOB_START_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
       - name: "Cleanup repo"
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*

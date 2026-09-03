@@ -117,7 +117,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "c7f0a5d2e9b4",
+    "3.4.0": "f8c2a1d94e03",
 }
 
 # Prefix used to identify tables holding data moved during migration.

@@ -301,7 +301,7 @@ def _set_dag_run_terminal_state(
 
     if commit:
         for ti in pending_normal_tis:
-            ti.set_state(TaskInstanceState.SKIPPED)
+            ti.set_state(TaskInstanceState.SKIPPED, session=session)
 
         # Set the dag run state only if there is no pending teardown (else this would not be scheduled later).
         if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):

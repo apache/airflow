@@ -158,6 +158,9 @@ def start_generating_back_references(
     if "apache-airflow-ctl" in short_provider_ids:
         console_print("[info]Skipping airflowctl package. No back-reference needed.")
         short_provider_ids.remove("apache-airflow-ctl")
+    if "apache-airflow-mypy" in short_provider_ids:
+        console_print("[info]Skipping apache-airflow-mypy package. No back-reference needed.")
+        short_provider_ids.remove("apache-airflow-mypy")
 
     if short_provider_ids:
         for p in short_provider_ids:

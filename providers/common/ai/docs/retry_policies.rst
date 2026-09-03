@@ -75,7 +75,7 @@ When a task fails, ``LLMRetryPolicy``:
    and truncated to ``max_exception_length`` characters before it is added
    to the prompt.
 2. The LLM classifies the error into a category (``rate_limit``, ``auth``,
-   ``network``, ``data``, ``transient``, ``permanent``)
+   ``network``, ``data``, ``resource``, ``transient``, ``permanent``)
 3. Based on the classification, returns RETRY (with a suggested delay) or FAIL
 4. The classification reason is logged in the task logs
 

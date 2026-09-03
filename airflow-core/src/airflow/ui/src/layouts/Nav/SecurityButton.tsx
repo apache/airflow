@@ -21,13 +21,14 @@ import { FiLock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
-import { Menu } from "src/components/ui";
+
+import { Menu } from "src/system-components";
 
 import { NavButton } from "./NavButton";
 
 export const SecurityButton = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (authLinks?.extra_menu_items === undefined || authLinks.extra_menu_items.length < 1) {
     return undefined;

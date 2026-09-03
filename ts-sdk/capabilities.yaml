@@ -1,0 +1,119 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+sdk: ts
+
+min_airflow_version: "3.4"
+
+# Keep in sync with SUPERVISOR_API_VERSION in src/generated/supervisor.ts. The render hook fails
+# if the two disagree.
+supervisor_schema_version: "2026-10-30"
+
+# The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does
+# not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
+states:
+  success:
+    supported: true
+    since: "3.4"
+  failed:
+    supported: true
+    since: "3.4"
+  up_for_retry:
+    supported: true
+    since: "3.4"
+    note: "RetryTask"
+  skipped:
+    supported: false
+    note: "runtime does not emit TaskState skipped yet"
+  deferred:
+    supported: false
+    note: "runtime does not emit DeferTask yet"
+  up_for_reschedule:
+    supported: false
+    note: "runtime does not emit RescheduleTask yet"
+  awaiting_input:
+    supported: false
+    note: "runtime does not emit AwaitInputTask yet"
+  removed:
+    supported: true
+    since: "3.4"
+
+# Runtime capabilities reflect the task-facing coordinator client surface; native-Dag authoring is
+# not implemented yet, so every native capability is unsupported.
+capabilities:
+  mixed-lang-stub-target:
+    supported: true
+    since: "3.4"
+    note: "@task.stub"
+  task-logging:
+    supported: true
+    since: "3.4"
+    note: "structured records over the log socket"
+  xcom-read-write:
+    supported: true
+    since: "3.4"
+    note: "getXCom / setXCom"
+  connection-read:
+    supported: true
+    since: "3.4"
+    note: "getConnection"
+  variable-read-write:
+    supported: false
+    note: "getVariable only; no write over the comm socket yet"
+  self-contained-bundle:
+    supported: true
+    since: "3.4"
+    note: "Airflow metadata embedded in the bundle"
+  retry-policy:
+    supported: false
+    note: "no task-facing retry-policy API yet"
+  task-state-store:
+    supported: false
+    note: "no task-facing state-store API yet"
+  asset-state-store:
+    supported: false
+    note: "no task-facing state-store API yet"
+  asset-event-emit:
+    supported: false
+    note: "runtime does not emit asset events yet"
+  asset-event-read:
+    supported: false
+    note: "no task-facing asset-event API yet"
+  native-dag-authoring:
+    supported: false
+    note: "native Dag authoring not implemented yet"
+  task-args:
+    supported: false
+  dag-params:
+    supported: false
+  taskflow-dependencies:
+    supported: false
+  branching:
+    supported: false
+  dag-test:
+    supported: false
+  task-group:
+    supported: false
+  dynamic-task-mapping:
+    supported: false
+  asset-inlets-outlets:
+    supported: false
+  asset-scheduling:
+    supported: false
+  object-store:
+    supported: false
+    note: "no object-storage API yet"

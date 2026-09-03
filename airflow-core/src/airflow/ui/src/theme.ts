@@ -17,6 +17,8 @@
  * under the License.
  */
 /* eslint-disable perfectionist/sort-objects */
+import type { CSSProperties } from "react";
+
 import {
   createSystem,
   defaultConfig,
@@ -25,7 +27,6 @@ import {
   type SystemStyleObject,
   type ThemingConfig,
 } from "@chakra-ui/react";
-import type { CSSProperties } from "react";
 
 import type { Theme } from "openapi/requests/types.gen";
 

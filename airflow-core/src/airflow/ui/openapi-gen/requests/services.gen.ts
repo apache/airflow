@@ -1663,6 +1663,7 @@ export class DagService {
      * Get Dags
      * Get all Dags.
      * @param data The data for the request.
+     * @param data.isScheduled Filter Dags by whether their timetable can create scheduled runs.
      * @param data.limit
      * @param data.offset
      * @param data.tags
@@ -1700,6 +1701,7 @@ export class DagService {
             method: 'GET',
             url: '/api/v2/dags',
             query: {
+                is_scheduled: data.isScheduled,
                 limit: data.limit,
                 offset: data.offset,
                 tags: data.tags,
@@ -2170,6 +2172,7 @@ export class EventLogService {
      * @param data.ownerPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.ownerDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.eventPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.teams
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2203,7 +2206,8 @@ export class EventLogService {
                 run_id_prefix_pattern: data.runIdPrefixPattern,
                 owner_prefix_pattern: data.ownerPrefixPattern,
                 owner_display_name_prefix_pattern: data.ownerDisplayNamePrefixPattern,
-                event_prefix_pattern: data.eventPrefixPattern
+                event_prefix_pattern: data.eventPrefixPattern,
+                teams: data.teams
             },
             errors: {
                 401: 'Unauthorized',
@@ -4225,6 +4229,7 @@ export class XcomService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.teams
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
@@ -4260,6 +4265,7 @@ export class XcomService {
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
+                teams: data.teams,
                 order_by: data.orderBy
             },
             errors: {
@@ -4887,6 +4893,7 @@ export class DeadlinesService {
      * @param data.lastUpdatedAtGt
      * @param data.lastUpdatedAtLte
      * @param data.lastUpdatedAtLt
+     * @param data.teams
      * @returns DeadlineCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -4910,7 +4917,8 @@ export class DeadlinesService {
                 last_updated_at_gte: data.lastUpdatedAtGte,
                 last_updated_at_gt: data.lastUpdatedAtGt,
                 last_updated_at_lte: data.lastUpdatedAtLte,
-                last_updated_at_lt: data.lastUpdatedAtLt
+                last_updated_at_lt: data.lastUpdatedAtLt,
+                teams: data.teams
             },
             errors: {
                 400: 'Bad Request',

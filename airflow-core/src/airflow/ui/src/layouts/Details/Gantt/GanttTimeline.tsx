@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { RefObject } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
+
 import { Badge, Box, Flex, Text } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
-import type { RefObject } from "react";
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
-import { StateIcon } from "src/components/StateIcon";
-import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
 import {
   GANTT_AXIS_HEIGHT_PX,
   GANTT_TOP_PADDING_PX,
@@ -33,6 +33,9 @@ import {
   TASK_BAR_HEIGHT_PX,
 } from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+
+import { StateIcon } from "src/components/StateIcon";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import {
   type GanttDataItem,

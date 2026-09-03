@@ -23,10 +23,10 @@ from unittest import mock
 import pytest
 
 from airflow_breeze.commands.ci_image_commands import (
+    build_ci_image_if_needed,
+    confirm_build_if_sources_changed,
     get_ci_image_sources_hash_label,
     is_ci_image_built_from_current_sources,
-    rebuild_or_pull_ci_image_if_needed,
-    should_we_run_the_build,
 )
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
@@ -92,26 +92,26 @@ def test_is_ci_image_built_from_current_sources(
 
 @mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
-def test_should_we_run_the_build_skips_build_when_image_matches_current_sources(
+def test_confirm_build_if_sources_changed_skips_build_when_image_matches_current_sources(
     mock_is_ci_image_built_from_current_sources, mock_mark_image_as_rebuilt
 ):
     mock_is_ci_image_built_from_current_sources.return_value = True
     build_ci_params = BuildCiParams()
-    assert should_we_run_the_build(build_ci_params) is False
+    assert confirm_build_if_sources_changed(build_ci_params) is False
     mock_mark_image_as_rebuilt.assert_called_once_with(ci_image_params=build_ci_params)
 
 
 @mock.patch("airflow_breeze.commands.ci_image_commands.md5sum_check_if_build_is_needed")
 @mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
-def test_should_we_run_the_build_falls_back_to_md5_check_when_image_does_not_match(
+def test_confirm_build_if_sources_changed_falls_back_to_md5_check_when_image_does_not_match(
     mock_is_ci_image_built_from_current_sources,
     mock_mark_image_as_rebuilt,
     mock_md5sum_check_if_build_is_needed,
 ):
     mock_is_ci_image_built_from_current_sources.return_value = False
     mock_md5sum_check_if_build_is_needed.return_value = False
-    assert should_we_run_the_build(BuildCiParams()) is False
+    assert confirm_build_if_sources_changed(BuildCiParams()) is False
     mock_mark_image_as_rebuilt.assert_not_called()
     mock_md5sum_check_if_build_is_needed.assert_called_once()
 
@@ -119,7 +119,7 @@ def test_should_we_run_the_build_falls_back_to_md5_check_when_image_does_not_mat
 @mock.patch("airflow_breeze.commands.ci_image_commands.run_build_ci_image")
 @mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
-def test_rebuild_or_pull_reuses_image_built_in_another_checkout(
+def test_build_ci_image_if_needed_reuses_image_built_in_another_checkout(
     mock_is_ci_image_built_from_current_sources,
     mock_mark_image_as_rebuilt,
     mock_run_build_ci_image,
@@ -128,7 +128,7 @@ def test_rebuild_or_pull_reuses_image_built_in_another_checkout(
 ):
     monkeypatch.setattr("airflow_breeze.commands.ci_image_commands.BUILD_CACHE_PATH", tmp_path)
     mock_is_ci_image_built_from_current_sources.return_value = True
-    rebuild_or_pull_ci_image_if_needed(command_params=BuildCiParams())
+    build_ci_image_if_needed(command_params=BuildCiParams())
     mock_mark_image_as_rebuilt.assert_called_once()
     mock_run_build_ci_image.assert_not_called()
 
@@ -136,7 +136,7 @@ def test_rebuild_or_pull_reuses_image_built_in_another_checkout(
 @mock.patch("airflow_breeze.commands.ci_image_commands.check_if_image_building_is_needed")
 @mock.patch("airflow_breeze.commands.ci_image_commands.run_build_ci_image")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
-def test_rebuild_or_pull_forces_build_when_image_does_not_match_sources(
+def test_build_ci_image_if_needed_forces_build_when_image_does_not_match_sources(
     mock_is_ci_image_built_from_current_sources,
     mock_run_build_ci_image,
     mock_check_if_image_building_is_needed,
@@ -147,7 +147,7 @@ def test_rebuild_or_pull_forces_build_when_image_does_not_match_sources(
     mock_is_ci_image_built_from_current_sources.return_value = False
     mock_check_if_image_building_is_needed.return_value = True
     mock_run_build_ci_image.return_value = (0, "built")
-    rebuild_or_pull_ci_image_if_needed(command_params=BuildCiParams())
+    build_ci_image_if_needed(command_params=BuildCiParams())
     assert mock_check_if_image_building_is_needed.call_args.kwargs["ci_image_params"].force_build is True
     mock_run_build_ci_image.assert_called_once()
 
@@ -155,7 +155,7 @@ def test_rebuild_or_pull_forces_build_when_image_does_not_match_sources(
 @mock.patch("airflow_breeze.commands.ci_image_commands.check_if_image_building_is_needed")
 @mock.patch("airflow_breeze.commands.ci_image_commands.run_build_ci_image")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
-def test_rebuild_or_pull_does_not_reuse_image_when_force_build_requested(
+def test_build_ci_image_if_needed_does_not_reuse_image_when_force_build_requested(
     mock_is_ci_image_built_from_current_sources,
     mock_run_build_ci_image,
     mock_check_if_image_building_is_needed,
@@ -165,14 +165,14 @@ def test_rebuild_or_pull_does_not_reuse_image_when_force_build_requested(
     monkeypatch.setattr("airflow_breeze.commands.ci_image_commands.BUILD_CACHE_PATH", tmp_path)
     mock_check_if_image_building_is_needed.return_value = True
     mock_run_build_ci_image.return_value = (0, "built")
-    rebuild_or_pull_ci_image_if_needed(command_params=BuildCiParams(force_build=True))
+    build_ci_image_if_needed(command_params=BuildCiParams(force_build=True))
     mock_is_ci_image_built_from_current_sources.assert_not_called()
     mock_run_build_ci_image.assert_called_once()
 
 
 @mock.patch("airflow_breeze.commands.ci_image_commands.check_if_image_building_is_needed")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
-def test_rebuild_or_pull_does_not_query_docker_when_marker_present(
+def test_build_ci_image_if_needed_does_not_query_docker_when_marker_present(
     mock_is_ci_image_built_from_current_sources,
     mock_check_if_image_building_is_needed,
     tmp_path,
@@ -184,5 +184,5 @@ def test_rebuild_or_pull_does_not_query_docker_when_marker_present(
     marker.parent.mkdir(parents=True)
     marker.touch()
     mock_check_if_image_building_is_needed.return_value = False
-    rebuild_or_pull_ci_image_if_needed(command_params=command_params)
+    build_ci_image_if_needed(command_params=command_params)
     mock_is_ci_image_built_from_current_sources.assert_not_called()

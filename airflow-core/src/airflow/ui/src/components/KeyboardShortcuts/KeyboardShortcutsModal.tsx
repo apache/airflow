@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Modal } from "src/components/ui";
+import { Modal } from "src/system-components";
+
 import {
   SHORTCUTS,
   SHORTCUT_CATEGORIES,
@@ -52,7 +54,7 @@ const buildGroups = (shortcuts: ReadonlyArray<ShortcutEntry>) =>
   }).filter((group) => group.items.length > 0);
 
 export const KeyboardShortcutsModal = () => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { shortcuts } = useShortcutRegistry();
   const [open, setOpen] = useState(false);
   const metaKey = getMetaKey();

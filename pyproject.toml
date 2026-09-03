@@ -114,6 +114,9 @@ apache-airflow = "airflow.__main__:main"
 "anthropic" = [
     "apache-airflow-providers-anthropic>=0.1.0"
 ]
+"apache.arrow" = [
+    "apache-airflow-providers-apache-arrow>=0.1.0"
+]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
 ]
@@ -413,6 +416,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-anthropic>=0.1.0",
+    "apache-airflow-providers-apache-arrow>=0.1.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -674,6 +678,7 @@ extend-select = [
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B023", # Function definition does not bind loop variable (late binding of closure over loop var)
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
     "RET505", # Unnecessary {branch} after return statement
@@ -910,8 +915,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 # Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
 # all rules in each project https://github.com/astral-sh/ruff/issues/18723
-# Add this once providers are sorted
-# "airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
+"airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
 # "airflow_shared".msg = "Use airflow._shared or airflow.sdk._shared instead"
 
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
@@ -1106,6 +1110,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/anthropic/src",
     "$MYPY_CONFIG_FILE_DIR/providers/anthropic/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/drill/src",
@@ -1202,6 +1208,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/http/src",
     "$MYPY_CONFIG_FILE_DIR/providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/src",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/imap/src",
@@ -1446,6 +1454,7 @@ apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
+apache-airflow-providers-apache-arrow = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1494,6 +1503,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
@@ -1604,6 +1614,7 @@ apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
+apache-airflow-providers-apache-arrow = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1652,6 +1663,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
 apache-airflow-providers-influxdb = false
@@ -1769,6 +1781,7 @@ apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-anthropic = { workspace = true }
+apache-airflow-providers-apache-arrow = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
@@ -1817,6 +1830,7 @@ apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-ibm-db2 = { workspace = true }
 apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
@@ -1910,6 +1924,7 @@ members = [
     "providers/alibaba",
     "providers/amazon",
     "providers/anthropic",
+    "providers/apache/arrow",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",
@@ -1958,6 +1973,7 @@ members = [
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
+    "providers/ibm/db2",
     "providers/ibm/mq",
     "providers/imap",
     "providers/influxdb",

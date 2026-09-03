@@ -21,14 +21,17 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
+
 import { BasicTooltip } from "src/components/BasicTooltip";
+import Time from "src/components/Time";
+
 import { renderDuration } from "src/utils/datetimeUtils";
 
 type Props = {
   readonly dagId: string;
   readonly duration?: number | null;
   readonly isGroup?: boolean;
-  readonly label: string;
+  readonly runAfter: string;
   readonly runId: string;
   readonly searchParams: string;
   readonly state: DagRunState | TaskInstanceState | null | undefined;
@@ -40,7 +43,7 @@ export const GridButton = ({
   dagId,
   duration,
   isGroup,
-  label,
+  runAfter,
   runId,
   searchParams,
   state,
@@ -51,7 +54,7 @@ export const GridButton = ({
 
   const tooltipContent = (
     <>
-      {label}
+      <Time datetime={runAfter} />
       <br />
       {translate("common:runId")}: {runId}
       <br />

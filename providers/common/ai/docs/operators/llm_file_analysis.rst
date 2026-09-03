@@ -111,6 +111,18 @@ returns the prompt string; file settings are passed to the decorator:
     :start-after: [START howto_decorator_llm_file_analysis]
     :end-before: [END howto_decorator_llm_file_analysis]
 
+Human-in-the-Loop Approval
+---------------------------
+
+Set ``require_approval=True`` to pause the task after the analysis and wait
+for a human reviewer to approve the output before it is returned.
+When ``allow_modifications=True``, the reviewer can also edit the output:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_file_analysis.py
+    :language: python
+    :start-after: [START howto_operator_llm_file_analysis_approval]
+    :end-before: [END howto_operator_llm_file_analysis_approval]
+
 Parameters
 ----------
 
@@ -153,11 +165,21 @@ This operator also inherits ``LLMOperator``'s HITL review parameters --
 Supported Formats
 -----------------
 
-- Text-like: ``.log``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
+- Text-like: ``.log``, ``.txt``, ``.md``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
 - Multimodal: ``.png``, ``.jpg``, ``.jpeg``, ``.pdf`` when ``multi_modal=True``
-- Gzip-compressed text inputs are supported for ``.log.gz``, ``.json.gz``, and
-  ``.csv.gz``.
-- Gzip is not supported for ``.parquet``, ``.avro``, image, or PDF inputs.
+- ``gzip``, ``bzip2``, and ``xz`` compressed text inputs are supported for
+  ``.log``, ``.json``, ``.csv``, ``.txt``, and ``.md`` (``.log.gz``, ``.csv.bz2``,
+  ``.json.xz``, ...).
+  ``bzip2`` and ``xz`` need a Python interpreter built with the ``bz2`` and
+  ``lzma`` modules; otherwise those inputs raise
+  ``AirflowOptionalProviderFeatureException``.
+- Compression is not supported for ``.parquet``, ``.avro``, image, or PDF
+  inputs.
+- For ``bzip2`` and ``xz``, concatenated streams are read in full, but any
+  data after a point that does not start a valid stream (for example ``xz``
+  Stream Padding between streams, or trailing garbage) is silently ignored,
+  so only the content up to that point is analyzed. ``gzip`` rejects such
+  files instead (``BadGzipFile``).
 
 Parquet and Avro readers require their corresponding optional extras:
 

@@ -18,7 +18,7 @@
  */
 import { type CollectionItem, createListCollection, type SelectValueChangeDetails } from "@chakra-ui/react";
 
-import { Select } from "src/components/ui";
+import { Select } from "src/system-components";
 
 type Props = {
   readonly handleSelect: (value: CollectionItem) => void;

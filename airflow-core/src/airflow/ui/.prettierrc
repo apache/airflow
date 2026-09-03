@@ -1,7 +1,17 @@
 {
   "$schema": "http://json.schemastore.org/prettierrc",
   "endOfLine": "lf",
-  "importOrder": ["<THIRD_PARTY_MODULES>", "^(src|openapi)/", "^[./]"],
+  "importOrder": [
+    "^react$",
+    "<THIRD_PARTY_MODULES>",
+    "^openapi/",
+    "^src/system-components",
+    "^src/layouts",
+    "^src/pages",
+    "^src/components",
+    "^(src|tests)/",
+    "^[./]"
+  ],
   "importOrderSeparation": true,
   "jsxSingleQuote": false,
   "plugins": ["@trivago/prettier-plugin-sort-imports"],

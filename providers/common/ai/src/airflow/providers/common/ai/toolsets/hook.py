@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 import re
 import types
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
@@ -27,7 +26,11 @@ from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hin
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
-from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
+from airflow.providers.common.ai.utils.tool_definition import (
+    build_args_validator,
+    return_schema_kwargs,
+    serialize_for_llm,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -109,7 +112,7 @@ class HookToolset(AbstractToolset[Any]):
             # sequential=True because hook methods perform synchronous I/O
             # (network calls, DB queries) and should not run concurrently.
             # return_schema is "string": call_tool serializes every result with
-            # _serialize_for_llm, so the tool always returns a (JSON-encoded)
+            # serialize_for_llm, so the tool always returns a (JSON-encoded)
             # string regardless of the method's own return annotation. This lets
             # code mode render `-> str` instead of `-> Any`.
             tool_def = ToolDefinition(
@@ -137,7 +140,7 @@ class HookToolset(AbstractToolset[Any]):
         method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
         result = method(**tool_args)
-        return _serialize_for_llm(result)
+        return serialize_for_llm(result)
 
 
 # ---------------------------------------------------------------------------
@@ -260,15 +263,3 @@ def _parse_param_docs(docstring: str) -> dict[str, str]:
                 params[m.group(1)] = " ".join(m.group(2).split())
 
     return params
-
-
-def _serialize_for_llm(value: Any) -> str:
-    """Convert a Python return value to a string suitable for an LLM."""
-    if value is None:
-        return "null"
-    if isinstance(value, str):
-        return value
-    try:
-        return json.dumps(value, default=str)
-    except (TypeError, ValueError):
-        return str(value)

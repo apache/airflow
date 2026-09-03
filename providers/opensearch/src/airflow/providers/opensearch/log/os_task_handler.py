@@ -64,10 +64,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     OsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+
 import { BasePage } from "tests/e2e/pages/BasePage";
 import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 import { waitForStableRowCount } from "tests/e2e/utils/ui/waits";

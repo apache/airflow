@@ -31,7 +31,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -41,6 +41,7 @@ else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
+from airflow.models.xcom_arg import XComArg
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
@@ -48,6 +49,7 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
     ComputeEngineInsertInstanceOperator,
 )
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
@@ -153,6 +155,7 @@ SPREADSHEET = {
     "properties": {"title": "Test1"},
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
+GDRIVE_SECRET_ID = "gdrive_shared_folder_id"
 
 log = logging.getLogger(__name__)
 
@@ -163,6 +166,13 @@ with DAG(
     catchup=False,
     tags=["example", "postgres", "gcs"],
 ) as dag:
+
+    @task
+    def get_shared_drive_id() -> str:
+        return get_secret(secret_id=GDRIVE_SECRET_ID).strip()
+
+    get_shared_drive_id_task = get_shared_drive_id()
+
     create_gce_instance = ComputeEngineInsertInstanceOperator(
         task_id="create_gce_instance",
         project_id=PROJECT_ID,
@@ -233,7 +243,7 @@ with DAG(
     @task
     def setup_sheets_connection():
         conn_extra = {
-            "scope": "https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform",
+            "scope": "https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform",
             "project": PROJECT_ID,
             "keyfile_dict": "",  # Override to match your needs
         }
@@ -248,7 +258,10 @@ with DAG(
     setup_sheets_connection_task = setup_sheets_connection()
 
     create_spreadsheet = GoogleSheetsCreateSpreadsheetOperator(
-        task_id="create_spreadsheet", spreadsheet=SPREADSHEET, gcp_conn_id=SHEETS_CONNECTION_ID
+        task_id="create_spreadsheet",
+        spreadsheet=SPREADSHEET,
+        gcp_conn_id=SHEETS_CONNECTION_ID,
+        drive_id=get_shared_drive_id_task,
     )
 
     # [START upload_sql_to_sheets]
@@ -257,7 +270,7 @@ with DAG(
         sql=SQL_SELECT,
         sql_conn_id=CONNECTION_ID,
         database=DB_NAME,
-        spreadsheet_id="{{ task_instance.xcom_pull(task_ids='create_spreadsheet', key='spreadsheet_id') }}",
+        spreadsheet_id=cast("str", XComArg(create_spreadsheet, key="spreadsheet_id")),
         gcp_conn_id=SHEETS_CONNECTION_ID,
     )
     # [END upload_sql_to_sheets]
@@ -287,7 +300,7 @@ with DAG(
     create_gce_instance >> get_public_ip_task >> create_connection_task
     [create_gce_instance, create_firewall_rule] >> setup_postgres
     [setup_postgres, create_connection_task, create_firewall_rule] >> create_sql_table >> insert_sql_data
-    setup_sheets_connection_task >> create_spreadsheet
+    get_shared_drive_id_task >> setup_sheets_connection_task >> create_spreadsheet
 
     (
         [create_spreadsheet, insert_sql_data]

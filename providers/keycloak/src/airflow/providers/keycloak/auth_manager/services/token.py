@@ -24,6 +24,10 @@ from keycloak import KeycloakAuthenticationError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLIENT_ID_KEY,
+    CONF_SECTION_NAME,
+)
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
@@ -71,7 +75,20 @@ def create_client_credentials_token(
     - Client Authentication: ON (confidential client)
 
     The service account must be configured with the appropriate roles/permissions.
+
+    Only the client Airflow is configured to use is accepted. The route this is reached
+    from is unauthenticated, so without that restriction the credentials of any
+    confidential client in the realm would be usable to obtain an Airflow token.
     """
+    if client_id != conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY):
+        # Deliberately the same response as a failed credential exchange below: telling
+        # the caller which of the two checks rejected them would make the endpoint a
+        # discovery oracle for client ids in the realm.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Client credentials authentication failed",
+        )
+
     # Get Keycloak client with service account credentials
     client = KeycloakAuthManager.get_keycloak_client(
         client_id=client_id,

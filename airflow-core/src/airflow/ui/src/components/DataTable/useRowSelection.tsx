@@ -18,7 +18,7 @@
  */
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-import { Checkbox } from "src/components/ui/Checkbox";
+import { Checkbox } from "src/system-components";
 
 type UseRowSelectionProps<T> = {
   data?: Array<T>;

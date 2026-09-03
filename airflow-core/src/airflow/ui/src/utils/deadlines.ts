@@ -19,6 +19,7 @@
 import type { TFunction } from "i18next";
 
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
 import { humanizeSeconds } from "src/utils/datetimeUtils";
 
 // The API sends a null interval when the alert has no fixed number of seconds — a variable

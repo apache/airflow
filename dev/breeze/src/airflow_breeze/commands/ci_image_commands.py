@@ -143,7 +143,7 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     if result.returncode != 0:
         return True
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
-        if not should_we_run_the_build(build_ci_params=ci_image_params):
+        if not confirm_build_if_sources_changed(build_ci_params=ci_image_params):
             return False
     return True
 
@@ -765,10 +765,9 @@ def is_ci_image_built_from_current_sources(ci_image_params: BuildCiParams) -> bo
     return image_sources_hash == calculate_ci_sources_hash()
 
 
-def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
+def confirm_build_if_sources_changed(build_ci_params: BuildCiParams) -> bool:
     """
-    Check if we should run the build based on what files have been modified since last build and answer from
-    the user.
+    Confirm whether to build based on important source changes and the user's answer.
 
     * If the image already matches current sources (e.g. it was built in another git worktree
       sharing the same Docker daemon), the local build cache is refreshed and no build is needed
@@ -926,9 +925,9 @@ def run_build_ci_image(
     return build_command_result.returncode, f"Image build: {param_description}"
 
 
-def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
+def build_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
     """
-    Rebuilds CI image if needed and user confirms it.
+    Build the CI image if needed and the user confirms it.
 
     :param command_params: parameters of the command to execute
     """

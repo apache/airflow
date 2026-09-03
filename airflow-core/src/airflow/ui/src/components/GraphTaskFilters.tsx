@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useRef, useState } from "react";
+
 import {
   Button,
   type NumberInputValueChangeDetails,
@@ -24,17 +26,17 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+
+import { IconButton, Select, Menu, NumberInputField, NumberInputRoot } from "src/system-components";
+
 import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Select } from "src/components/ui";
-import { Menu } from "src/components/ui/Menu";
-import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { useGroups } from "src/context/groups";
@@ -159,9 +161,16 @@ export const GraphTaskFilters = () => {
       onOpenChange={({ open: nextOpen }) => setIsOpen(nextOpen)}
       open={isOpen}
       positioning={{ placement: "bottom-end" }}
+      tooltipLabel={translate("dag:panel.graphFilters.title")}
     >
       <Menu.Trigger asChild>
-        <IconButton variant={hasActiveFilters ? "solid" : "ghost"}>
+        {/* `aria-label`, not IconButton's `label`: the tooltip comes from Menu.Root, and a second one
+            nested inside `asChild` never gets its own trigger ref, so it lands in the corner. */}
+        <IconButton
+          aria-label={translate("dag:panel.graphFilters.title")}
+          bg="bg"
+          variant={hasActiveFilters ? "solid" : "outline"}
+        >
           <FiSearch />
         </IconButton>
       </Menu.Trigger>

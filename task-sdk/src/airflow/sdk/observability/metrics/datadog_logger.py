@@ -30,6 +30,7 @@ def get_dogstatsd_logger() -> SafeDogStatsdLogger:
         tags_in_string=conf.get("metrics", "statsd_datadog_tags"),
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),
+        socket_path=conf.get("metrics", "statsd_socket_path", fallback=None) or None,
         namespace=conf.get("metrics", "statsd_prefix"),
         datadog_metrics_tags=conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True),
         statsd_disabled_tags=conf.get("metrics", "statsd_disabled_tags", fallback=None),

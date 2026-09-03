@@ -20,7 +20,8 @@ import { Box, HStack, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdCalendarToday, MdClose } from "react-icons/md";
 
-import { Popover } from "src/components/ui";
+import { Popover } from "src/system-components";
+
 import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 
 import { FilterPill } from "../FilterPill";

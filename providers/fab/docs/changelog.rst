@@ -27,6 +27,10 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Validate issuer and audience of Azure AD id_tokens in FAB auth manager (#71735)``
+* ``Support Azure national clouds in FAB Azure AD id_token validation (#72010)``
+* ``Fix Azure AD tenant identifier canonicalization in FAB auth manager (#71920)``
+* ``Fix FAB SSO guide's non-working OAuth configuration instructions (#71852)``
+* ``Make the FAB roles PATCH endpoint replace permissions, not just add them (#71933)``
 
 Misc
 ~~~~
@@ -44,6 +48,8 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``[main] Upgrade important CI environment (#71590)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
 
 
 3.8.0

@@ -24,6 +24,9 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, ActionBar } from "src/system-components";
+
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
@@ -45,8 +48,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";

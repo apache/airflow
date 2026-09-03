@@ -361,6 +361,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.dag_bag.cache_hit"
+    description: "Number of cache hits when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_miss"
+    description: "Number of cache misses when retrieving SerializedDAG from DBDagBag in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_clear"
+    description: "Number of times the DBDagBag cache was cleared in the scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "connection_test.success"
     description: "Number of worker-dispatched connection tests that completed successfully."
     type: "counter"
@@ -380,6 +398,23 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "managed_agent.failover"
+    description: "Number of failover transitions inside a ``FailoverManagedAgentToolset`` group,
+    emitted once each time a member fails and the next one is tried.
+    Metric with tool, from_platform and to_platform tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["tool", "from_platform", "to_platform"]
+
+  - name: "managed_agent.served"
+    description: "Number of managed agent invocations answered inside a
+    ``FailoverManagedAgentToolset`` group, emitted once per answer. Metric with tool,
+    platform, role (``primary`` or ``standby``) and position tagging, where position is
+    the zero-based index of the member that answered."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: ["tool", "platform", "role", "position"]
+
   # ==========
   # Gauges
   # ==========
@@ -391,6 +426,12 @@ metrics:
 
   - name: "api_server.dag_bag.cache_size"
     description: "Current number of SerializedDAG objects cached in the API server's DBDagBag"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.dag_bag.cache_size"
+    description: "Current number of SerializedDAG objects cached in the scheduler's DBDagBag"
     type: "gauge"
     legacy_name: "-"
     name_variables: []

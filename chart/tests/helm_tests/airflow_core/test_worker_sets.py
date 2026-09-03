@@ -1589,6 +1589,68 @@ class TestWorkerSets:
         )
 
     @pytest.mark.parametrize(
+        ("startup_probe", "worker_set_startup_probe", "expected"),
+        [
+            (
+                {"enabled": False},
+                {"enabled": True},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 5,
+                    "initialDelaySeconds": 0,
+                    "periodSeconds": 10,
+                    "failureThreshold": 6,
+                },
+            ),
+            ({"enabled": True}, {"enabled": False}, None),
+            (
+                {
+                    "timeoutSeconds": 1,
+                    "initialDelaySeconds": 2,
+                    "periodSeconds": 3,
+                    "failureThreshold": 4,
+                },
+                {"timeoutSeconds": 11},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 2,
+                    "periodSeconds": 3,
+                    "failureThreshold": 4,
+                },
+            ),
+        ],
+        ids=["enabled", "disabled", "custom"],
+    )
+    def test_overwrite_kerberos_sidecar_startup_probe(
+        self, startup_probe, worker_set_startup_probe, expected
+    ):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "kerberosSidecar": {"enabled": True, "startupProbe": startup_probe},
+                        "sets": [
+                            {
+                                "name": "test",
+                                "kerberosSidecar": {"startupProbe": worker_set_startup_probe},
+                            }
+                        ],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
+            )
+            == expected
+        )
+
+    @pytest.mark.parametrize(
         "values",
         [
             {

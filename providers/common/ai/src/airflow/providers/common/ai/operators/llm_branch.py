@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.logging import log_run_summary
+from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.branch import BranchMixIn
 
 if TYPE_CHECKING:
@@ -46,6 +47,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param system_prompt: System-level instructions for the LLM agent.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
+    :param fail_on_reject: If ``True``, a rejected review fails the task
+        instead of skipping the downstream tasks. Generally discouraged,
+        as for :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`.
+        Default ``False``.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
 
@@ -53,7 +58,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``allow_modifications``).
     The task pauses after the LLM chooses the branch(es) and only skips the
-    unselected downstream tasks once a reviewer approves. The review form
+    unselected downstream tasks once a reviewer approves. Rejecting the
+    review skips the direct downstream tasks except teardowns, matching
+    :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`;
+    set ``fail_on_reject=True`` to fail the task instead. The review form
     lists the valid downstream task IDs; with ``allow_modifications=True``
     the editable choice is rendered as a dropdown of those IDs (single-branch
     mode) or a multi-select of them (``allow_multiple_branches=True``), and
@@ -69,11 +77,13 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         self,
         *,
         allow_multiple_branches: bool = False,
+        fail_on_reject: bool = False,
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
         super().__init__(**kwargs)
         self.allow_multiple_branches = allow_multiple_branches
+        self.fail_on_reject = fail_on_reject
 
     def execute(self, context: Context) -> str | Iterable[str] | None:
         if self.require_approval:
@@ -133,7 +143,15 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
 
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
         """Resume after human review, validating the reviewed choice before branching."""
-        output = super().execute_complete(context, generated_output, event)
+        try:
+            output = super().execute_complete(context, generated_output, event)
+        except HITLRejectException:
+            if self.fail_on_reject:
+                raise
+            self.log.info("Rejected by %s. Skipping downstream tasks...", event.get("responded_by_user"))
+            tasks = context["task"].get_direct_relatives(upstream=False)
+            self.skip(ti=context["ti"], tasks=(t for t in tasks if not t.is_teardown))
+            return None
         branches = self._parse_reviewed_branches(output)
         selected = {branches} if isinstance(branches, str) else set(branches)
         invalid = selected - self.downstream_task_ids

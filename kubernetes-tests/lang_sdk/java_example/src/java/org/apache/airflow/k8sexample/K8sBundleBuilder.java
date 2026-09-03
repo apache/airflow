@@ -28,7 +28,7 @@ import org.jetbrains.annotations.NotNull;
 public class K8sBundleBuilder implements BundleBuilder {
   @NotNull
   @Override
-  public Iterable<Dag> getDags() {
+  public Iterable<DagDef> getDags() {
     return List.of(CombinedExampleBuilder.build());
   }
 

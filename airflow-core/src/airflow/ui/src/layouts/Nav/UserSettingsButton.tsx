@@ -33,8 +33,9 @@ import {
 } from "react-icons/fi";
 
 import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
-import { Menu, Tooltip } from "src/components/ui";
-import { RouterLink } from "src/components/ui/RouterLink";
+
+import { Menu, Tooltip, RouterLink } from "src/system-components";
+
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
 

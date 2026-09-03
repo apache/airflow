@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Spinner } from "@chakra-ui/react";
 import { type FC, lazy, Suspense } from "react";
+
+import { Spinner } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import {
@@ -51,9 +52,14 @@ export type PluginProps = {
 
 type PluginComponentType = FC<PluginProps>;
 
-const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginComponentType }> =>
+export const loadPlugin = (
+  reactApp: ReactAppResponse,
+  importBundle: (url: string) => Promise<unknown> = (url) => import(/* @vite-ignore */ url),
+): Promise<{ default: PluginComponentType }> => {
+  (globalThis as Record<string, unknown>).AirflowPlugin = undefined;
+
   // We are assuming the plugin manager is trusted and the bundle_url is safe
-  import(/* @vite-ignore */ new URL(reactApp.bundle_url, document.baseURI).href)
+  return importBundle(new URL(reactApp.bundle_url, document.baseURI).href)
     .then(() => {
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
@@ -78,6 +84,7 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
 
       return { default: ErrorPage };
     });
+};
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { assetId, dagId, mapIndex, runId, taskId } = useParams();

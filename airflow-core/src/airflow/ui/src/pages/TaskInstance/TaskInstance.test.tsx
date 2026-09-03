@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { PropsWithChildren } from "react";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

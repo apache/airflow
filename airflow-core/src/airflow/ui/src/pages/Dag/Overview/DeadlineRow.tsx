@@ -21,8 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import type { DeadlineAlertResponse, DeadlineResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
+
 import { translateCompletionRule } from "src/utils/deadlines";
 
 type DeadlineRowProps = {
