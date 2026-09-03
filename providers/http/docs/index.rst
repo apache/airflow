@@ -112,6 +112,23 @@ PIP package                                 Version required
 ``pydantic``                                ``>=2.11.0``
 ==========================================  ======================================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-http[srv]
+
+
+=======  ====================
+Extra    Dependencies
+=======  ====================
+``srv``  ``dnspython>=2.0.0``
+=======  ====================
+
 Downloading official packages
 -----------------------------
 
