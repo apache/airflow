@@ -1203,13 +1203,14 @@ class TestAsyncKubernetesHook:
 
         hook = AsyncKubernetesHook(connection_extras=connection_extras, config_file=str(kubeconfig_file))
         await hook._load_config()
+        await hook._load_config()
 
-        mock_load_kube_config.assert_awaited_once_with(
+        expected_call = mock.call(
             config_file=str(kubeconfig_file),
             client_configuration=hook.client_configuration,
             context=None,
         )
-        assert hook._config_loaded is False
+        assert mock_load_kube_config.await_args_list == [expected_call, expected_call]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -1220,7 +1221,7 @@ class TestAsyncKubernetesHook:
             pytest.param({}, {"kube_config": '{"test": "kube"}'}, id="kube_config"),
         ],
     )
-    async def test_load_config_with_several_params(self, competing_kwargs, connection_extras):
+    async def test_load_config_with_mutually_exclusive_params(self, competing_kwargs, connection_extras):
         hook = AsyncKubernetesHook(
             connection_extras=connection_extras,
             config_file=ASYNC_CONFIG_PATH,
