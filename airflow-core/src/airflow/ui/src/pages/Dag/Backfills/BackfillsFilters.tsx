@@ -19,6 +19,7 @@
 import { VStack } from "@chakra-ui/react";
 
 import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
