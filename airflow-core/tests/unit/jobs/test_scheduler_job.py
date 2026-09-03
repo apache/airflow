@@ -3669,6 +3669,76 @@ class TestSchedulerJob:
 
         assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 1
 
+    def test_adopt_or_reset_orphaned_tasks_handles_detached_tis(self, dag_maker, session, mock_executor):
+        """
+        Reset and adoption must not depend on the session state of the TaskInstances the
+        executor hands back. An executor can open-and-close a scoped session while adopting
+        (KubernetesExecutor's completed-pod adoption did exactly that until #67850, and
+        released providers <= 10.17.x still do); closing the shared thread-scoped session
+        detaches every TaskInstance the orphan query loaded. The reset path then copies the
+        full row into TaskInstanceHistory and the adopt path reads last_heartbeat_at /
+        dag_run.conf — reads of unloaded attributes that raise DetachedInstanceError on a
+        detached instance and crash the scheduler loop; where attributes happen to be
+        loaded, the writes are silently lost instead.
+        """
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        with dag_maker("test_adopt_or_reset_orphaned_tasks_handles_detached_tis", session=session):
+            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op2")
+
+        old_scheduler_job = Job()
+        session.add(old_scheduler_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti1 = dr.get_task_instance(task_id="op1", session=session)
+        ti2 = dr.get_task_instance(task_id="op2", session=session)
+        for ti in (ti1, ti2):
+            ti.state = State.QUEUED
+            ti.queued_by_job_id = old_scheduler_job.id
+        ti2.last_heartbeat_at = None
+        session.commit()
+        ti1_old_id = ti1.id
+        ti1_old_try_number = ti1.try_number
+        # Clear the identity map so the orphan query loads fresh, partially loaded rows
+        # (as in a real scheduler) instead of reusing the fully loaded instances above.
+        session.expunge_all()
+
+        def adopt_second_reset_first(tis):
+            # What KubernetesExecutor's completed-pod adoption does mid-adopt in released
+            # providers (<= 10.17.x; fixed on its side by #67850): create_session() returns
+            # the scheduler's own thread-scoped session, and closing it detaches every
+            # TaskInstance the orphan query loaded.
+            with create_session():
+                pass
+            return [ti for ti in tis if ti.task_id == "op1"]
+
+        mock_executor.try_adopt_task_instances.side_effect = adopt_second_reset_first
+
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 1
+
+        ti1 = dr.get_task_instance(task_id="op1", session=session)
+        ti2 = dr.get_task_instance(task_id="op2", session=session)
+        assert ti1.state is None
+        assert ti1.queued_by_job_id is None
+        assert ti1.id != ti1_old_id
+        assert (
+            session.scalar(
+                select(TaskInstanceHistory).where(
+                    TaskInstanceHistory.task_instance_id == ti1_old_id,
+                    TaskInstanceHistory.try_number == ti1_old_try_number,
+                )
+            )
+            is not None
+        )
+        assert ti2.state == State.QUEUED
+        assert ti2.queued_by_job_id == new_scheduler_job.id
+        assert ti2.last_heartbeat_at is not None
+
     def test_adopt_or_reset_orphaned_tasks_multiple_executors(self, dag_maker, mock_executors):
         """
         Test that with multiple executors configured tasks are sorted correctly and handed off to the
