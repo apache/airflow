@@ -1690,6 +1690,13 @@ TEAMS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.team_command.team_verify"),
         args=(ARG_VERBOSE,),
     ),
+    ActionCommand(
+        name="inspect",
+        help="Inspect a team",
+        description="Display resources associated with a team.\n",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_inspect"),
+        args=(ARG_TEAM_NAME, ARG_OUTPUT, ARG_VERBOSE),
+    ),
 )
 STATE_STORE_COMMANDS = (
     ActionCommand(

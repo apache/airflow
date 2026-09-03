@@ -308,3 +308,45 @@ def team_verify(args, *, session=NEW_SESSION):
         raise SystemExit(1)
 
     print("Verification succeeded.")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_inspect(args, *, session=NEW_SESSION):
+    """Inspect resources belonging to a team."""
+    team_name = _extract_team_name(args)
+
+    team = session.scalar(select(Team).where(Team.name == team_name))
+    if team is None:
+        raise SystemExit(f"Team '{team_name}' does not exist")
+
+    bundle_names = session.scalars(
+        select(dag_bundle_team_association_table.c.dag_bundle_name)
+        .where(dag_bundle_team_association_table.c.team_name == team_name)
+        .order_by(dag_bundle_team_association_table.c.dag_bundle_name)
+    ).all()
+
+    pool_names = session.scalars(
+        select(Pool.pool).where(Pool.team_name == team_name).order_by(Pool.pool)
+    ).all()
+
+    connection_ids = session.scalars(
+        select(Connection.conn_id).where(Connection.team_name == team_name).order_by(Connection.conn_id)
+    ).all()
+
+    variable_keys = session.scalars(
+        select(Variable.key).where(Variable.team_name == team_name).order_by(Variable.key)
+    ).all()
+
+    AirflowConsole().print_as(
+        data=[team],
+        output=args.output,
+        mapper=lambda x: {
+            "name": x.name,
+            "dag_bundles": bundle_names,
+            "pools": pool_names,
+            "connections": connection_ids,
+            "variables": variable_keys,
+        },
+    )
