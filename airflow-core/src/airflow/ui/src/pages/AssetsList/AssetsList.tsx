@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack } from "@chakra-ui/react";
+import { VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,11 @@ import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetsUi } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+
 import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -31,10 +36,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch, useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
@@ -152,15 +156,19 @@ export const AssetsList = () => {
     value: searchParams.get(SearchParamsKeys.GROUP_PATTERN),
   });
 
-  const { data, error, isLoading } = useAssetServiceGetAssetsUi({
-    ...groupArg,
-    lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
-    lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
-    limit: pagination.pageSize,
-    ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-  });
+  const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
+    {
+      ...groupArg,
+      lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
+      lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
+      limit: pagination.pageSize,
+      ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+    },
+    undefined,
+    { placeholderData: (prev) => prev },
+  );
 
   const columns = createColumns(translate);
   const totalEntries = data?.total_entries ?? 0;
@@ -180,36 +188,31 @@ export const AssetsList = () => {
   };
 
   return (
-    <>
-      <VStack alignItems="none">
-        <SearchBar
-          advancedSearch={advancedSearch}
-          defaultValue={namePattern}
-          onChange={handleSearchChange}
-          placeholder={translate("searchPlaceholder")}
-        />
-
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-
-        <Heading py={3} size="md">
-          {totalEntries} {translate("common:asset", { count: totalEntries })}
-        </Heading>
-      </VStack>
-      <DataTable
-        columns={columns}
-        data={data?.assets ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:asset"
-        onStateChange={setTableURLState}
-        showRowCountHeading={false}
-        total={totalEntries}
-      />
-    </>
+    <DataTable
+      columns={columns}
+      data={data?.assets ?? []}
+      errorMessage={<ErrorAlert error={error} />}
+      filterActions={
+        <VStack alignItems="flex-start" gap={2} w="100%">
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={namePattern}
+            onChange={handleSearchChange}
+            placeholder={translate("searchPlaceholder")}
+          />
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        </VStack>
+      }
+      initialState={tableURLState}
+      isFetching={isFetching}
+      isLoading={isLoading}
+      modelName="common:asset"
+      onStateChange={setTableURLState}
+      total={totalEntries}
+    />
   );
 };

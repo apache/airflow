@@ -65,6 +65,7 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.team import attach_dag_to_team
 
 pytestmark = pytest.mark.db_test
 
@@ -74,35 +75,6 @@ DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
 DEFAULT_DATETIME_1 = dt.datetime.fromisoformat(DEFAULT_DATETIME_STR_1)
 DEFAULT_DATETIME_2 = dt.datetime.fromisoformat(DEFAULT_DATETIME_STR_2)
-
-
-def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
-    """
-    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
-
-    Returns the Dag's original bundle name so the caller can restore it during cleanup
-    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
-    """
-    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
-    bundle = DagBundleModel(name=bundle_name)
-    bundle.teams.append(Team(name=team_name))
-    session.add(bundle)
-    session.flush()
-    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
-    session.commit()
-    return original_bundle_name
-
-
-def _detach_dag_from_team(
-    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
-) -> None:
-    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
-    session.execute(
-        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
-    )
-    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
-    session.execute(delete(Team).where(Team.name == team_name))
-    session.commit()
 
 
 class TestTaskInstanceEndpoint:
@@ -277,23 +249,14 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
         self.create_task_instances(session)
-        original_bundle_name = _attach_dag_to_team(
+        with attach_dag_to_team(
             session, "example_python_operator", bundle_name="team-bundle-ti", team_name="team-ti"
-        )
-        try:
+        ):
             response = test_client.get(
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
             )
             assert response.status_code == 200
             assert response.json()["team_name"] == "team-ti"
-        finally:
-            _detach_dag_from_team(
-                session,
-                "example_python_operator",
-                bundle_name="team-bundle-ti",
-                team_name="team-ti",
-                original_bundle_name=original_bundle_name,
-            )
 
     def test_should_respond_200_with_decorator(self, test_client, session):
         self.create_task_instances(session, "example_python_decorator")
@@ -456,11 +419,13 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "queue": None,
             },
             "triggerer_job": {
+                "bundle_names": None,
                 "dag_display_name": None,
                 "dag_id": None,
                 "end_date": None,
                 "job_type": "TriggererJob",
                 "state": "running",
+                "team_name": None,
                 "unixname": getuser(),
             },
             "team_name": None,
@@ -725,26 +690,17 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
         self.create_task_instances(session)
-        original_bundle_name = _attach_dag_to_team(
+        with attach_dag_to_team(
             session,
             "example_python_operator",
             bundle_name="team-bundle-mapped-ti",
             team_name="team-mapped-ti",
-        )
-        try:
+        ):
             response = test_client.get(
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
             )
             assert response.status_code == 200
             assert response.json()["team_name"] == "team-mapped-ti"
-        finally:
-            _detach_dag_from_team(
-                session,
-                "example_python_operator",
-                bundle_name="team-bundle-mapped-ti",
-                team_name="team-mapped-ti",
-                original_bundle_name=original_bundle_name,
-            )
 
 
 class TestGetMappedTaskInstances:
@@ -2342,34 +2298,24 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_include_team_name(self, test_client, session):
         self.create_task_instances(session)
-        original_bundle_name = _attach_dag_to_team(
+        with attach_dag_to_team(
             session, "example_python_operator", bundle_name="team-bundle-tis", team_name="team-tis"
-        )
-        try:
+        ):
             response = test_client.get(f"/dags/{'example_python_operator'}/dagRuns/~/taskInstances")
             assert response.status_code == 200
             body = response.json()
             assert body["task_instances"]
             assert all(ti["team_name"] == "team-tis" for ti in body["task_instances"])
-        finally:
-            _detach_dag_from_team(
-                session,
-                "example_python_operator",
-                bundle_name="team-bundle-tis",
-                team_name="team-tis",
-                original_bundle_name=original_bundle_name,
-            )
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_filter_by_team(self, test_client, session):
         self.create_task_instances(session)
-        original_bundle_name = _attach_dag_to_team(
+        with attach_dag_to_team(
             session,
             "example_python_operator",
             bundle_name="team-bundle-tis-filter",
             team_name="team-tis-filter",
-        )
-        try:
+        ):
             response = test_client.get(
                 "/dags/~/dagRuns/~/taskInstances", params={"teams": ["team-tis-filter"]}
             )
@@ -2384,14 +2330,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
             assert response.status_code == 200
             assert response.json()["total_entries"] == 0
-        finally:
-            _detach_dag_from_team(
-                session,
-                "example_python_operator",
-                bundle_name="team-bundle-tis-filter",
-                team_name="team-tis-filter",
-                original_bundle_name=original_bundle_name,
-            )
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
@@ -3693,6 +3631,40 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json={},
         )
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            pytest.param(
+                {"only_failed": True, "only_running": True},
+                id="only_failed_and_only_running",
+            ),
+            pytest.param(
+                {"start_date": "2024-01-02T00:00:00Z", "end_date": "2024-01-01T00:00:00Z"},
+                id="start_date_after_end_date",
+            ),
+            pytest.param(
+                {
+                    "start_date": "2024-01-01T00:00:00Z",
+                    "end_date": "2024-01-02T00:00:00Z",
+                    "dag_run_id": "run_1",
+                },
+                id="dag_run_id_with_start_and_end_date",
+            ),
+            pytest.param(
+                {"start_date": "2024-01-01T00:00:00Z", "dag_run_id": "run_1"},
+                id="dag_run_id_with_start_date",
+            ),
+            pytest.param(
+                {"end_date": "2024-01-01T00:00:00Z", "dag_run_id": "run_1"},
+                id="dag_run_id_with_end_date",
+            ),
+            pytest.param({"task_ids": []}, id="empty_task_ids"),
+        ],
+    )
+    def test_should_respond_422_on_invalid_body(self, test_client, payload):
+        response = test_client.post("/dags/example_python_operator/clearTaskInstances", json=payload)
+        assert response.status_code == 422
 
     @pytest.mark.parametrize(
         ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),

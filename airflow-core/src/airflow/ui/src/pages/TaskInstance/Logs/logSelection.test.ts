@@ -17,6 +17,7 @@
  * under the License.
  */
 import { createElement } from "react";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -545,7 +546,19 @@ describe("extractSelectedLogText", () => {
 });
 
 describe("getEntryText", () => {
-  it("returns string elements directly (group headers)", () => {
+  it("rebuilds collapsed group headers with the collapsed marker", () => {
+    expect(getEntryText({ element: "Pre Execute", group: { id: 0, level: 0, type: "header" } })).toBe(
+      "▶ Pre Execute",
+    );
+  });
+
+  it("rebuilds expanded group headers with the expanded marker", () => {
+    expect(
+      getEntryText({ element: "Pre Execute", group: { id: 0, level: 0, type: "header" } }, new Set([0])),
+    ).toBe("▼ Pre Execute");
+  });
+
+  it("returns non-header string elements directly", () => {
     expect(getEntryText({ element: "Pre Execute" })).toBe("Pre Execute");
   });
 

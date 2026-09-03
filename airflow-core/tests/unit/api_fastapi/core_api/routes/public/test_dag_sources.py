@@ -182,6 +182,18 @@ class TestGetDAGSource:
         response = test_client.get(url, headers={"Accept": "application/json"})
         assert response.status_code == 404
 
+    def test_should_respond_404_for_version_number_zero(self, test_client, test_dag):
+        """version_number=0 is a real filter that matches nothing, not a fallback to the latest version."""
+        response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}",
+            params={"version_number": 0},
+            headers={"Accept": "application/json"},
+        )
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": f"The source code of the Dag {TEST_DAG_ID}, version_number 0 was not found"
+        }
+
     @pytest.fixture
     def colocated_unreadable_dag(self, session, test_dag):
         """Insert a second ``DagModel`` sharing the requested Dag's source file."""

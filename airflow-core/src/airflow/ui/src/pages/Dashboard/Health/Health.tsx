@@ -21,7 +21,9 @@ import { useTranslation } from "react-i18next";
 import { MdOutlineHealthAndSafety } from "react-icons/md";
 
 import { useMonitorServiceGetHealth } from "openapi/queries";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useAutoRefresh } from "src/utils";
 
 import { HealthBadge } from "./HealthBadge";

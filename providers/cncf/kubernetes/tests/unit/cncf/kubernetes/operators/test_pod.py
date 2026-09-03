@@ -1659,7 +1659,7 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises((ValueError, AirflowException), match="has to be"):
             self.run_pod(k)
 
     def test_create_with_affinity(self):
@@ -2566,6 +2566,16 @@ class TestKubernetesPodOperator:
         assert result.metadata.name == pod_2.metadata.name
 
 
+_REATTACH_DEPRECATION_MESSAGE_PREFIX = (
+    "`reattach_on_restart` is deprecated and will be removed once this provider's "
+    "minimum supported Airflow version reaches 3.3. "
+)
+REATTACH_DEPRECATION_MESSAGE_PRE_3_3 = (
+    _REATTACH_DEPRECATION_MESSAGE_PREFIX + "On Airflow 3.3+, use `durable` instead."
+)
+REATTACH_DEPRECATION_MESSAGE_3_3_PLUS = _REATTACH_DEPRECATION_MESSAGE_PREFIX + "Use `durable` instead."
+
+
 @pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS, reason="durable execution (task_state_store) requires Airflow 3.3+"
 )
@@ -2580,6 +2590,12 @@ class TestKubernetesPodOperatorDurableExecution:
         yield
 
         patch.stopall()
+
+    def test_warning_message_recommends_durable_directly_on_3_3_plus(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
+            KubernetesPodOperator(task_id="task", reattach_on_restart=True)
 
     def test_durable_fresh_submit_persists_pod_identity(self):
         k = KubernetesPodOperator(
@@ -2779,7 +2795,9 @@ class TestKubernetesPodOperatorDurableExecution:
 
     @pytest.mark.parametrize("reattach_value", [True, False])
     def test_reattach_on_restart_deprecation_maps_to_durable(self, reattach_value):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="reattach_on_restart"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
             k = KubernetesPodOperator(
                 task_id="task",
                 reattach_on_restart=reattach_value,
@@ -2787,18 +2805,22 @@ class TestKubernetesPodOperatorDurableExecution:
         assert k.durable is reattach_value
         assert k.reattach_on_restart is reattach_value
 
-    def test_reattach_on_restart_and_durable_conflict_reattach_on_restart_wins(self):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="reattach_on_restart"):
+    def test_durable_wins_over_conflicting_reattach_on_restart(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
             k = KubernetesPodOperator(
                 task_id="task",
                 durable=False,
                 reattach_on_restart=True,
             )
-        assert k.durable is True
-        assert k.reattach_on_restart is True
+        assert k.durable is False
+        assert k.reattach_on_restart is False
 
     def test_reattach_on_restart_via_default_args_reaches_durable(self, dag_maker):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="reattach_on_restart"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
             with dag_maker(dag_id="test_reattach_default_args", default_args={"reattach_on_restart": False}):
                 k = KubernetesPodOperator(task_id="task")
         assert k.durable is False
@@ -2806,6 +2828,52 @@ class TestKubernetesPodOperatorDurableExecution:
 
     def test_supports_durable_execution_marker(self):
         assert KubernetesPodOperator._KubernetesPodOperator__supports_durable_execution is True
+
+
+class TestKubernetesPodOperatorDurableBelow3_3:
+    @pytest.mark.parametrize("durable_value", [True, False])
+    def test_durable_has_no_effect(self, durable_value):
+        with mock.patch("airflow.providers.cncf.kubernetes.operators.pod.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                UserWarning, match=r"^`durable` has no effect on Airflow versions below 3\.3\.$"
+            ):
+                k = KubernetesPodOperator(task_id="task", durable=durable_value)
+        # old default (reattach_on_restart's default was True), untouched by the ignored durable value.
+        assert k.durable is True
+        assert k.reattach_on_restart is True
+
+    @pytest.mark.parametrize("reattach_value", [True, False])
+    def test_reattach_on_restart_still_works(self, reattach_value):
+        with mock.patch("airflow.providers.cncf.kubernetes.operators.pod.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_PRE_3_3)}$",
+            ):
+                k = KubernetesPodOperator(task_id="task", reattach_on_restart=reattach_value)
+        assert k.reattach_on_restart is reattach_value
+
+    def test_reattach_on_restart_wins_over_durable(self):
+        with mock.patch("airflow.providers.cncf.kubernetes.operators.pod.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_PRE_3_3)}$",
+            ):
+                k = KubernetesPodOperator(task_id="task", durable=False, reattach_on_restart=True)
+        assert k.reattach_on_restart is True
+
+    def test_default_rettach_on_restart_is_true(self):
+        with mock.patch("airflow.providers.cncf.kubernetes.operators.pod.AIRFLOW_V_3_3_PLUS", False):
+            k = KubernetesPodOperator(task_id="task")
+        assert k.durable is True
+        assert k.reattach_on_restart is True
+
+    def test_warns_on_every_supported_airflow_version(self):
+        with mock.patch("airflow.providers.cncf.kubernetes.operators.pod.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match=f"^{re.escape(REATTACH_DEPRECATION_MESSAGE_PRE_3_3)}$",
+            ):
+                KubernetesPodOperator(task_id="task", reattach_on_restart=True)
 
 
 class TestSuppress:

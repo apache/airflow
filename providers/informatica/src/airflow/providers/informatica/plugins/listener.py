@@ -31,7 +31,7 @@ from airflow.providers.informatica.lineage.validation import (
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
-    from airflow.utils.state import TaskInstanceState
+    from airflow.sdk import TaskInstanceState
 
 _informatica_listener: InformaticaListener | None = None
 

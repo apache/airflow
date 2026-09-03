@@ -22,12 +22,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { DeadlineAlertsBadge } from "./DeadlineAlertsBadge";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { interval?: string; reference?: string }) => {
       if (options?.reference === undefined) {

@@ -128,6 +128,17 @@ You can see all the notifications available via community-managed providers in
 :doc:`/core-extensions/notifications`.
 
 
+Email backends
+''''''''''''''
+
+Airflow can send email (for example, task success/failure/retry callbacks) through a pluggable
+``email_backend`` instead of the default SMTP implementation. Providers can add email backends that
+send that email through a third-party service's API.
+
+You can see all the email backends available via community-managed providers in
+:doc:`/core-extensions/email-backends`.
+
+
 Installing and upgrading providers
 ----------------------------------
 

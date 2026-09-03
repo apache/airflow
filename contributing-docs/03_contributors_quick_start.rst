@@ -682,7 +682,7 @@ You can also switch terminal multiplexer via breeze config:
   breeze setup config --terminal-multiplexer tmux
   breeze setup config --terminal-multiplexer mprocs
 
-** Benefits of using tmux:**
+**Benefits of using tmux:**
 
 * Familiar terminal multiplexer for many developers
 * More control over panes and windows

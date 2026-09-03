@@ -24,6 +24,7 @@
   },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "Audit Log",
     "deadlines": "Deadlines",
@@ -121,6 +122,8 @@
       "title": "Access Denied"
     }
   },
+  "event_one": "Event",
+  "event_other": "Events",
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -136,21 +139,27 @@
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Add Filter",
+    "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
+    "removeFilter": "Remove Filter",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
     "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
-    "startTime": "Start Time"
+    "selectDateTime": "Select date and time",
+    "startTime": "Start Time",
+    "time": "Time"
   },
   "fullscreen": {
     "tooltip": "Press {{hotkey}} for fullscreen"
   },
   "generateToken": "Generate Token",
+  "includedIn": "Included in",
   "key": "Key",
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -171,6 +180,7 @@
     "assets": "Assets",
     "browse": "Browse",
     "dags": "Dags",
+    "dashboard": "Dashboard",
     "docs": "Docs",
     "home": "Home",
     "legacyFabViews": "Legacy Views",
@@ -189,11 +199,14 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "partition_one": "Partition",
+  "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
   "partitionedDagRun_other": "Partitioned Dag Runs",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Received Asset Events"
   },
+  "pause": "Pause",
   "pendingDagRun_one": "{{count}} Pending Dag Run",
   "pendingDagRun_other": "{{count}} Pending Dag Runs",
   "presetFilters": {
@@ -261,6 +274,17 @@
       "title": "Clearing"
     },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
+    "general": {
+      "landingPage": {
+        "helper": "Page shown when you open Airflow.",
+        "label": "Landing page",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "General"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
@@ -274,6 +298,13 @@
         "label": "Default mark selection"
       },
       "title": "Marking"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Tab shown first when you open a task instance. Links to a specific tab still open that tab.",
+        "label": "Default task instance tab"
+      },
+      "title": "Task Instance"
     },
     "title": "Settings"
   },
@@ -351,6 +382,7 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
+  "switchDag": "Switch $t(dag_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
@@ -360,8 +392,10 @@
     "filterReset_other": "Reset filters",
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
+    "noResultsFound": "No results found",
     "noTagsFound": "No tags found",
     "noTeamsFound": "No teams found",
+    "ownerPlaceholder": "Filter by owner",
     "tagMode": {
       "all": "All",
       "any": "Any"
@@ -417,6 +451,12 @@
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
+  "teams": {
+    "more_one": "and {{count}} more",
+    "more_other": "and {{count}} more",
+    "none": "No team",
+    "title": "Teams"
+  },
   "timeRange": {
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
@@ -501,6 +541,7 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
+  "unpause": "Unpause",
   "user": "User",
   "validation": {
     "mustBeAtLeast": "Must be at least {{min}}.",

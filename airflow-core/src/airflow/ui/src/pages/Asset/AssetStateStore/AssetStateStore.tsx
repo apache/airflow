@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link, Text } from "@chakra-ui/react";
+import { Box, Flex, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
 import { useAssetStateStoreServiceListAssetStateStore } from "openapi/queries";
 import type { AssetStateStoreLastUpdatedBy, AssetStateStoreResponse } from "openapi/requests";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
+
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { AddAssetStateStoreButton } from "./AddAssetStateStoreButton";
@@ -136,26 +138,27 @@ export const AssetStateStore = () => {
   const columns = getColumns({ assetId, translate });
 
   return (
-    <>
-      <Flex gap={2} justifyContent="flex-end" mb={2}>
-        <AddAssetStateStoreButton assetId={assetId} />
-        {(data?.total_entries ?? 0) > 0 ? <ClearAllAssetStateStoreButton assetId={assetId} /> : undefined}
-      </Flex>
-
+    <Box px={4}>
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}
         data={data?.asset_state_store ?? []}
         displayMode="table"
+        hideRowCountHeading
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="assets:assetStateStore.title"
+        modelName="assets:assetStateStore.entry"
         noRowsMessage={translate("assetStateStore.emptyState")}
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
+        primaryActions={
+          <>
+            {(data?.total_entries ?? 0) > 0 ? <ClearAllAssetStateStoreButton assetId={assetId} /> : undefined}
+            <AddAssetStateStoreButton assetId={assetId} />
+          </>
+        }
         total={data?.total_entries ?? 0}
       />
-    </>
+    </Box>
   );
 };

@@ -16,87 +16,197 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, type InputProps } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import tz from "dayjs/plugin/timezone";
-import { forwardRef, type ChangeEvent, type ClipboardEvent, useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
+import { forwardRef, useEffect, useState, type ChangeEvent, type HTMLAttributes } from "react";
+
+import { Box, HStack, Text, VStack, type InputProps } from "@chakra-ui/react";
+import dayjs, { type Dayjs } from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import { useTranslation } from "react-i18next";
+import { MdAccessTime, MdCalendarToday } from "react-icons/md";
+
+import { Popover } from "src/system-components";
+
+import { DateInput } from "src/components/FilterBar/filters/DateInput";
+import { DateRangeCalendar } from "src/components/FilterBar/filters/DateRangeCalendar";
+import { isValidDateValue } from "src/components/FilterBar/utils";
 
 import { useTimezone } from "src/context/timezone";
-import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
+import type { ValidationError } from "src/hooks/useDateRangeFilter";
+import {
+  combineDateAndTime,
+  DATE_INPUT_FORMAT,
+  TIME_INPUT_FORMAT,
+  validateDateInput,
+  validateTimeInput,
+} from "src/hooks/useDateRangeFilter";
 
-dayjs.extend(tz);
+dayjs.extend(timezone);
 
-const debounceDelay = 1000;
+// A single datetime picker built exactly like the date-range filter: a trigger showing the selected
+// value opens a popover with the selected timezone, a text date input, a text time input, and a
+// calendar. Text inputs (not a native `datetime-local`) keep it consistent with the range picker and
+// avoid the Firefox/Safari problem where picking a date without a time yields no value (#54429).
+type Props = {
+  // Default the time to the end of the day (instead of the start) when only a date is entered — used
+  // for a range's upper bound so it stays inclusive.
+  readonly endOfDay?: boolean;
+  readonly value: string;
+} & Omit<InputProps, "onBlur" | "onFocus" | "onKeyDown"> &
+  Pick<HTMLAttributes<HTMLDivElement>, "onBlur" | "onFocus" | "onKeyDown">;
 
-// Strings with an explicit timezone (`Z` or `+09:00`) are parsed as their
-// absolute instant. Strings without one are treated as being in the selected
-// Airflow UI timezone — consistent between manual input and paste.
-const parseInput = (raw: string, timezone: string) => {
-  const hasExplicitTz = /(?:[Zz]|[+-]\d{2}:?\d{2})$/u.test(raw);
-  const parsed = hasExplicitTz ? dayjs(raw) : dayjs.tz(raw, timezone);
+const DISPLAY_FORMAT = "MMM DD, YYYY HH:mm";
 
-  return parsed.isValid() ? parsed : undefined;
+const splitValue = (value: string, tz: string) => {
+  const parsed = isValidDateValue(value) ? dayjs(value).tz(tz) : undefined;
+
+  return {
+    date: parsed?.format(DATE_INPUT_FORMAT) ?? "",
+    time: parsed?.format(TIME_INPUT_FORMAT) ?? "",
+  };
 };
 
-type Props = {
-  readonly value: string;
-} & InputProps;
+export const DateTimeInput = forwardRef<HTMLDivElement, Props>(
+  ({ disabled, endOfDay = false, onBlur, onChange, onFocus, onKeyDown, value }, ref) => {
+    const { t: translate } = useTranslation(["components", "common"]);
+    const { selectedTimezone } = useTimezone();
+    const selected = isValidDateValue(value) ? dayjs(value).tz(selectedTimezone) : undefined;
 
-export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
-  const { selectedTimezone } = useTimezone();
-  const [displayDate, setDisplayDate] = useState(value);
+    const [inputs, setInputs] = useState(() => splitValue(value, selectedTimezone));
+    const [currentMonth, setCurrentMonth] = useState<Dayjs>(() => selected ?? dayjs());
 
-  const emit = (event: ChangeEvent<HTMLInputElement> | ClipboardEvent<HTMLInputElement>, utc: string) => {
-    onChange?.({
-      ...event,
-      target: { ...event.currentTarget, value: utc },
-    });
-  };
+    // Reflect external value changes (form reset, calendar/input edits) without clobbering
+    // in-progress typing: an incomplete date never emits, so `value` stays put and this leaves it be.
+    useEffect(() => {
+      setInputs(splitValue(value, selectedTimezone));
+    }, [value, selectedTimezone]);
 
-  const onDateChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const parsed = parseInput(event.target.value, selectedTimezone);
+    const emit = (emitted: string) => {
+      onChange?.({ target: { value: emitted } } as ChangeEvent<HTMLInputElement>);
+    };
 
-    // Set display value via UTC -> local to avoid year mismatch for years
-    // before 1000 (dayjs/issues/1237).
-    setDisplayDate(parsed ? parsed.tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT) : "");
-    emit(event, parsed ? parsed.toISOString() : "");
-  };
+    const commit = (next: { date: string; time: string }) => {
+      if (next.date === "") {
+        emit("");
 
-  const debouncedOnDateChange = useDebouncedCallback(
-    (event: ChangeEvent<HTMLInputElement>) => onDateChange(event),
-    debounceDelay,
-  );
+        return;
+      }
+      if (validateDateInput(next.date) && (next.time === "" || validateTimeInput(next.time))) {
+        const combined = combineDateAndTime(next.date, next.time, { endOfDay, timezone: selectedTimezone });
 
-  const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    const parsed = parseInput(event.clipboardData.getData("text").trim(), selectedTimezone);
+        if (combined !== "") {
+          emit(combined);
+        }
+      }
+    };
 
-    if (!parsed) {
-      return;
-    }
+    const applyChange = (inputType: "date" | "time", nextValue: string) => {
+      const next = inputType === "date" ? { ...inputs, date: nextValue } : { ...inputs, time: nextValue };
 
-    event.preventDefault();
-    // Drop any debounced call queued by prior typing so it cannot fire after
-    // this paste and trigger a redundant onChange on the parent form.
-    debouncedOnDateChange.cancel();
-    // datetime-local input requires YYYY-MM-DDTHH:mm format in the selected
-    // Airflow UI timezone (not the browser's local timezone).
-    setDisplayDate(parsed.tz(selectedTimezone).format("YYYY-MM-DDTHH:mm"));
-    emit(event, parsed.toISOString());
-  };
+      setInputs(next);
+      commit(next);
+    };
 
-  return (
-    <Input
-      data-testid="datetime-input"
-      onChange={(event) => {
-        setDisplayDate(dayjs(event.target.value).isValid() ? event.target.value : "");
-        debouncedOnDateChange(event);
-      }}
-      onPaste={onPaste}
-      ref={ref}
-      type="datetime-local"
-      value={displayDate}
-      {...rest}
-    />
-  );
-});
+    const handleDateClick = (day: Dayjs) => {
+      const next = { ...inputs, date: day.format(DATE_INPUT_FORMAT) };
+
+      setInputs(next);
+      setCurrentMonth(day);
+      commit(next);
+    };
+
+    const getFieldError = (fieldName: ValidationError["field"]): ValidationError | undefined => {
+      if (fieldName === "start" && inputs.date !== "" && !validateDateInput(inputs.date)) {
+        return { field: "start", message: translate("dateRangeFilter.validation.invalidDateFormat") };
+      }
+      if (fieldName === "startTime" && inputs.time !== "" && !validateTimeInput(inputs.time)) {
+        return { field: "startTime", message: translate("dateRangeFilter.validation.invalidTimeFormat") };
+      }
+
+      return undefined;
+    };
+
+    const getBorderColor = (fieldName: ValidationError["field"]) =>
+      getFieldError(fieldName) ? "danger.solid" : "border";
+
+    const handleInputChange =
+      (_field: "end" | "start", inputType: "date" | "time") => (event: ChangeEvent<HTMLInputElement>) =>
+        applyChange(inputType, event.target.value);
+
+    const isoValue = value === "" ? undefined : value;
+    const calendarValue = { endDate: isoValue, startDate: isoValue };
+
+    return (
+      <Popover.Root lazyMount positioning={{ placement: "bottom-start" }} unmountOnExit>
+        <Popover.Trigger asChild disabled={disabled}>
+          <Box
+            _hover={Boolean(disabled) ? undefined : { borderColor: "border.emphasized" }}
+            alignItems="center"
+            borderColor="border"
+            borderRadius="md"
+            borderWidth="1px"
+            cursor={Boolean(disabled) ? "not-allowed" : "pointer"}
+            data-testid="datetime-input"
+            display="flex"
+            gap={2}
+            justifyContent="space-between"
+            onBlur={onBlur}
+            onFocus={onFocus}
+            onKeyDown={onKeyDown}
+            opacity={Boolean(disabled) ? 0.5 : 1}
+            px={3}
+            py={2}
+            ref={ref}
+            w="full"
+          >
+            <Text color={selected ? "fg" : "fg.muted"} fontSize="sm" truncate>
+              {selected ? selected.format(DISPLAY_FORMAT) : translate("common:filters.selectDateTime")}
+            </Text>
+            <MdCalendarToday />
+          </Box>
+        </Popover.Trigger>
+        <Popover.Content p={3} w="320px">
+          <VStack gap={2} w="full">
+            <HStack gap={1} justify="flex-start" w="full">
+              <MdAccessTime size={14} />
+              <Text color="fg.muted" fontSize="xs">
+                {selectedTimezone}
+              </Text>
+            </HStack>
+
+            <HStack alignItems="flex-start" gap={2} w="full">
+              <DateInput
+                field="start"
+                getBorderColor={getBorderColor}
+                getFieldError={getFieldError}
+                handleInputChange={handleInputChange}
+                inputType="date"
+                inputValue={inputs.date}
+                label={translate("common:filters.date")}
+                onClear={() => applyChange("date", "")}
+                placeholder={DATE_INPUT_FORMAT}
+              />
+              <DateInput
+                field="start"
+                getBorderColor={getBorderColor}
+                getFieldError={getFieldError}
+                handleInputChange={handleInputChange}
+                inputType="time"
+                inputValue={inputs.time}
+                label={translate("common:filters.time")}
+                onClear={() => applyChange("time", "")}
+                placeholder={TIME_INPUT_FORMAT}
+              />
+            </HStack>
+
+            <DateRangeCalendar
+              currentMonth={currentMonth}
+              onDateClick={handleDateClick}
+              onMonthChange={setCurrentMonth}
+              value={calendarValue}
+            />
+          </VStack>
+        </Popover.Content>
+      </Popover.Root>
+    );
+  },
+);

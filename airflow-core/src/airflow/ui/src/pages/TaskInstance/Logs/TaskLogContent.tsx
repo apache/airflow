@@ -16,16 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
+
 import { Box, Code, VStack } from "@chakra-ui/react";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { Range as VirtualizerRange } from "@tanstack/react-virtual";
-import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
+import dayjs from "dayjs";
+import tz from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+import { ProgressBar } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar } from "src/components/ui";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useTimezone } from "src/context/timezone";
 import { useShortcut } from "src/hooks/useShortcut";
 import type { ParsedLogEntry } from "src/queries/useLogs";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import { HighlightedText } from "./HighlightedText";
 import { ScrollToButton } from "./ScrollToButton";
@@ -38,7 +46,16 @@ import {
   mergePinnedIndexes,
 } from "./logSelection";
 import { useLogGroups } from "./useLogGroups";
-import { getHighlightColor, isSelectionWithin, scrollToBottom, scrollToTop } from "./utils";
+import {
+  getGroupHeaderMarker,
+  getHighlightColor,
+  isSelectionWithin,
+  scrollToBottom,
+  scrollToTop,
+} from "./utils";
+
+dayjs.extend(utc);
+dayjs.extend(tz);
 
 export type TaskLogContentProps = {
   readonly currentMatchLineIndex?: number;
@@ -68,6 +85,7 @@ export const TaskLogContent = ({
   searchQuery,
   wrap,
 }: TaskLogContentProps) => {
+  const { selectedTimezone } = useTimezone();
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -222,7 +240,25 @@ export const TaskLogContent = ({
         getRowText: (index) => {
           const entry = visibleItems[index]?.entry;
 
-          return entry ? getEntryText(entry) : "";
+          if (!entry) {
+            return "";
+          }
+          const entryText = getEntryText(entry, expandedGroups);
+
+          if (entry.timestamp === undefined || entry.timestamp === "") {
+            return entryText;
+          }
+          const rawTimestampPrefix = `[${entry.timestamp}] `;
+
+          if (!entryText.startsWith(rawTimestampPrefix)) {
+            return entryText;
+          }
+          const timestamp = dayjs(entry.timestamp);
+          const formattedTimestamp = timestamp.isValid()
+            ? timestamp.tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT)
+            : entry.timestamp;
+
+          return `[${formattedTimestamp}] ${entryText.slice(rawTimestampPrefix.length)}`;
         },
         selection,
       });
@@ -237,7 +273,7 @@ export const TaskLogContent = ({
     document.addEventListener("copy", handleCopy);
 
     return () => document.removeEventListener("copy", handleCopy);
-  }, [visibleItems]);
+  }, [visibleItems, expandedGroups, selectedTimezone]);
 
   useLayoutEffect(() => {
     if (visibleItems.length === 0) {
@@ -317,6 +353,7 @@ export const TaskLogContent = ({
           data-testid="virtualized-list"
           display="block"
           overflowX="auto"
+          pb={2}
           textWrap={wrap ? "pre" : "nowrap"}
           width="100%"
         >
@@ -368,15 +405,7 @@ export const TaskLogContent = ({
                       color="fg.info"
                       data-testid={`summary-${typeof entry.element === "string" ? entry.element : ""}`}
                     >
-                      <Box
-                        as="span"
-                        display="inline-block"
-                        mr={1}
-                        transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
-                        transition="transform 0.15s"
-                      >
-                        {"\u25B6"}
-                      </Box>
+                      {getGroupHeaderMarker(isExpanded)}{" "}
                       {visibleSearchMatchIndices?.has(virtualRow.index) ? (
                         <HighlightedText query={searchQuery}>
                           {typeof entry.element === "string" ? entry.element : undefined}

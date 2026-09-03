@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.3.0``
+Release: ``22.4.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/>`_.
 
 Installation
 ------------
@@ -77,14 +77,7 @@ PIP package                                 Version required
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
-``google-cloud-aiplatform``                 ``>=1.155.0``
-``tqdm``                                    ``>=4.23.0``
-``scikit-learn``                            ``>=1.6.0``
-``jsonschema``                              ``>=4.19.1``
-``ruamel.yaml``                             ``>=0.19.0``
-``pyyaml``                                  ``>=6.0.3``
-``litellm``                                 ``>=1.83.7,<1.86.0; python_version < "3.14"``
-``litellm``                                 ``>=1.93.0; python_version >= "3.14"``
+``google-cloud-aiplatform[evaluation]``     ``>=1.164.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
@@ -205,7 +198,7 @@ Extra                 Dependencies
 ``postgres``          ``apache-airflow-providers-postgres``
 ``presto``            ``apache-airflow-providers-presto``
 ``salesforce``        ``apache-airflow-providers-salesforce``
-``sftp``              ``apache-airflow-providers-sftp``
+``sftp``              ``apache-airflow-providers-sftp>=5.3.3``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
@@ -214,4 +207,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.3.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/changelog.html>`_.
