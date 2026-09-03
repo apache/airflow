@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, createListCollection } from "@chakra-ui/react";
 import { useRef, useState } from "react";
+
+import { Box, HStack, createListCollection } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiClock, FiZap } from "react-icons/fi";
 
-import { Select } from "src/components/ui";
+import { Select } from "src/system-components";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterConfig, FilterPluginProps } from "../types";
