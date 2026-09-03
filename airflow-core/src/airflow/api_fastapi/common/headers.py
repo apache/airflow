@@ -27,10 +27,18 @@ def header_accept_json_or_text_depends(
     accept: Annotated[
         str,
         Header(
+            description="The response content type to negotiate for.",
+            # Listed as "examples", not "enum": a real Accept header isn't restricted to
+            # these exact literals (it may carry q-values, be comma-separated, etc.), and
+            # an "enum" containing the literal "*/*" gets rendered by some OpenAPI client
+            # generators (notably the Java generator) as a named enum constant whose
+            # generated Javadoc embeds that raw value - the "*/" inside it prematurely
+            # closes the Javadoc comment block and breaks the generated client.
+            # See https://github.com/apache/airflow/issues/72466
             json_schema_extra={
                 "type": "string",
-                "enum": [Mimetype.JSON, Mimetype.TEXT, Mimetype.ANY],
-            }
+                "examples": [Mimetype.JSON, Mimetype.TEXT, Mimetype.ANY],
+            },
         ),
     ] = Mimetype.ANY,
 ) -> Mimetype:
@@ -53,10 +61,14 @@ def header_accept_json_or_ndjson_depends(
     accept: Annotated[
         str,
         Header(
+            description="The response content type to negotiate for.",
+            # See the comment on header_accept_json_or_text_depends above: this is
+            # deliberately "examples", not "enum", so "*/*" doesn't get rendered as its
+            # own enum constant by client generators.
             json_schema_extra={
                 "type": "string",
-                "enum": [Mimetype.JSON, Mimetype.NDJSON, Mimetype.ANY],
-            }
+                "examples": [Mimetype.JSON, Mimetype.NDJSON, Mimetype.ANY],
+            },
         ),
     ] = Mimetype.ANY,
 ) -> Mimetype:

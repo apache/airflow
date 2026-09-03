@@ -1,0 +1,7 @@
+Removed the literal ``*/*`` value from the ``Accept`` header's OpenAPI ``enum`` on the
+four endpoints that negotiate their response content type (``/dagSources/{dag_id}``,
+``/config``, ``/config/section/{section}/option/{option}`` and the task instance logs
+endpoint), listing it as an example instead. Some OpenAPI client generators (notably the
+Java generator) render each ``enum`` value as its own constant with a Javadoc comment
+built from that literal value; ``*/*`` contains ``*/``, which prematurely closes the
+comment and produces invalid generated Java code.

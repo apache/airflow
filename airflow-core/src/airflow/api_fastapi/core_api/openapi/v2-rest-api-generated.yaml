@@ -3274,12 +3274,14 @@ paths:
         required: false
         schema:
           type: string
-          enum:
+          description: The response content type to negotiate for.
+          examples:
           - application/json
           - text/plain
           - '*/*'
           default: '*/*'
           title: Accept
+        description: The response content type to negotiate for.
       responses:
         '200':
           description: Successful Response
@@ -3406,12 +3408,14 @@ paths:
         required: false
         schema:
           type: string
-          enum:
+          description: The response content type to negotiate for.
+          examples:
           - application/json
           - text/plain
           - '*/*'
           default: '*/*'
           title: Accept
+        description: The response content type to negotiate for.
       responses:
         '200':
           description: Successful Response
@@ -3493,12 +3497,14 @@ paths:
         required: false
         schema:
           type: string
-          enum:
+          description: The response content type to negotiate for.
+          examples:
           - application/json
           - text/plain
           - '*/*'
           default: '*/*'
           title: Accept
+        description: The response content type to negotiate for.
       responses:
         '200':
           description: Successful Response
@@ -10020,12 +10026,14 @@ paths:
         required: false
         schema:
           type: string
-          enum:
+          description: The response content type to negotiate for.
+          examples:
           - application/json
           - application/x-ndjson
           - '*/*'
           default: '*/*'
           title: Accept
+        description: The response content type to negotiate for.
       responses:
         '200':
           description: Successful Response
