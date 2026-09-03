@@ -342,11 +342,23 @@ export const GanttTimeline = ({
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
                     const barRadius = 4;
 
-                    // Task groups don't have a try number
+                    // Two segments should render with a merged (flat) shared edge whenever
+                    // they are actually adjacent in time (e.g. a "queued" segment ending exactly
+                    // when the following "running"/terminal segment starts) - that's the real
+                    // visual criterion. Falling back to a tryNumber match alone (task groups
+                    // don't have a try number, so that check is skipped for them) isn't enough:
+                    // it missed same-try, time-adjacent segments whose corners then stayed fully
+                    // rounded instead of butting flush against the next segment.
+                    const nextSegment = segments[segIndex + 1];
+                    const prevSegment = segments[segIndex - 1];
                     const touchesNext =
-                      tryNumber === undefined ? false : segments[segIndex + 1]?.tryNumber === tryNumber;
+                      nextSegment !== undefined &&
+                      (x[1] === nextSegment.x[0] ||
+                        (tryNumber !== undefined && nextSegment.tryNumber === tryNumber));
                     const touchesPrev =
-                      tryNumber === undefined ? false : segments[segIndex - 1]?.tryNumber === tryNumber;
+                      prevSegment !== undefined &&
+                      (x[0] === prevSegment.x[1] ||
+                        (tryNumber !== undefined && prevSegment.tryNumber === tryNumber));
 
                     return (
                       <TaskInstanceTooltip
@@ -405,6 +417,13 @@ export const GanttTimeline = ({
                                 style={{
                                   backgroundImage:
                                     "repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.4) 0px, rgba(255, 255, 255, 0.4) 3px, transparent 3px, transparent 6px)",
+                                  // Anchor the stripe pattern to the row's left edge instead of
+                                  // this segment's own box. Without this, a group bar that is
+                                  // split into multiple state segments (e.g. queued + running)
+                                  // gets a separate stripe pattern per segment, each restarting
+                                  // at its own local origin - the diagonal lines visibly break
+                                  // at the seam between two touching segments.
+                                  backgroundPosition: `${-((leftPct / 100) * bodyWidthPx)}px 0`,
                                 }}
                               />
                             ) : undefined}
