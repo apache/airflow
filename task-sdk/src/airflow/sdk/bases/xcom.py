@@ -627,34 +627,30 @@ class XComIterable(Sequence):
     def append(self, value: Any):
         from airflow.sdk.execution_time.xcom import XCom
 
-        try:
-            XCom.set(
-                key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
-                value=value,
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                run_id=self.run_id,
-                map_index=self.map_index,
-            )
-        finally:
-            self.index += 1
-            self.length += 1
+        XCom.set(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+            value=value,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+        self.index += 1
+        self.length += 1
 
     async def aappend(self, value: Any):
         from airflow.sdk.execution_time.xcom import XCom
 
-        try:
-            await XCom.aset(
-                key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
-                value=value,
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                run_id=self.run_id,
-                map_index=self.map_index,
-            )
-        finally:
-            self.index += 1
-            self.length += 1
+        await XCom.aset(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+            value=value,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+        self.index += 1
+        self.length += 1
 
     def flatten(self) -> XComIterable:
         """Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes)."""
