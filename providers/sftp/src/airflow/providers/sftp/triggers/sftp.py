@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
+from functools import cached_property
 from typing import Any
 
 from dateutil.parser import parse as parse_date
@@ -94,14 +95,11 @@ class SFTPTrigger(BaseSFTPTrigger):
         """
         hook = self._get_async_hook()
 
-        if isinstance(self.newer_than, str):
-            self.newer_than = parse_date(self.newer_than)
-        _newer_than = timezone.convert_to_utc(self.newer_than) if self.newer_than else None
         while True:
             try:
                 if self.file_pattern:
                     files_sensed = await hook.sense_files_by_pattern(
-                        path=self.path, fnmatch_pattern=self.file_pattern, newer_than=_newer_than
+                        path=self.path, fnmatch_pattern=self.file_pattern, newer_than=self.newer_than_utc
                     )
                     if files_sensed:
                         yield TriggerEvent(
@@ -111,7 +109,7 @@ class SFTPTrigger(BaseSFTPTrigger):
                             }
                         )
                         return
-                elif await hook.sense_path(path=self.path, newer_than=_newer_than):
+                elif await hook.sense_path(path=self.path, newer_than=self.newer_than_utc):
                     yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
                     return
                 await asyncio.sleep(self.poke_interval)
@@ -125,6 +123,14 @@ class SFTPTrigger(BaseSFTPTrigger):
                 break
 
         yield TriggerEvent({"status": "error", "message": str(exc)})
+
+    @cached_property
+    def newer_than_utc(self) -> datetime | None:
+        """Parse and convert ``newer_than`` to a UTC datetime once, without mutating the original value."""
+        if not self.newer_than:
+            return None
+        newer_than = parse_date(self.newer_than) if isinstance(self.newer_than, str) else self.newer_than
+        return timezone.convert_to_utc(newer_than)
 
 
 class SFTPTransferTrigger(BaseSFTPTrigger):
