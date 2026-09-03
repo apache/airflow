@@ -187,13 +187,21 @@ class MSGraphAsyncOperator(BaseOperator):
         self,
         context: Context,
         event: dict[Any, Any] | None = None,
+        query_parameters: dict[str, Any] | None = None,
     ) -> Any:
         """
         Execute callback when MSGraphTrigger finishes execution.
 
         This method gets executed automatically when MSGraphTrigger completes its execution.
+
+        :param query_parameters: The query parameters the completed page was requested with, passed
+            back by :meth:`trigger_next_link`.  The operator is rebuilt from the serialized Dag on
+            every page, so without them ``self.query_parameters`` would still describe the first page.
         """
         self.log.debug("context: %s", context)
+
+        if query_parameters is not None:
+            self.query_parameters = query_parameters
 
         if event:
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
@@ -315,7 +323,6 @@ class MSGraphAsyncOperator(BaseOperator):
             response=response,
             url=operator.url,
             query_parameters=operator.query_parameters,
-            responses=lambda: operator.pull_xcom(context),
         )
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
@@ -355,4 +362,5 @@ class MSGraphAsyncOperator(BaseOperator):
                         pagination_link=True,
                     ),
                     method_name=method_name,
+                    kwargs={"query_parameters": query_parameters},
                 )
