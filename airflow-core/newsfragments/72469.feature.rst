@@ -1,0 +1,6 @@
+Added ``[execution_api] workload_token_expiration_time`` to let operators decouple the lifetime
+of the workload JWT token (sent with a queued task to its executor) from
+``[scheduler] task_queued_timeout``. Previously, raising ``task_queued_timeout`` to tolerate a
+longer queue backlog also delayed the scheduler's orphaned-queued-task detection by the same
+amount, since both were controlled by the same value. When left unset, the new option falls
+back to ``task_queued_timeout``, preserving existing behavior.

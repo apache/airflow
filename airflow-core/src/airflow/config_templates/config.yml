@@ -2349,6 +2349,24 @@ execution_api:
       type: integer
       example: ~
       default: "600"
+    workload_token_expiration_time:
+      description: |
+        Number of seconds the workload JWT token minted for a queued task instance (or callback)
+        is valid for, from the moment it is handed to an executor until it authenticates to the
+        Execution API.
+
+        If unset, this falls back to :ref:`config:scheduler__task_queued_timeout` for backwards
+        compatibility, since that value historically doubled as the workload token's lifetime.
+
+        Set this explicitly to decouple workload token validity from
+        ``[scheduler] task_queued_timeout``: that setting also controls how long a task may sit
+        in the queued state before the scheduler reaps it as orphaned, so raising it to tolerate
+        a longer queue backlog previously meant weakening orphaned-task detection by the same
+        amount. Setting this option lets you tune the two independently.
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: ~
     otel_trace_propagation:
       version_added: 3.3.0
       description: |
@@ -2852,9 +2870,11 @@ scheduler:
       description: |
         Amount of time a task can be in the queued state before being retried or set to failed.
 
-        This value also sets the lifetime of the workload JWT token that is sent with the task
-        to an executor queue, so a task waiting in the queue can still authenticate to the
-        Execution API until its queue-starvation deadline.
+        By default, this value also sets the lifetime of the workload JWT token that is sent
+        with the task to an executor queue, so a task waiting in the queue can still authenticate
+        to the Execution API until its queue-starvation deadline. Set
+        :ref:`config:execution_api__workload_token_expiration_time` to give the token its own,
+        independent lifetime instead.
       version_added: 2.6.0
       type: float
       example: ~
