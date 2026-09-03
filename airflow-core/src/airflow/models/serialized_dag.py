@@ -554,28 +554,6 @@ class SerializedDagModel(Base):
         if not dag_id_list:
             return {}
 
-        # Fetch the serialized_dag (last_updated, dag_hash) of the latest DagVersion per dag_id,
-        # ordering by version_number so it stays consistent with the DagVersion picked by dv_subq.
-        sd_subq = (
-            select(
-                cls.dag_id.label("dag_id"),
-                cls.last_updated.label("last_updated"),
-                cls.dag_hash.label("dag_hash"),
-                func.row_number()
-                .over(partition_by=cls.dag_id, order_by=DagVersion.version_number.desc())
-                .label("rn"),
-            )
-            .join(DagVersion, cls.dag_version_id == DagVersion.id)
-            .where(cls.dag_id.in_(dag_id_list))
-            .subquery()
-        )
-        sd_rows = session.execute(
-            select(sd_subq.c.dag_id, sd_subq.c.last_updated, sd_subq.c.dag_hash).where(sd_subq.c.rn == 1)
-        ).all()
-        sd_by_dag_id: dict[str, tuple[datetime, str]] = {
-            row.dag_id: (row.last_updated, row.dag_hash) for row in sd_rows
-        }
-
         # Fetch latest DagVersion per dag_id, ordering by version_number to match write_dag.
         dv_subq = (
             select(
@@ -592,6 +570,23 @@ class SerializedDagModel(Base):
             select(DagVersion).join(dv_subq, DagVersion.id == dv_subq.c.id).where(dv_subq.c.rn == 1)
         ).all()
         dv_by_dag_id: dict[str, DagVersion] = {dv.dag_id: dv for dv in dag_versions}
+
+        # Fetch the serialized_dag (last_updated, dag_hash) of the latest DagVersion per dag_id,
+        # outer join with dv_subq so None is set when latest dag version has no serialized entry.
+        sd_subq = (
+            select(
+                dv_subq.c.dag_id,
+                cls.last_updated.label("last_updated"),
+                cls.dag_hash.label("dag_hash"),
+            )
+            .where(dv_subq.c.rn == 1)
+            .outerjoin(cls, cls.dag_version_id == dv_subq.c.id)
+            .subquery()
+        )
+        sd_rows = session.execute(select(sd_subq.c.dag_id, sd_subq.c.last_updated, sd_subq.c.dag_hash)).all()
+        sd_by_dag_id: dict[str, tuple[datetime, str]] = {
+            row.dag_id: (row.last_updated, row.dag_hash) for row in sd_rows
+        }
 
         return {
             dag_id: DagWriteMetadata(
@@ -735,10 +730,12 @@ class SerializedDagModel(Base):
                 )
             )
 
-        if dag_version and not has_task_instances:
+        if dag_version and not has_task_instances and serialized_dag_hash is not None:
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
+            # exception is when the *latest* dag version has no corresponding serialized dag
+            # which is denoted by serialized_dag_hash == None, then fall through to write
             new_serialized_dag = cls(dag, _dag_hash=new_dag_hash)
 
             # Use direct UPDATE to avoid loading the full serialized DAG
