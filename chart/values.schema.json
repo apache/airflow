@@ -7086,6 +7086,17 @@
                     "type": "boolean",
                     "default": true
                 },
+                "strategy": {
+                    "description": "Update strategy for the StatsD Deployment.",
+                    "type": "object",
+                    "default": {
+                        "type": "RollingUpdate",
+                        "rollingUpdate": {
+                            "maxUnavailable": 0,
+                            "maxSurge": 1
+                        }
+                    }
+                },
                 "cache": {
                     "description": "StatsD cache configuration.",
                     "type": "object",
