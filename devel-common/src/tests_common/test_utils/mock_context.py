@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 from airflow.models import DagRun
-from airflow.utils.types import DagRunType
 from airflow.providers.common.compat.sdk import timezone
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import Context
 from tests_common.test_utils.taskinstance import create_task_instance
