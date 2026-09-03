@@ -95,7 +95,7 @@ class CachingModel(WrapperModel):
 
         cached, cached_fingerprint = self.storage.load_model_response(key)
         if cached is not None:
-            if cached_fingerprint == fingerprint:
+            if fingerprint is not None and cached_fingerprint == fingerprint:
                 self.counter.replayed_model += 1
                 log.debug("Durable: replayed cached model response", step=step)
                 return cached
