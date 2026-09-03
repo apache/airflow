@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -42,6 +42,7 @@ class DeferForApprovalProtocol(Protocol):
 
     approval_timeout: timedelta | None
     allow_modifications: bool
+    on_approval_timeout: str
     prompt: str
     task_id: str
     defer: Any
@@ -62,16 +63,23 @@ class LLMApprovalMixin:
     before approving.  The (possibly modified) output is then returned as the
     task result.
 
+    ``on_approval_timeout`` decides what happens when ``approval_timeout``
+    expires without a response: ``"fail"`` raises ``HITLTimeoutError``, while
+    ``"approve"`` and ``"reject"`` answer the review with that option so the
+    task resumes as if a reviewer had chosen it.
+
     Operators that use this mixin must set the following attributes:
 
     - ``require_approval`` (``bool``)
     - ``allow_modifications`` (``bool``)
     - ``approval_timeout`` (``timedelta | None``)
+    - ``on_approval_timeout`` (``str``)
     - ``prompt`` (``str``)
     """
 
     APPROVE = "Approve"
     REJECT = "Reject"
+    TIMEOUT_DEFAULTS: ClassVar[dict[str, list[str]]] = {"approve": [APPROVE], "reject": [REJECT]}
 
     def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
         """Fail fast when the prompt cannot be rendered as text in the approval review body."""
@@ -99,7 +107,8 @@ class LLMApprovalMixin:
 
         On Airflow 3.3+ the task parks in the ``awaiting_input`` state (no trigger or triggerer
         involved); on older versions it defers to :class:`HITLTrigger`. Either way it resumes in
-        ``execute_complete`` once a response (or timeout default) arrives.
+        ``execute_complete`` once a response (or timeout default) arrives. ``on_approval_timeout``
+        supplies that timeout default; ``"fail"`` supplies none, so the review times out as an error.
 
         :param context: Airflow task context.
         :param output: The generated output to present for review.
@@ -130,6 +139,7 @@ class LLMApprovalMixin:
             output = TypeAdapter(type(output)).dump_json(output).decode()
 
         ti_id = context["task_instance"].id
+        timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)
 
         if subject is None:
             subject = f"Review output for task `{self.task_id}`"
@@ -160,7 +170,7 @@ class LLMApprovalMixin:
             options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
             subject=subject,
             body=body,
-            defaults=None,
+            defaults=timeout_defaults,
             multiple=False,
             params=hitl_params,
         )
@@ -179,7 +189,7 @@ class LLMApprovalMixin:
             trigger=HITLTrigger(
                 ti_id=ti_id,
                 options=[LLMApprovalMixin.APPROVE, LLMApprovalMixin.REJECT],
-                defaults=None,
+                defaults=timeout_defaults,
                 params=hitl_params,
                 multiple=False,
                 timeout_datetime=utcnow() + self.approval_timeout if self.approval_timeout else None,
@@ -199,8 +209,9 @@ class LLMApprovalMixin:
         :param context: Airflow task context.
         :param generated_output: The output that was deferred for review.
         :param event: Trigger event payload containing ``chosen_options``,
-            ``params_input``, and ``responded_by_user``.
-        :raises HITLRejectException: If the reviewer rejected the output.
+            ``params_input``, ``responded_by_user``, and ``timedout``.
+        :raises HITLRejectException: If the reviewer, or the
+            ``on_approval_timeout="reject"`` default, rejected the output.
         :raises HITLTriggerEventError: If the trigger reported an error.
         :raises HITLTimeoutError: If the approval timed out.
         """
@@ -219,6 +230,8 @@ class LLMApprovalMixin:
         responded_by_user = event.get("responded_by_user")
         chosen = event["chosen_options"]
         if self.APPROVE not in chosen:
+            if event.get("timedout"):
+                raise HITLRejectException("Output was rejected by the approval timeout default.")
             raise HITLRejectException(f"Output was rejected by the reviewer {responded_by_user}.")
 
         output = generated_output

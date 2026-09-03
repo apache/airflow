@@ -193,6 +193,21 @@ class TestLLMOperatorApproval:
         assert op.require_approval is False
         assert op.allow_modifications is False
         assert op.approval_timeout is None
+        assert op.on_approval_timeout == "fail"
+
+    def test_unknown_on_approval_timeout_raises(self):
+        with pytest.raises(ValueError, match="on_approval_timeout must be"):
+            LLMOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                approval_timeout=timedelta(hours=1),
+                on_approval_timeout="skip",
+            )
+
+    def test_on_approval_timeout_without_approval_timeout_raises(self):
+        with pytest.raises(ValueError, match="has no effect without approval_timeout"):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve")
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
