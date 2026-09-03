@@ -50,16 +50,16 @@ class TestDocumentLoaderInit:
         assert "source_bytes" not in op.template_fields
 
     def test_both_sources_raises(self):
-        op = DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
+        # source_path/source_bytes provision is a constructor-time check now.
         with pytest.raises(ValueError, match="not both"):
-            op.execute(context={})
+            DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
 
     def test_neither_source_raises(self):
-        op = DocumentLoaderOperator(task_id="test")
         with pytest.raises(ValueError, match="Provide exactly one"):
-            op.execute(context={})
+            DocumentLoaderOperator(task_id="test")
 
     def test_source_bytes_without_file_type_raises(self):
+        # file_type is a template field, so this check only fires at execute() time.
         op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
         with pytest.raises(ValueError, match="file_type"):
             op.execute(context={})
@@ -67,6 +67,14 @@ class TestDocumentLoaderInit:
     def test_empty_bytes_without_file_type_raises(self):
         op = DocumentLoaderOperator(task_id="test", source_bytes=b"")
         with pytest.raises(ValueError, match="file_type"):
+            op.execute(context={})
+
+    def test_source_path_none_after_render_raises(self):
+        # source_path can render to None even when supplied -- must raise ValueError,
+        # not a TypeError from _resolve_files.
+        op = DocumentLoaderOperator(task_id="test", source_path="{{ none }}")
+        op.source_path = None  # simulate the rendered value, bypassing real templating
+        with pytest.raises(ValueError, match="Provide exactly one"):
             op.execute(context={})
 
 
