@@ -23,8 +23,11 @@ import type {
   DAGLatestRunTaskInstanceStateCountsResponse,
   TaskInstanceState,
 } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { sortStateEntries } from "src/utils";
 
