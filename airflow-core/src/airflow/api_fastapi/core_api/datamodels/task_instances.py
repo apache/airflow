@@ -231,6 +231,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
         "and finally ``False`` (the historical default for clear/rerun).",
     )
     prevent_running_task: bool = False
+    keep_task_state: bool = Field(
+        default=False,
+        description="Keep the task state store entries of the cleared task instances so the next "
+        "attempt resumes from them. By default they are discarded, so the task starts over.",
+    )
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
 
     @model_validator(mode="before")

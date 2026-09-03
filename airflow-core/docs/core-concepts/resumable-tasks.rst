@@ -145,26 +145,42 @@ existing job on retry instead of submitting a new one.
 
 For more details and a working example, see :class:`~airflow.sdk.ResumableJobMixin`.
 
-**Clearing a task is treated the same as a retry**
+**Retries resume, clearing starts over**
 
-Clearing a task instance does not delete its ``task_state_store`` rows -- they are only removed
-when the ``dag_run`` itself is deleted, or by :ref:`airflow state-store clean
-<task-and-asset-state-store-cleanup>`. For a checkpointed task this is usually what you want:
-clearing resumes from the last checkpoint rather than starting over.
+A retry keeps the task's ``task_state_store`` entries, which is what makes crash recovery work: the
+next attempt reads the checkpoint or the external job id written by the attempt before it.
 
-For an operator with durable execution, it means clearing a task whose external job already
-succeeded reads that stored result back and returns immediately, without resubmitting the job. If
-you want clearing to always resubmit regardless of a prior success, set
-``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
-when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
+Clearing discards them. Clearing means "run this again", and a checkpoint records how far a task
+got, not what it got there with. If you fixed the code or the upstream data and cleared the task,
+resuming would leave the work done before the fix in place and silently mix it with the corrected
+work. So by default a cleared task starts from the beginning.
 
-This does not guarantee the external job is still there to reconnect to, though. Clearing a task
-that is actively running (``deferrable=False``) stops the worker process, which runs the
-operator's ``on_kill``. Most operators with durable execution cancel the external job there by
-default, so the next attempt finds it already stopped instead of still running -- an operator that
-leaves the job running by default on kill is the exception, check its own docs. Deferred tasks
-(``deferrable=True``) don't have this problem: there is no actively polling worker process for the
-clear to interrupt.
+To resume from the checkpoint instead, set ``keep_task_state`` when clearing, or tick the
+corresponding box in the clear dialog. That is the right choice when nothing about the inputs or the
+code changed and you only want the task to carry on where it stopped.
+
+**Clearing a task that submitted an external job**
+
+For an operator with durable execution the stored value is an external job id, so discarding it has
+a different consequence: the next attempt submits a new job rather than reconnecting to the existing
+one.
+
+Whether that matters depends on what happened to the job:
+
+* Most operators cancel the external job in ``on_kill``, so clearing a *running* task stops the job
+  and there is nothing left to reconnect to. Submitting a fresh one is the only option anyway.
+* An operator configured to leave the job running on kill (for example
+  ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"``) keeps it alive, so a fresh submission
+  runs alongside it. Check the operator's own docs.
+* Clearing a *failed* task never runs ``on_kill`` at all, so an external job that outlived the
+  worker is still running.
+
+In those last two cases, pass ``keep_task_state`` so the next attempt reconnects to the job already
+in flight instead of paying for a second one.
+
+Note that ``[state_store] clear_on_success`` is a separate control: it discards a task's entries as
+soon as it reaches ``SUCCESS``, so nothing is left for a later clear to find either way (see
+:doc:`/administration-and-deployment/task-and-asset-state-store`).
 
 .. _concepts-resumable-tasks-async:
 
