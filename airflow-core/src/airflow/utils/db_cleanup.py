@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Select
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.compiler import IdentifierPreparer
 
     from airflow.models import Base
 
@@ -76,6 +77,19 @@ def _format_table_name(schema: str | None, table: str) -> str:
     if schema:
         return f"{schema}.{table}"
     return table
+
+
+def _format_quoted_table_name(preparer: IdentifierPreparer, schema: str | None, table: str) -> str:
+    """
+    Format a fully qualified table name for interpolation into raw DDL.
+
+    Table names reach raw DDL as text rather than as bound identifiers, so a name that is a
+    reserved word in the target dialect is a syntax error there. ``trigger`` is reserved on
+    MySQL, which makes the whole table uncleanable without quoting.
+    """
+    if schema:
+        return f"{preparer.quote(schema)}.{preparer.quote(table)}"
+    return preparer.quote(table)
 
 
 @dataclasses.dataclass
@@ -211,7 +225,18 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="trigger",
         recency_column_name="created_date",
+        extra_columns=["id"],
         dependent_tables=["task_instance"],
+        # The triggerer deletes every unreferenced trigger on each loop, so an old row that
+        # survives is almost always still in use. task_instance.trigger_id and
+        # asset_watcher.trigger_id are ON DELETE CASCADE, so deleting one also deletes a
+        # deferred task instance or a watcher, neither of which reaches an archive table.
+        # callback.trigger_id has no delete rule, so the same delete fails the foreign key.
+        skip_if_referenced=[
+            ("task_instance", "trigger_id"),
+            ("asset_watcher", "trigger_id"),
+            ("callback", "trigger_id"),
+        ],
     ),
     _TableConfig(
         table_name="dag_version",
@@ -308,10 +333,8 @@ def _do_delete(
         # using bulk delete
         # create a new table and copy the rows there
         timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
-        target_table_name = _format_table_name(
-            orm_model.schema,
-            f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
-        )
+        target_bare_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}"
+        target_table_name = _format_table_name(orm_model.schema, target_bare_name)
         print(f"Moving data to table {target_table_name}")
         target_table = None
         # Lets the ``finally`` cleanup below tell the failure path (don't let a
@@ -323,7 +346,14 @@ def _do_delete(
             if dialect_name == "mysql":
                 # MySQL with replication needs this split into two queries, so just do it for all MySQL
                 # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-                session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
+                preparer = bind.dialect.identifier_preparer
+                session.execute(
+                    text(
+                        f"CREATE TABLE "
+                        f"{_format_quoted_table_name(preparer, orm_model.schema, target_bare_name)} "
+                        f"LIKE {_format_quoted_table_name(preparer, orm_model.schema, orm_model.name)}"
+                    )
+                )
                 metadata = reflect_tables([target_table_name], session)
                 target_table = metadata.tables[target_table_name]
                 insert_stm = target_table.insert().from_select(target_table.c, limited_query)
