@@ -133,6 +133,35 @@ class TestSqlToSlackWebhookOperator:
             channel="#test",
         )
 
+    def test_second_render_leaves_already_rendered_fields_alone(self, mocked_hook):
+        """The second render pass must touch only ``slack_message``.
+
+        The first pass renders every other templated field; re-rendering them afterwards would feed
+        each field's own output back in as template source, so Jinja syntax that arrived inside a
+        context value would be evaluated on the second pass instead of staying literal.
+        """
+        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook.return_value.get_df.return_value = pd.DataFrame({"a": "1"}, index=[0])
+
+        sql_to_slack_operator = self._construct_operator(
+            sql_conn_id="snowflake_connection",
+            slack_webhook_conn_id="slack_connection",
+            slack_message="message: {{ results_df }}",
+            slack_channel="#test",
+            sql="SELECT '{{ ds }}'",
+        )
+        sql_to_slack_operator._get_hook = mock_dbapi_hook
+
+        # ``ds`` resolves to a value that itself contains Jinja - the shape a triggering user can
+        # produce through ``dag_run.conf``. It must survive as literal text.
+        context = {"ds": "{{ leaked }}", "leaked": "SECRET"}
+
+        sql_to_slack_operator.render_template_fields(context)
+        assert sql_to_slack_operator.sql == "SELECT '{{ leaked }}'"
+
+        sql_to_slack_operator.execute(context)
+        assert sql_to_slack_operator.sql == "SELECT '{{ leaked }}'"
+
     @pytest.mark.parametrize(
         ("slack_webhook_conn_id", "warning_expected", "expected_conn_id"),
         [
