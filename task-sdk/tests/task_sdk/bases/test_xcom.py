@@ -319,13 +319,13 @@ class TestXComIterable:
         assert iterable.length == 2
 
     @patch.object(XCom, "set", side_effect=RuntimeError("oops"))
-    def test_append_increments_index_even_on_error(self, mock_set):
-        """The finally block must advance index/length even when XCom.set raises."""
+    def test_append_does_not_increment_index_on_error(self, mock_set):
+        """index/length must not advance when XCom.set raises, to avoid phantom entries."""
         iterable = self.make_iterable()
         with pytest.raises(RuntimeError, match="oops"):
             iterable.append("value")
-        assert iterable.index == 1
-        assert iterable.length == 1
+        assert iterable.index == 0
+        assert iterable.length == 0
 
     # ------------------------------------------------------------------
     # aappend
@@ -359,13 +359,13 @@ class TestXComIterable:
 
     @pytest.mark.asyncio
     @patch.object(XCom, "aset", new_callable=AsyncMock, side_effect=RuntimeError("oops"))
-    async def test_aappend_increments_index_even_on_error(self, mock_aset):
-        """The finally block must advance index/length even when XCom.aset raises."""
+    async def test_aappend_does_not_increment_index_on_error(self, mock_aset):
+        """index/length must not advance when XCom.aset raises, to avoid phantom entries."""
         iterable = self.make_iterable()
         with pytest.raises(RuntimeError, match="oops"):
             await iterable.aappend("value")
-        assert iterable.index == 1
-        assert iterable.length == 1
+        assert iterable.index == 0
+        assert iterable.length == 0
 
     # ------------------------------------------------------------------
     # serialize / deserialize / index reset
