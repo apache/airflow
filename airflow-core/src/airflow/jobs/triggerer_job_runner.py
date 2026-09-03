@@ -330,6 +330,8 @@ class messages:
         # Format of list[str] is the exc traceback format
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
+        # Ids the runner has a live coroutine for; None when the message carries no information
+        running_ids: set[int] | None = None
 
     class TriggerStateSync(BaseModel):
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
@@ -601,6 +603,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # handle leaks for every failed upload.
                         factory.close()
 
+            self.check_for_unhandled_triggers(msg.running_ids)
+
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
             while self.persisted_event_seqs:
@@ -780,6 +784,23 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def clean_unused(self) -> None:
         """Remove triggers that are no longer needed."""
         Trigger.clean_unused()
+
+    def check_for_unhandled_triggers(self, running_ids: set[int] | None) -> None:
+        """
+        Re-create triggers we track as running that the runner has no coroutine for.
+
+        Only valid between finished-removal and to_create-addition in ``_handle_request``, where the
+        two sides agree. Dropping the leftovers lets :meth:`update_triggers` rebuild them.
+        """
+        if running_ids is None:
+            return
+        unhandled = self.running_triggers - running_ids
+        if not unhandled:
+            return
+        log.error("Triggers have no coroutine in the runner; re-creating", trigger_ids=sorted(unhandled))
+        self.running_triggers -= unhandled
+        self.cancelling_triggers -= unhandled
+        stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
 
     def handle_failed_triggers(self):
         """
@@ -1498,6 +1519,7 @@ class TriggerRunner:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
         events_to_send: list[TriggerEventEntry] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
+        finished_to_send = list(finished_ids)
 
         while self.events:
             events_to_send.append(self.events.popleft())
@@ -1506,11 +1528,14 @@ class TriggerRunner:
             trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             failures_to_send.append((trigger_id, tb))
+            if trigger_id not in self.triggers:
+                finished_to_send.append(trigger_id)
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
-            finished=finished_ids if finished_ids else None,
+            finished=finished_to_send if finished_to_send else None,
             failures=failures_to_send if failures_to_send else None,
+            running_ids=set(self.triggers),
         )
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
@@ -1539,6 +1564,7 @@ class TriggerRunner:
             events=events_to_send if events_to_send else None,
             finished=msg.finished,
             failures=msg.failures,
+            running_ids=msg.running_ids,
         )
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
