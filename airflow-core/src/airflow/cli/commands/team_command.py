@@ -239,23 +239,44 @@ def team_sync(args, *, session=NEW_SESSION):
             "Names already stored must be corrected before syncing."
         )
 
-    teams_added = 0
+    teams_to_add = sorted(dag_bundle_teams - existing_teams)
+    pools_to_add = []
+
+    for team_name in dag_bundle_teams:
+        pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == Pool.get_default_team_pool_name(team_name),
+                Pool.team_name == team_name,
+            )
+        )
+
+        if pool is None:
+            pools_to_add.append(Pool.get_default_team_pool_name(team_name))
+
+    if args.dry_run:
+        if not teams_to_add and not pools_to_add:
+            print("No changes to sync.")
+            return
+
+        if teams_to_add:
+            print("Teams to add:")
+            for team_name in teams_to_add:
+                print(f"  - {team_name}")
+
+        if pools_to_add:
+            print("Default team pools to add:")
+            for pool_name in sorted(pools_to_add):
+                print(f"  - {pool_name}")
+
+        return
 
     try:
         for team_name in dag_bundle_teams:
-            if team_name not in existing_teams:
+            if team_name in teams_to_add:
                 session.add(Team(name=team_name))
                 session.flush()
-                teams_added += 1
 
-            pool = session.scalar(
-                select(Pool).where(
-                    Pool.pool == Pool.get_default_team_pool_name(team_name),
-                    Pool.team_name == team_name,
-                )
-            )
-
-            if pool is None:
+            if Pool.get_default_team_pool_name(team_name) in pools_to_add:
                 _create_default_team_pool(team_name=team_name, session=session)
 
         session.commit()
@@ -263,8 +284,8 @@ def team_sync(args, *, session=NEW_SESSION):
         session.rollback()
         raise SystemExit(f"Failed to sync teams: {e}")
 
-    if teams_added > 0:
-        print(f"{teams_added} teams added.")
+    if teams_to_add:
+        print(f"{len(teams_to_add)} teams added.")
 
 
 @cli_utils.action_cli

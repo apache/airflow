@@ -595,6 +595,84 @@ class TestCliTeams:
 
         assert "Verification succeeded." in stdout.getvalue()
 
+    def test_team_sync_dry_run_reports_changes_without_writing(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+            {
+                "name": "bundletwo",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
+                "team_name": "team2",
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                team_command.team_sync(self.parser.parse_args(["teams", "sync", "--dry-run"]))
+
+        output = stdout.getvalue()
+
+        assert "Teams to add:" in output
+        assert "team1" in output
+        assert "team2" in output
+        assert "Default team pools to add:" in output
+        assert Pool.get_default_team_pool_name("team1") in output
+        assert Pool.get_default_team_pool_name("team2") in output
+
+        assert self.session.scalars(select(Team)).all() == []
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1")))
+            is None
+        )
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team2")))
+            is None
+        )
+
+    def test_team_sync_dry_run_reports_missing_default_pool_without_writing(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                team_command.team_sync(self.parser.parse_args(["teams", "sync", "--dry-run"]))
+
+        output = stdout.getvalue()
+
+        assert "Teams to add:" not in output
+        assert "Default team pools to add:" in output
+        assert Pool.get_default_team_pool_name("team1") in output
+
+        assert self.session.scalar(select(Team).where(Team.name == "team1")) is not None
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1")))
+            is None
+        )
+
     def test_team_verify_missing_default_pool(self):
         self.session.add(Team(name="team1"))
         self.session.commit()
