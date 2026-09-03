@@ -591,7 +591,7 @@ class XComIterable(Sequence):
         self.run_id = run_id
         self.map_index = map_index
         self.length = length or 0
-        self.index = self.length
+        self._index = self.length
 
     def __iter__(self) -> Iterator[Any]:
         return _XComIterator(self)
@@ -628,28 +628,29 @@ class XComIterable(Sequence):
         from airflow.sdk.execution_time.xcom import XCom
 
         XCom.set(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index}",
             value=value,
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
             map_index=self.map_index,
         )
-        self.index += 1
+        self._index += 1
         self.length += 1
 
     async def aappend(self, value: Any):
         from airflow.sdk.execution_time.xcom import XCom
 
         await XCom.aset(
-            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self.index}",
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index}",
             value=value,
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
             map_index=self.map_index,
         )
-        self.index += 1
+
+        self._index += 1
         self.length += 1
 
     def flatten(self) -> XComIterable:
