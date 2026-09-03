@@ -102,6 +102,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -147,6 +148,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable,
     handle_get_variable_keys,
     handle_get_xcom,
+    handle_get_xcom_by_keys,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
     handle_get_xcom_sequence_slice,
@@ -1779,6 +1781,8 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
+        elif isinstance(msg, GetXComByKeys):
+            resp, dump_opts = handle_get_xcom_by_keys(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
             resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
