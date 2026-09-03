@@ -23,9 +23,13 @@ import type {
   DAGLatestRunTaskInstanceStateCountsResponse,
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
+
+import { RouterLink, Tooltip } from "src/system-components";
+
 import DagRunInfo from "src/components/DagRunInfo";
 import { Stat } from "src/components/Stat";
-import { RouterLink, Tooltip } from "src/components/ui";
+import { TeamName } from "src/components/TeamName";
+
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -138,11 +142,7 @@ export const DagCard = ({
         {multiTeamEnabled ? (
           <GridItem gridColumn={4} gridRow={1}>
             <Stat label={translate("dagDetails.team")}>
-              {dag.team_name === undefined || dag.team_name === null ? undefined : (
-                <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name)}`}>
-                  {dag.team_name}
-                </RouterLink>
-              )}
+              <TeamName teamName={dag.team_name} />
             </Stat>
           </GridItem>
         ) : undefined}

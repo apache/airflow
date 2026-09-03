@@ -56,8 +56,8 @@ def get_provider_info():
                     "hidden-fields": ["extra", "port"],
                     "relabeling": {
                         "host": "Server URL",
-                        "login": "Client ID",
-                        "password": "Client Secret",
+                        "login": "Client ID (optional)",
+                        "password": "Client Secret (optional)",
                         "schema": "Token URL",
                     },
                     "placeholders": {},

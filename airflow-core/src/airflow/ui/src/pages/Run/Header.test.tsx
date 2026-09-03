@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -34,7 +35,7 @@ vi.mock("src/components/Clear", () => ({ ClearRunButton: () => undefined }));
 vi.mock("src/components/MarkAs", () => ({ MarkRunAsButton: () => undefined }));
 vi.mock("src/components/NeedsReviewButton", () => ({ NeedsReviewButtonWithModal: () => undefined }));
 vi.mock("src/pages/DagRuns/DeleteRunButton", () => ({ default: () => undefined }));
-vi.mock("src/components/NotePreview", () => ({ default: () => undefined }));
+vi.mock("src/components/NotePreview", () => ({ NotePreview: () => undefined }));
 
 vi.mock("openapi/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof OpenapiQueries>();
@@ -44,6 +45,12 @@ vi.mock("openapi/queries", async (importOriginal) => {
     useDeadlinesServiceGetDagDeadlineAlerts: vi.fn(),
   };
 });
+
+const mockConfig: Record<string, unknown> = { multi_team: false };
+
+vi.mock("src/queries/useConfig", () => ({
+  useConfig: (key: string) => mockConfig[key],
+}));
 
 const { useDeadlinesServiceGetDagDeadlineAlerts } = await import("openapi/queries");
 
@@ -73,6 +80,7 @@ const baseDagRun = {
 
 describe("Header", () => {
   beforeEach(() => {
+    mockConfig.multi_team = false;
     vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
       data: undefined,
     } as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
@@ -90,5 +98,19 @@ describe("Header", () => {
     render(<Header dagRun={{ ...baseDagRun, partition_key: null }} />, { wrapper: Wrapper });
 
     expect(screen.queryByText(i18n.t("dagRun.partitionKey"))).not.toBeInTheDocument();
+  });
+
+  it("shows the team stat when multi-team is enabled and a team is resolved", () => {
+    mockConfig.multi_team = true;
+    render(<Header dagRun={{ ...baseDagRun, team_name: "team-a" }} />, { wrapper: Wrapper });
+
+    expect(screen.getByText(i18n.t("common:dagDetails.team"))).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "team-a" })).toHaveAttribute("href", "/dags?teams=team-a");
+  });
+
+  it("hides the team stat when multi-team is disabled", () => {
+    render(<Header dagRun={{ ...baseDagRun, team_name: "team-a" }} />, { wrapper: Wrapper });
+
+    expect(screen.queryByText(i18n.t("common:dagDetails.team"))).not.toBeInTheDocument();
   });
 });

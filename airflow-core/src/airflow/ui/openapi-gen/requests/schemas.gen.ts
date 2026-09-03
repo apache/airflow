@@ -3247,6 +3247,17 @@ export const $DAGDetailsResponse = {
             title: 'Active Runs Count',
             default: 0
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
@@ -3629,7 +3640,19 @@ export const $DAGRunCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -4388,12 +4411,93 @@ export const $DagProcessorInfoResponse = {
                 }
             ],
             title: 'Latest Dag Processor Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detailed Status'
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/DagProcessorInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
         }
     },
     type: 'object',
-    required: ['status', 'latest_dag_processor_heartbeat'],
+    required: ['status', 'latest_dag_processor_heartbeat', 'detailed_status'],
     title: 'DagProcessorInfoResponse',
     description: 'DagProcessor info serializer for responses.'
+} as const;
+
+export const $DagProcessorInstanceInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Status'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        latest_dag_processor_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Dag Processor Heartbeat'
+        },
+        bundle_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Names'
+        }
+    },
+    type: 'object',
+    required: ['status', 'hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
+    title: 'DagProcessorInstanceInfoResponse',
+    description: 'Dag processor instance info serializer for responses.'
 } as const;
 
 export const $DagRunAssetReference = {
@@ -4419,8 +4523,15 @@ export const $DagRunAssetReference = {
             title: 'Logical Date'
         },
         start_date: {
-            type: 'string',
-            format: 'date-time',
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Start Date'
         },
         end_date: {
@@ -4473,11 +4584,16 @@ export const $DagRunAssetReference = {
                 }
             ],
             title: 'Partition Key'
+        },
+        triggering: {
+            type: 'boolean',
+            title: 'Triggering',
+            description: "Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it."
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key'],
+    required: ['run_id', 'dag_id', 'logical_date', 'start_date', 'end_date', 'state', 'data_interval_start', 'data_interval_end', 'partition_key', 'triggering'],
     title: 'DagRunAssetReference',
     description: 'DagRun serializer for asset responses.'
 } as const;
@@ -4529,6 +4645,17 @@ export const $DagScheduleAssetReference = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -4913,6 +5040,17 @@ export const $EventLogResponse = {
                 }
             ],
             title: 'Task Display Name'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -4995,6 +5133,16 @@ export const $ExternalViewResponse = {
             ],
             title: 'Nav Top Level',
             default: false
+        },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         href: {
             type: 'string',
@@ -5630,6 +5778,31 @@ export const $JobResponse = {
             ],
             title: 'Unixname'
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
+        bundle_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bundle Names'
+        },
         dag_display_name: {
             anyOf: [
                 {
@@ -5861,6 +6034,85 @@ export const $PatchTaskInstanceBody = {
     type: 'object',
     title: 'PatchTaskInstanceBody',
     description: 'Request body for patching task instance state.'
+} as const;
+
+export const $PluginAppliesToResponse = {
+    properties: {
+        dag_tags: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Tags'
+        },
+        dag_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Ids'
+        },
+        task_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Ids'
+        },
+        operators: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operators'
+        },
+        operator_names: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator Names'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'PluginAppliesToResponse',
+    description: 'Serializer for the optional Dag/task scoping criteria of a UI plugin.'
 } as const;
 
 export const $PluginCollectionResponse = {
@@ -6399,6 +6651,16 @@ export const $ReactAppResponse = {
             title: 'Nav Top Level',
             default: false
         },
+        applies_to: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/PluginAppliesToResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         bundle_url: {
             type: 'string',
             title: 'Bundle Url'
@@ -6449,12 +6711,79 @@ export const $SchedulerInfoResponse = {
                 }
             ],
             title: 'Latest Scheduler Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detailed Status'
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/SchedulerInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
         }
     },
     type: 'object',
-    required: ['status', 'latest_scheduler_heartbeat'],
+    required: ['status', 'latest_scheduler_heartbeat', 'detailed_status'],
     title: 'SchedulerInfoResponse',
     description: 'Scheduler info serializer for responses.'
+} as const;
+
+export const $SchedulerInstanceInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Status'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        latest_scheduler_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Scheduler Heartbeat'
+        }
+    },
+    type: 'object',
+    required: ['status', 'hostname', 'latest_scheduler_heartbeat'],
+    title: 'SchedulerInstanceInfoResponse',
+    description: 'Scheduler instance info serializer for responses.'
 } as const;
 
 export const $StructuredLogMessage = {
@@ -6576,7 +6905,19 @@ export const $TaskInstanceCollectionResponse = {
                 }
             ],
             title: 'Total Entries',
-            description: 'Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.'
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
         },
         next_cursor: {
             anyOf: [
@@ -7594,6 +7935,17 @@ export const $TaskOutletAssetReference = {
             type: 'string',
             format: 'date-time',
             title: 'Updated At'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -8208,12 +8560,90 @@ export const $TriggererInfoResponse = {
                 }
             ],
             title: 'Latest Triggerer Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detailed Status'
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/TriggererInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
         }
     },
     type: 'object',
-    required: ['status', 'latest_triggerer_heartbeat'],
+    required: ['status', 'latest_triggerer_heartbeat', 'detailed_status'],
     title: 'TriggererInfoResponse',
     description: 'Triggerer info serializer for responses.'
+} as const;
+
+export const $TriggererInstanceInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Status'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        latest_triggerer_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Triggerer Heartbeat'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        }
+    },
+    type: 'object',
+    required: ['status', 'hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    title: 'TriggererInstanceInfoResponse',
+    description: 'Triggerer instance info serializer for responses.'
 } as const;
 
 export const $UpdateHITLDetailPayload = {
@@ -8503,6 +8933,17 @@ export const $XComResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Run After'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -8562,6 +9003,17 @@ export const $XComResponseNative = {
             type: 'string',
             format: 'date-time',
             title: 'Run After'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         },
         value: {
             title: 'Value'
@@ -8625,6 +9077,17 @@ export const $XComResponseString = {
             format: 'date-time',
             title: 'Run After'
         },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        },
         value: {
             anyOf: [
                 {
@@ -8670,6 +9133,21 @@ export const $AuthenticatedMeResponse = {
         username: {
             type: 'string',
             title: 'Username'
+        },
+        teams: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Teams',
+            description: 'Teams the user has access to. Null when the environment does not run in multi-team mode.'
         }
     },
     type: 'object',
@@ -9770,6 +10248,17 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Alert Name'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',

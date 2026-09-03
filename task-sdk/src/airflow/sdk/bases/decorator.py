@@ -670,6 +670,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             is_empty=False,
             is_sensor=self.operator_class._is_sensor,
             can_skip_downstream=self.operator_class._can_skip_downstream,
+            is_stub=self.operator_class.is_stub,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,

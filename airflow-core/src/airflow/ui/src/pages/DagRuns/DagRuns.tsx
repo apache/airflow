@@ -24,6 +24,9 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, ActionBar } from "src/system-components";
+
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
@@ -42,10 +45,10 @@ import { MarkRunAsButton } from "src/components/MarkAs";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
@@ -160,12 +163,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: DagRunRow) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${encodeURIComponent(original.team_name)}`}>
-                {original.team_name}
-              </RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: DagRunRow) => <TeamName teamName={original.team_name} />,
           enableSorting: false,
           header: translate("dagDetails.team"),
         },
@@ -346,6 +344,7 @@ export const DagRuns = () => {
     },
   );
 
+  const dagRuns = data?.dag_runs ?? [];
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
@@ -355,7 +354,7 @@ export const DagRuns = () => {
       getKey: getRowKey,
     });
 
-  const selectedDagRuns = (data?.dag_runs ?? []).filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
+  const selectedDagRuns = dagRuns.filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
 
   const columns = runColumns({
     dagId,
@@ -371,26 +370,30 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <Flex alignItems="center" justifyContent="space-between">
-        <DagRunsFilters dagId={dagId} />
-        <ExpandCollapseButtons
-          collapseLabel={translate("common:collapseAllExtra")}
-          expandLabel={translate("common:expandAllExtra")}
-          isExpanded={open}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
-      </Flex>
       <DataTable
         columns={columns}
-        data={data?.dag_runs ?? []}
+        data={dagRuns}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<DagRunsFilters dagId={dagId} />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:dagRun"
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
+        presentationActions={
+          dagRuns.length > 0 ? (
+            <ExpandCollapseButtons
+              collapseLabel={translate("common:collapseAllExtra")}
+              expandLabel={translate("common:expandAllExtra")}
+              isExpanded={open}
+              onCollapse={onClose}
+              onExpand={onOpen}
+            />
+          ) : undefined
+        }
         previousCursor={previousCursor}
+        total={data?.total_entries ?? 0}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>

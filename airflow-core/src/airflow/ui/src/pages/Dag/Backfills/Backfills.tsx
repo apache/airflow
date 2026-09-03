@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, Text } from "@chakra-ui/react";
+import { Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -24,10 +24,12 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+
 import { getDuration } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
@@ -154,11 +156,8 @@ export const Backfills = () => {
   const columns = getColumns(onSelectBackfill, translate);
 
   return (
-    <Box>
+    <>
       <ErrorAlert error={error} />
-      <Heading my={1} size="md">
-        {translate("backfill", { count: data ? data.total_entries : 0 })}
-      </Heading>
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
@@ -174,6 +173,6 @@ export const Backfills = () => {
         onClose={onClose}
         open={hasSelectedBackfill}
       />
-    </Box>
+    </>
   );
 };

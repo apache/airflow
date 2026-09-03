@@ -1495,6 +1495,60 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run java e2e tests when java compose override changes",
         ),
         pytest.param(
+            ("ts-sdk/src/sdk/client.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/index.md",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Build ts-sdk docs for a docs-only Markdown change that skips ts-sdk tests",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            {
+                "run-ts-sdk-docs": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "false",
+            },
+            id="Build only ts-sdk docs when a TypeDoc category entry point changes",
+        ),
+        pytest.param(
+            ("ts-sdk/tsconfig.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when tsconfig.json changes since docs/tsconfig.json extends it",
+        ),
+        pytest.param(
+            ("ts-sdk/package.json",),
+            {
+                "run-ts-sdk-docs": "true",
+            },
+            id="Build ts-sdk docs when package.json changes since it pins @msgpack/msgpack",
+        ),
+        pytest.param(
+            ("ts-sdk/README.md",),
+            {
+                "run-ts-sdk-docs": "false",
+            },
+            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java e2e tests when the java test-fixture bundle changes",
+        ),
+        pytest.param(
             ("task-sdk/src/airflow/sdk/coordinators/java/coordinator.py",),
             {
                 "run-java-sdk-e2e-tests": "true",
@@ -1826,6 +1880,21 @@ def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktli
             ("ts-sdk/example/README.md",),
             True,
             id="skipped when only nested ts-sdk docs change",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            True,
+            id="skipped when only the docs toolchain's package.json changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package-lock.json",),
+            True,
+            id="skipped when only the docs toolchain's lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/api-docs/dag-authoring-api.ts",),
+            True,
+            id="skipped when only a TypeDoc category entry point changes",
         ),
     ],
 )
@@ -3005,9 +3074,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive apache.iceberg "
+                "docs-list-as-string": "amazon apache.arrow apache.drill apache.druid apache.hive apache.iceberg "
                 "apache.impala apache.pinot clickhousedb common.ai common.compat common.sql databricks elasticsearch "
-                "exasol google informatica jdbc microsoft.mssql mysql odbc openlineage "
+                "exasol google ibm.db2 informatica jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
             },
             id="Common SQL provider package python files changed",
@@ -3043,6 +3112,13 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
+        ),
+        pytest.param(
+            ("dev/mypy/docs/index.rst",),
+            {
+                "docs-list-as-string": "apache-airflow-mypy",
+            },
+            id="Only Apache Airflow Mypy docs changed",
         ),
         pytest.param(
             ("providers/celery/src/airflow/providers/celery/file.py",),
@@ -3559,9 +3635,9 @@ def test_testable_providers_integrations_gated_by_affected_provider():
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
-    """ibm.mq declares `excluded-platforms: [linux/arm64]`, so it must be absent from
-    the ARM individual-providers matrix (used by the Low-dep ARM canary job) and
-    present on AMD."""
+    """ibm.mq and ibm.db2 declare `excluded-platforms: [linux/arm64]`, so they must be
+    absent from the ARM individual-providers matrix (used by the Low-dep ARM canary job)
+    and present on AMD."""
     arm_checks = SelectiveChecks(
         files=("airflow-core/tests/test_example.py",),
         commit_ref=NEUTRAL_COMMIT,
@@ -3574,6 +3650,7 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
     arm_output = arm_checks.individual_providers_test_types_list_as_strings_in_json
     assert arm_output is not None
     assert "Providers[ibm.mq]" not in arm_output
+    assert "Providers[ibm.db2]" not in arm_output
 
     amd_checks = SelectiveChecks(
         files=("airflow-core/tests/test_example.py",),
@@ -3587,6 +3664,7 @@ def test_individual_providers_excludes_platform_excluded_on_arm():
     amd_output = amd_checks.individual_providers_test_types_list_as_strings_in_json
     assert amd_output is not None
     assert "Providers[ibm.mq]" in amd_output
+    assert "Providers[ibm.db2]" in amd_output
 
 
 def test_run_kubernetes_tests_forced_by_label():

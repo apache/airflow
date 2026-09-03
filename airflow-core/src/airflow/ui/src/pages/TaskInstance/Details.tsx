@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, Table } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, Flex, Heading, HStack, Table } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -25,13 +26,18 @@ import {
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
@@ -58,6 +64,8 @@ export const Details = () => {
       enabled: !isNaN(parsedMapIndex),
     },
   );
+
+  const showTeam = useShowTeam(taskInstance?.team_name);
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {
@@ -179,6 +187,14 @@ export const Details = () => {
             <Table.Cell>{translate("mapIndex")}</Table.Cell>
             <Table.Cell>{tryInstance?.map_index}</Table.Cell>
           </Table.Row>
+          {showTeam ? (
+            <Table.Row>
+              <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+              <Table.Cell>
+                <TeamName teamName={taskInstance?.team_name} />
+              </Table.Cell>
+            </Table.Row>
+          ) : undefined}
           <Table.Row>
             <Table.Cell>{translate("task.operator")}</Table.Cell>
             <Table.Cell>{tryInstance?.operator_name}</Table.Cell>

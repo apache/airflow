@@ -11,18 +11,25 @@
     "allRunTypes": "All Run Types",
     "allStates": "All States",
     "anyRunState": "Any run",
+    "anyRunStatePlaceholder": "Select any run state…",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite"
     },
+    "favoriteState": "Favorite state",
+    "favoriteStatePlaceholder": "Select favorite state…",
     "lastRunState": "Last run",
+    "lastRunStatePlaceholder": "Select last run state…",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
     },
+    "pausedPlaceholder": "Select paused state…",
+    "pausedState": "Paused state",
+    "requiresHitlAction": "Requires HITL action",
     "runIdPatternFilter": "Search Dag Runs",
     "timetableType": "Timetable type"
   },
@@ -82,6 +89,7 @@
       "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
+      "runOnLatestVersionForced": "Always uses the latest — there's no earlier version to go back to",
       "upstream": "Upstream"
     }
   },
