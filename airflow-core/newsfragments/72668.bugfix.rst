@@ -1,0 +1,1 @@
+Stop the ``all_success`` trigger rule from marking mapped task instances ``REMOVED`` when their expansion input did not change

@@ -20,7 +20,7 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from collections.abc import Iterator, KeysView, Mapping
+from collections.abc import Collection, Iterator, KeysView, Mapping
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -87,6 +87,28 @@ class _UpstreamTIStates(NamedTuple):
             success_setup=setup_counter.get(TaskInstanceState.SUCCESS, 0),
             skipped_setup=setup_counter.get(TaskInstanceState.SKIPPED, 0),
         )
+
+
+def _covers_expansion_one_to_one(task, counted_task_ids: Collection[str]) -> bool:
+    """
+    Whether the counted upstream instances map 1:1 onto this task's expansion.
+
+    Inferring instance removal from upstream state counts is only sound when this task expands
+    over exactly one XCom reference, that reference is the entire counted upstream set, and no
+    literal or mapped task group multiplies the length. Otherwise the task's expansion length
+    has no relation to the counts: comparing ``map_index`` against the success count would
+    remove valid instances (static lists, zips, multiple upstreams).
+    """
+    if task.get_closest_mapped_task_group() is not None:
+        return False
+    iter_deps = getattr(task, "iter_mapped_dependencies", None)
+    if iter_deps is None:
+        return False
+    referenced = [op.task_id for op in iter_deps()]
+    if len(referenced) != 1 or set(referenced) != set(counted_task_ids):
+        return False
+    expand_value = task._get_specified_expand_input().value
+    return not isinstance(expand_value, Mapping) or len(expand_value) == 1
 
 
 class TriggerRuleDep(BaseTIDep):
@@ -318,9 +340,8 @@ class TriggerRuleDep(BaseTIDep):
                     new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif skipped:
                     new_state = TaskInstanceState.SKIPPED
-                elif removed and success and ti.map_index > -1:
-                    if ti.map_index >= success:
-                        new_state = TaskInstanceState.REMOVED
+                # No REMOVED inference here: a task can only expand over a direct upstream,
+                # and this branch counts indirect setups only.
 
             if new_state is not None:
                 if (
@@ -432,9 +453,12 @@ class TriggerRuleDep(BaseTIDep):
                         new_state = TaskInstanceState.UPSTREAM_FAILED
                     elif skipped:
                         new_state = TaskInstanceState.SKIPPED
-                    elif removed and success and ti.map_index > -1:
-                        if ti.map_index >= success:
-                            new_state = TaskInstanceState.REMOVED
+                    elif removed and ti.map_index > -1:
+                        # All counted (live) instances are successes here, so with a strict 1:1
+                        # mapping the success count is the ti's own post-shrink expansion length.
+                        if upstream_done and _covers_expansion_one_to_one(task, task.upstream_task_ids):
+                            if ti.map_index >= success:
+                                new_state = TaskInstanceState.REMOVED
                 elif trigger_rule == TR.ALL_FAILED:
                     if success or skipped:
                         new_state = TaskInstanceState.SKIPPED

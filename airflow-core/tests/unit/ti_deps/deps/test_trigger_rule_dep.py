@@ -2381,3 +2381,65 @@ class TestTriggerRuleUpstreamCountMemo:
         assert evolved.upstream_task_id_counts is dep_context.upstream_task_id_counts
         evolved.upstream_task_id_counts[("d", "r", frozenset({"u2"}))] = [("u2", 1)]
         assert ("d", "r", frozenset({"u2"})) in dep_context.upstream_task_id_counts
+
+
+class TestRemovedInferenceOnlyForOneToOneMapping:
+    """
+    A removed upstream instance may only remove downstream instances when the downstream
+    expands 1:1 over exactly that upstream and every upstream instance is done. The success
+    count says nothing about any other topology's expansion length.
+    """
+
+    def test_static_downstream_survives_upstream_shrink(self, dag_maker, session):
+        with dag_maker("test_static_downstream_shrink", serialized=True):
+
+            @task
+            def process(x):
+                return x
+
+            @task
+            def notify(channel):
+                return channel
+
+            processed = process.expand(x=[1, 2, 3, 4, 5])
+            alerts = notify.expand(channel=["email", "slack", "pagerduty"])
+            processed >> alerts
+
+        dr = dag_maker.create_dagrun()
+        dr.task_instance_scheduling_decisions(session=session)
+        session.flush()
+
+        for ti in dr.get_task_instances(session=session):
+            if ti.task_id == "process":
+                ti.set_state(
+                    TaskInstanceState.SUCCESS if ti.map_index < 2 else TaskInstanceState.REMOVED,
+                    session=session,
+                )
+        session.flush()
+
+        dr.task_instance_scheduling_decisions(session=session)
+        session.flush()
+        session.expire_all()
+
+        notify_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "notify"
+        }
+        assert notify_states == {0: None, 1: None, 2: None}
+
+    def test_one_to_one_downstream_not_removed_while_upstream_running(self, session, get_mapped_task_dagrun):
+        dr, task, _ = get_mapped_task_dagrun()
+
+        still_running = dr.get_task_instance(task_id="do_something", map_index=1, session=session)
+        still_running.state = TaskInstanceState.RUNNING
+        session.merge(still_running)
+        session.flush()
+
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=2, session=session)
+        ti.task = task
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=True,
+            expected_reason="requires all upstream tasks to have succeeded",
+            expected_ti_state=None,
+        )

@@ -1246,8 +1246,8 @@ class TestTaskInstance:
             ["all_success", _UpstreamTIStates(2, 0, 0, 0, 0, 0, 0, 0), True, None, False],
             ["all_success", _UpstreamTIStates(2, 0, 1, 0, 0, 0, 0, 0), True, State.UPSTREAM_FAILED, False],
             ["all_success", _UpstreamTIStates(2, 1, 0, 0, 0, 0, 0, 0), True, State.SKIPPED, False],
-            # ti.map_index >= success
-            ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 0, 0, 0), True, State.REMOVED, True],
+            # 1:1 mapped upstream shrank: map_index >= success once the upstream is done
+            ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 5, 0, 0), True, State.REMOVED, True],
             #
             # Tests for one_success
             #
