@@ -102,7 +102,6 @@ class TestProjectStructure:
             "providers/common/compat/tests/unit/common/compat/lineage/test_entities.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_operators.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_triggers.py",
-            "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
             "providers/common/messaging/tests/unit/common/messaging/providers/test_base_provider.py",
             "providers/common/messaging/tests/unit/common/messaging/providers/test_sqs.py",
             "providers/edge3/tests/unit/edge3/cli/test_example_extended_sysinfo.py",
