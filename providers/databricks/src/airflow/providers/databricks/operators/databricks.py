@@ -437,11 +437,16 @@ class DatabricksCreateJobsOperator(BaseOperator):
         Array of objects (JobTaskSettings).
     :param job_clusters: A list of job cluster specifications that can be shared and reused by
         tasks of this job. Array of objects (JobCluster).
+    :param environments: A list of task execution environments that the serverless tasks of this
+        job reference through their ``environment_key``. Array of objects (JobEnvironment).
     :param email_notifications: Object (JobEmailNotifications).
     :param webhook_notifications: Object (WebhookNotifications).
     :param notification_settings: Optional notification settings.
     :param timeout_seconds: An optional timeout applied to each run of this job.
     :param schedule: Object (CronSchedule).
+    :param trigger: A configuration to trigger a run when certain conditions are met, such as a
+        file arriving in an external location, a monitored table being updated, or a periodic
+        interval elapsing. Object (TriggerSettings).
     :param max_concurrent_runs: An optional maximum allowed number of concurrent runs of the job.
     :param git_source: An optional specification for a remote repository containing the notebooks
         used by this job's notebook tasks. Object (GitSource).
@@ -480,11 +485,13 @@ class DatabricksCreateJobsOperator(BaseOperator):
         "tags",
         "tasks",
         "job_clusters",
+        "environments",
         "email_notifications",
         "webhook_notifications",
         "notification_settings",
         "timeout_seconds",
         "schedule",
+        "trigger",
         "max_concurrent_runs",
         "git_source",
         "access_control_list",
@@ -503,11 +510,13 @@ class DatabricksCreateJobsOperator(BaseOperator):
         tags: dict[str, str] | None = None,
         tasks: list[dict] | None = None,
         job_clusters: list[dict] | None = None,
+        environments: list[dict] | None = None,
         email_notifications: dict | None = None,
         webhook_notifications: dict | None = None,
         notification_settings: dict | None = None,
         timeout_seconds: int | None = None,
         schedule: dict | None = None,
+        trigger: dict | None = None,
         max_concurrent_runs: int | None = None,
         git_source: dict | None = None,
         access_control_list: list[dict] | None = None,
@@ -526,11 +535,13 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.tags = tags
         self.tasks = tasks
         self.job_clusters = job_clusters
+        self.environments = environments
         self.email_notifications = email_notifications
         self.webhook_notifications = webhook_notifications
         self.notification_settings = notification_settings
         self.timeout_seconds = timeout_seconds
         self.schedule = schedule
+        self.trigger = trigger
         self.max_concurrent_runs = max_concurrent_runs
         self.git_source = git_source
         self.access_control_list = access_control_list
@@ -547,11 +558,13 @@ class DatabricksCreateJobsOperator(BaseOperator):
             "tags": self.tags,
             "tasks": self.tasks,
             "job_clusters": self.job_clusters,
+            "environments": self.environments,
             "email_notifications": self.email_notifications,
             "webhook_notifications": self.webhook_notifications,
             "notification_settings": self.notification_settings,
             "timeout_seconds": self.timeout_seconds,
             "schedule": self.schedule,
+            "trigger": self.trigger,
             "max_concurrent_runs": self.max_concurrent_runs,
             "git_source": self.git_source,
             "access_control_list": self.access_control_list,
@@ -673,6 +686,12 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/2.0/jobs.html#managedlibrarieslibrary
+    :param environments: A list of task execution environments that the serverless tasks of this
+        run reference through their ``environment_key``. Array of objects (JobEnvironment).
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/submit#environments
     :param run_name: The run name used for this task.
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
@@ -752,6 +771,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         "new_cluster",
         "existing_cluster_id",
         "libraries",
+        "environments",
         "run_name",
         "timeout_seconds",
         "idempotency_token",
@@ -780,6 +800,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
         libraries: list[dict[str, Any]] | None = None,
+        environments: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -820,6 +841,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.new_cluster = new_cluster
         self.existing_cluster_id = existing_cluster_id
         self.libraries = libraries
+        self.environments = environments
         self.run_name = run_name
         self.timeout_seconds = timeout_seconds
         self.idempotency_token = idempotency_token
@@ -852,6 +874,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             "new_cluster": self.new_cluster,
             "existing_cluster_id": self.existing_cluster_id,
             "libraries": self.libraries,
+            "environments": self.environments,
             "run_name": self.run_name,
             "timeout_seconds": self.timeout_seconds,
             "idempotency_token": self.idempotency_token,
