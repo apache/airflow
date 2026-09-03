@@ -20,8 +20,10 @@ import { Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents } from "openapi/queries";
+
 import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 export const AssetEvents = () => {
