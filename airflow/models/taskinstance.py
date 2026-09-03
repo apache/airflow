@@ -215,6 +215,18 @@ def _add_log(
     )
 
 
+def _emits_datasets_on_skip(task) -> bool:
+    """Whether a SKIPPED instance of ``task`` should still register its outlets.
+
+    Imported lazily to keep ``taskinstance`` free of a module-level dependency on
+    ``abstractoperator``. Falls back to the default for operators deserialized from a
+    DAG that was serialized before this option existed.
+    """
+    from airflow.models.abstractoperator import DEFAULT_EMIT_DATASETS_ON_SKIP
+
+    return bool(getattr(task, "emit_datasets_on_skip", DEFAULT_EMIT_DATASETS_ON_SKIP))
+
+
 def _run_raw_task(
     ti: TaskInstance | TaskInstancePydantic,
     mark_success: bool = False,
@@ -360,7 +372,11 @@ def _run_raw_task(
 
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
-            if ti.state == TaskInstanceState.SUCCESS:
+            # A SKIPPED task only updates its datasets when the operator opts in;
+            # SUCCESS always does, as in stock Airflow.
+            if ti.state == TaskInstanceState.SUCCESS or (
+                ti.state == TaskInstanceState.SKIPPED and _emits_datasets_on_skip(ti.task)
+            ):
                 ti._register_dataset_changes(events=context["outlet_events"], session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
@@ -3072,6 +3088,33 @@ class TaskInstance(Base, LoggingMixin):
                 extra=extra,
                 session=session,
                 source_alias_names=alias_names,
+            )
+
+    @provide_session
+    def register_dataset_changes_for_unrun_skip(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Emit dataset events for a task skipped without ever being executed.
+
+        A trigger-rule cascade marks a task SKIPPED from the scheduler
+        (``TriggerRuleDep``) via a direct ``set_state``, so ``_run_raw_task`` never
+        runs and its outlets would otherwise never be registered. This lets such a
+        skip still update its datasets, so downstream dataset-scheduled DAGs fire.
+
+        There is no execution context here, so outlets are registered with empty
+        extras. ``DatasetAlias`` outlets are inherently runtime-resolved and are
+        therefore skipped — an empty accessor yields no alias events.
+        """
+        if not getattr(self, "task", None) or not self.task.outlets:
+            return
+        if not _emits_datasets_on_skip(self.task):
+            return
+        # Never let a dataset problem break scheduling: this runs inside the
+        # scheduler's dependency check, not in a worker.
+        try:
+            self._register_dataset_changes(events=OutletEventAccessors(), session=session)
+        except Exception:
+            self.log.exception(
+                "Failed to register dataset changes for skipped task %s.%s", self.dag_id, self.task_id
             )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):

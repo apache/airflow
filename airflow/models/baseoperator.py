@@ -65,6 +65,7 @@ from airflow.exceptions import (
 )
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
+    DEFAULT_EMIT_DATASETS_ON_SKIP,
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -213,6 +214,7 @@ _PARTIAL_DEFAULTS: dict[str, Any] = {
     "depends_on_past": False,
     "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "emit_datasets_on_skip": DEFAULT_EMIT_DATASETS_ON_SKIP,
     "wait_for_downstream": False,
     "retries": DEFAULT_RETRIES,
     "executor": DEFAULT_EXECUTOR,
@@ -246,6 +248,7 @@ def partial(
     depends_on_past: bool | ArgNotSet = NOTSET,
     ignore_first_depends_on_past: bool | ArgNotSet = NOTSET,
     wait_for_past_depends_before_skipping: bool | ArgNotSet = NOTSET,
+    emit_datasets_on_skip: bool | ArgNotSet = NOTSET,
     wait_for_downstream: bool | ArgNotSet = NOTSET,
     retries: int | None | ArgNotSet = NOTSET,
     queue: str | ArgNotSet = NOTSET,
@@ -315,6 +318,7 @@ def partial(
         "depends_on_past": depends_on_past,
         "ignore_first_depends_on_past": ignore_first_depends_on_past,
         "wait_for_past_depends_before_skipping": wait_for_past_depends_before_skipping,
+        "emit_datasets_on_skip": emit_datasets_on_skip,
         "wait_for_downstream": wait_for_downstream,
         "retries": retries,
         "queue": queue,
@@ -559,6 +563,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "depends_on_past": bool,
     "ignore_first_depends_on_past": bool,
     "wait_for_past_depends_before_skipping": bool,
+    "emit_datasets_on_skip": bool,
     "wait_for_downstream": bool,
     "priority_weight": int,
     "queue": str,
@@ -650,6 +655,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param wait_for_past_depends_before_skipping: when set to true, if the task instance
         should be marked as skipped, and depends_on_past is true, the ti will stay on None state
         waiting the task of the previous run
+    :param emit_datasets_on_skip: when set to true, a task that ends up SKIPPED still
+        registers a dataset change for every ``Dataset`` in its ``outlets``, so downstream
+        dataset-scheduled DAGs are still triggered. This covers every way a task can be
+        skipped: raising ``AirflowSkipException`` itself, being cascade-skipped by a
+        trigger rule without ever running, and being skipped by a branching operator.
+        Defaults to false, matching stock Airflow, where only a SUCCESS task updates its
+        datasets — so this must be opted into explicitly per task. ``DatasetAlias`` outlets
+        are resolved at runtime and are therefore only emitted when the task actually ran.
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
         of task X to finish successfully or be skipped before it runs. This is useful if the
@@ -904,6 +917,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         depends_on_past: bool = False,
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+        emit_datasets_on_skip: bool = DEFAULT_EMIT_DATASETS_ON_SKIP,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
         params: collections.abc.MutableMapping | None = None,
@@ -1046,6 +1060,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
+        self.emit_datasets_on_skip: bool = emit_datasets_on_skip
         self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True

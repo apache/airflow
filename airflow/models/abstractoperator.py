@@ -67,6 +67,10 @@ DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
     "scheduler", "ignore_first_depends_on_past_by_default"
 )
 DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING: bool = False
+# Stock Airflow behaviour by default: only a SUCCESS task registers its outlets.
+# Opt in per task with emit_datasets_on_skip=True (or via default_args) to also
+# register them when that task is skipped.
+DEFAULT_EMIT_DATASETS_ON_SKIP: bool = False
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)

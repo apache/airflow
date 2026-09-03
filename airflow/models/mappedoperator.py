@@ -28,6 +28,7 @@ import methodtools
 
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_EMIT_DATASETS_ON_SKIP,
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -462,6 +463,15 @@ class MappedOperator(AbstractOperator):
     @wait_for_past_depends_before_skipping.setter
     def wait_for_past_depends_before_skipping(self, value: bool) -> None:
         self.partial_kwargs["wait_for_past_depends_before_skipping"] = value
+
+    @property
+    def emit_datasets_on_skip(self) -> bool:
+        value = self.partial_kwargs.get("emit_datasets_on_skip", DEFAULT_EMIT_DATASETS_ON_SKIP)
+        return bool(value)
+
+    @emit_datasets_on_skip.setter
+    def emit_datasets_on_skip(self, value: bool) -> None:
+        self.partial_kwargs["emit_datasets_on_skip"] = value
 
     @property
     def wait_for_downstream(self) -> bool:

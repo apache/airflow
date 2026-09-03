@@ -325,6 +325,12 @@ class TriggerRuleDep(BaseTIDep):
                         )
                         return
                 changed = ti.set_state(new_state, session)
+                # A cascade skip never runs the task, so _run_raw_task — and with it
+                # outlet registration — is bypassed. Emit the outlets here instead, so
+                # dataset-scheduled downstream DAGs are still triggered. Guarded on
+                # `changed` so a repeated dep evaluation cannot emit duplicate events.
+                if changed and new_state == TaskInstanceState.SKIPPED:
+                    ti.register_dataset_changes_for_unrun_skip(session=session)
 
             if changed:
                 dep_context.have_changed_ti_states = True
@@ -449,6 +455,12 @@ class TriggerRuleDep(BaseTIDep):
                         )
                         return
                 changed = ti.set_state(new_state, session)
+                # A cascade skip never runs the task, so _run_raw_task — and with it
+                # outlet registration — is bypassed. Emit the outlets here instead, so
+                # dataset-scheduled downstream DAGs are still triggered. Guarded on
+                # `changed` so a repeated dep evaluation cannot emit duplicate events.
+                if changed and new_state == TaskInstanceState.SKIPPED:
+                    ti.register_dataset_changes_for_unrun_skip(session=session)
 
             if changed:
                 dep_context.have_changed_ti_states = True

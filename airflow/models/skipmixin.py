@@ -95,6 +95,31 @@ class SkipMixin(LoggingMixin):
                     .execution_options(synchronize_session=False)
                 )
 
+    @staticmethod
+    def _register_dataset_changes_for_skipped(
+        dag_run: DagRun | DagRunPydantic,
+        tasks: Iterable[DAGNode],
+        session: Session,
+        map_index: int = -1,
+    ) -> None:
+        """
+        Emit outlets for tasks a branching operator skipped without running them.
+
+        Like a trigger-rule cascade, these tasks are marked SKIPPED by a bulk state
+        update, so ``_run_raw_task`` never runs and their outlets would otherwise never
+        be registered. Only operators with ``emit_datasets_on_skip`` set opt in; the
+        check lives in ``register_dataset_changes_for_unrun_skip``.
+        """
+        for task in tasks:
+            if not getattr(task, "outlets", None):
+                continue
+            ti = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+            if ti is None:
+                continue
+            # get_task_instance returns a bare ORM row; the outlets live on the task.
+            ti.task = task
+            ti.register_dataset_changes_for_unrun_skip(session=session)
+
     def skip(
         self,
         dag_run: DagRun | DagRunPydantic,
@@ -165,6 +190,7 @@ class SkipMixin(LoggingMixin):
         # The following could be applied only for non-mapped tasks
         if map_index == -1:
             SkipMixin._set_state_to_skipped(dag_run, task_ids_list, session)
+            SkipMixin._register_dataset_changes_for_skipped(dag_run, task_list, session)
             session.commit()
 
         if task_id is not None:
@@ -280,6 +306,13 @@ class SkipMixin(LoggingMixin):
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
             log.info("Skipping tasks %s", skip_tasks)
             SkipMixin._set_state_to_skipped(dag_run, skip_tasks, session=session)
+            skipped_task_ids = {task_id for task_id, _ in skip_tasks}
+            SkipMixin._register_dataset_changes_for_skipped(
+                dag_run,
+                [t for t in downstream_tasks if t.task_id in skipped_task_ids],
+                session=session,
+                map_index=ti.map_index,
+            )
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
             )
