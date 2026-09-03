@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ComponentProps } from "react";
 import { useState } from "react";
 
-import { Spinner, useDisclosure } from "@chakra-ui/react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { MdHourglassTop, MdPause, MdPlayArrow } from "react-icons/md";
+import { MdHourglassTop } from "react-icons/md";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
-import { IconButton, Menu } from "src/system-components";
+import { Modal, Switch, Tooltip, type SwitchProps } from "src/system-components";
 
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
@@ -35,21 +34,24 @@ import { ConfirmationModal } from "./ConfirmationModal";
 type Props = {
   readonly dagDisplayName?: string;
   readonly dagId: string;
+  readonly hasUnfinishedRuns?: boolean;
   readonly isPaused?: boolean;
   readonly schedulingState?: DagSchedulingState;
   readonly skipConfirm?: boolean;
-} & Omit<ComponentProps<typeof IconButton>, "children" | "label">;
+} & SwitchProps;
 
 export const TogglePause = ({
   dagDisplayName,
   dagId,
   disabled,
+  hasUnfinishedRuns,
   isPaused,
   schedulingState,
   skipConfirm,
   ...rest
 }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
+  const { onClose: onChoiceClose, onOpen: onChoiceOpen, open: choiceOpen } = useDisclosure();
   const { t: translate } = useTranslation(["common", "dags"]);
   const { isPending, mutate: togglePause } = useTogglePause({ dagId });
   const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
@@ -74,64 +76,39 @@ export const TogglePause = ({
     }
   };
 
-  const actionLabel =
-    pendingState === "draining"
-      ? translate("dags:schedulingActions.drain")
-      : pendingState === "paused"
-        ? translate("dags:schedulingActions.pauseNow")
-        : translate(
-            state === "draining" ? "dags:schedulingActions.cancelDrain" : "dags:schedulingActions.unpause",
-          );
-  const stateLabel = translate(`dags:schedulingState.${state}`);
+  const handleCheckedChange = () => {
+    if (state === "draining") {
+      setSchedulingState("active");
+    } else if (state === "paused") {
+      requestStateChange("active");
+    } else if (hasUnfinishedRuns === false) {
+      // Nothing is running, so draining and pausing are equivalent — skip the choice.
+      requestStateChange("paused");
+    } else {
+      // Unknown or unfinished runs: let the user decide between draining and pausing now.
+      onChoiceOpen();
+    }
+  };
+
+  const label =
+    state === "draining"
+      ? translate("dags:schedulingState.drainingTooltip", { dagDisplayName: displayName })
+      : `${translate(state === "paused" ? "common:unpause" : "common:pause")} ${displayName}`;
+  const actionLabel = pendingState === "paused" ? translate("common:pause") : translate("common:unpause");
 
   return (
     <>
-      <Menu.Root tooltipLabel={`${stateLabel}: ${displayName}`}>
-        <Menu.Trigger asChild>
-          <IconButton
-            aria-label={`${stateLabel}: ${displayName}`}
-            colorPalette={state === "active" ? "green" : state === "draining" ? "orange" : "gray"}
-            data-testid="toggle-pause"
-            {...rest}
-            disabled={disabled === true || isPending}
-          >
-            {state === "active" ? (
-              <MdPlayArrow />
-            ) : state === "draining" ? (
-              <Spinner size="xs" />
-            ) : (
-              <MdPause />
-            )}
-          </IconButton>
-        </Menu.Trigger>
-        <Menu.Content>
-          {state === "active" ? (
-            <Menu.Item data-testid="drain-dag" onClick={() => requestStateChange("draining")} value="drain">
-              <MdHourglassTop />
-              {translate("dags:schedulingActions.drain")}
-            </Menu.Item>
-          ) : (
-            <Menu.Item
-              data-testid="activate-dag"
-              onClick={() => requestStateChange("active")}
-              value="activate"
-            >
-              <MdPlayArrow />
-              {translate(
-                state === "draining"
-                  ? "dags:schedulingActions.cancelDrain"
-                  : "dags:schedulingActions.unpause",
-              )}
-            </Menu.Item>
-          )}
-          {state === "paused" ? undefined : (
-            <Menu.Item data-testid="pause-dag-now" onClick={() => requestStateChange("paused")} value="pause">
-              <MdPause />
-              {translate("dags:schedulingActions.pauseNow")}
-            </Menu.Item>
-          )}
-        </Menu.Content>
-      </Menu.Root>
+      <Tooltip content={label}>
+        <Switch
+          checked={state === "active"}
+          colorPalette={state === "draining" ? "orange" : undefined}
+          data-testid="toggle-pause"
+          {...rest}
+          disabled={disabled === true || isPending}
+          onCheckedChange={handleCheckedChange}
+          thumbLabel={state === "draining" ? { off: <MdHourglassTop />, on: <MdHourglassTop /> } : undefined}
+        />
+      </Tooltip>
       <ConfirmationModal
         header={`${actionLabel} ${displayName}?`}
         onConfirm={() => {
@@ -145,6 +122,36 @@ export const TogglePause = ({
         }}
         open={open}
       />
+      <Modal
+        footerActions={
+          <>
+            <Button
+              data-testid="drain-dag"
+              onClick={() => {
+                setSchedulingState("draining");
+                onChoiceClose();
+              }}
+            >
+              {translate("dags:schedulingActions.drain")}
+            </Button>
+            <Button
+              data-testid="pause-dag-now"
+              onClick={() => {
+                setSchedulingState("paused");
+                onChoiceClose();
+              }}
+              variant="outline"
+            >
+              {translate("dags:schedulingActions.pauseNow")}
+            </Button>
+          </>
+        }
+        onOpenChange={onChoiceClose}
+        open={choiceOpen}
+        title={`${translate("common:pause")} ${displayName}?`}
+      >
+        {translate("dags:schedulingActions.drainPrompt")}
+      </Modal>
     </>
   );
 };

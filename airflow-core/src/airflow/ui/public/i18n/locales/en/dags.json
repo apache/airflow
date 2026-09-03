@@ -94,14 +94,14 @@
     "tooltip": "{{state}}: {{formattedCount}} — click to filter runs"
   },
   "schedulingActions": {
-    "cancelDrain": "Cancel drain",
     "drain": "Drain then pause",
-    "pauseNow": "Pause now",
-    "unpause": "Unpause"
+    "drainPrompt": "This Dag has Dag runs in progress. Draining lets them finish before the Dag pauses; pausing now stops scheduling immediately without waiting for them.",
+    "pauseNow": "Pause now"
   },
   "schedulingState": {
     "active": "Active",
     "draining": "Draining",
+    "drainingTooltip": "Draining {{dagDisplayName}} — pauses once running Dag runs finish. Click to resume.",
     "paused": "Paused"
   },
   "search": {

@@ -30,6 +30,7 @@ export const DagCardActions = ({ dag }: { readonly dag: DAGWithLatestDagRunsResp
     <TogglePause
       dagDisplayName={dag.dag_display_name}
       dagId={dag.dag_id}
+      hasUnfinishedRuns={dag.latest_dag_runs.some((run) => run.state === "queued" || run.state === "running")}
       isPaused={dag.is_paused}
       schedulingState={dag.scheduling_state}
     />

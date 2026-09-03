@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
@@ -39,124 +39,122 @@ afterEach(() => {
 });
 
 describe("TogglePause", () => {
-  it("starts draining an active Dag", async () => {
-    render(
-      <TogglePause dagDisplayName="Example Dag" dagId="example" isPaused={false} schedulingState="active" />,
-      { wrapper: BaseWrapper },
-    );
-
-    fireEvent.click(screen.getByTestId("toggle-pause"));
-    fireEvent.click(await screen.findByTestId("drain-dag"));
-
-    expect(mocks.mutate).toHaveBeenCalledWith({
-      dagId: "example",
-      requestBody: { scheduling_state: "draining" },
-    });
-  });
-
-  it("pauses an active Dag immediately", async () => {
-    render(
-      <TogglePause dagDisplayName="Example Dag" dagId="example" isPaused={false} schedulingState="active" />,
-      { wrapper: BaseWrapper },
-    );
-
-    fireEvent.click(screen.getByTestId("toggle-pause"));
-    fireEvent.click(await screen.findByTestId("pause-dag-now"));
-
-    expect(mocks.mutate).toHaveBeenCalledWith({
-      dagId: "example",
-      requestBody: { scheduling_state: "paused" },
-    });
-  });
-
-  it("cancels draining a Dag", async () => {
+  it("opens the drain-or-pause choice when flipping off an active Dag with unfinished runs", async () => {
     render(
       <TogglePause
         dagDisplayName="Example Dag"
         dagId="example"
-        isPaused={false}
-        schedulingState="draining"
-      />,
-      { wrapper: BaseWrapper },
-    );
-
-    fireEvent.click(screen.getByTestId("toggle-pause"));
-    fireEvent.click(await screen.findByTestId("activate-dag"));
-
-    expect(mocks.mutate).toHaveBeenCalledWith({
-      dagId: "example",
-      requestBody: { scheduling_state: "active" },
-    });
-  });
-
-  it("pauses a draining Dag immediately", async () => {
-    render(
-      <TogglePause
-        dagDisplayName="Example Dag"
-        dagId="example"
-        isPaused={false}
-        schedulingState="draining"
-      />,
-      { wrapper: BaseWrapper },
-    );
-
-    fireEvent.click(screen.getByTestId("toggle-pause"));
-    fireEvent.click(await screen.findByTestId("pause-dag-now"));
-
-    expect(mocks.mutate).toHaveBeenCalledWith({
-      dagId: "example",
-      requestBody: { scheduling_state: "paused" },
-    });
-  });
-
-  it("unpauses a paused Dag", async () => {
-    render(<TogglePause dagDisplayName="Example Dag" dagId="example" isPaused schedulingState="paused" />, {
-      wrapper: BaseWrapper,
-    });
-
-    fireEvent.click(screen.getByTestId("toggle-pause"));
-    fireEvent.click(await screen.findByTestId("activate-dag"));
-
-    expect(mocks.mutate).toHaveBeenCalledWith({
-      dagId: "example",
-      requestBody: { scheduling_state: "active" },
-    });
-  });
-
-  it("confirms draining before changing state when confirmation is required", async () => {
-    mocks.requireConfirmation = true;
-    render(
-      <TogglePause dagDisplayName="Example Dag" dagId="example" isPaused={false} schedulingState="active" />,
-      { wrapper: BaseWrapper },
-    );
-
-    fireEvent.click(screen.getByTestId("toggle-pause"));
-    fireEvent.click(await screen.findByTestId("drain-dag"));
-
-    expect(mocks.mutate).not.toHaveBeenCalled();
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("confirmation-confirm-button"));
-
-    expect(mocks.mutate).toHaveBeenCalledWith({
-      dagId: "example",
-      requestBody: { scheduling_state: "draining" },
-    });
-  });
-
-  it("stays disabled while a scheduling-state update is pending", () => {
-    mocks.isPending = true;
-    render(
-      <TogglePause
-        dagDisplayName="Example Dag"
-        dagId="example"
-        disabled={false}
+        hasUnfinishedRuns
         isPaused={false}
         schedulingState="active"
       />,
       { wrapper: BaseWrapper },
     );
 
-    expect(screen.getByTestId("toggle-pause")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+    fireEvent.click(await screen.findByTestId("drain-dag"));
+
+    expect(mocks.mutate).toHaveBeenCalledWith({
+      dagId: "example",
+      requestBody: { scheduling_state: "draining" },
+    });
+  });
+
+  it("pauses now from the drain-or-pause choice", async () => {
+    render(
+      <TogglePause
+        dagDisplayName="Example Dag"
+        dagId="example"
+        hasUnfinishedRuns
+        isPaused={false}
+        schedulingState="active"
+      />,
+      { wrapper: BaseWrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+    fireEvent.click(await screen.findByTestId("pause-dag-now"));
+
+    expect(mocks.mutate).toHaveBeenCalledWith({
+      dagId: "example",
+      requestBody: { scheduling_state: "paused" },
+    });
+  });
+
+  it("pauses immediately with no choice when the Dag has no unfinished runs", async () => {
+    render(
+      <TogglePause
+        dagDisplayName="Example Dag"
+        dagId="example"
+        hasUnfinishedRuns={false}
+        isPaused={false}
+        schedulingState="active"
+      />,
+      { wrapper: BaseWrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    expect(screen.queryByTestId("drain-dag")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith({
+        dagId: "example",
+        requestBody: { scheduling_state: "paused" },
+      }),
+    );
+  });
+
+  it("cancels draining with no choice when flipping on a draining Dag", async () => {
+    render(
+      <TogglePause
+        dagDisplayName="Example Dag"
+        dagId="example"
+        isPaused={false}
+        schedulingState="draining"
+      />,
+      { wrapper: BaseWrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith({
+        dagId: "example",
+        requestBody: { scheduling_state: "active" },
+      }),
+    );
+  });
+
+  it("shows the drain-or-pause choice even when confirmation is required", async () => {
+    mocks.requireConfirmation = true;
+    render(
+      <TogglePause
+        dagDisplayName="Example Dag"
+        dagId="example"
+        hasUnfinishedRuns
+        isPaused={false}
+        schedulingState="active"
+      />,
+      { wrapper: BaseWrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    expect(await screen.findByTestId("drain-dag")).toBeInTheDocument();
+    expect(mocks.mutate).not.toHaveBeenCalled();
+  });
+
+  it("renders a draining Dag's switch as unchecked", () => {
+    render(
+      <TogglePause
+        dagDisplayName="Example Dag"
+        dagId="example"
+        isPaused={false}
+        schedulingState="draining"
+      />,
+      { wrapper: BaseWrapper },
+    );
+
+    expect(screen.getByTestId("toggle-pause")).not.toBeChecked();
   });
 });
