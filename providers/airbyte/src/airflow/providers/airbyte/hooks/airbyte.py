@@ -37,6 +37,10 @@ class AirbyteHook(BaseHook):
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
+    :param timeout: Optional. Request timeout, in seconds, for each call to the
+        Airbyte API. Overrides the ``timeout`` key in the connection's Extra field.
+        When neither is set, the underlying HTTP client's default of 5 seconds
+        applies.
     """
 
     conn_name_attr = "airbyte_conn_id"
@@ -48,10 +52,12 @@ class AirbyteHook(BaseHook):
         self,
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
+        timeout: float | None = None,
     ) -> None:
         super().__init__()
         self.api_version: str = api_version
         self.airbyte_conn_id = airbyte_conn_id
+        self.timeout = timeout
         self.conn = self.get_conn_params(self.airbyte_conn_id)
         self.airbyte_api = self.create_api_session()
 
@@ -71,6 +77,7 @@ class AirbyteHook(BaseHook):
         conn_params["client_secret"] = conn.password
         conn_params["token_url"] = conn.schema or "v1/applications/token"
         conn_params["proxies"] = conn.extra_dejson.get("proxies", None)
+        conn_params["timeout"] = conn.extra_dejson.get("timeout", None)
 
         return conn_params
 
@@ -107,11 +114,24 @@ class AirbyteHook(BaseHook):
                 self.airbyte_conn_id,
             )
 
-        client = None
+        timeout = self.timeout if self.timeout is not None else self.conn["timeout"]
+        error_message = (
+            f"Invalid Airbyte API request timeout {timeout!r}: expected a positive number of "
+            f"seconds, set via the AirbyteHook 'timeout' parameter or the 'timeout' extra of "
+            f"connection {self.airbyte_conn_id!r}"
+        )
+        if timeout is not None:
+            try:
+                timeout = float(timeout)
+            except (TypeError, ValueError) as e:
+                raise ValueError(error_message) from e
+            if timeout <= 0:
+                raise ValueError(error_message)
+
+        mounts: dict[str, httpx.HTTPTransport] = {}
         if self.conn["proxies"]:
             self.log.debug("Creating client proxy...")
             proxies = self.conn["proxies"]
-            mounts = {}
             if isinstance(proxies, dict):
                 for scheme, proxy_url in proxies.items():
                     # httpx mount keys require a "://" suffix
@@ -122,7 +142,18 @@ class AirbyteHook(BaseHook):
                     "http://": httpx.HTTPTransport(proxy=proxies),
                     "https://": httpx.HTTPTransport(proxy=proxies),
                 }
-            client = httpx.Client(mounts=mounts)
+
+        client = None
+        if mounts or timeout is not None:
+            # The timeout must be set on the client rather than passed as the SDK's
+            # timeout_ms: the SDK's client-credentials hook sends the OAuth token
+            # request directly through the client, bypassing per-operation timeouts.
+            # follow_redirects matches the default client the SDK creates otherwise.
+            client = httpx.Client(
+                mounts=mounts,
+                timeout=timeout if timeout is not None else 5.0,
+                follow_redirects=True,
+            )
 
         return AirbyteAPI(
             server_url=self.conn["host"],
