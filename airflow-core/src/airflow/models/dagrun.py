@@ -1188,7 +1188,14 @@ class DagRun(Base, LoggingMixin):
         if not leaf_task_ids:
             # can happen if dag is exclusively teardown tasks
             leaf_task_ids = {x.task_id for x in dag.tasks if not x.downstream_list}
-        leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
+        # An instance whose task is gone from the Dag has no downstream in it either, so it
+        # is an effective leaf.
+        leaf_tis = {
+            ti
+            for ti in tis
+            if ti.task_id in leaf_task_ids or ti.task_id not in dag.task_dict
+            if ti.state != TaskInstanceState.REMOVED
+        }
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):
@@ -1458,7 +1465,18 @@ class DagRun(Base, LoggingMixin):
                 try:
                     ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
-                    if ti.state != TaskInstanceState.REMOVED:
+                    if ti.state in State.unfinished:
+                        # Marking an unfinished instance REMOVED would erase a pending retry or
+                        # a live failure and complete the run green. It is failed and yielded
+                        # instead, so the failure counts when the run state is decided.
+                        self.log.error(
+                            "Task for ti %s vanished from the Dag while unfinished. Marking it as failed.",
+                            ti,
+                        )
+                        ti.state = TaskInstanceState.FAILED
+                        session.flush()
+                        yield ti
+                    elif ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
                         ti.state = TaskInstanceState.REMOVED
                         session.flush()

@@ -5062,3 +5062,46 @@ class TestApplyPartitionDateWindowSubDay:
             session=session,
         )
         assert cleared == 3
+
+
+class TestTaskVanishedFromDagMidRun:
+    """A task removed from the Dag while its instance is unfinished must fail visibly."""
+
+    def _make_run_and_redeploy_without_b(self, dag_maker, session, b_state):
+        with dag_maker("test_vanished_task", serialized=True):
+            EmptyOperator(task_id="a") >> EmptyOperator(task_id="b")
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["a"].set_state(TaskInstanceState.SUCCESS, session=session)
+        tis["b"].set_state(b_state, session=session)
+        session.flush()
+
+        with dag_maker("test_vanished_task", serialized=True):
+            EmptyOperator(task_id="a")
+
+        from airflow.models.dagbag import DBDagBag
+
+        dag = DBDagBag().get_dag_for_run(dr, session=session)
+        assert sorted(dag.task_dict) == ["a"]
+        dr.dag = dag
+        return dr, tis["b"]
+
+    @pytest.mark.parametrize(
+        "b_state",
+        [TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.DEFERRED, TaskInstanceState.QUEUED],
+    )
+    def test_unfinished_instance_fails_the_run(self, dag_maker, session, b_state):
+        dr, ti_b = self._make_run_and_redeploy_without_b(dag_maker, session, b_state)
+        dr.update_state(session=session)
+        session.flush()
+        session.expire_all()
+        assert ti_b.state == TaskInstanceState.FAILED
+        assert dr.state == DagRunState.FAILED
+
+    def test_finished_instance_still_marked_removed(self, dag_maker, session):
+        dr, ti_b = self._make_run_and_redeploy_without_b(dag_maker, session, TaskInstanceState.SUCCESS)
+        dr.update_state(session=session)
+        session.flush()
+        session.expire_all()
+        assert ti_b.state == TaskInstanceState.REMOVED
+        assert dr.state == DagRunState.SUCCESS
