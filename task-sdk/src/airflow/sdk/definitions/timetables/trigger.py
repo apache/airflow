@@ -66,6 +66,10 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
     :param cron: cron string that defines when to run
     :param timezone: Which timezone to use to interpret the cron string
     :param interval: timedelta that defines the data interval start. Default 0.
+    :param seed: stable, unique-per-DAG string the jitter offset is derived from; must be
+        non-empty when ``max_jitter`` is set. See ``CronMixin``.
+    :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
+        in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
 
     *run_immediately* controls, if no *start_time* is given to the Dag, when
     the first run of the Dag should be scheduled. It has no effect if there
@@ -96,6 +100,10 @@ class MultipleCronTriggerTimetable(BaseTimetable):
 
     Only at most one run is triggered for any given time, even if more than one
     timetable fires at the same time.
+
+    All cron expressions share the same optional ``seed``/``max_jitter`` jitter settings, so the
+    whole Dag is shifted by one common offset and its fire times keep their relative spacing.
+    See ``CronTriggerTimetable``.
     """
 
     timetables: list[CronTriggerTimetable]
@@ -106,12 +114,21 @@ class MultipleCronTriggerTimetable(BaseTimetable):
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
         run_immediately: bool | datetime.timedelta = False,
+        seed: str = "",
+        max_jitter: datetime.timedelta = datetime.timedelta(),
     ) -> None:
         if not crons:
             raise ValueError("cron expression required")
         self.__attrs_init__(  # type: ignore[attr-defined]
             [
-                CronTriggerTimetable(cron, timezone, interval=interval, run_immediately=run_immediately)
+                CronTriggerTimetable(
+                    cron,
+                    timezone,
+                    interval=interval,
+                    run_immediately=run_immediately,
+                    seed=seed,
+                    max_jitter=max_jitter,
+                )
                 for cron in crons
             ],
         )
@@ -137,6 +154,10 @@ class CronPartitionTimetable(CronTriggerTimetable):
     :param run_offset: Integer offset that determines which partition date to run for.
         The partition key will be derived from the partition date.
     :param key_format: How to translate the partition date into a string partition key.
+    :param seed: stable, unique-per-DAG string the jitter offset is derived from; must be
+        non-empty when ``max_jitter`` is set. See ``CronMixin``.
+    :param max_jitter: upper bound of the jitter window; the run is shifted by a fixed offset
+        in ``[0, max_jitter)``. Default 0 (no jitter). See ``CronMixin``.
 
     *run_immediately* controls, if no *start_time* is given to the Dag, when
     the first run of the Dag should be scheduled. It has no effect if there already exist runs for this Dag.
@@ -163,6 +184,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
+        seed: str = "",
+        max_jitter: datetime.timedelta = datetime.timedelta(),
     ) -> None:
         if not isinstance(run_offset, (int, NoneType)):
             raise ValueError("Run offset other than integer not supported yet.")
@@ -172,4 +195,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
             run_offset=run_offset,
             run_immediately=run_immediately,
             key_format=key_format,
+            seed=seed,
+            max_jitter=max_jitter,
         )
