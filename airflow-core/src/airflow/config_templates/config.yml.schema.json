@@ -88,6 +88,10 @@
                     ],
                     "description": "Default value for the option."
                 },
+                "from_file": {
+                    "type": "boolean",
+                    "description": "When true, this option can be read from a file specified using AIRFLOW__{section}__{name}_FILE. See: airflow.configuration.AirflowConfigParser.file_config_values"
+                },
                 "sensitive": {
                     "type": "boolean",
                     "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}_CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
