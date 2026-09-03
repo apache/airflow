@@ -3572,6 +3572,33 @@ class TestHandleRequest:
         # Should not raise StopIteration (which would mean the loop crashed).
         generator.send(req2)
 
+    def test_handle_requests_undecodable_message_sends_error(self, watched_subprocess, mocker):
+        """An unknown IPC body must get an ErrorResponse so the child does not hang on recv()."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body={"type": "NotARealMessage"})
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+
+        assert frame.id == req_frame.id
+        assert frame.error is not None
+        assert frame.error["error"] == "GENERIC_ERROR"
+        assert frame.error["detail"]["message"] == "Unable to decode message"
+
+        # Generator must stay alive for a subsequent valid request.
+        watched_subprocess.client.task_instances.succeed = mocker.Mock()
+        req2 = _RequestFrame(
+            id=randint(1, 2**32 - 1),
+            body=SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")).model_dump(),
+        )
+        generator.send(req2)
+
     @pytest.mark.parametrize(
         ("msg", "api_method", "expected_state"),
         [

@@ -950,6 +950,17 @@ class WatchedSubprocess:
                 msg = self.decoder.validate_python(self._deserialize_request(request.body))
             except Exception:
                 log.exception("Unable to decode message", body=request.body)
+                # Always reply — a silent continue leaves the child blocked on
+                # socket.recv() until the process times out (see issue #65369).
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        request_id=request.id,
+                        error=ErrorResponse(
+                            error=ErrorType.GENERIC_ERROR,
+                            detail={"status_code": 400, "message": "Unable to decode message"},
+                        ),
+                    )
                 continue
 
             # Restore the task runner's trace context so that any outbound HTTP calls made while
@@ -1067,6 +1078,7 @@ class WatchedSubprocess:
         signal_to_send: signal.Signals = signal.SIGINT,
         escalation_delay: float = 5.0,
         force: bool = False,
+        wait: bool = True,
     ):
         """
         Attempt to terminate the subprocess with a given signal.
@@ -1078,6 +1090,8 @@ class WatchedSubprocess:
         :param signal_to_send: The signal to send initially (default is SIGINT).
         :param escalation_delay: Time in seconds to wait for the process to exit after each signal.
         :param force: If True, escalate through the remaining signals instead of sending only `signal_to_send`.
+        :param wait: If False, send the signal and return immediately without polling the shared
+            selector. Used by DagFileProcessorManager while an IPC thread owns socket servicing.
         """
         if self._exit_code is not None:
             return
@@ -1094,6 +1108,8 @@ class WatchedSubprocess:
         for sig in escalation_path:
             try:
                 self._signal_subprocess(sig)
+                if not wait:
+                    return
 
                 start = time.monotonic()
                 end = start + escalation_delay
