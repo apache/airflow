@@ -54,8 +54,9 @@ if TYPE_CHECKING:
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.openai.exceptions import (
+    OpenAIBatchCancelled,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -94,6 +95,29 @@ class BatchStatus(str, Enum):
 
 #: Statuses the provider's trigger emits in its terminal event.
 TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "cancelled"})
+
+#: Maps the trigger's ``termination_reason`` field to the exception ``execute_complete``
+#: should raise. Keyed on the reason field, never on the message text, so that a
+#: rewording of the trigger's message never silently changes which exception a
+#: downstream task can catch.
+_TERMINATION_REASON_EXCEPTIONS: dict[str, type[AirflowException]] = {
+    "timeout": OpenAIBatchTimeout,
+    "cancelled": OpenAIBatchCancelled,
+}
+
+
+def build_batch_error(message: str, termination_reason: str | None) -> AirflowException:
+    """
+    Build (but do not raise) the exception matching a trigger event's termination reason.
+
+    ``termination_reason`` is ``None`` when the event was produced by a trigger
+    serialized before this field existed (a rolling upgrade in flight); that case
+    falls back to ``OpenAIBatchJobException``, matching today's behavior.
+    """
+    if termination_reason is None:
+        return OpenAIBatchJobException(message)
+    exception_class = _TERMINATION_REASON_EXCEPTIONS.get(termination_reason, OpenAIBatchJobException)
+    return exception_class(message)
 
 
 def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -670,10 +694,10 @@ class OpenAIHook(BaseHook):
             if batch.status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
             if batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
-                raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
+                raise OpenAIBatchCancelled(f"Batch failed - batch was cancelled:\n{batch_id}")
             if batch.status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
-                    f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
+                    f"Batch failed - batch couldn't be completed within its completion window:\n{batch_id}"
                 )
 
             raise OpenAIBatchJobException(

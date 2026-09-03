@@ -39,6 +39,7 @@ from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, Ve
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import (
+    OpenAIBatchCancelled,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -642,6 +643,24 @@ def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
         mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.2, timeout=0.01)
     assert mock_openai_hook.conn.batches.retrieve.call_count >= 1
     assert mock_openai_hook.conn.batches.cancel.call_count == 1
+
+
+@pytest.mark.parametrize("status", ["cancelled", "cancelling"])
+def test_wait_for_cancelled_batch_raises_exact_cancelled_type(mock_openai_hook, status):
+    """``OpenAIBatchCancelled`` is a subclass of ``OpenAIBatchJobException``, so asserting
+    only the base class would stay green even if this raised the wrong (base) type. Assert
+    the exact type to prove the exception was actually narrowed.
+    """
+    mock_openai_hook.conn.batches.retrieve.return_value = create_batch(status)
+    with pytest.raises(OpenAIBatchCancelled):
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+
+
+def test_wait_for_expired_batch_message_does_not_mention_hour_window(mock_openai_hook):
+    mock_openai_hook.conn.batches.retrieve.return_value = create_batch("expired")
+    with pytest.raises(OpenAIBatchJobException, match="completion window") as exc_info:
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+    assert "hour time window" not in str(exc_info.value)
 
 
 def test_openai_hook_test_connection(mock_openai_hook):

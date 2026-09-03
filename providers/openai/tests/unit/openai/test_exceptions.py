@@ -21,7 +21,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+from airflow.providers.openai.exceptions import (
+    OpenAIBatchCancelled,
+    OpenAIBatchJobException,
+    OpenAIBatchTimeout,
+)
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
 
@@ -30,6 +34,7 @@ from airflow.providers.openai.hooks.openai import OpenAIHook
     [
         OpenAIBatchTimeout,
         OpenAIBatchJobException,
+        OpenAIBatchCancelled,
     ],
 )
 def test_wait_for_batch_raise_exception(exception_class):
@@ -38,3 +43,11 @@ def test_wait_for_batch_raise_exception(exception_class):
     hook = mock_hook_instance
     with pytest.raises(exception_class):
         hook.wait_for_batch(batch_id="batch_id")
+
+
+def test_batch_cancelled_is_subclass_of_batch_job_exception():
+    """Cancellation is deliberately a subclass, not a sibling, of the generic batch failure
+    exception: existing ``except OpenAIBatchJobException`` handlers must keep working
+    unchanged after cancellation gets its own exception type.
+    """
+    assert issubclass(OpenAIBatchCancelled, OpenAIBatchJobException)

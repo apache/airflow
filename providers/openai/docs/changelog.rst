@@ -20,6 +20,25 @@
 Changelog
 ---------
 
+.. note::
+    A deferred ``OpenAITriggerBatchOperator`` that runs out of patience now raises
+    ``OpenAIBatchTimeout``, matching the exception the non-deferrable path has always raised
+    for the same condition. Previously every non-success outcome of a deferred batch raised
+    the same ``OpenAIBatchJobException``, so a timeout and a genuine batch failure could not
+    be told apart or handled separately.
+
+    A cancelled batch now raises ``OpenAIBatchCancelled``, a subclass of
+    ``OpenAIBatchJobException``, so existing code that catches ``OpenAIBatchJobException``
+    keeps working unchanged while callers that want to distinguish cancellation can catch the
+    subclass specifically.
+
+.. note::
+    A deferred ``OpenAITriggerBatchOperator`` that times out now requests cancellation of the
+    batch, matching the non-deferrable path. Previously a deferred timeout only failed the
+    task and left the batch running (and billing) on OpenAI's side. Cancellation on OpenAI's
+    side is asynchronous, so the batch reports ``cancelling`` for a while before it settles as
+    ``cancelled``.
+
 1.8.2
 .....
 
