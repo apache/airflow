@@ -4231,6 +4231,7 @@ export class XcomService {
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
+     * @param data.teams
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
@@ -4266,6 +4267,7 @@ export class XcomService {
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
+                teams: data.teams,
                 order_by: data.orderBy
             },
             errors: {
@@ -4893,6 +4895,7 @@ export class DeadlinesService {
      * @param data.lastUpdatedAtGt
      * @param data.lastUpdatedAtLte
      * @param data.lastUpdatedAtLt
+     * @param data.teams
      * @returns DeadlineCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -4916,7 +4919,8 @@ export class DeadlinesService {
                 last_updated_at_gte: data.lastUpdatedAtGte,
                 last_updated_at_gt: data.lastUpdatedAtGt,
                 last_updated_at_lte: data.lastUpdatedAtLte,
-                last_updated_at_lt: data.lastUpdatedAtLt
+                last_updated_at_lt: data.lastUpdatedAtLt,
+                teams: data.teams
             },
             errors: {
                 400: 'Bad Request',

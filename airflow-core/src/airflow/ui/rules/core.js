@@ -433,12 +433,12 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * @example
      * ```typescript
      * // ❌ Incorrect
-     * import { Foo } from "src/components/ui";
-     * import { Bar } from "src/components/ui";
+     * import { Foo } from "src/system-components";
+     * import { Bar } from "src/system-components";
      *
      * // ✅ Correct
-     * import { Foo, Bar } from "src/components/ui";
-     * import type { Baz } from "src/components/ui";
+     * import { Foo, Bar } from "src/system-components";
+     * import type { Baz } from "src/system-components";
      * ```
      * @see [no-duplicate-imports](https://eslint.org/docs/latest/rules/no-duplicate-imports)
      */

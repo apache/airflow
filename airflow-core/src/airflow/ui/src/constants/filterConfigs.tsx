@@ -40,8 +40,7 @@ import { PiQueue } from "react-icons/pi";
 
 import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
-import { TaskIcon } from "src/assets/TaskIcon";
+
 import type { FilterConfig } from "src/components/FilterBar";
 import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
@@ -52,6 +51,9 @@ import {
 } from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+
+import { DagIcon } from "src/assets/DagIcon";
+import { TaskIcon } from "src/assets/TaskIcon";
 import {
   dagRunStateOptions,
   dagRunTypeOptions,
