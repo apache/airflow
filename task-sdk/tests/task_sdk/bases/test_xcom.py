@@ -315,7 +315,7 @@ class TestXComIterable:
         iterable = self.make_iterable()
         iterable.append("a")
         iterable.append("b")
-        assert iterable.index == 2
+        assert iterable._index == 2
         assert iterable.length == 2
 
     @patch.object(XCom, "set", side_effect=RuntimeError("oops"))
@@ -324,7 +324,7 @@ class TestXComIterable:
         iterable = self.make_iterable()
         with pytest.raises(RuntimeError, match="oops"):
             iterable.append("value")
-        assert iterable.index == 0
+        assert iterable._index == 0
         assert iterable.length == 0
 
     # ------------------------------------------------------------------
@@ -364,7 +364,7 @@ class TestXComIterable:
         iterable = self.make_iterable()
         with pytest.raises(RuntimeError, match="oops"):
             await iterable.aappend("value")
-        assert iterable.index == 0
+        assert iterable._index == 0
         assert iterable.length == 0
 
     # ------------------------------------------------------------------
@@ -393,7 +393,7 @@ class TestXComIterable:
     def test_index_starts_at_length_after_construction(self):
         """Creating an XComIterable with length>0 must start index at length, not 0."""
         iterable = self.make_iterable(length=3)
-        assert iterable.index == 3
+        assert iterable._index == 3
 
     @patch.object(XCom, "set")
     def test_deserialize_then_append_continues_from_correct_index(self, mock_set):
