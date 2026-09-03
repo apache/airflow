@@ -47,6 +47,11 @@ gid: 0
 securityContexts:
   pod: {}
   containers: {}
+  # If `true`, the chart will not set any default `securityContext` values when
+  # `securityContexts.pod` / `securityContexts.containers` (or the equivalent per-component
+  # overrides) are left empty (default `false` is deprecated and will change to `true`
+  # in a future release).
+  disableDefaults: false
 
 # Global container lifecycle hooks for Airflow containers
 containerLifecycleHooks: {}
