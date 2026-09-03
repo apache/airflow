@@ -1,0 +1,1 @@
+``execution_timeout`` is now also enforced by the task supervisor. A task process that does not stop on its own within a short grace period after the timeout elapses is sent SIGTERM and then SIGKILL, so tasks stuck in native code or with a broken signal handler no longer run forever.
