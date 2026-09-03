@@ -20,7 +20,8 @@ import { Box, Icon, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
-import { Menu } from "src/components/ui";
+import { Menu } from "src/system-components";
+
 import { useConfig } from "src/queries/useConfig";
 import type { NavItemResponse } from "src/utils/types";
 
@@ -53,7 +54,7 @@ export const DocsButton = ({
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const showAPIDocs = Boolean(useConfig("enable_swagger_ui")) && showAPI;
 
   const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { JSX, ReactNode } from "react";
+
 import { chakra } from "@chakra-ui/react";
 import Anser, { type AnserJsonEntry } from "anser";
-import type { JSX, ReactNode } from "react";
 
 const fixBackspace = (inputText: string): string => {
   let tmp = inputText;

@@ -20,8 +20,7 @@ import { flexRender, type Header, type Table } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { LuColumns3 } from "react-icons/lu";
 
-import { Menu, IconButton } from "src/components/ui";
-import { Checkbox } from "src/components/ui/Checkbox";
+import { Menu, IconButton, Checkbox } from "src/system-components";
 
 type Props<TData> = {
   readonly table: Table<TData>;
@@ -30,7 +29,7 @@ type Props<TData> = {
 export const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
 
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Menu.Root closeOnSelect={false} tooltipLabel={translate("table.filterColumns")}>

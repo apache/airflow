@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
+
 import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { HeaderCard } from "src/components/HeaderCard";
 
@@ -52,5 +53,5 @@ export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
       : []),
   ];
 
-  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} />;
+  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} type="asset" />;
 };
