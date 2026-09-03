@@ -78,6 +78,9 @@ const createColumns = (
       <TogglePause
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
+        hasUnfinishedRuns={original.latest_dag_runs.some(
+          (run) => run.state === "queued" || run.state === "running",
+        )}
         isPaused={original.is_paused}
         schedulingState={original.scheduling_state}
       />
