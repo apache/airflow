@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1784746595
+source-date-epoch: 1787011200
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.8.0
   - 0.7.0
   - 0.6.0
   - 0.5.0
@@ -63,6 +64,9 @@ integrations:
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst
     tags: [ai]
+  - integration-name: Docker Sandboxes
+    external-doc-url: https://docs.docker.com/ai/sandboxes/
+    tags: [software]
 
 hooks:
   - integration-name: Pydantic AI
@@ -147,6 +151,16 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook
     hook-name: "Pydantic AI"
     connection-type: pydanticai
+    external-services:
+      - OpenAI
+      - Anthropic
+      - Google
+      - AWS Bedrock
+      - Groq
+      - Mistral AI
+      - DeepSeek
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -155,7 +169,8 @@ connection-types:
       relabeling:
         password: API Key
       placeholders:
-        host: "https://api.openai.com/v1 (optional, for custom endpoints)"
+        host: "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+        extra: '{"model": "openai:gpt-5.6-sol"}'
     conn-fields:
       model:
         label: Model
@@ -167,6 +182,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
     hook-name: "Pydantic AI (Azure OpenAI)"
     connection-type: pydanticai-azure
+    external-services:
+      - Azure OpenAI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -177,6 +194,7 @@ connection-types:
         host: Azure Endpoint
       placeholders:
         host: "https://<resource>.openai.azure.com"
+        extra: '{"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}'
     conn-fields:
       model:
         label: Model
@@ -195,6 +213,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook
     hook-name: "Pydantic AI (AWS Bedrock)"
     connection-type: pydanticai-bedrock
+    external-services:
+      - AWS Bedrock
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -203,7 +223,9 @@ connection-types:
         - host
         - password
       relabeling: {}
-      placeholders: {}
+      placeholders:
+        extra: '{"model": "bedrock:us.anthropic.claude-opus-4-5", "region_name": "us-east-1"}  — leave
+          aws_access_key_id empty for IAM role / env-var auth'
     conn-fields:
       model:
         label: Model
@@ -278,6 +300,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook
     hook-name: "Pydantic AI (Google Vertex AI)"
     connection-type: pydanticai-vertex
+    external-services:
+      - Google Vertex AI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -286,11 +310,14 @@ connection-types:
         - host
         - password
       relabeling: {}
-      placeholders: {}
+      placeholders:
+        extra: '{"model": "google-cloud:gemini-2.0-flash", "project": "my-project", "location":
+          "us-central1"}  — add service_account_info (object) for SA auth; omit both to use Application
+          Default Credentials'
     conn-fields:
       model:
         label: Model
-        description: "Google model identifier (e.g. google-vertex:gemini-2.0-flash)"
+        description: "Google model identifier (e.g. google-cloud:gemini-2.0-flash)"
         schema:
           type:
             - string
@@ -311,7 +338,7 @@ connection-types:
             - 'null'
       vertexai:
         label: Force Vertex AI Mode
-        description: "Force Vertex AI mode. Auto-detected when project/location/credentials are set."
+        description: "Ignored (kept for compatibility); mode is now selected via the Model field's prefix."
         schema:
           type:
             - boolean
@@ -374,6 +401,14 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.langchain.LangChainHook
     hook-name: "LangChain"
     connection-type: langchain
+    external-services:
+      - OpenAI
+      - Anthropic
+      - Groq
+      - Mistral AI
+      - DeepSeek
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -383,6 +418,7 @@ connection-types:
         password: API Key
       placeholders:
         host: "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+        extra: '{"model": "openai:gpt-4o", "embed_model": "openai:text-embedding-3-small"}'
     conn-fields:
       model:
         label: Chat Model
@@ -407,6 +443,10 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook
     hook-name: "LlamaIndex"
     connection-type: llamaindex
+    external-services:
+      - OpenAI
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -455,14 +495,20 @@ operators:
 toolsets:
   - integration-name: Common AI
     python-modules:
-      - airflow.providers.common.ai.toolsets.aws
       - airflow.providers.common.ai.toolsets.hook
       - airflow.providers.common.ai.toolsets.sql
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge
+      - airflow.providers.common.ai.toolsets.managed_agent
+
+retry-policies:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.policies.retry
 
 task-decorators:
   - class-name: airflow.providers.common.ai.decorators.agent.agent_task

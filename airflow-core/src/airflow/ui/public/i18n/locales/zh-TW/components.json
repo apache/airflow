@@ -7,10 +7,20 @@
     "backwards": "反向執行",
     "dateRange": "日期範圍",
     "errorStartDateBeforeEndDate": "開始日期必須早於結束日期。",
+    "exceptionReason": {
+      "alreadyExists": "已存在",
+      "inFlight": "進行中",
+      "unknown": "未知"
+    },
     "maxRuns": "活躍執行數上限",
     "missingAndErroredRuns": "遺漏和錯誤的執行",
     "missingRuns": "遺漏的執行",
+    "notCreatedReason": "未建立原因",
     "overrideExistingParams": "覆寫既有執行的參數",
+    "partitionRange": "分區範圍",
+    "partitionsAffected_one": "將會回填 1 個分區：",
+    "partitionsAffected_other": "將會回填 {{count}} 個分區：",
+    "partitionsNone": "無符合所選範圍的分區。",
     "permissionDenied": "試執行失敗：使用者沒有建立回填的權限。",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
@@ -29,7 +39,8 @@
     "validation": {
       "datesRequired": "必須提供資料區間的開始與結束日期。",
       "startBeforeEnd": "資料區間起始日期必須早於或等於結束日期。"
-    }
+    },
+    "viewSlots": "檢視回填 #{{id}} 的配額"
   },
   "banner": {
     "backfillInProgress": "回填正在進行中",
@@ -112,7 +123,15 @@
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
   },
+  "passwordToggle": {
+    "hide": "隱藏值",
+    "show": "顯示值"
+  },
   "reparseDag": "重新解析 Dag",
+  "slowestTaskInstances": {
+    "empty": "此範圍內沒有已完成的任務實例",
+    "title": "最慢的任務實例"
+  },
   "sortedAscending": "遞增排序",
   "sortedDescending": "遞減排序",
   "sortedUnsorted": "未排序",
@@ -130,7 +149,7 @@
   "triggerDag": {
     "button": "觸發",
     "dataInterval": "資料區間",
-    "dataIntervalAuto": "依邏輯日期與時間表推斷",
+    "dataIntervalAuto": "依邏輯日期與排程規則推斷",
     "dataIntervalManual": "手動指定",
     "intervalEnd": "結束",
     "intervalStart": "開始",

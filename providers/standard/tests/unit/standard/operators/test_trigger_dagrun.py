@@ -40,16 +40,12 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
 )
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat.sdk import DagRunTriggerException
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -258,6 +254,15 @@ class TestDagRunOperator:
             task.execute(context={})
 
         assert exc_info.value.logical_date == timezone.datetime(2021, 1, 2, 3, 4, 5)
+
+    def test_trigger_dagrun_with_invalid_logical_date_type_fails_at_execute_time(self):
+        task = TriggerDagRunOperator(
+            task_id="test_trigger_dagrun_with_invalid_logical_date_type",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            logical_date=12345,
+        )
+        with pytest.raises(TypeError, match="Expected str, datetime.datetime, or None"):
+            task.execute(context={})
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""

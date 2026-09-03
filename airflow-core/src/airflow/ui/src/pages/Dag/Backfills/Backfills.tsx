@@ -16,26 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Text } from "@chakra-ui/react";
+import { Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+
 import { getDuration } from "src/utils";
 
-const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
+import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
+
+const getColumns = (
+  onSelectBackfill: (backfillId: number) => void,
+  translate: TFunction,
+): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
-      <Text>
+      <Button
+        aria-label={translate("components:backfill.viewSlots", { id: row.original.id })}
+        colorPalette="brand"
+        fontWeight="bold"
+        onClick={() => onSelectBackfill(row.original.id)}
+        variant="plain"
+      >
         <Time datetime={row.original.from_date} />
-      </Text>
+      </Button>
     ),
     enableSorting: false,
     header: translate("table.from"),
@@ -106,25 +120,44 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
 export const Backfills = () => {
   const { t: translate } = useTranslation();
   const { setTableURLState, tableURLState } = useTableURLState();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const { pagination } = tableURLState;
 
-  const { dagId = "" } = useParams();
-
+  const { backfillId, dagId = "" } = useParams();
+  const selectedBackfillId = Number(backfillId);
+  const hasSelectedBackfill = Number.isInteger(selectedBackfillId) && selectedBackfillId > 0;
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = getColumns(translate);
+  const onSelectBackfill = (id: number) => {
+    void Promise.resolve(
+      navigate({
+        pathname: `/dags/${dagId}/backfills/${id}`,
+        search: location.search,
+      }),
+    );
+  };
+  const onClose = () => {
+    void Promise.resolve(
+      navigate(
+        {
+          pathname: `/dags/${dagId}/backfills`,
+          search: location.search,
+        },
+        { replace: true },
+      ),
+    );
+  };
+  const columns = getColumns(onSelectBackfill, translate);
 
   return (
-    <Box>
+    <>
       <ErrorAlert error={error} />
-      <Heading my={1} size="md">
-        {translate("backfill", { count: data ? data.total_entries : 0 })}
-      </Heading>
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
@@ -134,6 +167,12 @@ export const Backfills = () => {
         onStateChange={setTableURLState}
         total={data ? data.total_entries : 0}
       />
-    </Box>
+      <BackfillDagRunsModal
+        backfillId={hasSelectedBackfill ? selectedBackfillId : undefined}
+        dagId={dagId}
+        onClose={onClose}
+        open={hasSelectedBackfill}
+      />
+    </>
   );
 };

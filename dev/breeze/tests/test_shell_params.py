@@ -20,10 +20,12 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+import yaml
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.path_utils import SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH
 
 console = Console(width=400, color_system="standard")
 
@@ -166,6 +168,42 @@ console = Console(width=400, color_system="standard")
             },
             id="PYTHONWARNINGS should be set when specified in environment",
         ),
+        pytest.param(
+            {},
+            {},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER defaults to psycopg (v3)",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "2.11.0"},
+            {"POSTGRES_DRIVER": "psycopg2"},
+            id="POSTGRES_DRIVER falls back to psycopg2 on Airflow 2.x (SQLAlchemy 1.4)",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "3.1.0"},
+            {"POSTGRES_DRIVER": "psycopg2"},
+            id="POSTGRES_DRIVER falls back to psycopg2 on released Airflow 3.x",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "wheel"},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER stays psycopg when installing from sources",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "70496"},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER stays psycopg when installing from a PR number",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "apache/airflow:main"},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER stays psycopg when installing from a GitHub branch",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(
@@ -193,3 +231,26 @@ def test_shell_params_to_env_var_conversion(
                 console.print(env_vars)
                 error = True
         assert not error, "Some values are not as expected."
+
+
+def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, monkeypatch):
+    docker_env_path = tmp_path / "_generated_docker.env"
+    compose_env_path = tmp_path / "_generated_docker_compose.env"
+    with (
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_ENV_PATH", docker_env_path),
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_COMPOSE_ENV_PATH", compose_env_path),
+        patch("airflow_breeze.params.shell_params.GENERATED_DOCKER_LOCK_PATH", tmp_path / "_generated.lock"),
+    ):
+        monkeypatch.delenv("PYTHONWARNINGS", raising=False)
+        _ = ShellParams().env_variables_for_docker_commands
+        docker_env = docker_env_path.read_text()
+        compose_env = compose_env_path.read_text()
+        monkeypatch.setenv("PYTHONWARNINGS", "default")
+        _ = ShellParams().env_variables_for_docker_commands
+        assert docker_env_path.read_text() == docker_env
+        assert compose_env_path.read_text() == compose_env
+
+
+def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
+    base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
+    assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]

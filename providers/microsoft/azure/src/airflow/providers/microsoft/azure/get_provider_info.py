@@ -392,6 +392,7 @@ def get_provider_info():
                         "password": "secret (token credentials auth)",
                         "tenantId": "tenantId (token credentials auth)",
                         "subscriptionId": "subscriptionId (token credentials auth)",
+                        "cloud_environment": "AzurePublicCloud (default) | AzureUSGovernment | AzureChinaCloud",
                     },
                 },
                 "conn-fields": {
@@ -816,7 +817,7 @@ def get_provider_info():
                     "placeholders": {
                         "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authentication)",
                         "credential": "credential",
-                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/; SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
+                        "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
                     },
                 },
                 "conn-fields": {
@@ -957,6 +958,12 @@ def get_provider_info():
         ],
         "secrets-backends": ["airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend"],
         "logging": ["airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler"],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbRemoteLogIO",
+                "scheme": "wasb",
+            }
+        ],
         "extra-links": [
             "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink",
             "airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink",

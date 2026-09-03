@@ -163,6 +163,14 @@ def trigger_dag_run(
             status.HTTP_400_BAD_REQUEST,
             detail={"reason": "invalid_partition_key", "message": str(e)},
         ) from e
+    except ValueError as e:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "value_error",
+                "message": str(e),
+            },
+        ) from e
 
 
 @router.post(

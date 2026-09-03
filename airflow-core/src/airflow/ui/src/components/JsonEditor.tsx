@@ -19,6 +19,7 @@
 import { useRef } from "react";
 
 import Editor, { type EditorProps } from "src/components/MonacoEditor";
+
 import { useMonacoTheme } from "src/context/colorMode";
 
 type JsonEditorProps = {
@@ -28,6 +29,8 @@ type JsonEditorProps = {
   readonly name?: string;
   readonly onBlur?: () => void;
   readonly onChange?: (value: string) => void;
+  readonly onError?: (error: string | undefined) => void;
+  readonly prettify?: boolean;
   readonly value?: string;
 };
 
@@ -36,6 +39,8 @@ export const JsonEditor = ({
   height = "200px",
   onBlur,
   onChange,
+  onError,
+  prettify = false,
   value,
   ...rest
 }: JsonEditorProps) => {
@@ -55,8 +60,23 @@ export const JsonEditor = ({
     scrollBeyondLastLine: false,
   };
 
-  const handleChange = (val: string | undefined) => {
-    onChange?.(val ?? "");
+  const handleChange = (val: string | undefined = "") => {
+    if (!prettify) {
+      onChange?.(val);
+
+      return;
+    }
+
+    try {
+      const formattedJson = JSON.stringify(JSON.parse(val) as unknown, undefined, 2);
+
+      onError?.(undefined);
+      if (formattedJson !== value) {
+        onChange?.(formattedJson);
+      }
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : String(error));
+    }
   };
 
   return (

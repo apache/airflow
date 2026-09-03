@@ -7,10 +7,20 @@
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
+    "exceptionReason": {
+      "alreadyExists": "Already exists",
+      "inFlight": "In flight",
+      "unknown": "Unknown"
+    },
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "notCreatedReason": "Not Created Reason",
     "overrideExistingParams": "Override parameters on existing runs",
+    "partitionRange": "Partition Range",
+    "partitionsAffected_one": "1 partition will be backfilled:",
+    "partitionsAffected_other": "{{count}} partitions will be backfilled:",
+    "partitionsNone": "No partitions matching selected range.",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
@@ -29,7 +39,8 @@
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
-    }
+    },
+    "viewSlots": "View slots for Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill in progress",
@@ -112,7 +123,15 @@
     "file": "File",
     "location": "line {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Hide value",
+    "show": "Show value"
+  },
   "reparseDag": "Reparse Dag",
+  "slowestTaskInstances": {
+    "empty": "No completed task instances in this range",
+    "title": "Slowest task instances"
+  },
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",

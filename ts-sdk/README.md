@@ -21,26 +21,31 @@
 
 Public TypeScript interfaces for writing Apache Airflow task handlers.
 
-**Status:** alpha · API will change · Node 22+ · ESM-only
+**Status:** 0.1.0-beta1 · API may change · Node 22+ · ESM-only
 
 This package defines the user-facing task handler contract and the coordinator
 runtime used to execute registered TypeScript handlers from Airflow.
 
-> **Note:** This package is not yet published to a public npm registry. Until an
-> official Apache Airflow release is available, build and use it from source (see
-> [Development](#development)).
+## Installation
+
+```bash
+npm install apache-airflow-ts-sdk@0.1.0-beta1
+```
 
 ## Task Handlers
 
 ```ts
-import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function sayHello({ ctx, client }: TaskHandlerArgs) {
   const greeting = await client.getVariable("greeting");
   return { message: `Hello from ${ctx.taskId}: ${greeting}` };
 }
 
-registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
+const dag = new Dag("example_dag");
+dag.task("say_hello", sayHello);
+
+await serveDags(new DagRegistry(dag));
 ```
 
 Non-`undefined` return values are pushed to XCom under the `"return_value"`
@@ -95,7 +100,7 @@ Airflow metadata in the bundle itself.
 TypeScript entrypoint:
 
 ```ts
-import { registerTask, startCoordinator, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
+import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
 
 export async function extract({ client }: TaskHandlerArgs) {
   const connection = await client.getConnection("sales_db");
@@ -118,36 +123,53 @@ export async function transform({ client }: TaskHandlerArgs) {
   };
 }
 
-registerTask({ dagId: "sales_pipeline", taskId: "extract" }, extract);
-registerTask({ dagId: "sales_pipeline", taskId: "transform" }, transform);
+const salesPipeline = new Dag("sales_pipeline");
+salesPipeline.task("extract", extract);
+salesPipeline.task("transform", transform);
 
-await startCoordinator();
+await serveDags(new DagRegistry(salesPipeline));
 ```
 
 The Python stub defines the Dag dependency graph. The TypeScript handler does
-the work and uses `TaskClient` for task-time Airflow data access. Register each
-handler with the Python Dag's `dag_id` and the stub task's `task_id`. The
-handler function is the reusable task implementation; `registerTask` binds that
-handler to a Python stub Dag/task identity for coordinator mode.
+the work and uses `TaskClient` for task-time Airflow data access. Create a
+`Dag` with the Python Dag's `dag_id` and attach each handler with the stub
+task's `task_id`. The handler function is the reusable task implementation;
+`dag.task` binds that handler to a Python stub task identity, a `DagRegistry`
+collects the Dags this bundle can execute, and `serveDags` serves them to
+Airflow.
 
-For larger projects, keep one Airflow entrypoint that imports every module that
-registers tasks, then starts the coordinator:
+`serveDags` is the entrypoint, and the registry it is given is the whole bundle:
+a Dag left out of the registry is not part of the bundle, and its tasks are
+marked removed at runtime. The registry itself holds no sockets and starts
+nothing, so a unit test can build one and dispatch through
+`registry.getTaskHandler(dagId, taskId)` without any runtime involved.
+
+`new Dag` and `dag.task` take a trailing options object — `spec` on both, plus
+`inputs` on a task. These are not used yet; do not set them.
+
+For larger projects, declare each Dag in its own module and keep one Airflow
+entrypoint that serves them all:
 
 ```ts
-import "./sales/tasks";
-import "./billing/tasks";
-import { startCoordinator } from "@apache-airflow/ts-sdk";
+import { salesDag } from "./sales/dag";
+import { billingDag } from "./billing/dag";
+import { DagRegistry, serveDags } from "apache-airflow-ts-sdk";
 
-await startCoordinator();
+await serveDags(new DagRegistry(salesDag, billingDag));
 ```
 
-Airflow launches the bundled entrypoint with `--comm=host:port` and
-`--logs=host:port`. `startCoordinator()` connects to those sockets, receives
-the task startup message, finds the registered handler for the Dag/task pair,
-and reports the terminal task state back to Airflow.
+A bundle that collects its Dags across several modules can add them
+incrementally with `registry.register(...)` instead of passing them all to the
+constructor.
 
-See [`example/`](example/) for a coordinator-runtime example that packs a
-bundle with `airflow-ts-pack` and uses a Python stub Dag.
+Airflow launches the bundled entrypoint with `--comm=host:port` and
+`--logs=host:port`. `serveDags()` connects to those sockets, receives the task
+startup message, finds the registered handler for the Dag/task pair, and
+reports the terminal task state back to Airflow.
+
+See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
+a coordinator-runtime example that packs a bundle with `airflow-ts-pack` and
+uses a Python stub Dag.
 
 ## Packing bundles
 
@@ -177,11 +199,11 @@ Options:
 
 Every task handler receives a `TaskClient` for task-time Airflow data access:
 
-| Method                                    | Description         |
-| ----------------------------------------- | ------------------- |
-| `getVariable(key)` / `getVariableOrThrow` | Airflow Variables   |
-| `getXCom(opts)` / `setXCom(opts)`         | XCom read/write     |
-| `getConnection(connId)`                   | Airflow Connections |
+| Method                                           | Description         |
+| ------------------------------------------------ | ------------------- |
+| `getVariable(key)` / `getVariableOrThrow`        | Airflow Variables   |
+| `getXCom(opts)` / `setXCom(opts)`                | XCom read/write     |
+| `getConnection(connId)` / `getConnectionOrThrow` | Airflow Connections |
 
 Locator fields such as `dagId`, `runId`, and `taskId` default to the
 current task context when omitted.
@@ -189,21 +211,73 @@ current task context when omitted.
 ## Cancellation
 
 `ctx.signal` is an `AbortSignal` controlled by the active runtime. Pass it to
-`fetch()`, timers, database clients, child processes, or other abortable APIs
-so tasks can clean up cooperatively when Airflow terminates the task attempt.
+`fetch()`, timers, database clients, child processes, or any other API that
+accepts an abort signal so tasks can clean up cooperatively when Airflow
+terminates the task subprocess with SIGTERM or SIGINT.
 
-## Development
+## Compatibility matrix
 
-```bash
-pnpm install
-pnpm test
-pnpm run typecheck
-pnpm run build
-```
+Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
+[`capabilities.yaml`](https://github.com/apache/airflow/blob/main/ts-sdk/capabilities.yaml);
+the conformance dimensions are defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+Do not edit the table by hand — update the manifest and run the
+`update-ts-sdk-readme-matrix` prek hook.
 
-Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
-with its own managed node + pnpm toolchain:
+<!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-```bash
-prek run compile-ts-sdk
-```
+*Min. Airflow version: 3.4 · supervisor schema: 2026-10-30*
+
+| Dimension | Tier | Supported | Since | Notes |
+|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4 |  |
+| state: `failed` | MUST | ✓ | 3.4 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4 | RetryTask |
+| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
+| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
+| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.4 |  |
+| **Runtime capabilities** |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
+| capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
+| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
+| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
+| **Native-Dag authoring** |  |  |  |  |
+| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
+| capability: `task-args` | MUST † | n/a | – |  |
+| capability: `dag-params` | MUST † | n/a | – |  |
+| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
+| capability: `branching` | SHOULD † | n/a | – |  |
+| capability: `dag-test` | SHOULD † | n/a | – |  |
+| capability: `task-group` | MAY † | n/a | – |  |
+| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
+| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
+| capability: `asset-scheduling` | MAY † | n/a | – |  |
+| capability: `object-store` | MAY † | n/a | – | no object-storage API yet |
+
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
+
+<!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
+## Links
+
+- [TypeScript SDK guide (staged docs)](https://airflow.staged.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
+  — how Airflow runs TypeScript task handlers
+- [API reference (staged)](https://airflow.staged.apache.org/docs/ts-sdk/stable/)
+  — generated from the TypeScript sources
+- [Source](https://github.com/apache/airflow/tree/main/ts-sdk) — the `ts-sdk/`
+  directory of the Apache Airflow monorepo
+- [Issues](https://github.com/apache/airflow/issues) — bug reports and feature
+  requests
+- [Website](https://airflow.apache.org) · [Slack](https://s.apache.org/airflow-slack)
+- [Developing this package](https://github.com/apache/airflow/blob/main/ts-sdk/DEVELOPMENT.md)
+  — local build, docs, and the release workflow

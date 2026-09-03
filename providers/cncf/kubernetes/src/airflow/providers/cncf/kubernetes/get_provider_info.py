@@ -48,6 +48,7 @@ def get_provider_info():
                     "airflow.providers.cncf.kubernetes.operators.custom_object_launcher",
                     "airflow.providers.cncf.kubernetes.operators.kueue",
                     "airflow.providers.cncf.kubernetes.operators.pod",
+                    "airflow.providers.cncf.kubernetes.operators.pod_exec",
                     "airflow.providers.cncf.kubernetes.operators.spark_kubernetes",
                     "airflow.providers.cncf.kubernetes.operators.resource",
                     "airflow.providers.cncf.kubernetes.operators.job",
@@ -221,6 +222,20 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "1",
+                    },
+                    "async_pod_creation": {
+                        "description": "Create worker pods concurrently within each scheduler loop instead of\nsequentially. When enabled, the ``worker_pods_creation_batch_size`` pods\ndequeued per loop are submitted to the Kubernetes API concurrently (bounded\nby ``pod_creation_max_concurrency``) using the asynchronous Kubernetes client.\nThis reduces the time the scheduler loop spends blocked on pod creation when\nper-call latency is high (network round-trip, admission webhooks). Pod\ntemplates are still built synchronously; only the create API calls are\nparallelized.\n",
+                        "version_added": "10.21.0",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "pod_creation_max_concurrency": {
+                        "description": "Maximum number of concurrent pod-creation API calls when ``async_pod_creation``\nis enabled. Bounds the burst of simultaneous requests to the Kubernetes API\nserver (and admission webhooks) to avoid tripping API priority-and-fairness or\nrate limits. Has no effect when ``async_pod_creation`` is False. When set to 0\nthe limit falls back to ``worker_pods_creation_batch_size``.\n",
+                        "version_added": "10.21.0",
+                        "type": "integer",
+                        "example": "16",
+                        "default": "0",
                     },
                     "multi_namespace_mode": {
                         "description": "Allows users to launch pods in multiple namespaces.\nWill require creating a cluster-role for the scheduler,\nor use multi_namespace_mode_namespace_list configuration.\n",

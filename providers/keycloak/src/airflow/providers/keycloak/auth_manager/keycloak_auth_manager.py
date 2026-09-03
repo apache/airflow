@@ -22,12 +22,14 @@ import logging
 import time
 import warnings
 from base64 import urlsafe_b64decode
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from jwt import InvalidTokenError
 from keycloak import KeycloakOpenID
 from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
@@ -35,7 +37,12 @@ from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    ConnectionDetails,
+    DagDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
@@ -58,21 +65,25 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.batch_apis import (
+        IsAuthorizedConnectionRequest,
+        IsAuthorizedDagRequest,
+        IsAuthorizedPoolRequest,
+        IsAuthorizedVariableRequest,
+    )
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetAliasDetails,
         AssetDetails,
         BackfillDetails,
         ConfigurationDetails,
-        ConnectionDetails,
         DagAccessEntity,
-        PoolDetails,
         TeamDetails,
-        VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
 
@@ -130,19 +141,53 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
         return KeycloakAuthManagerUser(
-            user_id=token.pop("user_id"),
-            name=token.pop("name"),
-            access_token=token.pop("access_token"),
-            refresh_token=token.pop("refresh_token"),
+            user_id=token["user_id"],
+            name=token["name"],
+            access_token=token.get("access_token", ""),
+            refresh_token=token.get("refresh_token"),
         )
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
+        if AIRFLOW_V_3_3_PLUS:
+            # Omit Keycloak JWTs from claims, they are stored in separate cookies
+            return {
+                "user_id": user.get_id(),
+                "name": user.get_name(),
+            }
         return {
             "user_id": user.get_id(),
             "name": user.get_name(),
             "access_token": user.access_token,
             "refresh_token": user.refresh_token,
         }
+
+    async def get_user_from_token(
+        self, token: str, access_token: str | None = None, refresh_token: str | None = None
+    ):
+        """
+        Get the user from the Airflow and Keycloak Tokens.
+
+        :param token: Airflow JWT
+        :param access_token: Keycloak access JWT
+        :param refresh_token: Keycloak refresh JWT
+        """
+        user = cast("KeycloakAuthManagerUser", await super().get_user_from_token(token))
+        if not AIRFLOW_V_3_3_PLUS:
+            return user
+        if access_token:
+            # The Airflow JWT is signed and establishes who the caller is. The Keycloak
+            # tokens arrive in separate cookies that the signature does not cover, so
+            # pairing them unchecked would let a caller combine their own Airflow session
+            # with somebody else's Keycloak token: every authorization decision is then
+            # made for that subject, while the session identity, audit trail and logs
+            # continue to show this one.
+            if self._token_subject(access_token) != user.get_id():
+                raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
+            user.access_token = access_token
+            user.refresh_token = refresh_token
+            return user
+        # Skip refreshing JWT if Keycloak JWTs are not included.
+        return None
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -152,12 +197,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
-    def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+    def refresh_user(self, *, user: KeycloakAuthManagerUser | None) -> KeycloakAuthManagerUser | None:
         # According to RFC6749 section 4.4.3, a refresh token should not be included when using
         # the Service accounts/client_credentials flow.
         # We check whether the user has a refresh token; if not, we assume it's a service account
         # and return None.
-        if not user.refresh_token:
+        if not user or not user.refresh_token:
             return None
 
         if self._token_expired(user.access_token):
@@ -313,12 +358,15 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             team_name=team_name,
         )
 
-    def is_authorized_view(self, *, access_view: AccessView, user: KeycloakAuthManagerUser) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: KeycloakAuthManagerUser, team_name: str | None = None
+    ) -> bool:
         return self._is_authorized(
             method="GET",
             resource_type=KeycloakResource.VIEW,
             user=user,
             resource_id=access_view.value,
+            team_name=team_name,
         )
 
     def is_authorized_custom_view(
@@ -353,6 +401,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         app.include_router(token_router)
 
         return app
+
+    def get_fastapi_middlewares(self):
+        from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+
+        return [(KeycloakJWTMiddleware, {})]
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -485,6 +538,198 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return single_flight(cache_key, query_keycloak)
 
+    def batch_is_authorized_connection(
+        self,
+        requests: Sequence[IsAuthorizedConnectionRequest],
+        *,
+        user: KeycloakAuthManagerUser,
+    ) -> bool:
+        if not requests:
+            return True
+        max_workers = min(
+            len(requests), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        )
+
+        def check(request: IsAuthorizedConnectionRequest) -> bool:
+            return self.is_authorized_connection(
+                method=request["method"],
+                details=request.get("details"),
+                user=user,
+            )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = executor.map(check, requests)
+        return all(results)
+
+    def batch_is_authorized_dag(
+        self,
+        requests: Sequence[IsAuthorizedDagRequest],
+        *,
+        user: KeycloakAuthManagerUser,
+    ) -> bool:
+        if not requests:
+            return True
+        max_workers = min(
+            len(requests), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        )
+
+        def check(request: IsAuthorizedDagRequest) -> bool:
+            return self.is_authorized_dag(
+                method=request["method"],
+                access_entity=request.get("access_entity"),
+                details=request.get("details"),
+                user=user,
+            )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = executor.map(check, requests)
+        return all(results)
+
+    def batch_is_authorized_pool(
+        self,
+        requests: Sequence[IsAuthorizedPoolRequest],
+        *,
+        user: KeycloakAuthManagerUser,
+    ) -> bool:
+        if not requests:
+            return True
+        max_workers = min(
+            len(requests), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        )
+
+        def check(request: IsAuthorizedPoolRequest) -> bool:
+            return self.is_authorized_pool(
+                method=request["method"],
+                details=request.get("details"),
+                user=user,
+            )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = executor.map(check, requests)
+        return all(results)
+
+    def batch_is_authorized_variable(
+        self,
+        requests: Sequence[IsAuthorizedVariableRequest],
+        *,
+        user: KeycloakAuthManagerUser,
+    ) -> bool:
+        if not requests:
+            return True
+        max_workers = min(
+            len(requests), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        )
+
+        def check(request: IsAuthorizedVariableRequest) -> bool:
+            return self.is_authorized_variable(
+                method=request["method"],
+                details=request.get("details"),
+                user=user,
+            )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = executor.map(check, requests)
+        return all(results)
+
+    def filter_authorized_connections(
+        self,
+        *,
+        conn_ids: set[str],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        cache_key = (user.get_id(), method, team_name, frozenset(conn_ids))
+
+        def query_keycloak() -> set[str]:
+            if not conn_ids:
+                return set()
+            max_workers = min(
+                len(conn_ids), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(conn_id: str) -> tuple[str, bool]:
+                details_kwargs: dict[str, Any] = {"conn_id": conn_id}
+                if team_name is not None:
+                    details_kwargs["team_name"] = team_name
+                return conn_id, self.is_authorized_connection(
+                    method=method,
+                    user=user,
+                    details=ConnectionDetails(**details_kwargs),
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, conn_ids)
+            return {conn_id for conn_id, authorized in results if authorized}
+
+        return single_flight(cache_key, query_keycloak)
+
+    def filter_authorized_pools(
+        self,
+        *,
+        pool_names: set[str],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        cache_key = (user.get_id(), method, team_name, frozenset(pool_names))
+
+        def query_keycloak() -> set[str]:
+            if not pool_names:
+                return set()
+            max_workers = min(
+                len(pool_names), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(pool_name: str) -> tuple[str, bool]:
+                details_kwargs: dict[str, Any] = {"name": pool_name}
+                if team_name is not None:
+                    details_kwargs["team_name"] = team_name
+                return pool_name, self.is_authorized_pool(
+                    method=method,
+                    user=user,
+                    details=PoolDetails(**details_kwargs),
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, pool_names)
+            return {pool_name for pool_name, authorized in results if authorized}
+
+        return single_flight(cache_key, query_keycloak)
+
+    def filter_authorized_variables(
+        self,
+        *,
+        variable_keys: set[str],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        cache_key = (user.get_id(), method, team_name, frozenset(variable_keys))
+
+        def query_keycloak() -> set[str]:
+            if not variable_keys:
+                return set()
+            max_workers = min(
+                len(variable_keys), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(variable_key: str) -> tuple[str, bool]:
+                details_kwargs: dict[str, Any] = {"key": variable_key}
+                if team_name is not None:
+                    details_kwargs["team_name"] = team_name
+                return variable_key, self.is_authorized_variable(
+                    method=method,
+                    user=user,
+                    details=VariableDetails(**details_kwargs),
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, variable_keys)
+            return {variable_key for variable_key, authorized in results if authorized}
+
+        return single_flight(cache_key, query_keycloak)
+
     def _is_batch_authorized(
         self,
         *,
@@ -581,6 +826,29 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @staticmethod
+    def _token_subject(token: str) -> str | None:
+        """
+        Return the ``sub`` claim of a JWT without verifying its signature.
+
+        :meta private:
+
+        The value is only ever compared against an identity the signed Airflow JWT has
+        already established, so it is never trusted on its own. A forged token is
+        rejected by Keycloak when it is presented; a genuine token belonging to somebody
+        else is exactly what this comparison exists to catch. A token that cannot be
+        parsed yields ``None``, which matches no user id.
+
+        :param token: the token
+        """
+        try:
+            payload_b64 = token.split(".")[1] + "=="
+            payload = json.loads(urlsafe_b64decode(payload_b64))
+            subject = payload["sub"]
+        except (IndexError, KeyError, TypeError, ValueError):
+            return None
+        return str(subject) if subject is not None else None
 
     @staticmethod
     def _token_expired(token: str) -> bool:

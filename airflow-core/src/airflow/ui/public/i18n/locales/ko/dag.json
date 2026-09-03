@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} 기준 {{interval}} 이내에 완료되어야 합니다",
+    "completionRuleDynamic": "{{reference}}를 기준으로 측정된 가변 시간 간격 내에 완료되어야 합니다",
     "count_one": "데드라인 {{count}}건",
     "count_other": "데드라인 {{count}}건",
     "referenceType": {
@@ -143,13 +144,7 @@
       "label": "Dag 실행 수"
     },
     "dependencies": {
-      "label": "종속성",
-      "options": {
-        "allDagDependencies": "모든 Dag 종속성",
-        "externalConditions": "외부 조건",
-        "onlyTasks": "태스크만"
-      },
-      "placeholder": "종속성"
+      "allDagDependencies": "전체 Dag 의존성"
     },
     "graphDirection": {
       "label": "그래프 방향"
@@ -242,6 +237,8 @@
     "deleteWarning": "태스크가 저장된 메모리를 잃게 됩니다. 태스크가 이 키를 사용하여 외부 작업(예: 외부 작업 ID)을 추적하고 있다면, 해당 작업을 재개할 수 없습니다.",
     "edit": "태스크 상태 저장소 편집",
     "emptyStore": "태스크 상태 저장소는 재시도 간에 유지되는 값을 저장합니다. 워커는 Task SDK를 통해 태스크 상태 저장소에 값을 기록할 수 있습니다.",
+    "entry_one": "항목",
+    "entry_other": "항목",
     "expiresAt": {
       "column": "만료 시간",
       "custom": "사용자 지정",

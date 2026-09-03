@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Тип события"
-    },
-    "title": "Журнал аудита"
+    }
   },
   "deadlines": {
     "columns": {

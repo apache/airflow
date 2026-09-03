@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from base64 import b64encode
 from copy import deepcopy
@@ -196,7 +197,6 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    worker_type: tuple[str, ...] = ()
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
@@ -563,6 +563,23 @@ services:
         return is_docker_rootless()
 
     @property
+    def postgres_driver(self) -> str:
+        """
+        Driver to use in the postgres ``sql_alchemy_conn``.
+
+        psycopg (v3) is the default only for Airflow's own sources. Releases before 3.2.0 (the first
+        with a ``sqlalchemy>=2.0`` floor) can run on SQLAlchemy 1.4, which has no
+        ``postgresql+psycopg`` dialect at all, and the default constraints file of a released version
+        pins psycopg2 rather than psycopg. Migration tests install a released Airflow into this same
+        container, so those runs fall back to psycopg2.
+        Only an ``x.y[.z]`` value names a released version; none/wheel/sdist, ``owner/repo:branch``
+        and a bare PR number do not, so they keep psycopg.
+        """
+        if self.use_airflow_version and re.match(r"^\d+\.\d+", self.use_airflow_version):
+            return "psycopg2"
+        return "psycopg"
+
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
@@ -571,7 +588,9 @@ services:
         separately with different test types.
 
         This is the only place where you need to add environment variables if you want to pass them to
-        docker or docker-compose.
+        docker or docker-compose. Variables that only some of the invocations set are the exception -
+        they are listed in the ``environment`` section of ``scripts/ci/docker-compose/base.yml``
+        instead, see _generate_env_for_docker_compose_file_if_needed for why.
 
         :return: dictionary of env variables to use for docker-compose and docker command
         """
@@ -661,8 +680,6 @@ services:
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
         _set_var(_env, "GITHUB_TOKEN", self.github_token)
-        if "go" in self.worker_type:
-            _set_var(_env, "GO_WORKER", True)
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
@@ -682,6 +699,7 @@ services:
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
+        _set_var(_env, "POSTGRES_DRIVER", self.postgres_driver)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
         _set_var(_env, "PROVIDERS_CONSTRAINTS_LOCATION", self.providers_constraints_location)
@@ -689,7 +707,6 @@ services:
         _set_var(_env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference)
         _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
         _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
-        _set_var(_env, "PYTHONWARNINGS", None, None)
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
@@ -777,6 +794,10 @@ services:
         The list of variables might change over time, and we want to keep the list updated only in
         one place (above env_variables_for_docker_commands method). So we need to regenerate the env
         files automatically when new variable is added to the list or removed.
+
+        The keys must not depend on the ambient environment though. All concurrent breeze invocations
+        share these files, so a key that only some of them contribute is taken away again from the
+        containers of the others as soon as another invocation regenerates the files.
 
         Docker-Compose based tests can start in parallel, so we want to make sure we generate it once
         per invocation of breeze command otherwise there could be nasty race condition that

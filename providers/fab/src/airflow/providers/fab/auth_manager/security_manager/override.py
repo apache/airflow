@@ -24,10 +24,13 @@ import importlib
 import itertools
 import json
 import logging
+import re
+import urllib.parse
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
+import requests
 from flask import current_app, flash, g, has_app_context, has_request_context, session
 from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
@@ -158,6 +161,25 @@ MAX_NUM_DATABASE_USER_SESSIONS = 50000
 
 class FabException(Exception):
     """Custom exception for FAB security manager."""
+
+
+class AzureTenantResolutionError(FabException):
+    """Raised when an Azure AD tenant identifier cannot be resolved to a canonical GUID."""
+
+
+# Microsoft identity platform authority hosts. Each national cloud mints its own issuer and
+# serves its own signing keys, so the host a deployment is configured against decides which
+# issuer to pin and which key set to verify against. Azure AD B2C is deliberately absent: its
+# authority is per-tenant (``<tenant>.b2clogin.com``) and its metadata is addressed by policy,
+# which does not fit the tenant-only lookup below.
+AZURE_COMMERCIAL_AUTHORITY_HOST = "login.microsoftonline.com"
+AZURE_AUTHORITY_HOSTS = frozenset(
+    {
+        AZURE_COMMERCIAL_AUTHORITY_HOST,
+        "login.microsoftonline.us",  # Azure Government
+        "login.partner.microsoftonline.cn",  # Azure operated by 21Vianet (China)
+    }
+)
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
@@ -320,6 +342,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_EDIT, RESOURCE_ASSET),
         (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
@@ -331,6 +354,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG_ALL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
@@ -379,6 +404,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # done in super, but we need it before we can call super.
         self.appbuilder = appbuilder
 
+        self._azure_tenant_guid_cache: dict[str, str] = {}
+        self._azure_tenant_metadata_cache: dict[tuple[str, str], tuple[tuple[str, ...], str]] = {}
         self._init_config()
         self._init_auth()
         self._init_data_model()
@@ -397,8 +424,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         self.create_jwt_manager()
 
     def _get_authentik_jwks(self, jwks_url) -> dict:
-        import requests
-
         resp = requests.get(jwks_url, timeout=30)
         if resp.status_code == 200:
             return resp.json()
@@ -594,7 +619,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             else:
                 for s in session.scalars(select(user_session_model)).all():
                     session_details = interface.serializer.decode(want_bytes(s.data))
-                    if session_details.get("_user_id") == user.id:
+                    session_user_id = session_details.get("_user_id")
+                    # Flask-Login stores whatever ``User.get_id()`` returns, which is a
+                    # string, while ``user.id`` is the integer column. Compare both sides
+                    # as strings so the two representations match; older sessions written
+                    # before ``get_id()`` returned a string are still handled.
+                    if session_user_id is not None and str(session_user_id) == str(user.id):
                         session.delete(s)
                 session.commit()
         else:
@@ -971,7 +1001,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perms = self.get_all_permissions()
 
         for dag in _iter_dags():
-            print(dag)
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = permissions.resource_name(dag.dag_id, resource_name)
                 for action_name in resource_values["actions"]:
@@ -2418,18 +2447,300 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if conf.get("fab", "SESSION_BACKEND") == "database":
             session.sid = str(uuid.uuid4())  # type: ignore
 
-    def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
-        import requests
+    def _get_microsoft_jwks(self, jwks_uri: str | None = None) -> list[dict[str, Any]]:
+        """
+        Fetch the Microsoft signing key set.
 
-        return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
+        ``jwks_uri`` is supplied for national clouds, which serve their own keys; the
+        commercial cloud keeps using the key set URL from Flask-AppBuilder so existing
+        deployments and overrides of this method are unaffected.
+        """
+        return requests.get(jwks_uri or MICROSOFT_KEY_SET_URL, timeout=30).json()
+
+    def _get_azure_authority_host(self) -> str:
+        """
+        Return the Microsoft identity platform host the deployment is configured against.
+
+        Falls back to the commercial cloud, which is what Flask-AppBuilder's Azure defaults
+        point at when no endpoint is configured explicitly.
+        """
+        azure = self.oauth_remotes["azure"]
+        for url in (
+            getattr(azure, "api_base_url", None),
+            getattr(azure, "access_token_url", None),
+            getattr(azure, "authorize_url", None),
+        ):
+            if not isinstance(url, str):
+                continue
+            parsed = urllib.parse.urlsplit(url)
+            if parsed.scheme.lower() != "https":
+                continue
+            host = (parsed.hostname or "").lower()
+            if host in AZURE_AUTHORITY_HOSTS:
+                return host
+        return AZURE_COMMERCIAL_AUTHORITY_HOST
+
+    def _get_azure_tenant_identifier(self) -> str | None:
+        """
+        Extract the configured Azure AD tenant identifier.
+
+        Prefers an explicit ``tenant_id`` in ``client_kwargs``; otherwise derives it from
+        the tenant path segment of configured Azure HTTPS endpoints on any Microsoft identity
+        platform authority host (see ``AZURE_AUTHORITY_HOSTS``).
+
+        Returns ``None`` when an explicit ``tenant_id`` is tenant-agnostic or when no
+        tenant-specific identifier can be derived from the configured endpoints. Tenant-agnostic
+        authorities (``common``, ``organizations``, ``consumers``) are skipped while searching.
+        """
+        azure = self.oauth_remotes["azure"]
+        tenant_agnostic_authorities = ("common", "organizations", "consumers")
+
+        tenant_id = azure.client_kwargs.get("tenant_id")
+        if tenant_id and isinstance(tenant_id, str) and tenant_id.strip():
+            tenant_identifier = tenant_id.strip()
+        else:
+            tenant_identifier = None
+            for url in (
+                getattr(azure, "api_base_url", None),
+                getattr(azure, "access_token_url", None),
+                getattr(azure, "authorize_url", None),
+            ):
+                if not isinstance(url, str):
+                    continue
+                parsed = urllib.parse.urlsplit(url)
+                if parsed.scheme.lower() != "https":
+                    continue
+                if (parsed.hostname or "").lower() not in AZURE_AUTHORITY_HOSTS:
+                    continue
+                path_parts = [segment for segment in parsed.path.split("/") if segment]
+                if path_parts:
+                    tenant_candidate = path_parts[0]
+                    if tenant_candidate.lower() in tenant_agnostic_authorities:
+                        continue
+                    tenant_identifier = tenant_candidate
+                    break
+
+        if not tenant_identifier or tenant_identifier.lower() in tenant_agnostic_authorities:
+            return None
+        return tenant_identifier
+
+    def _resolve_azure_tenant_guid(self, tenant_identifier: str) -> str:
+        """
+        Resolve an Azure tenant identifier (GUID or domain) to a canonical tenant GUID.
+
+        If the identifier is a valid UUID, it is normalized to lowercase hyphenated format
+        without calling any network endpoint. If the identifier is a domain, its OpenID
+        discovery metadata is queried from login.microsoftonline.com to extract the canonical
+        tenant GUID from the issuer claim. Successful resolutions are cached.
+        """
+        try:
+            return str(uuid.UUID(tenant_identifier))
+        except (ValueError, AttributeError):
+            pass
+
+        if tenant_identifier in self._azure_tenant_guid_cache:
+            return self._azure_tenant_guid_cache[tenant_identifier]
+
+        encoded_tenant = urllib.parse.quote(tenant_identifier, safe="")
+        discovery_url = (
+            f"https://login.microsoftonline.com/{encoded_tenant}/v2.0/.well-known/openid-configuration"
+        )
+        try:
+            resp = requests.get(discovery_url, timeout=5, allow_redirects=False)
+        except requests.exceptions.RequestException as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}' via OpenID discovery."
+            ) from ex
+
+        if resp.status_code != 200:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery endpoint returned HTTP {resp.status_code}."
+            )
+
+        try:
+            data = resp.json()
+        except ValueError as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}' via OpenID discovery."
+            ) from ex
+
+        if not isinstance(data, dict):
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                "OpenID discovery response is not a JSON object."
+            )
+
+        issuer = data.get("issuer")
+        if not isinstance(issuer, str):
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                "OpenID discovery response missing 'issuer' claim."
+            )
+
+        match = re.fullmatch(r"https://login\.microsoftonline\.com/([^/]+)/v2\.0", issuer, re.IGNORECASE)
+        if not match:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery returned unexpected issuer '{issuer}'."
+            )
+
+        try:
+            canonical_guid = str(uuid.UUID(match.group(1)))
+        except (ValueError, AttributeError) as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"issuer '{issuer}' does not contain a valid tenant GUID."
+            ) from ex
+
+        self._azure_tenant_guid_cache[tenant_identifier] = canonical_guid
+        return canonical_guid
+
+    def _fetch_azure_openid_configuration(self, discovery_url: str, tenant_identifier: str) -> dict[str, Any]:
+        """Fetch and sanity-check an OpenID discovery document, failing closed on any problem."""
+        try:
+            resp = requests.get(discovery_url, timeout=5, allow_redirects=False)
+        except requests.exceptions.RequestException as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}' via OpenID discovery."
+            ) from ex
+
+        if resp.status_code != 200:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery endpoint returned HTTP {resp.status_code}."
+            )
+
+        try:
+            data = resp.json()
+        except ValueError as ex:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}' via OpenID discovery."
+            ) from ex
+
+        if not isinstance(data, dict):
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                "OpenID discovery response is not a JSON object."
+            )
+        return data
+
+    def _resolve_azure_tenant_metadata(
+        self, tenant_identifier: str, authority_host: str
+    ) -> tuple[tuple[str, ...], str]:
+        """
+        Resolve the acceptable issuers and the signing key set URL for a national cloud tenant.
+
+        National clouds mint their own issuers and serve their own keys, and the values are not
+        derivable from the commercial ones, so they are read from the tenant's own OpenID
+        discovery metadata rather than assembled from a template. Both the v2.0 and v1.0
+        documents are consulted because either issuer form may appear depending on which
+        endpoints the deployment uses.
+
+        The issuer and ``jwks_uri`` are required to live on Microsoft-operated hosts for the
+        configured cloud, so a tampered metadata document cannot redirect verification
+        elsewhere. Results are cached per (authority host, tenant); failures are not cached.
+        """
+        cache_key = (authority_host, tenant_identifier)
+        if cache_key in self._azure_tenant_metadata_cache:
+            return self._azure_tenant_metadata_cache[cache_key]
+
+        encoded_tenant = urllib.parse.quote(tenant_identifier, safe="")
+        base = f"https://{authority_host}/{encoded_tenant}"
+
+        v2 = self._fetch_azure_openid_configuration(
+            f"{base}/v2.0/.well-known/openid-configuration", tenant_identifier
+        )
+        issuer = v2.get("issuer")
+        jwks_uri = v2.get("jwks_uri")
+        if not isinstance(issuer, str) or not isinstance(jwks_uri, str):
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                "OpenID discovery response missing 'issuer' or 'jwks_uri'."
+            )
+        if (urllib.parse.urlsplit(issuer).hostname or "").lower() != authority_host:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery returned issuer '{issuer}' outside the configured authority "
+                f"'{authority_host}'."
+            )
+        jwks_host = (urllib.parse.urlsplit(jwks_uri).hostname or "").lower()
+        if urllib.parse.urlsplit(jwks_uri).scheme.lower() != "https" or jwks_host != authority_host:
+            raise AzureTenantResolutionError(
+                f"Failed to resolve Azure tenant identifier '{tenant_identifier}': "
+                f"OpenID discovery returned jwks_uri '{jwks_uri}' outside the configured authority "
+                f"'{authority_host}'."
+            )
+
+        issuers = [issuer]
+
+        # The v1.0 document carries the sts.* style issuer. It is fetched separately because a
+        # deployment configured against v1.0 endpoints receives tokens with that issuer. If it
+        # cannot be read, the v1.0 form is simply not accepted -- that denies a login rather
+        # than widening what is trusted.
+        try:
+            v1 = self._fetch_azure_openid_configuration(
+                f"{base}/.well-known/openid-configuration", tenant_identifier
+            )
+        except AzureTenantResolutionError:
+            log.warning(
+                "Could not read the v1.0 OpenID metadata for Azure tenant %s on %s; "
+                "only the v2.0 issuer will be accepted.",
+                tenant_identifier,
+                authority_host,
+            )
+        else:
+            v1_issuer = v1.get("issuer")
+            if isinstance(v1_issuer, str) and v1_issuer not in issuers:
+                issuers.append(v1_issuer)
+
+        resolved = (tuple(issuers), jwks_uri)
+        self._azure_tenant_metadata_cache[cache_key] = resolved
+        return resolved
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
-            keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())  # type: ignore
-            claims = authlib_jwt.decode(id_token, keyset)
+            tenant_identifier = self._get_azure_tenant_identifier()
+            if not tenant_identifier:
+                raise AzureTenantResolutionError(
+                    "Azure AD tenant could not be determined from the OAuth configuration. "
+                    "The Microsoft key set used to verify id_token signatures serves keys for "
+                    "every tenant, so without a tenant the issuer of the token cannot be "
+                    "checked. Configure the tenant-specific endpoints "
+                    "(https://login.microsoftonline.com/<tenant-id>/...) or set 'tenant_id' "
+                    "in the azure provider's client_kwargs."
+                )
+
+            authority_host = self._get_azure_authority_host()
+            jwks_uri: str | None = None
+            if authority_host == AZURE_COMMERCIAL_AUTHORITY_HOST:
+                # The commercial cloud's issuer forms are stable and documented, so they are
+                # assembled from the tenant GUID. A GUID resolves without any network call,
+                # which keeps the common deployment off the discovery endpoint at login time.
+                tenant_guid = self._resolve_azure_tenant_guid(tenant_identifier)
+                issuers: tuple[str, ...] = (
+                    f"https://login.microsoftonline.com/{tenant_guid}/v2.0",
+                    f"https://sts.windows.net/{tenant_guid}/",
+                )
+            else:
+                # National clouds use different issuer hosts and serve their own signing keys,
+                # so both are read from the tenant's own metadata instead of being guessed.
+                issuers, jwks_uri = self._resolve_azure_tenant_metadata(tenant_identifier, authority_host)
+
+            claims_options = {
+                # The token must have been issued by the configured tenant. Both the v1.0 and
+                # v2.0 issuer forms are accepted because either may be returned depending on
+                # which endpoints the deployment is configured against.
+                "iss": {"essential": True, "values": list(issuers)},
+                # The token must have been minted for this application.
+                "aud": {"essential": True, "value": self.oauth_remotes["azure"].client_id},
+            }
+
+            keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks(jwks_uri))  # type: ignore
+            claims = authlib_jwt.decode(id_token, keyset, claims_options=claims_options)
             claims.validate()
             return claims
 

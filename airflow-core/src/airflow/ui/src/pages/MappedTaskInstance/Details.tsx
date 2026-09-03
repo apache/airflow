@@ -22,13 +22,15 @@ import { useOutletContext, useParams } from "react-router-dom";
 
 import { useTaskServiceGetTask } from "openapi/queries";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+
 import { getDuration } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", taskId = "" } = useParams();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   // The aggregate summary (per-state counts, dates) is streamed once by the parent page and
   // shared through the router outlet, so this tab does not re-open the TI summaries stream.

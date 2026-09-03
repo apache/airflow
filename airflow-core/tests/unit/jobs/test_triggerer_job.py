@@ -30,7 +30,7 @@ import typing
 import uuid
 from collections.abc import AsyncIterator
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -122,6 +122,33 @@ if TYPE_CHECKING:
     from kgb import SpyAgency
 
 pytestmark = pytest.mark.db_test
+
+
+class SerializedKwargsTrigger(BaseTrigger):
+    constructed: ClassVar[list[SerializedKwargsTrigger]] = []
+
+    def __init__(
+        self,
+        *,
+        apply_function_args: tuple[Any, ...],
+        apply_function_kwargs: dict[str, Any],
+    ) -> None:
+        super().__init__()
+        self.apply_function_args = apply_function_args
+        self.apply_function_kwargs = apply_function_kwargs
+        self.constructed.append(self)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "tests.unit.jobs.test_triggerer_job.SerializedKwargsTrigger",
+            {
+                "apply_function_args": self.apply_function_args,
+                "apply_function_kwargs": self.apply_function_kwargs,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        yield TriggerEvent(True)
 
 
 @pytest.fixture(autouse=True)
@@ -238,11 +265,22 @@ def test_capacity_decode():
 
 
 @pytest.mark.parametrize("team_name", ["team_a", None])
-def test_triggerer_job_runner_stores_team_name(team_name):
-    """TriggererJobRunner stores team_name as-is (validated at CLI layer)."""
-    job = Job()
-    runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
-    assert runner.team_name == team_name
+@patch.object(TriggerRunnerSupervisor, "start")
+def test_execute_passes_job_team_name_to_supervisor(mock_supervisor_start, team_name):
+    mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
+    mock_supervisor._exit_code = 0
+    mock_supervisor_start.return_value = mock_supervisor
+
+    job = Job(team_name=team_name)
+    job_runner = TriggererJobRunner(job)
+    with (
+        patch.object(job_runner, "register_signals"),
+        patch("airflow.jobs.triggerer_job_runner.stats.initialize"),
+    ):
+        job_runner._execute()
+
+    mock_supervisor_start.assert_called_once()
+    assert mock_supervisor_start.call_args.kwargs["team_name"] == team_name
 
 
 @pytest.mark.parametrize("platform_uses_exec", [True, False])
@@ -360,6 +398,27 @@ def test_run_invokes_seams_in_order(supervisor_builder, mocker):
     supervisor.run()
 
     assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
+
+
+@pytest.mark.parametrize("json_logs", [True, False])
+def test_process_log_messages_configures_logging_matching_json_logs(supervisor_builder, mocker, json_logs):
+    """_process_log_messages_from_subprocess() must reconfigure logging using the
+    configured ``logging.json_logs`` value rather than the default
+    ``json_output=False``.
+    This generator reconfigures structlog globally when first primed. Failing to
+    propagate the configured JSON logging mode can leave the triggerer with an
+    inconsistent logging configuration and break subprocess log forwarding.
+    """
+    supervisor = supervisor_builder()
+
+    configure_logging = mocker.patch("airflow.sdk.log.configure_logging")
+    mocker.patch("airflow.sdk.log.logging_processors")
+
+    with conf_vars({("logging", "json_logs"): str(json_logs)}):
+        gen = supervisor._process_log_messages_from_subprocess()
+        next(gen)  # prime the generator -- this is what calls configure_logging()
+
+    configure_logging.assert_called_once_with(json_output=json_logs)
 
 
 def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
@@ -1077,21 +1136,22 @@ def test_trigger_logger_fd_closed_when_removed(session):
         mock_init_log_file.return_value.open.return_value = mock_file
 
         trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
-        trigger_runner_supervisor.load_triggers()
+        try:
+            trigger_runner_supervisor.load_triggers()
 
-        # The 0.5s trigger must fire and its finished-trigger cleanup must run before the log FD is
-        # closed. How many service iterations that takes depends on real wall-clock timing and runner
-        # speed (_service_subprocess returns as soon as there is I/O, not after a full 0.1s), so poll
-        # until the close happens rather than relying on a fixed iteration count -- a fixed count is
-        # flaky on slow/loaded runners where the trigger has not fired yet within the window.
-        for _ in range(300):
-            trigger_runner_supervisor._service_subprocess(0.1)
-            if mock_file.close.called:
-                break
+            # The 0.5s trigger must fire and its finished-trigger cleanup must run before the log FD is
+            # closed. How many service iterations that takes depends on real wall-clock timing and runner
+            # speed (_service_subprocess returns as soon as there is I/O, not after a full 0.1s), so poll
+            # until the close happens rather than relying on a fixed iteration count -- a fixed count is
+            # flaky on slow/loaded runners where the trigger has not fired yet within the window.
+            for _ in range(300):
+                trigger_runner_supervisor._service_subprocess(0.1)
+                if mock_file.close.called:
+                    break
+        finally:
+            trigger_runner_supervisor.kill(force=False)
 
     mock_file.close.assert_called_once()
-
-    trigger_runner_supervisor.kill(force=False)
 
 
 def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_supervisor):
@@ -1135,6 +1195,26 @@ class TestTriggerRunner:
         """[triggerer] shared_stream_cohort_grace_period is wired into SharedStreamManager."""
         trigger_runner = TriggerRunner()
         assert trigger_runner._shared_streams._cohort_grace_period == 3.0
+
+    def test_get_trigger_by_classpath_requires_basetrigger_subclass(self) -> None:
+        """
+        ``classpath`` comes from the (attacker-influenceable) deferred-task payload, so
+        ``get_trigger_by_classpath`` must refuse anything that is not a ``BaseTrigger``
+        subclass before it is cached and instantiated -- otherwise an arbitrary importable
+        callable (e.g. ``subprocess.check_output``) could be invoked in the triggerer.
+        """
+        trigger_runner = TriggerRunner()
+
+        # A real BaseTrigger subclass resolves and is cached.
+        assert (
+            trigger_runner.get_trigger_by_classpath("airflow.triggers.testing.SuccessTrigger")
+            is SuccessTrigger
+        )
+
+        # An arbitrary importable callable is rejected and never cached.
+        with pytest.raises(TypeError, match="does not resolve to a"):
+            trigger_runner.get_trigger_by_classpath("subprocess.check_output")
+        assert "subprocess.check_output" not in trigger_runner.trigger_cache
 
     @pytest.mark.asyncio
     async def test_block_watchdog_does_not_log_when_threshold_is_not_exceeded(self) -> None:
@@ -1653,6 +1733,79 @@ class TestTriggerRunner:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
 
+        await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=SerializedKwargsTrigger,
+    )
+    async def test_trigger_kwargs_cleanup_decodes_stringified_encoding_keys(
+        self, mock_get_trigger_by_classpath, session
+    ):
+        import json
+
+        from airflow.models.crypto import get_fernet
+        from airflow.sdk.serde import serialize
+
+        SerializedKwargsTrigger.constructed.clear()
+        trigger_orm = Trigger(
+            classpath="tests.unit.jobs.test_triggerer_job.SerializedKwargsTrigger",
+            kwargs={},
+        )
+        legacy_stringified_kwargs = {
+            "apply_function_args": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            "apply_function_kwargs": {
+                "Encoding.TYPE": "dict",
+                "Encoding.VAR": {
+                    "action_filter": ["create"],
+                    "data_filter": {
+                        "Encoding.TYPE": "dict",
+                        "Encoding.VAR": {"BatchId": None},
+                    },
+                },
+            },
+        }
+        trigger_orm.encrypted_kwargs = (
+            get_fernet().encrypt(json.dumps(serialize(legacy_stringified_kwargs)).encode()).decode()
+        )
+        session.add(trigger_orm)
+        session.commit()
+
+        stored_kwargs = trigger_orm.kwargs
+        assert stored_kwargs == {
+            "apply_function_args": {"Encoding.TYPE": "tuple", "Encoding.VAR": []},
+            "apply_function_kwargs": {
+                "Encoding.TYPE": "dict",
+                "Encoding.VAR": {
+                    "action_filter": ["create"],
+                    "data_filter": {
+                        "Encoding.TYPE": "dict",
+                        "Encoding.VAR": {"BatchId": None},
+                    },
+                },
+            },
+        }
+
+        runner = TriggerRunner()
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=trigger_orm.id,
+                ti=None,
+                classpath=trigger_orm.classpath,
+                encrypted_kwargs=trigger_orm.encrypted_kwargs,
+            )
+        )
+
+        await runner.create_triggers()
+
+        trigger_instance = SerializedKwargsTrigger.constructed[-1]
+        assert trigger_instance.apply_function_args == ()
+        assert trigger_instance.apply_function_kwargs == {
+            "action_filter": ["create"],
+            "data_filter": {"BatchId": None},
+        }
+        runner.triggers[trigger_orm.id]["task"].cancel()
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio

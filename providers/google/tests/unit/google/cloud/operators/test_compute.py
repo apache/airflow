@@ -27,7 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineDeleteInstanceGroupManagerOperator,
@@ -42,7 +42,6 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
 )
-from airflow.utils import timezone
 
 EMPTY_CONTENT = b""
 GCP_PROJECT_ID = "project-id"
