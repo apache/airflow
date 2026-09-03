@@ -734,14 +734,7 @@ class TestGitDagBundle:
         assert {"test_dag.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_tracking_ref_commit_sha_promote_fails_without_clearing_storage(self, mock_githook, git_repo):
-        """A SHA created after the bundle's local storage was first populated can't be
-        promoted to in-place: the working clone never fetches it before checkout.
-
-        This documents a known limitation rather than desired behavior -- it should start
-        passing once the fix tracked at https://github.com/apache/airflow/issues/71388 lands,
-        at which point this test should be updated to assert success instead.
-        """
+    def test_tracking_ref_commit_sha_promote_without_clearing_storage(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         first_commit = repo.head.commit
@@ -758,11 +751,13 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         second_commit = repo.index.commit("Another commit")
 
-        # Promote in-place: config change re-creates the bundle against the same local
-        # storage. The new commit's objects were never fetched into the working clone.
+        # Promote in-place: config change re-creates the bundle against the same local storage.
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
-        with pytest.raises(GitCommandError, match="reference is not a tree|unable to read tree"):
-            bundle.initialize()
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == second_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_tracking_ref_commit_sha_promote_succeeds_with_fresh_storage(self, mock_githook, git_repo):
