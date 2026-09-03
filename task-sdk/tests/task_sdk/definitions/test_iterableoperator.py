@@ -71,7 +71,7 @@ def mock_context(task, run_id: str | None = None) -> Context:
     """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
     ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``."""
     context = _mock_context_base(task=task, run_id=run_id)
-    context["task_state_store"] = MockTaskStateStoreAccessor()
+    context["task_state_store"] = MockTaskStateStoreAccessor()  # type: ignore[typeddict-item]
     return context
 
 

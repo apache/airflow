@@ -336,15 +336,18 @@ class IterableOperator(BaseOperator):
         task_state_store = context["task_state_store"]
         checkpoint = await task_state_store.aget(self._checkpoint_key(task.index))
         if isinstance(checkpoint, dict):
+            try_number = checkpoint.get("try_number", 0)
+            if not isinstance(try_number, int):
+                try_number = 0
             if checkpoint.get("status") == "succeeded":
                 self.log.info(
                     "Skipping task instance %s for %s which already finished successfully after %s attempts",
                     task.index,
                     task.task_id,
-                    checkpoint.get("try_number", 0) + 1,
+                    try_number + 1,
                 )
                 return task, None, None
-            task.try_number = checkpoint.get("try_number", 0)
+            task.try_number = try_number
 
         try:
             if task.is_async:
