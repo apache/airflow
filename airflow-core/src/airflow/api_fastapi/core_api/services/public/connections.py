@@ -164,7 +164,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                         )
                     ConnectionBody(**connection.model_dump())
 
-                    update_orm_from_pydantic(old_connection, connection)
+                    update_orm_from_pydantic(old_connection, connection, action.update_mask)
                     results.success.append(connection.connection_id)
 
         except HTTPException as e:

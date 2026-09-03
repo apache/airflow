@@ -2047,6 +2047,38 @@ class TestBulkConnections(TestConnectionEndpoint):
             assert response_data[connection_id] == value
         _check_last_log(session, dag_id=None, event="bulk_connections", logical_date=None)
 
+    def test_bulk_update_respects_update_mask(self, test_client, session):
+        """A bulk update must not modify fields that are absent from ``update_mask``."""
+        self.create_connection()
+
+        response = test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "connection_id": TEST_CONN_ID,
+                                "conn_type": "updated_type",
+                                "description": "updated_description",
+                            }
+                        ],
+                        "update_mask": ["description"],
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["update"] == {"success": [TEST_CONN_ID], "errors": []}
+
+        session.expire_all()
+        connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert connection.conn_type == TEST_CONN_TYPE
+        assert connection.description == "updated_description"
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/connections", json={})
         assert response.status_code == 401
