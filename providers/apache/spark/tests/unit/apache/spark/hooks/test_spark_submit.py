@@ -962,7 +962,7 @@ class TestSparkSubmitHook:
         hook._process_spark_submit_log(log_lines)
 
         # Then
-        assert hook._kubernetes_driver_pod == pod_name
+        assert hook._k8s_driver_pod_name == pod_name
         assert hook._kubernetes_application_id == "spark-465b868ada474bda82ccb84ab2747fcd"
         assert hook._spark_exit_code == 999
 
@@ -987,7 +987,7 @@ class TestSparkSubmitHook:
 
         hook._process_spark_submit_log(log_lines)
 
-        assert hook._kubernetes_driver_pod == "arrow-spark-c8e2e29e73db9c93-driver"
+        assert hook._k8s_driver_pod_name == "arrow-spark-c8e2e29e73db9c93-driver"
 
     def test_process_spark_client_mode_submit_log_k8s(self):
         # Given
@@ -1259,7 +1259,7 @@ class TestSparkSubmitHook:
         has already exited.
         """
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
         hook._submit_sp = MagicMock()
         # spark-submit already exited
@@ -1632,7 +1632,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_succeeds(self, mock_get_client):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1648,7 +1648,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_raises_on_failed(self, mock_get_client):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1661,7 +1661,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_raises_after_consecutive_unknown(self, mock_get_client):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1679,7 +1679,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_tolerates_transient_api_errors(self, mock_get_client, _):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1696,7 +1696,7 @@ class TestSparkSubmitHook:
     def test_post_submit_commands_run_exactly_once_on_k8s_path(self, mock_get_client):
         """_run_post_submit_commands must fire exactly once: in _poll_k8s_driver_via_api finally."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1713,7 +1713,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_raises_after_consecutive_api_errors(self, mock_get_client, _):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1729,7 +1729,7 @@ class TestSparkSubmitHook:
     def test_poll_k8s_driver_exits_cleanly_on_404(self, mock_get_client):
         """404 from read_namespaced_pod means pod was deleted by on_kill — should return cleanly, not raise."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1743,7 +1743,7 @@ class TestSparkSubmitHook:
     def test_poll_k8s_driver_container_exit_zero_succeeds(self, mock_get_client):
         """Driver container exits cleanly with code 0"""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1772,7 +1772,7 @@ class TestSparkSubmitHook:
     def test_poll_k8s_driver_container_nonzero_exit_raises(self, mock_get_client):
         """Driver container raises RuntimeError with non-zero exit code"""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1799,7 +1799,7 @@ class TestSparkSubmitHook:
     def test_poll_k8s_driver_single_container_fallback(self, mock_get_client):
         """Single container with no 'spark' or 'driver' in its name is still set as the driver container"""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1829,7 +1829,7 @@ class TestSparkSubmitHook:
     def test_poll_k8s_driver_prioritizes_driver_over_spark_sidecar(self, mock_get_client, _):
         """A sidecar matching 'spark' that exits first must not be mistaken for the driver."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1869,13 +1869,13 @@ class TestSparkSubmitHook:
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_custom_container_name_override(self, mock_get_client):
-        """An explicit kubernetes_driver_container matches by exact name, bypassing the heuristic."""
+        """An explicit k8s_driver_container_name matches by exact name, bypassing the heuristic."""
         hook = SparkSubmitHook(
             conn_id="spark_k8s_cluster",
             track_driver_via_k8s_api=True,
-            kubernetes_driver_container="custom-driver",
+            k8s_driver_container_name="custom-driver",
         )
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1907,9 +1907,9 @@ class TestSparkSubmitHook:
         hook = SparkSubmitHook(
             conn_id="spark_k8s_cluster",
             track_driver_via_k8s_api=True,
-            kubernetes_driver_container="does-not-exist",
+            k8s_driver_container_name="does-not-exist",
         )
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1926,7 +1926,7 @@ class TestSparkSubmitHook:
     def test_poll_k8s_driver_failed_phase_with_completed_container_warns(self, mock_get_client):
         """phase=Failed with a driver container that exited 0 must warn and succeed, not raise."""
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
@@ -1962,7 +1962,7 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_container_waiting_warning(self, mock_get_client, _):
         hook = SparkSubmitHook(conn_id="spark_k8s_cluster", track_driver_via_k8s_api=True)
-        hook._kubernetes_driver_pod = "spark-app-abc-driver"
+        hook._k8s_driver_pod_name = "spark-app-abc-driver"
         hook._kubernetes_application_id = "spark-abc"
 
         mock_client = mock_get_client.return_value
