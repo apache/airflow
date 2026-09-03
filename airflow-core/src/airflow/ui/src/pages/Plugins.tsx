@@ -20,9 +20,11 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useDocumentTitle } from "src/utils";
 
 import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
