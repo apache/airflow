@@ -220,8 +220,23 @@ Another way to achieve the same is by accessing ``outlet_events`` in a task's ex
 .. code-block:: python
 
     @asset(schedule=None)
-    def write_to_s3(self, context):
-        context["outlet_events"][self].extra = {"row_count": len(df)}
+    def write_to_s3(self, *, outlet_events):
+        outlet_events[self].extra = {"row_count": len(df)}
+
+These two APIs are equivalent for extra: Airflow writes yielded ``Metadata.extra`` onto the same per-task-instance accessor (merging with ``update``). Extra never implies a partition key; see :ref:`asset-partitions` for attaching keys with ``add_partitions`` or ``Metadata.partition_keys``.
+
+From a ``@task``, ``outlet_events`` is a context key. A default of ``None`` is fine; a non-``None`` default is not. Prefer a keyword-only parameter. A positional ``outlet_events=None`` plus a colliding positional argument is not supported:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, task
+
+    example_asset = Asset("s3://asset/example.csv")
+
+
+    @task(outlets=[example_asset])
+    def produce(*, outlet_events):
+        outlet_events[example_asset].extra = {"row_count": 1}
 
 There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
 
@@ -399,6 +414,12 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
         s3_asset = Asset(uri="s3://bucket/my-task", name="example_s3")
         yield Metadata(s3_asset, extra={"k": "v"}, alias=AssetAlias("my-task-outputs"))
 
+``Metadata.partition_keys`` is recorded on the concrete asset accessor only
+(``outlet_events[asset].add_partitions``). Alias-resolved events keep using the
+Dag-run partition key. Declare the asset as an outlet, or call
+``add_partitions`` on that asset, if the key must appear on the event. Do not
+expect ``alias=`` to fan out per-emission partition keys.
+
 Only one asset event is emitted for an added asset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple asset events. In the following example, two asset events will be emitted.
 
 .. code-block:: python
@@ -532,6 +553,8 @@ depend on whether the producer and consumer have a team association:
 
 When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
 consuming Dags, preserving backward compatibility.
+
+.. _asset-partitions:
 
 Asset partitions
 ----------------
@@ -958,26 +981,36 @@ When the partition key is not known ahead of time (for example, a watermark
 discovered from the source data, a late-arriving file, or a backfill request),
 let the producing task decide it while it runs. Schedule the producer with
 ``PartitionedAtRuntime()`` and record the key(s) on the emitted event with
-``outlet_events[self].add_partitions(...)``:
+``outlet_events[self].add_partitions(...)``, or by yielding ``Metadata`` with
+``partition_keys``. Extra still only annotates the event; it does not select a
+partition:
 
 .. code-block:: python
 
-    from airflow.sdk import PartitionedAtRuntime, asset
+    from airflow.sdk import Metadata, PartitionedAtRuntime, asset
 
 
     @asset(
         uri="file://incoming/player-stats/live-region.csv",
         schedule=PartitionedAtRuntime(),
     )
-    def live_region_player_stats(self, outlet_events):
+    def live_region_player_stats(self, *, outlet_events):
         # The key is only known once the task runs.
+        outlet_events[self].extra = {"row_count": 1}
         outlet_events[self].add_partitions("us")
+        # Same as:
+        # yield Metadata(self, extra={"row_count": 1}, partition_keys="us")
+
+``Metadata.partition_keys`` is recorded on the concrete asset accessor. Events
+emitted only through an alias still use the producing Dag run's partition key.
 
 Inside an ``@asset`` function, ``self`` (the emitted ``Asset``) and
 ``outlet_events`` (the outlet event accessor) are reserved parameter names that
-Airflow populates at runtime. Pass a single key, or a list to fan out to several
-partitions in one run. Each key produces its own asset event, and duplicate
-keys collapse to a single event:
+Airflow populates at runtime. Prefer keyword-only ``outlet_events``. Pass a
+single key, or a list to fan out to several partitions in one run. Each key
+produces its own asset event, and duplicate keys collapse to a single event.
+Two yields with different ``partition_keys`` on one task instance also
+fan out, and share the same merged extra:
 
 .. code-block:: python
 
@@ -985,8 +1018,20 @@ keys collapse to a single event:
         uri="file://incoming/player-stats/multi-region.csv",
         schedule=PartitionedAtRuntime(),
     )
-    def multi_region_player_stats(self, outlet_events):
+    def multi_region_player_stats(self, *, outlet_events):
         outlet_events[self].add_partitions(["us", "eu", "apac"])
+        # Same as:
+        # yield Metadata(self, partition_keys=["us", "eu", "apac"])
+
+A partitioned consumer (``PartitionedAssetTimetable``) requires a partition
+key. An extra-only emit (no ``add_partitions`` / no ``Metadata.partition_keys``)
+logs a missing-key warning and does not create an ``AssetPartitionDagRun``.
+Airflow does not invent a key from extra.
+
+.. note::
+
+   Airflow 3 batches asset events that share a partition key into one downstream
+   Dag run. Distinct keys are required for one run per mapped task instance.
 
 When a runtime run emits exactly one partition key, the producing
 ``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume

@@ -2065,6 +2065,73 @@ class TestTaskInstance:
         assert len(asset_alias_obj.assets) == 1
         assert asset_alias_obj.assets[0].uri == asset_uri
 
+    @pytest.mark.parametrize(
+        "keyword_only",
+        [False, True],
+        ids=["positional_or_keyword", "keyword_only"],
+    )
+    def test_mapped_outlet_events_extra_injection(self, dag_maker, session, keyword_only):
+        asset = Asset("test_mapped_outlet_events_extra")
+        with dag_maker(schedule=None, serialized=True, session=session):
+            if keyword_only:
+
+                @task(outlets=[asset])
+                def write(x, *, outlet_events=None):
+                    outlet_events[asset].extra = {"n": x}
+
+            else:
+
+                @task(outlets=[asset])
+                def write(x, outlet_events=None):
+                    outlet_events[asset].extra = {"n": x}
+
+            write.expand(x=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun()
+        for map_index in range(3):
+            dag_maker.run_ti("write", dag_run=dr, map_index=map_index, session=session)
+
+        events = session.scalars(select(AssetEvent).where(AssetEvent.source_task_id == "write")).all()
+        assert len(events) == 3
+        assert {event.extra["n"] for event in events} == {1, 2, 3}
+        assert all(event.partition_key is None for event in events)
+
+    def test_mapped_metadata_partition_key_and_extra_per_ti(self, dag_maker, session):
+        asset = Asset("test_mapped_metadata_partition")
+        items = ["us", "eu", "apac"]
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=[asset])
+            def write(item):
+                yield Metadata(asset, {"section": item}, partition_keys=item)
+
+            write.expand(item=items)
+
+        dr = dag_maker.create_dagrun()
+        for map_index in range(len(items)):
+            dag_maker.run_ti("write", dag_run=dr, map_index=map_index, session=session)
+
+        events = session.scalars(select(AssetEvent).where(AssetEvent.source_task_id == "write")).all()
+        assert len(events) == 3
+        assert {event.partition_key for event in events} == set(items)
+        for event in events:
+            assert event.extra == {"section": event.partition_key}
+
+    def test_metadata_invalid_partition_key_fails_task_without_event(self, dag_maker, session):
+        asset = Asset("test_metadata_invalid_partition_key")
+        with dag_maker(schedule=None, serialized=True, session=session):
+
+            @task(outlets=[asset])
+            def write():
+                yield Metadata(asset, extra={"n": 1}, partition_keys="")
+
+            write()
+
+        with pytest.raises(ValueError, match="must not be empty"):
+            dag_maker.run_ti("write")
+
+        assert session.scalar(select(AssetEvent)) is None
+
     @pytest.mark.need_serialized_dag
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
