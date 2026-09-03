@@ -1153,6 +1153,10 @@ logging:
         A comma separated list of keywords related to errors whose presence should display the line in red
         color in UI
       version_added: 2.10.0
+      version_deprecated: 3.4.0
+      deprecation_reason: |
+        This option was used by the legacy Flask-based webserver UI for log-line coloring.
+        That UI was removed in Airflow 3.0 and the new React UI does not read this setting.
       type: string
       example: ~
       default: "error,exception"
@@ -1161,6 +1165,10 @@ logging:
         A comma separated list of keywords related to warning whose presence should display the line in yellow
         color in UI
       version_added: 2.10.0
+      version_deprecated: 3.4.0
+      deprecation_reason: |
+        This option was used by the legacy Flask-based webserver UI for log-line coloring.
+        That UI was removed in Airflow 3.0 and the new React UI does not read this setting.
       type: string
       example: ~
       default: "warn"
@@ -2781,6 +2789,10 @@ scheduler:
         in the DB with a logical_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
+      version_deprecated: 3.4.0
+      deprecation_reason: |
+        This option is no longer read. The default value for ``ignore_first_depends_on_past``
+        is now hardcoded in the Task SDK and cannot be changed via configuration.
       type: boolean
       example: ~
       default: "True"
