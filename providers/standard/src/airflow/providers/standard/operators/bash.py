@@ -181,7 +181,7 @@ class BashOperator(BaseOperator):
         self._is_inline_cmd: bool | None = None
 
     @cached_property
-    def subprocess_hook(self):
+    def subprocess_hook() -> SubprocessHook:
         """Returns hook for running the bash command."""
         return SubprocessHook()
 
@@ -204,7 +204,7 @@ class BashOperator(BaseOperator):
         env.update(airflow_context_vars)
         return env
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> Any:
         bash_path: str = shutil.which("bash") or "bash"
         if self.cwd is not None:
             if not os.path.exists(self.cwd):
