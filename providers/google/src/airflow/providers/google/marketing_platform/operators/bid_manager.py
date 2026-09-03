@@ -104,6 +104,110 @@ class GoogleBidManagerCreateQueryOperator(BaseOperator):
         return response
 
 
+class GoogleBidManagerGetQueryOperator(BaseOperator):
+    """
+    Retrieves a stored query.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleBidManagerGetQueryOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/bid-manager/v2/queries/get`
+
+    :param query_id: Query ID to retrieve.
+    :param api_version: The version of the api that will be requested for example 'v2'.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "query_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        query_id: str,
+        api_version: str = "v2",
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.query_id = query_id
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> dict:
+        hook = GoogleBidManagerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info("Retrieving Bid Manager API query with id: %s", self.query_id)
+        return hook.get_query(query_id=self.query_id)
+
+
+class GoogleBidManagerListQueriesOperator(BaseOperator):
+    """
+    Retrieves stored queries.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleBidManagerListQueriesOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/bid-manager/v2/queries/list`
+
+    :param api_version: The version of the api that will be requested for example 'v2'.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = ("impersonation_chain",)
+
+    def __init__(
+        self,
+        *,
+        api_version: str = "v2",
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> list[dict]:
+        hook = GoogleBidManagerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info("Retrieving list of Bid Manager API queries.")
+        return hook.list_queries()
+
+
 class GoogleBidManagerRunQueryOperator(BaseOperator):
     """
     Runs a stored query to generate a report.
@@ -227,6 +331,124 @@ class GoogleBidManagerDeleteQueryOperator(BaseOperator):
         self.log.info("Report deleted.")
 
 
+class GoogleBidManagerGetReportOperator(BaseOperator):
+    """
+    Retrieves details of a specific report.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleBidManagerGetReportOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/bid-manager/v2/queries.reports/get`
+
+    :param query_id: Query ID for which report was generated.
+    :param report_id: Report ID to retrieve.
+    :param api_version: The version of the api that will be requested for example 'v2'.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "query_id",
+        "report_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        query_id: str,
+        report_id: str,
+        api_version: str = "v2",
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.query_id = query_id
+        self.report_id = report_id
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> dict:
+        hook = GoogleBidManagerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info(
+            "Retrieving Bid Manager API report with query_id: %s and report_id: %s",
+            self.query_id,
+            self.report_id,
+        )
+        return hook.get_report(query_id=self.query_id, report_id=self.report_id)
+
+
+class GoogleBidManagerListReportsOperator(BaseOperator):
+    """
+    Retrieves a list of reports for a specific query.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleBidManagerListReportsOperator`
+
+    .. seealso::
+        Check also the official API docs:
+        `https://developers.google.com/bid-manager/v2/queries.reports/list`
+
+    :param query_id: Query ID for which reports were generated.
+    :param api_version: The version of the api that will be requested for example 'v2'.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "query_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        query_id: str,
+        api_version: str = "v2",
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.query_id = query_id
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> list[dict]:
+        hook = GoogleBidManagerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info("Retrieving list of Bid Manager API reports for query_id: %s", self.query_id)
+        return hook.list_reports(query_id=self.query_id)
+
+
 class GoogleBidManagerDownloadReportOperator(BaseOperator):
     """
     Retrieves a stored query.
@@ -313,8 +535,10 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
 
         resource = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = resource.get("metadata", {}).get("status", {}).get("state")
-        if resource and status not in ["DONE", "FAILED"]:
-            raise AirflowException(f"Report {self.report_id} for query {self.query_id} is still running")
+        if status != "DONE":
+            raise AirflowException(
+                f"Report {self.report_id} for query {self.query_id} is in state '{status}'. Expected 'DONE'."
+            )
 
         # If no custom report_name provided, use Bid Manager name
         file_url = resource["metadata"]["googleCloudStoragePath"]
