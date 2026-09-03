@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 
 import pytest
@@ -323,6 +323,27 @@ class TestCliVariables:
         for item in data:
             if item["key"] in ["empty_var", "none_var", "normal_var"]:
                 assert item["val"] == "***"
+
+    def test_variables_list_warns_about_env_var_variables(self, monkeypatch):
+        """An `AIRFLOW_VAR_*` environment variable should trigger a stderr warning."""
+        monkeypatch.setenv("AIRFLOW_VAR_MY_HIDDEN_VAR", "hidden_value")
+        args = self.parser.parse_args(["variables", "list", "--output", "json"])
+        with redirect_stderr(StringIO()) as stderr_io:
+            variable_command.variables_list(args)
+            stderr = stderr_io.getvalue()
+        assert "AIRFLOW_VAR_" in stderr
+        assert "metadata database" in stderr
+
+    def test_variables_list_does_not_warn_by_default(self, monkeypatch):
+        """With no env-var variables or secrets backend configured, no warning is printed."""
+        for key in list(os.environ):
+            if key.startswith("AIRFLOW_VAR_"):
+                monkeypatch.delenv(key, raising=False)
+        args = self.parser.parse_args(["variables", "list", "--output", "json"])
+        with redirect_stderr(StringIO()) as stderr_io:
+            variable_command.variables_list(args)
+            stderr = stderr_io.getvalue()
+        assert stderr == ""
 
     def test_variables_delete(self):
         """Test variable_delete command"""

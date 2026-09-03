@@ -21,7 +21,7 @@ import os
 import re
 import shlex
 import warnings
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 
 import pytest
@@ -146,6 +146,32 @@ class TestCliListConnections:
         args = self.parser.parse_args(["connections", "list", "--hide-sensitive"])
         with pytest.raises(SystemExit, match="--hide-sensitive can only be used with --show-values"):
             connection_command.connections_list(args)
+
+    def test_cli_connections_list_warns_about_env_var_connections(self, monkeypatch):
+        """An `AIRFLOW_CONN_*` environment variable should trigger a stderr warning."""
+        # `setup_method`'s `add_default_connections_back=True` also seeds `AIRFLOW_CONN_*`
+        # env vars for every default connection, so isolate this test from that ambient state.
+        for key in list(os.environ):
+            if key.startswith("AIRFLOW_CONN_"):
+                monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv("AIRFLOW_CONN_MY_HIDDEN_CONN", "postgresql://u:p@host/db")
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
+        with redirect_stderr(StringIO()) as stderr_io:
+            connection_command.connections_list(args)
+            stderr = stderr_io.getvalue()
+        assert "AIRFLOW_CONN_" in stderr
+        assert "metadata database" in stderr
+
+    def test_cli_connections_list_does_not_warn_by_default(self, monkeypatch):
+        """With no env-var connections or secrets backend configured, no warning is printed."""
+        for key in list(os.environ):
+            if key.startswith("AIRFLOW_CONN_"):
+                monkeypatch.delenv(key, raising=False)
+        args = self.parser.parse_args(["connections", "list", "--output", "json"])
+        with redirect_stderr(StringIO()) as stderr_io:
+            connection_command.connections_list(args)
+            stderr = stderr_io.getvalue()
+        assert stderr == ""
 
 
 class TestUriMasking:
