@@ -94,6 +94,9 @@ JOB_RUN_SUCCESS_STATES = ("SUCCEEDED",)
 JOB_RUN_TERMINAL_STATES = (*JOB_RUN_SUCCESS_STATES, "STOPPED", "FAILED", "TIMEOUT", "ERROR", "EXPIRED")
 # Synthetic state for a run id Glue no longer knows about, so a retry submits fresh rather than failing.
 NOT_FOUND_STATE = "NOT_FOUND"
+# Page cap for the task-UUID scan fallback (see _find_job_run_id_by_task_uuid): bounds a no-match
+# scan to 1000 runs (MaxResults=50/page) instead of the job's entire history.
+TASK_UUID_SCAN_MAX_PAGES = 20
 
 
 class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
@@ -328,11 +331,19 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             script_args[self.TASK_UUID_ARG] = task_uuid
         return script_args, task_uuid
 
-    def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
-        # Unbounded walk with no page cap; a no-match run is the common retry shape and pays the
-        # full scan. Tracked at https://github.com/apache/airflow/issues/71489.
+    def _find_job_run_id_by_task_uuid(self, task_uuid: str, context: Context) -> tuple[str, str] | None:
+        """
+        Scan job run history for a run tagged with this task instance's UUID.
+
+        Runs are newest-first, so the scan stops at the first run older than this DAG run,
+        with ``TASK_UUID_SCAN_MAX_PAGES`` as a backstop. Requires ``glue:GetJobRuns``.
+
+        """
+        dag_run = context.get("dag_run")
+        cutoff = getattr(dag_run, "start_date", None) if dag_run is not None else None
+
         next_token: str | None = None
-        while True:
+        for _ in range(TASK_UUID_SCAN_MAX_PAGES):
             request = {"JobName": self.job_name, "MaxResults": 50}
             if next_token:
                 request["NextToken"] = next_token
@@ -344,9 +355,22 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     job_run_state = job_run.get("JobRunState")
                     if job_run_id and job_run_state:
                         return job_run_id, job_run_state
+                started_on = job_run.get("StartedOn")
+                if cutoff is not None and started_on is not None and started_on < cutoff:
+                    self.log.info(
+                        "Stopping Glue job run UUID scan: reached a run started before this DAG run."
+                    )
+                    return None
             next_token = response.get("NextToken")
             if not next_token:
                 return None
+        self.log.error(
+            "Glue job run UUID scan for %s exceeded %d pages without finding a match or reaching "
+            "this DAG run's start; giving up and submitting a fresh run.",
+            self.job_name,
+            TASK_UUID_SCAN_MAX_PAGES,
+        )
+        return None
 
     def execute(self, context: Context) -> str | None:
         """
@@ -447,11 +471,14 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
                 if self.is_job_active(state):
                     return previous_job_run_id
-            except Exception:
-                self.log.warning("Failed to get previous Glue job run state", exc_info=True)
+            except ClientError:
+                self.log.exception(
+                    "Failed to get previous Glue job run state for run_id=%s",
+                    previous_job_run_id,
+                )
         else:
             try:
-                existing = self._find_job_run_id_by_task_uuid(task_uuid)
+                existing = self._find_job_run_id_by_task_uuid(task_uuid, context)
                 if existing:
                     existing_job_run_id, existing_job_run_state = existing
                     self.log.info(
@@ -461,8 +488,11 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     )
                     if self.is_job_active(existing_job_run_state):
                         return existing_job_run_id
-            except Exception:
-                self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
+            except ClientError:
+                self.log.exception(
+                    "Failed to find previous Glue job run by task UUID for job_name=%s",
+                    self.job_name,
+                )
         return None
 
     def _has_stored_external_id(self, context: Context) -> bool:
