@@ -408,6 +408,75 @@ class TestGetDagRun:
         assert response.status_code == 403
 
 
+class TestGetDagRunMasksPasswordConf:
+    def test_masks_conf_value_for_password_format_param(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_param",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_with_secret",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"api_token": "super-secret-value", "note": "not-a-secret"}
+        session.merge(dag_run)
+        session.commit()
+
+        response = test_client.get("/dags/test_dag_password_param/dagRuns/run_with_secret")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["conf"]["api_token"] == "***"
+        assert body["conf"]["note"] == "not-a-secret"
+
+    def test_does_not_mask_conf_without_declared_password_param(self, test_client):
+        # DAG2_ID's params (DAG2_PARAM) declare no password-format param, so conf stays as-is.
+        response = test_client.get(f"/dags/{DAG2_ID}/dagRuns/{DAG2_RUN1_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["conf"] == {"env": "staging", "test_mode": True}
+
+
+class TestGetDagRunsMasksPasswordConf:
+    def test_list_across_all_dags_masks_only_relevant_runs(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_param_list",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_with_secret_list",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"api_token": "super-secret-value"}
+        session.merge(dag_run)
+        session.commit()
+
+        response = test_client.get(
+            "/dags/~/dagRuns", params={"dag_ids": ["test_dag_password_param_list", DAG2_ID]}
+        )
+        assert response.status_code == 200
+        by_run_id = {run["dag_run_id"]: run for run in response.json()["dag_runs"]}
+
+        assert by_run_id["run_with_secret_list"]["conf"]["api_token"] == "***"
+        # DAG2's runs declare no password-format param, must stay untouched
+        assert by_run_id[DAG2_RUN1_ID]["conf"] == {"env": "staging", "test_mode": True}
+
+
 class TestGetDagRuns:
     @pytest.mark.parametrize(
         ("dag_id", "total_entries"),

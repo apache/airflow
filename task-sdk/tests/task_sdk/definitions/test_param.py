@@ -18,10 +18,11 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from typing import Literal
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict, process_params
 from airflow.sdk.exceptions import ParamValidationError
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -388,3 +389,57 @@ class TestParamsDict:
                 "key2": Param("value", source="task"),
             }
         )
+
+
+class TestProcessParamsMasksPassword:
+    def _make_dag(self, params: dict) -> MagicMock:
+        dag = MagicMock()
+        dag.params = ParamsDict(params)
+        return dag
+
+    def _make_task(self) -> MagicMock:
+        task = MagicMock()
+        task.params = None
+        return task
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_string_param_declared_as_password(self, mock_mask_secret):
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        assert resolved["api_token"] == "super-secret-value"
+        mock_mask_secret.assert_called_once_with("super-secret-value")
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_does_not_mask_plain_string_param(self, mock_mask_secret):
+        dag = self._make_dag({"greeting": Param("default", type="string")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"greeting": "hello"}, suppress_exception=False)
+
+        assert resolved["greeting"] == "hello"
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_ignores_non_string_password_format_param(self, mock_mask_secret):
+        # format="password" on a non-string type is not a supported combination;
+        # it must not crash and must not attempt to mask a non-string value.
+        dag = self._make_dag({"retry_count": Param(3, type="integer", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"retry_count": 5}, suppress_exception=False)
+
+        assert resolved["retry_count"] == 5
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_does_not_mask_when_key_has_no_declared_param(self, mock_mask_secret):
+        dag = self._make_dag({})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"undeclared_key": "value"}, suppress_exception=False)
+
+        assert resolved["undeclared_key"] == "value"
+        mock_mask_secret.assert_not_called()
