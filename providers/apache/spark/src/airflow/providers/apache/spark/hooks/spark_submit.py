@@ -463,6 +463,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 conn.conn_type == "spark"
                 and conn_data["master"].startswith("spark://")
                 and conn_data["deploy_mode"] == "cluster"
+                and "," not in conn_data["master"]  # only consider single master, non-HA for now
             ):
                 host = conn_data["master"].replace("spark://", "").strip()
                 conn_data["rest_endpoint"] = (
