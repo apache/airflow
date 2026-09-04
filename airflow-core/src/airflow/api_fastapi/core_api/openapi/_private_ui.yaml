@@ -665,6 +665,20 @@ paths:
           description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
         description: Filter Dags that have any DagRun in the given state.
+      - name: dag_run_state_within_hours
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            maximum: 878400
+            exclusiveMinimum: 0
+          - type: 'null'
+          description: Only match DagRuns whose run_after falls within the last given
+            hours. Ignored unless dag_run_state is set.
+          title: Dag Run State Within Hours
+        description: Only match DagRuns whose run_after falls within the last given
+          hours. Ignored unless dag_run_state is set.
       - name: bundle_name
         in: query
         required: false

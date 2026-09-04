@@ -66,7 +66,6 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
-  | SearchParamsKeys.DAG_RUN_STATE
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DEADLINE_TIME_RANGE
   | SearchParamsKeys.DURATION_GTE
@@ -82,7 +81,6 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
-  | SearchParamsKeys.LAST_DAG_RUN_STATE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.MISSED
@@ -100,6 +98,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_AFTER_RANGE
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
+  | SearchParamsKeys.RUN_STATE
   | SearchParamsKeys.RUN_TYPE
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
@@ -125,7 +124,13 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const initialValues: Record<string, FilterValue> = {};
 
   filterConfigs.forEach((config) => {
-    if (config.type === "daterange") {
+    if (config.fromSearchParams) {
+      const value = config.fromSearchParams(searchParams);
+
+      if (value !== undefined) {
+        initialValues[config.key] = value;
+      }
+    } else if (config.type === "daterange") {
       // Handle daterange filters using startKey and endKey
       const startDate =
         config.startKey !== undefined && config.startKey !== ""
@@ -180,7 +185,15 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
         newParams.delete(config.key);
 
-        if (config.type === "daterange") {
+        if (config.toSearchParams) {
+          Object.entries(config.toSearchParams(value)).forEach(([paramKey, paramValue]) => {
+            if (paramValue === undefined || paramValue === "") {
+              newParams.delete(paramKey);
+            } else {
+              newParams.set(paramKey, paramValue);
+            }
+          });
+        } else if (config.type === "daterange") {
           handleDateRangeChange(newParams, value as DateRangeValue | null, config);
         } else if (config.type === "multiselect") {
           const values = Array.isArray(value) ? value.filter((entry) => entry !== "") : [];

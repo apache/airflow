@@ -176,6 +176,49 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_dag_run_state_within_hours_filters_out_older_runs(self, test_client, session):
+        # Give DAG1 a recent failed run while DAG2 keeps only its original (years-old) failed
+        # runs, so a time-bounded any-run filter can separate the two.
+        recent_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_1")
+        )
+        recent_run.state = DagRunState.FAILED
+        recent_run.run_after = utcnow() - pendulum.duration(hours=1)
+        session.commit()
+
+        # Without a window both Dags match: each has a failed run somewhere in its history.
+        any_time = test_client.get("/dags", params={"dag_run_state": "failed", "dag_ids": [DAG1_ID, DAG2_ID]})
+        assert any_time.status_code == 200
+        assert sorted(dag["dag_id"] for dag in any_time.json()["dags"]) == [DAG1_ID, DAG2_ID]
+
+        # A 24h window keeps only DAG1, whose failure is recent; DAG2's failures are years old.
+        within_window = test_client.get(
+            "/dags",
+            params={
+                "dag_run_state": "failed",
+                "dag_run_state_within_hours": 24,
+                "dag_ids": [DAG1_ID, DAG2_ID],
+            },
+        )
+        assert within_window.status_code == 200
+        assert [dag["dag_id"] for dag in within_window.json()["dags"]] == [DAG1_ID]
+
+        # The window is ignored unless a state is given, so on its own it never narrows results.
+        window_only = test_client.get(
+            "/dags",
+            params={"dag_run_state_within_hours": 24, "dag_ids": [DAG1_ID, DAG2_ID]},
+        )
+        assert window_only.status_code == 200
+        assert sorted(dag["dag_id"] for dag in window_only.json()["dags"]) == [DAG1_ID, DAG2_ID]
+
+        # An absurd window is rejected up front instead of overflowing the timedelta arithmetic.
+        overflowing = test_client.get(
+            "/dags",
+            params={"dag_run_state": "failed", "dag_run_state_within_hours": 10**18},
+        )
+        assert overflowing.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_last_and_any_run_state_filters_combined(self, test_client, session):
         # Regression: combining the last-run and any-run state filters must return the
         # intersection, not raise. The any-run EXISTS subquery must not correlate to the

@@ -36,12 +36,12 @@ export class DagsPage extends BasePage {
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
-  public readonly lastRunStateFilter: Locator;
-  public readonly lastRunStatePill: Locator;
   public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
   public readonly retriesFilter: Locator;
+  public readonly runStateFilter: Locator;
+  public readonly runStatePill: Locator;
   public readonly searchBox: Locator;
   public readonly searchInput: Locator;
   public readonly tableViewButton: Locator;
@@ -68,8 +68,8 @@ export class DagsPage extends BasePage {
     // Dags filters live in the shared FilterBar: a filter is added from the "Add Filter"
     // menu, then edited in its pill. Test ids are derived from the search-param key.
     this.addFilterButton = page.getByTestId("add-filter-button");
-    this.lastRunStateFilter = page.getByTestId("last_dag_run_state-filter");
-    this.lastRunStatePill = page.getByTestId("last_dag_run_state-pill");
+    this.runStateFilter = page.getByTestId("run_state-filter");
+    this.runStatePill = page.getByTestId("run_state-pill");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
     // Uses testId because this menu item's text is driven by an i18n key.
@@ -140,17 +140,17 @@ export class DagsPage extends BasePage {
       // visibility races that. The URL carries the same fact and never animates.
       if (new URL(this.page.url()).searchParams.has("last_dag_run_state")) {
         // An existing pill already holds a value, so re-opening it leaves the menu shut.
-        await this.lastRunStatePill.click();
-        await this.lastRunStateFilter.click();
+        await this.runStatePill.click();
+        await this.runStateFilter.click();
       } else {
         // A filter added from the menu opens onto its options; clicking the trigger would shut it.
         await this.openAddFilterMenu();
-        await this.page.getByTestId("add-filter-last_dag_run_state").click();
+        await this.page.getByTestId("add-filter-run_state").click();
       }
-      await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
+      await this.page.getByTestId(`run_state-filter-${status}`).click();
       // Selecting blurs the pill, which collapses it ~150ms later. Hand back a settled bar
       // instead of one mid-transition.
-      await expect(this.lastRunStatePill).toBeVisible({ timeout: 5000 });
+      await expect(this.runStatePill).toBeVisible({ timeout: 5000 });
     }
     await responsePromise;
   }
