@@ -112,7 +112,6 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/utils/file.py",
     "airflow-core/src/airflow/utils/helpers.py",
     "airflow-core/src/airflow/utils/json.py",
-    "airflow-core/src/airflow/utils/log/action_logger.py",
     "airflow-core/src/airflow/utils/log/colored_log.py",
     "airflow-core/src/airflow/utils/log/file_processor_handler.py",
     "airflow-core/src/airflow/utils/log/file_task_handler.py",
