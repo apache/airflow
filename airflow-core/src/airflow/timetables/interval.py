@@ -32,10 +32,6 @@ if TYPE_CHECKING:
 
 Delta = datetime.timedelta | relativedelta
 
-# One step is provably enough for both shipped _DataIntervalTimetable subclasses
-# (see next_dagrun_info); this budgets one extra attempt of margin before failing loudly.
-_MAX_ALIGNMENT_RETRIES = 2
-
 
 class _DataIntervalTimetable(Timetable):
     """
@@ -120,17 +116,15 @@ class _DataIntervalTimetable(Timetable):
             # logical_date) unique constraint and stalling the scheduler on "run
             # already exists; skipping dagrun creation". One retry past it is
             # provably enough for both shipped subclasses; fail loudly instead of
-            # looping unbounded past that, which would hang the scheduler for
-            # every Dag if `_get_next` ever stopped strictly advancing.
-            attempts = 0
-            while start <= last_automated_data_interval.start:
-                if attempts >= _MAX_ALIGNMENT_RETRIES:
+            # retrying indefinitely, which would hang the scheduler for every Dag
+            # if `_get_next` ever stopped strictly advancing.
+            if start <= last_automated_data_interval.start:
+                start = self._get_next(start)
+                if start <= last_automated_data_interval.start:
                     raise AssertionError(
                         f"{type(self).__name__}._get_next did not advance past "
-                        f"{last_automated_data_interval.start} after {_MAX_ALIGNMENT_RETRIES} attempts"
+                        f"{last_automated_data_interval.start} after one retry"
                     )
-                start = self._get_next(start)
-                attempts += 1
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)

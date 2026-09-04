@@ -81,9 +81,8 @@ def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) 
     cause ``next_dagrun_info`` to re-emit that run's logical_date. These appear when a
     DAG was scheduled by ``CronTriggerTimetable`` and later switched to
     ``CronDataIntervalTimetable``; without the guard the scheduler loops on "run
-    already exists; skipping dagrun creation". The guard retries in general (see
-    ``test_guard_retries_once_more_within_budget``), but for ``CronDataIntervalTimetable``
-    it always resolves in a single iteration.
+    already exists; skipping dagrun creation". The guard's single retry always
+    resolves this for ``CronDataIntervalTimetable``.
     """
     timetable = CronDataIntervalTimetable("0 17 * * *", utc)
     last_run_at = pendulum.DateTime(2021, 9, 5, 17, tzinfo=utc)
@@ -107,8 +106,8 @@ def test_coarser_schedule_does_not_re_emit_logical_date(catchup: bool) -> None:
     An hourly run leaves the interval [00:00, 01:00). Aligning that end to a daily
     schedule lands back on 00:00, the logical_date the run already occupies, which
     would stall the scheduler on "run already exists; skipping dagrun creation" if
-    the guard didn't advance past it. Resolves in a single iteration here (see
-    ``test_guard_retries_once_more_within_budget`` for a case where it is not enough).
+    the guard didn't advance past it. The guard's single retry resolves this here
+    (see ``test_guard_raises_when_one_retry_is_not_enough`` for a case where it isn't).
     """
     timetable = CronDataIntervalTimetable("0 0 * * *", utc)
     last = DataInterval(
@@ -132,7 +131,8 @@ class _FixedStepTimetable(_DataIntervalTimetable):
     ``last_automated_data_interval.start``, but only because of invariants specific to
     them. This double doesn't uphold those invariants: ``_align_to_prev`` overshoots to
     a fixed point well before the reference interval, and ``_get_next`` only advances by
-    a small fixed step, so escaping the collision can need more than one retry.
+    a small fixed step, so escaping the collision can need more steps than the guard's
+    single retry budgets for -- in which case the guard raises instead of retrying again.
 
     Only the two methods this scenario reaches are implemented; the rest keep the base
     class's ``NotImplementedError``.
@@ -155,21 +155,19 @@ class _FixedStepTimetable(_DataIntervalTimetable):
         raise NotImplementedError()
 
 
-def test_guard_retries_once_more_within_budget() -> None:
-    """The collision guard retries past a stale boundary, not just a single step.
-    Neither shipped ``_DataIntervalTimetable`` subclass can ever need more than one
-    iteration (proven, not just tested, by the invariant documented on the guard), so
-    this uses a test-only Timetable double for a case that needs the one extra retry
-    the guard budgets for: two steps clear ``last_automated_data_interval.start``, a
-    single step would not, so this fails if the retry budget drops back to one attempt.
+def test_guard_single_retry_resolves_collision() -> None:
+    """The collision guard's one retry is enough when a single step clears the
+    stale boundary. This uses a test-only Timetable double (not a shipped
+    subclass) to exercise the guard's mechanism directly, independent of any
+    real cron/timedelta alignment semantics.
     """
     last_start = pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc)
     last = DataInterval(start=last_start, end=last_start + datetime.timedelta(minutes=1))
-    align_point = last_start - datetime.timedelta(minutes=3)
+    align_point = last_start - datetime.timedelta(minutes=1)
     step = datetime.timedelta(minutes=2)
 
     single_step = align_point + step
-    assert single_step <= last.start, "test setup must reproduce the single-step failure case"
+    assert single_step > last.start, "test setup must reproduce the single-retry success case"
 
     timetable = _FixedStepTimetable(align_point=align_point, step=step)
     next_info = timetable.next_dagrun_info(
@@ -177,19 +175,20 @@ def test_guard_retries_once_more_within_budget() -> None:
         restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
     )
 
-    # 2 retries inside the guard, plus 1 more to compute the returned interval's `end`.
-    assert timetable.get_next_call_count == 3
+    # 1 retry inside the guard, plus 1 more to compute the returned interval's `end`.
+    assert timetable.get_next_call_count == 2
     expected_start = last_start + datetime.timedelta(minutes=1)
     expected_end = last_start + datetime.timedelta(minutes=3)
     assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
 
 
-def test_guard_raises_instead_of_looping_forever_when_retries_are_exhausted() -> None:
-    """The guard must fail loudly, not hang the scheduler, once retries run out.
-    A ``_get_next`` that never advances past the collision would spin an unbounded
-    loop forever, on a code path that runs for every Dag in every scheduler loop.
-    Bounding the retries and raising instead turns that into a clear, immediate
-    error rather than a wedged scheduler.
+def test_guard_raises_when_one_retry_is_not_enough() -> None:
+    """The guard must fail loudly, not hang the scheduler, when its one retry
+    doesn't clear the collision. Retrying indefinitely on a ``_get_next`` that
+    never advances past the collision would spin an unbounded loop forever, on
+    a code path that runs for every Dag in every scheduler loop. Bounding the
+    guard to a single retry and raising instead turns that into a clear,
+    immediate error rather than a wedged scheduler.
     """
     last_start = pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc)
     last = DataInterval(start=last_start, end=last_start + datetime.timedelta(minutes=1))
