@@ -12,7 +12,6 @@ providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py
 providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py::CloudBuildCreateBuildOperator
 providers/google/src/airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py::CloudDataTransferServiceCreateJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocCreateClusterOperator
-providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocSubmitJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/functions.py::CloudFunctionDeployFunctionOperator
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSFileTransformOperator
 providers/google/src/airflow/providers/google/cloud/sensors/bigquery_dts.py::BigQueryDataTransferServiceTransferRunSensor

@@ -24,7 +24,7 @@ import re
 import time
 import warnings
 from collections.abc import MutableSequence, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
@@ -2005,22 +2005,25 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
         if self.deferrable and self.start_from_trigger:
-            self.start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger",
-                trigger_kwargs={
-                    "job": self.job,
-                    "project_id": self.project_id,
-                    "region": self.region,
-                    "gcp_conn_id": self.gcp_conn_id,
-                    "impersonation_chain": self.impersonation_chain,
-                    "polling_interval_seconds": self.polling_interval_seconds,
-                    "cancel_on_kill": self.cancel_on_kill,
-                    "request_id": self.request_id,
-                },
-                next_method="execute_complete",
-                next_kwargs=None,
-                timeout=None,
+            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
+            # assigning through it would overwrite the arguments of every other task built
+            # from this operator.
+            self.start_trigger_args = replace(
+                self.start_trigger_args,
+                trigger_kwargs=self.build_direct_submit_trigger_kwargs(),
             )
+
+    def build_direct_submit_trigger_kwargs(self) -> dict[str, Any]:
+        return {
+            "job": self.job,
+            "project_id": self.project_id,
+            "region": self.region,
+            "gcp_conn_id": self.gcp_conn_id,
+            "impersonation_chain": self.impersonation_chain,
+            "polling_interval_seconds": self.polling_interval_seconds,
+            "cancel_on_kill": self.cancel_on_kill,
+            "request_id": self.request_id,
+        }
 
     def execute(self, context: Context):
         self.log.info("Submitting job")
