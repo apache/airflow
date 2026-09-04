@@ -1,6 +1,0 @@
-Added ``BaseAuthManager.get_rbac_reference()``, a machine-readable reference of the
-RBAC resources the auth manager authorizes. It is introspected from the
-``is_authorized_*`` methods, so provider auth managers (e.g. Keycloak) can model
-Airflow permissions in an external system without hand-maintaining a copy, and it
-stays in sync automatically when resources change. See the new "RBAC reference"
-docs page under Auth manager concepts.
