@@ -93,6 +93,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if isinstance(selected_fields, str):
+            selected_fields = [field.strip() for field in selected_fields.split(",") if field.strip()]
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.database = database
@@ -186,12 +188,7 @@ class BigQueryToSqlBaseOperator(BaseOperator):
             return OperatorLineage()
 
         if self.selected_fields:
-            if isinstance(self.selected_fields, str):
-                transferred_field_names = [
-                    field.strip() for field in self.selected_fields.split(",") if field.strip()
-                ]
-            else:
-                transferred_field_names = list(self.selected_fields)
+            transferred_field_names = list(self.selected_fields)
         else:
             transferred_field_names = [field.name for field in getattr(table_obj, "schema", [])]
 

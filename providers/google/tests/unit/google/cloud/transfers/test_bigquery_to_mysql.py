@@ -20,6 +20,8 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
 from airflow.providers.google.cloud.transfers.bigquery_to_mysql import BigQueryToMySqlOperator
 
 TASK_ID = "test-bq-create-table-operator"
@@ -66,6 +68,39 @@ class TestBigQueryToMySqlOperator:
             selected_fields=None,
             start_index=0,
         )
+
+    @pytest.mark.parametrize(
+        ("selected_fields", "expected_fields"),
+        [
+            ("col_1,col_2", ["col_1", "col_2"]),
+            (" col_1 , col_2 , ", ["col_1", "col_2"]),
+            (["col_1", "col_2"], ["col_1", "col_2"]),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.bigquery_get_data")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mysql.MySqlHook")
+    def test_execute_passes_selected_fields_as_list_of_columns(
+        self,
+        mock_mysql_hook,
+        mock_bq_hook,
+        mock_bigquery_get_data,
+        selected_fields,
+        expected_fields,
+    ):
+        operator = BigQueryToMySqlOperator(
+            task_id=TASK_ID,
+            dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
+            target_table_name="table",
+            selected_fields=selected_fields,
+        )
+        mock_bigquery_get_data.return_value = [[("only_row", "val")]]
+
+        operator.execute(None)
+
+        insert_rows = mock_mysql_hook.return_value.insert_rows
+        assert insert_rows.call_args.kwargs["target_fields"] == expected_fields
+        assert mock_bigquery_get_data.call_args.args[-1] == expected_fields
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mysql.MySqlHook")
