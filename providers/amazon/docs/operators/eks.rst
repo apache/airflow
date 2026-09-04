@@ -205,6 +205,26 @@ Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
     :start-after: [START howto_operator_eks_pod_operator]
     :end-before: [END howto_operator_eks_pod_operator]
 
+.. _howto/operator:EksPodExecOperator:
+
+Execute a command in an existing Pod on Amazon EKS
+==================================================
+
+To execute a command in a running container without managing the Pod lifecycle, use
+:class:`~airflow.providers.amazon.aws.operators.eks.EksPodExecOperator`.
+The Pod must already exist and be running. The operator streams command output, waits for the exit code,
+and leaves the Pod unchanged.
+The AWS identity must be authorized to access the EKS cluster, and Kubernetes RBAC must allow
+``get`` on ``pods`` and ``create`` and ``get`` on ``pods/exec``.
+See :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`
+for command, output, XCom, and retry behavior.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_eks_with_nodegroups.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_eks_pod_exec]
+    :end-before: [END howto_operator_eks_pod_exec]
+
 Sensors
 -------
 
