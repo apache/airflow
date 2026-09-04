@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+.. warning::
+  Extra headers from the HTTP Connection are sent on the first request and on
+  redirects that stay on the same origin. They are not forwarded when a
+  redirect leaves that origin (hostname change, port change, or scheme change
+  other than default-port ``http`` → ``https``). Extra headers stay on
+  default-port ``http`` → ``https``; Connection BasicAuth and caller
+  ``Authorization`` / ``Cookie`` follow aiohttp's origin rules.
+
 6.0.5
 .....
 

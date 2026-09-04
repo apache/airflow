@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 import aiohttp
 import tenacity
 from aiohttp import ClientResponseError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from requests import PreparedRequest, Request, Response, Session
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError
@@ -39,6 +39,7 @@ from airflow.providers.http.exceptions import HttpErrorException, HttpMethodExce
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from aiohttp.client_middlewares import ClientMiddlewareType
     from aiohttp.client_reqrep import ClientResponse
     from requests.adapters import HTTPAdapter
 
@@ -96,6 +97,48 @@ def _process_extra_options_from_connection(
         passed_extra_options["check_response"] = check_response
 
     return conn_extra_options, passed_extra_options
+
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _redirect_leaves_origin(old_url: str, new_url: str) -> bool:
+    """
+    Return True when a redirect hop leaves the original origin.
+
+    Mirrors ``requests.Session.should_strip_auth`` so async and sync hooks agree:
+    a hostname change leaves the origin; ``http`` on port 80/default to ``https``
+    on port 443/default does not; any other scheme or port change does.
+    """
+    old = urlparse(old_url)
+    new = urlparse(new_url)
+    if old.hostname != new.hostname:
+        return True
+    if old.scheme == "http" and old.port in (80, None) and new.scheme == "https" and new.port in (443, None):
+        return False
+    changed_port = old.port != new.port
+    changed_scheme = old.scheme != new.scheme
+    default_port = (_DEFAULT_PORTS.get(old.scheme), None)
+    if not changed_scheme and old.port in default_port and new.port in default_port:
+        return False
+    return changed_port or changed_scheme
+
+
+def _build_connection_header_middleware(names: set[str]) -> ClientMiddlewareType:
+    """Pop Connection Extra headers on hops that leave the first-request origin."""
+    origin_url: str | None = None
+
+    async def middleware(req, handler):
+        nonlocal origin_url
+        request_url = str(req.url)
+        if origin_url is None:
+            origin_url = request_url
+        elif _redirect_leaves_origin(origin_url, request_url):
+            for name in names:
+                req.headers.pop(name, None)
+        return await handler(req)
+
+    return middleware
 
 
 def _retryable_error_async(exception: BaseException) -> bool:
@@ -430,6 +473,7 @@ class SessionConfig(BaseModel):
     headers: dict[str, Any] | None = None
     auth: aiohttp.BasicAuth | None = None
     extra_options: dict[str, Any] | None = None
+    connection_headers: set[str] = Field(default_factory=set)
 
 
 class AsyncHttpSession(LoggingMixin):
@@ -453,11 +497,13 @@ class AsyncHttpSession(LoggingMixin):
         request: Callable[..., Awaitable[ClientResponse]],
         config: SessionConfig,
         method: str | None = None,
+        session: aiohttp.ClientSession | None = None,
     ) -> None:
         super().__init__()
         self.method = method or hook.method
         self._hook = hook
         self._request = request
+        self._session = session
         self.config = config
 
     @property
@@ -514,14 +560,12 @@ class AsyncHttpSession(LoggingMixin):
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
 
         async def request_func() -> ClientResponse:
-            response = await self._request(
+            response = await self._send(
                 url,
-                params=data if self.method == "GET" else None,
-                data=data if self.method in {"POST", "PUT", "PATCH"} else None,
+                data=data,
                 json=json,
                 headers=merged_headers,
-                auth=self.auth,
-                **extra_options,
+                extra_options=extra_options,
             )
             response.raise_for_status()
             return response
@@ -545,6 +589,55 @@ class AsyncHttpSession(LoggingMixin):
                     raise e
 
         raise NotImplementedError  # should not reach this, but makes mypy happy
+
+    async def _call_request(
+        self,
+        url: str,
+        *,
+        data: dict[str, Any] | str | None,
+        json: dict[str, Any] | str | None,
+        headers: dict[str, Any],
+        auth: aiohttp.BasicAuth | None,
+        extra_options: dict[str, Any],
+    ) -> ClientResponse:
+        return await self._request(
+            url,
+            params=data if self.method == "GET" else None,
+            data=data if self.method in {"POST", "PUT", "PATCH"} else None,
+            json=json,
+            headers=headers,
+            auth=auth,
+            **extra_options,
+        )
+
+    async def _send(
+        self,
+        url: str,
+        *,
+        data: dict[str, Any] | str | None,
+        json: dict[str, Any] | str | None,
+        headers: dict[str, Any],
+        extra_options: dict[str, Any],
+    ) -> ClientResponse:
+        extra_options = dict(extra_options)
+        connection_header_names = set(self.config.connection_headers)
+        if connection_header_names:
+            session_middlewares = ()
+            if self._session is not None:
+                session_middlewares = getattr(self._session, "_middlewares", None) or ()
+            extra_options["middlewares"] = (
+                _build_connection_header_middleware(connection_header_names),
+                *session_middlewares,
+                *(extra_options.get("middlewares") or ()),
+            )
+        return await self._call_request(
+            url,
+            data=data,
+            json=json,
+            headers=headers,
+            auth=self.auth,
+            extra_options=extra_options,
+        )
 
 
 class HttpAsyncHook(BaseHook):
@@ -612,6 +705,7 @@ class HttpAsyncHook(BaseHook):
             auth: aiohttp.BasicAuth | None = None
             headers: dict[str, Any] = {}
             extra_options: dict[str, Any] = {}
+            connection_headers: set[str] = set()
 
             if self.http_conn_id:
                 conn = await get_async_connection(conn_id=self.http_conn_id, hook=self)
@@ -633,12 +727,14 @@ class HttpAsyncHook(BaseHook):
                         conn=conn, extra_options={}
                     )
                     headers.update(conn_extra_options)
+                    connection_headers = set(conn_extra_options)
 
             self._config = SessionConfig(
                 base_url=base_url,
                 headers=headers,
                 auth=auth,
                 extra_options=extra_options,
+                connection_headers=connection_headers,
             )
         return self._config
 
@@ -655,7 +751,7 @@ class HttpAsyncHook(BaseHook):
         async with aiohttp.ClientSession() as session:
             request = self._get_request_func(session=session, method=method)
             config = await self.config()
-            yield AsyncHttpSession(hook=self, request=request, config=config, method=method)
+            yield AsyncHttpSession(hook=self, request=request, config=config, method=method, session=session)
 
     async def run(
         self,
@@ -682,7 +778,7 @@ class HttpAsyncHook(BaseHook):
             if session is not None:
                 request = self._get_request_func(session=session)
                 config = await self.config()
-                return await AsyncHttpSession(hook=self, request=request, config=config).run(
+                return await AsyncHttpSession(hook=self, request=request, config=config, session=session).run(
                     endpoint=endpoint, data=data, json=json, headers=headers, extra_options=extra_options
                 )
 
