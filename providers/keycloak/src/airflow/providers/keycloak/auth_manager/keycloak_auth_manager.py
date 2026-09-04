@@ -148,12 +148,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         )
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
-        if AIRFLOW_V_3_3_PLUS:
-            # Omit Keycloak JWTs from claims, they are stored in separate cookies
-            return {
-                "user_id": user.get_id(),
-                "name": user.get_name(),
-            }
+        # The Keycloak JWTs are carried in the claims. The browser login flow stores them
+        # in separate cookies instead, because a cookie holding both the Airflow JWT and
+        # the Keycloak ones can exceed the ~4 KB cookie size limit, and mints its Airflow
+        # JWT from a user without them. Callers authenticating with an ``Authorization``
+        # header are not subject to that limit and need the tokens in the claims: it is
+        # the only place a non-browser caller can carry them.
         return {
             "user_id": user.get_id(),
             "name": user.get_name(),
@@ -185,9 +185,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                 raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
             user.access_token = access_token
             user.refresh_token = refresh_token
-            return user
-        # Skip refreshing JWT if Keycloak JWTs are not included.
-        return None
+        # No Keycloak cookies on the request: the caller authenticated with an
+        # ``Authorization`` header rather than a browser session, and its tokens come
+        # from the claims, which the Airflow JWT signature already covers. The user is
+        # authenticated either way; ``refresh_user`` decides separately whether the
+        # session can be refreshed.
+        return user
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")

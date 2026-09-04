@@ -198,15 +198,38 @@ class TestKeycloakAuthManager:
                 user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
             )
         )
-        if AIRFLOW_V_3_3_PLUS:
-            assert result == {"user_id": "user_id", "name": "name"}
-        else:
-            assert result == {
-                "user_id": "user_id",
-                "name": "name",
-                "access_token": "access_token",
-                "refresh_token": "refresh_token",
-            }
+        assert result == {
+            "user_id": "user_id",
+            "name": "name",
+            "access_token": "access_token",
+            "refresh_token": "refresh_token",
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_round_trip_without_cookies(self, auth_manager):
+        """A token minted by ``POST /auth/token`` must authenticate a bearer request.
+
+        The bearer path calls ``get_user_from_token()`` with the Airflow JWT alone -- no
+        cookies exist for a non-browser caller -- so the Keycloak access token has to
+        survive the trip through the auth manager's own serializer.
+        """
+        access_token = keycloak_token("user_id")
+        claims = auth_manager.serialize_user(
+            KeycloakAuthManagerUser(
+                user_id="user_id",
+                name="name",
+                access_token=access_token,
+                refresh_token=None,
+            )
+        )
+        mock_get_user_from_token = AsyncMock(return_value=auth_manager.deserialize_user(claims))
+        with patch.object(BaseAuthManager, "get_user_from_token", mock_get_user_from_token):
+            user = await auth_manager.get_user_from_token("token")
+
+        assert user is not None
+        assert user.get_id() == "user_id"
+        assert user.access_token == access_token
+        assert user.refresh_token is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
@@ -257,10 +280,17 @@ class TestKeycloakAuthManager:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
-    async def test_get_user_from_token_keycloak_jwts_missing(self, auth_manager):
+    async def test_get_user_from_token_keeps_user_when_cookies_missing(self, auth_manager):
+        """Absent Keycloak cookies must not invalidate an otherwise valid session.
+
+        A bearer caller never has those cookies, so discarding the user here returned
+        ``None`` into ``_is_authorized``, which unconditionally reads
+        ``user.access_token`` and raised ``AttributeError`` -> HTTP 500.
+        """
+        access_token = keycloak_token("user_id")
         mock_get_user_from_token = AsyncMock(
             return_value=KeycloakAuthManagerUser(
-                user_id="user_id", name="name", access_token="", refresh_token=None
+                user_id="user_id", name="name", access_token=access_token, refresh_token=None
             )
         )
         with (
@@ -270,7 +300,11 @@ class TestKeycloakAuthManager:
                 mock_get_user_from_token,
             ),
         ):
-            assert await auth_manager.get_user_from_token("token") is None
+            user = await auth_manager.get_user_from_token("token")
+
+        assert user is not None
+        assert user.get_id() == "user_id"
+        assert user.access_token == access_token
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio

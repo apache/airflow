@@ -125,7 +125,16 @@ def login_callback(request: Request):
         access_token=tokens["access_token"],
         refresh_token=tokens["refresh_token"],
     )
-    token = get_auth_manager().generate_jwt(user)
+    if AIRFLOW_V_3_3_PLUS:
+        # The Keycloak tokens are set as their own cookies below. Cookies are capped at
+        # roughly 4 KB and Keycloak access tokens can be large enough that carrying them
+        # in the Airflow JWT cookie as well exceeds it, which logs the user out.
+        jwt_user = KeycloakAuthManagerUser(
+            user_id=user.get_id(), name=user.get_name(), access_token="", refresh_token=None
+        )
+    else:
+        jwt_user = user
+    token = get_auth_manager().generate_jwt(jwt_user)
     request.state.jwt_token_issued = True
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
