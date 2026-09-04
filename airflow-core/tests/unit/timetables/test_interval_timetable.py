@@ -27,7 +27,11 @@ import time_machine
 from airflow._shared.timezones.timezone import utc
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.interval import (
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+    _DataIntervalTimetable,
+)
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
@@ -73,12 +77,13 @@ def test_no_catchup_first_starts_at_current_time(
 )
 @time_machine.travel(pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc))
 def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) -> None:
-    """A zero-length ``data_interval`` (``start == end``) on the previous run
-    must not cause ``next_dagrun_info`` to re-emit that run's logical_date.
-
-    These appear when a DAG was scheduled by ``CronTriggerTimetable`` and later
-    switched to ``CronDataIntervalTimetable``. Without the guard the scheduler
-    loops on "run already exists; skipping dagrun creation".
+    """A zero-length ``data_interval`` (``start == end``) on the previous run must not
+    cause ``next_dagrun_info`` to re-emit that run's logical_date. These appear when a
+    DAG was scheduled by ``CronTriggerTimetable`` and later switched to
+    ``CronDataIntervalTimetable``; without the guard the scheduler loops on "run
+    already exists; skipping dagrun creation". The guard retries in general (see
+    ``test_guard_retries_once_more_within_budget``), but for ``CronDataIntervalTimetable``
+    it always resolves in a single iteration.
     """
     timetable = CronDataIntervalTimetable("0 17 * * *", utc)
     last_run_at = pendulum.DateTime(2021, 9, 5, 17, tzinfo=utc)
@@ -90,6 +95,113 @@ def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) 
     expected_start = pendulum.DateTime(2021, 9, 6, 17, tzinfo=utc)
     expected_end = pendulum.DateTime(2021, 9, 7, 17, tzinfo=utc)
     assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+@pytest.mark.parametrize(
+    "catchup",
+    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+)
+@time_machine.travel(pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc))
+def test_coarser_schedule_does_not_re_emit_logical_date(catchup: bool) -> None:
+    """Switching to a coarser cron must not re-emit the previous run's logical_date.
+    An hourly run leaves the interval [00:00, 01:00). Aligning that end to a daily
+    schedule lands back on 00:00, the logical_date the run already occupies, which
+    would stall the scheduler on "run already exists; skipping dagrun creation" if
+    the guard didn't advance past it. Resolves in a single iteration here (see
+    ``test_guard_retries_once_more_within_budget`` for a case where it is not enough).
+    """
+    timetable = CronDataIntervalTimetable("0 0 * * *", utc)
+    last = DataInterval(
+        start=pendulum.DateTime(2021, 9, 6, 0, tzinfo=utc),
+        end=pendulum.DateTime(2021, 9, 6, 1, tzinfo=utc),
+    )
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=last,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+    )
+    expected_start = pendulum.DateTime(2021, 9, 7, 0, tzinfo=utc)
+    expected_end = pendulum.DateTime(2021, 9, 8, 0, tzinfo=utc)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+class _FixedStepTimetable(_DataIntervalTimetable):
+    """Test double for a custom Timetable whose alignment isn't schedule-quantized.
+
+    The shipped subclasses guarantee (see the guard's comment in ``next_dagrun_info``)
+    that a single ``_get_next`` step past the realigned ``start`` clears
+    ``last_automated_data_interval.start``, but only because of invariants specific to
+    them. This double doesn't uphold those invariants: ``_align_to_prev`` overshoots to
+    a fixed point well before the reference interval, and ``_get_next`` only advances by
+    a small fixed step, so escaping the collision can need more than one retry.
+
+    Only the two methods this scenario reaches are implemented; the rest keep the base
+    class's ``NotImplementedError``.
+    """
+
+    def __init__(self, align_point: pendulum.DateTime, step: datetime.timedelta) -> None:
+        super().__init__()
+        self._align_point = align_point
+        self._step = step
+        self.get_next_call_count = 0
+
+    def _align_to_prev(self, current: pendulum.DateTime) -> pendulum.DateTime:
+        return self._align_point
+
+    def _get_next(self, current: pendulum.DateTime) -> pendulum.DateTime:
+        self.get_next_call_count += 1
+        return current + self._step
+
+    def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
+        raise NotImplementedError()
+
+
+def test_guard_retries_once_more_within_budget() -> None:
+    """The collision guard retries past a stale boundary, not just a single step.
+    Neither shipped ``_DataIntervalTimetable`` subclass can ever need more than one
+    iteration (proven, not just tested, by the invariant documented on the guard), so
+    this uses a test-only Timetable double for a case that needs the one extra retry
+    the guard budgets for: two steps clear ``last_automated_data_interval.start``, a
+    single step would not, so this fails if the retry budget drops back to one attempt.
+    """
+    last_start = pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc)
+    last = DataInterval(start=last_start, end=last_start + datetime.timedelta(minutes=1))
+    align_point = last_start - datetime.timedelta(minutes=3)
+    step = datetime.timedelta(minutes=2)
+
+    single_step = align_point + step
+    assert single_step <= last.start, "test setup must reproduce the single-step failure case"
+
+    timetable = _FixedStepTimetable(align_point=align_point, step=step)
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=last,
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+    )
+
+    # 2 retries inside the guard, plus 1 more to compute the returned interval's `end`.
+    assert timetable.get_next_call_count == 3
+    expected_start = last_start + datetime.timedelta(minutes=1)
+    expected_end = last_start + datetime.timedelta(minutes=3)
+    assert next_info == DagRunInfo.interval(start=expected_start, end=expected_end)
+
+
+def test_guard_raises_instead_of_looping_forever_when_retries_are_exhausted() -> None:
+    """The guard must fail loudly, not hang the scheduler, once retries run out.
+    A ``_get_next`` that never advances past the collision would spin an unbounded
+    loop forever, on a code path that runs for every Dag in every scheduler loop.
+    Bounding the retries and raising instead turns that into a clear, immediate
+    error rather than a wedged scheduler.
+    """
+    last_start = pendulum.DateTime(2021, 9, 7, 15, tzinfo=utc)
+    last = DataInterval(start=last_start, end=last_start + datetime.timedelta(minutes=1))
+    align_point = last_start - datetime.timedelta(minutes=6)
+    step = datetime.timedelta(minutes=2)
+
+    timetable = _FixedStepTimetable(align_point=align_point, step=step)
+    with pytest.raises(AssertionError, match="did not advance past"):
+        timetable.next_dagrun_info(
+            last_automated_data_interval=last,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+        )
 
 
 @pytest.mark.parametrize(

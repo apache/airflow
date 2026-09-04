@@ -32,6 +32,10 @@ if TYPE_CHECKING:
 
 Delta = datetime.timedelta | relativedelta
 
+# One step is provably enough for both shipped _DataIntervalTimetable subclasses
+# (see next_dagrun_info); this budgets one extra attempt of margin before failing loudly.
+_MAX_ALIGNMENT_RETRIES = 2
+
 
 class _DataIntervalTimetable(Timetable):
     """
@@ -111,19 +115,22 @@ class _DataIntervalTimetable(Timetable):
                 # Data interval starts from the end of the previous interval.
                 start = align_last_data_interval_end
 
-            # CronTriggerTimetable stores its runs as point-in-time intervals
-            # (start == end == logical_date). After a switch to a
-            # CronDataIntervalTimetable the aligned `start` lands back on that
-            # same logical_date, so without this guard we'd propose a run
-            # identical to the existing one — which collides with the
-            # (dag_id, logical_date) unique constraint and leaves the scheduler
-            # looping on "run already exists; skipping dagrun creation" until
-            # the next period elapses. Advance one period to skip past it.
-            if (
-                last_automated_data_interval.start == last_automated_data_interval.end
-                and start == last_automated_data_interval.start
-            ):
+            # A schedule change (e.g. a coarser cron) can realign `start` onto or
+            # before the previous run's start, colliding with the (dag_id,
+            # logical_date) unique constraint and stalling the scheduler on "run
+            # already exists; skipping dagrun creation". One retry past it is
+            # provably enough for both shipped subclasses; fail loudly instead of
+            # looping unbounded past that, which would hang the scheduler for
+            # every Dag if `_get_next` ever stopped strictly advancing.
+            attempts = 0
+            while start <= last_automated_data_interval.start:
+                if attempts >= _MAX_ALIGNMENT_RETRIES:
+                    raise AssertionError(
+                        f"{type(self).__name__}._get_next did not advance past "
+                        f"{last_automated_data_interval.start} after {_MAX_ALIGNMENT_RETRIES} attempts"
+                    )
                 start = self._get_next(start)
+                attempts += 1
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
