@@ -30,6 +30,10 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStartJobOperator,
     EmrServerlessStopApplicationOperator,
 )
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessStopApplicationTrigger,
+)
 from airflow.providers.amazon.version_compat import NOTSET
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
@@ -1399,6 +1403,38 @@ class TestEmrServerlessDeleteOperator:
         )
         with pytest.raises(TaskDeferred):
             operator.execute(None)
+
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_delete_application_deferrable_deletes_after_stop(self, mock_conn):
+        """Regression test for #72123: deferrable delete must call delete_application via chained deferral."""
+        mock_conn.stop_application.return_value = {}
+        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id,
+            application_id=application_id,
+            deferrable=True,
+        )
+
+        # First defer defers on the STOP trigger, resuming at stop_complete (not execute_complete).
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+        assert isinstance(exc_info.value.trigger, EmrServerlessStopApplicationTrigger)
+        assert exc_info.value.method_name == "stop_complete"
+        mock_conn.stop_application.assert_called_once()
+        mock_conn.delete_application.assert_not_called()
+
+        # Stop trigger fires successfully -> operator now issues DeleteApplication and defers
+        # on the DELETE trigger, resuming at execute_complete.
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.stop_complete({}, {"status": "success"})
+        assert isinstance(exc_info.value.trigger, EmrServerlessDeleteApplicationTrigger)
+        assert exc_info.value.method_name == "execute_complete"
+        mock_conn.delete_application.assert_called_once_with(applicationId=application_id)
+
+        # Delete trigger fires successfully -> task completes.
+        operator.execute_complete({}, {"status": "success"})
 
     def test_execute_complete_error(self):
         operator = EmrServerlessDeleteApplicationOperator(

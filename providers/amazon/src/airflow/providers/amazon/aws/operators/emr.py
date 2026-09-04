@@ -1643,6 +1643,9 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
     """
 
     aws_hook_class = EmrServerlessHook
+    #: Method to resume at once the application has stopped. Subclasses may override this
+    #: to chain further steps instead of finishing the task.
+    stop_complete_method_name: str = "execute_complete"
     template_fields: Sequence[str] = aws_template_fields(
         "application_id",
     )
@@ -1710,7 +1713,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-                method_name="execute_complete",
+                method_name=self.stop_complete_method_name,
             )
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_app_stopped")
@@ -1740,7 +1743,7 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
                 waiter_max_attempts=self.waiter_max_attempts,
             ),
             timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-            method_name="execute_complete",
+            method_name=self.stop_complete_method_name,
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -1786,6 +1789,8 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     template_fields: Sequence[str] = aws_template_fields(
         "application_id",
     )
+
+    stop_complete_method_name: str = "stop_complete"
 
     def __init__(
         self,
@@ -1850,6 +1855,30 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             )
 
         self.log.info("EMR serverless application deleted")
+
+    def stop_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error stopping EMR Serverless application: {validated_event}")
+
+        self.log.info("Now deleting application: %s", self.application_id)
+        response = self.hook.conn.delete_application(applicationId=self.application_id)
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"Application deletion failed: {response}")
+
+        if self.deferrable:
+            self.defer(
+                trigger=EmrServerlessDeleteApplicationTrigger(
+                    application_id=self.application_id,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name="execute_complete",
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
