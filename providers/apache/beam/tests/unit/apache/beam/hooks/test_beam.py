@@ -29,6 +29,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 import pytest
 
 from airflow.providers.apache.beam.hooks.beam import (
+    _APACHE_BEAM_VERSION_SCRIPT,
     BeamAsyncHook,
     BeamHook,
     beam_options_to_args,
@@ -480,6 +481,23 @@ class TestBeamAsyncHook:
             await BeamAsyncHook._beam_version("python1")
 
     @pytest.mark.asyncio
+    async def test_beam_version_invokes_interpreter_without_shell(self):
+        fake_proc = AsyncMock()
+        fake_proc.communicate = AsyncMock(return_value=(b"2.39.0\n", b""))
+        fake_proc.returncode = 0
+        interpreter = r"C:\Program Files\Python\python.exe"
+        with (
+            mock.patch("asyncio.create_subprocess_exec", new=AsyncMock(return_value=fake_proc)) as mock_exec,
+            mock.patch("asyncio.create_subprocess_shell", new=AsyncMock()) as mock_shell,
+        ):
+            version = await BeamAsyncHook._beam_version(interpreter)
+
+        mock_shell.assert_not_called()
+        mock_exec.assert_awaited_once()
+        assert mock_exec.await_args.args == (interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT)
+        assert version == "2.39.0"
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
     async def test_start_pipline_async(self, mock_runner):
         expected_cmd = [
@@ -690,3 +708,46 @@ class TestBeamAsyncHook:
             command_prefix=command_prefix,
             process_line_callback=None,
         )
+
+    @pytest.mark.asyncio
+    async def test_run_beam_command_async_uses_exec_with_argv(self):
+        hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
+        fake_proc = AsyncMock()
+        fake_proc.stdout.readline = AsyncMock(return_value=b"")
+        fake_proc.stderr.readline = AsyncMock(return_value=b"")
+        fake_proc.wait = AsyncMock(return_value=0)
+        cmd = [
+            r"C:\Program Files\Python\python.exe",
+            r"C:\Program Files\pipelines\word count.py",
+            "--output=gs://test/output",
+        ]
+        with (
+            mock.patch("asyncio.create_subprocess_exec", new=AsyncMock(return_value=fake_proc)) as mock_exec,
+            mock.patch("asyncio.create_subprocess_shell", new=AsyncMock()) as mock_shell,
+        ):
+            return_code = await hook.run_beam_command_async(cmd=cmd, log=logging.getLogger("beam-test"))
+
+        mock_shell.assert_not_called()
+        mock_exec.assert_awaited_once()
+        assert mock_exec.await_args.args == tuple(cmd)
+        assert mock_exec.await_args.kwargs.get("shell") is None
+        assert return_code == 0
+
+    @pytest.mark.asyncio
+    async def test_run_beam_command_async_preserves_arguments_with_spaces(self, tmp_path):
+        hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
+        marker = tmp_path / "got-arg.txt"
+        cmd = [
+            sys.executable,
+            "-c",
+            "import pathlib, sys; pathlib.Path(sys.argv[1]).write_text(sys.argv[2])",
+            str(marker),
+            "hello world",
+        ]
+        return_code = await hook.run_beam_command_async(
+            cmd=cmd,
+            log=logging.getLogger("beam-test"),
+            working_directory=str(tmp_path),
+        )
+        assert return_code == 0
+        assert marker.read_text() == "hello world"
