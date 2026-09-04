@@ -20,11 +20,16 @@ import logging
 from unittest.mock import MagicMock
 
 from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
     ModelResponse,
     ModelResponsePart,
     ToolCallPart,
 )
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.test import TestModel
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.logging import (
@@ -85,6 +90,30 @@ class TestLogRunSummary:
         tool_line = records[1].message
         assert tool_line == "Tool call sequence: list_tables -> get_schema -> query"
         assert records[-1].message == "::endgroup::"
+
+    def test_names_the_model_that_served_a_failed_over_run(self):
+        """
+        After a failover the summary names the model that actually answered.
+
+        A silent failover still reporting the primary would hide the cost and quality
+        change from whoever has to account for which model produced an output.
+        """
+
+        def _primary_is_down(messages, info):
+            raise ModelAPIError("openai:gpt-5", "provider outage")
+
+        agent = Agent(
+            FallbackModel(FunctionModel(_primary_is_down), TestModel()),
+            instructions="classify",
+        )
+        result = agent.run_sync("hello")
+
+        logger = MagicMock()
+        log_run_summary(logger, result)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        assert "model=%s" in summary_format
+        assert summary_args[0] == "test"
 
     def test_no_tools_skips_sequence_line(self, caplog):
         logger = logging.getLogger("test.log_run_summary")

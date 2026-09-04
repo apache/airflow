@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
@@ -32,6 +33,8 @@ OutputT = TypeVar("OutputT")
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
 # do not auto-enable it either").
 _UNSET: Any = object()
+
+FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
 
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
@@ -53,11 +56,19 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5.6-sol"}``
+        - **extra** JSON: ``{"model": "openai:gpt-5.6-sol",
+          "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.6-sol"``).
         Overrides the model stored in the connection's extra field.
+    :param fallback_conn_ids: Connection IDs to fail over to, in order, when the
+        primary provider is unavailable.  Overrides the ``fallback_conn_ids``
+        list stored in the connection's extra field; pass an empty list to
+        disable a chain configured there.  Each entry may point at any
+        ``pydanticai*`` connection type, so the chain can span providers (for
+        example OpenAI, then Bedrock).  See :meth:`get_conn` for the failover
+        semantics and their cost.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -69,6 +80,7 @@ class PydanticAIHook(BaseHook):
         self,
         llm_conn_id: str | None = None,
         model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,6 +90,9 @@ class PydanticAIHook(BaseHook):
         # argument values at class-definition time.
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
+        # ``None`` means "not configured here, read the connection's extra";
+        # an empty list means "explicitly no fallbacks", overriding the extra.
+        self.fallback_conn_ids = fallback_conn_ids
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] | None = None
@@ -127,11 +142,18 @@ class PydanticAIHook(BaseHook):
             kwargs["base_url"] = base_url
         return kwargs
 
+    def _get_conn_and_extra(self) -> tuple[Connection, dict[str, Any]]:
+        """Return this hook's connection and its deserialized extra, fetching at most once."""
+        if self._conn is None:
+            self._conn = self.get_connection(self.llm_conn_id)
+            self._conn_extra_dejson = self._conn.extra_dejson
+        return self._conn, self._conn_extra_dejson if self._conn_extra_dejson is not None else {}
+
     def get_conn(self) -> Model:
         """
         Return a configured pydantic-ai ``Model``.
 
-        Resolution order:
+        Resolution order for this hook's own connection:
 
         1. **Explicit credentials** — when :meth:`_get_provider_kwargs` returns
            a non-empty dict the provider class is instantiated with those kwargs
@@ -139,20 +161,38 @@ class PydanticAIHook(BaseHook):
         2. **Default resolution** — delegates to pydantic-ai ``infer_model``
            which reads standard env vars (``OPENAI_API_KEY``, ``AWS_PROFILE``, …).
 
+        When ``fallback_conn_ids`` is configured (on the hook or in the
+        connection's extra) the resolved models are wrapped in a pydantic-ai
+        ``FallbackModel``, so a provider outage moves to the next connection
+        *within the same task attempt* instead of failing the task.
+
+        Two costs of that wrapping are worth knowing before configuring a long
+        chain.  A ``timeout`` in ``ModelSettings`` is applied by pydantic-ai to
+        every model in the chain rather than to the chain as a whole, so the
+        worst-case wait is the timeout multiplied by the number of connections.
+        And there is no circuit breaker: every call retries the primary first,
+        so during an outage each task instance pays the primary's timeout again.
+        Keep the primary's timeout short to bound both.
+
         The resolved model is cached for the lifetime of this hook instance.
         """
         if self._model is not None:
             return self._model
 
-        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
-        extra: dict[str, Any] = (
-            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
-        )
+        model = self._resolve_own_model()
+        fallback_models = self._resolve_fallback_models()
+        self._model = FallbackModel(model, *fallback_models) if fallback_models else model
+        return self._model
+
+    def _resolve_own_model(self) -> Model:
+        """Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain."""
+        conn, extra = self._get_conn_and_extra()
 
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
             raise ValueError(
-                "No model specified. Set model_id on the hook or the Model field on the connection."
+                f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
+                "hook or the Model field on the connection."
             )
 
         api_key: str | None = conn.password or None
@@ -178,22 +218,76 @@ class PydanticAIHook(BaseHook):
                     )
                     return infer_provider(pname)
 
-            self._model = infer_model(model_name, provider_factory=_provider_factory)
-            return self._model
+            return infer_model(model_name, provider_factory=_provider_factory)
 
-        self._model = infer_model(model_name)
-        return self._model
+        return infer_model(model_name)
+
+    def _get_fallback_conn_ids(self) -> list[str]:
+        """Return the configured fallback connection IDs, hook argument winning over the extra."""
+        if self.fallback_conn_ids is not None:
+            raw: Any = self.fallback_conn_ids
+        else:
+            _, extra = self._get_conn_and_extra()
+            raw = extra.get(FALLBACK_CONN_IDS_EXTRA_KEY) or []
+
+        if not isinstance(raw, (list, tuple)) or not all(isinstance(item, str) and item for item in raw):
+            raise ValueError(
+                f"{FALLBACK_CONN_IDS_EXTRA_KEY} for connection '{self.llm_conn_id}' must be a list "
+                f"of non-empty connection IDs, got {raw!r}."
+            )
+        return list(raw)
+
+    def _resolve_fallback_models(self) -> list[Model]:
+        """
+        Resolve one ``Model`` per fallback connection, in the configured order.
+
+        Each connection is resolved through the hook registered for its own
+        ``conn_type``, so a chain can mix providers whose credentials live in
+        different connection fields.  ``model_id`` is deliberately not forwarded:
+        it names a model of the primary's provider, and every fallback carries
+        its own ``model``.
+        """
+        fallback_conn_ids = self._get_fallback_conn_ids()
+        if not fallback_conn_ids:
+            return []
+
+        models: list[Model] = []
+        seen = {self.llm_conn_id}
+        for conn_id in fallback_conn_ids:
+            if conn_id in seen:
+                raise ValueError(
+                    f"Fallback chain for connection '{self.llm_conn_id}' lists '{conn_id}' more "
+                    "than once; every entry must be distinct and differ from the primary."
+                )
+            seen.add(conn_id)
+
+            # ``BaseHook.get_hook`` dispatches on the connection's ``conn_type`` and does not
+            # constrain the result to this class, so the type has to be checked here.
+            hook = PydanticAIHook.get_hook(conn_id)
+            if not isinstance(hook, PydanticAIHook):
+                raise ValueError(
+                    f"Fallback connection '{conn_id}' resolves to {type(hook).__name__}, which is "
+                    "not a PydanticAIHook. Only pydanticai connection types can be used as "
+                    f"fallbacks for '{self.llm_conn_id}'."
+                )
+            if hook._get_fallback_conn_ids():
+                raise ValueError(
+                    f"Fallback connection '{conn_id}' declares its own "
+                    f"{FALLBACK_CONN_IDS_EXTRA_KEY}. Chains are not resolved recursively -- list "
+                    f"every provider directly on '{self.llm_conn_id}' instead."
+                )
+            models.append(hook._resolve_own_model())
+
+        self.log.info("Resolved LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
+        return models
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""
         if self.model_id:
             return self.get_conn()
 
-        conn = self.get_connection(self.llm_conn_id)
-        self._conn = conn
-        self._conn_extra_dejson = conn.extra_dejson
-
-        if self._conn_extra_dejson.get("model"):
+        _, extra = self._get_conn_and_extra()
+        if extra.get("model"):
             return self.get_conn()
 
         return None
@@ -294,6 +388,10 @@ class PydanticAIHook(BaseHook):
         instantiated with the supplied credentials.  Does NOT make an LLM API
         call — that would be expensive and fail for reasons unrelated to
         connectivity (quotas, billing, rate limits).
+
+        Every connection in ``fallback_conn_ids`` is resolved too, so a
+        misconfigured fallback is reported here rather than discovered during
+        the outage it was meant to cover.
         """
         try:
             self.get_conn()

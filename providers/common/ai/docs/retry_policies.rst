@@ -83,6 +83,10 @@ If the LLM call fails (provider down, timeout, bad credentials), the policy
 falls back to ``fallback_rules`` if configured, or to the task's standard
 retry behaviour.
 
+This policy decides *between* attempts. Failing over to another vendor *within*
+an attempt is a separate mechanism on the connection — see
+:doc:`provider_fallback`, which also sets out how the two layers compose.
+
 Custom instructions
 -------------------
 
