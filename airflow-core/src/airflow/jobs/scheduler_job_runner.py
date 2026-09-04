@@ -2867,46 +2867,95 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Team name should be added before listeners are called in notify_dagrun_state_changed()
         self._stamp_team_names(dag_runs, session)
 
+        dag_run_keys_at_limit: set[tuple[str, int | None]] = set()
+
+        def _mark_dag_run_key_at_limit(
+            dag_run_key: tuple[str, int | None],
+            *,
+            active_runs: int,
+            max_active_runs: int,
+            dag_id: str,
+            run_id: str,
+            backfill_id: int | None,
+        ) -> None:
+            if dag_run_key in dag_run_keys_at_limit:
+                return
+
+            dag_run_keys_at_limit.add(dag_run_key)
+            if backfill_id is not None:
+                self.log.info(
+                    "backfill max_active_runs reached; skipping remaining queued dag runs for this "
+                    "scheduler pass; active_runs=%s max_active_runs=%s dag_id=%s run_id=%s backfill_id=%s",
+                    active_runs,
+                    max_active_runs,
+                    dag_id,
+                    run_id,
+                    backfill_id,
+                )
+            else:
+                self.log.info(
+                    "dag max_active_runs reached; skipping remaining queued dag runs for this scheduler pass; "
+                    "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                    active_runs,
+                    max_active_runs,
+                    dag_id,
+                    run_id,
+                )
+
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
+            dag_run_key = (dag_id, backfill_id)
+            if dag_run_key in dag_run_keys_at_limit:
+                continue
+
             dag = dag_run.dag = cached_get_dag(dag_run)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
-            active_runs = active_runs_of_dags[(dag_id, backfill_id)]
+            active_runs = active_runs_of_dags[dag_run_key]
+            max_active_runs: int | None = None
             if backfill_id is not None:
                 if backfill_id not in locked_backfills:
                     # Another scheduler has this backfill locked, skip this run
                     continue
                 backfill = dag_run.backfill
-                if active_runs >= backfill.max_active_runs:
-                    # todo: delete all "candidate dag runs" from list for this dag right now
-                    self.log.info(
-                        "dag cannot be started due to backfill max_active_runs constraint; "
-                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
-                        active_runs,
-                        backfill.max_active_runs,
-                        dag_id,
-                        run_id,
+                max_active_runs = backfill.max_active_runs
+                if active_runs >= max_active_runs:
+                    _mark_dag_run_key_at_limit(
+                        dag_run_key,
+                        active_runs=active_runs,
+                        max_active_runs=max_active_runs,
+                        dag_id=dag_id,
+                        run_id=run_id,
+                        backfill_id=backfill_id,
                     )
                     continue
             elif dag_run.max_active_runs:
                 # Using dag_run.max_active_runs which links to DagModel to ensure we are checking
                 # against the most recent changes on the dag and not using stale serialized dag
-                if active_runs >= dag_run.max_active_runs:
-                    # todo: delete all candidate dag runs for this dag from list right now
-                    self.log.info(
-                        "dag cannot be started due to dag max_active_runs constraint; "
-                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
-                        active_runs,
-                        dag_run.max_active_runs,
-                        dag_run.dag_id,
-                        dag_run.run_id,
+                max_active_runs = dag_run.max_active_runs
+                if active_runs >= max_active_runs:
+                    _mark_dag_run_key_at_limit(
+                        dag_run_key,
+                        active_runs=active_runs,
+                        max_active_runs=max_active_runs,
+                        dag_id=dag_id,
+                        run_id=run_id,
+                        backfill_id=backfill_id,
                     )
                     continue
-            active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
+            active_runs_of_dags[dag_run_key] += 1
+            if max_active_runs is not None and active_runs_of_dags[dag_run_key] >= max_active_runs:
+                _mark_dag_run_key_at_limit(
+                    dag_run_key,
+                    active_runs=active_runs_of_dags[dag_run_key],
+                    max_active_runs=max_active_runs,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    backfill_id=backfill_id,
+                )
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
 

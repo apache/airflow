@@ -10812,6 +10812,88 @@ class TestSchedulerJob:
         session.refresh(ti)
         assert ti.state != State.NONE
 
+    def test_start_queued_dagruns_skips_remaining_candidates_once_max_active_runs_reached(
+        self, dag_maker, session
+    ):
+        with dag_maker(
+            "test_skip_candidates_once_max_active_runs_reached",
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(hours=1),
+            max_active_runs=2,
+            catchup=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+
+        running_dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
+        queued_dr = dag_maker.create_dagrun_after(
+            running_dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED
+        )
+        queued_drs = [queued_dr]
+        for _ in range(2):
+            queued_dr = dag_maker.create_dagrun_after(
+                queued_dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED
+            )
+            queued_drs.append(queued_dr)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with mock.patch.object(
+            self.job_runner.scheduler_dag_bag,
+            "get_dag_for_run",
+            wraps=self.job_runner.scheduler_dag_bag.get_dag_for_run,
+        ) as mock_get_dag:
+            self.job_runner._start_queued_dagruns(session)
+
+        session.flush()
+        assert mock_get_dag.call_count == 1
+        assert session.get(DagRun, queued_drs[0].id).state == State.RUNNING
+        assert {session.get(DagRun, dr.id).state for dr in queued_drs[1:]} == {State.QUEUED}
+
+    def test_start_queued_dagruns_skips_remaining_backfill_candidates_once_limit_reached(
+        self, dag_maker, session
+    ):
+        dag_id = "test_skip_backfill_candidates_once_limit_reached"
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            catchup=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+
+        _create_backfill(
+            dag_id=dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-03"),
+            max_active_runs=1,
+            reverse=False,
+            triggering_user_name="test_user",
+            dag_run_conf={},
+        )
+        queued_drs = session.scalars(
+            select(DagRun)
+            .where(DagRun.dag_id == dag_id, DagRun.run_type == DagRunType.BACKFILL_JOB)
+            .order_by(DagRun.run_after)
+        ).all()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with mock.patch.object(
+            self.job_runner.scheduler_dag_bag,
+            "get_dag_for_run",
+            wraps=self.job_runner.scheduler_dag_bag.get_dag_for_run,
+        ) as mock_get_dag:
+            self.job_runner._start_queued_dagruns(session)
+
+        session.flush()
+        assert mock_get_dag.call_count == 1
+        assert session.get(DagRun, queued_drs[0].id).state == State.RUNNING
+        assert {session.get(DagRun, dr.id).state for dr in queued_drs[1:]} == {State.QUEUED}
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
