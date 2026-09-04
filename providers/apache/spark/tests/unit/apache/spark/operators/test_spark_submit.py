@@ -927,6 +927,16 @@ class TestSparkSubmitOperatorK8sTracking:
         hook._conf = {}
         return hook
 
+    def test_get_hook_passes_k8s_driver_container_name(self):
+        operator = self._make_operator(k8s_driver_container_name="custom-driver")
+
+        hook = operator._get_hook()
+
+        assert hook.k8s_driver_container_name == "custom-driver"
+
+    def test_k8s_driver_container_name_is_templatable(self):
+        assert "k8s_driver_container_name" in SparkSubmitOperator.template_fields
+
     def test_execute_calls_submit_then_poll_when_flag_set(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         hook = self._make_k8s_hook()
@@ -956,7 +966,7 @@ class TestSparkSubmitOperatorK8sTracking:
     def test_k8s_submit_job_returns_encoded_external_id(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         hook = self._make_k8s_hook()
-        hook._kubernetes_driver_pod = "spark-abc-driver"
+        hook._k8s_driver_pod_name = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
 
@@ -969,7 +979,7 @@ class TestSparkSubmitOperatorK8sTracking:
     def test_k8s_submit_job_raises_when_pod_name_missing(self):
         operator = self._make_operator(track_driver_via_k8s_api=True)
         hook = self._make_k8s_hook()
-        hook._kubernetes_driver_pod = None
+        hook._k8s_driver_pod_name = None
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
 
@@ -1050,7 +1060,7 @@ class TestSparkSubmitOperatorK8sTracking:
 
         operator.poll_until_complete("mynamespace:spark-abc-driver", {})
 
-        assert hook._kubernetes_driver_pod == "spark-abc-driver"
+        assert hook._k8s_driver_pod_name == "spark-abc-driver"
         hook._poll_k8s_driver_via_api.assert_called_once()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task_state_store requires Airflow 3.3+")
@@ -1103,7 +1113,7 @@ class TestSparkSubmitOperatorK8sTracking:
         """execute() with durable=True stores the pod ID in task_store before polling."""
         operator = self._make_operator(track_driver_via_k8s_api=True, durable=True)
         hook = self._make_k8s_hook()
-        hook._kubernetes_driver_pod = "spark-abc-driver"
+        hook._k8s_driver_pod_name = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
         task_store = FakeTaskStateStore()
@@ -1126,7 +1136,7 @@ class TestSparkSubmitOperatorK8sTracking:
         """execute() with durable=False does not write spark_job_id to task_store."""
         operator = self._make_operator(track_driver_via_k8s_api=True, durable=False)
         hook = self._make_k8s_hook()
-        hook._kubernetes_driver_pod = "spark-abc-driver"
+        hook._k8s_driver_pod_name = "spark-abc-driver"
         hook._connection = {"namespace": "mynamespace"}
         operator._hook = hook
         task_store = FakeTaskStateStore()

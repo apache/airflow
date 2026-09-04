@@ -143,6 +143,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         ``keytab`` and ``principal`` configured use ``requests-kerberos``
         automatically. Defaults to ``None`` (no auth for non-Kerberos
         connections).
+    :param k8s_driver_container_name: Name of the Spark driver container used for identification to track status
     """
 
     conn_name_attr = "conn_id"
@@ -273,6 +274,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         track_driver_via_k8s_api: bool = False,
         yarn_track_via_rm_api: bool = False,
         yarn_rm_auth: AuthBase | None = None,
+        k8s_driver_container_name: str | None = None,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
@@ -302,7 +304,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._verbose = verbose
         self._submit_sp: Any | None = None
         self._yarn_application_id: str | None = None
-        self._kubernetes_driver_pod: str | None = None
+        self._k8s_driver_pod_name: str | None = None
         self._kubernetes_application_id: str | None = None
         self.spark_binary = spark_binary
         self._properties_file = properties_file
@@ -334,6 +336,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # `_track_yarn_application` does not re-fetch the Spark connection
         # (and re-hit any configured Secrets Backend) on every iteration.
         self._yarn_rm_base_url: str | None = None
+        self.k8s_driver_container_name = k8s_driver_container_name
 
     def _resolve_should_track_driver_status(self) -> bool:
         """
@@ -857,13 +860,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 # "pod name: <name>-driver" and "submission ID spark:<name>-driver"
                 match_driver_pod = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
                 if match_driver_pod:
-                    self._kubernetes_driver_pod = match_driver_pod.group(1)
-                    self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
-                if not self._kubernetes_driver_pod:
+                    self._k8s_driver_pod_name = match_driver_pod.group(1)
+                    self.log.info("Identified spark driver pod: %s", self._k8s_driver_pod_name)
+                if not self._k8s_driver_pod_name:
                     match_submission_id = re.search(r"submission ID spark:(.+?-driver)", line)
                     if match_submission_id:
-                        self._kubernetes_driver_pod = match_submission_id.group(1)
-                        self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
+                        self._k8s_driver_pod_name = match_submission_id.group(1)
+                        self.log.info("Identified spark driver pod: %s", self._k8s_driver_pod_name)
 
                 match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
                 if match_application_id:
@@ -1177,15 +1180,16 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _poll_k8s_driver_via_api(self) -> str | None:
         """
-        Poll the K8s driver pod phase until it reaches a terminal state.
+        Poll the K8s driver container status or pod phase until it reaches a terminal state.
 
         Returns the terminal phase string (e.g. ``"Succeeded"``) on normal completion,
         or ``None`` if the pod vanished mid-poll (404 — likely deleted by ``on_kill``).
         Raises ``RuntimeError`` on failure phases or unrecoverable API errors.
         """
-        pod_name = self._kubernetes_driver_pod
+        k8s_driver_pod_name = self._k8s_driver_pod_name
+        k8s_driver_container_name = self.k8s_driver_container_name
         namespace = self._connection["namespace"]
-        app_id = self._kubernetes_application_id or pod_name
+        app_id = self._kubernetes_application_id or k8s_driver_pod_name
 
         client = kube_client.get_kube_client()
         poll_interval = max(self._status_poll_interval, 20)
@@ -1201,26 +1205,29 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         consecutive_api_errors = 0
         max_consecutive_api_errors = 3
         consecutive_pending = 0
-        pending_warn_threshold = 10
+        consecutive_waiting = 0
+        waiting_or_pending_warn_threshold = 10
+        terminal_phase: str | None = None
+        driver_container_logged = False
 
         try:
-            if not pod_name:
+            if not k8s_driver_pod_name:
                 raise ValueError("K8s driver pod name not set; cannot poll status.")
             while True:
                 try:
-                    pod = client.read_namespaced_pod(pod_name, namespace)
+                    pod = client.read_namespaced_pod(k8s_driver_pod_name, namespace)
                     consecutive_api_errors = 0
                 except kube_client.ApiException as e:
                     if e.status == 404:
                         self.log.info(
                             "Driver pod %s not found (404); pod was likely deleted by on_kill. Exiting poll loop.",
-                            pod_name,
+                            k8s_driver_pod_name,
                         )
                         return None
                     consecutive_api_errors += 1
                     self.log.warning(
                         "ApiException polling pod %s (%d/%d): %s",
-                        pod_name,
+                        k8s_driver_pod_name,
                         consecutive_api_errors,
                         max_consecutive_api_errors,
                         e,
@@ -1232,7 +1239,52 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         ) from e
                     time.sleep(poll_interval)
                     continue
+                driver_container = None
 
+                for container in pod.spec.containers:
+                    if k8s_driver_container_name:
+                        if k8s_driver_container_name.lower() == container.name.lower():
+                            driver_container = container
+                            break
+                        continue
+                    if "driver" in container.name.lower():
+                        driver_container = container
+                        break
+                    if "spark" in container.name.lower():
+                        driver_container = container
+                    if len(pod.spec.containers) == 1:
+                        driver_container = container
+                if k8s_driver_container_name and not driver_container:
+                    raise ValueError(
+                        f"The driver container name provided does not match any of the containers in pod {k8s_driver_pod_name}"
+                    )
+                container_completed = False
+                if driver_container:
+                    if not driver_container_logged:
+                        self.log.info("%s has been identified as the driver container", driver_container.name)
+                        driver_container_logged = True
+                    for status in pod.status.container_statuses or []:
+                        if status.name == driver_container.name:
+                            if status.state and status.state.terminated:
+                                driver_exit_code = status.state.terminated.exit_code
+                                if driver_exit_code == 0:
+                                    container_completed = True
+                                    break
+                                raise RuntimeError(
+                                    f"Spark application {app_id} failed.\nThe driver container exited with a non-zero status code.\nExit code: {driver_exit_code}\nReason: {status.state.terminated.reason}"
+                                )
+                            if status.state and status.state.waiting:
+                                consecutive_waiting += 1
+                                if consecutive_waiting == waiting_or_pending_warn_threshold:
+                                    self.log.warning(
+                                        "Driver container %s has been waiting for %d polls (~%ds); "
+                                        "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
+                                        driver_container.name,
+                                        consecutive_waiting,
+                                        consecutive_waiting * poll_interval,
+                                    )
+                            else:
+                                consecutive_waiting = 0
                 phase = pod.status.phase or "Initializing"
                 self.log.info("Application status for %s (phase: %s)", app_id, phase)
                 if phase == "Succeeded":
@@ -1249,20 +1301,27 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                             )
                     terminal_phase = phase
                     break
-                if phase == "Failed":
+                if phase == "Failed" and not container_completed:
                     container_state = ""
                     if pod.status.container_statuses:
                         cs = pod.status.container_statuses[0]
                         if cs.state and cs.state.terminated:
                             container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
+                if phase == "Failed" and container_completed and driver_container:
+                    self.log.warning(
+                        "Driver pod %s reported phase=Failed, but driver container %s exited 0; "
+                        "treating the Spark application as succeeded.",
+                        k8s_driver_pod_name,
+                        driver_container.name,
+                    )
                 if phase == "Pending":
                     consecutive_pending += 1
-                    if consecutive_pending == pending_warn_threshold:
+                    if consecutive_pending == waiting_or_pending_warn_threshold:
                         self.log.warning(
                             "Driver pod %s has been Pending for %d polls (~%ds); "
                             "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
-                            pod_name,
+                            k8s_driver_pod_name,
                             consecutive_pending,
                             consecutive_pending * poll_interval,
                         )
@@ -1280,6 +1339,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         )
                 else:
                     consecutive_unknown = 0
+                if container_completed:
+                    # Driver container exited 0 — the application succeeded even if the
+                    # pod phase still reads "Running" at this poll.
+                    terminal_phase = "Succeeded"
+                    break
                 time.sleep(poll_interval)
             # Pod deletion is best-effort cleanup. If it fails (e.g. already garbage collected or RBAC
             # denied), suppress the error so terminal_phase is still returned and the task
@@ -1314,20 +1378,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """Delete the Kubernetes driver pod, logging a warning on failure."""
         import kubernetes
 
-        self.log.info("Deleting driver pod %s on Kubernetes", self._kubernetes_driver_pod)
+        self.log.info("Deleting driver pod %s on Kubernetes", self._k8s_driver_pod_name)
         try:
             client = kube_client.get_kube_client()
             client.delete_namespaced_pod(
-                self._kubernetes_driver_pod,
+                self._k8s_driver_pod_name,
                 self._connection["namespace"],
                 body=kubernetes.client.V1DeleteOptions(),
                 pretty=True,
             )
-            self.log.info("Deleted driver pod %s", self._kubernetes_driver_pod)
+            self.log.info("Deleted driver pod %s", self._k8s_driver_pod_name)
         except kube_client.ApiException:
-            self.log.exception(
-                "Exception when attempting to delete driver pod %s", self._kubernetes_driver_pod
-            )
+            self.log.exception("Exception when attempting to delete driver pod %s", self._k8s_driver_pod_name)
 
     def on_kill(self) -> None:
         """Kill Spark submit command."""
@@ -1342,7 +1404,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
                 )
 
-        if self._should_track_driver_via_k8s_api() and self._kubernetes_driver_pod:
+        if self._should_track_driver_via_k8s_api() and self._k8s_driver_pod_name:
             # spark-submit exits early under waitAppCompletion=false, so _submit_sp.poll() is
             # not None during the poll loop — the deletion block below is skipped on kill.
             self._delete_driver_pod()
@@ -1377,7 +1439,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 ) as yarn_kill:
                     self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
 
-            if self._kubernetes_driver_pod:
+            if self._k8s_driver_pod_name:
                 self._delete_driver_pod()
 
         # Opt-in REST kill path — uses the same RM endpoint as polling, no
