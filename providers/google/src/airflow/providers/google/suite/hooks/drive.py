@@ -29,6 +29,14 @@ from googleapiclient.http import HttpRequest, MediaFileUpload
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
+def _escape_drive_query_value(value: str) -> str:
+    r"""Escape a value for interpolation into a Drive ``q=`` string literal."""
+    # Drive string literals are single-quoted and escape both quotes and backslashes with a
+    # backslash. Object names routinely contain either character, and left unescaped they end
+    # the literal early and change what the expression means.
+    return str(value).replace("\\", "\\\\").replace("'", "\\'")
+
+
 class GoogleDriveHook(GoogleBaseHook):
     """
     Hook for the Google Drive APIs.
@@ -87,8 +95,8 @@ class GoogleDriveHook(GoogleBaseHook):
             conditions = [
                 "trashed=false",
                 "mimeType='application/vnd.google-apps.folder'",
-                f"name='{current_folder}'",
-                f"'{current_parent}' in parents",
+                f"name='{_escape_drive_query_value(current_folder)}'",
+                f"'{_escape_drive_query_value(current_parent)}' in parents",
             ]
             result = (
                 service.files()
@@ -223,9 +231,9 @@ class GoogleDriveHook(GoogleBaseHook):
 
         :return: Google Drive file id if the file exists, otherwise None
         """
-        query = f"name = '{file_name}'"
+        query = f"name = '{_escape_drive_query_value(file_name)}'"
         if folder_id:
-            query += f" and parents in '{folder_id}'"
+            query += f" and parents in '{_escape_drive_query_value(folder_id)}'"
 
         if not include_trashed:
             query += " and trashed=false"
