@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 from typing import Any
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import TriggerEvent
@@ -55,6 +57,13 @@ class PubsubPullTrigger(BaseEventTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param return_immediately: If this field set to true, the system will
+        respond immediately even if it there are no messages available to
+        return in the ``Pull`` response. Otherwise, the system may wait
+        (for a bounded amount of time) until at least one message is available,
+        rather than returning no messages. Warning: setting this field to
+        ``true`` is discouraged because it adversely impacts the performance
+        of ``Pull`` operations. We recommend that users do not set this field.
     """
 
     def __init__(
@@ -66,6 +75,7 @@ class PubsubPullTrigger(BaseEventTrigger):
         gcp_conn_id: str,
         poke_interval: float = 10.0,
         impersonation_chain: str | Sequence[str] | None = None,
+        return_immediately: bool | None = None,
     ):
         super().__init__()
         self.project_id = project_id
@@ -75,6 +85,15 @@ class PubsubPullTrigger(BaseEventTrigger):
         self.poke_interval = poke_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        if return_immediately is not None:
+            warnings.warn(
+                "The default value of `return_immediately` will be changed to `False` in a future major release.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.return_immediately = return_immediately
+        else:
+            self.return_immediately = True
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize PubsubPullTrigger arguments and classpath."""
@@ -88,6 +107,7 @@ class PubsubPullTrigger(BaseEventTrigger):
                 "poke_interval": self.poke_interval,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
+                "return_immediately": self.return_immediately,
             },
         )
 
@@ -97,7 +117,7 @@ class PubsubPullTrigger(BaseEventTrigger):
                 project_id=self.project_id,
                 subscription=self.subscription,
                 max_messages=self.max_messages,
-                return_immediately=True,
+                return_immediately=self.return_immediately,
             ):
                 if self.ack_messages:
                     await self.message_acknowledgement(pulled_messages)
