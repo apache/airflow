@@ -219,6 +219,48 @@ def test_failed_api_requests_emit_metrics_with_server_error_status():
     mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
 
+@pytest.mark.parametrize(
+    ("method", "expected_status_code", "expected_tags"),
+    [
+        pytest.param(
+            "GET",
+            200,
+            {"method": "GET", "route": "/api/v2/items/{item_id}", "status_family": "2xx"},
+            id="served-method",
+        ),
+        pytest.param(
+            "POST",
+            405,
+            {"method": "POST", "route": "/api/v2/items/{item_id}", "status_family": "4xx"},
+            id="served-method-not-allowed-on-route",
+        ),
+        pytest.param(
+            "HEAD",
+            405,
+            {"method": "OTHER", "route": "/api/v2/items/{item_id}", "status_family": "4xx"},
+            id="standard-method-never-served",
+        ),
+        pytest.param(
+            "METHOD-0001",
+            405,
+            {"method": "OTHER", "route": "/api/v2/items/{item_id}", "status_family": "4xx"},
+            id="made-up-method",
+        ),
+    ],
+)
+def test_method_tag_is_bounded_to_served_methods(method, expected_status_code, expected_tags):
+    with (
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
+    ):
+        client = TestClient(_make_app(), raise_server_exceptions=False)
+        response = client.request(method, "/api/v2/items/42")
+
+    assert response.status_code == expected_status_code
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
+
+
 def test_unmatched_api_requests_use_unmatched_route_tag():
     with (
         mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,

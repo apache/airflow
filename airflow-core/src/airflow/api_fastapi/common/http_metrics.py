@@ -31,6 +31,10 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(logger_name="http.metrics")
 
 _API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui")
+# Only methods registered on API routes get their own tag value. A method mismatch is rejected
+# before authentication, so any other value would let anonymous clients mint metric series.
+_SERVED_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE"})
+_OTHER_HTTP_METHOD = "OTHER"
 
 
 def _is_api_metrics_path(path: str) -> bool:
@@ -39,6 +43,10 @@ def _is_api_metrics_path(path: str) -> bool:
 
 def _get_status_family(status_code: int) -> str:
     return f"{status_code // 100}xx"
+
+
+def _get_method_tag(method: str) -> str:
+    return method if method in _SERVED_HTTP_METHODS else _OTHER_HTTP_METHOD
 
 
 def _get_route_template(scope: Scope) -> str:
@@ -63,7 +71,7 @@ def _emit_api_metrics(
 
     # Keep tags bounded so API metrics remain usable across supported backends.
     tags = {
-        "method": method,
+        "method": _get_method_tag(method),
         "route": _get_route_template(scope),
         "status_family": _get_status_family(status_code),
     }
