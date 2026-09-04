@@ -50,6 +50,7 @@ from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.exceptions import TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -873,20 +874,29 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ti=ser_ti,  # type: ignore
         )
 
-        serialized_dag_model = dag_bag.get_serialized_dag_model(
-            version_id=trigger.task_instance.dag_version_id,
-            session=session,
+        dag_run = trigger.task_instance.get_dagrun(session=session)
+        serialized_dag_model = dag_bag.get_serialized_dag_model_for_run(
+            dag_run, session=session
+        ) or dag_bag.get_serialized_dag_model(
+            version_id=trigger.task_instance.dag_version_id, session=session
         )
 
         if serialized_dag_model:
-            task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+            task = None
+            try:
+                task = serialized_dag_model.dag.get_task(trigger.task_instance.task_id)
+            except TaskNotFound:
+                log.warning(
+                    "Task not found in resolved Dag version; building plain workload",
+                    task_id=trigger.task_instance.task_id,
+                    dag_id=trigger.task_instance.dag_id,
+                )
 
             # When a TaskInstance of a Trigger contains a task with start_from_trigger enabled,
             # it means we need to load the SerializedDagModel so we can build a RuntimeTaskInstance later on which
             # will allow us to build a context on which we will render the templated fields.
-            if task.start_from_trigger:
+            if task is not None and task.start_from_trigger:
                 log.info("Start from trigger enabled for task %s", task.task_id)
-                dag_run = trigger.task_instance.get_dagrun(session=session)
 
                 return workloads.RunTrigger(
                     id=trigger.id,
