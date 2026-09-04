@@ -10,17 +10,28 @@
   "filters": {
     "allRunTypes": "Tots els tipus d'execució",
     "allStates": "Tots els estats",
+    "anyRunState": "Qualsevol execució",
+    "anyRunStatePlaceholder": "Seleccionar qualsevol estat d'execució…",
     "favorite": {
       "all": "Tots",
       "favorite": "Favorits",
       "unfavorite": "No favorits"
     },
+    "favoriteState": "Estat de favorit",
+    "favoriteStatePlaceholder": "Seleccionar l'estat de favorit…",
+    "lastRunState": "Última execució",
+    "lastRunStatePlaceholder": "Seleccionar l'estat de l'última execució…",
+    "noTimetableTypesFound": "No s'han trobat tipus de calendari",
     "paused": {
       "active": "Actius",
       "all": "Tots",
       "paused": "Pausats"
     },
-    "runIdPatternFilter": "Cerca execucions de Dag"
+    "pausedPlaceholder": "Seleccionar l'estat de pausa…",
+    "pausedState": "Estat de pausa",
+    "requiresHitlAction": "Requereix una acció HITL",
+    "runIdPatternFilter": "Cerca execucions de Dag",
+    "timetableType": "Tipus de calendari"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
   "runAndTaskActions": {
@@ -73,8 +84,14 @@
       "preventRunningTasks": "Evitar rellançar tasques en execució",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
+      "runOnLatestVersionForced": "Sempre utilitza la versió més recent: no hi ha cap versió anterior a la qual tornar",
       "upstream": "Aigües amunt"
     }
+  },
+  "runStateCounts": {
+    "label": "Estats de les execucions",
+    "loading": "Carregant el recompte d'estats de les execucions",
+    "tooltip": "{{state}}: {{formattedCount}} — feu clic per filtrar les execucions"
   },
   "search": {
     "advanced": "Cerca avançada",
@@ -88,9 +105,9 @@
       "asc": "Ordenar per nom mostrat (A-Z)",
       "desc": "Ordenar per nom mostrat (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Ordenar per data d'inici de l'última execució (Més antic-Més recent)",
-      "desc": "Ordenar per data d'inici de l'última execució (Més recent-Més antic)"
+    "lastRunAfter": {
+      "asc": "Ordenar per «Executar després de» de l'última execució (més antic-més recent)",
+      "desc": "Ordenar per «Executar després de» de l'última execució (més recent-més antic)"
     },
     "lastRunState": {
       "asc": "Ordenar per estat de l'última execució (A-Z)",
