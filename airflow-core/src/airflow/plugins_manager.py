@@ -30,6 +30,7 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
     ExternalViewDict as ExternalViewDict,
     FastAPIAppDict as FastAPIAppDict,
     FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
@@ -178,7 +179,7 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: str) -> None:
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
     """
     Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
 

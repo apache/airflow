@@ -91,6 +91,16 @@ class AirflowPluginException(Exception):
 BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
 
 
+class AppliesToDict(TypedDict):
+    """Dictionary structure for the optional ``applies_to`` scoping block on UI plugins."""
+
+    dag_tags: NotRequired[list[str] | None]
+    dag_ids: NotRequired[list[str] | None]
+    task_ids: NotRequired[list[str] | None]
+    operators: NotRequired[list[str] | None]
+    operator_names: NotRequired[list[str] | None]
+
+
 class _BaseUIDict(TypedDict):
     """Shared UI fields mirroring ``BaseUIResponse``."""
 
@@ -100,6 +110,7 @@ class _BaseUIDict(TypedDict):
     url_route: NotRequired[str]
     category: NotRequired[str]
     nav_top_level: NotRequired[bool]
+    applies_to: NotRequired[AppliesToDict | None]
 
 
 class ExternalViewDict(_BaseUIDict):

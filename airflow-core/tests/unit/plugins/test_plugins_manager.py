@@ -323,7 +323,13 @@ class TestPluginsManager:
             name = "test_plugin"
 
             external_views = [
-                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag",
+                    "applies_to": applies_to,
+                }
             ]
 
         with (
@@ -334,7 +340,9 @@ class TestPluginsManager:
 
             external_views, _ = plugins_manager._get_ui_plugins()
 
-            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+            assert external_views == [
+                {"name": "Scoped", "href": "/scoped", "url_route": "/scoped", "destination": "dag"}
+            ]
 
         assert caplog.record_tuples == [
             (
@@ -352,6 +360,7 @@ class TestPluginsManager:
             react_apps = [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -371,6 +380,7 @@ class TestPluginsManager:
             assert react_apps == [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -393,6 +403,7 @@ class TestPluginsManager:
             external_views = [
                 {
                     "name": "Scoped",
+                    "href": "/scoped",
                     "url_route": "/scoped",
                     "destination": "task",
                     "applies_to": {
