@@ -214,6 +214,32 @@ class TestDataflowTemplatedJobStartOperator:
         )
         mock_defer_method.assert_called_once()
 
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowTemplatedJobStartOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_deferrable_threads_cancel_on_kill_false_into_trigger(self, mock_hook, mock_defer_method):
+        """cancel_on_kill=False reaches the trigger, so a deferred kill leaves the job running."""
+        operator = DataflowTemplatedJobStartOperator(
+            project_id=TEST_PROJECT,
+            task_id=TASK_ID,
+            template=TEMPLATE,
+            job_name=JOB_NAME,
+            location=TEST_LOCATION,
+            deferrable=True,
+            cancel_on_kill=False,
+        )
+        operator.execute(mock.MagicMock())
+
+        assert mock_defer_method.call_args.kwargs["trigger"].cancel_on_kill is False
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_on_kill_respects_cancel_on_kill_false(self, mock_hook, sync_operator):
+        sync_operator.cancel_on_kill = False
+        sync_operator.job = {"id": "test-job", "projectId": TEST_PROJECT, "location": TEST_LOCATION}
+
+        sync_operator.on_kill()
+
+        mock_hook.return_value.cancel_job.assert_not_called()
+
     def test_validation_deferrable_params_raises_error(self):
         init_kwargs = {
             "project_id": TEST_PROJECT,
@@ -351,6 +377,31 @@ class TestDataflowStartFlexTemplateOperator:
         )
         mock_defer_method.assert_called_once()
 
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartFlexTemplateOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_deferrable_threads_cancel_on_kill_false_into_trigger(self, mock_hook, mock_defer_method):
+        """cancel_on_kill=False reaches the trigger, so a deferred kill leaves the job running."""
+        operator = DataflowStartFlexTemplateOperator(
+            task_id="start_flex_template_streaming_beam_sql",
+            body={"launchParameter": TEST_FLEX_PARAMETERS},
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+            deferrable=True,
+            cancel_on_kill=False,
+        )
+        operator.execute(mock.MagicMock())
+
+        assert mock_defer_method.call_args.kwargs["trigger"].cancel_on_kill is False
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_on_kill_respects_cancel_on_kill_false(self, mock_hook, sync_operator):
+        sync_operator.cancel_on_kill = False
+        sync_operator.job = {"id": "test-job", "projectId": TEST_PROJECT, "location": TEST_LOCATION}
+
+        sync_operator.on_kill()
+
+        mock_hook.return_value.cancel_job.assert_not_called()
+
 
 class TestDataflowStartYamlJobOperator:
     @pytest.fixture
@@ -414,6 +465,56 @@ class TestDataflowStartYamlJobOperator:
             gcp_conn_id=GCP_CONN_ID,
         )
         mock_defer_method.assert_called_once()
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_deferrable_threads_cancel_on_kill_false_into_trigger(self, mock_hook, mock_defer_method):
+        """cancel_on_kill=False reaches the trigger, so a deferred kill leaves the job running."""
+        operator = DataflowStartYamlJobOperator(
+            task_id="start_dataflow_yaml_job_cancel_false",
+            job_name="dataflow_yaml_job",
+            yaml_pipeline_file="test_file_path",
+            append_job_name=False,
+            project_id=TEST_PROJECT,
+            region=TEST_LOCATION,
+            deferrable=True,
+            cancel_on_kill=False,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_RUNNING,
+        )
+        operator.execute(mock.MagicMock())
+
+        assert mock_defer_method.call_args.kwargs["trigger"].cancel_on_kill is False
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_on_kill_respects_cancel_on_kill_false(self, mock_hook, sync_operator):
+        sync_operator.cancel_on_kill = False
+        sync_operator.job_id = "test-job-id"
+
+        sync_operator.on_kill()
+
+        mock_hook.return_value.cancel_job.assert_not_called()
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_deferrable_threads_drain_pipeline_into_trigger(self, mock_hook, mock_defer_method):
+        """drain_pipeline reaches the trigger so a killed deferred task drains instead of cancels."""
+        operator = DataflowStartYamlJobOperator(
+            task_id="start_dataflow_yaml_job_drain",
+            job_name="dataflow_yaml_job",
+            yaml_pipeline_file="test_file_path",
+            append_job_name=False,
+            project_id=TEST_PROJECT,
+            region=TEST_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+            drain_pipeline=True,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_RUNNING,
+        )
+        operator.execute(mock.MagicMock())
+
+        trigger = mock_defer_method.call_args.kwargs["trigger"]
+        assert trigger.drain_pipeline is True
+        assert trigger.cancel_on_kill is True
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
     def test_execute_complete_success(self, mock_hook, deferrable_operator):
