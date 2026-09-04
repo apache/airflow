@@ -469,19 +469,27 @@ class BeamAsyncHook(BeamHook):
 
     @staticmethod
     async def _beam_version(py_interpreter: str) -> str:
-        version_script_cmd = shlex.join([py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT])
-        proc = await asyncio.create_subprocess_shell(
-            version_script_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
+        start_error: OSError | None = None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                py_interpreter,
+                "-c",
+                _APACHE_BEAM_VERSION_SCRIPT,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except OSError as e:
+            start_error = e
+            stdout, stderr, returncode = b"", str(e).encode(), 1
+        else:
+            stdout, stderr = await proc.communicate()
+            returncode = proc.returncode
+        if returncode != 0:
             msg = (
-                f"Unable to retrieve Apache Beam version, return code {proc.returncode}."
+                f"Unable to retrieve Apache Beam version, return code {returncode}."
                 f"\nstdout: {stdout.decode()}\nstderr: {stderr.decode()}"
             )
-            raise AirflowException(msg)
+            raise AirflowException(msg) from start_error
         return stdout.decode().strip()
 
     async def start_python_pipeline_async(
@@ -627,16 +635,12 @@ class BeamAsyncHook(BeamHook):
         :param process_line_callback: Optional callback which can be used to process
             stdout and stderr to detect job id
         """
-        cmd_str_representation = " ".join(shlex.quote(c) for c in cmd)
-        log.info("Running command: %s", cmd_str_representation)
+        log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
 
-        # Creating a separate asynchronous process
-        process = await asyncio.create_subprocess_shell(
-            cmd_str_representation,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            close_fds=True,
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             cwd=working_directory,
         )
         # Waits for Apache Beam pipeline to complete.
