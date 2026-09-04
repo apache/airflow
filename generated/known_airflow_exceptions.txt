@@ -267,8 +267,6 @@ providers/google/src/airflow/providers/google/cloud/operators/looker.py::1
 providers/google/src/airflow/providers/google/cloud/operators/managed_kafka.py::15
 providers/google/src/airflow/providers/google/cloud/operators/pubsub.py::1
 providers/google/src/airflow/providers/google/cloud/operators/spanner.py::19
-providers/google/src/airflow/providers/google/cloud/operators/speech_to_text.py::2
-providers/google/src/airflow/providers/google/cloud/operators/text_to_speech.py::1
 providers/google/src/airflow/providers/google/cloud/operators/translate.py::9
 providers/google/src/airflow/providers/google/cloud/operators/translate_speech.py::2
 providers/google/src/airflow/providers/google/cloud/operators/vertex_ai/batch_prediction_job.py::1
@@ -314,7 +312,6 @@ providers/google/src/airflow/providers/google/cloud/utils/credentials_provider.p
 providers/google/src/airflow/providers/google/common/hooks/base_google.py::7
 providers/google/src/airflow/providers/google/common/hooks/operation_helpers.py::2
 providers/google/src/airflow/providers/google/firebase/hooks/firestore.py::1
-providers/google/src/airflow/providers/google/firebase/operators/firestore.py::1
 providers/google/src/airflow/providers/google/leveldb/hooks/leveldb.py::4
 providers/google/src/airflow/providers/google/marketing_platform/hooks/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/hooks/search_ads.py::1
