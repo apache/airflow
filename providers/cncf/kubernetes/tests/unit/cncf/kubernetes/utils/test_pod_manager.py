@@ -1808,6 +1808,128 @@ class TestAsyncPodManager:
             self.async_pod_manager._emit_container_logs, log_lines, now, container_name
         )
 
+    def test_get_init_container_names(self):
+        pod = mock.MagicMock()
+        init_a, init_b = mock.MagicMock(), mock.MagicMock()
+        init_a.name = "init-a"
+        init_b.name = "init-b"
+        pod.spec.init_containers = [init_a, init_b]
+
+        assert self.async_pod_manager.get_init_container_names(pod) == ["init-a", "init-b"]
+
+    @pytest.mark.asyncio
+    async def test_fetch_requested_init_container_logs_processes_containers_in_spec_order(self):
+        """Init containers run sequentially, so their logs must be streamed one at a time
+        in ``spec.initContainers`` order -- mirroring the sync ``PodManager``'s behaviour."""
+        pod = mock.MagicMock()
+        init_a, init_b = mock.MagicMock(), mock.MagicMock()
+        init_a.name = "init-a"
+        init_b.name = "init-b"
+        pod.spec.init_containers = [init_a, init_b]
+
+        calls = []
+
+        async def fake_await_start(_pod, container_name):
+            calls.append(("start", container_name))
+
+        async def fake_stream(_pod, container_name, _poll_interval):
+            calls.append(("stream", container_name))
+
+        with (
+            mock.patch.object(
+                self.async_pod_manager, "_await_init_container_start", side_effect=fake_await_start
+            ),
+            mock.patch.object(
+                self.async_pod_manager,
+                "_stream_init_container_logs_until_completion",
+                side_effect=fake_stream,
+            ),
+        ):
+            await self.async_pod_manager.fetch_requested_init_container_logs(pod, init_containers=True)
+
+        assert calls == [("start", "init-a"), ("stream", "init-a"), ("start", "init-b"), ("stream", "init-b")]
+
+    @pytest.mark.asyncio
+    async def test_fetch_requested_init_container_logs_only_requested_container(self):
+        pod = mock.MagicMock()
+        init_a, init_b = mock.MagicMock(), mock.MagicMock()
+        init_a.name = "init-a"
+        init_b.name = "init-b"
+        pod.spec.init_containers = [init_a, init_b]
+
+        calls = []
+
+        async def fake_await_start(_pod, container_name):
+            calls.append(container_name)
+
+        with (
+            mock.patch.object(
+                self.async_pod_manager, "_await_init_container_start", side_effect=fake_await_start
+            ),
+            mock.patch.object(
+                self.async_pod_manager,
+                "_stream_init_container_logs_until_completion",
+                new=mock.AsyncMock(),
+            ),
+        ):
+            await self.async_pod_manager.fetch_requested_init_container_logs(pod, init_containers="init-b")
+
+        assert calls == ["init-b"]
+
+    @pytest.mark.asyncio
+    async def test_await_init_container_start_waits_until_pod_leaves_pending(self):
+        pending_pod = mock.MagicMock()
+        pending_pod.status.phase = PodPhase.PENDING
+
+        started_status = mock.MagicMock()
+        started_status.name = "init-a"
+        started_status.state.waiting = None
+        started_pod = mock.MagicMock()
+        started_pod.status.phase = PodPhase.RUNNING
+        started_pod.status.container_statuses = None
+        started_pod.status.init_container_statuses = [started_status]
+
+        self.mock_async_hook.get_pod = mock.AsyncMock(side_effect=[pending_pod, started_pod])
+
+        with mock.patch(
+            "airflow.providers.cncf.kubernetes.utils.pod_manager.asyncio.sleep", new=mock.AsyncMock()
+        ):
+            await self.async_pod_manager._await_init_container_start(mock.MagicMock(), "init-a")
+
+        assert self.mock_async_hook.get_pod.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_stream_init_container_logs_until_completion_polls_until_terminated(self):
+        """Regression guard: init container completion must be detected via
+        ``status.init_container_statuses``, not ``status.container_statuses`` (which never
+        contains init containers), or this loops until the mocked ``get_pod`` side effects
+        are exhausted and raises ``StopAsyncIteration``."""
+        running_status = mock.MagicMock()
+        running_status.name = "init-a"
+        running_status.state.terminated = None
+        running_pod = mock.MagicMock()
+        running_pod.status.container_statuses = None
+        running_pod.status.init_container_statuses = [running_status]
+
+        terminated_status = mock.MagicMock()
+        terminated_status.name = "init-a"
+        terminated_pod = mock.MagicMock()
+        terminated_pod.status.container_statuses = None
+        terminated_pod.status.init_container_statuses = [terminated_status]
+
+        self.mock_async_hook.get_pod = mock.AsyncMock(side_effect=[running_pod, terminated_pod])
+        self.mock_async_hook.read_logs = mock.AsyncMock(return_value=[])
+
+        with mock.patch(
+            "airflow.providers.cncf.kubernetes.utils.pod_manager.asyncio.sleep", new=mock.AsyncMock()
+        ):
+            await self.async_pod_manager._stream_init_container_logs_until_completion(
+                mock.MagicMock(), "init-a", poll_interval=0.01
+            )
+
+        assert self.mock_async_hook.get_pod.await_count == 2
+        assert self.mock_async_hook.read_logs.await_count == 2
+
 
 class TestPodLogsConsumer:
     @pytest.mark.parametrize(

@@ -3260,6 +3260,43 @@ class TestKubernetesPodOperatorAsync:
         assert "_execution_deadline" not in trigger.trigger_kwargs
         assert exc.value.timeout is None
 
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_passes_init_container_logs_to_trigger(
+        self, mocked_get_connection, mocked_convert_config
+    ):
+        """``init_container_logs`` must reach the trigger, or init container logs are silently dropped
+        once ``deferrable=True`` (see the operator's ``await_init_containers_completion`` for the sync
+        equivalent)."""
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+            init_container_logs="init-container",
+        )
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        ti_mock = MagicMock()
+        ti_mock.start_date = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        context = {"ti": ti_mock}
+
+        with (
+            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            k.invoke_defer_method(context=context)
+
+        trigger = exc.value.trigger
+        assert trigger.init_container_logs == "init-container"
+
     @pytest.mark.parametrize(
         ("kwargs", "actual_exit_code", "expected_exc", "pod_status", "event_status"),
         [

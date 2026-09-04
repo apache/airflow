@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod_condition import V1PodCondition
     from urllib3.response import HTTPResponse
 
+    from airflow._shared.logging.types import Logger
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 
 
@@ -126,6 +127,56 @@ class PodPhase:
 
 def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
     return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
+
+
+def reconcile_requested_log_containers(
+    log: Logger, requested: Iterable[str] | str | bool | None, actual: list[str], pod_name
+) -> list[str]:
+    """
+    Return actual containers based on requested.
+
+    Shared by :class:`PodManager` and :class:`AsyncPodManager` so both the sync and
+    deferrable execution paths resolve requested container names identically.
+
+    :meta private:
+    """
+    containers_to_log = []
+    if actual:
+        if isinstance(requested, str):
+            # fetch logs only for requested container if only one container is provided
+            if requested in actual:
+                containers_to_log.append(requested)
+            else:
+                log.error(
+                    "container %s whose logs were requested not found in the pod %s",
+                    requested,
+                    pod_name,
+                )
+        elif isinstance(requested, bool):
+            # if True is provided, get logs for all the containers
+            if requested is True:
+                containers_to_log.extend(actual)
+            else:
+                log.error(
+                    "False is not a valid value for container_logs",
+                )
+        else:
+            # if a sequence of containers are provided, iterate for every container in the pod
+            if isinstance(requested, Iterable):
+                for container in requested:
+                    if container in actual:
+                        containers_to_log.append(container)
+                    else:
+                        log.error(
+                            "Container %s whose logs were requests not found in the pod %s",
+                            container,
+                            pod_name,
+                        )
+            else:
+                log.error("Invalid type %s specified for container names input parameter", type(requested))
+    else:
+        log.error("Could not retrieve containers for the pod: %s", pod_name)
+    return containers_to_log
 
 
 def log_pod_event(
@@ -672,45 +723,7 @@ class PodManager(LoggingMixin):
         self, requested: Iterable[str] | str | bool | None, actual: list[str], pod_name
     ) -> list[str]:
         """Return actual containers based on requested."""
-        containers_to_log = []
-        if actual:
-            if isinstance(requested, str):
-                # fetch logs only for requested container if only one container is provided
-                if requested in actual:
-                    containers_to_log.append(requested)
-                else:
-                    self.log.error(
-                        "container %s whose logs were requested not found in the pod %s",
-                        requested,
-                        pod_name,
-                    )
-            elif isinstance(requested, bool):
-                # if True is provided, get logs for all the containers
-                if requested is True:
-                    containers_to_log.extend(actual)
-                else:
-                    self.log.error(
-                        "False is not a valid value for container_logs",
-                    )
-            else:
-                # if a sequence of containers are provided, iterate for every container in the pod
-                if isinstance(requested, Iterable):
-                    for container in requested:
-                        if container in actual:
-                            containers_to_log.append(container)
-                        else:
-                            self.log.error(
-                                "Container %s whose logs were requests not found in the pod %s",
-                                container,
-                                pod_name,
-                            )
-                else:
-                    self.log.error(
-                        "Invalid type %s specified for container names input parameter", type(requested)
-                    )
-        else:
-            self.log.error("Could not retrieve containers for the pod: %s", pod_name)
-        return containers_to_log
+        return reconcile_requested_log_containers(self.log, requested, actual, pod_name)
 
     def fetch_requested_init_container_logs(
         self,
@@ -1270,3 +1283,63 @@ class AsyncPodManager(LoggingMixin):
                 else:
                     level = _parse_log_level(message_to_log)
                     self.log.log(level, "[%s] %s", container_name, message_to_log)
+
+    def get_init_container_names(self, pod: V1Pod) -> list[str]:
+        """
+        Return init container names from the pod spec.
+
+        :meta private:
+        """
+        return [container_spec.name for container_spec in pod.spec.init_containers]
+
+    async def fetch_requested_init_container_logs(
+        self,
+        pod: V1Pod,
+        init_containers: Iterable[str] | str | Literal[True] | None,
+        poll_interval: float = 1,
+    ) -> None:
+        """
+        Stream logs for the requested init containers, one at a time, until each completes.
+
+        Init containers run sequentially before the base container starts, so they are
+        processed in ``spec.initContainers`` order, mirroring the sync ``PodManager``'s
+        ``fetch_requested_init_container_logs``.
+
+        :meta private:
+        """
+        all_containers = self.get_init_container_names(pod)
+        containers_to_log = reconcile_requested_log_containers(
+            self.log, init_containers, all_containers, pod.metadata.name
+        )
+        containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
+        for container_name in containers_to_log:
+            await self._await_init_container_start(pod, container_name)
+            await self._stream_init_container_logs_until_completion(pod, container_name, poll_interval)
+
+    async def _await_init_container_start(self, pod: V1Pod, container_name: str) -> None:
+        while True:
+            remote_pod = await self.read_pod(pod)
+            if (
+                remote_pod.status is not None
+                and remote_pod.status.phase != PodPhase.PENDING
+                and get_container_status(remote_pod, container_name) is not None
+                and not container_is_wait(remote_pod, container_name)
+            ):
+                return
+            await asyncio.sleep(1)
+
+    async def _stream_init_container_logs_until_completion(
+        self, pod: V1Pod, container_name: str, poll_interval: float
+    ) -> None:
+        since_time = None
+        while True:
+            remote_pod = await self.read_pod(pod)
+            since_time = await self.fetch_container_logs_before_current_sec(
+                remote_pod, container_name=container_name, since_time=since_time
+            )
+            # container_is_terminated() only inspects pod.status.container_statuses, which
+            # never includes init containers; get_container_status() checks both.
+            container_status = get_container_status(remote_pod, container_name)
+            if container_status is not None and container_status.state.terminated is not None:
+                return
+            await asyncio.sleep(poll_interval)
