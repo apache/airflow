@@ -213,9 +213,9 @@ Execute a command in an existing Pod on Amazon EKS
 To execute a command in a running container without managing the Pod lifecycle, use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksPodExecOperator`.
 The Pod must already exist and be running. The operator streams command output, waits for the exit code,
-and leaves the Pod unchanged.
-The AWS identity must be authorized to access the EKS cluster, and Kubernetes RBAC must allow
-``get`` on ``pods`` and ``create`` and ``get`` on ``pods/exec``.
+and does not create, restart, or delete the Pod.
+The AWS identity must have permission to call ``eks:DescribeCluster`` and be authorized to access the
+EKS cluster. Kubernetes RBAC must allow ``get`` on ``pods`` and ``pods/exec``.
 See :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`
 for command, output, XCom, and retry behavior.
 
