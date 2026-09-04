@@ -1,0 +1,1 @@
+Fix PgBouncer connection routing in the auto-generated result backend secret to use the ``airflow.fullname`` naming convention, matching the metadata connection secret. Previously it pointed at a non-existent PgBouncer host whenever ``useStandardNaming`` or ``fullnameOverride`` changed the release naming.
