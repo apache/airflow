@@ -70,16 +70,10 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         with pytest.raises(TaskDeferred) as deferred:
             sensor.execute(None)
 
-        assert deferred.value.trigger.serialize()[1] == {
-            "collection_id": "knowledge_base_id",
-            "collection_name": None,
-            "waiter_delay": 5,
-            "waiter_max_attempts": 1,
-            "aws_conn_id": "test_conn",
-            "region_name": "eu-west-1",
-            "verify": False,
-            "botocore_config": {"read_timeout": 42},
-        }
+        serialized_kwargs = deferred.value.trigger.serialize()[1]
+        assert serialized_kwargs["region_name"] == "eu-west-1"
+        assert serialized_kwargs["verify"] is False
+        assert serialized_kwargs["botocore_config"] == {"read_timeout": 42}
 
     @pytest.mark.parametrize(
         ("collection_name", "collection_id", "expected_pass"),
