@@ -38,6 +38,7 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
@@ -48,7 +49,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
+import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -239,7 +240,7 @@ const taskInstanceColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {

@@ -41,22 +41,39 @@ describe("buildGanttTimeAxisTicks", () => {
 
     expect(ticks).toHaveLength(GANTT_TIME_AXIS_TICK_COUNT);
     expect(ticks[0]?.leftPct).toBe(0);
-    expect(ticks[0]?.label).toBe("00:00:00");
+    expect(ticks[0]?.label).toBe("0s");
     expect(ticks[0]?.labelAlign).toBe("left");
     expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.leftPct).toBe(100);
     expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.labelAlign).toBe("right");
-    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.label).toBe("00:01:00");
+    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.label).toBe("1m");
     expect(ticks[1]?.labelAlign).toBe("center");
     expect(ticks.every((tick) => typeof tick.label === "string" && tick.label.length > 0)).toBe(true);
   });
 
+  it("localizes tick labels with the given locale", () => {
+    const ticks = buildGanttTimeAxisTicks(0, 60_000, { locale: "de", tickCount: 2 });
+    const inEnglish = buildGanttTimeAxisTicks(0, 60_000, { locale: "en", tickCount: 2 });
+
+    expect(ticks.at(-1)?.label).toBe(
+      new Intl.NumberFormat("de", { style: "unit", unit: "minute", unitDisplay: "narrow" }).format(1),
+    );
+    expect(ticks.at(-1)?.label).not.toBe(inEnglish.at(-1)?.label);
+  });
+
+  it("snaps ticks to counted units rather than dividing the raw span", () => {
+    // A 7s span divided evenly used to read 0s | 1.17s | 2.33s | 3.5s ...
+    const labels = buildGanttTimeAxisTicks(0, 7000, { locale: "en", tickCount: 8 }).map((tick) => tick.label);
+
+    expect(labels).toStrictEqual(["0s", "1s", "2s", "3s", "4s", "5s", "6s", "7s"]);
+  });
+
   it("supports a single tick", () => {
-    const ticks = buildGanttTimeAxisTicks(1000, 1000, 1);
+    const ticks = buildGanttTimeAxisTicks(1000, 1000, { tickCount: 1 });
 
     expect(ticks).toHaveLength(1);
     expect(ticks[0]?.leftPct).toBe(0);
     expect(ticks[0]?.labelAlign).toBe("left");
-    expect(ticks[0]?.label).toBe("00:00:00");
+    expect(ticks[0]?.label).toBe("0s");
   });
 });
 

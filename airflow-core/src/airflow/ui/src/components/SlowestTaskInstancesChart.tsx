@@ -25,16 +25,31 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import {
-  formatDate,
-  getDurationTickStep,
-  renderCompactDuration,
-  renderDuration,
-} from "src/utils/datetimeUtils";
+import { formatDate, getDurationTickStep } from "src/utils/datetimeUtils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 const CHART_HEIGHT = "340px";
+const BAR_END_LABEL_FONT = "11px system-ui, sans-serif";
+const BAR_END_LABEL_GUTTER_PX = 16;
+const BAR_END_LABEL_FALLBACK_RESERVE_PX = 96;
+
+const measureContext = document.createElement("canvas").getContext("2d");
+
+// The old fixed 64px reserve was sized for the always-English "1h 2m". CLDR narrow is far wider in
+// several shipped locales (German "1 Std., 2 Min." is roughly 80px), so measure what is drawn.
+const measureBarEndLabelReserve = (labels: Array<string>): number => {
+  if (measureContext === null) {
+    return BAR_END_LABEL_FALLBACK_RESERVE_PX;
+  }
+
+  measureContext.font = BAR_END_LABEL_FONT;
+
+  const widest = labels.reduce((max, label) => Math.max(max, measureContext.measureText(label).width), 0);
+
+  return Math.ceil(widest) + BAR_END_LABEL_GUTTER_PX;
+};
 const RUN_LABEL_FORMAT = "MMM DD HH:mm";
 
 export const SlowestTaskInstancesChart = ({
@@ -43,6 +58,7 @@ export const SlowestTaskInstancesChart = ({
   readonly taskInstances: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
+  const { renderDuration } = useDurationFormat();
   const { selectedTimezone } = useTimezone();
   const [labelColorToken, fallbackColorToken] = useToken("colors", ["fg.muted", "gray.solid"]);
 
@@ -77,20 +93,24 @@ export const SlowestTaskInstancesChart = ({
   const durations = taskInstances.map((taskInstance) => taskInstance.duration ?? 0);
   const maxDuration = Math.max(...durations, 0);
 
+  const barEndLabelReserve = measureBarEndLabelReserve(
+    durations.map((duration) => renderDuration(duration) ?? "0s"),
+  );
+
   const barEndLabels: Plugin<"bar"> = {
     afterDatasetsDraw: (chart) => {
       const { ctx } = chart;
       const meta = chart.getDatasetMeta(0);
 
       ctx.save();
-      ctx.font = "11px system-ui, sans-serif";
+      ctx.font = BAR_END_LABEL_FONT;
       ctx.fillStyle = getComputedCSSVariableValue(labelColorToken ?? "oklch(0.5 0 0)");
       ctx.textBaseline = "middle";
       meta.data.forEach((bar, index) => {
         const duration = durations[index];
 
         if (duration !== undefined) {
-          ctx.fillText(renderCompactDuration(duration), bar.x + 6, bar.y);
+          ctx.fillText(renderDuration(duration) ?? "0s", bar.x + 6, bar.y);
         }
       });
       ctx.restore();
@@ -123,13 +143,13 @@ export const SlowestTaskInstancesChart = ({
           }}
           options={{
             indexAxis: "y",
-            layout: { padding: { right: 64 } },
+            layout: { padding: { right: barEndLabelReserve } },
             maintainAspectRatio: false,
             plugins: {
               legend: { display: false },
               tooltip: {
                 callbacks: {
-                  label: (context) => renderDuration(context.parsed.x, false) ?? "0",
+                  label: (context) => renderDuration(context.parsed.x) ?? "0s",
                   title: ([context]) => {
                     const taskInstance = context === undefined ? undefined : taskInstances[context.dataIndex];
 
@@ -146,7 +166,7 @@ export const SlowestTaskInstancesChart = ({
                 beginAtZero: true,
                 ticks: {
                   callback: (value) =>
-                    renderCompactDuration(typeof value === "number" ? value : Number(value)),
+                    renderDuration(typeof value === "number" ? value : Number(value)) ?? "0s",
                   stepSize: getDurationTickStep(maxDuration),
                 },
                 title: { align: "end", display: true, text: translate("common:duration") },

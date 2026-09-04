@@ -25,7 +25,7 @@ import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen"
 import { BasicTooltip } from "src/components/BasicTooltip";
 import Time from "src/components/Time";
 
-import { renderDuration } from "src/utils/datetimeUtils";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 type Props = {
   readonly dagId: string;
@@ -51,6 +51,7 @@ export const GridButton = ({
   ...rest
 }: Props) => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
 
   const tooltipContent = (
     <>

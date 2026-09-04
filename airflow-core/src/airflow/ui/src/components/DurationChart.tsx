@@ -38,14 +38,10 @@ import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/ty
 
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import {
-  formatDate,
-  getDurationTickStep,
-  renderCompactDuration,
-  renderDuration,
-} from "src/utils/datetimeUtils";
+import { formatDate, getDurationTickStep, getElapsedSeconds } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 import { median } from "src/utils/median";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 ChartJS.register(
   CategoryScale,
@@ -63,23 +59,12 @@ const CHART_HEIGHT = "280px";
 
 type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
-const getDuration = (start: string, end: string | null) => {
-  const startDate = dayjs(start);
-  const endDate = end === null ? dayjs() : dayjs(end);
-
-  if (!startDate.isValid() || !endDate.isValid()) {
-    return 0;
-  }
-
-  return dayjs.duration(endDate.diff(startDate)).asSeconds();
-};
-
 const getQueuedDuration = (entry: RunResponse, kind: "Dag Run" | "Task Instance") => {
   if (kind === "Dag Run") {
     const run = entry as GridRunsResponse;
 
     return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
-      ? getDuration(run.queued_at, run.start_date)
+      ? (getElapsedSeconds(run.queued_at, run.start_date) ?? 0)
       : 0;
   }
 
@@ -88,7 +73,7 @@ const getQueuedDuration = (entry: RunResponse, kind: "Dag Run" | "Task Instance"
   return taskInstance.queued_when !== null &&
     taskInstance.start_date !== null &&
     taskInstance.queued_when < taskInstance.start_date
-    ? getDuration(taskInstance.queued_when, taskInstance.start_date)
+    ? (getElapsedSeconds(taskInstance.queued_when, taskInstance.start_date) ?? 0)
     : 0;
 };
 
@@ -119,6 +104,7 @@ export const DurationChart = ({
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
+  const { renderDuration } = useDurationFormat();
   const navigate = useNavigate();
   const { selectedTimezone } = useTimezone();
   const [queuedColorToken] = useToken("colors", ["queued.solid"]);
@@ -145,7 +131,7 @@ export const DurationChart = ({
 
   const queuedDurations = entries.map((entry) => getQueuedDuration(entry, kind));
   const runDurations = entries.map((entry) =>
-    entry.start_date === null ? 0 : getDuration(entry.start_date, entry.end_date),
+    entry.start_date === null ? 0 : (getElapsedSeconds(entry.start_date, entry.end_date) ?? 0),
   );
   // Bars stack queued under run, so the reference line tracks the same total the
   // reader sees at the top of each bar.
@@ -158,7 +144,7 @@ export const DurationChart = ({
     borderWidth: 1,
     label: {
       content: translate("durationChart.medianTotalDuration", {
-        duration: renderCompactDuration(medianTotal),
+        duration: renderDuration(medianTotal) ?? "0s",
       }),
       display: true,
       position: "start",
@@ -256,7 +242,7 @@ export const DurationChart = ({
                   label: (context) => {
                     const datasetLabel = context.dataset.label ?? "";
 
-                    const formatted = renderDuration(context.parsed.y, false) ?? "0";
+                    const formatted = renderDuration(context.parsed.y) ?? "0s";
 
                     return datasetLabel ? `${datasetLabel}: ${formatted}` : formatted;
                   },
@@ -279,7 +265,7 @@ export const DurationChart = ({
                 stacked: true,
                 ticks: {
                   callback: (value) =>
-                    renderCompactDuration(typeof value === "number" ? value : Number(value)),
+                    renderDuration(typeof value === "number" ? value : Number(value)) ?? "0s",
                   stepSize: getDurationTickStep(Math.max(...totalDurations, 0)),
                 },
                 title: { align: "end", display: true, text: translate("common:duration") },

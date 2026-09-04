@@ -16,14 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+type Props = {
+  readonly duration: number | null | undefined;
+};
+
+/**
+ * A duration in a list column: rounded for scanning, exact on hover.
+ *
+ * The rounded form loses up to half a unit ("1h 2m" spans a minute), which is too coarse when the
+ * point is comparing two similar runs, so the unrounded value rides along in the title. Columns
+ * should use this rather than formatting inline, so the pair stays consistent everywhere.
+ */
+export const DurationCell = ({ duration }: Props) => {
+  const { renderDuration, renderExactDuration } = useDurationFormat();
+
+  return <span title={renderExactDuration(duration)}>{renderDuration(duration)}</span>;
+};

@@ -31,8 +31,8 @@ import { Modal, Pagination } from "src/system-components";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
-import { renderDuration } from "src/utils/datetimeUtils";
 import { translateCompletionRule } from "src/utils/deadlines";
+import { useDurationFormat } from "src/utils/useDurationFormat";
 
 const PAGE_LIMIT = 10;
 
@@ -54,6 +54,7 @@ export const DeadlineStatusModal = ({
   runEndDate,
 }: DeadlineStatusModalProps) => {
   const { t: translate } = useTranslation("dag");
+  const { locale, renderDuration } = useDurationFormat();
   const [page, setPage] = useState(1);
   const offset = (page - 1) * PAGE_LIMIT;
 
@@ -117,14 +118,14 @@ export const DeadlineStatusModal = ({
           {deadlines.map((dl) => {
             const alert =
               dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
-            const completionRule = translateCompletionRule(translate, alert);
+            const completionRule = translateCompletionRule(translate, alert, locale);
             const deadlineTime = dayjs(dl.deadline_time);
 
             let actualDurationLabel: string | undefined;
 
             if (dl.missed && runEndDate !== undefined) {
               const diff = dayjs(runEndDate).diff(deadlineTime);
-              const dur = renderDuration(Math.abs(diff) / 1000, false);
+              const dur = renderDuration(Math.abs(diff) / 1000);
 
               if (dur !== undefined) {
                 actualDurationLabel =
