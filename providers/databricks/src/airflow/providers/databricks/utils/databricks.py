@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from airflow.providers.common.compat.sdk import AirflowException, XComArg
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
@@ -25,10 +26,8 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunSta
 _JSONB_INVALID_CHARS = re.compile(r"[\x00\ud800-\udfff]")
 
 
-def make_jsonb_safe(error: str | int) -> str | int:
-    """
-    Strip characters that cannot be stored in a Postgres ``jsonb`` column from error text.
-    """
+def make_jsonb_safe(error: Any) -> Any:
+    """Strip characters that cannot be stored in a Postgres ``jsonb`` column from error text."""
     if isinstance(error, str):
         return _JSONB_INVALID_CHARS.sub("", error)
     return error
