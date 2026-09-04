@@ -16,11 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+from contextlib import contextmanager
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
+from kubernetes.client import V1Container, V1ObjectMeta, V1Pod, V1PodSpec
 
-from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
     EksCreateNodegroupOperator,
@@ -30,6 +34,8 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -47,13 +53,13 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-try:
-    from airflow.providers.standard.operators.bash import BashOperator
-except ImportError:
-    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
-
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.k8s import get_describe_pod_operator
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from kubernetes.client import CoreV1Api
 
 DAG_ID = "example_eks_with_nodegroups"
 EXPECTED_EXEC_OUTPUT = "command executed in existing EKS pod"
@@ -81,6 +87,44 @@ def create_launch_template(template_name: str):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_launch_template(template_name: str):
     boto3.client("ec2").delete_launch_template(LaunchTemplateName=template_name)
+
+
+@contextmanager
+def get_eks_kubernetes_client(cluster_name: str) -> Generator[CoreV1Api, None, None]:
+    eks_hook = EksHook()
+    credentials = eks_hook.get_session().get_credentials()
+    if credentials is None:
+        raise RuntimeError("Unable to retrieve AWS credentials for the EKS system test.")
+    frozen_credentials = credentials.get_frozen_credentials()
+    with eks_hook._secure_credential_context(
+        frozen_credentials.access_key,
+        frozen_credentials.secret_key,
+        frozen_credentials.token,
+    ) as credentials_file:
+        with eks_hook.generate_config_file(cluster_name, "default", credentials_file) as config_file:
+            yield KubernetesHook(kubernetes_conn_id=None, config_file=config_file).core_v1_client
+
+
+@task
+def create_exec_pod(cluster_name: str, pod_name: str) -> None:
+    pod = V1Pod(
+        metadata=V1ObjectMeta(name=pod_name, namespace="default"),
+        spec=V1PodSpec(
+            containers=[V1Container(name="main", image="busybox:1.38.0", command=["sleep", "3600"])],
+            restart_policy="Never",
+        ),
+    )
+    with get_eks_kubernetes_client(cluster_name) as kube_client:
+        pod_manager = PodManager(kube_client=kube_client)
+        created_pod = pod_manager.create_pod(pod)
+        asyncio.run(pod_manager.await_pod_start(created_pod))
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_exec_pod(cluster_name: str, pod_name: str) -> None:
+    pod = V1Pod(metadata=V1ObjectMeta(name=pod_name, namespace="default"))
+    with get_eks_kubernetes_client(cluster_name) as kube_client:
+        PodManager(kube_client=kube_client).delete_pod(pod)
 
 
 @task
@@ -165,19 +209,7 @@ with DAG(
     # it is cleaned anyway with the cluster later on.
     start_pod.is_delete_operator_pod = False
 
-    create_exec_pod = BashOperator(
-        task_id="create_exec_pod",
-        bash_command="""
-            set -euo pipefail
-            install_aws.sh
-            install_kubectl.sh
-            aws eks update-kubeconfig --name "${CLUSTER_NAME}"
-            kubectl run "${POD_NAME}" --image=busybox:1.38.0 --restart=Never --command -- sleep 3600
-            kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=120s
-        """,
-        env={"CLUSTER_NAME": cluster_name, "POD_NAME": exec_pod_name},
-        append_env=True,
-    )
+    create_exec_pod_task = create_exec_pod(cluster_name, exec_pod_name)
 
     # [START howto_operator_eks_pod_exec]
     run_command = EksPodExecOperator(
@@ -191,19 +223,7 @@ with DAG(
 
     exec_output_is_valid = verify_exec_output(run_command.output)
 
-    delete_exec_pod = BashOperator(
-        task_id="delete_exec_pod",
-        bash_command="""
-            set -euo pipefail
-            install_aws.sh
-            install_kubectl.sh
-            aws eks update-kubeconfig --name "${CLUSTER_NAME}"
-            kubectl delete pod "${POD_NAME}" --ignore-not-found=true --wait=false
-        """,
-        env={"CLUSTER_NAME": cluster_name, "POD_NAME": exec_pod_name},
-        append_env=True,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    delete_exec_pod_task = delete_exec_pod(cluster_name, exec_pod_name)
 
     describe_pod = get_describe_pod_operator(
         cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
@@ -280,11 +300,11 @@ with DAG(
     chain(
         # TEST BODY: EksPodExecOperator
         await_create_nodegroup,
-        create_exec_pod,
+        create_exec_pod_task,
         run_command,
         exec_output_is_valid,
         # TEST TEARDOWN
-        delete_exec_pod,
+        delete_exec_pod_task,
         await_nodegroup_stable,
     )
     chain(
