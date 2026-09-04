@@ -40,7 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
     PodEventType,
     _optionally_suppress,
 )
-from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.secret import KubernetesConnectionSecret, Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
@@ -2564,6 +2564,160 @@ class TestKubernetesPodOperator:
         patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
         process_pod_deletion_mock.assert_called_once_with(pod_1)
         assert result.metadata.name == pod_2.metadata.name
+
+
+class TestKubernetesPodOperatorConnectionSecrets:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        # Mock out the whole hook (rather than just `_get_default_client`) so that resolving
+        # the operator's own `kubernetes_default` connection can't collide with the
+        # `BaseHook.get_connection` mock some tests below use for `connection_secrets`.
+        self.hook_patch = patch(HOOK_CLASS)
+        self.hook_patch.start()
+        yield
+        patch.stopall()
+
+    @patch(KPO_MODULE + ".create_unique_id")
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(f"{KPO_MODULE}.BaseHook.get_connection")
+    def test_build_pod_request_obj_creates_and_attaches_connection_secret(
+        self, mocked_get_connection, mocked_client, mocked_create_unique_id
+    ):
+        mocked_create_unique_id.side_effect = ["pod-name-123", "secret-name-abc"]
+        mocked_get_connection.return_value.get_uri.return_value = "postgresql://user:pass@host/db"
+        connection_secret = KubernetesConnectionSecret(
+            deploy_type="env", deploy_target="MY_CONN", conn_id="my_conn"
+        )
+        k = KubernetesPodOperator(
+            task_id="task",
+            namespace="default",
+            connection_secrets=[connection_secret],
+        )
+
+        pod = k.build_pod_request_obj()
+
+        mocked_get_connection.assert_called_once_with("my_conn")
+        mocked_client.create_namespaced_secret.assert_called_once()
+        _, kwargs = mocked_client.create_namespaced_secret.call_args
+        assert kwargs["namespace"] == "default"
+        created_secret = kwargs["body"]
+        assert created_secret.metadata.name == "secret-name-abc"
+        assert created_secret.metadata.namespace == "default"
+        assert created_secret.string_data == {"conn_uri": "postgresql://user:pass@host/db"}
+        assert connection_secret.secret == "secret-name-abc"
+        assert k._created_connection_secret_names == [("default", "secret-name-abc")]
+        assert pod.spec.containers[0].env == [
+            k8s.V1EnvVar(
+                name="MY_CONN",
+                value_from=k8s.V1EnvVarSource(
+                    secret_key_ref=k8s.V1SecretKeySelector(name="secret-name-abc", key="conn_uri")
+                ),
+            )
+        ]
+
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(f"{KPO_MODULE}.BaseHook.get_connection")
+    def test_build_pod_request_obj_creates_one_secret_per_connection_secret(
+        self, mocked_get_connection, mocked_client
+    ):
+        mocked_get_connection.return_value.get_uri.return_value = "postgresql://user:pass@host/db"
+        connection_secrets = [
+            KubernetesConnectionSecret(deploy_type="env", deploy_target="CONN_A", conn_id="conn_a"),
+            KubernetesConnectionSecret(deploy_type="env", deploy_target="CONN_B", conn_id="conn_b"),
+        ]
+        k = KubernetesPodOperator(
+            task_id="task",
+            namespace="default",
+            connection_secrets=connection_secrets,
+        )
+
+        k.build_pod_request_obj()
+
+        assert mocked_get_connection.call_args_list == [mock.call("conn_a"), mock.call("conn_b")]
+        assert mocked_client.create_namespaced_secret.call_count == 2
+        created_names = {connection_secret.secret for connection_secret in connection_secrets}
+        assert len(created_names) == 2, "each connection secret should get a unique generated name"
+        assert {name for _, name in k._created_connection_secret_names} == created_names
+
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(f"{KPO_MODULE}.BaseHook.get_connection")
+    def test_build_pod_request_obj_dry_run_skips_secret_creation(self, mocked_get_connection, mocked_client):
+        connection_secret = KubernetesConnectionSecret(
+            deploy_type="env", deploy_target="MY_CONN", conn_id="my_conn"
+        )
+        k = KubernetesPodOperator(
+            task_id="task",
+            namespace="default",
+            connection_secrets=[connection_secret],
+        )
+
+        pod = k.build_pod_request_obj(dry_run=True)
+
+        mocked_get_connection.assert_not_called()
+        mocked_client.create_namespaced_secret.assert_not_called()
+        assert k._created_connection_secret_names == []
+        assert connection_secret.secret  # a preview name was still generated
+        assert pod.spec.containers[0].env[0].value_from.secret_key_ref.name == connection_secret.secret
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_delete_connection_secrets_removes_all_created_secrets(self, mocked_client):
+        k = KubernetesPodOperator(task_id="task")
+        k._created_connection_secret_names = [("ns-a", "secret-a"), ("ns-b", "secret-b")]
+
+        k._delete_connection_secrets()
+
+        mocked_client.delete_namespaced_secret.assert_has_calls(
+            [
+                mock.call(name="secret-a", namespace="ns-a"),
+                mock.call(name="secret-b", namespace="ns-b"),
+            ]
+        )
+        assert k._created_connection_secret_names == []
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_delete_connection_secrets_logs_and_clears_on_api_exception(self, mocked_client):
+        mocked_client.delete_namespaced_secret.side_effect = ApiException(status=404)
+        k = KubernetesPodOperator(task_id="task")
+        k._created_connection_secret_names = [("ns", "secret-a")]
+
+        k._delete_connection_secrets()  # must not raise
+
+        assert k._created_connection_secret_names == []
+
+    @patch(KUB_OP_PATH.format("client"))
+    def test_delete_connection_secrets_is_noop_without_created_secrets(self, mocked_client):
+        k = KubernetesPodOperator(task_id="task")
+
+        k._delete_connection_secrets()
+
+        mocked_client.delete_namespaced_secret.assert_not_called()
+
+    @patch(KUB_OP_PATH.format("_delete_connection_secrets"))
+    @patch(KUB_OP_PATH.format("client"))
+    def test_cleanup_deletes_connection_secrets_even_when_pod_never_ran(
+        self, mocked_client, mocked_delete_connection_secrets
+    ):
+        """Connection secrets must be cleaned up even if the pod itself was never created."""
+        k = KubernetesPodOperator(task_id="task")
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
+
+        k.cleanup(pod=pod, remote_pod=None)
+
+        mocked_delete_connection_secrets.assert_called_once_with()
+
+    @pytest.mark.parametrize("on_kill_action", ["delete_pod", "keep_pod"])
+    @patch(KUB_OP_PATH.format("_delete_connection_secrets"))
+    @patch(KUB_OP_PATH.format("client"))
+    def test_on_kill_deletes_connection_secrets_regardless_of_on_kill_action(
+        self, mocked_client, mocked_delete_connection_secrets, on_kill_action
+    ):
+        """Connection secrets never outlive the task, even when the pod itself is kept."""
+        k = KubernetesPodOperator(task_id="task", on_kill_action=on_kill_action)
+        k.pod = None
+
+        k.on_kill()
+
+        mocked_delete_connection_secrets.assert_called_once_with()
 
 
 _REATTACH_DEPRECATION_MESSAGE_PREFIX = (

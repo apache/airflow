@@ -62,6 +62,7 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
+    SECRET_NAME_MAX_LENGTH,
     add_unique_suffix,
     create_unique_id,
     generic_api_retry,
@@ -106,7 +107,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
-    from airflow.providers.cncf.kubernetes.secret import Secret
+    from airflow.providers.cncf.kubernetes.secret import KubernetesConnectionSecret, Secret
     from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
@@ -173,6 +174,11 @@ class KubernetesPodOperator(BaseOperator):
     :param env_from: (Optional) List of sources to populate environment variables in the container. (templated)
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
+    :param connection_secrets: Airflow connections to expose to the container as Kubernetes
+        secrets. For each :class:`~airflow.providers.cncf.kubernetes.secret.KubernetesConnectionSecret`,
+        a Kubernetes secret containing the connection's URI is created immediately before the pod
+        is launched, and deleted once the pod's lifecycle ends (on completion or on kill) so the
+        connection's credentials never outlive the task.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
@@ -337,6 +343,7 @@ class KubernetesPodOperator(BaseOperator):
         env_vars: list[k8s.V1EnvVar] | dict[str, str] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
+        connection_secrets: list[KubernetesConnectionSecret] | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         labels: dict | None = None,
@@ -457,6 +464,8 @@ class KubernetesPodOperator(BaseOperator):
         volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.volumes = volumes
         self.secrets = secrets or []
+        self.connection_secrets = connection_secrets or []
+        self._created_connection_secret_names: list[tuple[str, str]] = []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.durable = durable
@@ -1332,6 +1341,12 @@ class KubernetesPodOperator(BaseOperator):
         xcom_result: dict | None = None,
         context: Context | None = None,
     ) -> None:
+        # Connection-derived secrets must be cleaned up even if the pod itself was never created
+        # (e.g. pod creation failed) or was already cleaned up via on_kill(), so this runs before
+        # the early returns below. `_delete_connection_secrets` clears its own tracking list, so a
+        # second call here after on_kill() already ran is a no-op.
+        self._delete_connection_secrets()
+
         # Skip cleaning the pod in the following scenarios.
         # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
@@ -1555,6 +1570,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def on_kill(self) -> None:
         self._killed = True
+        self._delete_connection_secrets()
         if self.on_kill_action == OnKillAction.KEEP_POD:
             self.log.info(
                 "Skipping pod deletion since on_kill_action is set to %r.", self.on_kill_action.value
@@ -1577,6 +1593,54 @@ class KubernetesPodOperator(BaseOperator):
                 _delete_with_retry()
             except kubernetes.client.exceptions.ApiException:
                 self.log.exception("Unable to delete pod %s", self.pod.metadata.name)
+
+    def _materialize_connection_secret(
+        self, connection_secret: KubernetesConnectionSecret, *, namespace: str, dry_run: bool
+    ) -> None:
+        """
+        Create the Kubernetes secret backing a single ``KubernetesConnectionSecret``.
+
+        A unique secret name is generated the same way pod names are (``dag_id-task_id-random``),
+        set on ``connection_secret`` so it can be attached to the pod like any other ``Secret``,
+        and -- unless this is a dry run -- the connection is read and the Kubernetes secret is
+        actually created. Created secret names are tracked so they can be cleaned up once the
+        pod's lifecycle ends, mirroring the create-then-cleanup lifecycle already used for the pod
+        itself.
+        """
+        secret_name = create_unique_id(
+            dag_id=self.dag_id, task_id=self.task_id, max_length=SECRET_NAME_MAX_LENGTH
+        )
+        connection_secret.secret = secret_name
+        if dry_run:
+            return
+        connection = BaseHook.get_connection(connection_secret.conn_id)
+        k8s_secret = k8s.V1Secret(
+            metadata=k8s.V1ObjectMeta(name=secret_name, namespace=namespace),
+            string_data={connection_secret.key: connection.get_uri()},
+        )
+
+        @generic_api_retry
+        def _create_with_retry():
+            self.client.create_namespaced_secret(namespace=namespace, body=k8s_secret)
+
+        _create_with_retry()
+        self._created_connection_secret_names.append((namespace, secret_name))
+
+    def _delete_connection_secrets(self) -> None:
+        """Delete any Kubernetes secrets created from connections for this task's pod."""
+        for namespace, secret_name in self._created_connection_secret_names:
+
+            @generic_api_retry
+            def _delete_with_retry(namespace=namespace, secret_name=secret_name):
+                self.client.delete_namespaced_secret(name=secret_name, namespace=namespace)
+
+            try:
+                _delete_with_retry()
+            except kubernetes.client.exceptions.ApiException:
+                self.log.exception(
+                    "Unable to delete Kubernetes secret %s generated from a connection", secret_name
+                )
+        self._created_connection_secret_names.clear()
 
     def build_pod_request_obj(self, context: Context | None = None, *, dry_run: bool = False) -> k8s.V1Pod:
         """
@@ -1678,6 +1742,12 @@ class KubernetesPodOperator(BaseOperator):
         for secret in self.secrets:
             self.log.debug("Adding secret to task %s", self.task_id)
             pod = secret.attach_to_pod(pod)
+        for connection_secret in self.connection_secrets:
+            self.log.debug("Adding connection-derived secret to task %s", self.task_id)
+            self._materialize_connection_secret(
+                connection_secret, namespace=pod.metadata.namespace, dry_run=dry_run
+            )
+            pod = connection_secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
             pod = xcom_sidecar.add_xcom_sidecar(
