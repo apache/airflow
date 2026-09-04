@@ -30,6 +30,7 @@ from packaging import version
 from pydantic import BaseModel, create_model
 
 from airflow._shared.module_loading import import_string, iter_namespace, qualname
+from airflow.sdk.bases.xcom import FlattenedXComIterable, XComIterable
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.serde import (
     CLASSNAME,
@@ -334,6 +335,35 @@ class TestSerDe:
 
         d = deserialize(e)
         assert i.x == getattr(d, "x", None)
+
+    @pytest.mark.parametrize(
+        "instance",
+        [
+            pytest.param(
+                lambda: XComIterable(task_id="t", dag_id="d", run_id="r", map_index=0, length=3),
+                id="XComIterable",
+            ),
+            pytest.param(
+                lambda: FlattenedXComIterable(task_id="t", dag_id="d", run_id="r", map_index=1, length=5),
+                id="FlattenedXComIterable",
+            ),
+        ],
+    )
+    def test_serder_xcom_iterable_round_trip(self, instance):
+        """XComIterable/FlattenedXComIterable round-trip through serde without explicit registration."""
+        obj = instance()
+        serialized = serialize(obj)
+        assert serialized[CLASSNAME] == qualname(obj)
+        assert serialized[DATA]
+
+        restored = deserialize(serialized)
+        assert type(restored) is type(obj)
+        assert isinstance(restored, (XComIterable, FlattenedXComIterable))
+        assert restored.task_id == obj.task_id
+        assert restored.dag_id == obj.dag_id
+        assert restored.run_id == obj.run_id
+        assert restored.map_index == obj.map_index
+        assert restored.length == obj.length
 
     @conf_vars(
         {
