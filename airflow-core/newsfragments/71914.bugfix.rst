@@ -1,0 +1,1 @@
+``LocalExecutor`` now counts dispatched workloads against ``core.parallelism``. The executor never recorded dispatched work in its running set, so every slot read as free the moment work was handed to a worker and the scheduler admitted task instances without bound, leaving pool size as the only ceiling.
