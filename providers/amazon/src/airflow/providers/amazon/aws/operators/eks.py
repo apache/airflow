@@ -47,8 +47,9 @@ from airflow.providers.amazon.aws.utils import (
     build_resource_in_use_retry_args,
     validate_execute_complete_event,
 )
-from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.amazon.aws.utils.mixins import AwsHookParams, aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -1348,3 +1349,105 @@ class EksPodOperator(KubernetesPodOperator):
                 self.log.exception("Failed to refresh AWS credentials.")
                 raise
         super()._refresh_cached_properties()
+
+
+class EksPodExecOperator(KubernetesPodExecOperator):
+    """
+    Execute a command in a running container of an existing Pod on Amazon EKS.
+
+    The operator authenticates with Amazon EKS and delegates command execution to
+    :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`.
+    It does not create, restart, or delete the target Pod.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EksPodExecOperator`
+
+    :param cluster_name: The name of the Amazon EKS Cluster containing the Pod. (templated)
+    :param pod_name: Name of the existing Kubernetes Pod. (templated)
+    :param command: Command and arguments to execute in the container. (templated)
+    :param namespace: Namespace containing the Pod. Defaults to ``default``. (templated)
+    :param container_name: Name of the container in which to execute the command. When omitted, the
+        ``kubectl.kubernetes.io/default-container`` annotation or the first container is used. (templated)
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+        If this is ``None`` or empty, the default boto3 credential strategy is used.
+    :param region_name: AWS region containing the Amazon EKS Cluster. (templated)
+        If this is ``None`` or empty, the default boto3 region strategy is used.
+    :param verify: Whether to verify SSL certificates, or the path to a CA bundle. (templated)
+    :param botocore_config: Configuration dictionary for the botocore client.
+    :param do_xcom_push: Return standard output through XCom when ``True``. Defaults to ``False``.
+    :param max_xcom_output_size: Maximum UTF-8 byte size retained for XCom. Defaults to 49,344 bytes.
+    """
+
+    template_fields: Sequence[str] = aws_template_fields(
+        "cluster_name",
+        *(
+            field
+            for field in KubernetesPodExecOperator.template_fields
+            if field not in {"cluster_context", "config_file", "kubernetes_conn_id"}
+        ),
+    )
+
+    def __init__(
+        self,
+        *,
+        cluster_name: str,
+        pod_name: str,
+        command: Sequence[str],
+        namespace: str = DEFAULT_NAMESPACE_NAME,
+        container_name: str | None = None,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+        **kwargs,
+    ) -> None:
+        hook_params = AwsHookParams.from_constructor(
+            aws_conn_id, region_name, verify, botocore_config, additional_params=kwargs
+        )
+        super().__init__(
+            pod_name=pod_name,
+            command=command,
+            namespace=namespace,
+            container_name=container_name,
+            kubernetes_conn_id=None,
+            in_cluster=False,
+            cluster_context=None,
+            config_file=None,
+            **kwargs,
+        )
+        self.cluster_name = cluster_name
+        self.aws_conn_id = hook_params.aws_conn_id
+        self.region_name = hook_params.region_name
+        self.verify = hook_params.verify
+        self.botocore_config = hook_params.botocore_config
+
+    def execute(self, context: Context) -> str | None:
+        eks_hook = EksHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
+        credentials = eks_hook.get_session().get_credentials()
+        if credentials is None:
+            raise RuntimeError(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        frozen_credentials = credentials.get_frozen_credentials()
+        with eks_hook._secure_credential_context(
+            frozen_credentials.access_key,
+            frozen_credentials.secret_key,
+            frozen_credentials.token,
+        ) as credentials_file:
+            with eks_hook.generate_config_file(
+                eks_cluster_name=self.cluster_name,
+                pod_namespace=self.namespace,
+                credentials_file=credentials_file,
+            ) as config_file:
+                self.config_file = config_file
+                try:
+                    return super().execute(context)
+                finally:
+                    self.config_file = None
