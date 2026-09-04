@@ -458,6 +458,7 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
         sentry_integration="",
     )
     mock_get_startup_details.return_value = what
+
     mock_startup.side_effect = AirflowRescheduleException(reschedule_date=reschedule_date)
 
     # Move time
@@ -526,12 +527,17 @@ def test_main_marks_worker_span_error_on_failure(
     )
     mock_get_startup_details.return_value = what
 
+    events = []
+    mock_bundle_lock.return_value.__enter__.side_effect = lambda: events.append("lease-entered")
+    mock_bundle_lock.return_value.__exit__.side_effect = lambda *args: events.append("lease-exited")
+
     ti = mock.Mock()
     ti.bundle_instance.name = "my-bundle"
     ti.bundle_instance.version = None
     ti._terminal_state_send_failed = False
-    mock_startup.return_value = (ti, {}, mock.Mock())
-    mock_run.return_value = (state, mock.Mock(), error)
+    mock_startup.side_effect = lambda **kwargs: events.append("startup") or (ti, {}, mock.Mock())
+    mock_run.side_effect = lambda *args, **kwargs: events.append("run") or (state, mock.Mock(), error)
+    mock_finalize.side_effect = lambda *args: events.append("finalize")
 
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
@@ -540,6 +546,10 @@ def test_main_marks_worker_span_error_on_failure(
 
     with mock.patch("airflow.sdk.execution_time.task_runner.tracer", t):
         task_runner.main()
+
+    mock_bundle_lock.assert_called_once_with(bundle_name="my-bundle", bundle_version=None)
+    mock_bundle_lock.return_value.__exit__.assert_called_once()
+    assert events == ["lease-entered", "startup", "run", "finalize", "lease-exited"]
 
     worker = {s.name: s for s in exporter.get_finished_spans()}["worker.my_task"]
     if expect_error_status:

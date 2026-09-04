@@ -51,7 +51,9 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
     These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository. The `GitDagBundle` does support versioning.
 
 **airflow.providers.amazon.aws.bundles.s3.S3DagBundle**
-    These bundles reference an S3 bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
+    These bundles reference an S3 bucket containing Dag files. They use the latest code by default. On Airflow 3.4
+    and later, an optional publisher-managed, content-addressed manifest protocol supports versioned Dag runs and
+    atomic deployments.
 
 **airflow.providers.google.cloud.bundles.gcs.GCSDagBundle**
     These bundles reference a GCS bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
@@ -140,7 +142,9 @@ For an S3 Dag bundle, the required kwarg is ``bucket_name``. You can optionally 
 
 .. note::
 
-    ``S3DagBundle`` does not support versioning. Tasks always run against the latest code in the bucket.
+    ``S3DagBundle`` uses the latest code unless ``manifest_key`` is configured. Manifest mode requires Airflow 3.4
+    or later and an S3 Versioning-enabled bucket. Each Dag run then records a content-addressed release and can
+    retrieve the exact object versions used when the run was created.
 
 See :doc:`apache-airflow-providers-amazon:bundles/index` for the full list of kwargs and more examples.
 
