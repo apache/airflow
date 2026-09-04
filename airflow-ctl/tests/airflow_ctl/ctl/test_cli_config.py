@@ -41,6 +41,7 @@ from airflowctl.ctl.cli_config import (
 )
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
+    AirflowCtlCredentialInvalidException,
     AirflowCtlCredentialNotFoundException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
@@ -462,11 +463,18 @@ class TestCliConfigMethods:
         "raised_exception",
         [
             AirflowCtlCredentialNotFoundException("missing credentials"),
+            AirflowCtlCredentialInvalidException("unusable credentials"),
             AirflowCtlConnectionException("connection failed"),
             AirflowCtlKeyringException("keyring failure"),
             AirflowCtlNotFoundException("resource not found"),
         ],
-        ids=["credential-not-found", "connection-error", "keyring-error", "not-found"],
+        ids=[
+            "credential-not-found",
+            "credential-invalid",
+            "connection-error",
+            "keyring-error",
+            "not-found",
+        ],
     )
     def test_safe_call_command_exits_non_zero_for_airflowctl_exceptions(self, raised_exception):
         def raise_error(_args):
