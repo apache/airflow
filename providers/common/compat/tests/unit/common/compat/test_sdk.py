@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 
 def test_all_compat_imports_work():
     """
@@ -52,3 +54,15 @@ def test_invalid_import_raises_attribute_error():
 
     with pytest.raises(AttributeError, match="has no attribute 'NonExistentClass'"):
         _ = sdk.NonExistentClass
+
+
+def test_xcom_model_imports_server_side_model_or_airflow2_fallback():
+    from airflow.models.xcom import XCom
+    from airflow.providers.common.compat import sdk
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.xcom import XComModel
+
+        assert sdk.XComModel is XComModel
+    else:
+        assert sdk.XComModel is XCom
