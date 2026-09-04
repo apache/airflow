@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from airflow.models import Connection
 from airflow.providers.cohere.hooks.cohere import (
@@ -44,3 +44,33 @@ class TestCohereHook:
             hook = CohereHook(timeout=timeout)
             _ = hook.get_conn()
             client.assert_called_once_with(api_key=api_key, timeout=timeout, base_url=base_url)
+
+    @patch.object(CohereHook, "get_conn")
+    def test_rerank(self, mock_get_conn):
+        response = MagicMock()
+        response.model_dump.return_value = {
+            "id": "rerank-id",
+            "results": [{"index": 1, "relevance_score": 0.9}],
+        }
+        mock_get_conn.return_value.rerank.return_value = response
+        request_options = {"timeout_in_seconds": 10}
+        hook = CohereHook(request_options=request_options)
+
+        result = hook.rerank(
+            query="Where is the capital?",
+            documents=["first", "second"],
+            model="rerank-v3.5",
+            top_n=1,
+            max_tokens_per_doc=512,
+        )
+
+        mock_get_conn.return_value.rerank.assert_called_once_with(
+            query="Where is the capital?",
+            documents=["first", "second"],
+            model="rerank-v3.5",
+            top_n=1,
+            max_tokens_per_doc=512,
+            request_options=request_options,
+        )
+        response.model_dump.assert_called_once_with(mode="json")
+        assert result == {"id": "rerank-id", "results": [{"index": 1, "relevance_score": 0.9}]}
