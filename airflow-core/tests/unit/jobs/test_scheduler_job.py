@@ -5671,6 +5671,43 @@ class TestSchedulerJob:
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
 
+    def test_create_dag_runs_continues_after_db_error(self, dag_maker, session):
+        with dag_maker(dag_id="test_create_dag_runs_bad_flush", schedule="@daily"):
+            EmptyOperator(task_id="dummy")
+        bad_dag_model = dag_maker.dag_model
+
+        with dag_maker(dag_id="test_create_dag_runs_good_after_bad", schedule="@daily"):
+            EmptyOperator(task_id="dummy")
+        good_dag_model = dag_maker.dag_model
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        original_create_dagrun = SerializedDAG.create_dagrun
+
+        def create_dagrun(serialized_dag, **kwargs):
+            if serialized_dag.dag_id == bad_dag_model.dag_id:
+                session.add(
+                    DagRun(
+                        dag_id=None,
+                        run_id="scheduled__bad_flush",
+                        logical_date=DEFAULT_DATE,
+                        run_after=timezone.utcnow(),
+                        run_type=DagRunType.SCHEDULED,
+                        triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        state=DagRunState.QUEUED,
+                    )
+                )
+                session.flush()
+                pytest.fail("Expected invalid DagRun to fail during flush")
+            return original_create_dagrun(serialized_dag, **kwargs)
+
+        with patch.object(SerializedDAG, "create_dagrun", autospec=True, side_effect=create_dagrun):
+            self.job_runner._create_dag_runs([bad_dag_model, good_dag_model], session)
+
+        session.flush()
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == bad_dag_model.dag_id)) == 0
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == good_dag_model.dag_id)) == 1
+
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_assets(self, session, dag_maker):
         """
@@ -10971,8 +11008,8 @@ class TestSchedulerJobQueriesCount:
     @pytest.mark.parametrize(
         ("expected_query_count", "dag_count", "task_count"),
         [
-            (21, 1, 1),  # One DAG with one task per DAG file.
-            (21, 1, 5),  # One DAG with five tasks per DAG file.
+            (25, 1, 1),  # One DAG with one task per DAG file.
+            (25, 1, 5),  # One DAG with five tasks per DAG file.
             (148, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
         ],
     )
@@ -11041,33 +11078,33 @@ class TestSchedulerJobQueriesCount:
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 1, 1, "1d", "None", "linear"),
-            ([24, 14, 14, 14], 1, 1, "1d", "@once", "no_structure"),
-            ([24, 14, 14, 14], 1, 1, "1d", "@once", "linear"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "no_structure"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "linear"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "binary_tree"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "star"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "grid"),
+            ([26, 14, 14, 14], 1, 1, "1d", "@once", "no_structure"),
+            ([26, 14, 14, 14], 1, 1, "1d", "@once", "linear"),
+            ([26, 28, 31, 34], 1, 1, "1d", "30m", "no_structure"),
+            ([26, 28, 31, 34], 1, 1, "1d", "30m", "linear"),
+            ([26, 28, 31, 34], 1, 1, "1d", "30m", "binary_tree"),
+            ([26, 28, 31, 34], 1, 1, "1d", "30m", "star"),
+            ([26, 28, 31, 34], 1, 1, "1d", "30m", "grid"),
             # One DAG with five tasks per DAG file.
             ([10, 10, 10, 10], 1, 5, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 1, 5, "1d", "None", "linear"),
-            ([24, 14, 14, 14], 1, 5, "1d", "@once", "no_structure"),
-            ([25, 15, 15, 15], 1, 5, "1d", "@once", "linear"),
-            ([24, 26, 29, 32], 1, 5, "1d", "30m", "no_structure"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "linear"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "binary_tree"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "star"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "grid"),
+            ([26, 14, 14, 14], 1, 5, "1d", "@once", "no_structure"),
+            ([27, 15, 15, 15], 1, 5, "1d", "@once", "linear"),
+            ([26, 28, 31, 34], 1, 5, "1d", "30m", "no_structure"),
+            ([27, 30, 34, 38], 1, 5, "1d", "30m", "linear"),
+            ([27, 30, 34, 38], 1, 5, "1d", "30m", "binary_tree"),
+            ([27, 30, 34, 38], 1, 5, "1d", "30m", "star"),
+            ([27, 30, 34, 38], 1, 5, "1d", "30m", "grid"),
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
-            ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
-            ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
-            ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
-            ([227, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
-            ([227, 139, 139, 139], 10, 10, "1d", "30m", "star"),
-            ([227, 259, 259, 259], 10, 10, "1d", "30m", "grid"),
+            ([238, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
+            ([248, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
+            ([237, 139, 139, 139], 10, 10, "1d", "30m", "no_structure"),
+            ([2247, 165, 165, 165], 10, 10, "1d", "30m", "linear"),
+            ([247, 159, 159, 159], 10, 10, "1d", "30m", "binary_tree"),
+            ([247, 159, 159, 159], 10, 10, "1d", "30m", "star"),
+            ([247, 279, 279, 279], 10, 10, "1d", "30m", "grid"),
         ],
     )
     def test_process_dags_queries_count(
