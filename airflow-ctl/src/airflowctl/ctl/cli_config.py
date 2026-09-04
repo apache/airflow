@@ -1200,6 +1200,22 @@ TASK_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="state",
+        help="Get the state of a task instance",
+        description=(
+            "Get the state of a task instance. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
+    ActionCommand(
         name="states-for-dag-run",
         help="Get the status of all task instances in a Dag run",
         description=(
