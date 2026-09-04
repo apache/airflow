@@ -849,7 +849,7 @@ def _build_ts_sdk_docs(generated_path: Path) -> int:
             f"{AIRFLOW_ROOT_PATH}:/repo",
             "-w",
             "/repo/ts-sdk/docs",
-            f"node:{TYPESCRIPT_SDK_NODE_VERSION}-bookworm-slim",
+            f"node:{TYPESCRIPT_SDK_NODE_VERSION}-trixie-slim",
             "sh",
             "-c",
             # `npm ci` keeps the lock file authoritative; `npm test` covers the postbuild

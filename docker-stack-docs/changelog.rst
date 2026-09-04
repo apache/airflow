@@ -37,6 +37,10 @@ the Airflow team.
 Airflow 3.4.0
 ~~~~~~~~~~~~~
 
+  * The Docker image base was updated from Debian Bookworm to Debian Trixie.
+  * The MariaDB client packages used for MySQL client compatibility were updated
+    from MariaDB 10.11 to MariaDB 11.8 because MariaDB 10.11 does not provide
+    Debian Trixie packages.
   * The ``tdsodbc`` package was added to the image so that the FreeTDS ODBC driver
     (``libtdsodbc.so``) is available for connecting to Sybase/TDS databases via ODBC.
 

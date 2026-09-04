@@ -2450,7 +2450,7 @@ def release_prod_images(
     for python in python_versions:
         build_args = {
             "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-            "BASE_IMAGE": "debian:bookworm-slim",
+            "BASE_IMAGE": "debian:trixie-slim",
             "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
             "AIRFLOW_VERSION": airflow_version,
             "INCLUDE_PRE_RELEASE": "true" if include_pre_release else "false",
