@@ -688,8 +688,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
-        self.destination_bucket = destination_bucket or self.source_bucket
-        self.destination_object = destination_object or self.source_object
+        self.destination_bucket = destination_bucket
+        self.destination_object = destination_object
 
         self.gcp_conn_id = gcp_conn_id
         self.transform_script = transform_script
@@ -697,6 +697,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
+        self.destination_bucket = self.destination_bucket or self.source_bucket
+        self.destination_object = self.destination_object or self.source_object
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
@@ -743,8 +745,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             name=self.source_object,
         )
         output_dataset = Dataset(
-            namespace=f"gs://{self.destination_bucket}",
-            name=self.destination_object,
+            namespace=f"gs://{self.destination_bucket or self.source_bucket}",
+            name=self.destination_object or self.source_object,
         )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
