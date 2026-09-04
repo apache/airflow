@@ -43,6 +43,13 @@ def test_plugin_inactive():
         assert len(rep.appbuilder_views) == 0
 
 
+def test_plugin_inactive_on_non_boolean_api_enabled():
+    with conf_vars({("edge", "api_enabled"): "yes"}):
+        importlib.reload(edge_executor_plugin)
+
+        assert edge_executor_plugin.EDGE_EXECUTOR_ACTIVE is False
+
+
 @pytest.mark.db_test
 def test_plugin_active_apiserver():
     mock_cli = ["airflow", "api-server"]

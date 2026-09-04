@@ -1571,6 +1571,25 @@ class TestAmqpsSslConfig:
         assert "certfile" not in broker_ssl
 
 
+@pytest.mark.parametrize(
+    "get_team_conf",
+    [
+        pytest.param(lambda: conf, id="sdk_conf"),
+        pytest.param(
+            lambda: ExecutorConf(team_name=None),
+            id="executor_conf",
+            marks=pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+"),
+        ),
+    ],
+)
+@conf_vars({("celery", "SSL_ACTIVE"): "yes"})
+def test_non_boolean_ssl_active_degrades_to_no_ssl(get_team_conf):
+    """A malformed [celery] ssl_active must degrade to a no-SSL config instead of raising."""
+    config = default_celery.get_default_celery_config(get_team_conf())
+
+    assert "broker_use_ssl" not in config
+
+
 class TestCreateCeleryAppTeamIsolation:
     """Tests for create_celery_app() multi-team config isolation."""
 
