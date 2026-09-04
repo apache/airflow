@@ -53,7 +53,7 @@ from airflow.providers_manager import ProvidersManager
 # check_provider_conn_fields lives in scripts/ci/prek/ which is not on sys.path when
 # this script runs inside Breeze; resolve it relative to this file.
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ci" / "prek"))
-from check_provider_conn_fields import check_conn_fields_for_entry
+from check_provider_conn_fields import check_conn_fields_for_entry, check_ui_field_behaviour_for_entry
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
@@ -566,6 +566,57 @@ def check_conn_fields_match_form_widgets(yaml_files: dict[str, dict]) -> tuple[i
                 num_errors += 1
 
     return num_checks, num_errors
+
+
+@run_check(
+    "Checking that ui-field-behaviour in provider.yaml matches get_ui_field_behaviour() of the hook class"
+)
+def check_ui_field_behaviour_matches_hook(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    """
+    For every connection-type entry whose hook overrides ``get_ui_field_behaviour()``,
+    verify the ``ui-field-behaviour`` section in the provider YAML says the same thing.
+    The UI reads the YAML and ignores the hook method when the YAML is present, so both a
+    missing section and any drifted hidden-fields/relabeling/placeholders value are errors.
+    """
+    num_checks = 0
+    num_errors = 0
+
+    for yaml_file_path, provider_data in yaml_files.items():
+        for conn_type_entry in provider_data.get("connection-types", []):
+            num_checks += 1
+            for error in check_ui_field_behaviour_for_entry(
+                conn_type_entry, yaml_file_path, _get_ui_field_behaviour
+            ):
+                errors.append(error)
+                num_errors += 1
+
+    return num_checks, num_errors
+
+
+def _get_ui_field_behaviour(hook_class_name: str) -> dict[str, Any] | None:
+    """
+    Import *hook_class_name* and return its ``get_ui_field_behaviour()`` dict.
+
+    Returns ``None`` when the hook cannot be imported or does not override
+    ``get_ui_field_behaviour()`` in its own ``__dict__`` (hooks that merely inherit it have no
+    provider-specific behaviour to diff against). Raises for unexpected errors so
+    ``check_ui_field_behaviour_for_entry`` can convert them to an error string.
+    """
+    try:
+        module_name, class_name = hook_class_name.rsplit(".", maxsplit=1)
+        with warnings.catch_warnings(record=True):
+            hook_class = getattr(importlib.import_module(module_name), class_name)
+    except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
+        return None
+
+    if "get_ui_field_behaviour" not in hook_class.__dict__:
+        return None
+
+    with warnings.catch_warnings(record=True):
+        try:
+            return hook_class.get_ui_field_behaviour()
+        except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
+            return None
 
 
 def _get_widget_keys(hook_class_name: str) -> set[str] | None:
@@ -1194,6 +1245,7 @@ if __name__ == "__main__":
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
     check_retry_policy_modules_exist_and_belong_to_package(all_parsed_yaml_files)
     check_conn_fields_match_form_widgets(all_parsed_yaml_files)
+    check_ui_field_behaviour_matches_hook(all_parsed_yaml_files)
     check_hook_classes_with_conn_type_are_registered(all_parsed_yaml_files)
     check_executor_classes(all_parsed_yaml_files)
     check_queue_classes(all_parsed_yaml_files)
