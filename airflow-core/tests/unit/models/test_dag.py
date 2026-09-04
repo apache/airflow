@@ -360,6 +360,25 @@ class TestDag:
         assert "testing" in instantiated
         assert "unrelated" not in instantiated
 
+    def test_dag_test_runtime_start_date_decoupled_from_logical_date(self, dag_maker, time_machine):
+        """
+        Ensure DAG.test() decouples its execution start_date from historical logical_dates.
+        """
+        past_logical_date = pendulum.datetime(2024, 1, 1, tz="UTC")
+        frozen_now = pendulum.datetime(2026, 6, 22, 12, 0, 0, tz="UTC")
+
+        time_machine.move_to(frozen_now, tick=False)
+
+        with dag_maker(dag_id="test_runtime_duration_isolation", start_date=past_logical_date) as dag:
+            EmptyOperator(task_id="task1")
+
+        # Run dag.test against the DB
+        dr = dag.test(logical_date=past_logical_date)
+
+        # Assert directly on the created DagRun object returned from the DB
+        assert dr.logical_date == past_logical_date
+        assert dr.start_date == frozen_now
+
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
