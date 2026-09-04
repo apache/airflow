@@ -1368,13 +1368,18 @@ class EksPodExecOperator(KubernetesPodExecOperator):
     :param command: Command and arguments to execute in the container. (templated)
     :param namespace: Namespace containing the Pod. Defaults to ``default``. (templated)
     :param container_name: Name of the container in which to execute the command. When omitted, the
-        ``kubectl.kubernetes.io/default-container`` annotation or the first container is used. (templated)
+        ``kubectl.kubernetes.io/default-container`` annotation or the first container is used.
+        Defaults to ``None``. (templated)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
-        If this is ``None`` or empty, the default boto3 credential strategy is used.
+        Defaults to ``aws_default``. If this is ``None`` or empty, the default boto3 credential
+        strategy is used without an Airflow connection lookup.
     :param region_name: AWS region containing the Amazon EKS Cluster. (templated)
-        If this is ``None`` or empty, the default boto3 region strategy is used.
-    :param verify: Whether to verify SSL certificates, or the path to a CA bundle. (templated)
-    :param botocore_config: Configuration dictionary for the botocore client.
+        Defaults to ``None``, which uses the region from the AWS connection when available and
+        otherwise falls back to the default boto3 region strategy.
+    :param verify: Whether to verify SSL certificates, or the path to a CA bundle. Defaults to
+        ``None``, which uses the value from the AWS connection when available. (templated)
+    :param botocore_config: Configuration dictionary for the botocore client. Defaults to ``None``,
+        which uses ``config_kwargs`` from the AWS connection when available.
     :param do_xcom_push: Return standard output through XCom when ``True``. Defaults to ``False``.
     :param max_xcom_output_size: Maximum UTF-8 byte size retained for XCom. Defaults to 49,344 bytes.
     """
