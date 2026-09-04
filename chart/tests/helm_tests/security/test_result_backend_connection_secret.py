@@ -132,9 +132,6 @@ class TestResultBackendConnectionSecret:
         )
 
     def test_should_set_pgbouncer_overrides_with_use_standard_naming(self):
-        # The pgbouncer host must be derived from the "airflow.fullname" template (like the metadata
-        # connection secret does), not from `.Release.Name` directly, so that it still resolves once
-        # `useStandardNaming`/`fullnameOverride` change the pgbouncer Service name.
         values = {
             "useStandardNaming": True,
             "pgbouncer": {"enabled": True},
