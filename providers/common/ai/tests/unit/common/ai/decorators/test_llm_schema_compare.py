@@ -124,6 +124,27 @@ class TestLLMSchemaCompareDecoratedOperator:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
+    def test_sequence_prompt_with_require_approval_raises_before_run_sync(
+        self, mock_build_ctx, mock_hook_cls
+    ):
+        mock_agent = _make_mock_agent(_make_compare_result())
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = _LLMSchemaCompareDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: ["Compare these schemas:", ImageUrl(url="https://example.com/x.png")],
+            llm_conn_id="llm_conn",
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["test_table"],
+            require_approval=True,
+        )
+        with pytest.raises(TypeError, match=r"^@task\.llm_schema_compare: Sequence\[UserContent\]"):
+            op.execute(context={})
+
+        mock_agent.run_sync.assert_not_called()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_execute_merges_op_kwargs_into_callable(self, mock_build_ctx, mock_hook_cls):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
