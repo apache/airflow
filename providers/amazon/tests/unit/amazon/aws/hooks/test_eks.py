@@ -55,7 +55,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from unit.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -1289,8 +1289,6 @@ class TestEksHook:
         assert "2>/dev/null" not in COMMAND
 
     def test_command_template_uses_last_stdout_line_with_posix_shell(self, tmp_path):
-        from airflow.providers.amazon.aws.hooks.eks import COMMAND
-
         credentials_file = tmp_path / "credentials"
         credentials_file.write_text(
             "export AWS_ACCESS_KEY_ID='test-access-key'\nexport AWS_SECRET_ACCESS_KEY='test-secret-key'\n"
