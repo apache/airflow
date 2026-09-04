@@ -2260,7 +2260,9 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     log.debug("Rendering map_index_template", template_length=len(template))
     jinja_env = ti.task.dag.get_template_env()
     rendered_map_index = jinja_env.from_string(template).render(context)
-    log.debug("Map index rendered", length=len(rendered_map_index))
+    if rendered_map_index is not None:
+        rendered_map_index = str(rendered_map_index)
+        log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 
 
