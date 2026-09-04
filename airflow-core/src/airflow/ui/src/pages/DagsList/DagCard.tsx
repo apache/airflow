@@ -19,7 +19,10 @@
 import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DAGLatestRunTaskInstanceStateCountsResponse,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
 import { RouterLink, Tooltip } from "src/system-components";
 
@@ -34,17 +37,27 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
+import { LatestRunTaskStateCounts } from "./LatestRunTaskStateCounts";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
+  readonly latestRunTaskStateCounts: DAGLatestRunTaskInstanceStateCountsResponse | undefined;
+  readonly latestRunTaskStateCountsLoading: boolean;
   readonly runStateCounts: Record<string, number> | undefined;
   readonly runStateCountsLoading: boolean;
   readonly stateCountLimit: number | undefined;
 };
 
-export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
+export const DagCard = ({
+  dag,
+  latestRunTaskStateCounts,
+  latestRunTaskStateCountsLoading,
+  runStateCounts,
+  runStateCountsLoading,
+  stateCountLimit,
+}: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
@@ -152,6 +165,17 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
                 dagId={dag.dag_id}
                 isLoading={runStateCountsLoading}
                 stateCountLimit={stateCountLimit}
+              />
+            ) : undefined}
+          </Box>
+        </GridItem>
+        <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
+          <Box minHeight="22px">
+            {isNearViewport ? (
+              <LatestRunTaskStateCounts
+                dagId={dag.dag_id}
+                entry={latestRunTaskStateCounts}
+                isLoading={latestRunTaskStateCountsLoading}
               />
             ) : undefined}
           </Box>

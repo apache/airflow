@@ -99,7 +99,14 @@ const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentM
   }
 
   const result = render(
-    <DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />,
+    <DagCard
+      dag={dag}
+      latestRunTaskStateCounts={undefined}
+      latestRunTaskStateCountsLoading
+      runStateCounts={undefined}
+      runStateCountsLoading
+      stateCountLimit={undefined}
+    />,
     {
       wrapper: GMTWrapper,
     },

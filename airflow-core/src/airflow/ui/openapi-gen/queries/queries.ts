@@ -788,6 +788,22 @@ export const useDagServiceGetDagRunStateCountsUi = <TData = Common.DagServiceGet
   dagIds: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }, queryKey), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) as TData, ...options });
 /**
+* Get Latest Run Task Instance State Counts
+* Return task-instance state counts for the given Dag runs, for the Dag list page.
+*
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
+* @param data The data for the request.
+* @param data.dagRunIds
+* @returns DAGsLatestRunTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetLatestRunTaskInstanceStateCountsUi = <TData = Common.DagServiceGetLatestRunTaskInstanceStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagRunIds }: {
+  dagRunIds: number[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetLatestRunTaskInstanceStateCountsUiKeyFn({ dagRunIds }, queryKey), queryFn: () => DagService.getLatestRunTaskInstanceStateCountsUi({ dagRunIds }) as TData, ...options });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId

@@ -788,6 +788,22 @@ export const ensureUseDagServiceGetDagRunStateCountsUiData = (queryClient: Query
   dagIds: string[];
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
 /**
+* Get Latest Run Task Instance State Counts
+* Return task-instance state counts for the given Dag runs, for the Dag list page.
+*
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
+* @param data The data for the request.
+* @param data.dagRunIds
+* @returns DAGsLatestRunTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagServiceGetLatestRunTaskInstanceStateCountsUiData = (queryClient: QueryClient, { dagRunIds }: {
+  dagRunIds: number[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetLatestRunTaskInstanceStateCountsUiKeyFn({ dagRunIds }), queryFn: () => DagService.getLatestRunTaskInstanceStateCountsUi({ dagRunIds }) });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId
