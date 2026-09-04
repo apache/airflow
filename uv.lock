@@ -6467,6 +6467,9 @@ dependencies = [
 openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
+sqlalchemy = [
+    { name = "sqlalchemy" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -6474,6 +6477,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-jdbc", extra = ["sqlalchemy"] },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -6497,8 +6501,9 @@ requires-dist = [
     { name = "jpype1", marker = "(python_full_version == '3.11.*' and platform_machine != 'arm64') or (python_full_version == '3.11.*' and sys_platform != 'darwin')", specifier = ">=1.4.1" },
     { name = "jpype1", marker = "(python_full_version == '3.12.*' and platform_machine != 'arm64') or (python_full_version == '3.12.*' and sys_platform != 'darwin')", specifier = ">=1.5.0" },
     { name = "jpype1", marker = "(python_full_version == '3.13.*' and platform_machine != 'arm64') or (python_full_version == '3.13.*' and sys_platform != 'darwin')", specifier = ">=1.5.1" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
-provides-extras = ["openlineage"]
+provides-extras = ["openlineage", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -6506,6 +6511,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-jdbc", extras = ["sqlalchemy"], editable = "providers/jdbc" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
@@ -8708,12 +8714,18 @@ dependencies = [
     { name = "ydb-dbapi" },
 ]
 
+[package.optional-dependencies]
+sqlalchemy = [
+    { name = "sqlalchemy" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-providers-ydb", extra = ["sqlalchemy"] },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -8725,9 +8737,11 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
     { name = "ydb", specifier = ">=3.18.8" },
     { name = "ydb-dbapi", specifier = ">=0.1.0" },
 ]
+provides-extras = ["sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -8735,6 +8749,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-ydb", extras = ["sqlalchemy"], editable = "providers/ydb" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
