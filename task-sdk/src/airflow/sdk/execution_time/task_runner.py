@@ -44,8 +44,8 @@ from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk._shared.observability.attributes import expand_dag_tags
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -223,25 +223,6 @@ def _make_task_span(msg: StartupDetails):
         yield span
 
 
-_TASK_SPAN_ATTRIBUTE_KEYS = {
-    "airflow.dag_id",
-    "airflow.task_id",
-    "airflow.dag_run.run_id",
-    "airflow.task_instance.try_number",
-    "airflow.task_instance.map_index",
-}
-
-
-def _set_dag_tags_on_span(span: trace.Span, dag_tags: Iterable[str]) -> None:
-    """Attach expanded DAG tags to a task span."""
-    attributes = expand_dag_tags(dag_tags)
-    # Keep the same collision rule as metrics: built-in Airflow attributes win.
-    for key in _TASK_SPAN_ATTRIBUTE_KEYS:
-        attributes.pop(key, None)
-    if attributes:
-        span.set_attributes(attributes)
-
-
 class TaskRunnerMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
@@ -288,7 +269,7 @@ class RuntimeTaskInstance(TaskInstance):
         """Metric tags for this task instance, including dag tags and team_name when available."""
         tags: dict[str, str] = {}
         if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
-            tags.update(stats.build_dag_metric_tags(self.task.dag.tags))
+            tags.update(build_dag_metric_tags(self.task.dag.tags))
         # Built-in keys always win on collision.
         tags.update(dag_id=self.dag_id, task_id=self.task_id)
         if self._ti_context_from_server:
@@ -2446,8 +2427,6 @@ def main():
                 span_ctx_mgr = _make_task_span(msg=startup_details)
                 span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
-                if conf.getboolean("traces", "dag_tags_in_spans", fallback=False):
-                    _set_dag_tags_on_span(span, ti.task.dag.tags)
             except AirflowRescheduleException as reschedule:
                 log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
                 SUPERVISOR_COMMS.send(

@@ -4410,6 +4410,31 @@ class TestDagRunTracing:
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
 
+    @conf_vars({("traces", "dag_tags_in_spans"): "True"})
+    def test_emit_dagrun_span_includes_dag_tags(self, dag_maker, session):
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker(
+            "test_tracing_dag_tags",
+            tags=["production", "team:data", "airflow.dag_id:wrong"],
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.dag = dag
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr._emit_dagrun_span(state=DagRunState.SUCCESS)
+
+        [span] = in_mem_exporter.get_finished_spans()
+        assert span.attributes["production"] == ""
+        assert span.attributes["team"] == "data"
+        assert span.attributes["airflow.dag_id"] == dr.dag_id
+
     def test_dagrun_trace_attributes_helper(self, dag_maker, session):
         """The shared helper returns dag_id, run_id and run_type as airflow.* attributes."""
         from airflow.models.dagrun import dagrun_trace_attributes
