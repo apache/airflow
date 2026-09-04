@@ -136,6 +136,15 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
     The OpenTelemetry SDK should be configured using standard OpenTelemetry environment variables
     such as ``OTEL_EXPORTER_OTLP_ENDPOINT``, ``OTEL_EXPORTER_OTLP_PROTOCOL``, etc.
 
+    To send metrics to an endpoint with a non-default path, set
+    ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` to the complete metrics endpoint. This takes precedence
+    over ``OTEL_EXPORTER_OTLP_ENDPOINT`` and avoids applying the default ``/v1/metrics`` suffix:
+
+    .. code-block:: bash
+
+        export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT="https://metrics.example.com/opentelemetry/api/v1/push"
+        export OTEL_EXPORTER_OTLP_METRICS_PROTOCOL="http/protobuf"
+
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
 
