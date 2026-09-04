@@ -35,12 +35,16 @@ from sqlalchemy.orm import Session
 
 from airflow import DAG
 from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.callback import Callback, DagProcessorCallback
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
@@ -825,11 +829,10 @@ class TestDBCleanup:
         """
         import pkgutil
 
-        proj_root = Path(__file__).parents[2].resolve()
-        mods = list(
-            f"airflow.models.{name}"
-            for _, name, _ in pkgutil.iter_modules([str(proj_root / "airflow/models")])
-        )
+        import airflow.models
+
+        models_pkg_path = Path(airflow.models.__file__).parent
+        mods = [f"airflow.models.{name}" for _, name, _ in pkgutil.iter_modules([str(models_pkg_path)])]
 
         all_models = {}
         for mod_name in mods:
@@ -847,11 +850,16 @@ class TestDBCleanup:
             "asset_active",  # not good way to know if "stale"
             "asset",  # not good way to know if "stale"
             "asset_alias",  # not good way to know if "stale"
+            "asset_watcher",  # not good way to know if "stale"
+            "asset_dag_run_queue",  # self-managed
+            "asset_partition_dag_run",  # foreign keys
+            "partitioned_asset_key_log",  # self-managed
+            "asset_state_store",  # self-managed
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
-            "dag_tag",  # not a significant source of data; age not indicative of staleness,
-            "dag_owner_attributes",  # not a significant source of data; age not indicative of staleness,
+            "dag_tag",  # not a significant source of data; age not indicative of staleness
+            "dag_owner_attributes",  # not a significant source of data; age not indicative of staleness
             "dag_code",  # self-maintaining
             "dag_warning",  # self-maintaining
             "connection",  # leave alone
@@ -861,14 +869,18 @@ class TestDBCleanup:
             "dag_schedule_asset_name_reference",  # leave alone for now
             "dag_schedule_asset_uri_reference",  # leave alone for now
             "task_outlet_asset_reference",  # leave alone for now
-            "asset_dag_run_queue",  # self-managed
-            "asset_event_dag_run",  # foreign keys
+            "task_inlet_asset_reference",  # leave alone for now
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
+            "dag_favorite",  # user preference
+            "deadline_alert",  # handled through FK to serialized_dag
+            "hitl_detail",  # foreign key to TI
+            "hitl_detail_history",  # foreign key to TI
+            "team",  # metadata configuration
         }
 
         from airflow.utils.db_cleanup import config_dict
@@ -1453,6 +1465,191 @@ class TestSchemaQualifiedTableConfig:
         assert config.bare_table_name == "some_table"
         assert config.table_name == "some_table"
         assert config.orm_model.schema is None
+
+
+@pytest.mark.db_test
+class TestAirflow3TablesCleanup:
+    def test_cleanup_task_reschedule(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = "testing"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-tr-cleanup_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add(dag_run)
+            session.add(ti)
+            session.flush()
+
+            tr_old = TaskReschedule(
+                ti_id=ti.id,
+                start_date=base_date,
+                end_date=base_date.add(minutes=1),
+                reschedule_date=base_date.add(minutes=5),
+            )
+            tr_new = TaskReschedule(
+                ti_id=ti.id,
+                start_date=base_date.add(days=10),
+                end_date=base_date.add(days=10, minutes=1),
+                reschedule_date=base_date.add(days=10, minutes=5),
+            )
+            session.add_all([tr_old, tr_new])
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["task_reschedule"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining = session.scalars(select(TaskReschedule)).all()
+            assert len(remaining) == 1
+            assert remaining[0].id == tr_new.id
+
+    def test_cleanup_task_reschedule_cascade_with_task_instance(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = "testing"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-tr-cascade_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_1",
+                run_type=DagRunType.SCHEDULED,
+                start_date=base_date,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add(dag_run)
+            session.add(ti)
+            session.flush()
+
+            tr = TaskReschedule(
+                ti_id=ti.id,
+                start_date=base_date,
+                end_date=base_date.add(minutes=1),
+                reschedule_date=base_date.add(minutes=5),
+            )
+            session.add(tr)
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["task_instance"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            assert session.scalar(select(func.count(TaskInstance.id))) == 0
+            assert session.scalar(select(func.count(TaskReschedule.id))) == 0
+
+    def test_cleanup_asset_event_with_dag_id_filtering(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        with create_session() as session:
+            asset = AssetModel(name="test_asset", uri="s3://bucket/test")
+            session.add(asset)
+            session.flush()
+
+            event_dag1 = AssetEvent(
+                asset_id=asset.id,
+                source_dag_id="dag1",
+                timestamp=base_date,
+            )
+            event_dag2 = AssetEvent(
+                asset_id=asset.id,
+                source_dag_id="dag2",
+                timestamp=base_date,
+            )
+            session.add_all([event_dag1, event_dag2])
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["asset_event"],
+                dag_ids=["dag1"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining_events = session.scalars(select(AssetEvent)).all()
+            assert len(remaining_events) == 1
+            assert remaining_events[0].source_dag_id == "dag2"
+
+    def test_cleanup_callback(self):
+        base_date = pendulum.DateTime(2023, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        with create_session() as session:
+            req1 = DagCallbackRequest(
+                dag_id="dag1",
+                bundle_name="testing",
+                bundle_version=None,
+                filepath="test.py",
+                is_failure_callback=False,
+                run_id="run1",
+            )
+            cb_old = DagProcessorCallback(priority_weight=1, callback=req1)
+            cb_old.created_at = base_date
+
+            req2 = DagCallbackRequest(
+                dag_id="dag2",
+                bundle_name="testing",
+                bundle_version=None,
+                filepath="test.py",
+                is_failure_callback=False,
+                run_id="run2",
+            )
+            cb_new = DagProcessorCallback(priority_weight=1, callback=req2)
+            cb_new.created_at = base_date.add(days=10)
+
+            session.add_all([cb_old, cb_new])
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["callback"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining = session.scalars(select(Callback)).all()
+            assert len(remaining) == 1
+            assert remaining[0].id == cb_new.id
 
 
 @pytest.mark.backend("postgres")
