@@ -31,6 +31,7 @@ from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
     AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
     ExternalViewDict as ExternalViewDict,
     FastAPIAppDict as FastAPIAppDict,
     FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
