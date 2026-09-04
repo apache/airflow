@@ -264,6 +264,13 @@ class TestSageMakerUnifiedStudioNotebookOperator:
         mock_hook_prop.return_value = mock_hook
         mock_hook.start_notebook_run.return_value = {"id": NOTEBOOK_RUN_ID}
 
+        botocore_config = {
+            "retries": {
+                "max_attempts": 7,
+                "mode": "standard",
+            }
+        }
+
         op = SageMakerUnifiedStudioNotebookOperator(
             task_id=TASK_ID,
             notebook_identifier=NOTEBOOK_ID,
@@ -272,18 +279,30 @@ class TestSageMakerUnifiedStudioNotebookOperator:
             deferrable=True,
             waiter_delay=20,
             timeout_configuration={"runTimeoutInMinutes": 120},
+            region_name="us-west-2",
+            verify="/tmp/custom-ca.pem",
+            botocore_config=botocore_config,
         )
 
         with pytest.raises(TaskDeferred) as exc_info:
             op.execute(_make_context())
 
         trigger = exc_info.value.trigger
+
         assert isinstance(trigger, SageMakerUnifiedStudioNotebookTrigger)
         assert trigger.notebook_run_id == NOTEBOOK_RUN_ID
         assert trigger.domain_identifier == DOMAIN_ID
         assert trigger.owning_project_identifier == PROJECT_ID
         assert trigger.waiter_delay == 20
         assert trigger.timeout_configuration == {"runTimeoutInMinutes": 120}
+
+        _, kwargs = trigger.serialize()
+
+        assert kwargs["region_name"] == "us-west-2"
+        assert kwargs["verify"] == "/tmp/custom-ca.pem"
+        assert kwargs["botocore_config"] == botocore_config
+        assert kwargs["waiter_max_attempts"] == 360
+
         assert exc_info.value.method_name == "execute_complete"
         mock_hook.wait_for_notebook_run.assert_not_called()
 
