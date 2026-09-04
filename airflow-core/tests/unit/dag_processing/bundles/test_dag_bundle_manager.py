@@ -1803,10 +1803,20 @@ class BundleDagImporter(PythonDagImporter):
     pass
 
 
+class CompositeZipImporter(PythonDagImporter):
+    def __init__(self, internal_importers: list[dict] | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self._internal_importers: dict[str, str] = {}
+        if internal_importers:
+            for item in internal_importers:
+                for ext in item.get("extensions", []):
+                    self._internal_importers[ext] = item.get("classpath", "")
+
+
 class TestDagBundlesManagerImporters:
     """Tests for Dag importer registry integration in DagBundlesManager."""
 
-    def test_create_importer_registry_precedence_and_overrides(self, caplog) -> None:
+    def test_create_importer_registry_precedence_and_overrides(self, caplog, tmp_path) -> None:
         """Bundle importers override global importers, which override defaults."""
         global_config = [
             {
@@ -1836,6 +1846,14 @@ class TestDagBundlesManagerImporters:
 
         assert any("Extension '.py' already registered" in record.message for record in caplog.records)
         assert any("Extension '.custom' already registered" in record.message for record in caplog.records)
+
+        # File discovery finds both .py and custom configured extension files.
+        dag_custom = tmp_path / "dag.custom"
+        dag_custom.write_text("from airflow.sdk import DAG\n")
+        dag_py = tmp_path / "dag.py"
+        dag_py.write_text("from airflow.sdk import DAG\n")
+        files = registry.list_dag_files(tmp_path, safe_mode=True)
+        assert set(files) == {str(dag_custom), str(dag_py)}
 
     @pytest.mark.parametrize(
         ("global_cfg", "bundle_cfg", "match"),
@@ -1869,12 +1887,12 @@ class TestDagBundlesManagerImporters:
         manager = DagBundlesManager()
         importers_config = [
             {
-                "classpath": "airflow.sdk.importers.zip_importer.ZipImporter",
+                "classpath": f"{__name__}.CompositeZipImporter",
                 "extensions": [".zip"],
                 "kwargs": {
                     "internal_importers": [
                         {
-                            "classpath": "airflow.sdk.importers.python_importer.PythonDagImporter",
+                            "classpath": f"{__name__}.BundleDagImporter",
                             "extensions": [".py"],
                         }
                     ]
