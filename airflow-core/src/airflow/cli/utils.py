@@ -23,6 +23,8 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
+from airflow.configuration import conf
+
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
 
@@ -103,24 +105,23 @@ def print_export_output(command_type: str, exported_items: Collection, file: Tex
 
 def get_hidden_entries_warning(entity_name: str, env_prefix: str) -> str | None:
     """
-    Build a warning about entries this listing cannot show.
-
-    Connections and Variables can be defined in three places: the metadata database, environment
-    variables, and an optional secrets backend. The database is checked last, so an environment
-    variable or a secrets backend entry silently takes precedence over a database row with the same
-    ID. Commands that only enumerate database rows (like ``connections list`` / ``variables list``)
-    should surface that gap explicitly instead of presenting the database rows as the full picture.
+    Return a warning when the database listing may be incomplete.
 
     :param entity_name: Human-readable plural noun to use in the message, e.g. ``"connections"``.
     :param env_prefix: Environment variable prefix used for this entity, e.g. ``AIRFLOW_CONN_``.
     :return: A warning message, or ``None`` if neither hiding source appears to be in use.
     """
-    from airflow.configuration import conf
-
+    # Connections and variables may also come from environment variables or a
+    # custom secrets backend. These sources can override database entries but
+    # are not included by commands that enumerate database rows.
     has_env_vars = any(key.startswith(env_prefix) for key in os.environ)
-    # Only check whether a custom backend is *configured*, without instantiating it (which could
+    # Only check whether custom backends are *configured*, without instantiating them (which could
     # have side effects, e.g. opening a network connection to a Vault/AWS/GCP secrets service).
-    has_secrets_backend = bool(conf.get("secrets", "backend", fallback=None))
+    # Workers may override the general backend with their own [workers] secrets_backend.
+    has_secrets_backend = any(
+        conf.get(section, key, fallback=None)
+        for section, key in (("secrets", "backend"), ("workers", "secrets_backend"))
+    )
 
     if not has_env_vars and not has_secrets_backend:
         return None
@@ -129,7 +130,7 @@ def get_hidden_entries_warning(entity_name: str, env_prefix: str) -> str | None:
     if has_env_vars:
         sources.append(f"`{env_prefix}*` environment variables")
     if has_secrets_backend:
-        sources.append("the configured secrets backend")
+        sources.append("a configured secrets backend")
 
     return (
         f"This list only includes {entity_name} stored in the metadata database. "

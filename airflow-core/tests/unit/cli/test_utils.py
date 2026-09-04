@@ -137,6 +137,16 @@ class TestGetHiddenEntriesWarning:
         assert "secrets backend" in warning
         assert "AIRFLOW_VAR_" not in warning
 
+    def test_warns_about_worker_secrets_backend(self):
+        with conf_vars(
+            {("workers", "secrets_backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}
+        ):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "secrets backend" in warning
+        assert "AIRFLOW_VAR_" not in warning
+
     def test_warns_about_both_sources_when_both_are_present(self, monkeypatch):
         monkeypatch.setenv("AIRFLOW_VAR_MY_KEY", "value")
         with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
