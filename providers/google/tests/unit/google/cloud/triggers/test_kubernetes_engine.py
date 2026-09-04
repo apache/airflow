@@ -599,6 +599,15 @@ class TestGKEStartJobTrigger:
         assert hook_actual == hook_expected
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.hook")
+    async def test_cleanup_closes_hook(self, mock_hook, job_trigger):
+        mock_hook.close = mock.AsyncMock()
+
+        await job_trigger.cleanup()
+
+        mock_hook.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
     @mock.patch(f"{GKE_TRIGGERS_PATH}.ProvidersManager")
     @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.pod_manager", new_callable=mock.PropertyMock)
     @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.hook")
