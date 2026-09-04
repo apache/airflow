@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
+from airflow.providers.common.sql.triggers.sql import SQLGenericTransferTrigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -165,7 +165,7 @@ class GenericTransfer(BaseOperator):
         if self.page_size and isinstance(self.sql, str):
             if self.deferrable:
                 self.defer(
-                    trigger=SQLExecuteQueryTrigger(
+                    trigger=SQLGenericTransferTrigger(
                         conn_id=self.source_conn_id,
                         hook_params=self.source_hook_params,
                         sql=self.get_paginated_sql(0),
@@ -230,7 +230,7 @@ class GenericTransfer(BaseOperator):
                 self._insert_rows(rows=rows, context=context)
 
                 self.defer(
-                    trigger=SQLExecuteQueryTrigger(
+                    trigger=SQLGenericTransferTrigger(
                         conn_id=self.source_conn_id,
                         hook_params=self.source_hook_params,
                         sql=self.get_paginated_sql(offset),
