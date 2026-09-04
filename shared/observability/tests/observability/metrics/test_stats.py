@@ -640,12 +640,18 @@ class TestStatsHelpers:
                 (None, {}),
                 id="missing_metric_returns_none",
             ),
+            pytest.param(
+                "operator_failures",
+                None,
+                (None, {}),
+                id="tags_none_returns_no_legacy_name",
+            ),
         ],
     )
     def test_get_legacy_stat_name_and_tags(
         self,
         stat: str,
-        tags: dict,
+        tags: dict | None,
         expected_result: tuple[str | None, dict],
     ):
         from airflow_shared.observability.metrics.stats import _get_legacy_stat_name_and_tags
