@@ -30,7 +30,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selecti
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
-from airflow.assets.manager import AssetManager
+from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
@@ -295,7 +295,7 @@ class Trigger(Base):
             # Already deleted for some reason
             return
         for asset in trigger.assets:
-            AssetManager.register_asset_change(
+            asset_manager.register_asset_change(
                 asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 session=session,
