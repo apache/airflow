@@ -258,6 +258,7 @@ class TestKeycloakAuthManager:
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
     async def test_get_user_from_token_keycloak_jwts_missing(self, auth_manager):
+        """A bearer-token caller with no Keycloak cookies is still authenticated."""
         mock_get_user_from_token = AsyncMock(
             return_value=KeycloakAuthManagerUser(
                 user_id="user_id", name="name", access_token="", refresh_token=None
@@ -270,7 +271,12 @@ class TestKeycloakAuthManager:
                 mock_get_user_from_token,
             ),
         ):
-            assert await auth_manager.get_user_from_token("token") is None
+            user = await auth_manager.get_user_from_token("token")
+        mock_get_user_from_token.assert_called_with("token")
+        assert user.get_id() == "user_id"
+        assert user.get_name() == "name"
+        assert user.access_token == ""
+        assert user.refresh_token is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio

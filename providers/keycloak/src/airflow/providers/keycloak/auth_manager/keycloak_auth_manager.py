@@ -185,9 +185,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                 raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
             user.access_token = access_token
             user.refresh_token = refresh_token
-            return user
-        # Skip refreshing JWT if Keycloak JWTs are not included.
-        return None
+        # Callers that only present the Airflow JWT (e.g. bearer-token clients with no
+        # Keycloak cookies) are still authenticated by the signature check above; they
+        # just have nothing to refresh.
+        return user
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
