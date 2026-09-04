@@ -209,8 +209,20 @@ class TestGCSRemoteLogIO:
                 mock_write_method.assert_called_once()
                 if delete_local_copy and mock_write_method_result:
                     mock_rmtree.assert_called_once_with(tmp_path.as_posix())
-                else:
+                    # shutil.rmtree is mocked here, so it never actually removes the file from
+                    # disk; the assertion above already confirms the delete path was taken. We
+                    # don't assert on-disk deletion in this branch since it would be asserting
+                    # against a mock's real side effects, which don't exist.
+                elif mock_write_method_result:
+                    # Upload succeeded but delete_local_copy is False: the local file must be
+                    # truncated so a later lifecycle (e.g. the next poke of a reschedule-mode
+                    # sensor landing on the same worker) doesn't re-upload already-stored content.
                     mock_rmtree.assert_not_called()
+                    assert (tmp_path / "existing.log").read_text() == ""
+                else:
+                    # Upload failed: keep the local content untouched so a retry can still send it.
+                    mock_rmtree.assert_not_called()
+                    assert (tmp_path / "existing.log").read_text() == "log content"
             else:
                 mock_write_method.assert_not_called()
                 mock_rmtree.assert_not_called()
