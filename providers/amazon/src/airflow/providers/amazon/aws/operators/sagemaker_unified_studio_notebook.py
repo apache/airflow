@@ -173,7 +173,11 @@ class SageMakerUnifiedStudioNotebookOperator(AwsBaseOperator[SageMakerUnifiedStu
             region_name=self.hook.conn_region_name,
             aws_partition=self.hook.conn_partition,
         )
-        workflow_name = context["dag"].dag_id  # Workflow name is the same as the dag_id
+        # MWAA Serverless overwrites dag_id with the execution ID for tenant isolation and
+        # injects the real workflow name as a DAG param, so prefer that when set. For standard
+        # Workflows and open-source Airflow, dag_id is the workflow name.
+        params = context.get("params") or {}
+        workflow_name = params.get("mwaa_serverless_workflow_id") or context["dag"].dag_id
         response = self.hook.start_notebook_run(
             notebook_identifier=self.notebook_identifier,
             domain_identifier=self.domain_identifier,

@@ -42,12 +42,12 @@ HOOK_PATH = (
 )
 
 
-def _make_context(dag_id=DAG_ID):
+def _make_context(dag_id=DAG_ID, params=None):
     """Build a minimal mock context with a dag that has a dag_id."""
     dag = MagicMock()
     dag.dag_id = dag_id
     ti = MagicMock()
-    return {"dag": dag, "ti": ti}
+    return {"dag": dag, "ti": ti, "params": params if params is not None else {}}
 
 
 class TestSageMakerUnifiedStudioNotebookOperator:
@@ -172,6 +172,57 @@ class TestSageMakerUnifiedStudioNotebookOperator:
 
         call_kwargs = mock_hook.start_notebook_run.call_args[1]
         assert call_kwargs["workflow_name"] == "my_custom_dag"
+
+    @patch(HOOK_PATH, new_callable=PropertyMock)
+    def test_execute_prefers_mwaa_serverless_workflow_id_param(self, mock_hook_prop):
+        """Under MWAA Serverless, dag_id is the per-execution UUID; the real workflow name is
+        injected as the `mwaa_serverless_workflow_id` DAG param and must be preferred."""
+        mock_hook = MagicMock()
+        mock_hook_prop.return_value = mock_hook
+        mock_hook.start_notebook_run.return_value = {"id": NOTEBOOK_RUN_ID}
+        mock_hook.wait_for_notebook_run.return_value = {}
+        mock_hook.get_notebook_outputs.return_value = {}
+
+        op = SageMakerUnifiedStudioNotebookOperator(
+            task_id=TASK_ID,
+            notebook_identifier=NOTEBOOK_ID,
+            domain_identifier=DOMAIN_ID,
+            owning_project_identifier=PROJECT_ID,
+        )
+        op.execute(
+            _make_context(
+                dag_id="execution-uuid-12345",
+                params={"mwaa_serverless_workflow_id": "my-real-workflow-a1b2c3d4"},
+            )
+        )
+
+        call_kwargs = mock_hook.start_notebook_run.call_args[1]
+        assert call_kwargs["workflow_name"] == "my-real-workflow-a1b2c3d4"
+
+    @patch(HOOK_PATH, new_callable=PropertyMock)
+    def test_execute_falls_back_to_dag_id_when_param_empty(self, mock_hook_prop):
+        """An empty-string or missing `mwaa_serverless_workflow_id` param falls back to dag_id."""
+        mock_hook = MagicMock()
+        mock_hook_prop.return_value = mock_hook
+        mock_hook.start_notebook_run.return_value = {"id": NOTEBOOK_RUN_ID}
+        mock_hook.wait_for_notebook_run.return_value = {}
+        mock_hook.get_notebook_outputs.return_value = {}
+
+        op = SageMakerUnifiedStudioNotebookOperator(
+            task_id=TASK_ID,
+            notebook_identifier=NOTEBOOK_ID,
+            domain_identifier=DOMAIN_ID,
+            owning_project_identifier=PROJECT_ID,
+        )
+        op.execute(
+            _make_context(
+                dag_id="fallback_dag",
+                params={"mwaa_serverless_workflow_id": ""},
+            )
+        )
+
+        call_kwargs = mock_hook.start_notebook_run.call_args[1]
+        assert call_kwargs["workflow_name"] == "fallback_dag"
 
     # --- execute propagates hook failures ---
 
