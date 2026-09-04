@@ -21,8 +21,10 @@ import type { To } from "react-router-dom";
 
 import type { GridRunsResponse, LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests";
 import type { GanttTaskInstance } from "openapi/requests/types.gen";
-import { SearchParamsKeys } from "src/constants/searchParams";
+
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending } from "src/utils";
 import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";

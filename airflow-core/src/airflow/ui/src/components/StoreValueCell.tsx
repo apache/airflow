@@ -20,6 +20,7 @@
 import { Text } from "@chakra-ui/react";
 
 import type { JsonValue } from "openapi/requests";
+
 import RenderedJsonField from "src/components/RenderedJsonField";
 
 export const resolveStoreValue = (value: JsonValue): { json: object } | { text: string } => {

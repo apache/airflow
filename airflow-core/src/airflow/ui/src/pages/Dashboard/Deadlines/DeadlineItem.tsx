@@ -20,6 +20,7 @@ import { Box, HStack, Link, VStack } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DeadlineResponse } from "openapi/requests/types.gen";
+
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 
