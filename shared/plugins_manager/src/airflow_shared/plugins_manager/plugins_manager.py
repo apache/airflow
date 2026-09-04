@@ -87,7 +87,6 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
-# Kept in sync with ``BaseDestinationLiteral`` in ``airflow.api_fastapi.core_api.datamodels.plugins``
 BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
 
 

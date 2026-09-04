@@ -21,6 +21,7 @@ from .plugins_manager import (
     AirflowPluginException as AirflowPluginException,
     AirflowPluginSource as AirflowPluginSource,
     AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
     EntryPointSource as EntryPointSource,
     ExternalViewDict as ExternalViewDict,
     FastAPIAppDict as FastAPIAppDict,
