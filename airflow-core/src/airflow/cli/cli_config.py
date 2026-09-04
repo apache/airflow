@@ -291,6 +291,11 @@ ARG_DR_STATE = Arg(
     metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
+ARG_DR_LIMIT = Arg(
+    ("--limit",),
+    type=positive_int(allow_zero=False),
+    help="Return a limited number of Dag runs, ordered by most recent run_after first",
+)
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
@@ -1250,13 +1255,15 @@ DAGS_COMMANDS = (
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
-            "all the dagruns that were executed after this date. "
+            "all the dagruns that were executed after this date. If limit is given, it will return "
+            "only the most recent N runs after filters and sorting are applied."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
             ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
+            ARG_DR_LIMIT,
             ARG_OUTPUT,
             ARG_VERBOSE,
             ARG_START_DATE,
