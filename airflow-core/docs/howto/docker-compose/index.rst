@@ -387,7 +387,7 @@ If you have a custom config file and wish to use it in your Airflow instance, yo
 Networking
 ==========
 
-In general, if you want to use Airflow locally, your Dags may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
+In general, if you want to use Airflow locally, your Dags may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation on `Docker Desktop networking <https://docs.docker.com/desktop/features/networking/networking-how-tos/>`_ for further information.
 
 Debug Airflow inside docker container using PyCharm
 ===================================================
