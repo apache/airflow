@@ -1,0 +1,1 @@
+Changing a Dag's schedule to a coarser cron no longer stops it being scheduled. The scheduler previously proposed a ``logical_date`` the last run already occupied and looped on ``run already exists; skipping dagrun creation`` without advancing.
