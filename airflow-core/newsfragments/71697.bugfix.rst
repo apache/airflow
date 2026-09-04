@@ -1,0 +1,1 @@
+Allow already-running Dag runs to continue scheduling tasks after their Dag is paused.
