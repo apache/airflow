@@ -582,6 +582,8 @@ class ExternalTaskSensor(BaseSensorOperator):
                 ) from None
             raise
 
+        # Task and task-group checks need Dag-version-aware API support;
+        # tracked at https://github.com/apache/airflow/issues/72514
         if self.external_task_ids or self.external_task_group_id:
             self.log.warning(
                 "Task and task group existence cannot be checked on Airflow 3",
