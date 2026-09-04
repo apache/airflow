@@ -2448,6 +2448,39 @@ my_postgres_conn:
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
+    @pytest.mark.need_serialized_dag
+    def test_dagrun_deadline_skipped_when_reference_has_no_value(self, testing_dag_bundle, session, caplog):
+        dag = DAG(
+            dag_id="test_deadline_without_logical_date",
+            schedule=None,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_dagrun_deadline_without_logical_date",
+            run_type=DagRunType.MANUAL,
+            state=State.QUEUED,
+            logical_date=None,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert dr.deadlines == []
+        assert {
+            "event": "deadline alert skipped, reference produced no deadline time",
+            "dag_id": "test_deadline_without_logical_date",
+            "run_id": "test_dagrun_deadline_without_logical_date",
+            "reference": "DagRunLogicalDateDeadline",
+        } in caplog
+
     def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
         """Test that a Dag with multiple deadlines stores all deadlines and persists on re-serialization."""
         deadlines = [
