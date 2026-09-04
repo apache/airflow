@@ -100,4 +100,61 @@ class TestDagImporterRegistry:
         with caplog.at_level(logging.WARNING):
             reg.register(importer, extensions=[".py", "custom"])
         assert reg.can_handle("test.custom")
+        assert importer.can_handle("test.custom")
         assert any("Extension '.py' already registered" in r.message for r in caplog.records)
+
+    def test_list_dag_files_with_configured_extensions(self, tmp_path):
+        """list_dag_files() discovers files matching explicitly configured extensions."""
+        dag_file = tmp_path / "valid_dag.custom"
+        dag_file.write_text("from airflow.sdk import DAG\n")
+        ignored_file = tmp_path / "ignored.py"
+        ignored_file.write_text("from airflow.sdk import DAG\n")
+        notes_file = tmp_path / "notes.txt"
+        notes_file.write_text("not a dag")
+
+        reg = DagImporterRegistry(register_defaults=False)
+        reg.register(PythonDagImporter(), extensions=[".custom"])
+
+        files = reg.list_dag_files(tmp_path, safe_mode=True)
+        assert files == [str(dag_file)]
+
+    def test_list_dag_files_single_file(self, tmp_path):
+        """list_dag_files() returns single file if registered importer can handle it."""
+        dag_file = tmp_path / "valid_dag.custom"
+        dag_file.write_text("from airflow.sdk import DAG\n")
+
+        reg = DagImporterRegistry(register_defaults=False)
+        reg.register(PythonDagImporter(), extensions=[".custom"])
+
+        assert reg.list_dag_files(dag_file, safe_mode=True) == [str(dag_file)]
+
+        unhandled_file = tmp_path / "unhandled.txt"
+        unhandled_file.write_text("text")
+        assert reg.list_dag_files(unhandled_file, safe_mode=True) == []
+
+    def test_list_dag_files_respects_safe_mode(self, tmp_path):
+        """list_dag_files() filters non-Dag files when safe_mode=True."""
+        no_keywords_file = tmp_path / "no_keywords.custom"
+        no_keywords_file.write_text("print('hello world')\n")
+
+        reg = DagImporterRegistry(register_defaults=False)
+        reg.register(PythonDagImporter(), extensions=[".custom"])
+
+        assert reg.list_dag_files(tmp_path, safe_mode=True) == []
+        assert reg.list_dag_files(tmp_path, safe_mode=False) == [str(no_keywords_file)]
+
+    def test_list_dag_files_single_pass_override(self, tmp_path):
+        """list_dag_files() routes discovered files to overriding importer."""
+        py_file = tmp_path / "dag.py"
+        py_file.write_text("from airflow.sdk import DAG\n")
+
+        class OverridingImporter(PythonDagImporter):
+            pass
+
+        reg = DagImporterRegistry(register_defaults=True)
+        overriding_importer = OverridingImporter()
+        reg.register(overriding_importer, extensions=[".py"])
+
+        files = reg.list_dag_files(tmp_path, safe_mode=True)
+        assert files == [str(py_file)]
+        assert reg.get_importer(py_file) is overriding_importer
