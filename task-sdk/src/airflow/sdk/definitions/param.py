@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
 from airflow.sdk.exceptions import ParamValidationError
+from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -384,4 +385,20 @@ def process_params(
     if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
         params.update(dagrun_conf)
-    return params.validate()
+
+    resolved_params = params.validate()
+    _mask_password_params(params, resolved_params)
+    return resolved_params
+
+
+def _mask_password_params(params: ParamsDict, resolved: dict[str, Any]) -> None:
+    """Register string params declared with schema format="password" as secrets."""
+    for key, value in resolved.items():
+        if not isinstance(value, str):
+            continue
+        try:
+            param_schema = params.get_param(key).schema
+        except KeyError:
+            continue
+        if param_schema.get("type") == "string" and param_schema.get("format") == "password":
+            mask_secret(value)
