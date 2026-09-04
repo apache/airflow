@@ -78,6 +78,12 @@ test.describe("Verify task logs display", () => {
     await page.getByTestId("log-settings-timestamp").click();
     await expect(virtualizedList).not.toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
 
+    await expect(virtualizedList).toContainText(/INFO\s-/);
+
+    await page.getByTestId("log-settings-button").click();
+    await page.getByTestId("log-settings-log-level").click();
+    await expect(virtualizedList).not.toContainText(/INFO\s-/);
+
     await page.getByTestId("log-settings-button").click();
     await page.getByTestId("log-settings-source").click();
     await expect(virtualizedList).toContainText(/source/);
