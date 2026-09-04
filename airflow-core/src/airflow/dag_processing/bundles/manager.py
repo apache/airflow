@@ -705,14 +705,26 @@ class DagBundlesManager(LoggingMixin):
         return registry
 
     def _load_importers_into_registry(
-        self, registry: DagImporterRegistry, configs: list[dict[str, Any]], context: str
+        self,
+        registry: DagImporterRegistry,
+        configs: list[dict[str, Any]],
+        context: str,
     ) -> None:
-        """Dynamically load and register custom DAG importers."""
+        """Dynamically load and register custom Dag importers."""
+        from airflow.dag_processing.importers import AbstractDagImporter
+
         for importer, extensions in load_dag_importers(configs, context=context):
+            if not isinstance(importer, AbstractDagImporter):
+                raise AirflowConfigException(
+                    f"Configured DAG importer {type(importer).__module__}."
+                    f"{type(importer).__qualname__} for {context} must inherit "
+                    "from AbstractDagImporter."
+                )
+
             registry.register(importer, extensions=extensions)
 
     def get_importer_registry(self, bundle_name: str) -> DagImporterRegistry:
-        """Get the DAG importer registry for a bundle."""
+        """Get the Dag importer registry for a bundle."""
         if bundle_name not in self._bundle_importers:
             cfg = self._bundle_config.get(bundle_name)
             importers_config = cfg.importers if cfg else None
