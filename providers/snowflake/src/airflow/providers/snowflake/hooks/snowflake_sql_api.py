@@ -134,6 +134,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
         self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
+        self.sql: str | None = None
+
     def execute_query(
         self,
         sql: str,
@@ -159,6 +161,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             If not set, the timeout specified by STATEMENT_TIMEOUT_IN_SECONDS is used.
             To set the timeout to the maximum value (604800 seconds), set timeout to 0.
         """
+        # Store the SQL string for error context in case of failure. This is used to provide a preview of the SQL statement in error messages.
+        # There is a single SQL string for multiple statements, so we may have multiple query IDs.
+        self.sql = sql
         self.query_ids = []
         conn_config = self._get_conn_params()
 
@@ -328,6 +333,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def _process_response(self, status_code, resp):
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)
+
+        sql_preview = (self.sql[:300] + "...") if self.sql and len(self.sql) > 300 else self.sql or "N/A"
+
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
         if status_code == 422:
@@ -345,7 +353,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             else:
                 enhanced_message = error_message
 
-            return {"status": "error", "message": enhanced_message}
+            return {"status": "error", "message": enhanced_message, "sql_preview": sql_preview}
         if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles
@@ -358,7 +366,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 "message": resp["message"],
                 "statement_handles": statement_handles,
             }
-        return {"status": "error", "message": resp["message"]}
+        return {"status": "error", "message": resp["message"], "sql_preview": sql_preview}
 
     def get_sql_api_query_status(self, query_id: str) -> dict[str, str | list[str]]:
         """
