@@ -836,6 +836,29 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert connection.password is None
         assert response.json() == updated_connection
 
+    def test_patch_preserves_masked_extra_omitted_by_request(self, test_client, session):
+        """The single-connection PATCH path must use the same omitted-field semantics as bulk updates."""
+        self.create_connection()
+        connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        connection.extra = '{"existing": "value"}'
+        session.commit()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "description": "updated_description",
+            },
+            params={"update_mask": ["extra", "description"]},
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert connection.extra == '{"existing": "value"}'
+        assert connection.description == "updated_description"
+
     @pytest.mark.parametrize(
         "body",
         [
@@ -2046,6 +2069,90 @@ class TestBulkConnections(TestConnectionEndpoint):
         for connection_id, value in expected_results.items():
             assert response_data[connection_id] == value
         _check_last_log(session, dag_id=None, event="bulk_connections", logical_date=None)
+
+    def test_bulk_update_respects_update_mask(self, test_client, session):
+        """A bulk update must not modify fields that are absent from ``update_mask``."""
+        self.create_connection()
+
+        response = test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "connection_id": TEST_CONN_ID,
+                                "conn_type": "updated_type",
+                                "description": "updated_description",
+                            }
+                        ],
+                        "update_mask": ["description"],
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["update"] == {"success": [TEST_CONN_ID], "errors": []}
+
+        session.expire_all()
+        connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        assert connection.conn_type == TEST_CONN_TYPE
+        assert connection.description == "updated_description"
+
+    def test_bulk_update_preserves_masked_sensitive_fields_omitted_by_entity(self, test_client, session):
+        """A shared update mask must not clear sensitive fields omitted by an individual entity."""
+        self.create_connections()
+        first_connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        second_connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID_2))
+        first_connection.extra = '{"existing": "first"}'
+        second_connection.extra = '{"existing": "second"}'
+        first_connection.password = "existing-first-password"
+        second_connection.password = "existing-second-password"
+        session.commit()
+
+        response = test_client.patch(
+            "/connections",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "connection_id": TEST_CONN_ID,
+                                "conn_type": TEST_CONN_TYPE,
+                                "extra": '{"updated": "first"}',
+                                "password": "updated-first-password",
+                            },
+                            {
+                                "connection_id": TEST_CONN_ID_2,
+                                "conn_type": TEST_CONN_TYPE_2,
+                                "description": "updated_description",
+                            },
+                        ],
+                        "update_mask": ["extra", "password", "description"],
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["update"] == {
+            "success": [TEST_CONN_ID, TEST_CONN_ID_2],
+            "errors": [],
+        }
+
+        session.expire_all()
+        first_connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID))
+        second_connection = session.scalar(select(Connection).where(Connection.conn_id == TEST_CONN_ID_2))
+        assert first_connection.extra == '{"updated": "first"}'
+        assert first_connection.password == "updated-first-password"
+        assert second_connection.extra == '{"existing": "second"}'
+        assert second_connection.password == "existing-second-password"
+        assert second_connection.description == "updated_description"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/connections", json={})
