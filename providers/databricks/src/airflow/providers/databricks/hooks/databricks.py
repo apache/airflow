@@ -611,6 +611,31 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_tasks
 
+    async def a_get_run_tasks(self, run_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieve list of tasks performed by the run (async version).
+
+        :param run_id: id of the run
+        :return: A list of tasks
+        """
+        has_more = True
+        all_tasks = []
+        page_token = ""
+        json: dict[str, Any] = {"run_id": run_id}
+
+        while has_more:
+            if page_token:
+                json = {**json, "page_token": page_token}
+            response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
+            tasks = response.get("tasks", [])
+            all_tasks += tasks
+            if "next_page_token" in response:
+                page_token = response["next_page_token"]
+            else:
+                has_more = False
+
+        return all_tasks
+
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.
@@ -703,6 +728,15 @@ class DatabricksHook(BaseDatabricksHook):
         """
         json = {"run_id": run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
+
+    async def a_cancel_run(self, run_id: int) -> None:
+        """
+        Cancel the run (async version).
+
+        :param run_id: id of the run
+        """
+        json = {"run_id": run_id}
+        await self._a_do_api_call(CANCEL_RUN_ENDPOINT, json)
 
     def cancel_all_runs(self, job_id: int) -> None:
         """
@@ -974,6 +1008,16 @@ class DatabricksHook(BaseDatabricksHook):
         self.log.info("Canceling SQL statement with ID: %s", statement_id)
         cancel_sql_statement_endpoint = ("POST", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}/cancel")
         self._do_api_call(cancel_sql_statement_endpoint)
+
+    async def a_cancel_sql_statement(self, statement_id: str) -> None:
+        """
+        Cancel the SQL statement (async version).
+
+        :param statement_id: ID of the SQL statement
+        """
+        self.log.info("Canceling SQL statement with ID: %s", statement_id)
+        cancel_sql_statement_endpoint = ("POST", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}/cancel")
+        await self._a_do_api_call(cancel_sql_statement_endpoint)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI."""
