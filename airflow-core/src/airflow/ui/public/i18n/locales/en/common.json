@@ -436,6 +436,23 @@
     "queue": "Queue",
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
+    "retry": {
+      "backoffDelay": "Exponential backoff delay",
+      "capped": "capped",
+      "configuredDelay": "Configured delay",
+      "eligibleAt": "Eligible for retry at",
+      "finalDelay": "Final retry delay",
+      "jitter": "Calculated jitter",
+      "jitterTooltip": "Airflow uses deterministic jitter to spread task retries over time and avoid retry spikes.",
+      "maximumDelay": "Effective maximum delay",
+      "reason": "Retry reason",
+      "source": "Delay source",
+      "sources": {
+        "retry_policy": "Retry policy",
+        "task_configuration": "Task configuration"
+      },
+      "title": "Retry Details"
+    },
     "scheduledWhen": "Scheduled At",
     "trigger": "Trigger",
     "triggerer": {

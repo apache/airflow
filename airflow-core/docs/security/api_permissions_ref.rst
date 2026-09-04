@@ -354,6 +354,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}``
      - ``DAG.TASK_LOGS``
      - ``GET``
+   * - ``GET``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/retryDetails``
+     - ``DAG.TASK_INSTANCE``
+     - ``GET``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store``
      - ``DAG.TASK_INSTANCE``
@@ -433,6 +437,10 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}``
      - ``DAG.HITL_DETAIL``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/retryDetails``
+     - ``DAG.TASK_INSTANCE``
      - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries``

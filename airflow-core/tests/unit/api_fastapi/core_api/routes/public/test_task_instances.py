@@ -36,6 +36,7 @@ from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.exceptions import TaskNotFound
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
@@ -43,7 +44,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
-from airflow.models.taskinstance import uuid7
+from airflow.models.taskinstance import RetryTiming, uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
@@ -268,6 +269,125 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response_json = response.json()
         assert response_json["operator_name"] == "@task"
         assert response_json["operator"] == "_PythonDecoratedOperator"
+
+    @pytest.mark.parametrize(
+        ("is_policy_override", "source"),
+        [(False, "task_configuration"), (True, "retry_policy")],
+    )
+    @mock.patch.object(TaskInstance, "get_retry_timing", autospec=True)
+    def test_should_respond_with_retry_details(
+        self, mock_get_retry_timing, test_client, session, is_policy_override, source
+    ):
+        ti = self.create_task_instances(
+            session, task_instances=[{"state": State.UP_FOR_RETRY}], update_extras=True
+        )[0]
+        ti.try_number = 2
+        ti.retry_reason = "Rate limit"
+        session.commit()
+        mock_get_retry_timing.return_value = RetryTiming(
+            eligible_at=self.default_time + dt.timedelta(minutes=11),
+            delay=dt.timedelta(minutes=11),
+            configured_delay=dt.timedelta(minutes=3),
+            backoff_delay=None if is_policy_override else dt.timedelta(minutes=6),
+            jitter=None if is_policy_override else dt.timedelta(minutes=5),
+            maximum_delay=None if is_policy_override else dt.timedelta(minutes=15),
+            is_capped=False,
+            is_policy_override=is_policy_override,
+        )
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "eligible_at": "2020-01-01T00:11:00Z",
+            "delay_seconds": 660.0,
+            "configured_delay_seconds": 180.0,
+            "backoff_delay_seconds": None if is_policy_override else 360.0,
+            "jitter_seconds": None if is_policy_override else 300.0,
+            "maximum_delay_seconds": None if is_policy_override else 900.0,
+            "is_capped": False,
+            "source": source,
+            "reason": "Rate limit" if is_policy_override else None,
+        }
+
+    def test_retry_details_should_respond_409_when_not_waiting_for_retry(self, test_client, session):
+        self.create_task_instances(session)
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 409
+        assert response.json() == {"detail": "Task instance `print_the_context` is not waiting for retry"}
+
+    def test_retry_details_should_respond_404_when_task_instance_is_missing(self, test_client):
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID` and task_id: `print_the_context` was not found"
+        }
+
+    @mock.patch(
+        "airflow.serialization.definitions.dag.SerializedDAG.get_task",
+        autospec=True,
+        side_effect=TaskNotFound("missing task"),
+    )
+    def test_retry_details_should_respond_404_when_task_is_missing(self, mock_get_task, test_client, session):
+        self.create_task_instances(
+            session, task_instances=[{"state": State.UP_FOR_RETRY}], update_extras=True
+        )
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": "Task `print_the_context` was not found in the Dag version for run `TEST_DAG_RUN_ID`"
+        }
+        mock_get_task.assert_called_once()
+
+    @mock.patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", autospec=True, return_value=None)
+    def test_retry_details_should_respond_404_when_dag_version_is_missing(
+        self, mock_get_dag_for_run, test_client, session
+    ):
+        self.create_task_instances(
+            session, task_instances=[{"state": State.UP_FOR_RETRY}], update_extras=True
+        )
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "The Dag with ID: `example_python_operator` was not found"}
+        mock_get_dag_for_run.assert_called_once()
+
+    def test_retry_details_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 401
+
+    def test_retry_details_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/retryDetails"
+        )
+
+        assert response.status_code == 403
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -662,6 +782,57 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "triggerer_job": None,
                 "team_name": None,
             }
+
+    @mock.patch.object(TaskInstance, "get_retry_timing", autospec=True)
+    def test_retry_details_should_respond_for_mapped_task(self, mock_get_retry_timing, test_client, session):
+        ti = self.create_task_instances(
+            session,
+            task_instances=[{"map_index": 1, "state": State.UP_FOR_RETRY}],
+            update_extras=True,
+        )[0]
+        ti.try_number = 2
+        session.commit()
+        mock_get_retry_timing.return_value = RetryTiming(
+            eligible_at=self.default_time + dt.timedelta(minutes=11),
+            delay=dt.timedelta(minutes=11),
+            configured_delay=dt.timedelta(minutes=3),
+            backoff_delay=dt.timedelta(minutes=6),
+            jitter=dt.timedelta(minutes=5),
+            maximum_delay=dt.timedelta(minutes=15),
+            is_capped=False,
+            is_policy_override=False,
+        )
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/1/retryDetails"
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "eligible_at": "2020-01-01T00:11:00Z",
+            "delay_seconds": 660.0,
+            "configured_delay_seconds": 180.0,
+            "backoff_delay_seconds": 360.0,
+            "jitter_seconds": 300.0,
+            "maximum_delay_seconds": 900.0,
+            "is_capped": False,
+            "source": "task_configuration",
+            "reason": None,
+        }
+
+    def test_retry_details_should_respond_404_for_unknown_map_index(self, test_client, session):
+        self.create_task_instances(session)
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+            "/print_the_context/10/retryDetails"
+        )
+
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": "The Mapped Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, and map_index: `10` was not found"
+        }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(

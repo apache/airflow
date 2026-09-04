@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from enum import Enum
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -89,6 +90,33 @@ class TaskInstanceResponse(BaseModel):
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
     team_name: str | None = None
+
+
+class TaskInstanceRetrySource(str, Enum):
+    """Source of a calculated retry delay."""
+
+    TASK_CONFIGURATION = "task_configuration"
+    RETRY_POLICY = "retry_policy"
+
+
+class TaskInstanceRetryDetails(BaseModel):
+    """Calculated timing details for a task instance waiting to retry."""
+
+    eligible_at: datetime = Field(description="Time when the task instance becomes eligible to retry.")
+    delay_seconds: float = Field(description="Effective retry delay after applying any maximum.")
+    configured_delay_seconds: float | None = Field(
+        description="Retry delay configured on the task, when the task definition is available."
+    )
+    backoff_delay_seconds: float | None = Field(
+        description="Exponentially increased delay before deterministic jitter is applied."
+    )
+    jitter_seconds: float | None = Field(description="Deterministic jitter calculated for this attempt.")
+    maximum_delay_seconds: float | None = Field(
+        description="Effective maximum from the task and global retry-delay limits."
+    )
+    is_capped: bool = Field(description="Whether the calculated delay exceeded the effective maximum.")
+    source: TaskInstanceRetrySource = Field(description="Source of the effective retry delay.")
+    reason: str | None = Field(description="Reason supplied by a retry policy, when available.")
 
 
 class TaskInstanceCollectionResponse(BaseModel):
