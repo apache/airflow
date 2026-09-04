@@ -72,9 +72,9 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
+apache-airflow-providers-teradata = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
-apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
 apache-airflow-providers-anthropic = false
@@ -4696,6 +4696,9 @@ parquet = [
 pdf = [
     { name = "pypdf" },
 ]
+sandbox-ascii-box = [
+    { name = "ascii-box-sdk" },
+]
 shields = [
     { name = "pydantic-ai-shields" },
 ]
@@ -4738,6 +4741,7 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
+    { name = "ascii-box-sdk", marker = "extra == 'sandbox-ascii-box'", specifier = ">=0.0.29" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
@@ -4760,7 +4764,7 @@ requires-dist = [
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "sandbox-ascii-box", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -9607,6 +9611,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d6/21/70f0e3cb034e089a5d07089d69c0316ba7669d24cd1ff39371e205240fca/asana-5.2.5.tar.gz", hash = "sha256:5b4610830d5480f12508e6cf154fa2c79adc6d10613daf45c09d3e869f7cf61f", size = 150357, upload-time = "2026-06-09T23:29:26.996Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/72/5c/7e18083230f7157444bd8e14766ec56394d48492fd562814f0a3725b159e/asana-5.2.5-py3-none-any.whl", hash = "sha256:8abb5ce8cfa184d8186102596f2e0ac22456d037ca943134061f1f41fdb45c7f", size = 242665, upload-time = "2026-06-09T23:29:25.376Z" },
+]
+
+[[package]]
+name = "ascii-box-sdk"
+version = "0.0.29"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/de/55dec9216bd43ddb52f3355f06af376f2ae3dd53d127a18595009821c903/ascii_box_sdk-0.0.29.tar.gz", hash = "sha256:b87b43348ebc401eca843f8725440a1570c64b099fe6911d4e29bbaa862880da", size = 91507, upload-time = "2026-08-09T20:00:31.871Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/61/a6b5c2a0bb4c0b5138410f2b03d34e086d1857c37798fabaf6586046a386/ascii_box_sdk-0.0.29-py3-none-any.whl", hash = "sha256:6dd96fc2a2f9f750193d72789500fa87c2aed3e9fedd1edb360f17468bf68ec4", size = 192113, upload-time = "2026-08-09T20:00:30.181Z" },
 ]
 
 [[package]]

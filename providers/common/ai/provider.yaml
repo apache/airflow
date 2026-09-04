@@ -67,6 +67,9 @@ integrations:
   - integration-name: Docker Sandboxes
     external-doc-url: https://docs.docker.com/ai/sandboxes/
     tags: [software]
+  - integration-name: Ascii Box
+    external-doc-url: https://docs.ascii.dev/box/quickstart
+    tags: [service]
 
 hooks:
   - integration-name: Pydantic AI

@@ -26,9 +26,13 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
+
+# SbxSandboxBackend only shells out to the `sbx` CLI (stdlib imports), so it is
+# always importable; AsciiBoxSandboxBackend needs the optional `ascii-box-sdk`.
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "AsciiBoxSandboxBackend",
     "SandboxBackend",
     "SandboxError",
     "SandboxExecResult",
@@ -37,3 +41,15 @@ __all__ = [
     "SandboxTerminalError",
     "SbxSandboxBackend",
 ]
+
+
+def __getattr__(name: str):
+    if name == "AsciiBoxSandboxBackend":
+        try:
+            from airflow.providers.common.ai.sandbox.ascii_box import AsciiBoxSandboxBackend
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return AsciiBoxSandboxBackend
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
