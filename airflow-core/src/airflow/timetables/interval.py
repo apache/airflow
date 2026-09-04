@@ -144,14 +144,40 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 
+    def __init__(
+        self,
+        cron: str,
+        timezone: str | Timezone | FixedTimezone,
+        *,
+        run_immediately: bool | datetime.timedelta = False,
+    ) -> None:
+        super().__init__(cron, timezone)
+        self._run_immediately = run_immediately
+
+    @property
+    def run_immediately(self) -> bool | datetime.timedelta:
+        return self._run_immediately
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        return cls(data["expression"], parse_timezone(data["timezone"]))
+        from airflow.serialization.decoders import decode_run_immediately
+
+        return cls(
+            data["expression"],
+            parse_timezone(data["timezone"]),
+            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+        )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_timezone
+        from airflow.serialization.encoders import encode_run_immediately, encode_timezone
 
-        return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+        data: dict[str, Any] = {
+            "expression": self._expression,
+            "timezone": encode_timezone(self._timezone),
+        }
+        if self._run_immediately is not False:
+            data["run_immediately"] = encode_run_immediately(self._run_immediately)
+        return data
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """
@@ -194,24 +220,43 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
     instance.
     """
 
+    def __init__(
+        self,
+        delta: Delta,
+        *,
+        run_immediately: bool | datetime.timedelta = False,
+    ) -> None:
+        super().__init__(delta)
+        self._run_immediately = run_immediately
+
+    @property
+    def run_immediately(self) -> bool | datetime.timedelta:
+        return self._run_immediately
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.decoders import decode_relativedelta
+        from airflow.serialization.decoders import decode_relativedelta, decode_run_immediately
 
         delta = data["delta"]
+        run_immediately = decode_run_immediately(data.get("run_immediately", False))
         if isinstance(delta, dict):
-            return cls(decode_relativedelta(delta))
-        return cls(datetime.timedelta(seconds=delta))
+            return cls(decode_relativedelta(delta), run_immediately=run_immediately)
+        return cls(datetime.timedelta(seconds=delta), run_immediately=run_immediately)
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_relativedelta
+        from airflow.serialization.encoders import encode_relativedelta, encode_run_immediately
 
         delta: Any
         if isinstance(self._delta, datetime.timedelta):
             delta = self._delta.total_seconds()
         else:
             delta = encode_relativedelta(self._delta)
-        return {"delta": delta}
+        data: dict[str, Any] = {
+            "delta": delta,
+        }
+        if self._run_immediately is not False:
+            data["run_immediately"] = encode_run_immediately(self._run_immediately)
+        return data
 
     @staticmethod
     def _relativedelta_in_seconds(delta: relativedelta) -> int:
