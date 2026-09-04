@@ -483,6 +483,61 @@ class TestGenAIGeminiCreateBatchJobOperator:
         mock_hook.return_value.download_file.assert_not_called()
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_prepare_results_for_xcom_rejects_display_name_path_traversal(self, mock_hook, tmp_path):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_FILE_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            results_folder=str(tmp_path / "results"),
+        )
+        (tmp_path / "results").mkdir()
+        mock_hook.return_value.download_file.return_value = b"data"
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_responses = None
+        mock_job.dest.file_name = "results-file"
+        mock_job.display_name = "../evil"
+
+        with pytest.raises(ValueError, match="Refusing to write batch-job results outside"):
+            op._prepare_results_for_xcom(mock_job)
+
+        assert not (tmp_path / "evil.jsonl").exists()
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_prepare_results_for_xcom_rejects_display_name_symlink_escape(self, mock_hook, tmp_path):
+        results_folder = tmp_path / "results"
+        results_folder.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (results_folder / "link").symlink_to(outside, target_is_directory=True)
+
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_FILE_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            results_folder=str(results_folder),
+        )
+        mock_hook.return_value.download_file.return_value = b"data"
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_responses = None
+        mock_job.dest.file_name = "results-file"
+        mock_job.display_name = "link/evil"
+
+        with pytest.raises(ValueError, match="Refusing to write batch-job results outside"):
+            op._prepare_results_for_xcom(mock_job)
+
+        assert not (outside / "evil.jsonl").exists()
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):
         op = GenAIGeminiCreateBatchJobOperator(
             task_id=TASK_ID,
@@ -881,6 +936,61 @@ class TestGenAIGeminiCreateEmbeddingsBatchJobOperator:
             op._prepare_results_for_xcom(mock_job)
 
         mock_hook.return_value.download_file.assert_not_called()
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_prepare_results_for_xcom_rejects_display_name_path_traversal(self, mock_hook, tmp_path):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_FILE_NAME,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            results_folder=str(tmp_path / "results"),
+        )
+        (tmp_path / "results").mkdir()
+        mock_hook.return_value.download_file.return_value = b"data"
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_embed_content_responses = None
+        mock_job.dest.file_name = "results-file"
+        mock_job.display_name = "../evil"
+
+        with pytest.raises(ValueError, match="Refusing to write batch-job results outside"):
+            op._prepare_results_for_xcom(mock_job)
+
+        assert not (tmp_path / "evil.jsonl").exists()
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_prepare_results_for_xcom_rejects_display_name_symlink_escape(self, mock_hook, tmp_path):
+        results_folder = tmp_path / "results"
+        results_folder.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (results_folder / "link").symlink_to(outside, target_is_directory=True)
+
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_FILE_NAME,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            results_folder=str(results_folder),
+        )
+        mock_hook.return_value.download_file.return_value = b"data"
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_embed_content_responses = None
+        mock_job.dest.file_name = "results-file"
+        mock_job.display_name = "link/evil"
+
+        with pytest.raises(ValueError, match="Refusing to write batch-job results outside"):
+            op._prepare_results_for_xcom(mock_job)
+
+        assert not (outside / "evil.jsonl").exists()
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):
