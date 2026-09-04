@@ -85,6 +85,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodPhase,
     detect_pod_terminate_early_issues,
+    log_message,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
@@ -1308,7 +1309,13 @@ class KubernetesPodOperator(BaseOperator):
         for raw_line in logs:
             line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
             if line:
-                self.log.info("[%s] logs: %s", self.base_container_name, line)
+                log_message(
+                    self.log,
+                    line,
+                    self.base_container_name,
+                    self.container_name_log_prefix_enabled,
+                    self.log_formatter,
+                )
 
     def post_complete_action(
         self, *, pod: k8s.V1Pod, remote_pod: k8s.V1Pod, context: Context, result: dict | None, **kwargs

@@ -38,6 +38,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     XComRetrievalError,
     _parse_log_level,
     detect_pod_terminate_early_issues,
+    log_message,
     log_pod_event,
     parse_log_line,
 )
@@ -263,9 +264,10 @@ class TestPodManager:
         assert _parse_log_level(message) == expected_level
 
     def test_log_message_uses_detected_log_level(self):
-        """_log_message should forward ERROR lines at ERROR level, not INFO."""
+        """log_message should forward ERROR lines at ERROR level, not INFO."""
         with mock.patch.object(self.pod_manager.log, "log") as mock_log:
-            self.pod_manager._log_message(
+            log_message(
+                self.pod_manager.log,
                 message="ERROR: something failed",
                 container_name="base",
                 container_name_log_prefix_enabled=True,
@@ -275,9 +277,10 @@ class TestPodManager:
         assert mock_log.call_args[0][0] == logging.ERROR
 
     def test_log_message_defaults_to_info_for_plain_lines(self):
-        """_log_message should use INFO for lines without a known level prefix."""
+        """log_message should use INFO for lines without a known level prefix."""
         with mock.patch.object(self.pod_manager.log, "log") as mock_log:
-            self.pod_manager._log_message(
+            log_message(
+                self.pod_manager.log,
                 message="Starting application",
                 container_name="base",
                 container_name_log_prefix_enabled=True,
