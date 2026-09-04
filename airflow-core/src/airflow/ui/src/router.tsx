@@ -21,9 +21,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
-import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
 import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
@@ -70,6 +71,8 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
+
+import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
 import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";

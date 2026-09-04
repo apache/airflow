@@ -89,6 +89,27 @@ deployment commonly needs these permissions:
 retrieving XCom from the sidecar container. ``events`` access is used to read
 Kubernetes events for diagnostics.
 
+Existing Pod exec permissions
+-----------------------------
+
+``KubernetesPodExecOperator`` executes a command in an existing Pod without managing its lifecycle.
+When the Pod name and namespace are provided directly, it needs only these permissions:
+
+.. code-block:: yaml
+
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     name: airflow-pod-exec
+     namespace: airflow
+   rules:
+     - apiGroups: [""]
+       resources: ["pods"]
+       verbs: ["get"]
+     - apiGroups: [""]
+       resources: ["pods/exec"]
+       verbs: ["get"]
+
 Job launch permissions
 ----------------------
 

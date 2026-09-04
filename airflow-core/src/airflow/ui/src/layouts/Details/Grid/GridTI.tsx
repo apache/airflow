@@ -20,8 +20,10 @@ import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
 import { useColorMode } from "src/context/colorMode";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
