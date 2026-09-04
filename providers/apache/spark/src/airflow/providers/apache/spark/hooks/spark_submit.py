@@ -695,7 +695,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 str(curl_max_wait_time),
                 f"{spark_host}/v1/submissions/status/{self._driver_id}",
             ]
-            self.log.info(connection_cmd)
+            self.log.debug(connection_cmd)
 
             # The driver id so we can poll for its status
             if not self._driver_id:
@@ -1318,7 +1318,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "POST",
                 f"{spark_host}/v1/submissions/kill/{self._driver_id}",
             ]
-            self.log.info(connection_cmd)
+            self.log.debug(connection_cmd)
 
         else:
             connection_cmd = self._get_spark_binary_path()
