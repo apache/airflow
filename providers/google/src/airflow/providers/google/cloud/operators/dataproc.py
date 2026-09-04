@@ -1925,7 +1925,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     :param asynchronous: Flag to return after submitting the job to the Dataproc API.
         This is useful for submitting long-running jobs and
         waiting on them asynchronously using the DataprocJobSensor
-    :param deferrable: Run operator in the deferrable mode
+    :param deferrable: Run operator in the deferrable mode. ``execution_timeout`` is enforced
+        while the task is deferred: on expiry the Dataproc job is cancelled (unless
+        ``cancel_on_kill`` is False) and the task fails.
     :param polling_interval_seconds: time in seconds between polling for job completion.
         The value is considered only when running in deferrable mode. Must be greater than 0.
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
@@ -2060,6 +2062,19 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                 raise AirflowException(f"Job failed:\n{job}")
             if state == JobStatus.State.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
+            execution_deadline = None
+            trigger_timeout = None
+            if self.execution_timeout:
+                # Anchor on ti.start_date so the deadline stays stable across
+                # re-deferrals, matching non-deferrable execution_timeout semantics.
+                start_date = context["ti"].start_date
+                anchor = start_date.timestamp() if start_date else time.time()
+                execution_deadline = anchor + self.execution_timeout.total_seconds()
+                # Framework backstop only: one extra poll interval of slack so the
+                # trigger's own deadline handling (which cancels the job) fires first.
+                trigger_timeout = timedelta(
+                    seconds=max(execution_deadline - time.time(), 0) + self.polling_interval_seconds
+                )
             self.defer(
                 trigger=DataprocSubmitTrigger(
                     job_id=self.job_id,
@@ -2069,8 +2084,10 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                     impersonation_chain=self.impersonation_chain,
                     polling_interval_seconds=self.polling_interval_seconds,
                     cancel_on_kill=self.cancel_on_kill,
+                    execution_deadline=execution_deadline,
                 ),
                 method_name="execute_complete",
+                timeout=trigger_timeout,
             )
         elif not self.asynchronous:
             self.log.info("Waiting for job %s to complete", new_job_id)
@@ -2089,6 +2106,10 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         """
         job_state = event["job_state"]
         job_id = event["job_id"]
+        if job_state == "TIMED_OUT":
+            raise AirflowException(
+                event.get("message") or f"Job {job_id} exceeded the task's execution_timeout while deferred."
+            )
         job = event["job"]
         if job_state == JobStatus.State.ERROR.name:  # type: ignore
             raise AirflowException(f"Job {job_id} failed:\n{job}")

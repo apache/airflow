@@ -103,10 +103,14 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param polling_interval_seconds: polling period in seconds to check for the status
+    :param execution_deadline: Optional absolute timestamp (in seconds since the epoch) after
+        which the task is considered timed out. On expiry the trigger cancels the Dataproc job
+        (unless ``cancel_on_kill`` is False) and emits a ``TIMED_OUT`` event.
     """
 
-    def __init__(self, job_id: str, **kwargs):
+    def __init__(self, job_id: str, execution_deadline: float | None = None, **kwargs):
         self.job_id = job_id
+        self.execution_deadline = execution_deadline
         super().__init__(**kwargs)
 
     def serialize(self):
@@ -120,6 +124,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
                 "cancel_on_kill": self.cancel_on_kill,
+                "execution_deadline": self.execution_deadline,
             },
         )
 
@@ -213,6 +218,24 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
                 if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
                     break
+                if self.execution_deadline is not None and time.time() >= self.execution_deadline:
+                    if self.cancel_on_kill:
+                        self.log.info("Job %s exceeded execution_timeout; cancelling it.", self.job_id)
+                        try:
+                            await sync_to_async(self.get_sync_hook().cancel_job)(
+                                job_id=self.job_id, project_id=self.project_id, region=self.region
+                            )
+                        except Exception:
+                            self.log.exception("Failed to cancel job %s after execution timeout", self.job_id)
+                    yield TriggerEvent(
+                        {
+                            "job_id": self.job_id,
+                            "job_state": "TIMED_OUT",
+                            "message": f"Job {self.job_id} exceeded the task's execution_timeout "
+                            "while deferred.",
+                        }
+                    )
+                    return
                 await asyncio.sleep(self.polling_interval_seconds)
             yield TriggerEvent(
                 {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}

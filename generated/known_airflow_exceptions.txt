@@ -256,7 +256,7 @@ providers/google/src/airflow/providers/google/cloud/operators/compute.py::19
 providers/google/src/airflow/providers/google/cloud/operators/dataflow.py::16
 providers/google/src/airflow/providers/google/cloud/operators/datafusion.py::2
 providers/google/src/airflow/providers/google/cloud/operators/dataplex.py::54
-providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::32
+providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::33
 providers/google/src/airflow/providers/google/cloud/operators/dataproc_metastore.py::2
 providers/google/src/airflow/providers/google/cloud/operators/datastore.py::2
 providers/google/src/airflow/providers/google/cloud/operators/functions.py::6
