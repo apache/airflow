@@ -20,6 +20,7 @@ from .plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginException as AirflowPluginException,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
     EntryPointSource as EntryPointSource,
     ExternalViewDict as ExternalViewDict,
     FastAPIAppDict as FastAPIAppDict,
