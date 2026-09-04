@@ -37,10 +37,12 @@ from airflow import DAG
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.asset import AssetEvent
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
@@ -445,6 +447,108 @@ class TestDBCleanup:
 
             assert remaining_dag_ids == expected_remaining_dag_ids, (
                 f"Expected {expected_remaining_dag_ids} to remain, but got {remaining_dag_ids}"
+            )
+
+    @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids"),
+        [
+            pytest.param(["dag1"], None, id="include"),
+            pytest.param(None, ["dag1"], id="exclude"),
+        ],
+    )
+    def test_cleanup_dag_filtering_on_tables_without_their_own_dag_id(self, dag_ids, exclude_dag_ids):
+        """asset_event, task_reschedule and deadline have no dag_id column of their own."""
+        with create_session() as session:
+            run_cleanup(
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC")),
+                table_names=["asset_event", "task_reschedule", "deadline"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                error_on_cleanup_failure=True,
+                session=session,
+            )
+
+    @pytest.mark.parametrize(
+        "table_names",
+        [
+            pytest.param(["asset_event", "task_reschedule"], id="child_tables_only"),
+            pytest.param(
+                ["asset_event", "task_reschedule", "task_instance", "dag_run"],
+                id="with_parents_that_cascade",
+            ),
+        ],
+    )
+    def test_cleanup_dag_filtering_keeps_rows_of_other_dags(self, table_names):
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            for asset_id, dag_id in enumerate(["dag1", "dag2"], start=1):
+                dag = DAG(dag_id=dag_id)
+                session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+                SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+                dag_version = DagVersion.get_latest_version(dag_id)
+
+                dag_run = DagRun(
+                    dag_id,
+                    run_id=f"{dag_id}_run",
+                    run_type=DagRunType.MANUAL,
+                    start_date=base_date,
+                )
+                ti = create_task_instance(
+                    PythonOperator(task_id="dummy-task", python_callable=print),
+                    run_id=dag_run.run_id,
+                    dag_version_id=dag_version.id,
+                )
+                ti.dag_id = dag_id
+                ti.start_date = base_date
+                session.add(dag_run)
+                session.add(ti)
+                session.flush()
+
+                session.add(
+                    TaskReschedule(
+                        ti_id=ti.id,
+                        start_date=base_date,
+                        end_date=base_date.add(minutes=1),
+                        reschedule_date=base_date.add(minutes=5),
+                    )
+                )
+                session.add(
+                    AssetEvent(asset_id=asset_id, source_dag_id=dag_id, extra={}, timestamp=base_date)
+                )
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=table_names,
+                dag_ids=["dag1"],
+                dry_run=False,
+                confirm=False,
+                error_on_cleanup_failure=True,
+                session=session,
+            )
+
+            remaining_reschedule_dag_ids = {
+                tr.task_instance.dag_id for tr in session.scalars(select(TaskReschedule)).all()
+            }
+            remaining_event_dag_ids = {e.source_dag_id for e in session.scalars(select(AssetEvent)).all()}
+
+            assert remaining_reschedule_dag_ids == {"dag2"}
+            assert remaining_event_dag_ids == {"dag2"}
+
+    def test_table_config_rejects_two_ways_to_reach_dag_id(self):
+        with pytest.raises(ValueError, match="one way or the other"):
+            _TableConfig(
+                table_name="task_reschedule",
+                recency_column_name="start_date",
+                dag_id_column_name="dag_id",
+                dag_id_via=("ti_id", "task_instance", "id"),
             )
 
     @pytest.mark.parametrize(
