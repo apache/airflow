@@ -26,6 +26,11 @@ except ImportError:
     from airflow.decorators import task  # type: ignore[attr-defined, no-redef]
 
 
+def _foundation_model_id(model_arn: str) -> str:
+    """Return the model ID part of a foundation model ARN, which is identical in every region."""
+    return model_arn.rpartition("/")[2]
+
+
 @task
 def get_text_inference_profile_arn() -> str:
     """
@@ -37,11 +42,27 @@ def get_text_inference_profile_arn() -> str:
     from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 
     client = BedrockHook().conn
+
+    # Bedrock rejects a model its provider marked as legacy, so a legacy model can not be relied on here.
+    # The inference profile summaries do not carry the lifecycle status, only the foundation models a
+    # profile resolves to do.
+    legacy_model_ids = {
+        model["modelId"]
+        for model in client.list_foundation_models()["modelSummaries"]
+        if model.get("modelLifecycle", {}).get("status") == "LEGACY"
+    }
+    log.info("Legacy model IDs: %s", sorted(legacy_model_ids))
+
     profiles = client.list_inference_profiles(typeEquals="SYSTEM_DEFINED")["inferenceProfileSummaries"]
     arns = [
         profile["inferenceProfileArn"]
         for profile in profiles
-        if profile.get("status") == "ACTIVE" and profile["inferenceProfileId"].startswith("global.anthropic.")
+        if profile.get("status") == "ACTIVE"
+        and profile["inferenceProfileId"].startswith("global.anthropic.")
+        and not any(
+            _foundation_model_id(model["modelArn"]) in legacy_model_ids
+            for model in profile.get("models", [])
+        )
     ]
     log.info("Valid text inference profile ARNs: %s", arns)
 
@@ -50,4 +71,4 @@ def get_text_inference_profile_arn() -> str:
         if "sonnet" in arn:
             log.info("Selected inference profile ARN: %s", arn)
             return arn
-    raise RuntimeError("No valid inference profiles found")
+    raise RuntimeError(f"No valid inference profiles found. Non legacy candidates were: {arns}")
