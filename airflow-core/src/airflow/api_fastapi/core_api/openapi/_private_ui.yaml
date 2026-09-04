@@ -2612,6 +2612,10 @@ components:
             $ref: '#/components/schemas/CalendarTimeRangeResponse'
           type: array
           title: Dag Runs
+        planned_runs_capped:
+          type: boolean
+          title: Planned Runs Capped
+          default: false
       type: object
       required:
       - total_entries

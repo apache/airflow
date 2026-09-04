@@ -34,7 +34,7 @@ import {
   useDagServiceGetDagDetails,
 } from "openapi/queries";
 
-import { IconButton, ButtonGroupToggle } from "src/system-components";
+import { Alert, IconButton, ButtonGroupToggle } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 
@@ -121,6 +121,9 @@ export const Calendar = () => {
   return (
     <Box data-testid="dag-calendar-root" p={6}>
       <ErrorAlert error={error} />
+      {Boolean(data?.planned_runs_capped) && data?.dag_runs.some((run) => run.state === "planned") ? (
+        <Alert mb={4} status="info" title={translate("calendar.plannedRunsCapped")} />
+      ) : undefined}
       <HStack data-testid="calendar-header" justify="space-between" mb={6}>
         <HStack gap={4} mb={4}>
           {granularity === "daily" ? (
