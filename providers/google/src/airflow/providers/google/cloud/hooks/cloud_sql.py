@@ -41,6 +41,7 @@ from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
+import google.auth.transport.requests
 import httpx
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
@@ -560,6 +561,17 @@ class CloudSqlProxyRunner(LoggingMixin):
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity.
+        The cloud-sql-proxy binary itself has no impersonation support, so a short-lived
+        access token is minted on the Airflow side and passed via ``-token``; unlike
+        key-based auth, the proxy does not refresh this token, so it is only valid for
+        the impersonated credentials' lifetime (up to 1 hour by default).
     """
 
     def __init__(
@@ -572,6 +584,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         sql_proxy_binary_path: str | None = None,
         *,
         sql_proxy_enable_iam_login: bool = False,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__()
         self.path_prefix = path_prefix
@@ -585,6 +598,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.sql_proxy_enable_iam_login = sql_proxy_enable_iam_login
+        self.impersonation_chain = impersonation_chain
         self.command_line_parameters: list[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
         self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
@@ -651,28 +665,31 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     def _get_credential_parameters(self) -> list[str]:
         extras = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id).extra_dejson
-        key_path = get_field(extras, "key_path")
-        keyfile_dict = get_field(extras, "keyfile_dict")
-        if key_path:
-            credential_params = ["-credential_file", key_path]
-        elif keyfile_dict:
-            keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
-            self.log.info("Saving credentials to %s", self.credentials_path)
-            # Explicit 0o600 — the file holds a service-account private key. The plain
-            # ``open()`` form inherits the process umask (typically 0o644), which leaves the
-            # key world-readable on shared worker hosts.
-            fd = os.open(self.credentials_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with os.fdopen(fd, "w") as file:
-                json.dump(keyfile_content, file)
-            credential_params = ["-credential_file", self.credentials_path]
+        if self.impersonation_chain:
+            credential_params = ["-token", self._get_impersonated_access_token()]
         else:
-            self.log.info(
-                "The credentials are not supplied by neither key_path nor "
-                "keyfile_dict of the gcp connection %s. Falling back to "
-                "default activated account",
-                self.gcp_conn_id,
-            )
-            credential_params = []
+            key_path = get_field(extras, "key_path")
+            keyfile_dict = get_field(extras, "keyfile_dict")
+            if key_path:
+                credential_params = ["-credential_file", key_path]
+            elif keyfile_dict:
+                keyfile_content = keyfile_dict if isinstance(keyfile_dict, dict) else json.loads(keyfile_dict)
+                self.log.info("Saving credentials to %s", self.credentials_path)
+                # Explicit 0o600 — the file holds a service-account private key. The plain
+                # ``open()`` form inherits the process umask (typically 0o644), which leaves the
+                # key world-readable on shared worker hosts.
+                fd = os.open(self.credentials_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                with os.fdopen(fd, "w") as file:
+                    json.dump(keyfile_content, file)
+                credential_params = ["-credential_file", self.credentials_path]
+            else:
+                self.log.info(
+                    "The credentials are not supplied by neither key_path nor "
+                    "keyfile_dict of the gcp connection %s. Falling back to "
+                    "default activated account",
+                    self.gcp_conn_id,
+                )
+                credential_params = []
 
         if not self.instance_specification:
             project_id = get_field(extras, "project")
@@ -687,6 +704,21 @@ class CloudSqlProxyRunner(LoggingMixin):
                 )
             credential_params.extend(["-projects", project_id])
         return credential_params
+
+    def _get_impersonated_access_token(self) -> str:
+        """
+        Mint a short-lived access token for ``impersonation_chain``.
+
+        cloud-sql-proxy v1 has no flag to impersonate a service account itself (that was
+        added in the v2 rewrite); it only accepts a pre-minted Bearer token via ``-token``,
+        so impersonation is resolved through the Google Cloud connection before the proxy
+        ever starts.
+        """
+        credentials = GoogleBaseHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        ).get_credentials()
+        credentials.refresh(google.auth.transport.requests.Request())
+        return credentials.token
 
     def start_proxy(self) -> None:
         """
@@ -853,6 +885,16 @@ class CloudSQLDatabaseHook(BaseHook):
     :param gcp_cloudsql_conn_id: URL of the connection
     :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity.
+        Used both for the Cloud SQL Proxy connection (see
+        :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSqlProxyRunner`) and for
+        reading SSL certificates from Secret Manager when ``ssl_secret_id`` is set.
     :param default_gcp_project_id: Default project id used if project_id not specified
         in the connection URL
     :param ssl_cert: Optional. Path to client certificate to authenticate when SSL is used. Overrides the
@@ -1296,6 +1338,7 @@ class CloudSQLDatabaseHook(BaseHook):
             sql_proxy_binary_path=self.sql_proxy_binary_path,
             gcp_conn_id=self.gcp_conn_id,
             sql_proxy_enable_iam_login=self.sql_proxy_enable_iam_login,
+            impersonation_chain=self.impersonation_chain,
         )
 
     def get_database_hook(self, connection: Connection) -> DbApiHook:
