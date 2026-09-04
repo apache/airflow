@@ -86,6 +86,43 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
     run_immediately: bool | datetime.timedelta = attrs.field(kw_only=True, default=False)
 
 
+@attrs.define
+class JitteredCronTimetable(CronTriggerTimetable):
+    """
+    A :class:`CronTriggerTimetable` that offsets each run by a deterministic, per-DAG jitter.
+
+    Behaves like ``CronTriggerTimetable`` but shifts every fire time by a fixed offset derived
+    from ``seed`` and spread across ``[0, max_jitter)``. This avoids the "thundering herd" where
+    many DAGs sharing a cron expression (e.g. ``@daily`` -> ``0 0 * * *``) all fire at the same
+    instant and overload the scheduler and workers at that boundary. With the defaults
+    (``seed=""``, ``max_jitter=0``) the offset is zero, so it behaves exactly like
+    ``CronTriggerTimetable``.
+
+    The offset is deterministic: the same ``seed`` always maps to the same offset, so runs stay
+    stable and predictable across scheduler restarts and timetable serialization. Different seeds
+    land in different slots; collisions are possible but harmless. The offset shifts every fire
+    time, and because a run's ``logical_date`` and ``data_interval`` derive from the fire time (as
+    in ``CronTriggerTimetable``), they shift by the same offset.
+
+    :param seed: stable, unique-per-DAG string that determines the offset. The DAG id is a
+        natural choice.
+    :param max_jitter: upper bound of the jitter window; the offset falls in ``[0, max_jitter)``.
+        Keep it smaller than the gap to the next cron boundary so the shift cannot push a run's
+        ``logical_date`` across a day or period boundary.
+
+    See :class:`CronTriggerTimetable` for ``cron``, ``timezone``, ``interval`` and
+    ``run_immediately``.
+    """
+
+    seed: str = attrs.field(kw_only=True, default="")
+    max_jitter: datetime.timedelta = attrs.field(kw_only=True, default=datetime.timedelta())
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        if self.max_jitter > datetime.timedelta(0) and not self.seed:
+            raise ValueError("seed must be a non-empty, unique-per-DAG string when max_jitter > 0")
+
+
 @attrs.define(init=False)
 class MultipleCronTriggerTimetable(BaseTimetable):
     """
