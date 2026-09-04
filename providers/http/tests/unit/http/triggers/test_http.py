@@ -29,6 +29,7 @@ from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
 from airflow.models import Connection
+from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.triggers.http import (
     HttpEventTrigger,
     HttpResponseSerializer,
@@ -235,6 +236,7 @@ class TestHttpEventTrigger:
             "extra_options": TEST_EXTRA_OPTIONS,
             "response_check_path": TEST_RESPONSE_CHECK_PATH,
             "poll_interval": TEST_POLL_INTERVAL,
+            "max_consecutive_failures": 10,
         }
 
     @pytest.mark.asyncio
@@ -259,22 +261,97 @@ class TestHttpEventTrigger:
         assert event_trigger._run_response_check.call_count == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("failing_call", ["request", "response_check"])
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
-    async def test_trigger_on_exception_logs_error_and_never_yields(
-        self, mock_hook, event_trigger, monkeypatch
+    async def test_trigger_keeps_polling_after_an_exception(
+        self, mock_hook, mock_sleep, failing_call, event_trigger, client_response, monkeypatch
     ):
         """
-        Tests the HttpEventTrigger logs the appropriate message and does not yield a TriggerEvent when an exception is raised.
+        Tests the HttpEventTrigger reports the failure and fires on a later poll.
         """
-        mock_hook.return_value.run.side_effect = Exception("Test exception")
+        error = HttpErrorException("503:Service Unavailable")
+        if failing_call == "request":
+            mock_hook.return_value.run.side_effect = [error, self._mock_run_result(client_response)]
+            event_trigger._run_response_check = mock.AsyncMock(return_value=True)
+        else:
+            mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
+            event_trigger._run_response_check = mock.AsyncMock(side_effect=[error, True])
         mock_logger = mock.Mock()
         monkeypatch.setattr(type(event_trigger), "log", mock_logger)
+        response = await HttpEventTrigger._convert_response(client_response)
 
         generator = event_trigger.run()
-        with pytest.raises(StopAsyncIteration):
-            await generator.asend(None)
+        actual = await generator.asend(None)
 
-        mock_logger.error.assert_called_once_with("status: error, message: %s", "Test exception")
+        assert actual == TriggerEvent(
+            {
+                "status": "success",
+                "response": HttpResponseSerializer.serialize(response),
+            }
+        )
+        assert mock_hook.return_value.run.call_count == 2
+        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
+        assert mock_logger.warning.call_count == 1
+        assert mock_logger.exception.call_count == 0
+
+    @staticmethod
+    def build_trigger_with_failure_cap(max_consecutive_failures: int) -> HttpEventTrigger:
+        return HttpEventTrigger(
+            endpoint=TEST_ENDPOINT,
+            response_check_path=TEST_RESPONSE_CHECK_PATH,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_consecutive_failures=max_consecutive_failures,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_trigger_gives_up_after_max_consecutive_failures(self, mock_hook, mock_sleep, monkeypatch):
+        trigger = self.build_trigger_with_failure_cap(3)
+        mock_hook.return_value.run.side_effect = HttpErrorException("503:Service Unavailable")
+        mock_logger = mock.Mock()
+        monkeypatch.setattr(type(trigger), "log", mock_logger)
+
+        with pytest.raises(HttpErrorException):
+            await trigger.run().asend(None)
+
+        assert mock_hook.return_value.run.call_count == 3
+        assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 2
+        assert mock_logger.warning.call_count == 2
+        assert mock_logger.exception.call_count == 0
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_trigger_resets_failure_count_after_a_completed_poll(
+        self, mock_hook, mock_sleep, client_response
+    ):
+        """
+        Two failures, a poll whose ``response_check`` returns False, then two more failures:
+        the count must go back to zero rather than merely drop, or the cap of 3 would trip.
+        """
+        trigger = self.build_trigger_with_failure_cap(3)
+        error = HttpErrorException("503:Service Unavailable")
+        mock_hook.return_value.run.side_effect = [
+            error,
+            error,
+            self._mock_run_result(client_response),
+            error,
+            error,
+            self._mock_run_result(client_response),
+        ]
+        trigger._run_response_check = mock.AsyncMock(side_effect=[False, True])
+
+        event = await trigger.run().asend(None)
+
+        assert event.payload["status"] == "success"
+        assert mock_hook.return_value.run.call_count == 6
+        assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 5
+
+    def test_max_consecutive_failures_must_be_positive(self):
+        with pytest.raises(ValueError, match="max_consecutive_failures"):
+            self.build_trigger_with_failure_cap(0)
 
     @pytest.mark.asyncio
     async def test_convert_response(self, client_response):
@@ -293,14 +370,21 @@ class TestHttpEventTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
     @mock.patch("aiohttp.client.ClientSession.post")
-    async def test_trigger_on_post_with_data(self, mock_http_post, event_trigger):
+    async def test_trigger_on_post_with_data(
+        self, mock_http_post, mock_sleep, event_trigger, client_response
+    ):
         """
         Test that HttpEventTrigger posts the correct payload when a request is made.
         """
+        mock_http_post.return_value = self._mock_run_result(client_response)
+        event_trigger._run_response_check = mock.AsyncMock(return_value=True)
+
         generator = event_trigger.run()
-        with pytest.raises(StopAsyncIteration):
-            await generator.asend(None)
+        await generator.asend(None)
+
+        mock_sleep.assert_not_awaited()
         mock_http_post.assert_called_once()
         _, kwargs = mock_http_post.call_args
         assert kwargs["data"] == TEST_DATA
