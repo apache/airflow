@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksCreateNodegroupOperator,
     EksDeleteClusterOperator,
     EksDeleteNodegroupOperator,
+    EksPodExecOperator,
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
@@ -46,10 +47,16 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_eks_with_nodegroups"
+EXPECTED_EXEC_OUTPUT = "command executed in existing EKS pod"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -76,6 +83,12 @@ def delete_launch_template(template_name: str):
     boto3.client("ec2").delete_launch_template(LaunchTemplateName=template_name)
 
 
+@task
+def verify_exec_output(output: str) -> None:
+    if output != EXPECTED_EXEC_OUTPUT:
+        raise ValueError(f"Unexpected command output: {output!r}")
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -88,6 +101,7 @@ with DAG(
     cluster_name = f"{env_id}-cluster"
     nodegroup_name = f"{env_id}-nodegroup"
     launch_template_name = f"{env_id}-launch-template"
+    exec_pod_name = f"{env_id}-exec-pod"
 
     # [START howto_operator_eks_create_cluster]
     # Create an Amazon EKS Cluster control plane without attaching compute service.
@@ -151,6 +165,46 @@ with DAG(
     # it is cleaned anyway with the cluster later on.
     start_pod.is_delete_operator_pod = False
 
+    create_exec_pod = BashOperator(
+        task_id="create_exec_pod",
+        bash_command="""
+            set -euo pipefail
+            install_aws.sh
+            install_kubectl.sh
+            aws eks update-kubeconfig --name "${CLUSTER_NAME}"
+            kubectl run "${POD_NAME}" --image=busybox:1.38.0 --restart=Never --command -- sleep 3600
+            kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=120s
+        """,
+        env={"CLUSTER_NAME": cluster_name, "POD_NAME": exec_pod_name},
+        append_env=True,
+    )
+
+    # [START howto_operator_eks_pod_exec]
+    run_command = EksPodExecOperator(
+        task_id="run_command_in_existing_pod",
+        cluster_name=cluster_name,
+        pod_name=exec_pod_name,
+        command=["sh", "-c", f"printf '{EXPECTED_EXEC_OUTPUT}'"],
+        do_xcom_push=True,
+    )
+    # [END howto_operator_eks_pod_exec]
+
+    exec_output_is_valid = verify_exec_output(run_command.output)
+
+    delete_exec_pod = BashOperator(
+        task_id="delete_exec_pod",
+        bash_command="""
+            set -euo pipefail
+            install_aws.sh
+            install_kubectl.sh
+            aws eks update-kubeconfig --name "${CLUSTER_NAME}"
+            kubectl delete pod "${POD_NAME}" --ignore-not-found=true --wait=false
+        """,
+        env={"CLUSTER_NAME": cluster_name, "POD_NAME": exec_pod_name},
+        append_env=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     describe_pod = get_describe_pod_operator(
         cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
     )
@@ -211,14 +265,30 @@ with DAG(
         # TEST SETUP
         test_context,
         create_launch_template(launch_template_name),
-        # TEST BODY
         create_cluster,
         await_create_cluster,
         create_nodegroup,
         await_create_nodegroup,
+    )
+    chain(
+        # TEST BODY: EksPodOperator
+        await_create_nodegroup,
         start_pod,
-        # TEST TEARDOWN
         describe_pod,
+        await_nodegroup_stable,
+    )
+    chain(
+        # TEST BODY: EksPodExecOperator
+        await_create_nodegroup,
+        create_exec_pod,
+        run_command,
+        exec_output_is_valid,
+        # TEST TEARDOWN
+        delete_exec_pod,
+        await_nodegroup_stable,
+    )
+    chain(
+        # TEST TEARDOWN
         await_nodegroup_stable,
         delete_nodegroup,  # part of the test AND teardown
         await_delete_nodegroup,
