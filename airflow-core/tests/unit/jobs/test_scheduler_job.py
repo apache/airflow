@@ -11636,6 +11636,66 @@ def test_create_dag_runs_partitioned_timetable_proceeds_when_partition_key_set(s
     mock_get_dag.assert_called_once()
 
 
+@pytest.mark.db_test
+def test_set_exceeds_max_active_runs_logs_blocking_runs_and_tasks(dag_maker, session):
+    """
+    When a Dag newly reaches its max_active_runs limit, the scheduler should log which
+    run_ids and task_ids are occupying the active slots so operators can diagnose a stuck
+    Dag from the scheduler logs alone (see #72387).
+    """
+    with dag_maker(dag_id="test_set_exceeds_max_active_runs_logging", max_active_runs=1, session=session):
+        EmptyOperator(task_id="sleep_task")
+
+    dag_run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    ti = dag_run.get_task_instance(task_id="sleep_task", session=session)
+    ti.state = TaskInstanceState.RUNNING
+    session.merge(ti)
+    session.flush()
+
+    runner = SchedulerJobRunner(job=Job(job_type=SchedulerJobRunner.job_type))
+    runner._log = mock.MagicMock()
+
+    runner._set_exceeds_max_active_runs(dag_model=dag_maker.dag_model, session=session)
+
+    assert dag_maker.dag_model.exceeds_max_non_backfill is True
+    runner._log.info.assert_called_once_with(
+        "DAG is at (or above) max_active_runs, not creating any more runs",
+        dag_id="test_set_exceeds_max_active_runs_logging",
+        active_runs=1,
+        max_active_runs=1,
+        blocking_run_ids=[dag_run.run_id],
+        blocking_tasks=[f"sleep_task in {dag_run.run_id} (running)"],
+    )
+
+    # Calling it again while still over the limit must not re-query or re-log: this is
+    # what keeps the check free of overhead during normal, healthy scheduling loops.
+    runner._set_exceeds_max_active_runs(dag_model=dag_maker.dag_model, session=session)
+    runner._log.info.assert_called_once()
+
+
+@pytest.mark.db_test
+def test_set_exceeds_max_active_runs_no_active_tasks(dag_maker, session):
+    """A blocking run with no active task instances yet should still log with an empty task list."""
+    with dag_maker(dag_id="test_set_exceeds_max_active_runs_no_tasks", max_active_runs=1, session=session):
+        EmptyOperator(task_id="sleep_task")
+
+    dag_run = dag_maker.create_dagrun(state=DagRunState.QUEUED)
+
+    runner = SchedulerJobRunner(job=Job(job_type=SchedulerJobRunner.job_type))
+    runner._log = mock.MagicMock()
+
+    runner._set_exceeds_max_active_runs(dag_model=dag_maker.dag_model, session=session)
+
+    runner._log.info.assert_called_once_with(
+        "DAG is at (or above) max_active_runs, not creating any more runs",
+        dag_id="test_set_exceeds_max_active_runs_no_tasks",
+        active_runs=1,
+        max_active_runs=1,
+        blocking_run_ids=[dag_run.run_id],
+        blocking_tasks="none",
+    )
+
+
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partitioned_dag_run_with_customized_mapper(

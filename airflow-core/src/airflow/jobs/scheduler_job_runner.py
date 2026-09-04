@@ -4271,7 +4271,67 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             active_non_backfill_runs = runs_dict.get(dag_model.dag_id, 0)
 
-        dag_model.exceeds_max_non_backfill = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+        was_exceeding = dag_model.exceeds_max_non_backfill
+        now_exceeding = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+        dag_model.exceeds_max_non_backfill = now_exceeding
+
+        # Only log (and query for the blocking runs/tasks) the moment a DAG newly reaches its
+        # max_active_runs limit, so this adds no database load during normal, healthy scheduling
+        # loops where the DAG is not stuck.
+        if now_exceeding and not was_exceeding:
+            self._log_blocking_runs_and_tasks(
+                dag_model=dag_model,
+                active_non_backfill_runs=active_non_backfill_runs,
+                session=session,
+            )
+
+    def _log_blocking_runs_and_tasks(
+        self,
+        *,
+        dag_model: DagModel,
+        active_non_backfill_runs: int,
+        session: Session,
+    ) -> None:
+        """
+        Log the run_ids and task_ids currently occupying a DAG's max_active_runs slots.
+
+        This gives platform administrators enough context to identify why a DAG is stuck
+        without leaving the scheduler logs. Only called when a DAG newly reaches (or exceeds)
+        its max_active_runs limit; see ``_set_exceeds_max_active_runs``.
+
+        :meta private:
+        """
+        blocking_run_ids = session.scalars(
+            select(DagRun.run_id)
+            .where(
+                DagRun.dag_id == dag_model.dag_id,
+                DagRun.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)),
+                DagRun.run_type != DagRunType.BACKFILL_JOB,
+            )
+            .order_by(DagRun.run_id)
+        ).all()
+
+        blocking_tasks: list[str] = []
+        if blocking_run_ids:
+            active_tis = session.execute(
+                select(TaskInstance.run_id, TaskInstance.task_id, TaskInstance.state)
+                .where(
+                    TaskInstance.dag_id == dag_model.dag_id,
+                    TaskInstance.run_id.in_(blocking_run_ids),
+                    TaskInstance.state.in_(EXECUTION_STATES),
+                )
+                .order_by(TaskInstance.run_id, TaskInstance.task_id)
+            ).all()
+            blocking_tasks = [f"{task_id} in {run_id} ({state})" for run_id, task_id, state in active_tis]
+
+        self.log.info(
+            "DAG is at (or above) max_active_runs, not creating any more runs",
+            dag_id=dag_model.dag_id,
+            active_runs=active_non_backfill_runs,
+            max_active_runs=dag_model.max_active_runs,
+            blocking_run_ids=list(blocking_run_ids) or "none",
+            blocking_tasks=blocking_tasks or "none",
+        )
 
 
 # Backcompat for older versions of task sdk import SchedulerDagBag from here
