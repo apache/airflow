@@ -58,6 +58,7 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -3949,6 +3950,40 @@ class TestGetTaskStates:
             "task_states": {
                 "test": {
                     "group1.task1": "success",
+                },
+            },
+        }
+
+    def test_get_task_states_with_task_group_id_query_count(self, client, session, dag_maker):
+        """Regression test: a task_group_id lookup must not also run a full, unfiltered TI query for the Dag."""
+        with dag_maker("test_get_task_states_with_task_group_id_query_count", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="task1")
+                EmptyOperator(task_id="task2")
+            EmptyOperator(task_id="task3")
+
+        dr = dag_maker.create_dagrun()
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            ti.state = State.SUCCESS
+            session.merge(ti)
+        session.commit()
+
+        with assert_queries_count(2):
+            response = client.get(
+                "/execution/task-instances/states",
+                params={
+                    "dag_id": "test_get_task_states_with_task_group_id_query_count",
+                    "task_group_id": "group1",
+                },
+            )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                "test": {
+                    "group1.task1": "success",
+                    "group1.task2": "success",
                 },
             },
         }
