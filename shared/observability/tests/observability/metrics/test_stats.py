@@ -257,7 +257,7 @@ class TestDogStats:
     def test_timer(self, time_mock):
         with self.dogstatsd.timer("empty_timer") as timer:
             pass
-        self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
+        self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[], use_ms=True)
         expected_duration = 1000.0 * 100.0
         assert expected_duration == timer.duration
         assert time_mock.call_count == 2
