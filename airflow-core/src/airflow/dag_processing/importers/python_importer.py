@@ -29,12 +29,10 @@ import sys
 import traceback
 import warnings
 import zipfile
-from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
-from airflow._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.configuration import conf
 from airflow.dag_processing.importers.base import (
     AbstractDagImporter,
@@ -94,28 +92,6 @@ class PythonDagImporter(AbstractDagImporter):
     def supported_extensions(cls) -> list[str]:
         """Return file extensions handled by this importer (.py and .zip)."""
         return [".py", ".zip"]
-
-    def list_dag_files(
-        self,
-        directory: str | os.PathLike[str],
-        safe_mode: bool = True,
-    ) -> Iterator[str]:
-        """
-        List Python DAG files in a directory.
-
-        Handles both .py files and .zip archives containing Python DAGs.
-        Respects .airflowignore files in the directory tree.
-        """
-        ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
-
-        for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
-            path = Path(file_path)
-            try:
-                if path.is_file() and (path.suffix.lower() == ".py" or zipfile.is_zipfile(path)):
-                    if might_contain_dag(file_path, safe_mode):
-                        yield file_path
-            except Exception:
-                log.exception("Error while examining %s", file_path)
 
     def import_file(
         self,

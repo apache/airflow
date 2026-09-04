@@ -22,7 +22,7 @@ import logging
 import os
 import threading
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -92,8 +92,16 @@ class DagImportResult:
         return len(self.errors) == 0
 
 
+def _normalize_extensions(extensions: Iterable[str]) -> list[str]:
+    """Normalize file extensions to lowercase with leading dot."""
+    return [ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions]
+
+
 class AbstractDagImporter(ABC):
     """Abstract base class for DAG importers."""
+
+    def __init__(self, extensions: list[str] | None = None) -> None:
+        self._configured_extensions = _normalize_extensions(extensions) if extensions is not None else None
 
     @classmethod
     @abstractmethod
@@ -111,19 +119,32 @@ class AbstractDagImporter(ABC):
     ) -> DagImportResult:
         """Import DAGs from a file."""
 
+    def get_supported_extensions(self) -> list[str]:
+        """Return active supported extensions (configured extensions if set, else class defaults)."""
+        if self._configured_extensions is not None:
+            return self._configured_extensions
+        if callable(self.supported_extensions):
+            return self.supported_extensions()
+        return self.supported_extensions
+
+    def set_configured_extensions(self, extensions: list[str]) -> None:
+        """Assign configured extensions to this importer instance."""
+        self._configured_extensions = _normalize_extensions(extensions)
+
     def can_handle(self, file_path: str | Path) -> bool:
         """Check if this importer can handle the given file."""
         path = Path(file_path) if isinstance(file_path, str) else file_path
-        return path.suffix.lower() in self.supported_extensions()
+        return path.suffix.lower() in self.get_supported_extensions()
 
-    def get_relative_path(self, file_path: str | Path, bundle_path: Path | None) -> str:
-        """Get the relative file path from the bundle root."""
-        if bundle_path is None:
-            return str(file_path)
-        try:
-            return str(Path(file_path).relative_to(bundle_path))
-        except ValueError:
-            return str(file_path)
+    def might_contain_dag(self, file_path: str | Path, safe_mode: bool = True) -> bool:
+        """
+        Check whether a file might contain Airflow DAGs according to safe mode heuristics.
+
+        Custom importers can override this to implement format-specific heuristics.
+        """
+        if not safe_mode:
+            return True
+        return might_contain_dag(str(file_path), safe_mode)
 
     def list_dag_files(
         self,
@@ -133,16 +154,12 @@ class AbstractDagImporter(ABC):
         """
         List DAG files in a directory that this importer can handle.
 
-        Override this method to customize file discovery for your importer.
-        The default implementation finds files matching supported_extensions()
-        and respects .airflowignore files.
-
         :param directory: Directory to search for DAG files
         :param safe_mode: Whether to use heuristics to filter non-DAG files
         :return: Iterator of file paths
         """
         ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
-        supported_exts = [ext.lower() for ext in self.supported_extensions()]
+        supported_exts = [ext.lower() for ext in self.get_supported_extensions()]
 
         for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
             path = Path(file_path)
@@ -155,10 +172,19 @@ class AbstractDagImporter(ABC):
                 continue
 
             # Apply safe_mode heuristic if enabled
-            if safe_mode and not might_contain_dag(file_path, safe_mode):
+            if not self.might_contain_dag(file_path, safe_mode):
                 continue
 
             yield file_path
+
+    def get_relative_path(self, file_path: str | Path, bundle_path: Path | None) -> str:
+        """Get the relative file path from the bundle root."""
+        if bundle_path is None:
+            return str(file_path)
+        try:
+            return str(Path(file_path).relative_to(bundle_path))
+        except ValueError:
+            return str(file_path)
 
 
 class DagImporterRegistry:
@@ -190,10 +216,15 @@ class DagImporterRegistry:
         the new importer will override it and a warning will be logged.
         """
         if extensions is None:
-            ext_attr = getattr(importer, "supported_extensions", None)
+            ext_attr = getattr(importer, "get_supported_extensions", None) or getattr(
+                importer, "supported_extensions", None
+            )
             extensions = ext_attr() if callable(ext_attr) else (ext_attr or [])
-        for ext in extensions:
-            ext_lower = ext.lower() if ext.startswith(".") else f".{ext.lower()}"
+        normalized_extensions = _normalize_extensions(extensions)
+        if hasattr(importer, "set_configured_extensions"):
+            importer.set_configured_extensions(normalized_extensions)
+
+        for ext_lower in normalized_extensions:
             if ext_lower in self._importers:
                 existing = self._importers[ext_lower]
                 log.warning(
@@ -225,7 +256,8 @@ class DagImporterRegistry:
         """
         List all DAG files in a directory using all registered importers.
 
-        If directory is actually a file, returns that file if any importer can handle it.
+        Performs a single filesystem traversal, matching files against registered
+        importers by extension and delegating safe-mode validation to the importer.
 
         :param directory: Directory (or file) to search for DAG files
         :param safe_mode: Whether to use heuristics to filter non-DAG files
@@ -235,21 +267,31 @@ class DagImporterRegistry:
 
         # If it's a file, just return it if we can handle it
         if path.is_file():
-            if self.can_handle(path):
+            importer = self.get_importer(path)
+            if importer and importer.might_contain_dag(path, safe_mode):
                 return [str(path)]
             return []
 
         if not path.is_dir():
             return []
 
-        seen_files: set[str] = set()
+        ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
         file_paths: list[str] = []
 
-        for importer in set(self._importers.values()):
-            for file_path in importer.list_dag_files(directory, safe_mode):
-                if file_path not in seen_files:
-                    seen_files.add(file_path)
+        for file_path in find_path_from_directory(directory, ".airflowignore", ignore_file_syntax):
+            p = Path(file_path)
+            try:
+                if not p.is_file():
+                    continue
+
+                importer = self.get_importer(p)
+                if importer is None:
+                    continue
+
+                if importer.might_contain_dag(file_path, safe_mode):
                     file_paths.append(file_path)
+            except Exception:
+                log.exception("Error while examining %s", file_path)
 
         return file_paths
 
