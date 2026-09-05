@@ -2144,6 +2144,262 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/time-schedule:
+    get:
+      tags:
+      - Time Schedule
+      summary: Get Time Schedule Stream
+      description: Stream filtered and aggregated Time Schedule data in Dag batches.
+      operationId: get_time_schedule_stream
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: aggregation_mode
+        in: query
+        required: false
+        schema:
+          enum:
+          - max
+          - mean
+          - min
+          type: string
+          default: mean
+          title: Aggregation Mode
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          minimum: 1
+          default: 200
+          title: Limit
+      - name: show_scheduled_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Show Scheduled Only
+      - name: time_scale
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 60
+          minimum: 1
+          enum:
+          - 1
+          - 5
+          - 10
+          - 15
+          - 20
+          - 30
+          - 40
+          - 50
+          - 60
+          default: 60
+          title: Time Scale
+      - name: timezone
+        in: query
+        required: false
+        schema:
+          type: string
+          default: UTC
+          title: Timezone
+      - name: view_mode
+        in: query
+        required: false
+        schema:
+          enum:
+          - day
+          - week
+          type: string
+          default: day
+          title: View Mode
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
+          title: Dag Id Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
+      - name: start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
+      - name: start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
+      - name: duration_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+      - name: duration_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
+      - name: timetable_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Timetable Type
+      responses:
+        '200':
+          description: NDJSON stream of aggregated Time Schedule batches
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AssetAliasResponse:
@@ -4886,6 +5142,83 @@ components:
       title: ThemeColors
       description: Color tokens for the UI theme. All fields are optional; at least
         one must be provided.
+    TimeScheduleBatch:
+      properties:
+        dag_run_count:
+          type: integer
+          title: Dag Run Count
+        items:
+          items:
+            $ref: '#/components/schemas/TimeScheduleItem'
+          type: array
+          title: Items
+      type: object
+      required:
+      - dag_run_count
+      - items
+      title: TimeScheduleBatch
+      description: A progressively streamed batch of Time Schedule bars.
+    TimeScheduleItem:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        duration_ms:
+          type: number
+          title: Duration Ms
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        is_placeholder:
+          type: boolean
+          title: Is Placeholder
+        is_planned:
+          type: boolean
+          title: Is Planned
+        is_time_scheduled:
+          type: boolean
+          title: Is Time Scheduled
+        label:
+          type: string
+          title: Label
+        run_count:
+          type: integer
+          title: Run Count
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: string
+            enum:
+            - placeholder
+            - planned
+          title: State
+      type: object
+      required:
+      - dag_id
+      - dag_run_id
+      - duration_ms
+      - end_date
+      - is_placeholder
+      - is_planned
+      - is_time_scheduled
+      - label
+      - run_count
+      - start_date
+      - state
+      title: TimeScheduleItem
+      description: An aggregated bar in the Time Schedule UI.
     TokenType:
       type: string
       enum:
