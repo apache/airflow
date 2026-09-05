@@ -79,10 +79,12 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         job_run_status = self.hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
 
         if job_run_status == DbtCloudJobRunStatus.ERROR.value:
+            self.hook.log_job_run_failure_details(run_id=self.run_id, account_id=self.account_id)
             message = f"Job run {self.run_id} has failed."
             raise DbtCloudJobRunException(message)
 
         if job_run_status == DbtCloudJobRunStatus.CANCELLED.value:
+            self.hook.log_job_run_failure_details(run_id=self.run_id, account_id=self.account_id)
             message = f"Job run {self.run_id} has been cancelled."
             raise DbtCloudJobRunException(message)
 

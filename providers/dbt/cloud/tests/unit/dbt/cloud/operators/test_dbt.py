@@ -158,6 +158,7 @@ class TestDbtCloudRunJobOperator:
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
         return_value=DbtCloudJobRunStatus.ERROR.value,
     )
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.log_job_run_failure_details")
     @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
     @patch(
@@ -165,7 +166,7 @@ class TestDbtCloudRunJobOperator:
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
     def test_execute_failed_before_getting_deferred(
-        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status
+        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_log_failure_details, mock_job_run_status
     ):
         dbt_op = DbtCloudRunJobOperator(
             dbt_cloud_conn_id=ACCOUNT_ID_CONN,
@@ -558,7 +559,13 @@ class TestDbtCloudRunJobOperator:
             )
 
             if job_run_status in DbtCloudJobRunStatus.TERMINAL_STATUSES.value:
-                assert mock_get_job_run.call_count == 1
+                if job_run_status in (
+                    DbtCloudJobRunStatus.ERROR.value,
+                    DbtCloudJobRunStatus.CANCELLED.value,
+                ):
+                    assert mock_get_job_run.call_count == 2
+                else:
+                    assert mock_get_job_run.call_count == 1
             else:
                 # When the job run status is not in a terminal status or "Success", the operator will
                 # continue to call ``get_job_run()`` until a ``timeout`` number of seconds has passed
