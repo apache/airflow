@@ -63,6 +63,7 @@ from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.models.asset import (
@@ -699,7 +700,7 @@ class TestSchedulerJob:
                 deadline_alert_id=None,
             ).callback
             callback.state = state
-            callback.data["dag_run_id"] = dag_run.id
+            callback.dagrun_id = dag_run.id
             callback.data["dag_id"] = dag_run.dag_id
             return callback
 
@@ -728,6 +729,43 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
+
+    @pytest.mark.parametrize(
+        ("dagrun_id", "expected_event"),
+        [
+            (None, "Executor callback is missing dagrun_id."),
+            (123, "Could not find DagRun for executor callback. DagRun may have been deleted."),
+        ],
+    )
+    def test_enqueue_executor_callbacks_logs_missing_dagrun_reference(
+        self, dagrun_id, expected_event, caplog
+    ):
+        def test_callback():
+            pass
+
+        callback = ExecutorCallback(
+            SyncCallback(test_callback),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            dag_id="test_callback_missing_dagrun_reference",
+        )
+        callback.id = uuid4()
+        callback.state = CallbackState.PENDING
+        callback.dagrun_id = dagrun_id
+
+        session = MagicMock()
+        session.scalars.return_value.all.return_value = [callback]
+
+        executor = MockExecutor()
+        executor.queue_workload = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
+        self.job_runner._executor_to_workloads = MagicMock(return_value={executor: [callback]})
+
+        self.job_runner._enqueue_executor_callbacks(session)
+
+        assert {"event": expected_event, "callback_id": callback.id} in caplog
+        executor.queue_workload.assert_not_called()
+        assert callback.state == CallbackState.PENDING
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
