@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
@@ -34,7 +33,11 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     """
     Base class for all AWS Triggers that follow the "standard" model of just waiting on a waiter.
 
-    Subclasses need to implement the hook() method.
+    Subclasses should set the ``aws_hook_class`` attribute to the hook they need. The hook is then
+    built from the parameters this class already serializes, so the deferred half of a task talks to
+    AWS with the same region, SSL verification setting and botocore configuration as the synchronous
+    half. Subclasses whose hook takes something else may override :meth:`_hook_parameters` or, as a
+    last resort, :meth:`hook` itself.
 
     :param serialized_fields: Fields that are specific to the subclass trigger and need to be serialized
         to be passed to the __init__ method on deserialization.
@@ -66,6 +69,9 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         To be used to build the hook. For available key-values see:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    # Should be assigned in child class, unless hook() is overridden.
+    aws_hook_class: type[AwsGenericHook]
 
     def __init__(
         self,
@@ -137,9 +143,24 @@ class AwsBaseWaiterTrigger(BaseTrigger):
             params,
         )
 
-    @abstractmethod
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        """Mapping of the serialized parameters onto the hook's constructor keywords."""
+        return {
+            "aws_conn_id": self.aws_conn_id,
+            "region_name": self.region_name,
+            "verify": self.verify,
+            "config": self.botocore_config,
+        }
+
     def hook(self) -> AwsGenericHook:
-        """Override in subclasses to return the right hook."""
+        """Build the hook this trigger waits with."""
+        if not hasattr(self, "aws_hook_class"):
+            raise AttributeError(
+                f"Class attribute '{type(self).__name__}.aws_hook_class' should be set, "
+                f"or {type(self).__name__}.hook() overridden."
+            )
+        return self.aws_hook_class(**self._hook_parameters)
 
     def _event_from_exception(self, error: AirflowException) -> TriggerEvent:
         return TriggerEvent(
