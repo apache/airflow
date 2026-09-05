@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
 import pytest
@@ -24,8 +25,12 @@ import yaml
 from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import PYCACHE_PREFIX_IN_CONTAINER
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.utils.path_utils import SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH
+from airflow_breeze.utils.path_utils import (
+    SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
+)
 
 console = Console(width=400, color_system="standard")
 
@@ -254,3 +259,23 @@ def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, 
 def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
     base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
     assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]
+
+
+@pytest.mark.parametrize(
+    ("include_pycache_volume", "expected_prefix", "expected_dont_write"),
+    [(True, PYCACHE_PREFIX_IN_CONTAINER, ""), (False, "", "true")],
+)
+def test_bytecode_cache_is_enabled_only_together_with_its_volume(
+    include_pycache_volume: bool, expected_prefix: str, expected_dont_write: str
+):
+    env_vars = ShellParams(include_pycache_volume=include_pycache_volume).env_variables_for_docker_commands
+    assert env_vars["PYTHONPYCACHEPREFIX"] == expected_prefix
+    assert env_vars["PYTHONDONTWRITEBYTECODE"] == expected_dont_write
+
+
+@pytest.mark.parametrize(("include_pycache_volume", "expected_count"), [(True, 1), (False, 0)])
+def test_pycache_volume_compose_file_is_included_only_when_requested(
+    include_pycache_volume: bool, expected_count: int
+):
+    compose_files = ShellParams(include_pycache_volume=include_pycache_volume).compose_file.split(os.pathsep)
+    assert compose_files.count(str(SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH)) == expected_count
