@@ -47,6 +47,8 @@ type DataTableProps<TData> = {
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
+  /** Lets shift-click on a column header add it as a secondary sort; the page must send every sort to its endpoint. */
+  readonly enableMultiSort?: boolean;
   readonly errorMessage?: ReactNode | string;
   /**
    * Controls that change *which* rows the table returns — a `SearchBar`, a `FilterBar`, or both
@@ -110,6 +112,7 @@ export const DataTable = <TData,>({
   columns,
   data,
   displayMode = "table",
+  enableMultiSort = false,
   errorMessage,
   filterActions,
   headingExtra,
@@ -174,6 +177,7 @@ export const DataTable = <TData,>({
     columns,
     data,
     enableHiding: true,
+    enableMultiSort,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,

@@ -117,4 +117,27 @@ describe("Dag sorting", () => {
       ),
     );
   });
+
+  it("adds a secondary sort on shift-click and sends every sort to the request", async () => {
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    const requestedOrderBy: Array<Array<string>> = [];
+
+    server.use(
+      http.get("/ui/dags", ({ request }) => {
+        requestedOrderBy.push(new URL(request.url).searchParams.getAll("order_by"));
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+    render(<AppWrapper initialEntries={["/dags?sort=-last_run_run_after"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("table-list")).toBeInTheDocument());
+    await waitFor(() => expect(requestedOrderBy.at(-1)).toEqual(["-last_run_run_after"]));
+
+    fireEvent.click(screen.getByText("dagId").closest("button") as HTMLButtonElement, { shiftKey: true });
+
+    await waitFor(() => expect(requestedOrderBy.at(-1)).toEqual(["-last_run_run_after", "dag_display_name"]));
+    expect(screen.getByTestId("sort-index-last_run_run_after")).toHaveTextContent("1");
+    expect(screen.getByTestId("sort-index-dag_display_name")).toHaveTextContent("2");
+  });
 });

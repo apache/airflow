@@ -272,8 +272,9 @@ export const DagsList = () => {
   const dagDisplayNamePattern = searchParams.get(NAME_PATTERN) ?? "";
   const advancedSearch = useAdvancedSearch("dags");
 
-  const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
+  const orderBy = sorting.length
+    ? sorting.map((sort) => `${sort.desc ? "-" : ""}${sort.id}`)
+    : ["dag_display_name"];
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -322,7 +323,7 @@ export const DagsList = () => {
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy: [orderBy],
+    orderBy,
     owners,
     paused,
     pendingHitl,
@@ -367,6 +368,7 @@ export const DagsList = () => {
           columns={columns}
           data={data?.dags ?? []}
           displayMode={display}
+          enableMultiSort
           errorMessage={<ErrorAlert error={error} />}
           filterActions={
             <VStack alignItems="flex-start" gap={2} w="100%">
@@ -388,7 +390,7 @@ export const DagsList = () => {
           onStateChange={setTableURLState}
           presentationActions={
             display === "card" ? (
-              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+              <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
             ) : undefined
           }
           showDisplayToggle

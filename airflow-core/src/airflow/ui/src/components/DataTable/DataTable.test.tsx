@@ -82,6 +82,39 @@ describe("DataTable", () => {
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
 
+  it.each([
+    { enableMultiSort: undefined, expected: [{ desc: false, id: "Second" }] },
+    {
+      enableMultiSort: true,
+      expected: [
+        { desc: false, id: "name" },
+        { desc: false, id: "Second" },
+      ],
+    },
+  ])(
+    "shift-click adds a secondary sort only when enableMultiSort=$enableMultiSort",
+    ({ enableMultiSort, expected }) => {
+      const sortOnStateChange = vi.fn();
+
+      render(
+        <DataTable
+          columns={[...columns, { accessorKey: "name", header: "Second", id: "Second" }]}
+          data={data}
+          enableMultiSort={enableMultiSort}
+          initialState={{ pagination, sorting: [{ desc: false, id: "name" }] }}
+          modelName="task"
+          onStateChange={sortOnStateChange}
+          total={2}
+        />,
+        { wrapper: ChakraWrapper },
+      );
+
+      fireEvent.click(screen.getByText("Second", { selector: "button" }), { shiftKey: true });
+
+      expect(sortOnStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ sorting: expected }));
+    },
+  );
+
   it("disables previous page button on first page", () => {
     render(
       <DataTable
