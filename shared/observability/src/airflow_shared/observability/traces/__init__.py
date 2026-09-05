@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
@@ -198,6 +199,40 @@ def override_ids(trace_id, span_id, ctx=None):
         yield
     finally:
         context.detach(token)
+
+
+@contextmanager
+def cli_span(
+    name: str,
+    attributes: dict[str, str | int | float | bool] | None = None,
+    environ: dict[str, str] | None = None,
+) -> Iterator[Span | None]:
+    """
+    Continue an inbound W3C trace around a CLI entry point.
+
+    When ``TRACEPARENT`` (and optionally ``TRACESTATE``) is set in the environment, a span
+    parented to that inbound context is opened, so an external caller's trace stitches to the
+    Airflow operation the CLI initiates. When it is absent the helper is a no-op and yields
+    ``None`` -- a standalone root span would surface as a trace disconnected from the work the
+    command drives, adding noise without value.
+
+    :param name: span name, e.g. ``cli.dags.test``
+    :param attributes: initial span attributes
+    :param environ: environment mapping; defaults to ``os.environ`` (overridable for tests)
+    """
+    env = os.environ if environ is None else environ
+    traceparent = env.get("TRACEPARENT")
+    if not traceparent:
+        yield None
+        return
+    carrier = {"traceparent": traceparent}
+    tracestate = env.get("TRACESTATE")
+    if tracestate:
+        carrier["tracestate"] = tracestate
+    parent_context = TraceContextTextMapPropagator().extract(carrier)
+    cli_tracer = trace.get_tracer(__name__)
+    with cli_tracer.start_as_current_span(name, context=parent_context, attributes=attributes or {}) as span:
+        yield span
 
 
 def _get_backcompat_config(conf: ConfigParser) -> tuple[str | None, Resource | None]:
