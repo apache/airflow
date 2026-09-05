@@ -29,6 +29,7 @@ from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.execution_api.app import (
@@ -40,6 +41,8 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.xcom import XComModel
+from airflow.sdk.serde import serialize
 
 from tests_common.test_utils.config import conf_vars
 
@@ -161,6 +164,49 @@ def test_in_process_execution_api_runs_without_jwt_secret():
     with httpx.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("map_index", [-1, 2])
+def test_in_process_execution_api_sets_xcom_for_route_task_instance(create_task_instance, session, map_index):
+    ti = create_task_instance(map_index=map_index)
+    session.commit()
+    params = {"map_index": map_index} if map_index >= 0 else None
+
+    api = InProcessExecutionAPI()
+    with httpx.Client(transport=api.transport, base_url="http://localhost") as client:
+        response = client.post(
+            f"/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/in_process",
+            params=params,
+            json=serialize('"value"'),
+        )
+
+    assert response.status_code == status.HTTP_201_CREATED, response.json()
+    xcom = session.scalar(
+        select(XComModel).where(
+            XComModel.dag_id == ti.dag_id,
+            XComModel.run_id == ti.run_id,
+            XComModel.task_id == ti.task_id,
+            XComModel.map_index == map_index,
+            XComModel.key == "in_process",
+        )
+    )
+    assert xcom is not None
+    assert xcom.value == '"value"'
+
+
+def test_in_process_execution_api_rejects_xcom_for_missing_route_task_instance(session):
+    api = InProcessExecutionAPI()
+    with httpx.Client(transport=api.transport, base_url="http://localhost") as client:
+        response = client.post("/xcoms/missing/run/task/key", json=serialize('"value"'))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN, response.json()
+    assert response.json() == {
+        "detail": {
+            "reason": "access_denied",
+            "message": "Task may only set XComs for its own task instance",
+        }
+    }
+    assert session.scalar(select(XComModel).where(XComModel.key == "key")) is None
 
 
 def test_in_process_execution_api_transport_lifecycle():

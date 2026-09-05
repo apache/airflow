@@ -32,10 +32,11 @@ from cadwyn import (
     Cadwyn,
     current_dependency_solver,
 )
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -44,6 +45,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.common.db.common import SessionDep
 
 if TYPE_CHECKING:
     import httpx
@@ -390,8 +392,9 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
-            from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+            from airflow.api_fastapi.execution_api.routes.xcoms import get_xcom_write_ti, has_xcom_access
             from airflow.api_fastapi.execution_api.security import _jwt_bearer
+            from airflow.models.taskinstance import TaskInstance
 
             # Give this app its own lifespan + services registry so that stubbing services
             # (e.g. JWTValidator) doesn't affect the module-level ``lifespan.registry``.
@@ -415,10 +418,37 @@ class InProcessExecutionAPI:
                 claims = TIClaims(scope="execution")
                 return TIToken(id=ti_id, claims=claims)
 
+            def resolve_xcom_write_ti(
+                dag_id: str,
+                run_id: str,
+                task_id: str,
+                map_index: int = -1,
+                *,
+                session: SessionDep,
+            ) -> TaskInstance:
+                ti = session.scalar(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == run_id,
+                        TaskInstance.task_id == task_id,
+                        TaskInstance.map_index == map_index,
+                    )
+                )
+                if ti is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail={
+                            "reason": "access_denied",
+                            "message": "Task may only set XComs for its own task instance",
+                        },
+                    )
+                return ti
+
             self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
+            self._app.dependency_overrides[get_xcom_write_ti] = resolve_xcom_write_ti
 
         return self._app
 
