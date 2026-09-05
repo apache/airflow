@@ -124,6 +124,7 @@ class TestKubernetesPodTrigger:
             "config_dict": CONFIG_DICT,
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
+            "init_container_logs": None,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "startup_check_interval": STARTUP_CHECK_INTERVAL_SECS,
             "schedule_timeout": STARTUP_TIMEOUT_SECS,
@@ -181,6 +182,65 @@ class TestKubernetesPodTrigger:
         )
 
         assert trigger.hook._extras == extras
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_wait_for_pod_start_fetches_init_container_logs_when_configured(
+        self, mock_hook, mock_define_state
+    ):
+        """``init_container_logs`` must be forwarded to the pod manager once the pod leaves
+        ``Pending``, or init container logs never surface in deferrable mode."""
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            init_container_logs="init",
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+        pod = mock.MagicMock()
+        pod.status.phase = PodPhase.RUNNING
+
+        async def empty_gen(*_, **__):
+            if False:  # pragma: no cover - never executes, only makes this an async generator
+                yield
+
+        mock_hook.get_pod = mock.AsyncMock(return_value=pod)
+        mock_hook.watch_pod_events = mock.Mock(side_effect=empty_gen)
+        mock_define_state.return_value = ContainerState.TERMINATED
+
+        with mock.patch.object(
+            trigger.pod_manager, "fetch_requested_init_container_logs", new=mock.AsyncMock()
+        ) as mock_fetch:
+            result = await trigger._wait_for_pod_start()
+
+        mock_fetch.assert_awaited_once_with(pod=pod, init_containers="init")
+        assert result == ContainerState.TERMINATED
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_wait_for_pod_start_skips_init_container_logs_when_not_configured(
+        self, mock_hook, mock_define_state, trigger
+    ):
+        pod = mock.MagicMock()
+        pod.status.phase = PodPhase.RUNNING
+
+        async def empty_gen(*_, **__):
+            if False:  # pragma: no cover - never executes, only makes this an async generator
+                yield
+
+        mock_hook.get_pod = mock.AsyncMock(return_value=pod)
+        mock_hook.watch_pod_events = mock.Mock(side_effect=empty_gen)
+        mock_define_state.return_value = ContainerState.TERMINATED
+
+        with mock.patch.object(
+            trigger.pod_manager, "fetch_requested_init_container_logs", new=mock.AsyncMock()
+        ) as mock_fetch:
+            await trigger._wait_for_pod_start()
+
+        mock_fetch.assert_not_awaited()
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")

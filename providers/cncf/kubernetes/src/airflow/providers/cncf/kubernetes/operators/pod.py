@@ -1052,6 +1052,7 @@ class KubernetesPodOperator(BaseOperator):
             in_cluster=self.in_cluster,
             poll_interval=self.poll_interval,
             get_logs=self.get_logs,
+            init_container_logs=self.init_container_logs,
             startup_timeout=self.startup_timeout_seconds,
             startup_check_interval=self.startup_check_interval_seconds,
             schedule_timeout=self.schedule_timeout_seconds,
