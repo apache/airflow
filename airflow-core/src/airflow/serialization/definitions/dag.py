@@ -302,16 +302,17 @@ class SerializedDAG:
         dag = copy.deepcopy(self, memo)
 
         if isinstance(task_ids, str):
-            matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
+            matched_task_ids = {t.task_id for t in self.tasks if task_ids in t.task_id}
         else:
-            matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
+            matched_task_ids = {t.task_id for t in self.tasks if t.task_id in task_ids}
 
         also_include_ids: set[str] = set()
-        for t in matched_tasks:
+        for tid in matched_task_ids:
+            t = self.task_dict[tid]
             if include_downstream:
                 for rel in t.get_flat_relatives(upstream=False, depth=depth):
                     also_include_ids.add(rel.task_id)
-                    if rel not in matched_tasks:  # if it's in there, we're already processing it
+                    if rel.task_id not in matched_task_ids:  # if it's in there, we're already processing it
                         # need to include setups and teardowns for tasks that are in multiple
                         # non-collinear setup/teardown paths
                         if not rel.is_setup and not rel.is_teardown:
@@ -329,7 +330,7 @@ class SerializedDAG:
         also_include: list[SerializedOperator] = [self.task_dict[x] for x in also_include_ids]
         direct_upstreams: list[SerializedOperator] = []
         if include_direct_upstream:
-            for t in itertools.chain(matched_tasks, also_include):
+            for t in itertools.chain((self.task_dict[x] for x in matched_task_ids), also_include):
                 direct_upstreams.extend(u for u in t.upstream_list if is_task(u))
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
@@ -339,8 +340,9 @@ class SerializedDAG:
             return copy.deepcopy(t, memo)
 
         # Compiling the unique list of tasks that made the cut
-        if exclude_original:
-            matched_tasks = []
+        matched_tasks: list[SerializedOperator] = (
+            [] if exclude_original else [self.task_dict[x] for x in matched_task_ids]
+        )
         dag.task_dict = {
             t.task_id: _deepcopy_task(t)
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
