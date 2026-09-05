@@ -104,9 +104,26 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``influxdb-client``                         ``>=1.19.0``
-``influxdb3-python``                        ``>=0.7.0``
+``influxdb3-python``                        ``>=0.12.0``
 ``requests``                                ``>=2.32.0,<3``
 ==========================================  ==================
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-influxdb[pandas]
+
+
+==========  ============================================================================================================================================================
+Extra       Dependencies
+==========  ============================================================================================================================================================
+``pandas``  ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+==========  ============================================================================================================================================================
 
 Downloading official packages
 -----------------------------

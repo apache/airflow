@@ -24,6 +24,7 @@ API compared to InfluxDB 2.x.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -41,12 +42,17 @@ except ImportError:
         InfluxDBClient3 = None  # type: ignore[assignment, misc]
         Point = None  # type: ignore[assignment, misc]
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
 
     from airflow.models import Connection
+
+
+def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
+    """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
+    return json.loads(dataframe.to_json(orient="records", date_format="iso"))
 
 
 class InfluxDB3Hook(BaseHook):
@@ -148,7 +154,14 @@ class InfluxDB3Hook(BaseHook):
         - Connection password field (as fallback for token)
         - Connection extras JSON (for manual configuration)
         """
-        self.connection = self.get_connection(self.influxdb3_conn_id)
+        return self._create_client(self.get_connection(self.influxdb3_conn_id))
+
+    async def aget_conn(self) -> InfluxDBClient3:
+        """Initiate a new InfluxDB 3.x connection asynchronously."""
+        return self._create_client(await self.aget_connection(self.influxdb3_conn_id))
+
+    def _create_client(self, connection) -> InfluxDBClient3:
+        self.connection = connection
         self.extras = self.connection.extra_dejson.copy()
 
         self.uri = self.get_uri(self.connection)
@@ -192,10 +205,49 @@ class InfluxDB3Hook(BaseHook):
         :param query: SQL query string
         :return: pandas DataFrame with query results
         """
-        import pandas as pd
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas is required for InfluxDB 3 query results. Install it with: "
+                "pip install 'apache-airflow-providers-influxdb[pandas]'"
+            ) from e
 
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
+
+        if not isinstance(result, pd.DataFrame):
+            raise ValueError(
+                f"Query did not return a DataFrame. "
+                f"Result type: {type(result).__module__}.{type(result).__name__}"
+            )
+
+        return result
+
+    async def query_async(self, query: str) -> pd.DataFrame:
+        """
+        Run a SQL query from the triggerer and return results as a pandas DataFrame.
+
+        ``InfluxDBClient3.query_async`` runs the blocking Arrow Flight calls in the event
+        loop's default executor. It is a plain coroutine that resolves once the whole result
+        stream has been read -- InfluxDB 3 has no submit-then-poll query API, so there is
+        nothing to poll in between. Connection retrieval uses the hook's async connection
+        accessor before invoking the client coroutine.
+
+        :param query: SQL query string
+        :return: pandas DataFrame with query results
+        """
+        client = await self.aget_conn()
+
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "pandas is required for InfluxDB 3 query results. Install it with: "
+                "pip install 'apache-airflow-providers-influxdb[pandas]'"
+            ) from e
+
+        result = await client.query_async(query=query, language="sql", mode="pandas")
 
         if not isinstance(result, pd.DataFrame):
             raise ValueError(
