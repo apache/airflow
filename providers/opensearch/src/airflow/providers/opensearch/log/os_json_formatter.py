@@ -16,34 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_3_PLUS
-from airflow.utils.log.json_formatter import JSONFormatter
+from airflow.providers.common.search.log.json_formatter import SearchJSONFormatter as OpensearchJSONFormatter
 
-
-class OpensearchJSONFormatter(JSONFormatter):
-    """Convert a log record to JSON with ISO 8601 date and time format."""
-
-    default_time_format = "%Y-%m-%dT%H:%M:%S"
-    default_msec_format = "%s.%03d"
-    default_tz_format = "%z"
-
-    def formatTime(self, record, datefmt=None):
-        """Return the creation time of the LogRecord in ISO 8601 date/time format in the local time zone."""
-        if AIRFLOW_V_3_3_PLUS:
-            from airflow.sdk import timezone
-
-            dt = timezone.from_timestamp(record.created, tz="local")
-        else:
-            # TODO: Remove this fallback when the minimum Airflow version is 3.3.0
-            from datetime import datetime
-
-            import pendulum
-
-            dt = datetime.fromtimestamp(record.created, tz=pendulum.local_timezone())
-
-        s = dt.strftime(datefmt or self.default_time_format)
-        if self.default_msec_format:
-            s = self.default_msec_format % (s, record.msecs)
-        if self.default_tz_format:
-            s += dt.strftime(self.default_tz_format)
-        return s
+__all__ = ["OpensearchJSONFormatter"]

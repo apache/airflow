@@ -45,7 +45,7 @@ from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
-from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
+from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse, resolve_nested
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -255,31 +255,6 @@ def _render_log_id(
         try_number=try_number,
         map_index=getattr(ti, "map_index", ""),
     )
-
-
-def _resolve_nested(hit: dict[Any, Any], parent_class=None) -> type[Hit]:
-    """
-    Resolve nested hits from OpenSearch by iteratively navigating the `_nested` field.
-
-    The result is used to fetch the appropriate document class to handle the hit.
-    """
-    doc_class = Hit
-    nested_field = None
-
-    nested_path: list[str] = []
-    nesting = hit["_nested"]
-    while nesting and "field" in nesting:
-        nested_path.append(nesting["field"])
-        nesting = nesting.get("_nested")
-    nested_path_str = ".".join(nested_path)
-
-    if hasattr(parent_class, "_index"):
-        nested_field = parent_class._index.resolve_field(nested_path_str)
-
-    if nested_field is not None:
-        return nested_field._doc_class
-
-    return doc_class
 
 
 class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -728,7 +703,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         Process a hit (i.e., a result) from an Elasticsearch response and transform it into a class instance.
 
         The transformation depends on the contents of the hit. If the document in hit contains a nested field,
-        the '_resolve_nested' method is used to determine the appropriate class (based on the nested path).
+        the 'resolve_nested' method is used to determine the appropriate class (based on the nested path).
         If the hit has a document type that is present in the '_doc_type_map', the corresponding class is
         used. If not, the method iterates over the '_doc_type' classes and uses the first one whose '_matches'
         method returns True for the hit.
@@ -772,7 +747,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         dt = hit.get("_type")
 
         if "_nested" in hit:
-            doc_class = _resolve_nested(hit, parent_class)
+            doc_class = resolve_nested(hit, parent_class)
 
         elif dt in self._doc_type_map:
             doc_class = self._doc_type_map[dt]
@@ -1069,7 +1044,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
         dt = hit.get("_type")
 
         if "_nested" in hit:
-            doc_class = _resolve_nested(hit, parent_class)
+            doc_class = resolve_nested(hit, parent_class)
         elif dt in self._doc_type_map:
             doc_class = self._doc_type_map[dt]
         else:

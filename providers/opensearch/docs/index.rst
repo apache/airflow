@@ -103,6 +103,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-search``  ``>=1.0.0``
 ``opensearch-py``                           ``>=2.2.0``
 ==========================================  ==================
 
