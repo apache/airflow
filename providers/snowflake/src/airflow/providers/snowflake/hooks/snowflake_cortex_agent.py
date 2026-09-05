@@ -17,11 +17,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, overload
 
 import requests
 
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+
+JsonDict = dict[str, Any]
+JsonList = list[JsonDict]
+JsonResponse = JsonDict | JsonList
 
 
 class SnowflakeCortexAgentHook(SnowflakeHook):
@@ -48,14 +52,40 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         return token
 
+    @overload
     def _request(
         self,
         *,
         method: str,
         endpoint: str,
-        payload: dict[str, Any] | None = None,
+        payload: JsonDict | None = None,
+        params: JsonDict | None = None,
         timeout: int | None = None,
-    ) -> dict[str, Any]:
+        response_type: Literal["dict"],
+    ) -> JsonDict: ...
+
+    @overload
+    def _request(
+        self,
+        *,
+        method: str,
+        endpoint: str,
+        payload: JsonDict | None = None,
+        params: JsonDict | None = None,
+        timeout: int | None = None,
+        response_type: Literal["list"],
+    ) -> JsonList: ...
+
+    def _request(
+        self,
+        *,
+        method: str,
+        endpoint: str,
+        payload: JsonDict | None = None,
+        params: JsonDict | None = None,
+        timeout: int | None = None,
+        response_type: Literal["dict", "list"],
+    ) -> JsonResponse:
 
         response = requests.request(
             method=method,
@@ -65,6 +95,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
                 "Content-Type": "application/json",
             },
             json=payload,
+            params=params,
             timeout=timeout,
         )
 
@@ -77,7 +108,22 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         response.raise_for_status()
 
-        return response.json()
+        if not response.content:
+            if response_type == "dict":
+                return {}
+            raise TypeError("Expected list[dict] response, got empty response")
+
+        data = response.json()
+
+        if response_type == "dict":
+            if not isinstance(data, dict):
+                raise TypeError(f"Expected dict response, got {type(data).__name__}")
+            return data
+
+        if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+            raise TypeError(f"Expected list[dict] response, got {type(data).__name__}")
+
+        return data
 
     def run_agent(
         self,
@@ -95,7 +141,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         tools: list[dict[str, Any]] | None = None,
         tool_resources: dict[str, Any] | None = None,
         timeout: int | None = 600,
-    ) -> dict[str, Any]:
+    ) -> JsonDict:
         """
         Execute a Snowflake Cortex Agent and return the response payload.
 
@@ -106,11 +152,10 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             conversation, this should contain the conversation history and the
             current user message. When ``thread_id`` and ``parent_message_id``
             are provided, this should contain only the current user message.
-        :param thread_id: Existing conversation thread identifier. Optional.
-            When provided, ``parent_message_id`` must also be supplied.
-            Defaults to ``None``.
+        :param thread_id: Existing conversation thread identifier. When provided,
+            ``parent_message_id`` must also be supplied. Optional. Defaults to ``None``.
         :param parent_message_id: Parent message identifier within the specified
-            thread. Required when ``thread_id`` is provided. Defaults to ``None``.
+            thread. Required when ``thread_id`` is provided. Optional. Defaults to ``None``.
         :param tool_choice: Tool selection configuration for the agent. Optional.
             Defaults to ``None``.
         :param models: Model configuration for the agent. Optional. Defaults to
@@ -124,7 +169,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         :param tool_resources: Configuration for tools specified in ``tools``.
             Optional. Defaults to ``None``.
         :param timeout: Maximum time in seconds to wait for the Cortex Agent request
-            to complete. Defaults to ``600``.
+            to complete. Optional. Defaults to ``600``.
         :return: JSON response returned by the Cortex Agent.
         """
         if thread_id is not None and parent_message_id is None:
@@ -164,6 +209,111 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             endpoint=endpoint,
             payload=payload,
             timeout=timeout,
+            response_type="dict",
+        )
+
+    def describe_agent(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        timeout: int | None = 600,
+    ) -> JsonDict:
+        """
+        Describe a Snowflake Cortex Agent.
+
+        :param database: Database containing the Cortex Agent.
+        :param schema: Schema containing the Cortex Agent.
+        :param agent_name: Name of the Cortex Agent.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent
+            request to complete. Optional. Defaults to ``600``.
+        :return: JSON description of the Cortex Agent.
+        """
+        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
+
+        return self._request(
+            method="GET",
+            endpoint=endpoint,
+            timeout=timeout,
+            response_type="dict",
+        )
+
+    def list_agents(
+        self,
+        *,
+        database: str,
+        schema: str,
+        like: str | None = None,
+        from_name: str | None = None,
+        show_limit: int | None = None,
+        timeout: int | None = 600,
+    ) -> JsonList:
+        """
+        List Snowflake Cortex Agents.
+
+        :param database: Database containing the Cortex Agents.
+        :param schema: Schema containing the Cortex Agents.
+        :param like: Case-insensitive name filter. Optional.
+            Defaults to ``None``.
+        :param from_name: Pagination starting point. Optional.
+            Defaults to ``None``.
+        :param show_limit: Maximum number of agents to return. Optional.
+            Defaults to ``None``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent
+            request to complete. Optional. Defaults to ``600``.
+        :return: List of Cortex Agents.
+        """
+        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents"
+
+        params: dict[str, Any] = {}
+
+        if like is not None:
+            params["like"] = like
+
+        if from_name is not None:
+            params["fromName"] = from_name
+
+        if show_limit is not None:
+            params["showLimit"] = show_limit
+
+        return self._request(
+            method="GET",
+            endpoint=endpoint,
+            params=params or None,
+            timeout=timeout,
+            response_type="list",
+        )
+
+    def delete_agent(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        if_exists: bool = False,
+        timeout: int | None = 600,
+    ) -> JsonDict:
+        """
+        Delete a Snowflake Cortex Agent.
+
+        :param database: Database containing the Cortex Agent.
+        :param schema: Schema containing the Cortex Agent.
+        :param agent_name: Name of the Cortex Agent.
+        :param if_exists: If ``True``, do not fail when the agent does not exist.
+            Optional. Defaults to ``False``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent request
+            to complete. Optional. Defaults to ``600``.
+        :return: JSON response confirming deletion.
+        """
+        endpoint = f"/api/v2/databases/{database}/schemas/{schema}/agents/{agent_name}"
+
+        return self._request(
+            method="DELETE",
+            endpoint=endpoint,
+            params={"ifExists": str(if_exists).lower()},
+            timeout=timeout,
+            response_type="dict",
         )
 
     @staticmethod
