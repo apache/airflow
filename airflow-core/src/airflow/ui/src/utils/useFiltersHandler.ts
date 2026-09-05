@@ -60,6 +60,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
+  | SearchParamsKeys.COMPLETED_AT_RANGE
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CONSUMING_ASSET_PATTERN
   | SearchParamsKeys.CREATED_AT_RANGE
@@ -76,6 +77,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.EXECUTOR_CLASS
   | SearchParamsKeys.FAVORITE
+  | SearchParamsKeys.FROM_RANGE
   | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
@@ -85,6 +87,8 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.LAST_DAG_RUN_STATE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.MAX_ACTIVE_RUNS_GTE
+  | SearchParamsKeys.MAX_ACTIVE_RUNS_LTE
   | SearchParamsKeys.MISSED
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.NEEDS_REVIEW
@@ -95,6 +99,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RENDERED_MAP_INDEX
+  | SearchParamsKeys.REPROCESS_BEHAVIOR
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_RANGE
@@ -110,6 +115,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TASK_STATE
   | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TIMETABLE_TYPE
+  | SearchParamsKeys.TO_RANGE
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
