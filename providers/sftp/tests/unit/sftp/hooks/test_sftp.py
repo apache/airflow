@@ -34,7 +34,7 @@ from paramiko.sftp_client import SFTPClient
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
+from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync, SFTPOperation
 
 
 def generate_host_key(pkey: paramiko.PKey):
@@ -1403,3 +1403,9 @@ class TestSFTPHookAsync:
         assert files is not None
         assert sorted(files) == sorted(["file1", "subdir/file2"])
         sftp_client_mock.__aexit__.assert_awaited()
+
+
+def test_sftp_operation_values():
+    assert SFTPOperation.GET == "get"
+    assert SFTPOperation.PUT == "put"
+    assert SFTPOperation.DELETE == "delete"
