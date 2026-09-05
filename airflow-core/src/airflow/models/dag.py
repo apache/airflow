@@ -30,6 +30,7 @@ from cachetools import TTLCache, cached
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Float,
     ForeignKey,
     Index,
@@ -73,7 +74,7 @@ from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataInte
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -321,6 +322,7 @@ class DagModel(Base):
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
+    is_draining: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     exceeds_max_non_backfill: Mapped[bool] = mapped_column(
@@ -405,7 +407,11 @@ class DagModel(Base):
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
-    __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
+    __table_args__ = (
+        Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
+        Index("idx_dag_is_draining", is_draining, unique=False),
+        CheckConstraint("NOT (is_paused AND is_draining)", name="dag_pause_state_valid"),
+    )
 
     schedule_asset_references = relationship(
         "DagScheduleAssetReference",
@@ -484,6 +490,20 @@ class DagModel(Base):
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
+
+    @property
+    def scheduling_state(self) -> DagSchedulingState:
+        """Return the Dag's scheduling state."""
+        if self.is_paused:
+            return DagSchedulingState.PAUSED
+        if self.is_draining:
+            return DagSchedulingState.DRAINING
+        return DagSchedulingState.ACTIVE
+
+    def set_scheduling_state(self, state: DagSchedulingState) -> None:
+        """Set the Dag's scheduling state."""
+        self.is_paused = state == DagSchedulingState.PAUSED
+        self.is_draining = state == DagSchedulingState.DRAINING
 
     def is_rollup_asset(self, *, name: str, uri: str) -> bool:
         """
@@ -774,6 +794,7 @@ class DagModel(Base):
             select(cls)
             .where(
                 cls.is_paused == expression.false(),
+                cls.is_draining == expression.false(),
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 cls.exceeds_max_non_backfill == expression.false(),

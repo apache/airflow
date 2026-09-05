@@ -35,6 +35,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import {
   useDagRunServiceGetDagRun,
+  useDagRunServiceGetDagRuns,
   useDagServiceGetDag,
   useDagWarningServiceListDagWarnings,
 } from "openapi/queries";
@@ -43,6 +44,7 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import BackfillBanner from "src/components/Banner/BackfillBanner";
+import DrainingBanner from "src/components/Banner/DrainingBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
@@ -53,6 +55,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { useAutoRefresh } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -95,7 +98,17 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
-  const { data: dag } = useDagServiceGetDag({ dagId });
+  const refetchInterval = useAutoRefresh({ dagId });
+  const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
+    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+  });
+  // Only asked while the Dag can still be drained; the answer decides whether
+  // pausing needs to offer the drain choice at all.
+  const { data: unfinishedRuns } = useDagRunServiceGetDagRuns(
+    { dagId, limit: 1, state: ["queued", "running"] },
+    undefined,
+    { enabled: dag?.scheduling_state === "active" },
+  );
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
@@ -235,7 +248,11 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   <TogglePause
                     dagDisplayName={dag.dag_display_name}
                     dagId={dag.dag_id}
+                    hasUnfinishedRuns={
+                      unfinishedRuns === undefined ? undefined : unfinishedRuns.dag_runs.length > 0
+                    }
                     isPaused={dag.is_paused}
+                    schedulingState={dag.scheduling_state}
                     size="md"
                   />
                 )}
@@ -252,6 +269,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
           </Flex>
         </HStack>
         <Toaster />
+        <DrainingBanner dagId={dagId} />
         <BackfillBanner dagId={dagId} />
         <Box flex={1} minH={0}>
           {isRightPanelCollapsed ? (

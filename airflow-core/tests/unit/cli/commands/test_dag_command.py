@@ -52,7 +52,7 @@ from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -591,6 +591,25 @@ class TestCliDags:
 
         clear_db_dags()
         self.setup_class()
+
+    @pytest.mark.parametrize(
+        ("command", "expected_state"),
+        [
+            (dag_command.dag_pause, DagSchedulingState.PAUSED),
+            (dag_command.dag_unpause, DagSchedulingState.ACTIVE),
+        ],
+    )
+    def test_pause_commands_clear_draining_state(self, command, expected_state):
+        with create_session() as session:
+            dag_model = session.get(DagModel, "example_bash_operator")
+            dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+
+        args = self.parser.parse_args(
+            ["dags", "pause" if command is dag_command.dag_pause else "unpause", "example_bash_operator"]
+        )
+        command(args)
+
+        assert DagModel.get_dagmodel("example_bash_operator").scheduling_state == expected_state
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):

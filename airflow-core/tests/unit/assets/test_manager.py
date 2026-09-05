@@ -40,7 +40,9 @@ from airflow.models.asset import (
     AssetModel,
     AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -189,6 +191,47 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.parametrize("reference_kind", ["asset", "alias", "name", "uri"])
+    def test_register_asset_change_does_not_queue_draining_dag(
+        self, reference_kind, session, mock_task_instance, testing_dag_bundle
+    ):
+        asset = Asset(uri="test://draining", name="draining_asset")
+        asset_model = AssetModel(uri=asset.uri, name=asset.name, group="asset")
+        dag_model = DagModel(
+            dag_id=f"draining_{reference_kind}",
+            bundle_name="testing",
+            is_draining=True,
+            is_stale=False,
+        )
+        session.add_all([asset_model, dag_model])
+
+        source_alias_names = ()
+        if reference_kind == "asset":
+            asset_model.scheduled_dags = [DagScheduleAssetReference(dag_id=dag_model.dag_id)]
+        elif reference_kind == "alias":
+            alias = AssetAliasModel(name="draining_alias", group="asset")
+            alias.scheduled_dags = [
+                DagScheduleAssetAliasReference(alias_id=alias.id, dag_id=dag_model.dag_id)
+            ]
+            session.add(alias)
+            source_alias_names = [alias.name]
+        elif reference_kind == "name":
+            session.add(DagScheduleAssetNameReference(name=asset.name, dag_id=dag_model.dag_id))
+        else:
+            session.add(DagScheduleAssetUriReference(uri=asset.uri, dag_id=dag_model.dag_id))
+        session.flush()
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset,
+            source_alias_names=source_alias_names,
+            session=session,
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()
