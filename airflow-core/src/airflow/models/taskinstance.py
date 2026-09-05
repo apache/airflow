@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import hashlib
 import itertools
 import json
@@ -1016,7 +1017,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
         self.executor = task.executor
-        self.executor_config = task.executor_config
+        self.executor_config = copy.copy(task.executor_config) if task.executor_config else {}
         self.operator = task.task_type
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
