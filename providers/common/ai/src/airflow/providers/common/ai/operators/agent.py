@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import timedelta
@@ -496,16 +495,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 output,
                 message_history=result.all_messages(),
             )
-            if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-                return rehydrate_pydantic_output(
-                    self.output_type,
-                    result_str,
-                    serialize_output=self._serialize_model_output,
-                )
-            try:
-                return json.loads(result_str)
-            except (ValueError, TypeError):
-                return result_str
+            return rehydrate_pydantic_output(
+                self.output_type,
+                result_str,
+                serialize_output=self._serialize_model_output,
+            )
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
@@ -556,7 +550,4 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         result = agent.run_sync(feedback, message_history=messages, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
 
-        output = result.output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json()
-        return str(output), result.all_messages()
+        return self._to_string(result.output), result.all_messages()
