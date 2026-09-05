@@ -324,6 +324,20 @@ repos:
           ^\.pre-commit-config\.yaml$
         pass_filenames: false
         require_serial: true
+      - id: update-go-sdk-readme-matrix
+        name: Update the Go SDK compatibility matrix in go-sdk/README.md
+        entry: ./scripts/ci/prek/update_go_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^go-sdk/capabilities\.yaml$|
+          ^go-sdk/pkg/execution/messages\.go$|
+          ^go-sdk/README\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_go_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
       - id: check-go-example-mod-tidy
         name: Check lang-SDK Go example module is tidy against the Go SDK
         entry: ./scripts/ci/prek/check_go_example_mod_tidy.py
