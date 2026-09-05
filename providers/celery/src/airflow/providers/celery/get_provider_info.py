@@ -232,6 +232,13 @@ def get_provider_info():
                         "example": None,
                         "default": "1.0",
                     },
+                    "redis_pipelined_publish_enabled": {
+                        "description": "Whether to publish task workloads to a Redis broker using a pipeline. Disable this\noption to retain the one-message-at-a-time publication path. This option has no effect\nfor other brokers or callback workloads.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": "True",
+                    },
                     "task_acks_late": {
                         "description": "If an Airflow task's execution time exceeds the visibility_timeout, Celery will re-assign the\ntask to a Celery worker, even if the original task is still running successfully. The new task\ninstance then runs concurrently with the original task and the Airflow UI and logs only show an\nerror message:\n'Task Instance Not Running' FAILED: Task is in the running state'\nSetting task_acks_late to True acknowledges the task only after it completes.\nNote: for Redis and SQS brokers, task_acks_late does NOT override visibility_timeout.\nThe broker will still redeliver tasks that exceed visibility_timeout regardless of this setting.\nFor long-running tasks, you must also increase [celery_broker_transport_options] visibility_timeout.\nThe default visibility_timeout is 86400 seconds (24 hours).\nSee also:\nhttps://docs.celeryq.dev/en/stable/reference/celery.app.task.html#celery.app.task.Task.acks_late\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#visibility-timeout\n",
                         "version_added": "3.6.0",

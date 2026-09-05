@@ -40,6 +40,7 @@ from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.signals import import_modules as celery_import_modules, worker_ready
+from kombu.utils.json import dumps
 from sqlalchemy import select
 
 from airflow.executors.base_executor import BaseExecutor
@@ -71,6 +72,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from celery.result import AsyncResult
+    from kombu import Producer
 
     from airflow.configuration import AirflowConfigParser
     from airflow.executors import workloads
@@ -401,8 +403,121 @@ class ExceptionWithTraceback:
         self.traceback = exception_traceback
 
 
+_MISSING = object()
+
+# Driver types whose queue writes can be buffered and flushed in one pipelined round trip.
+# Drives both the executor's inline-vs-subprocess decision and the publisher selection here.
+PIPELINE_CAPABLE_DRIVER_TYPES = frozenset({"redis"})
+
+
+def broker_supports_pipelined_publish(celery_app: Celery) -> bool:
+    """Whether the app's broker can buffer queue writes and flush them in one round trip."""
+    broker_connection = celery_app.connection_for_write()
+    try:
+        return broker_connection.transport.driver_type in PIPELINE_CAPABLE_DRIVER_TYPES
+    finally:
+        broker_connection.release()
+
+
+class _ImmediatePublisher:
+    """Batch publisher for brokers where every ``apply_async`` delivers immediately."""
+
+    defers_delivery = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        return None
+
+    def flush(self) -> None:
+        """No-op; every message was already delivered as it was published."""
+
+
+class _PipelinedRedisPublisher:
+    """
+    Batch publisher that buffers Kombu Redis queue writes and flushes them in one pipeline.
+
+    ``_put``/``_put_fanout`` are replaced on the channel with copies of kombu's
+    implementations (``kombu.transport.redis.Channel``, mirrored from kombu 5.6) that write
+    into a redis-py pipeline instead of the connection. Delivery only happens at
+    :meth:`flush`, so publish-time side effects (``AsyncResult`` creation, publish signals)
+    fire while messages are still buffered; exiting without a flush discards the buffer.
+    ``test_kombu_redis_channel_batch_publish_contract`` fails when kombu changes the
+    mirrored methods.
+    """
+
+    defers_delivery = True
+
+    def __init__(self, channel):
+        self._channel = channel
+        self._buffered_count = 0
+
+    def __enter__(self):
+        self._exit_stack = contextlib.ExitStack()
+        try:
+            client = self._exit_stack.enter_context(self._channel.conn_or_acquire())
+            self._pipeline = self._exit_stack.enter_context(client.pipeline(transaction=False))
+            self._replace_channel_puts()
+        except BaseException:
+            self._exit_stack.close()
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        try:
+            self._restore_channel_puts()
+        finally:
+            suppress = self._exit_stack.__exit__(exc_type, exc_value, exc_tb)
+        return suppress
+
+    def flush(self) -> None:
+        """Deliver the buffered queue writes in one round trip."""
+        if not self._buffered_count:
+            return
+        with timeout(seconds=OPERATION_TIMEOUT):
+            self._pipeline.execute()
+
+    def _replace_channel_puts(self) -> None:
+        channel = self._channel
+        self._original_put = channel.__dict__.get("_put", _MISSING)
+        self._original_put_fanout = channel.__dict__.get("_put_fanout", _MISSING)
+
+        def pipelined_put(queue, message, **kwargs):
+            priority = channel._get_message_priority(message, reverse=False)
+            self._pipeline.lpush(channel._q_for_pri(queue, priority), dumps(message))
+            self._buffered_count += 1
+
+        def pipelined_put_fanout(exchange, message, routing_key, **kwargs):
+            self._pipeline.publish(channel._get_publish_topic(exchange, routing_key), dumps(message))
+            self._buffered_count += 1
+
+        channel._put = pipelined_put
+        channel._put_fanout = pipelined_put_fanout
+
+    def _restore_channel_puts(self) -> None:
+        if self._original_put is _MISSING:
+            del self._channel._put
+        else:
+            self._channel._put = self._original_put
+        if self._original_put_fanout is _MISSING:
+            del self._channel._put_fanout
+        else:
+            self._channel._put_fanout = self._original_put_fanout
+
+
+def _create_batch_publisher(
+    producer: Producer, *, use_pipelining: bool
+) -> _ImmediatePublisher | _PipelinedRedisPublisher:
+    if use_pipelining and producer.connection.transport.driver_type in PIPELINE_CAPABLE_DRIVER_TYPES:
+        return _PipelinedRedisPublisher(producer.channel)
+    return _ImmediatePublisher()
+
+
 def send_workload_to_executor(
     workload_tuple: WorkloadInCelery,
+    *,
+    producer: Producer | None = None,
 ) -> WorkloadInCeleryResult:
     """
     Send workload to executor (serialized and executed as a Celery task).
@@ -449,7 +564,10 @@ def send_workload_to_executor(
 
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = celery_task.apply_async(args=args, queue=queue, task_id=celery_task_id)
+            apply_async_kwargs = {"args": args, "queue": queue, "task_id": celery_task_id}
+            if producer is not None:
+                apply_async_kwargs["producer"] = producer
+            result = celery_task.apply_async(**apply_async_kwargs)
     except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
@@ -457,6 +575,84 @@ def send_workload_to_executor(
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently.
     return key, args, result
+
+
+def send_workloads_to_executor(
+    workload_tuples: Sequence[WorkloadInCelery],
+    *,
+    use_pipelining: bool,
+) -> list[WorkloadInCeleryResult]:
+    """
+    Send a workload batch while reusing one Celery producer.
+
+    Publishing is two-phased: every workload is built and handed to the batch publisher
+    (immediate delivery, or buffered into one Redis pipeline), then buffered deliveries
+    are flushed in a single round trip.
+    """
+    if not workload_tuples:
+        return []
+
+    team_name = workload_tuples[0][3]
+    if any(workload_tuple[3] != team_name for workload_tuple in workload_tuples[1:]):
+        return list(map(send_workload_to_executor, workload_tuples))
+
+    celery_app = _get_celery_app_for_workload(team_name)
+    results: list[WorkloadInCeleryResult] = []
+    delivery_deferred = False
+    try:
+        with celery_app.producer_or_acquire() as producer:
+            publisher = _create_batch_publisher(producer, use_pipelining=use_pipelining)
+            delivery_deferred = publisher.defers_delivery
+            with publisher:
+                for workload_tuple in workload_tuples:
+                    results.append(send_workload_to_executor(workload_tuple, producer=producer))
+                publisher.flush()
+        return results
+    except (Exception, AirflowTaskTimeout) as e:
+        return _build_batch_error_results(
+            workload_tuples=workload_tuples,
+            partial_results=results,
+            error=e,
+            error_traceback=traceback.format_exc(),
+            delivery_deferred=delivery_deferred,
+        )
+
+
+def _build_batch_error_results(
+    *,
+    workload_tuples: Sequence[WorkloadInCelery],
+    partial_results: Sequence[WorkloadInCeleryResult],
+    error: BaseException,
+    error_traceback: str,
+    delivery_deferred: bool,
+) -> list[WorkloadInCeleryResult]:
+    """
+    Map a batch-level publish failure onto per-workload results.
+
+    Workloads that already carry their own error keep it. With immediate delivery the
+    workloads published before the failure stay successful. With deferred delivery none of the
+    buffered workloads is confirmed delivered, so they all receive the batch error.
+    """
+    batch_error_results: list[WorkloadInCeleryResult] = []
+    for index, workload_tuple in enumerate(workload_tuples):
+        key = workload_tuple[0]
+        args: Sequence[str] = []
+        if index < len(partial_results):
+            _, args, result = partial_results[index]
+            if isinstance(result, ExceptionWithTraceback) or not delivery_deferred:
+                batch_error_results.append(partial_results[index])
+                continue
+        batch_error_results.append(
+            (
+                key,
+                args,
+                ExceptionWithTraceback(
+                    error,
+                    f"Celery Task ID: {key}\n{error_traceback}",
+                ),
+            )
+        )
+    return batch_error_results
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

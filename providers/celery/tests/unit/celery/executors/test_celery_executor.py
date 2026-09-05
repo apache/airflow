@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import inspect
 import logging
 import os
 import signal
@@ -502,19 +503,553 @@ def test_operation_timeout_config():
     assert celery_executor_utils.OPERATION_TIMEOUT == 1
 
 
-class MockWorkload:
-    """
-    A picklable object used to mock workloads sent to Celery. Can't use the mock library
-    here because it's not picklable.
-    """
+def _mock_send_workload_to_executor(workload_tuple):
+    """Return a picklable result from a ProcessPoolExecutor subprocess."""
+    key, _, _, _ = workload_tuple
+    return key, None, 1
 
-    def apply_async(self, *args, **kwargs):
-        return 1
+
+class RecordingRedisPipeline:
+    def __init__(self):
+        self.commands = []
+        self.executed = False
+        self.execute_error = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return None
+
+    def lpush(self, queue, message):
+        self.commands.append(("lpush", queue, message))
+
+    def publish(self, topic, message):
+        self.commands.append(("publish", topic, message))
+
+    def execute(self):
+        self.executed = True
+        if self.execute_error:
+            raise self.execute_error
+
+
+class RecordingRedisClient:
+    def __init__(self):
+        self.pipeline_instance = RecordingRedisPipeline()
+        self.transaction = None
+
+    def pipeline(self, transaction=True):
+        self.transaction = transaction
+        return self.pipeline_instance
+
+
+class RecordingRedisChannel:
+    def __init__(self):
+        self.client = RecordingRedisClient()
+        self.immediate_puts = []
+
+    @contextlib.contextmanager
+    def conn_or_acquire(self):
+        yield self.client
+
+    def _get_message_priority(self, message, reverse=False):
+        return message["priority"]
+
+    def _q_for_pri(self, queue, priority):
+        return f"{queue}:{priority}"
+
+    def _get_publish_topic(self, exchange, routing_key):
+        return f"/{exchange}/{routing_key}"
+
+    def _put(self, queue, message, **kwargs):
+        self.immediate_puts.append((queue, message))
+
+    def _put_fanout(self, exchange, message, routing_key, **kwargs):
+        self.immediate_puts.append((exchange, message, routing_key))
+
+
+def test_pipelined_redis_publisher_buffers_queue_writes_and_restores_channel():
+    channel = RecordingRedisChannel()
+    original_put = channel._put
+
+    with celery_executor_utils._PipelinedRedisPublisher(channel) as publisher:
+        channel._put("queue", {"priority": 3, "body": "first"})
+        channel._put("queue", {"priority": 0, "body": "second"})
+
+        assert channel.client.pipeline_instance.commands == [
+            ("lpush", "queue:3", mock.ANY),
+            ("lpush", "queue:0", mock.ANY),
+        ]
+        assert not channel.client.pipeline_instance.executed
+        publisher.flush()
+
+    assert channel.client.transaction is False
+    assert channel.client.pipeline_instance.executed
+    assert channel._put == original_put
+    assert channel.immediate_puts == []
+
+
+def test_pipelined_redis_publisher_buffers_fanout_writes():
+    channel = RecordingRedisChannel()
+    original_put_fanout = channel._put_fanout
+
+    with celery_executor_utils._PipelinedRedisPublisher(channel) as publisher:
+        channel._put_fanout("exchange", {"body": "event"}, "worker.*")
+        publisher.flush()
+
+    assert channel.client.pipeline_instance.commands == [
+        ("publish", "/exchange/worker.*", mock.ANY),
+    ]
+    assert channel._put_fanout == original_put_fanout
+    assert channel.immediate_puts == []
+
+
+def test_pipelined_redis_publisher_bounds_flush_with_operation_timeout():
+    channel = RecordingRedisChannel()
+
+    with mock.patch.object(
+        celery_executor_utils,
+        "timeout",
+        return_value=contextlib.nullcontext(),
+    ) as operation_timeout:
+        with celery_executor_utils._PipelinedRedisPublisher(channel) as publisher:
+            channel._put("queue", {"priority": 0, "body": "first"})
+            channel._put("queue", {"priority": 0, "body": "second"})
+            publisher.flush()
+
+    operation_timeout.assert_called_once_with(seconds=celery_executor_utils.OPERATION_TIMEOUT)
+
+
+def test_pipelined_redis_publisher_skips_flush_when_nothing_buffered():
+    channel = RecordingRedisChannel()
+
+    with mock.patch.object(celery_executor_utils, "timeout") as operation_timeout:
+        with celery_executor_utils._PipelinedRedisPublisher(channel) as publisher:
+            publisher.flush()
+
+    assert not channel.client.pipeline_instance.executed
+    operation_timeout.assert_not_called()
+
+
+def test_pipelined_redis_publisher_discards_buffer_when_exiting_without_flush():
+    channel = RecordingRedisChannel()
+
+    def buffer_then_fail():
+        with celery_executor_utils._PipelinedRedisPublisher(channel):
+            channel._put("queue", {"priority": 0, "body": "workload"})
+            raise ValueError("boom")
+
+    with pytest.raises(ValueError, match="boom"):
+        buffer_then_fail()
+
+    assert not channel.client.pipeline_instance.executed
+    channel._put("queue", {"priority": 1, "body": "after"})
+    assert channel.immediate_puts == [("queue", {"priority": 1, "body": "after"})]
+
+
+def test_kombu_redis_channel_batch_publish_contract():
+    """_PipelinedRedisPublisher mirrors kombu's Channel._put/_put_fanout; fail loudly when kombu changes them."""
+    from kombu.transport.redis import Channel
+
+    put_source = inspect.getsource(Channel._put)
+    assert "self._get_message_priority(message, reverse=False)" in put_source
+    assert "client.lpush(self._q_for_pri(queue, pri), dumps(message))" in put_source
+
+    put_fanout_source = inspect.getsource(Channel._put_fanout)
+    assert "self._get_publish_topic(exchange, routing_key)" in put_fanout_source
+    assert "dumps(message)" in put_fanout_source
+
+
+def test_send_workloads_to_executor_publishes_every_workload_with_one_app():
+    app = Celery("airflow-batch-test", broker="memory://")
+
+    @app.task(name="execute_workload")
+    def execute_workload(input):
+        return None
+
+    workload_tuples = []
+    for index, queue in enumerate(("queue-a", "queue-b")):
+        key = TaskInstanceKey("dag", f"task-{index}", "run", index, -1)
+        workload = mock.Mock()
+        workload.ti.external_executor_id = f"celery-id-{index}"
+        workload.model_dump_json.return_value = f'{{"index": {index}}}'
+        workload_tuples.append((key, workload, queue, None))
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=False)
+
+    assert [result.task_id for _, _, result in results] == ["celery-id-0", "celery-id-1"]
+    with app.connection_for_read() as connection:
+        channel = connection.channel()
+        assert channel._size("queue-a") == 1
+        assert channel._size("queue-b") == 1
+
+
+def test_send_workloads_to_executor_pipelines_redis_publications():
+    channel = RecordingRedisChannel()
+    producer = mock.Mock(channel=channel)
+    producer.connection.transport.driver_type = "redis"
+    app = mock.Mock()
+    app.producer_or_acquire.return_value = contextlib.nullcontext(producer)
+
+    def publish(*, args, queue, task_id, producer):
+        producer.channel._put(queue, {"priority": 0, "body": args[0]})
+        return mock.Mock(task_id=task_id)
+
+    app.tasks = {"execute_workload": mock.Mock(**{"apply_async.side_effect": publish})}
+    workload_tuples = []
+    for index in range(2):
+        key = TaskInstanceKey("dag", f"task-{index}", "run", index, -1)
+        workload = mock.Mock()
+        workload.ti.external_executor_id = f"celery-id-{index}"
+        workload.model_dump_json.return_value = f'{{"index": {index}}}'
+        workload_tuples.append((key, workload, "default", None))
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=True)
+
+    assert [result.task_id for _, _, result in results] == ["celery-id-0", "celery-id-1"]
+    assert [command[:2] for command in channel.client.pipeline_instance.commands] == [
+        ("lpush", "default:0"),
+        ("lpush", "default:0"),
+    ]
+    assert channel.client.pipeline_instance.executed
+    assert channel.immediate_puts == []
+
+
+def test_send_workloads_to_executor_can_disable_redis_pipeline():
+    channel = RecordingRedisChannel()
+    producer = mock.Mock(channel=channel)
+    producer.connection.transport.driver_type = "redis"
+    app = mock.Mock()
+    app.producer_or_acquire.return_value = contextlib.nullcontext(producer)
+
+    def publish(*, args, queue, task_id, producer):
+        producer.channel._put(queue, {"priority": 0, "body": args[0]})
+        return mock.Mock(task_id=task_id)
+
+    app.tasks = {"execute_workload": mock.Mock(**{"apply_async.side_effect": publish})}
+    key = TaskInstanceKey("dag", "task", "run", 1, -1)
+    workload = mock.Mock()
+    workload.ti.external_executor_id = "celery-id"
+    workload.model_dump_json.return_value = '{"task": true}'
+    workload_tuples = [(key, workload, "default", None)]
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=False)
+
+    assert results[0][2].task_id == "celery-id"
+    assert channel.immediate_puts == [
+        ("default", {"priority": 0, "body": '{"task": true}'}),
+    ]
+    assert not channel.client.pipeline_instance.executed
+
+
+def test_send_workloads_to_executor_returns_one_error_per_workload_when_redis_flush_fails():
+    channel = RecordingRedisChannel()
+    channel.client.pipeline_instance.execute_error = RuntimeError("redis unavailable")
+    producer = mock.Mock(channel=channel)
+    producer.connection.transport.driver_type = "redis"
+    app = mock.Mock()
+    app.producer_or_acquire.return_value = contextlib.nullcontext(producer)
+
+    def publish(*, args, queue, task_id, producer):
+        producer.channel._put(queue, {"priority": 0, "body": args[0]})
+        return mock.Mock(task_id=task_id)
+
+    app.tasks = {"execute_workload": mock.Mock(**{"apply_async.side_effect": publish})}
+    workload_tuples = []
+    for index in range(2):
+        key = TaskInstanceKey("dag", f"task-{index}", "run", index, -1)
+        workload = mock.Mock()
+        workload.ti.external_executor_id = f"celery-id-{index}"
+        workload.model_dump_json.return_value = f'{{"index": {index}}}'
+        workload_tuples.append((key, workload, "default", None))
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=True)
+
+    assert [key for key, _, _ in results] == [item[0] for item in workload_tuples]
+    assert all(isinstance(result, celery_executor_utils.ExceptionWithTraceback) for _, _, result in results)
+    assert all(str(result.exception) == "redis unavailable" for _, _, result in results)
+
+
+def test_redis_flush_failure_preserves_an_earlier_per_workload_error():
+    channel = RecordingRedisChannel()
+    channel.client.pipeline_instance.execute_error = RuntimeError("redis unavailable")
+    producer = mock.Mock(channel=channel)
+    producer.connection.transport.driver_type = "redis"
+    app = mock.Mock()
+    app.producer_or_acquire.return_value = contextlib.nullcontext(producer)
+
+    def publish(*, args, queue, task_id, producer):
+        if '"index": 0' in args[0]:
+            raise ValueError("invalid workload")
+        producer.channel._put(queue, {"priority": 0, "body": args[0]})
+        return mock.Mock(task_id=task_id)
+
+    app.tasks = {"execute_workload": mock.Mock(**{"apply_async.side_effect": publish})}
+    workload_tuples = []
+    for index in range(2):
+        key = TaskInstanceKey("dag", f"task-{index}", "run", index, -1)
+        workload = mock.Mock()
+        workload.ti.external_executor_id = f"celery-id-{index}"
+        workload.model_dump_json.return_value = f'{{"index": {index}}}'
+        workload_tuples.append((key, workload, "default", None))
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=True)
+
+    assert isinstance(results[0][2].exception, ValueError)
+    assert str(results[0][2].exception) == "invalid workload"
+    assert isinstance(results[1][2].exception, RuntimeError)
+    assert str(results[1][2].exception) == "redis unavailable"
+
+
+def _build_mid_batch_failure_workloads():
+    """Three workloads where building the second one raises outside apply_async's guard."""
+    workload_tuples = []
+    for index in range(3):
+        key = TaskInstanceKey("dag", f"task-{index}", "run", index, -1)
+        workload = mock.Mock()
+        workload.ti.external_executor_id = f"celery-id-{index}"
+        if index == 1:
+            workload.model_dump_json.side_effect = ValueError("cannot serialize")
+        else:
+            workload.model_dump_json.return_value = f'{{"index": {index}}}'
+        workload_tuples.append((key, workload, "default", None))
+    return workload_tuples
+
+
+def test_mid_batch_failure_keeps_workloads_already_published_for_immediate_delivery():
+    producer = mock.Mock()
+    producer.connection.transport.driver_type = "memory"
+    app = mock.Mock()
+    app.producer_or_acquire.return_value = contextlib.nullcontext(producer)
+    task = mock.Mock()
+    task.apply_async.side_effect = lambda *, args, queue, task_id, producer: mock.Mock(task_id=task_id)
+    app.tasks = {"execute_workload": task}
+    workload_tuples = _build_mid_batch_failure_workloads()
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=False)
+
+    assert results[0][2].task_id == "celery-id-0"
+    assert isinstance(results[1][2], celery_executor_utils.ExceptionWithTraceback)
+    assert str(results[1][2].exception) == "cannot serialize"
+    assert isinstance(results[2][2], celery_executor_utils.ExceptionWithTraceback)
+
+
+def test_mid_batch_failure_fails_buffered_workloads_for_pipelined_delivery():
+    channel = RecordingRedisChannel()
+    producer = mock.Mock(channel=channel)
+    producer.connection.transport.driver_type = "redis"
+    app = mock.Mock()
+    app.producer_or_acquire.return_value = contextlib.nullcontext(producer)
+
+    def publish(*, args, queue, task_id, producer):
+        producer.channel._put(queue, {"priority": 0, "body": args[0]})
+        return mock.Mock(task_id=task_id)
+
+    app.tasks = {"execute_workload": mock.Mock(**{"apply_async.side_effect": publish})}
+    workload_tuples = _build_mid_batch_failure_workloads()
+
+    with mock.patch.object(celery_executor_utils, "_get_celery_app_for_workload", return_value=app):
+        results = celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=True)
+
+    # The first workload was only buffered, never flushed, so it must not be reported as sent.
+    assert all(isinstance(result, celery_executor_utils.ExceptionWithTraceback) for _, _, result in results)
+    assert not channel.client.pipeline_instance.executed
+
+
+def test_broker_supports_pipelined_publish_releases_probe_connection():
+    app = mock.Mock()
+    app.connection_for_write.return_value.transport.driver_type = "redis"
+
+    assert celery_executor_utils.broker_supports_pipelined_publish(app) is True
+    app.connection_for_write.return_value.release.assert_called_once_with()
+
+    app.connection_for_write.return_value.transport.driver_type = "amqp"
+    assert celery_executor_utils.broker_supports_pipelined_publish(app) is False
+
+
+def test_send_workloads_to_executor_does_not_share_producer_between_teams():
+    producer_a = mock.Mock()
+    producer_a.connection.transport.driver_type = "memory"
+    app_a = mock.Mock()
+    app_a.producer_or_acquire.return_value = contextlib.nullcontext(producer_a)
+    task_a = mock.Mock()
+    task_a.apply_async.return_value = mock.Mock(task_id="celery-id-a")
+    app_a.tasks = {"execute_workload": task_a}
+
+    app_b = mock.Mock()
+    task_b = mock.Mock()
+    task_b.apply_async.return_value = mock.Mock(task_id="celery-id-b")
+    app_b.tasks = {"execute_workload": task_b}
+    apps = {"team-a": app_a, "team-b": app_b}
+
+    workload_tuples = []
+    for team_name in apps:
+        key = TaskInstanceKey("dag", team_name, "run", 1, -1)
+        workload = mock.Mock()
+        workload.ti.external_executor_id = f"celery-id-{team_name[-1]}"
+        workload.model_dump_json.return_value = f'{{"team": "{team_name}"}}'
+        workload_tuples.append((key, workload, "default", team_name))
+
+    with mock.patch.object(
+        celery_executor_utils,
+        "_get_celery_app_for_workload",
+        side_effect=apps.__getitem__,
+    ):
+        celery_executor_utils.send_workloads_to_executor(workload_tuples, use_pipelining=False)
+
+    assert "producer" not in task_a.apply_async.call_args.kwargs
+    assert "producer" not in task_b.apply_async.call_args.kwargs
 
 
 def _exit_gracefully(signum, _):
     print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
     sys.exit(signum)
+
+
+def test_send_workloads_to_celery_uses_batch_publisher_inline():
+    executor = celery_executor.CeleryExecutor()
+    executor._sync_parallelism = 1
+    workload_tuples = [("key-1", "workload-1", "queue", None), ("key-2", "workload-2", "queue", None)]
+    expected = [("key-1", "args-1", "result-1"), ("key-2", "args-2", "result-2")]
+
+    with mock.patch.object(
+        celery_executor_utils,
+        "send_workload_to_executor",
+        side_effect=expected,
+    ) as send_workload:
+        assert executor._send_workloads_to_celery(workload_tuples) == expected
+
+    assert send_workload.call_args_list == [mock.call(workload_tuple) for workload_tuple in workload_tuples]
+
+
+def test_send_workloads_to_celery_uses_one_inline_batch_for_redis():
+    executor = celery_executor.CeleryExecutor()
+    executor._sync_parallelism = 4
+    executor.celery_app = mock.Mock()
+    executor.celery_app.connection_for_write.return_value.transport.driver_type = "redis"
+    workload_tuples = [
+        (
+            TaskInstanceKey("dag", f"task-{index}", "run", index, -1),
+            f"workload-{index}",
+            "queue",
+            None,
+        )
+        for index in range(4)
+    ]
+    expected = [
+        (workload_tuple[0], f"args-{index}", f"result-{index}")
+        for index, workload_tuple in enumerate(workload_tuples)
+    ]
+
+    with mock.patch.object(
+        celery_executor_utils,
+        "send_workloads_to_executor",
+        return_value=expected,
+    ) as send_batch:
+        assert executor._send_workloads_to_celery(workload_tuples) == expected
+
+    send_batch.assert_called_once_with(workload_tuples, use_pipelining=True)
+
+
+def test_send_workloads_to_celery_keeps_callbacks_outside_redis_pipeline():
+    from airflow.models.callback import CallbackKey
+
+    executor = celery_executor.CeleryExecutor()
+    executor._sync_parallelism = 4
+    executor.celery_app = mock.Mock()
+    executor.celery_app.connection_for_write.return_value.transport.driver_type = "redis"
+    callback_key = CallbackKey(id="callback-id")
+    task_key = TaskInstanceKey("dag", "task", "run", 1, -1)
+    callback_workload = (callback_key, "callback-workload", "callbacks", None)
+    task_workload = (task_key, "task-workload", "tasks", None)
+
+    def send_batches(workload_tuples, *, use_pipelining):
+        suffix = "pipelined" if use_pipelining else "immediate"
+        return [(key, workload, f"{suffix}-result") for key, workload, _, _ in workload_tuples]
+
+    with mock.patch.object(
+        executor,
+        "_send_workload_batches",
+        side_effect=send_batches,
+    ) as send_batch:
+        results = executor._send_workloads_to_celery([callback_workload, task_workload])
+
+    assert results == [
+        (callback_key, "callback-workload", "immediate-result"),
+        (task_key, "task-workload", "pipelined-result"),
+    ]
+    assert send_batch.call_args_list == [
+        mock.call([task_workload], use_pipelining=True),
+        mock.call([callback_workload], use_pipelining=False),
+    ]
+
+
+@conf_vars({("celery", "redis_pipelined_publish_enabled"): "False"})
+def test_send_workloads_to_celery_can_disable_redis_pipeline():
+    executor = celery_executor.CeleryExecutor()
+    executor._sync_parallelism = 1
+    executor.celery_app = mock.Mock()
+    executor.celery_app.connection_for_write.return_value.transport.driver_type = "redis"
+    workload_tuples = [
+        (TaskInstanceKey("dag", "task", "run", 1, -1), "workload", "queue", None),
+    ]
+    expected = [(workload_tuples[0][0], "args", "result")]
+
+    with mock.patch.object(
+        celery_executor_utils,
+        "send_workload_to_executor",
+        return_value=expected[0],
+    ) as send_workload:
+        assert executor._send_workloads_to_celery(workload_tuples) == expected
+
+    send_workload.assert_called_once_with(workload_tuples[0])
+
+
+def test_send_workloads_to_celery_preserves_per_workload_non_redis_process_path():
+    executor = celery_executor.CeleryExecutor()
+    executor._sync_parallelism = 2
+    executor.celery_app = mock.Mock()
+    executor.celery_app.connection_for_write.return_value.transport.driver_type = "amqp"
+    workload_tuples = [(f"key-{index}", f"workload-{index}", "queue", None) for index in range(5)]
+
+    send_pool = mock.MagicMock()
+    send_pool.__enter__.return_value.map.side_effect = lambda function, items, **kwargs: map(function, items)
+
+    def send_workload(workload_tuple):
+        key, workload, _, _ = workload_tuple
+        return key, workload, f"result-{key}"
+
+    with (
+        mock.patch.object(celery_executor, "ProcessPoolExecutor", return_value=send_pool),
+        mock.patch.object(
+            celery_executor_utils,
+            "send_workload_to_executor",
+            side_effect=send_workload,
+        ) as workload_publisher,
+    ):
+        results = executor._send_workloads_to_celery(workload_tuples)
+
+    assert [result[0] for result in results] == [f"key-{index}" for index in range(5)]
+    assert workload_publisher.call_args_list == [
+        mock.call(workload_tuple) for workload_tuple in workload_tuples
+    ]
+    send_pool.__enter__.return_value.map.assert_called_once_with(
+        workload_publisher,
+        workload_tuples,
+        chunksize=3,
+    )
+
+
+def test_send_workloads_to_celery_accepts_empty_batch():
+    executor = celery_executor.CeleryExecutor()
+
+    assert executor._send_workloads_to_celery([]) == []
 
 
 @pytest.fixture
@@ -539,20 +1074,28 @@ def register_signals():
 
 @pytest.mark.execution_timeout(200)
 @pytest.mark.quarantined
+@pytest.mark.skipif(sys.platform != "linux", reason="Regression covers a Linux multiprocessing hang")
 def test_send_workloads_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.
     """
     executor = celery_executor.CeleryExecutor()
+    # Force the non-pipelined broker path so the ProcessPoolExecutor machinery is exercised.
+    executor.celery_app = mock.Mock()
+    executor.celery_app.connection_for_write.return_value.transport.driver_type = "amqp"
 
-    workload = MockWorkload()
-    workload_tuples_to_send = [(None, None, None, workload) for _ in range(26)]
+    workload_tuples_to_send = [(index, None, None, None) for index in range(26)]
 
-    for _ in range(250):
-        # This loop can hang on Linux if celery_executor does something wrong with
-        # multiprocessing.
-        results = executor._send_workloads_to_celery(workload_tuples_to_send)
-        assert results == [(None, None, 1) for _ in workload_tuples_to_send]
+    with mock.patch.object(
+        celery_executor_utils,
+        "send_workload_to_executor",
+        _mock_send_workload_to_executor,
+    ):
+        for _ in range(250):
+            # This loop can hang on Linux if celery_executor does something wrong with
+            # multiprocessing.
+            results = executor._send_workloads_to_celery(workload_tuples_to_send)
+            assert results == [(index, None, 1) for index in range(26)]
 
 
 def _has_external_executor_id_field() -> bool:

@@ -360,6 +360,15 @@ config:
         type: float
         example: ~
         default: "1.0"
+      redis_pipelined_publish_enabled:
+        description: |
+          Whether to publish task workloads to a Redis broker using a pipeline. Disable this
+          option to retain the one-message-at-a-time publication path. This option has no effect
+          for other brokers or callback workloads.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
       task_acks_late:
         description: |
           If an Airflow task's execution time exceeds the visibility_timeout, Celery will re-assign the
