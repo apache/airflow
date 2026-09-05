@@ -16358,6 +16358,9 @@ components:
           - type: number
           - type: 'null'
           title: Retries
+        infra_retries:
+          type: integer
+          title: Infra Retries
         queue:
           anyOf:
           - type: string
@@ -16463,6 +16466,7 @@ components:
       - depends_on_past
       - wait_for_downstream
       - retries
+      - infra_retries
       - queue
       - pool
       - pool_slots

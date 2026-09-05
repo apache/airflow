@@ -30,6 +30,7 @@ import structlog
 import time_machine
 from sqlalchemy.orm import Session
 
+from airflow._shared.state import TaskFailureKind
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
@@ -456,6 +457,27 @@ def test_state_fail():
     executor.fail(key, info=info)
     assert not executor.running
     assert executor.event_buffer[key] == (TaskInstanceState.FAILED, info)
+
+
+def test_state_fail_carries_reason_without_requiring_kind():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", "run", 1, -1)
+    executor.running.add(key)
+
+    executor.fail(key=key, failure_kind=None, reason="WorkerLost")
+
+    assert executor.get_task_failure_info(key) == (None, "WorkerLost")
+    assert executor.get_task_failure_info(key) is None
+
+
+def test_state_fail_carries_infra_kind_and_reason():
+    executor = BaseExecutor()
+    key = TaskInstanceKey("my_dag1", "my_task1", "run", 1, -1)
+    executor.running.add(key)
+
+    executor.fail(key=key, failure_kind=TaskFailureKind.INFRA, reason="Evicted")
+
+    assert executor.get_task_failure_info(key) == (TaskFailureKind.INFRA, "Evicted")
 
 
 def test_state_success():

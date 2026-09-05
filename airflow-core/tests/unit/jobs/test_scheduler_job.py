@@ -45,6 +45,7 @@ from sqlalchemy.orm import joinedload
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow._shared.state import TaskFailureKind
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
@@ -96,6 +97,7 @@ from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import (
@@ -556,6 +558,27 @@ class TestSchedulerJob:
             ],
             any_order=True,
         )
+
+    def test_process_executor_events_discards_failure_info_without_task_instance(self):
+        executor = MockExecutor(do_update=False)
+        runner = SchedulerJobRunner(job=Job(), executors=[executor])
+        key = TaskInstanceKey(
+            dag_id="missing",
+            task_id="missing",
+            run_id="missing",
+            try_number=1,
+            map_index=-1,
+        )
+        executor.running.add(key)
+        executor.fail(
+            key=key,
+            failure_kind=TaskFailureKind.INFRA,
+            reason="Evicted",
+        )
+
+        runner._process_executor_events(executor=executor, session=settings.Session())
+
+        assert executor.task_failure_info == {}
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
     def test_process_executor_events_restarting_cleared_task(self, mock_task_callback, dag_maker):
@@ -9366,21 +9389,45 @@ class TestSchedulerJob:
         assert dispatched_callback == expected_dispatched_callback
 
     @pytest.mark.parametrize(
-        ("retries", "callback_kind", "expected"),
+        ("retries", "infra_retries", "failure_info", "callback_kind", "expected"),
         [
-            (1, "retry", TaskInstanceState.UP_FOR_RETRY),
-            (0, "failure", TaskInstanceState.FAILED),
+            (1, 0, None, "retry", TaskInstanceState.UP_FOR_RETRY),
+            (0, 0, None, "failure", TaskInstanceState.FAILED),
+            (
+                0,
+                1,
+                (TaskFailureKind.INFRA, "Evicted"),
+                "retry",
+                TaskInstanceState.UP_FOR_RETRY,
+            ),
         ],
     )
     def test_external_kill_sets_callback_type_param(
-        self, dag_maker, session, retries, callback_kind, expected
+        self,
+        dag_maker,
+        session,
+        retries,
+        infra_retries,
+        failure_info,
+        callback_kind,
+        expected,
     ):
         """External kill should mark callback type based on retry eligibility."""
         with dag_maker(dag_id=f"ext_kill_{callback_kind}", fileloc="/test_path1/"):
             if callback_kind == "retry":
-                EmptyOperator(task_id="t1", retries=retries, on_retry_callback=lambda ctx: None)
+                EmptyOperator(
+                    task_id="t1",
+                    retries=retries,
+                    infra_retries=infra_retries,
+                    on_retry_callback=lambda ctx: None,
+                )
             else:
-                EmptyOperator(task_id="t1", retries=retries, on_failure_callback=lambda ctx: None)
+                EmptyOperator(
+                    task_id="t1",
+                    retries=retries,
+                    infra_retries=infra_retries,
+                    on_failure_callback=lambda ctx: None,
+                )
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         ti = dr.get_task_instance(task_id="t1")
 
@@ -9394,6 +9441,8 @@ class TestSchedulerJob:
 
         # Executor reports task finished (FAILED) while TI still QUEUED -> external kill path
         executor.event_buffer[ti.key] = State.FAILED, None
+        if failure_info is not None:
+            executor.task_failure_info[ti.key] = failure_info
 
         self.job_runner._process_executor_events(executor=executor, session=session)
 
@@ -9401,6 +9450,13 @@ class TestSchedulerJob:
         request = self.job_runner.executor.callback_sink.send.call_args[0][0]
         assert isinstance(request, TaskCallbackRequest)
         assert request.task_callback_type == expected
+        assert request.context_from_server.max_tries == (1 if failure_info else retries)
+        assert request.context_from_server.failure_kind == (
+            failure_info[0].value if failure_info and failure_info[0] is not None else None
+        )
+        assert request.context_from_server.failure_reason == (
+            failure_info[1] if failure_info is not None else None
+        )
 
     @pytest.mark.parametrize(
         ("dag_run_bv", "dag_version_bv", "expected_bv"),
@@ -9725,6 +9781,7 @@ class TestSchedulerJob:
         # Mock the executor to simulate a task failure
         mock_executor = MagicMock(spec=BaseExecutor)
         mock_executor.has_task = mock.MagicMock(return_value=False)
+        mock_executor.get_task_failure_info.return_value = None
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 

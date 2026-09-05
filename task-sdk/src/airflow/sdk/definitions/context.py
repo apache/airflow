@@ -56,6 +56,8 @@ class Context(TypedDict, total=False):
     ds_nodash: str
     expanded_ti_count: NotRequired[int | None]
     exception: NotRequired[None | str | BaseException]
+    failure_kind: NotRequired[str | None]
+    failure_reason: NotRequired[str | None]
     inlets: list
     inlet_events: InletEventsAccessors
     logical_date: DateTime

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import TaskInstanceState
+    from airflow_shared.state import TaskFailureKind
 
 hookspec = HookspecMarker("airflow")
 
@@ -52,8 +53,18 @@ def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
+    failure_kind: TaskFailureKind | None,
+    reason: str | None,
 ):
-    """Execute when task state changes to FAIL. previous_state can be None."""
+    """
+    Execute when a task instance fails.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object
+    :param error: The exception or message associated with the failure
+    :param failure_kind: Classified cause, or ``None`` when Airflow cannot establish one
+    :param reason: Short producer-owned reason token, which may be present without a kind
+    """
 
 
 @hookspec

@@ -1981,6 +1981,7 @@ export type TaskResponse = {
     depends_on_past: boolean;
     wait_for_downstream: boolean;
     retries: number | null;
+    infra_retries: number;
     queue: string | null;
     pool: string | null;
     pool_slots: number | null;

@@ -2216,6 +2216,7 @@ class TaskResponse(BaseModel):
     depends_on_past: Annotated[bool, Field(title="Depends On Past")]
     wait_for_downstream: Annotated[bool, Field(title="Wait For Downstream")]
     retries: Annotated[float | None, Field(title="Retries")]
+    infra_retries: Annotated[int, Field(title="Infra Retries")]
     queue: Annotated[str | None, Field(title="Queue")]
     pool: Annotated[str | None, Field(title="Pool")]
     pool_slots: Annotated[float | None, Field(title="Pool Slots")]

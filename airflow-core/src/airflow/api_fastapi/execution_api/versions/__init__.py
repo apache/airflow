@@ -55,9 +55,11 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_11_30 import AddFailureCauseToTIRunContext
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-11-30", AddFailureCauseToTIRunContext),
     Version("2026-10-30", AddArgBindingsToTIRunContext, AddCallbackRunEndpoint),
     Version(
         "2026-06-30",

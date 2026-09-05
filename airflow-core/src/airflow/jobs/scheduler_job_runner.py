@@ -144,6 +144,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
+    from airflow._shared.state import TaskFailureKind
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads.types import SchedulerWorkload
@@ -1408,6 +1409,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
+        failure_info_by_key = {
+            key: executor.get_task_failure_info(key)
+            for key in event_buffer
+            if isinstance(key, TaskInstanceKey)
+        }
         num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[CallbackKey] = []
@@ -1511,6 +1517,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     job_id,
                 )
             state, info = event_buffer.pop(buffer_key)
+            executor_failure_info: tuple[TaskFailureKind | None, str | None] | None = failure_info_by_key.pop(
+                buffer_key, None
+            )
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
@@ -1547,6 +1556,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.scheduled_dttm,
                 ti.queued_by_job_id,
                 ti.pid,
+                failure_kind=(
+                    executor_failure_info[0].value
+                    if executor_failure_info and executor_failure_info[0] is not None
+                    else None
+                ),
+                failure_reason=executor_failure_info[1] if executor_failure_info else None,
             )
 
             # There are multiple scenarios why the same TI with the same try_number looks queued or
@@ -1617,6 +1632,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(state)
                     continue
                 ti.task = task
+
+                if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
+                    cls.logger().info(
+                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.",
+                        ti,
+                    )
+                    ti.max_tries = ti.try_number + ti.task.retries
+                    ti.set_state(None)
+                    continue
+
+                failure_kind, reason = executor_failure_info or (None, None)
+                ti.handle_failure(
+                    error=msg,
+                    session=session,
+                    failure_kind=failure_kind,
+                    reason=reason,
+                )
+                final_state = cast("TaskInstanceState", ti.state)
+
                 if task.has_on_retry_callback or task.has_on_failure_callback:
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
@@ -1643,31 +1677,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         version_data=_version_data,
                         ti=ti,
                         msg=msg,
-                        task_callback_type=(
-                            TaskInstanceState.UP_FOR_RETRY
-                            if ti.is_eligible_to_retry()
-                            else TaskInstanceState.FAILED
-                        ),
+                        task_callback_type=final_state,
                         context_from_server=TIRunContext(
                             dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                             max_tries=ti.max_tries,
                             variables=[],
                             connections=[],
                             xcom_keys_to_clear=[],
+                            failure_kind=failure_kind.value if failure_kind is not None else None,
+                            failure_reason=reason,
                         ),
                     )
                     executor.send_callback(request)
-
-                # Handle cleared tasks that were successfully terminated by executor
-                if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
-                    cls.logger().info(
-                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.",
-                        ti,
-                    )
-                    # Adjust max_tries to allow retry beyond normal limits (like clearing does)
-                    ti.max_tries = ti.try_number + ti.task.retries
-                    ti.set_state(None)
-                    continue
 
                 # Send email notification request to DAG processor via DB
                 if task.email and (task.email_on_failure or task.email_on_retry):
@@ -1694,19 +1715,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         version_data=_email_version_data,
                         ti=ti,
                         msg=msg,
-                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                        email_type="retry" if final_state == TaskInstanceState.UP_FOR_RETRY else "failure",
                         context_from_server=TIRunContext(
                             dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                             max_tries=ti.max_tries,
                             variables=[],
                             connections=[],
                             xcom_keys_to_clear=[],
+                            failure_kind=failure_kind.value if failure_kind is not None else None,
+                            failure_reason=reason,
                         ),
                     )
                     executor.send_callback(email_request)
-
-                # Update task state - emails are handled by DAG processor now
-                ti.handle_failure(error=msg, session=session)
 
         cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)

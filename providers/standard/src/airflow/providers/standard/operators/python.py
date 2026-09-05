@@ -70,6 +70,7 @@ from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
@@ -455,6 +456,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         BASE_SERIALIZABLE_CONTEXT_KEYS.add("task_reschedule_count")
     if AIRFLOW_V_3_3_PLUS:
         BASE_SERIALIZABLE_CONTEXT_KEYS.add("partition_key")
+    if AIRFLOW_V_3_4_PLUS:
+        BASE_SERIALIZABLE_CONTEXT_KEYS.add("failure_kind")
+        BASE_SERIALIZABLE_CONTEXT_KEYS.add("failure_reason")
 
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
