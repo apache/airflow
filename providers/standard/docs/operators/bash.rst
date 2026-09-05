@@ -298,11 +298,25 @@ a ``.json`` file instead (or use ``xcom push --json``).
 You can write directly into the directory, or use the ``xcom push`` helper command that the
 operator puts on ``PATH`` (unless ``xcom_helper_name`` is set to ``None``):
 
-.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_bash_xcom_dir]
-    :end-before: [END howto_operator_bash_xcom_dir]
+.. tab-set::
+
+    .. tab-item:: @task.bash
+        :sync: taskflow
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_decorator_bash_xcom_dir]
+            :end-before: [END howto_decorator_bash_xcom_dir]
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_bash_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_bash_xcom_dir]
+            :end-before: [END howto_operator_bash_xcom_dir]
 
 .. code-block:: bash
 

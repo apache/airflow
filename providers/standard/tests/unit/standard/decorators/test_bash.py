@@ -503,6 +503,47 @@ class TestBashDecorator:
             "uri": "s3://bucket/out",
         }
 
+    def test_xcom_dir_pushes_one_xcom_per_file(self, session):
+        """Files written into $AIRFLOW_XCOM_DIR each become their own XCom."""
+        with self.dag_maker:
+
+            @task.bash
+            def bash():
+                return """
+                    set -e
+                    printf 'a b "c"' > "$AIRFLOW_XCOM_DIR/message"
+                    xcom push --json summary '{"rows": 42}'
+                """
+
+            bash_task = bash()
+
+        ti, _ = self.execute_task(bash_task)
+
+        assert ti.xcom_pull(task_ids=ti.task_id, key="message", session=session) == 'a b "c"'
+        assert ti.xcom_pull(task_ids=ti.task_id, key="summary", session=session) == {"rows": 42}
+
+    def test_xcom_dir_pushes_when_the_command_fails(self, session):
+        """A failing @task.bash still hands its XCom directory entries to downstream tasks."""
+        with self.dag_maker:
+
+            @task.bash
+            def bash():
+                return """
+                    xcom push stage "loading"
+                    exit 1
+                """
+
+            bash_task = bash()
+
+        dag_run = self.dag_maker.create_dagrun(
+            run_id=f"bash_deco_xcom_fail_{DEFAULT_DATE.date()}", session=session
+        )
+        ti = dag_run.get_task_instance(bash_task.operator.task_id, session=session)
+        with pytest.raises(AirflowException):
+            bash_task.operator.execute(context={"ti": ti, "ds": DEFAULT_DATE.isoformat()[:10]})
+
+        assert ti.xcom_pull(task_ids=ti.task_id, key="stage", session=session) == "loading"
+
     @pytest.mark.parametrize(
         argnames=("return_val", "expected"),
         argvalues=[
