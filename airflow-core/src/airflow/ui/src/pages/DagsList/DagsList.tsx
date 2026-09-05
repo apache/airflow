@@ -34,6 +34,7 @@ import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
@@ -117,9 +118,9 @@ const createColumns = (
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      !original.is_paused &&
-      original.scheduling_state !== "draining" &&
-      Boolean(original.next_dagrun_run_after) ? (
+      original.is_paused ? undefined : original.scheduling_state === "draining" ? (
+        <DrainingBadge />
+      ) : Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
           logicalDate={original.next_dagrun_logical_date}
           runAfter={original.next_dagrun_run_after as string}

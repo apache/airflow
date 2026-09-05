@@ -24,6 +24,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { RouterLink, Tooltip } from "src/system-components";
 
 import DagRunInfo from "src/components/DagRunInfo";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { Stat } from "src/components/Stat";
 import { TeamName } from "src/components/TeamName";
 
@@ -118,7 +119,9 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
         </GridItem>
         <GridItem gridColumn={3} gridRow={1}>
           <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-            {!dag.is_paused && dag.scheduling_state !== "draining" && Boolean(dag.next_dagrun_run_after) ? (
+            {dag.is_paused ? undefined : dag.scheduling_state === "draining" ? (
+              <DrainingBadge />
+            ) : Boolean(dag.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag.next_dagrun_logical_date}
                 runAfter={dag.next_dagrun_run_after as string}

@@ -43,6 +43,7 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import BackfillBanner from "src/components/Banner/BackfillBanner";
+import DrainingBanner from "src/components/Banner/DrainingBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
@@ -257,6 +258,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
           </Flex>
         </HStack>
         <Toaster />
+        <DrainingBanner dagId={dagId} />
         <BackfillBanner dagId={dagId} />
         <Box flex={1} minH={0}>
           {isRightPanelCollapsed ? (
