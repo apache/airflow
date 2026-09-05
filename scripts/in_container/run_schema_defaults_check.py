@@ -226,12 +226,14 @@ def compare_dag_defaults() -> list[str]:
     # Check for schema defaults that don't have corresponding server defaults
     for field_name, schema_value in schema_defaults.items():
         if field_name not in server_defaults:
-            # Some schema fields are computed properties (like has_on_*_callback)
-            computed_properties = {
+            # Fields SerializedDAG carries but deliberately keeps out of get_serialized_fields(): computed
+            # ones (has_on_*_callback) and ones only a non-Python producer ever sets.
+            fields_outside_serialized_fields = {
                 "has_on_success_callback",
                 "has_on_failure_callback",
+                "is_mixed_language_dag",
             }
-            if field_name not in computed_properties:
+            if field_name not in fields_outside_serialized_fields:
                 errors.append(
                     f"DAG schema has default for '{field_name}' = {schema_value!r} but no corresponding server default"
                 )

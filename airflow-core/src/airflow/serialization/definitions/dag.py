@@ -125,6 +125,8 @@ class SerializedDAG:
     fail_fast: bool = False
     has_on_failure_callback: bool = False
     has_on_success_callback: bool = False
+    # Derived, never authored -- see ``DAG.is_mixed_language_dag``.
+    is_mixed_language_dag: bool = False
     is_paused_upon_creation: bool | None = None
     max_active_runs: int = 16
     max_active_tasks: int = 16
