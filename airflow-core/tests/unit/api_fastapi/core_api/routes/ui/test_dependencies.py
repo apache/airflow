@@ -833,6 +833,43 @@ class TestGetDependencies:
         producer_task_node_id = "task:data_dep_gate_upstream__SEPARATOR__produce_b"
         assert (producer_task_node_id, f"asset:{asset_b_id}") in edge_tuples
 
+    def test_data_dependencies_finds_all_outlets_for_task_that_also_consumes_an_asset(
+        self, dag_maker, test_client, session
+    ):
+        asset_x = Asset(uri="s3://data-dep-bucket/shared-task-x", name="data_dep_shared_task_asset_x")
+        asset_y = Asset(uri="s3://data-dep-bucket/shared-task-y", name="data_dep_shared_task_asset_y")
+        asset_z = Asset(uri="s3://data-dep-bucket/shared-task-z", name="data_dep_shared_task_asset_z")
+
+        with dag_maker(dag_id="data_dep_shared_task_upstream", serialized=True, session=session):
+            EmptyOperator(task_id="produce_x", outlets=[asset_x])
+
+        with dag_maker(dag_id="data_dep_shared_task_transform", serialized=True, session=session):
+            EmptyOperator(task_id="transform", inlets=[asset_x], outlets=[asset_y, asset_z])
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_y_id = session.scalar(
+            select(AssetModel.id).where(AssetModel.name == "data_dep_shared_task_asset_y")
+        )
+        asset_z_id = session.scalar(
+            select(AssetModel.id).where(AssetModel.name == "data_dep_shared_task_asset_z")
+        )
+
+        # Query rooted at Y: the BFS meets "transform" as a producer first (via Y), then as a
+        # consumer (via X) once the inlet lookup traces back to X.
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_y_id}", "dependency_type": "data"}
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+
+        transform_task_node_id = "task:data_dep_shared_task_transform__SEPARATOR__transform"
+        assert f"asset:{asset_z_id}" in nodes_by_id
+        assert (transform_task_node_id, f"asset:{asset_z_id}") in edge_tuples
+
     def test_data_dependencies_batches_entry_point_resolution_across_scheduled_dags(
         self, dag_maker, test_client, session
     ):
