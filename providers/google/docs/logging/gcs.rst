@@ -77,3 +77,27 @@ be used. Make sure that with those credentials, you can read and write the logs.
   They should usually be different than the ``google_cloud_default`` ones, having only capability to read and write
   the logs. For security reasons, limiting the access of the log reader to only allow log reading and writing is
   an important security measure.
+
+Compressing logs
+""""""""""""""""
+
+Task logs are plain text and compress well, so storing them gzipped can reduce the size of the bucket.
+Enable it through ``[logging] remote_task_handler_kwargs``:
+
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    remote_base_log_folder = gs://my-bucket/path/to/logs
+    remote_log_conn_id = my_gcs_conn
+    remote_task_handler_kwargs = {"gzip": true}
+
+Compressed logs are uploaded with a ``.gz`` suffix, for example
+``gs://my-bucket/path/to/logs/dag_id=example/run_id=manual__2024-01-01T00:00:00+00:00/task_id=my_task/attempt=1.log.gz``.
+Airflow decides whether to decompress a log object from that suffix rather than from the current
+value of this setting, so logs written while compression was disabled remain readable after you
+enable it, and vice versa.
+
+Note that objects stored this way are raw gzip data. Airflow decompresses them when serving logs in
+the UI, but tools reading the bucket directly get the compressed bytes and need to decompress them
+themselves, for example ``gcloud storage cat gs://my-bucket/path/to/logs/.../attempt=1.log.gz | gunzip``.
