@@ -216,9 +216,13 @@ def _create_opensearch_client(
 ) -> OpenSearch:
     parsed_url = urlparse(_format_url(host))
     resolved_port = port if port is not None else (parsed_url.port or 9200)
+    connection_kwargs: dict[str, Any] = {
+        "hosts": [{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}]
+    }
+    if username or password:
+        connection_kwargs["http_auth"] = (username, password)
     return OpenSearch(
-        hosts=[{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}],
-        http_auth=(username, password),
+        **connection_kwargs,
         **os_kwargs,
     )
 
