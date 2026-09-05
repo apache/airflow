@@ -210,6 +210,26 @@ lot less resources wasted on idle Operators or Sensors:
     :end-before: [END howto_operator_gke_start_pod_xcom_async]
 
 
+.. _howto/operator:GKEPodExecOperator:
+
+Execute a command in an existing Pod
+""""""""""""""""""""""""""""""""""""
+
+Use :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEPodExecOperator` to execute a
+command in a running container of an existing Pod using Google Cloud credentials. The operator discovers the
+GKE cluster endpoint, so a Kubernetes connection or ``kube_config`` file is not required.
+
+The Pod and container must already exist and be running. The operator streams the command output and waits for
+its exit code, but it does not create, restart, or delete the Pod. For more information about command execution,
+output, and XCom behavior, see :ref:`howto/operator:KubernetesPodExecOperator`.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_pod_exec]
+    :end-before: [END howto_operator_gke_pod_exec]
+
+
 .. _howto/operator:GKEStartJobOperator:
 
 Run a Job on a GKE cluster
