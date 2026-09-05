@@ -493,6 +493,7 @@ class Client(httpx.Client):
 def get_client(
     kind: Literal[ClientKind.CLI, ClientKind.AUTH, ClientKind.NO_AUTH] = ClientKind.CLI,
     api_token: str | None = None,
+    api_environment: str = "production",
 ):
     """
     Get CLI API client.
@@ -504,10 +505,12 @@ def get_client(
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
         if kind == ClientKind.NO_AUTH:
-            credentials = Credentials(client_kind=kind).load()
+            credentials = Credentials(client_kind=kind, api_environment=api_environment).load()
             resolved_token = None
         else:
-            credentials = Credentials(client_kind=kind, api_token=api_token).load()
+            credentials = Credentials(
+                client_kind=kind, api_token=api_token, api_environment=api_environment
+            ).load()
             resolved_token = api_token or credentials.api_token
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
@@ -539,7 +542,14 @@ def provide_api_client(
         def wrapper(*args, **kwargs) -> RT:
             if "api_client" not in kwargs:
                 api_token = getattr(args[0], "api_token", None) if args else None
-                with get_client(kind=kind, api_token=api_token) as api_client:
+                # ``args.env`` is populated by ``ARG_AUTH_ENVIRONMENT`` (default "production") on every
+                # command that accepts ``--env``/``-e``; commands without that arg (or callers that pass
+                # a bare namespace in tests) fall back to the same "production" default ``Credentials``
+                # itself uses, so behavior for callers that never pass ``--env`` is unchanged.
+                api_environment = (getattr(args[0], "env", None) if args else None) or "production"
+                with get_client(
+                    kind=kind, api_token=api_token, api_environment=api_environment
+                ) as api_client:
                     return func(*args, api_client=api_client, **kwargs)
             # The CLI API Client should be only passed for Mocking and Testing
             return func(*args, **kwargs)

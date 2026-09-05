@@ -26,7 +26,10 @@ def version_info(arg):
     """Get version information."""
     version_dict = {"airflowctl_version": airflowctl_version}
     if arg.remote:
-        with get_client(kind=ClientKind.NO_AUTH) as api_client:
+        # See the note in provide_api_client (api/client.py): "production" mirrors both
+        # ARG_AUTH_ENVIRONMENT's default and Credentials' own default.
+        api_environment = getattr(arg, "env", None) or "production"
+        with get_client(kind=ClientKind.NO_AUTH, api_environment=api_environment) as api_client:
             version_response = api_client.version.get()
             version_dict.update(version_response.model_dump())
     rich.print(version_dict)
