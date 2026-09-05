@@ -528,6 +528,27 @@ class TestDatetimeRangeFilterFactory:
         assert "now()" not in sql
         assert "coalesce" not in sql
 
+    def test_null_lower_bound_clause_is_added_to_null_branch(self):
+        """Custom NULL lower-bound clause is ANDed with the attribute IS NULL check."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        depends = datetime_range_filter_factory(
+            "start_date",
+            DagRun,
+            null_lower_bound_clause=DagRun.end_date.is_(None),
+        )
+        rf = depends(
+            lower_bound_gte=bound,
+            lower_bound_gt=None,
+            upper_bound_lte=None,
+            upper_bound_lt=None,
+        )
+
+        sql = _compile(rf.to_orm(select(DagRun)))
+
+        assert "start_date is null" in sql
+        assert "end_date is null" in sql
+        assert "start_date is null and" in sql
+
     def test_upper_bound_includes_now_for_running_tasks(self):
         """NULL branch on upper bounds uses now() to proxy the in-progress task's current time."""
         bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
