@@ -38,6 +38,7 @@ HOST = "westus.asazure.windows.net"
 SERVER_NAME = "testserver"
 DATABASE = "Adventure Works"
 REFRESH_ID = "refresh-id"
+POKE_INTERVAL = 5
 REQUEST_TIMEOUT = 30
 HEADERS = {"Authorization": "Bearer token", "Content-Type": "application/json"}
 MODULE = "airflow.providers.microsoft.azure.hooks.analysis_services"
@@ -389,6 +390,50 @@ class TestAzureAnalysisServicesHook:
 
         assert "500 Server Error" in str(error.value)
         assert 'response body: {"error":"model not found"}' in str(error.value)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "status",
+        [
+            AzureAnalysisServicesRefreshStatus.SUCCEEDED,
+            *sorted(AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES),
+        ],
+    )
+    @mock.patch(f"{MODULE}.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
+    async def test_wait_for_refresh_returns_terminal_status(self, get_refresh_status, sleep, status):
+        get_refresh_status.return_value = status
+
+        result = await AzureAnalysisServicesHook(CONN_ID).wait_for_refresh(
+            SERVER_NAME, DATABASE, REFRESH_ID, POKE_INTERVAL
+        )
+
+        assert result == status
+        get_refresh_status.assert_awaited_once_with(
+            mock.ANY,
+            server_name=SERVER_NAME,
+            database=DATABASE,
+            refresh_id=REFRESH_ID,
+        )
+        sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch.object(AzureAnalysisServicesHook, "get_refresh_status", autospec=True)
+    async def test_wait_for_refresh_polls_until_terminal_status(self, get_refresh_status, sleep):
+        get_refresh_status.side_effect = [
+            AzureAnalysisServicesRefreshStatus.NOT_STARTED,
+            AzureAnalysisServicesRefreshStatus.IN_PROGRESS,
+            AzureAnalysisServicesRefreshStatus.SUCCEEDED,
+        ]
+
+        result = await AzureAnalysisServicesHook(CONN_ID).wait_for_refresh(
+            SERVER_NAME, DATABASE, REFRESH_ID, POKE_INTERVAL
+        )
+
+        assert result == AzureAnalysisServicesRefreshStatus.SUCCEEDED
+        assert get_refresh_status.await_count == 3
+        assert sleep.await_args_list == [mock.call(POKE_INTERVAL), mock.call(POKE_INTERVAL)]
 
     @pytest.mark.asyncio
     @mock.patch.object(AzureAnalysisServicesHook, "_get_headers", autospec=True, return_value=HEADERS)

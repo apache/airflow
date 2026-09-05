@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, get_args
 from urllib.parse import quote, unquote, urlsplit
@@ -196,6 +197,24 @@ class AzureAnalysisServicesHook(BaseHook):
                 f"Azure Analysis Services returned unknown status {status!r} for refresh {refresh_id}"
             )
         return status
+
+    async def wait_for_refresh(
+        self, server_name: str, database: str, refresh_id: str, poke_interval: float
+    ) -> str:
+        """Poll until the refresh reaches a terminal status and return it."""
+        while True:
+            status = await self.get_refresh_status(
+                server_name=server_name,
+                database=database,
+                refresh_id=refresh_id,
+            )
+            self.log.info("Refresh %s status: %s", refresh_id, status)
+            if (
+                status == AzureAnalysisServicesRefreshStatus.SUCCEEDED
+                or status in AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES
+            ):
+                return status
+            await asyncio.sleep(poke_interval)
 
     async def trigger_refresh(
         self, server_name: str, database: str, refresh_type: RefreshType = "full"

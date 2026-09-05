@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -126,7 +125,7 @@ class AzureAnalysisServicesRefreshTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Start the refresh when needed, then poll it without blocking the triggerer."""
+        """Start the refresh when needed, then delegate polling to the hook."""
         hook = AzureAnalysisServicesHook(
             azure_analysis_services_conn_id=self.conn_id,
             request_timeout=self.request_timeout,
@@ -150,36 +149,25 @@ class AzureAnalysisServicesRefreshTrigger(BaseTrigger):
                 )
                 return
 
-            while True:
-                status = await hook.get_refresh_status(
-                    server_name=self.server_name,
-                    database=self.database,
-                    refresh_id=refresh_id,
-                )
-                self.log.info("Refresh %s status: %s", refresh_id, status)
-
-                if status == AzureAnalysisServicesRefreshStatus.SUCCEEDED:
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "refresh_status": status,
-                            "message": f"Refresh {refresh_id} completed successfully",
-                            "refresh_id": refresh_id,
-                        }
-                    )
-                    return
-                if status in AzureAnalysisServicesRefreshStatus.FAILURE_STATUSES:
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "refresh_status": status,
-                            "message": f"Refresh {refresh_id} finished with status {status}",
-                            "refresh_id": refresh_id,
-                        }
-                    )
-                    return
-
-                await asyncio.sleep(self.poke_interval)
+            status = await hook.wait_for_refresh(
+                server_name=self.server_name,
+                database=self.database,
+                refresh_id=refresh_id,
+                poke_interval=self.poke_interval,
+            )
+            is_success = status == AzureAnalysisServicesRefreshStatus.SUCCEEDED
+            yield TriggerEvent(
+                {
+                    "status": "success" if is_success else "error",
+                    "refresh_status": status,
+                    "message": (
+                        f"Refresh {refresh_id} completed successfully"
+                        if is_success
+                        else f"Refresh {refresh_id} finished with status {status}"
+                    ),
+                    "refresh_id": refresh_id,
+                }
+            )
         except Exception as error:
             message = str(error) or type(error).__name__
             yield TriggerEvent(

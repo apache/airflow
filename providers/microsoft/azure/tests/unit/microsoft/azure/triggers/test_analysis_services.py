@@ -99,7 +99,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
     @pytest.mark.asyncio
     async def test_emits_success_event(self, hook_class):
         hook = hook_class.return_value
-        hook.get_refresh_status.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
+        hook.wait_for_refresh.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
 
         events = [event async for event in build_trigger().run()]
 
@@ -107,10 +107,11 @@ class TestAzureAnalysisServicesRefreshTrigger:
             azure_analysis_services_conn_id=CONN_ID,
             request_timeout=REQUEST_TIMEOUT,
         )
-        hook.get_refresh_status.assert_awaited_once_with(
+        hook.wait_for_refresh.assert_awaited_once_with(
             server_name=SERVER_NAME,
             database=DATABASE,
             refresh_id=REFRESH_ID,
+            poke_interval=POKE_INTERVAL,
         )
         assert events == [
             TriggerEvent(
@@ -127,7 +128,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
     @mock.patch(f"{MODULE}.AzureAnalysisServicesHook", autospec=True)
     @pytest.mark.asyncio
     async def test_emits_error_event_for_failure_status(self, hook_class, status):
-        hook_class.return_value.get_refresh_status.return_value = status
+        hook_class.return_value.wait_for_refresh.return_value = status
 
         events = [event async for event in build_trigger().run()]
 
@@ -143,22 +144,6 @@ class TestAzureAnalysisServicesRefreshTrigger:
         ]
 
     @mock.patch(f"{MODULE}.AzureAnalysisServicesHook", autospec=True)
-    @mock.patch(f"{MODULE}.asyncio.sleep", new_callable=mock.AsyncMock)
-    @pytest.mark.asyncio
-    async def test_polls_again_after_non_terminal_status(self, sleep, hook_class):
-        hook = hook_class.return_value
-        hook.get_refresh_status.side_effect = [
-            AzureAnalysisServicesRefreshStatus.IN_PROGRESS,
-            AzureAnalysisServicesRefreshStatus.SUCCEEDED,
-        ]
-
-        events = [event async for event in build_trigger().run()]
-
-        sleep.assert_awaited_once_with(POKE_INTERVAL)
-        assert hook.get_refresh_status.await_count == 2
-        assert events[0].payload["status"] == "success"
-
-    @mock.patch(f"{MODULE}.AzureAnalysisServicesHook", autospec=True)
     @pytest.mark.asyncio
     async def test_triggers_refresh_and_yields_without_polling(self, hook_class):
         hook = hook_class.return_value
@@ -171,7 +156,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
             database=DATABASE,
             refresh_type=REFRESH_TYPE,
         )
-        hook.get_refresh_status.assert_not_awaited()
+        hook.wait_for_refresh.assert_not_awaited()
         assert events == [
             TriggerEvent(
                 {
@@ -187,7 +172,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
     @pytest.mark.asyncio
     async def test_skips_trigger_when_refresh_id_provided(self, hook_class):
         hook = hook_class.return_value
-        hook.get_refresh_status.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
+        hook.wait_for_refresh.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
 
         [event async for event in build_trigger().run()]
 
@@ -219,9 +204,9 @@ class TestAzureAnalysisServicesRefreshTrigger:
     async def test_closes_hook_on_exit(self, hook_class, fails):
         hook = hook_class.return_value
         if fails:
-            hook.get_refresh_status.side_effect = AzureAnalysisServicesRefreshException("boom")
+            hook.wait_for_refresh.side_effect = AzureAnalysisServicesRefreshException("boom")
         else:
-            hook.get_refresh_status.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
+            hook.wait_for_refresh.return_value = AzureAnalysisServicesRefreshStatus.SUCCEEDED
 
         [event async for event in build_trigger().run()]
 
@@ -230,7 +215,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
     @mock.patch(f"{MODULE}.AzureAnalysisServicesHook", autospec=True)
     @pytest.mark.asyncio
     async def test_converts_hook_exception_to_error_event(self, hook_class):
-        hook_class.return_value.get_refresh_status.side_effect = AzureAnalysisServicesRefreshException(
+        hook_class.return_value.wait_for_refresh.side_effect = AzureAnalysisServicesRefreshException(
             "API unavailable"
         )
 
@@ -250,7 +235,7 @@ class TestAzureAnalysisServicesRefreshTrigger:
     @mock.patch(f"{MODULE}.AzureAnalysisServicesHook", autospec=True)
     @pytest.mark.asyncio
     async def test_uses_exception_class_name_when_message_is_empty(self, hook_class):
-        hook_class.return_value.get_refresh_status.side_effect = RuntimeError()
+        hook_class.return_value.wait_for_refresh.side_effect = RuntimeError()
 
         events = [event async for event in build_trigger().run()]
 
