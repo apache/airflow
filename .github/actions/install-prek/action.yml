@@ -108,7 +108,23 @@ runs:
       if: steps.restore-prek-cache.outputs.stash-hit != 'true' || steps.restore-prek-tar.outputs.tar-restored != 'true'
     - name: Install prek hooks
       shell: bash
-      run: prek install-hooks
+      # prek downloads the toolchains its hooks need and does not retry, so a transient 5xx
+      # from a download host fails the job before it does any work.
+      run: |
+        max_attempts=4
+        for attempt in $(seq 1 "${max_attempts}"); do
+          if prek install-hooks; then
+            exit 0
+          fi
+          if [[ "${attempt}" -eq "${max_attempts}" ]]; then
+            break
+          fi
+          delay=$((attempt * 20))
+          echo "prek install-hooks failed (attempt ${attempt}/${max_attempts}), retrying in ${delay}s"
+          sleep "${delay}"
+        done
+        echo "prek install-hooks failed after ${max_attempts} attempts" >&2
+        exit 1
       working-directory: ${{ github.workspace }}
     - name: "Show prek log"
       shell: bash
