@@ -157,6 +157,11 @@ Parameters
      - Embedding model identifier in ``provider:name`` form, e.g.
        ``openai:text-embedding-3-small``. Only required when calling
        ``get_embedding_model()``.
+   * - ``embedding_kwargs``
+     - ``None``
+     - Additional keyword arguments passed to the embedding model constructor,
+       for example ``{"dimensions": 128}``. Connection credentials and the
+       base URL take precedence over matching values.
 
 Dependencies
 ------------

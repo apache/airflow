@@ -87,6 +87,10 @@ Parameters
    * - ``embed_conn_id``
      - Optional separate connection ID for the embedding provider. Falls
        back to ``llm_conn_id`` when ``None``.
+   * - ``embedding_kwargs``
+     - Additional keyword arguments passed to the embedding model constructor
+       when ``embed_model`` is a string or omitted. Options such as
+       ``dimensions`` must match those used to build the index. Templated.
    * - ``top_k``
      - Number of top similarity results to return (default 5).
 
