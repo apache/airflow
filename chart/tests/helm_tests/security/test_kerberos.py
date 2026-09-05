@@ -60,6 +60,52 @@ class TestKerberos:
             "spec.template.spec.containers[0].env", docs[0]
         )
 
+    def test_kerberos_sidecar_is_native_sidecar(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
+        )
+
+    def test_kerberos_init_and_sidecar_coexistence(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "kerberosInitContainer": {"enabled": True},
+                        "kerberosSidecar": {"enabled": True},
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0])
+        init_names = [c["name"] for c in init_containers]
+        assert "kerberos-init" in init_names
+        assert "worker-kerberos" in init_names
+        assert init_names.index("kerberos-init") < init_names.index("worker-kerberos")
+        assert init_containers[-1]["name"] == "worker-kerberos"
+
+        kerberos_init = jmespath.search(
+            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0]
+        )
+        worker_kerberos = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert "restartPolicy" not in kerberos_init
+        assert worker_kerberos.get("restartPolicy") == "Always"
+
     def test_kerberos_sidecar_resources(self):
         docs = render_chart(
             values={
@@ -76,9 +122,9 @@ class TestKerberos:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[2].resources", docs[0]) == {
-            "requests": {"cpu": "200m", "memory": "200Mi"}
-        }
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].resources", docs[0]
+        ) == {"requests": {"cpu": "200m", "memory": "200Mi"}}
 
     def test_keberos_sidecar_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -196,12 +242,12 @@ class TestKerberos:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search(
-                "spec.template.spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
-            )
-            == expected
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
         )
+        assert sidecar is not None
+        assert sidecar.get("restartPolicy") == "Always"
+        assert sidecar.get("startupProbe") == expected
 
     @pytest.mark.parametrize(
         "override",

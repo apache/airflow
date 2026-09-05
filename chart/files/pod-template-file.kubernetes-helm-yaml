@@ -101,6 +101,62 @@ spec:
         {{- include "custom_airflow_environment" . | indent 6 }}
         {{- include "standard_airflow_environment" . | indent 6 }}
     {{- end }}
+    {{- if .Values.workers.kubernetes.kerberosSidecar.enabled }}
+    - name: worker-kerberos
+      image: {{ template "airflow_image" . }}
+      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+      restartPolicy: Always
+      securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 8 }}
+      {{- if $containerLifecycleHooksKerberosSidecar }}
+      lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 8 }}
+      {{- end }}
+      args: ["kerberos"]
+      resources: {{- toYaml .Values.workers.kubernetes.kerberosSidecar.resources | nindent 8 }}
+      {{- if .Values.workers.kubernetes.kerberosSidecar.startupProbe.enabled }}
+      startupProbe:
+        exec:
+          command: ["klist", "-s"]
+        timeoutSeconds: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.timeoutSeconds }}
+        initialDelaySeconds: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.initialDelaySeconds }}
+        periodSeconds: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.periodSeconds }}
+        failureThreshold: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.failureThreshold }}
+      {{- end }}
+      volumeMounts:
+        - name: logs
+          mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
+        {{- include "airflow_config_mount" . | nindent 8 }}
+        - name: config
+          mountPath: {{ .Values.kerberos.configPath | quote }}
+          subPath: krb5.conf
+          readOnly: true
+        - name: kerberos-keytab
+          subPath: "kerberos.keytab"
+          mountPath: {{ .Values.kerberos.keytabPath | quote }}
+          readOnly: true
+        - name: kerberos-ccache
+          mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
+          readOnly: false
+        {{- if .Values.volumeMounts }}
+          {{- tpl (toYaml .Values.volumeMounts) . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.workers.kubernetes.extraVolumeMounts }}
+          {{- tpl (toYaml .Values.workers.kubernetes.extraVolumeMounts) . | nindent 8 }}
+        {{- end }}
+        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+          {{- include "airflow_api_server_config_mount" . | nindent 8 }}
+        {{- end }}
+      envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
+      env:
+        - name: KRB5_CONFIG
+          value:  {{ .Values.kerberos.configPath | quote }}
+        - name: KRB5CCNAME
+          value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- include "custom_airflow_environment" . | indent 6 }}
+        {{- include "standard_airflow_environment" . | indent 6 }}
+    {{- end }}
   containers:
     - envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
@@ -165,61 +221,6 @@ spec:
           mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
           readOnly: true
         {{- end }}
-    {{- if .Values.workers.kubernetes.kerberosSidecar.enabled }}
-    - name: worker-kerberos
-      image: {{ template "airflow_image" . }}
-      imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-      securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 8 }}
-      {{- if $containerLifecycleHooksKerberosSidecar }}
-      lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 8 }}
-      {{- end }}
-      args: ["kerberos"]
-      resources: {{- toYaml .Values.workers.kubernetes.kerberosSidecar.resources | nindent 8 }}
-      {{- if .Values.workers.kubernetes.kerberosSidecar.startupProbe.enabled }}
-      startupProbe:
-        exec:
-          command: ["klist", "-s"]
-        timeoutSeconds: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.timeoutSeconds }}
-        initialDelaySeconds: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.initialDelaySeconds }}
-        periodSeconds: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.periodSeconds }}
-        failureThreshold: {{ .Values.workers.kubernetes.kerberosSidecar.startupProbe.failureThreshold }}
-      {{- end }}
-      volumeMounts:
-        - name: logs
-          mountPath: {{ template "airflow_logs" . }}
-          {{- if .Values.logs.persistence.subPath }}
-          subPath: {{ .Values.logs.persistence.subPath }}
-          {{- end }}
-        {{- include "airflow_config_mount" . | nindent 8 }}
-        - name: config
-          mountPath: {{ .Values.kerberos.configPath | quote }}
-          subPath: krb5.conf
-          readOnly: true
-        - name: kerberos-keytab
-          subPath: "kerberos.keytab"
-          mountPath: {{ .Values.kerberos.keytabPath | quote }}
-          readOnly: true
-        - name: kerberos-ccache
-          mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-          readOnly: false
-        {{- if .Values.volumeMounts }}
-          {{- tpl (toYaml .Values.volumeMounts) . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.workers.kubernetes.extraVolumeMounts }}
-          {{- tpl (toYaml .Values.workers.kubernetes.extraVolumeMounts) . | nindent 8 }}
-        {{- end }}
-        {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
-          {{- include "airflow_api_server_config_mount" . | nindent 8 }}
-        {{- end }}
-      envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
-      env:
-        - name: KRB5_CONFIG
-          value:  {{ .Values.kerberos.configPath | quote }}
-        - name: KRB5CCNAME
-          value:  {{ include "kerberos_ccache_path" . | quote }}
-        {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "standard_airflow_environment" . | indent 6 }}
-    {{- end }}
     {{- if .Values.workers.kubernetes.extraContainers }}
       {{- tpl (toYaml .Values.workers.kubernetes.extraContainers) . | nindent 4 }}
     {{- end }}
