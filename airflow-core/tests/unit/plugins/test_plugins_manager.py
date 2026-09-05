@@ -212,13 +212,16 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]
+            external_views = [
+                {"name": "A-view", "href": "/a", "url_route": "/test_route"},
+                {"name": "A-no_url_route", "href": "/b"},
+            ]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
 
-            external_views = [{"url_route": "/test_route"}]
-            react_apps = [{"url_route": "/test_route"}]
+            external_views = [{"name": "B-view", "href": "/b", "url_route": "/test_route"}]
+            react_apps = [{"name": "B-react", "bundle_url": "/b.js", "url_route": "/test_route"}]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
@@ -241,8 +244,14 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]
-            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]
+            external_views = [
+                [{"nested_list": "/test_route"}],
+                {"name": "A-view", "href": "/a", "url_route": "/test_route"},
+            ]
+            react_apps = [
+                [{"nested_list": "/test_route"}],
+                {"name": "A-react", "bundle_url": "/a.js", "url_route": "/test_route_react_app"},
+            ]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA()]),
@@ -256,8 +265,10 @@ class TestPluginsManager:
             plugin_a = next(
                 plugin for plugin in plugins_manager._get_plugins()[0] if plugin.name == "test_plugin_a"
             )
-            assert plugin_a.external_views == [{"url_route": "/test_route"}]
-            assert plugin_a.react_apps == [{"url_route": "/test_route_react_app"}]
+            assert plugin_a.external_views == [{"name": "A-view", "href": "/a", "url_route": "/test_route"}]
+            assert plugin_a.react_apps == [
+                {"name": "A-react", "bundle_url": "/a.js", "url_route": "/test_route_react_app"}
+            ]
             assert len(external_views) == 1
             assert len(react_apps) == 1
 
@@ -312,7 +323,13 @@ class TestPluginsManager:
             name = "test_plugin"
 
             external_views = [
-                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag",
+                    "applies_to": applies_to,
+                }
             ]
 
         with (
@@ -323,7 +340,9 @@ class TestPluginsManager:
 
             external_views, _ = plugins_manager._get_ui_plugins()
 
-            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+            assert external_views == [
+                {"name": "Scoped", "href": "/scoped", "url_route": "/scoped", "destination": "dag"}
+            ]
 
         assert caplog.record_tuples == [
             (
@@ -341,6 +360,7 @@ class TestPluginsManager:
             react_apps = [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -360,6 +380,7 @@ class TestPluginsManager:
             assert react_apps == [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -382,6 +403,7 @@ class TestPluginsManager:
             external_views = [
                 {
                     "name": "Scoped",
+                    "href": "/scoped",
                     "url_route": "/scoped",
                     "destination": "task",
                     "applies_to": {

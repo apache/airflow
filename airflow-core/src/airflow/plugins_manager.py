@@ -30,7 +30,13 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
+    ExternalViewDict as ExternalViewDict,
+    FastAPIAppDict as FastAPIAppDict,
+    FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
@@ -174,7 +180,7 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: str) -> None:
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
     """
     Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
 
@@ -221,17 +227,17 @@ def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: st
 
 
 @cache
-def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
+def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     """Collect extension points for the UI."""
     log.debug("Initialize UI plugin")
 
     seen_url_routes: dict[str, str | None] = {}
 
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
     for plugin in _get_plugins()[0]:
-        external_views_to_remove = []
-        react_apps_to_remove = []
+        external_views_to_remove: list[ExternalViewDict] = []
+        react_apps_to_remove: list[ReactAppDict] = []
         for external_view in plugin.external_views:
             if not isinstance(external_view, dict):
                 log.warning(
@@ -282,10 +288,10 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
             react_apps.append(react_app)
             seen_url_routes[url_route] = plugin.name
 
-        for item in external_views_to_remove:
-            plugin.external_views.remove(item)
-        for item in react_apps_to_remove:
-            plugin.react_apps.remove(item)
+        for external_view in external_views_to_remove:
+            plugin.external_views.remove(external_view)
+        for react_app in react_apps_to_remove:
+            plugin.react_apps.remove(react_app)
     return external_views, react_apps
 
 
