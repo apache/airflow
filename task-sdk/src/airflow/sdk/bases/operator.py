@@ -137,13 +137,13 @@ Internal use only.
 def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple[dict, ParamsDict]:
     if not dag:
         return {}, ParamsDict()
-    dag_args = copy.copy(dag.default_args)
+    dag_args = copy.deepcopy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
     dag_params._fill_missing_param_source("dag")
     if task_group:
         if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
             raise TypeError("default_args must be a mapping")
-        dag_args.update(task_group.default_args)
+        dag_args.update(copy.deepcopy(task_group.default_args))
     return dag_args, dag_params
 
 
@@ -1148,7 +1148,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
         self.executor = executor
-        self.executor_config = executor_config or {}
+        self.executor_config = copy.deepcopy(executor_config) if executor_config else {}
         self.run_as_user = run_as_user
         # TODO:
         # self.retries = parse_retries(retries)
