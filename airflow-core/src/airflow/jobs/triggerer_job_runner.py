@@ -1664,9 +1664,14 @@ class TriggerRunner:
                     event_stream = trigger.run()
 
                 async for event in event_stream:
-                    await self.log.ainfo(
-                        "Trigger fired event", name=self.triggers[trigger_id]["name"], result=event
+                    # Avoid logging the full payload at INFO — it may contain sensitive data and
+                    # inflate log storage on every execution. DEBUG is used instead so developers
+                    # can still inspect the payload when needed without cluttering production logs.
+                    await self.log.ainfo("Trigger fired event", name=self.triggers[trigger_id]["name"])
+                    await self.log.adebug(
+                        "Trigger fired event payload", name=self.triggers[trigger_id]["name"], result=event
                     )
+
                     self.triggers[trigger_id]["events"] += 1
                     seq: int | None = None
                     if shared_key is not None:
