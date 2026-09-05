@@ -998,6 +998,25 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
         assert op.project_id == GCP_PROJECT
         assert op.cluster_name == "cluster_name"
+        assert op.cluster_config is None
+        assert op._legacy_cluster_kwargs["num_workers"] == 2
+        assert op._legacy_cluster_kwargs["zone"] == "zone"
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_deprecated_kwargs_cluster_config_built_in_execute(self, mock_hook, to_dict_mock):
+        mock_hook.return_value.create_cluster.result.return_value = None
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = DataprocCreateClusterOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                project_id=GCP_PROJECT,
+                cluster_name="cluster_name",
+                num_workers=2,
+                zone="zone",
+            )
+        assert op.cluster_config is None
+        op.execute(context=self.mock_context)
         assert op.cluster_config["worker_config"]["num_instances"] == 2
         assert "zones/zone" in op.cluster_config["master_config"]["machine_type_uri"]
 
