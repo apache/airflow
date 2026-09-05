@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, 
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrContainerTrigger,
+    EmrServerlessJobSensorTrigger,
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
@@ -115,7 +116,7 @@ class EmrBaseSensor(AwsBaseSensor[EmrHook]):
 
 class EmrServerlessJobSensor(AwsBaseSensor[EmrServerlessHook]):
     """
-    Poll the state of the job run until it reaches a terminal state; fails if the job run fails.
+    Poll the state of the job run until it reaches one of the target states; fails if the job run fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -123,7 +124,8 @@ class EmrServerlessJobSensor(AwsBaseSensor[EmrServerlessHook]):
 
     :param application_id: application_id to check the state of
     :param job_run_id: job_run_id to check the state of
-    :param target_states: a set of states to wait for, defaults to 'SUCCESS'
+    :param target_states: a set of states to wait for, defaults to ``SUCCESS``.
+    :param deferrable: Run sensor in the deferrable mode.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -146,12 +148,41 @@ class EmrServerlessJobSensor(AwsBaseSensor[EmrServerlessHook]):
         application_id: str,
         job_run_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.JOB_SUCCESS_STATES),
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         self.target_states = target_states
         self.application_id = application_id
         self.job_run_id = job_run_id
+        self.deferrable = deferrable
         super().__init__(**kwargs)
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context=context)
+        elif not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=EmrServerlessJobSensorTrigger(
+                    application_id=self.application_id,
+                    job_run_id=self.job_run_id,
+                    target_states=self.target_states,
+                    waiter_delay=int(self.poke_interval),
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while running job: {validated_event}")
+
+        self.log.info("EMR Serverless job %s reached a target state.", self.job_run_id)
 
     def poke(self, context: Context) -> bool:
         response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
