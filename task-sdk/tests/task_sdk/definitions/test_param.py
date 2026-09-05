@@ -410,7 +410,11 @@ class TestProcessParamsMasksPassword:
         resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
 
         assert resolved["api_token"] == "super-secret-value"
-        mock_mask_secret.assert_called_once_with("super-secret-value")
+        # Called twice for the same value: once against dagrun_conf before the debug log line,
+        # once against the final resolved_params after validate(). Both calls register the same
+        # string with the masker, which is harmless (SecretsMasker patterns are a set, not a list).
+        assert mock_mask_secret.call_count == 2
+        mock_mask_secret.assert_called_with("super-secret-value")
 
     @patch("airflow.sdk.definitions.param.mask_secret")
     def test_does_not_mask_plain_string_param(self, mock_mask_secret):
@@ -443,3 +447,25 @@ class TestProcessParamsMasksPassword:
 
         assert resolved["undeclared_key"] == "value"
         mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.logger")
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_dagrun_conf_value_before_debug_log(self, mock_mask_secret, mock_logger):
+        # Regression test: dag_run_conf_overrides_params=True (the default) logs dagrun_conf via
+        # logger.debug(). mask_secret() must be called before that log line, not after, or the
+        # SecretsMasker filter won't yet know to redact the value from the emitted log record.
+        manager = MagicMock()
+        manager.attach_mock(mock_mask_secret, "mask_secret")
+        manager.attach_mock(mock_logger.debug, "debug")
+
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        call_names = [call[0] for call in manager.mock_calls]
+        assert "mask_secret" in call_names
+        assert "debug" in call_names
+        assert call_names.index("mask_secret") < call_names.index("debug"), (
+            "mask_secret must be registered before the debug log referencing dagrun_conf"
+        )
