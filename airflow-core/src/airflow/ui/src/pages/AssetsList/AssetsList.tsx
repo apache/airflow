@@ -45,6 +45,7 @@ import { DependencyPopover } from "./DependencyPopover";
 
 const assetsFilterKeys: Array<FilterableSearchParamsKeys> = [
   SearchParamsKeys.GROUP_PATTERN,
+  SearchParamsKeys.HAS_EVENTS,
   SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE,
 ];
 
@@ -149,6 +150,8 @@ export const AssetsList = () => {
 
   const lastAssetEventTimestampGte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE);
   const lastAssetEventTimestampLte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE);
+  const hasEventsRaw = searchParams.get(SearchParamsKeys.HAS_EVENTS);
+  const hasEvents = hasEventsRaw === "true" ? true : hasEventsRaw === "false" ? false : undefined;
   const groupArg = useAdvancedSearchArg({
     patternApiKey: "groupPattern",
     prefixApiKey: "groupPrefixPattern",
@@ -159,6 +162,7 @@ export const AssetsList = () => {
   const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
     {
       ...groupArg,
+      hasEvents,
       lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
       lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
       limit: pagination.pageSize,

@@ -209,6 +209,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: has_events
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter assets with at least one AssetEvent
+          title: Has Events
+        description: Filter assets with at least one AssetEvent
       - name: only_active
         in: query
         required: false

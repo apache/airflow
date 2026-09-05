@@ -421,6 +421,7 @@ export class AssetService {
      * @param data.groupPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.dagIds
+     * @param data.hasEvents Filter assets with at least one AssetEvent
      * @param data.onlyActive
      * @param data.lastAssetEventTimestampGte
      * @param data.lastAssetEventTimestampGt
@@ -445,6 +446,7 @@ export class AssetService {
                 group_pattern: data.groupPattern,
                 group_prefix_pattern: data.groupPrefixPattern,
                 dag_ids: data.dagIds,
+                has_events: data.hasEvents,
                 only_active: data.onlyActive,
                 last_asset_event_timestamp_gte: data.lastAssetEventTimestampGte,
                 last_asset_event_timestamp_gt: data.lastAssetEventTimestampGt,

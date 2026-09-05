@@ -77,6 +77,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.EXECUTOR_CLASS
   | SearchParamsKeys.FAVORITE
   | SearchParamsKeys.GROUP_PATTERN
+  | SearchParamsKeys.HAS_EVENTS
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE

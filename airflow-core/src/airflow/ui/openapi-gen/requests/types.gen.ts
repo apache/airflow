@@ -3073,6 +3073,10 @@ export type GetAssetsUiData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     groupPrefixPattern?: string | null;
+    /**
+     * Filter assets with at least one AssetEvent
+     */
+    hasEvents?: boolean | null;
     lastAssetEventTimestampGt?: string | null;
     lastAssetEventTimestampGte?: string | null;
     lastAssetEventTimestampLt?: string | null;
