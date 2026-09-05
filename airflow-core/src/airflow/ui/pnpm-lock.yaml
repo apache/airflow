@@ -269,8 +269,8 @@ importers:
         specifier: ^6.10.2
         version: 6.10.2(eslint@10.9.1(jiti@1.21.7))
       eslint-plugin-perfectionist:
-        specifier: ^5.10.1
-        version: 5.10.1(eslint@10.9.1(jiti@1.21.7))(typescript@6.0.3)
+        specifier: ^5.11.0
+        version: 5.11.0(eslint@10.9.1(jiti@1.21.7))(typescript@6.0.3)
       eslint-plugin-prettier:
         specifier: ^5.5.6
         version: 5.5.6(eslint-config-prettier@10.1.8(eslint@10.9.1(jiti@1.21.7)))(eslint@10.9.1(jiti@1.21.7))(prettier@3.9.6)
@@ -281,8 +281,8 @@ importers:
         specifier: ^7.1.1
         version: 7.1.1(eslint@10.9.1(jiti@1.21.7))
       eslint-plugin-react-refresh:
-        specifier: ^0.5.4
-        version: 0.5.4(eslint@10.9.1(jiti@1.21.7))
+        specifier: ^0.5.5
+        version: 0.5.5(eslint@10.9.1(jiti@1.21.7))
       eslint-plugin-unicorn:
         specifier: ^73.0.0
         version: 73.0.0(eslint@10.9.1(jiti@1.21.7))
@@ -2464,8 +2464,8 @@ packages:
     peerDependencies:
       eslint: ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9
 
-  eslint-plugin-perfectionist@5.10.1:
-    resolution: {integrity: sha512-Kprsp9Us0GqAesYaAIzUViw57xYp5WBqzXrcE0Mtww++E5fexWXYBipMuuD7yvyH4vvpBH0+oJ+OMAmZ0oYXkw==}
+  eslint-plugin-perfectionist@5.11.0:
+    resolution: {integrity: sha512-kZV1otBcu4xT5R1p+0x1N1wRv4pS+OIbxrA47n5a1fTnN3MWbexOx5eQgbQhGyCNbpvF/rqrbnpkGjumHF+Y0Q==}
     engines: {node: ^20.0.0 || >=22.0.0}
     peerDependencies:
       eslint: ^8.45.0 || ^9.0.0 || ^10.0.0
@@ -2490,8 +2490,8 @@ packages:
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0 || ^10.0.0
 
-  eslint-plugin-react-refresh@0.5.4:
-    resolution: {integrity: sha512-7bqTKz7T0r+HKWFarNXByDE9/5+73wI2ru+M3zuqGbR7s/b/5/pQJXZoufWlrngqGqoZto73ZkGumCdLxk+4rw==}
+  eslint-plugin-react-refresh@0.5.5:
+    resolution: {integrity: sha512-vG7yLURXNvCHy0FBdbZRwIu0BLPJMlUUJS2Ep7ud9w1YCLftFZtuEjyjhym0Qq9yuZ6LJUitNlu/hMk0gakXAw==}
     peerDependencies:
       eslint: ^9 || ^10
 
@@ -7283,7 +7283,7 @@ snapshots:
       safe-regex-test: 1.1.0
       string.prototype.includes: 2.0.1
 
-  eslint-plugin-perfectionist@5.10.1(eslint@10.9.1(jiti@1.21.7))(typescript@6.0.3):
+  eslint-plugin-perfectionist@5.11.0(eslint@10.9.1(jiti@1.21.7))(typescript@6.0.3):
     dependencies:
       '@typescript-eslint/utils': 8.68.0(eslint@10.9.1(jiti@1.21.7))(typescript@6.0.3)
       eslint: 10.9.1(jiti@1.21.7)
@@ -7312,7 +7312,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-react-refresh@0.5.4(eslint@10.9.1(jiti@1.21.7)):
+  eslint-plugin-react-refresh@0.5.5(eslint@10.9.1(jiti@1.21.7)):
     dependencies:
       eslint: 10.9.1(jiti@1.21.7)
 
