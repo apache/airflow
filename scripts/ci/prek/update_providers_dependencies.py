@@ -212,7 +212,10 @@ if __name__ == "__main__":
     for key in sorted(ALL_DEPENDENCIES.keys()):
         unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
         unique_sorted_dependencies[key]["devel-deps"] = sorted(ALL_DEPENDENCIES[key]["devel-deps"])
-        unique_sorted_dependencies[key]["plugins"] = sorted(ALL_DEPENDENCIES[key]["plugins"])
+        unique_sorted_dependencies[key]["plugins"] = sorted(
+            ALL_DEPENDENCIES[key]["plugins"],
+            key=lambda plugin: plugin["name"] if isinstance(plugin, dict) else plugin,
+        )
         unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
             set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
         )
