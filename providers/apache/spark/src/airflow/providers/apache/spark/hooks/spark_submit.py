@@ -55,6 +55,29 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
+# Values to mask are anchored at a token boundary: without the lookbehind the leading
+# \S*? retries at every offset in the string, which is what made masking pathologically
+# slow on long arguments and log lines. Anchoring does not make this strictly O(n) -- a
+# token packing many "secret"/"password" occurrences still backtracks quadratically --
+# but it removes the retry-per-offset factor and is orders of magnitude faster in
+# practice. A quote only closes the value when whitespace or the end of the string
+# follows it, so quoted values may themselves contain quotes.
+_SENSITIVE_VALUE_RE = re.compile(
+    r"(?<!\S)(\S*?(?:secret|password)\S*?(?:=|\s+))"
+    r"(?:'((?:[^']|'(?!\s|$))*)'|\"((?:[^\"]|\"(?!\s|$))*)\"|(\S*))",
+    re.IGNORECASE,
+)
+
+
+def _mask_sensitive_value(match: re.Match) -> str:
+    key = match.group(1)
+    if match.group(2) is not None:
+        return f"{key}'******'"
+    if match.group(3) is not None:
+        return f'{key}"******"'
+    return f"{key}******"
+
+
 # The JVM's default uncaught-exception handler always prints this exact shape.
 _EXCEPTION_START_RE = re.compile(r'Exception in thread "[^"]*"')
 
@@ -516,26 +539,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
-        connection_cmd_masked = re.sub(
-            r"("
-            r"\S*?"  # Match all non-whitespace characters before...
-            r"(?:secret|password)"  # ...literally a "secret" or "password"
-            # word (not capturing them).
-            r"\S*?"  # All non-whitespace characters before either...
-            r"(?:=|\s+)"  # ...an equal sign or whitespace characters
-            # (not capturing them).
-            r"(['\"]?)"  # An optional single or double quote.
-            r")"  # This is the end of the first capturing group.
-            r"(?:(?!\2\s).)*"  # All characters between optional quotes
-            # (matched above); if the value is quoted,
-            # it may contain whitespace.
-            r"(\2)",  # Optional matching quote.
-            r"\1******\3",
-            " ".join(connection_cmd),
-            flags=re.I,
-        )
-
-        return connection_cmd_masked
+        return _SENSITIVE_VALUE_RE.sub(_mask_sensitive_value, " ".join(connection_cmd))
 
     @property
     def _submit_log_tail(self) -> str:
