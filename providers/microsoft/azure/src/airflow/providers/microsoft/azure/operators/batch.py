@@ -57,8 +57,8 @@ class AzureBatchOperator(BaseOperator):
     :param batch_start_task: A Task specified to run on each Compute Node as it joins the Pool.
         The Task runs when the Compute Node is added to the Pool or
         when the Compute Node is restarted.
-    :param batch_max_retries: The number of times to retry this batch operation before it's
-        considered a failed operation. Default is 3
+    :param batch_max_retries: The number of times a request to the Batch service is retried
+        before it is considered failed. Default is 3
     :param batch_task_resource_files: A list of files that the Batch service will
         download to the Compute Node before running the command line.
     :param batch_task_output_files: A list of files that the Batch service will upload
@@ -184,7 +184,7 @@ class AzureBatchOperator(BaseOperator):
     @cached_property
     def hook(self) -> AzureBatchHook:
         """Create and return an AzureBatchHook (cached)."""
-        return AzureBatchHook(self.azure_batch_conn_id)
+        return AzureBatchHook(self.azure_batch_conn_id, batch_max_retries=self.batch_max_retries)
 
     def _check_inputs(self) -> Any:
         if not self.vm_publisher:
