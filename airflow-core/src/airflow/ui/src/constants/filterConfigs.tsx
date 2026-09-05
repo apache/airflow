@@ -94,7 +94,8 @@ export const useFilterConfigs = () => {
   });
 
   const runStateOptions = withoutAllOption(dagRunStateOptions.items).map((option) => ({
-    label: <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>,
+    label: translate(option.label),
+    menuItem: <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>,
     value: option.value,
   }));
 
@@ -377,11 +378,15 @@ export const useFilterConfigs = () => {
       label: translate("hitl:requiredActionState"),
       options: [
         {
-          label: <StateBadge state="awaiting_input">{translate("hitl:filters.response.pending")}</StateBadge>,
+          label: translate("hitl:filters.response.pending"),
+          menuItem: (
+            <StateBadge state="awaiting_input">{translate("hitl:filters.response.pending")}</StateBadge>
+          ),
           value: "false",
         },
         {
-          label: <StateBadge state="success">{translate("hitl:filters.response.received")}</StateBadge>,
+          label: translate("hitl:filters.response.received"),
+          menuItem: <StateBadge state="success">{translate("hitl:filters.response.received")}</StateBadge>,
           value: "true",
         },
       ],
@@ -412,7 +417,8 @@ export const useFilterConfigs = () => {
       icon: <MdPlayArrow />,
       label: translate("common:dagRun.runType"),
       options: withoutAllOption(dagRunTypeOptions.items).map((option) => ({
-        label: (
+        label: translate(option.label),
+        menuItem: (
           <Box alignItems="center" display="inline-flex" gap={1}>
             <RunTypeIcon runType={option.value as DagRunType} />
             {translate(option.label)}
@@ -466,7 +472,10 @@ export const useFilterConfigs = () => {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
       options: withoutAllOption(taskInstanceStateOptions.items).map((option) => ({
-        label: <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>,
+        label: translate(option.label),
+        menuItem: (
+          <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>
+        ),
         value: option.value,
       })),
       type: FilterTypes.SELECT,
