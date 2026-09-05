@@ -1,0 +1,1 @@
+Add a "Has Events" filter to the Assets list view that filters assets with or without at least one Asset Event.

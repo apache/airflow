@@ -1353,6 +1353,30 @@ class _HasAssetScheduleFilter(BaseParam[bool]):
         return cls().set_value(has_asset_schedule)
 
 
+class _HasAssetEventsFilter(BaseParam[bool]):
+    """Filter assets that have at least one AssetEvent."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        asset_event_subquery = sql_select(AssetEvent.asset_id).distinct()
+
+        if self.value:
+            # Filter assets that have at least one AssetEvent
+            return select.where(AssetModel.id.in_(asset_event_subquery))
+
+        # Filter assets that do NOT have any AssetEvent
+        return select.where(AssetModel.id.notin_(asset_event_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        has_events: bool | None = Query(None, description="Filter assets with at least one AssetEvent"),
+    ) -> _HasAssetEventsFilter:
+        return cls().set_value(has_events)
+
+
 class _AssetDependencyFilter(BaseParam[str]):
     """Filter Dags by specific asset dependencies."""
 
@@ -1386,6 +1410,7 @@ class _AssetDependencyFilter(BaseParam[str]):
 
 
 QueryHasAssetScheduleFilter = Annotated[_HasAssetScheduleFilter, Depends(_HasAssetScheduleFilter.depends)]
+QueryHasAssetEventsFilter = Annotated[_HasAssetEventsFilter, Depends(_HasAssetEventsFilter.depends)]
 QueryAssetDependencyFilter = Annotated[_AssetDependencyFilter, Depends(_AssetDependencyFilter.depends)]
 
 

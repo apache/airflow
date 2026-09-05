@@ -793,6 +793,51 @@ class TestGetAssetsUi:
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["s3_asset"]
 
+    def test_filter_by_has_events_true(self, test_client, session):
+        evented = AssetModel(name="evented", uri="s3://bucket/he", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/hn", group="asset")
+        session.add_all([evented, never])
+        session.add(AssetActive.for_asset(evented))
+        session.add(AssetActive.for_asset(never))
+        session.flush()
+
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        response = test_client.get("/assets?has_events=true")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["evented"]
+
+    def test_filter_by_has_events_false(self, test_client, session):
+        evented = AssetModel(name="evented", uri="s3://bucket/hfe", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/hfn", group="asset")
+        session.add_all([evented, never])
+        for asset in (evented, never):
+            session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        response = test_client.get("/assets?has_events=false")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["never"]
+
+    def test_has_events_absent_returns_all_assets(self, test_client, session):
+        evented = AssetModel(name="evented", uri="s3://bucket/ae", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/an", group="asset")
+        session.add_all([evented, never])
+        for asset in (evented, never):
+            session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assert sorted(a["name"] for a in response.json()["assets"]) == ["evented", "never"]
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_filter_by_dag_ids(self, test_client, session):
         referenced = AssetModel(name="referenced", uri="s3://bucket/referenced", group="asset")
