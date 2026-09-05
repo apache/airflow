@@ -90,11 +90,26 @@ class BaseWorkloadSchema(BaseModel):
     def generate_token(cls, sub_id: str, generator: JWTGenerator | None = None) -> str:
         if not generator:
             return ""
-        valid_for = conf.getfloat("scheduler", "task_queued_timeout")
+        valid_for = cls._workload_token_valid_for()
         return generator.generate(
             extras={"sub": sub_id, "scope": cls.token_scope},
             valid_for=valid_for,
         )
+
+    @staticmethod
+    def _workload_token_valid_for() -> float:
+        """
+        Return how long (in seconds) a freshly-minted workload token should be valid for.
+
+        ``[execution_api] workload_token_expiration_time`` lets operators decouple the workload
+        token's lifetime from ``[scheduler] task_queued_timeout``. When unset, we fall back to
+        ``task_queued_timeout`` to preserve the previous coupled behavior. See
+        https://github.com/apache/airflow/issues/72469.
+        """
+        valid_for = conf.getfloat("execution_api", "workload_token_expiration_time", fallback=None)
+        if valid_for is not None:
+            return valid_for
+        return conf.getfloat("scheduler", "task_queued_timeout")
 
 
 class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
