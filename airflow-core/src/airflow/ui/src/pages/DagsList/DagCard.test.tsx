@@ -380,12 +380,13 @@ describe("DagCard", () => {
     expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
   });
 
-  it("DagCard should not render next run timestamp for a draining Dag", () => {
+  it("DagCard should render the draining badge instead of the next run timestamp for a draining Dag", () => {
     renderCard({ ...mockDag, scheduling_state: "draining" });
     const nextRunElement = screen.getByTestId("next-run");
 
     expect(nextRunElement).toBeInTheDocument();
     expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+    expect(screen.getByTestId("draining-badge")).toBeInTheDocument();
   });
 
   it("DagCard should render StateBadge as success", () => {
