@@ -462,7 +462,14 @@ def _delete_variable(key: str) -> None:
     SecretCache.invalidate_variable(key)
 
 
-class ConnectionAccessor:
+class _NonIterableAccessor:
+    """Keep debugger iteration probes from falling through dynamic ``__getattr__`` methods."""
+
+    def __iter__(self) -> Iterator[Any]:
+        raise TypeError(f"'{type(self).__name__}' object is not iterable")
+
+
+class ConnectionAccessor(_NonIterableAccessor):
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
@@ -493,7 +500,7 @@ class ConnectionAccessor:
             return default_conn
 
 
-class VariableAccessor:
+class VariableAccessor(_NonIterableAccessor):
     """Wrapper to access Variable values in template."""
 
     def __init__(self, deserialize_json: bool) -> None:
@@ -920,7 +927,7 @@ class AssetStateStoreAccessors:
         return f"<AssetStateStoreAccessors [{', '.join(parts)}]>"
 
 
-class MacrosAccessor:
+class MacrosAccessor(_NonIterableAccessor):
     """Wrapper to access Macros module lazily."""
 
     _macros_module = None
