@@ -40,6 +40,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel
+from structlog.contextvars import clear_contextvars, get_contextvars
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
@@ -6791,3 +6792,126 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
         "task_id": "t",
         "run_type": "manual",
     }
+
+
+def _make_startup_details(make_ti_context, tags) -> tuple[StartupDetails, BaseOperator]:
+    """Build a StartupDetails/task pair for a Dag carrying the given tags."""
+    with DAG("logging_tagged_dag", tags=tags):
+        task = BaseOperator(task_id="t")
+
+    ti = TaskInstance(
+        id=uuid7(),
+        task_id="t",
+        dag_id="logging_tagged_dag",
+        run_id="c",
+        try_number=1,
+        dag_version_id=uuid7(),
+        queue="default",
+    )
+    what = StartupDetails(
+        ti=ti,
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    return what, task
+
+
+def _startup_with_dag_tags(
+    mocked_parse, mock_supervisor_comms, make_ti_context, tags
+) -> tuple[dict, TaskInstance]:
+    """
+    Run startup() for a Dag carrying the given tags.
+
+    Returns the bound structlog contextvars alongside the TaskInstance used, so tests can assert
+    against ground-truth identifier values. Contextvars are cleared before returning so a leftover
+    binding can't leak into unrelated tests that run afterwards.
+    """
+    what, task = _make_startup_details(make_ti_context, tags)
+    mock_supervisor_comms._get_response.return_value = what
+    mocked_parse(what, "logging_tagged_dag", task)
+
+    clear_contextvars()
+    try:
+        startup(get_startup_details())
+        return get_contextvars(), what.ti
+    finally:
+        clear_contextvars()
+
+
+def test_dag_tags_in_logs_bound_before_dag_file_parsed_log(
+    mocked_parse, mock_supervisor_comms, make_ti_context
+):
+    """Dag tags must be bound before the 'Dag file parsed' debug log, so that event can carry them too."""
+    what, task = _make_startup_details(make_ti_context, ["env:prod"])
+    mock_supervisor_comms._get_response.return_value = what
+    mocked_parse(what, "logging_tagged_dag", task)
+
+    snapshot = {}
+
+    def _record_context_at_parse_complete(event, *args, **kwargs):
+        if event == "Dag file parsed":
+            snapshot.update(get_contextvars())
+
+    clear_contextvars()
+    try:
+        with (
+            conf_vars({("logging", "dag_tags_in_logs"): "True"}),
+            patch(
+                "airflow.sdk.execution_time.task_runner.log.debug",
+                side_effect=_record_context_at_parse_complete,
+            ),
+        ):
+            startup(get_startup_details())
+    finally:
+        clear_contextvars()
+
+    assert snapshot.get("env") == "prod"
+
+
+def test_dag_tags_in_logs_disabled_by_default(mocked_parse, mock_supervisor_comms, make_ti_context):
+    """With the flag off (the default), Dag tags must not leak into the log context."""
+    context, _ = _startup_with_dag_tags(
+        mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation"]
+    )
+    assert "env" not in context
+    assert "validation" not in context
+
+
+@conf_vars({("logging", "dag_tags_in_logs"): "True"})
+def test_dag_tags_in_logs_without_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context):
+    context, ti = _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, [])
+    assert context["dag_id"] == ti.dag_id
+
+
+@conf_vars({("logging", "dag_tags_in_logs"): "True"})
+def test_dag_tags_in_logs_with_standalone_and_key_value_tags(
+    mocked_parse, mock_supervisor_comms, make_ti_context
+):
+    context, _ = _startup_with_dag_tags(
+        mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation"]
+    )
+    assert context["env"] == "prod"
+    assert context["validation"] == ""
+
+
+@pytest.mark.parametrize("reserved_key", ["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"])
+@conf_vars({("logging", "dag_tags_in_logs"): "True"})
+def test_dag_tags_in_logs_reserved_keys_not_overridden(
+    mocked_parse, mock_supervisor_comms, make_ti_context, reserved_key
+):
+    """A Dag tag matching any built-in TI identifier name must not override the real identifier."""
+    context, ti = _startup_with_dag_tags(
+        mocked_parse, mock_supervisor_comms, make_ti_context, [f"{reserved_key}:evil"]
+    )
+    expected = {
+        "ti_id": str(ti.id),
+        "dag_id": ti.dag_id,
+        "task_id": ti.task_id,
+        "run_id": ti.run_id,
+        "try_number": ti.try_number,
+        "map_index": ti.map_index,
+    }
+    assert context[reserved_key] == expected[reserved_key]
