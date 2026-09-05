@@ -4685,6 +4685,7 @@ llamaindex = [
     { name = "llama-index-llms-openai" },
 ]
 mcp = [
+    { name = "httpx2" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
 ]
 openai = [
@@ -4717,6 +4718,7 @@ dev = [
     { name = "apache-airflow-providers-git" },
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
+    { name = "httpx2" },
     { name = "langchain" },
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
@@ -4741,6 +4743,7 @@ requires-dist = [
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
+    { name = "httpx2", marker = "extra == 'mcp'", specifier = ">=2.5.0" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
@@ -4772,6 +4775,7 @@ dev = [
     { name = "apache-airflow-providers-git", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "httpx2", specifier = ">=2.5.0" },
     { name = "langchain", specifier = ">=1.0.0" },
     { name = "llama-index-core", specifier = ">=0.13.0" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
