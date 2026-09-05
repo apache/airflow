@@ -524,6 +524,7 @@ SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PAT
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-ui-dist.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "pycache.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH = (
     SCRIPTS_CI_DOCKER_COMPOSE_PATH / "providers-and-tests-sources.yml"
 )
@@ -540,6 +541,9 @@ BREEZE_SOURCES_PATH = BREEZE_ROOT_PATH / "src"
 BREEZE_DOC_PATH = BREEZE_ROOT_PATH / "doc"
 BREEZE_IMAGES_PATH = BREEZE_DOC_PATH / "images"
 AIRFLOW_HOME_PATH = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
+
+
+PYCACHE_VOLUME_NAME = "airflow-pycache-volume"
 
 
 def create_volume_if_missing(volume_name: str):
@@ -567,6 +571,10 @@ def create_volume_if_missing(volume_name: str):
 
 def create_mypy_volume_if_needed():
     create_volume_if_missing("mypy-cache-volume")
+
+
+def create_pycache_volume_if_needed():
+    create_volume_if_missing(PYCACHE_VOLUME_NAME)
 
 
 def create_directories_and_files() -> None:

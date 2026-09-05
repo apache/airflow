@@ -409,6 +409,7 @@ def _shell_params_for_openlineage(
     shell_params.use_airflow_version = None
     shell_params.restart = False
     shell_params.include_mypy_volume = False
+    shell_params.include_pycache_volume = False
     shell_params.quiet = True
     shell_params.project_name = None
     shell_params.tty = "disabled"

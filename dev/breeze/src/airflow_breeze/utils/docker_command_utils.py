@@ -39,6 +39,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    create_pycache_volume_if_needed,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.shared_options import get_verbose
@@ -1097,6 +1098,8 @@ def enter_shell(
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
+    if shell_params.include_pycache_volume:
+        create_pycache_volume_if_needed()
     shell_params.print_badge_info()
     cmd = ["docker", "compose"]
     if shell_params.quiet:

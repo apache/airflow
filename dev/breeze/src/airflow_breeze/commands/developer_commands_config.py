@@ -332,6 +332,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--cleanup-pycache",
                 "--cleanup-build-cache",
             ],
         },
