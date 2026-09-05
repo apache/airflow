@@ -38,6 +38,17 @@ branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
 
+# Protect escaped backslashes before removing active U+0000 escapes so literal ``\u0000`` text survives.
+_SANITIZED_DATA_TO_JSONB = r"""
+            replace(
+                replace(
+                    replace(data::text, '\\', chr(1)),
+                    '\u0000', ''
+                ),
+                chr(1), '\\'
+            )::JSONB
+"""
+
 
 def upgrade():
     """Apply Change serialized_dag data column to JSONB for PostgreSQL."""
@@ -56,13 +67,11 @@ def upgrade():
                 """)
             )
 
-        # Convert the data column from JSON to JSONB
-        # This is safe because the column already contains JSON data
         op.execute(
-            """
+            f"""
             ALTER TABLE serialized_dag
             ALTER COLUMN data TYPE JSONB
-            USING data::JSONB
+            USING {_SANITIZED_DATA_TO_JSONB}
             """
         )
 
