@@ -65,48 +65,30 @@ describe("buildBundleManifest", () => {
     expect(Object.keys(buildBundleManifest(registry).dags)).toEqual(["dag_a"]);
   });
 
-  it("rejects an empty dagId", () => {
-    const registry = new DagRegistry(buildDag(""));
-    expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
-  });
-
-  it("rejects an empty taskId", () => {
-    const registry = new DagRegistry(buildDag("example_dag", ""));
-    expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
-  });
-
-  it.each(["   ", "\t", "my dag", "a/b", "task@1"])(
-    "rejects a dagId with characters no Python dag_id allows: %j",
+  // The server would reject these ids. The manifest keeps them and
+  // airflow-ts-pack warns at build time instead of failing the pack.
+  it.each(["", "   ", "\t", "my dag", "a/b", "task@1", "d".repeat(251)])(
+    "keeps a dagId the server would reject visible in the manifest: %j",
     (dagId) => {
-      const registry = new DagRegistry(buildDag(dagId));
-      expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
+      const manifest = buildBundleManifest(new DagRegistry(buildDag(dagId, "t1")));
+      expect(manifest.dags[dagId]).toEqual({ tasks: ["t1"] });
     },
   );
 
-  it.each(["   ", "\t", "my task", "a/b", "task@1"])(
-    "rejects a taskId with characters no Python task_id allows: %j",
+  // An empty taskId is absent: the bundle schema requires task ids to be
+  // non-empty strings, so airflow-ts-pack rejects it instead of warning.
+  it.each(["   ", "\t", "my task", "a/b", "task@1", "t".repeat(251)])(
+    "keeps a taskId the server would reject visible in the manifest: %j",
     (taskId) => {
-      const registry = new DagRegistry(buildDag("example_dag", taskId));
-      expect(() => buildBundleManifest(registry)).toThrowError(/must be made of alphanumeric/);
+      const manifest = buildBundleManifest(new DagRegistry(buildDag("example_dag", taskId)));
+      expect(manifest.dags["example_dag"]).toEqual({ tasks: [taskId] });
     },
   );
 
-  it("rejects a dagId longer than 250 characters", () => {
-    const registry = new DagRegistry(buildDag("d".repeat(251)));
-    expect(() => buildBundleManifest(registry)).toThrowError(
-      /must be less than 250 characters, not 251/,
-    );
-  });
-
-  it("rejects a taskId longer than 250 characters", () => {
-    const registry = new DagRegistry(buildDag("example_dag", "t".repeat(251)));
-    expect(() => buildBundleManifest(registry)).toThrowError(
-      /must be less than 250 characters, not 251/,
-    );
-  });
-
-  it("does not validate key format when Dags are only registered, not packed", () => {
-    expect(() => new DagRegistry(buildDag("bad dag id", "bad task id"))).not.toThrow();
+  it("rejects a non-string dagId before object-key coercion hides it", () => {
+    const dag = new Dag(123 as unknown as string);
+    dag.task("t1", async () => undefined);
+    expect(() => buildBundleManifest(new DagRegistry(dag))).toThrowError(/Dag ID must be a string/);
   });
 });
 

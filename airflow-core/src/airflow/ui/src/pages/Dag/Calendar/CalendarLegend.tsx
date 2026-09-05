@@ -20,7 +20,7 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 
 import { LegendIcon } from "./LegendIcon";
 import { PLANNED_COLOR } from "./calendarUtils";

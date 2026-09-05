@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -194,6 +195,24 @@ describe("FilterBar abandoned filters", () => {
     // Absent rather than merely collapsed: a collapsed pill also has no textbox.
     await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
     expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();
+  });
+});
+
+describe("FilterBar text filter input testid", () => {
+  it("exposes the actively-editing pill's input via a stable, unique testid", async () => {
+    render(<FilterBar configs={[textConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-dag_id"));
+
+    // Regression guard for #72433: e2e tests locate this input via `filter-pill-input`
+    // rather than `page.locator("div").filter({ hasText })`, which matched any ancestor
+    // whose descendant text contained the filter label and broke once the filter bar's
+    // DOM was restructured. `getByTestId` throws if more than one match is found, so this
+    // also proves the testid stays unique while a pill is being edited.
+    const input = screen.getByTestId("filter-pill-input");
+
+    expect(input).toBe(screen.getByRole("textbox"));
   });
 });
 

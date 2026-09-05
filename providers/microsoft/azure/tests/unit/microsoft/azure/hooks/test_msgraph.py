@@ -462,6 +462,33 @@ class TestKiotaRequestAdapterHook:
             assert mock_get_http_response.call_count == 1
 
     @pytest.mark.asyncio
+    async def test_assert_allowed_host_refuses_another_host(self):
+        with patch_hook_and_request_adapter(mock_json_response(200, {})):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(ValueError, match="attacker.example"):
+                await hook.assert_allowed_host("https://attacker.example/v1.0/users")
+
+    @pytest.mark.asyncio
+    async def test_assert_allowed_host_accepts_a_relative_url(self):
+        with patch_hook_and_request_adapter(mock_json_response(200, {})):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            await hook.assert_allowed_host("users?$skip=100")
+
+    @pytest.mark.asyncio
+    async def test_assert_allowed_host_accepts_a_host_listed_in_the_connection(self):
+        with patch_hook_and_request_adapter(
+            mock_json_response(200, {}),
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id, allowed_hosts="graph.microsoft.com,other.example"
+            ),
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            await hook.assert_allowed_host("https://other.example/v1.0/users")
+
+    @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
         """Test that sensitive data is masked when building request adapter."""
         with patch_hook(

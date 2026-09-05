@@ -21,7 +21,8 @@ import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
+
+import { Modal } from "src/system-components";
 
 import { ErrorAlert } from "./ErrorAlert";
 import { WarningAlert } from "./WarningAlert";
@@ -44,32 +45,32 @@ export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGEr
     : "";
 
   return (
-    <Dialog.Root data-testid="dag-warnings-modal" onOpenChange={onClose} open={open} scrollBehavior="inside">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <HStack fontSize="xl">
+    <Modal
+      data-testid="dag-warnings-modal"
+      headerProps={{
+        children: (
+          <HStack gap={2}>
             <LuFileWarning />
-            <Heading>{heading}</Heading>
+            <Heading fontSize="lg">{heading}</Heading>
           </HStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body>
-          {Boolean(error) && (
-            <VStack>
-              <ErrorAlert error={error} />
-              <Spacer />
-            </VStack>
-          )}
-          {warnings?.map((warning) => (
-            <VStack key={warning.message}>
-              <WarningAlert warning={warning} />
-              <Spacer />
-            </VStack>
-          ))}
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+        ),
+      }}
+      onOpenChange={onClose}
+      open={open}
+      scrollBehavior="inside"
+    >
+      {Boolean(error) && (
+        <VStack>
+          <ErrorAlert error={error} />
+          <Spacer />
+        </VStack>
+      )}
+      {warnings?.map((warning) => (
+        <VStack key={warning.message}>
+          <WarningAlert warning={warning} />
+          <Spacer />
+        </VStack>
+      ))}
+    </Modal>
   );
 };

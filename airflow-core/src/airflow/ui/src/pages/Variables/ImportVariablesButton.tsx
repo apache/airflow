@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/system-components";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 
@@ -38,21 +38,9 @@ const ImportVariablesButton = ({ disabled }: Props) => {
         <FiUploadCloud /> {translate("variables.import.title")}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl"> {translate("variables.import.title")} </Heading>
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body width="full">
-            <ImportVariablesForm onClose={onClose} />
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+      <Modal onOpenChange={onClose} open={open} title={translate("variables.import.title")}>
+        <ImportVariablesForm onClose={onClose} />
+      </Modal>
     </>
   );
 };

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from types import MappingProxyType
 from unittest import mock
 
 import pytest
@@ -194,11 +195,33 @@ class TestExasolHook:
 
     def test_run_with_parameters(self):
         sql = "SQL"
-        parameters = ("param1", "param2")
+        parameters = {"param1": "val1", "param2": "val2"}
         self.db_hook.run(sql, autocommit=True, parameters=parameters)
         self.conn.set_autocommit.assert_called_once_with(True)
         self.conn.execute.assert_called_once_with(sql, parameters)
         self.conn.commit.assert_not_called()
+
+    def test_run_normalizes_mapping_parameters(self):
+        # pyexasol 2.x types ``query_params`` as ``dict``, so any other mapping
+        # is copied into one before it reaches the driver.
+        self.db_hook.run("SQL", parameters=MappingProxyType({"param1": "val1"}))
+        passed = self.conn.execute.call_args.args[1]
+        assert passed == {"param1": "val1"}
+        assert type(passed) is dict
+
+    def test_run_rejects_positional_parameters(self):
+        # pyexasol substitutes named placeholders via ``**query_params``, so a
+        # sequence never reached the driver intact.
+        with pytest.raises(TypeError, match="named query parameters only"):
+            self.db_hook.run("SQL", parameters=("param1", "param2"))
+
+    def test_get_records_rejects_statement_list(self):
+        with pytest.raises(TypeError, match="single statement"):
+            self.db_hook.get_records(["SQL1", "SQL2"])
+
+    def test_get_first_rejects_statement_list(self):
+        with pytest.raises(TypeError, match="single statement"):
+            self.db_hook.get_first(["SQL1", "SQL2"])
 
     def test_run_multi_queries(self):
         sql = ["SQL1", "SQL2"]

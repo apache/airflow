@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { PartitionedDagRunResponse } from "openapi/requests/types.gen";
+
+import type * as Ui from "src/system-components";
+
 import type { TableState } from "src/components/DataTable/types";
-import type * as Ui from "src/components/ui";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";
@@ -42,39 +46,31 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: () => 2,
 }));
 
-vi.mock("src/components/ui", async (importOriginal) => {
+vi.mock("src/system-components", async (importOriginal) => {
   const actual = await importOriginal<typeof Ui>();
-  // Must stay inside the factory: vitest hoists vi.mock above module scope, so an outer-scope
-  // component cannot be referenced here.
-  // eslint-disable-next-line unicorn/consistent-function-scoping
-  const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {
     ...actual,
-    Dialog: {
-      ...actual.Dialog,
-      Body: DialogPart,
-      CloseTrigger: () => undefined,
-      Content: DialogPart,
-      Header: DialogPart,
-      Root: ({
-        children,
-        onOpenChange,
-        open,
-      }: {
-        readonly children?: ReactNode;
-        readonly onOpenChange?: () => void;
-        readonly open?: boolean;
-      }) =>
-        open ? (
-          <div>
-            <button onClick={onOpenChange} type="button">
-              close dialog
-            </button>
-            {children}
-          </div>
-        ) : undefined,
-    },
+    Modal: ({
+      children,
+      onOpenChange,
+      open,
+      title,
+    }: {
+      readonly children?: ReactNode;
+      readonly onOpenChange?: () => void;
+      readonly open?: boolean;
+      readonly title?: ReactNode;
+    }) =>
+      open ? (
+        <div>
+          <button onClick={onOpenChange} type="button">
+            close dialog
+          </button>
+          {title}
+          {children}
+        </div>
+      ) : undefined,
   };
 });
 

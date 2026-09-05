@@ -16,15 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import type { ButtonProps } from "@chakra-ui/react";
+import { HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { DagRunMutableStates, DAGRunResponse } from "openapi/requests/types.gen";
+
+import { IconButton, Menu, Tooltip } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Menu, Tooltip } from "src/components/ui";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
@@ -34,9 +39,9 @@ import MarkRunAsDialog from "./MarkRunAsDialog";
 type Props = {
   readonly dagRun: DAGRunResponse;
   readonly isHotkeyEnabled?: boolean;
-};
+} & ButtonProps;
 
-const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
+export const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DagRunMutableStates>("success");
   const { t: translate } = useTranslation();
@@ -64,10 +69,10 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   });
 
   return (
-    <Box>
+    <div>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }} tooltipLabel={label}>
         <Menu.Trigger asChild>
-          <IconButton aria-label={label} data-testid="mark-run-as-button">
+          <IconButton {...rest} aria-label={label} data-testid="mark-run-as-button">
             <HStack gap={1} mx={1}>
               <LuCheck />
               <span>/</span>
@@ -109,8 +114,6 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
       </Menu.Root>
 
       <MarkRunAsDialog dagRun={dagRun} onClose={onClose} open={open} state={state} />
-    </Box>
+    </div>
   );
 };
-
-export default MarkRunAsButton;

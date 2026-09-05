@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Icon, Input, InputGroup, type InputGroupProps } from "@chakra-ui/react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+
+import { Box, Icon, Input, InputGroup, type InputGroupProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiSearch, FiX } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
+import { IconButton } from "src/system-components";
+
 import { AdvancedSearchToggle, type AdvancedSearchToggleProps } from "src/components/AdvancedSearchToggle";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
-
-import { IconButton } from "./ui";
 
 const debounceDelay = 200;
 

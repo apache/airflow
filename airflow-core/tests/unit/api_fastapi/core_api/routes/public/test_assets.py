@@ -40,8 +40,10 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset
@@ -59,6 +61,7 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
+    clear_db_teams,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
@@ -132,6 +135,30 @@ def _create_assets_with_watchers(session, num: int = 2) -> list[AssetModel]:
 
     session.add_all(watchers)
     session.add_all(AssetActive.for_asset(a) for a in assets)
+    session.commit()
+    return assets
+
+
+def _create_assets_with_team_references(session, num: int = 2, refs_per_asset: int = 1) -> list[AssetModel]:
+    """Create ``num`` assets, each scheduling and produced by ``refs_per_asset`` team-owned Dags."""
+    bundle = DagBundleModel(name="team-bundle-assets")
+    bundle.teams.append(Team(name="team-assets"))
+    session.add(bundle)
+    session.flush()
+    assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(num)]
+    session.add_all(assets)
+    session.add_all(AssetActive.for_asset(asset) for asset in assets)
+    session.flush()
+    for i, asset in enumerate(assets):
+        for j in range(refs_per_asset):
+            session.add_all(
+                [
+                    DagModel(dag_id=f"scheduled_dag{i}_{j}", bundle_name="team-bundle-assets"),
+                    DagModel(dag_id=f"producing_dag{i}_{j}", bundle_name="team-bundle-assets"),
+                    DagScheduleAssetReference(dag_id=f"scheduled_dag{i}_{j}", asset=asset),
+                    TaskOutletAssetReference(dag_id=f"producing_dag{i}_{j}", task_id="task1", asset=asset),
+                ]
+            )
     session.commit()
     return assets
 
@@ -292,6 +319,7 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
         clear_db_dags()
+        clear_db_teams()
         clear_db_dag_bundles()
         clear_db_logs()
 
@@ -527,6 +555,45 @@ class TestGetAssets(TestAssets):
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
+
+    def test_assets_references_team_name_none_without_multi_team(self, test_client, session):
+        """Without multi-team enabled, references keep ``team_name`` of ``None`` and no lookup happens."""
+        _create_assets_with_team_references(session)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset0"]["scheduled_dags"][0]["team_name"] is None
+        assert assets["asset0"]["producing_tasks"][0]["team_name"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_assets_references_include_team_name(self, test_client, session):
+        """With multi-team enabled, the owning team is attached to scheduled Dags and producing tasks."""
+        _create_assets_with_team_references(session)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset0"]["scheduled_dags"][0]["team_name"] == "team-assets"
+        assert assets["asset0"]["producing_tasks"][0]["team_name"] == "team-assets"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        _create_assets_with_team_references(session, num=5)
+
+        with assert_queries_count(9):
+            response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        assets = {asset["name"]: asset for asset in response.json()["assets"]}
+        assert assets["asset4"]["scheduled_dags"][0]["team_name"] == "team-assets"
+        assert assets["asset4"]["producing_tasks"][0]["team_name"] == "team-assets"
 
     @pytest.mark.parametrize(
         ("params", "expected_assets"),
@@ -1617,6 +1684,24 @@ class TestGetAssetEndpoint(TestAssets):
             "last_asset_event": {"id": None, "timestamp": None},
         }
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_query_count_with_multi_team(self, test_client, session):
+        """Resolving reference ``team_name`` must not add a query per referencing Dag.
+
+        A missing loader option does not raise: :attr:`DagModel.team_name` falls back to the
+        cached ``get_team_name`` resolver instead of tripping ``lazy="raise"``, so only a pinned
+        count catches the regression.
+        """
+        asset = _create_assets_with_team_references(session, num=1, refs_per_asset=5)[0]
+
+        with assert_queries_count(8):
+            response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {ref["team_name"] for ref in body["scheduled_dags"]} == {"team-assets"}
+        assert {ref["team_name"] for ref in body["producing_tasks"]} == {"team-assets"}
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/1")
         assert response.status_code == 401
@@ -2484,6 +2569,36 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
 
+    def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(" ".join(statement.split()).upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.delete(f"/assets/{asset.id}/queuedEvents")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 204
+        deletes = [s for s in executed_statements if s.startswith("DELETE")]
+        assert deletes, "Expected the endpoint to issue a DELETE statement"
+        assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
+        assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
+            "No SELECT may precede a DELETE to collect the keys it is about to remove"
+        )
+
 
 class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_delete_should_respond_204(self, test_client, session, create_dummy_dag):
@@ -2511,6 +2626,36 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.delete("/dags/random/assets/random/queuedEvents")
         assert response.status_code == 403
+
+    def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag_id, asset.id, session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(" ".join(statement.split()).upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.delete(f"/dags/{dag_id}/assets/{asset.id}/queuedEvents")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 204
+        deletes = [s for s in executed_statements if s.startswith("DELETE")]
+        assert deletes, "Expected the endpoint to issue a DELETE statement"
+        assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
+        assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
+            "No SELECT may precede a DELETE to collect the keys it is about to remove"
+        )
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
