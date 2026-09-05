@@ -2099,10 +2099,12 @@ def _send_error_email_notification(
 
     email_backend = conf.get("email", "email_backend", fallback=_DEFAULT_EMAIL_BACKEND)
     notifier_description = "SmtpNotifier"
+    from_email = None
 
     if email_backend and email_backend != _DEFAULT_EMAIL_BACKEND:
         notifier_class: _ErrorEmailNotifier = _LegacyEmailBackendNotifier
         notifier_description = f"configured email_backend {email_backend!r}"
+        from_email = conf.get("email", "from_email", fallback="airflow@airflow")
     else:
         try:
             from airflow.providers.smtp.notifications.smtp import SmtpNotifier
@@ -2161,7 +2163,7 @@ def _send_error_email_notification(
             to=to_emails,
             subject=subject,
             html_content=html_content,
-            from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
+            from_email=from_email,
         )
         notifier(email_context)
     except Exception:
