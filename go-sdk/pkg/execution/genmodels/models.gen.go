@@ -634,6 +634,33 @@ const DagRunTypeManual DagRunType = "manual"
 const DagRunTypeOperatorTriggered DagRunType = "operator_triggered"
 const DagRunTypeScheduled DagRunType = "scheduled"
 
+// Store skipped intervals callback data for execution by the Dag processor.
+type DagSkippedIntervalsCallbackRequest struct {
+	// BundleName corresponds to the JSON schema field "bundle_name".
+	BundleName string `msgpack:"bundle_name"`
+
+	// BundleVersion corresponds to the JSON schema field "bundle_version".
+	BundleVersion interface{} `msgpack:"bundle_version"`
+
+	// DagID corresponds to the JSON schema field "dag_id".
+	DagID string `msgpack:"dag_id"`
+
+	// Filepath corresponds to the JSON schema field "filepath".
+	Filepath string `msgpack:"filepath"`
+
+	// Msg corresponds to the JSON schema field "msg".
+	Msg interface{} `msgpack:"msg,omitempty"`
+
+	// SkippedRange corresponds to the JSON schema field "skipped_range".
+	SkippedRange []interface{} `msgpack:"skipped_range"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
+}
+
 type Data map[string]interface{}
 
 type Defaults []string
