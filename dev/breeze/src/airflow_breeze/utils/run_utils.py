@@ -543,6 +543,52 @@ def _find_occupied_local_ports(ports: Iterable[str]) -> list[str]:
     return occupied_ports
 
 
+def _find_local_port_listeners(ports: Iterable[str]) -> dict[str, tuple[int, str]]:
+    """
+    Finds processes listening on the given local ports.
+
+    :param ports: ports to look up
+    :return: mapping of port to (pid, command line) for each port whose listener could be found
+    """
+    # We import it locally so that click autocomplete works
+    try:
+        import psutil
+    except ImportError:
+        return {}
+
+    ports_by_number = {int(port): port for port in ports}
+    listeners: dict[str, tuple[int, str]] = {}
+    for process in psutil.process_iter():
+        with contextlib.suppress(psutil.Error):
+            for connection in process.net_connections(kind="tcp"):
+                if connection.status != psutil.CONN_LISTEN or connection.laddr.port not in ports_by_number:
+                    continue
+                command_line = " ".join(process.cmdline()) or process.name()
+                listeners[ports_by_number[connection.laddr.port]] = (process.pid, command_line)
+    return listeners
+
+
+def _format_occupied_ports_error(occupied_ports: list[str], listeners: dict[str, tuple[int, str]]) -> str:
+    message = (
+        "[error]Cannot start UI development servers because the following local port(s) "
+        f"are already in use: {', '.join(occupied_ports)}.[/]\n"
+    )
+    pids: dict[int, None] = {}
+    for port in occupied_ports:
+        if port in listeners:
+            pid, command_line = listeners[port]
+            pids[pid] = None
+            message += f"[info]Port {port} is used by PID {pid}: {escape(command_line)}[/]\n"
+    if pids:
+        kill_hint = " ".join(str(pid) for pid in pids)
+        message += (
+            f"[info]Stop the processes using these ports (for example `kill {kill_hint}`) and try again.[/]"
+        )
+    else:
+        message += "[info]Stop the processes using these ports and try again.[/]"
+    return message
+
+
 def run_compile_ui_assets(
     dev: bool,
     run_in_background: bool,
@@ -552,11 +598,8 @@ def run_compile_ui_assets(
     if dev:
         occupied_ports = _find_occupied_local_ports((VITE_DEV_PORT, SIMPLE_AUTH_MANAGER_VITE_DEV_PORT))
         if occupied_ports:
-            console_print(
-                "[error]Cannot start UI development servers because the following local port(s) "
-                f"are already in use: {', '.join(occupied_ports)}.[/]\n"
-                "[info]Stop the processes using these ports and try again.[/]"
-            )
+            listeners = _find_local_port_listeners(occupied_ports)
+            console_print(_format_occupied_ports_error(occupied_ports, listeners))
             sys.exit(1)
     if force_clean:
         _clean_ui_assets(additional_ui_hooks)
