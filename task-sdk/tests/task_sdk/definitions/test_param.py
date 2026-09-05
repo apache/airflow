@@ -18,10 +18,11 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from typing import Literal
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict, process_params
 from airflow.sdk.exceptions import ParamValidationError
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -387,4 +388,84 @@ class TestParamsDict:
             {
                 "key2": Param("value", source="task"),
             }
+        )
+
+
+class TestProcessParamsMasksPassword:
+    def _make_dag(self, params: dict) -> MagicMock:
+        dag = MagicMock()
+        dag.params = ParamsDict(params)
+        return dag
+
+    def _make_task(self) -> MagicMock:
+        task = MagicMock()
+        task.params = None
+        return task
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_string_param_declared_as_password(self, mock_mask_secret):
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        assert resolved["api_token"] == "super-secret-value"
+        # Called twice for the same value: once against dagrun_conf before the debug log line,
+        # once against the final resolved_params after validate(). Both calls register the same
+        # string with the masker, which is harmless (SecretsMasker patterns are a set, not a list).
+        assert mock_mask_secret.call_count == 2
+        mock_mask_secret.assert_called_with("super-secret-value")
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_does_not_mask_plain_string_param(self, mock_mask_secret):
+        dag = self._make_dag({"greeting": Param("default", type="string")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"greeting": "hello"}, suppress_exception=False)
+
+        assert resolved["greeting"] == "hello"
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_ignores_non_string_password_format_param(self, mock_mask_secret):
+        # format="password" on a non-string type is not a supported combination;
+        # it must not crash and must not attempt to mask a non-string value.
+        dag = self._make_dag({"retry_count": Param(3, type="integer", format="password")})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"retry_count": 5}, suppress_exception=False)
+
+        assert resolved["retry_count"] == 5
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_does_not_mask_when_key_has_no_declared_param(self, mock_mask_secret):
+        dag = self._make_dag({})
+        task = self._make_task()
+
+        resolved = process_params(dag, task, {"undeclared_key": "value"}, suppress_exception=False)
+
+        assert resolved["undeclared_key"] == "value"
+        mock_mask_secret.assert_not_called()
+
+    @patch("airflow.sdk.definitions.param.logger")
+    @patch("airflow.sdk.definitions.param.mask_secret")
+    def test_masks_dagrun_conf_value_before_debug_log(self, mock_mask_secret, mock_logger):
+        # Regression test: dag_run_conf_overrides_params=True (the default) logs dagrun_conf via
+        # logger.debug(). mask_secret() must be called before that log line, not after, or the
+        # SecretsMasker filter won't yet know to redact the value from the emitted log record.
+        manager = MagicMock()
+        manager.attach_mock(mock_mask_secret, "mask_secret")
+        manager.attach_mock(mock_logger.debug, "debug")
+
+        dag = self._make_dag({"api_token": Param("default", type="string", format="password")})
+        task = self._make_task()
+
+        process_params(dag, task, {"api_token": "super-secret-value"}, suppress_exception=False)
+
+        call_names = [call[0] for call in manager.mock_calls]
+        assert "mask_secret" in call_names
+        assert "debug" in call_names
+        assert call_names.index("mask_secret") < call_names.index("debug"), (
+            "mask_secret must be registered before the debug log referencing dagrun_conf"
         )
