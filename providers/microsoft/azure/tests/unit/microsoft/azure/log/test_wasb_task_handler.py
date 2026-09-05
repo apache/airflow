@@ -25,6 +25,8 @@ from unittest import mock
 
 import pytest
 from azure.common import AzureHttpError
+from azure.core.exceptions import ResourceModifiedError
+from azure.storage.blob import BlobType
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -57,6 +59,20 @@ class TestWasbRemoteLogIOFromConfig:
         assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
         assert subject.delete_local_copy is True
         assert subject.wasb_container == "my-container"
+        assert subject.write_mode == "block_blob"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): "wasb://path/to/logs",
+            ("logging", "delete_local_logs"): "True",
+            ("azure_remote_logging", "remote_wasb_log_write_mode"): "append_blob",
+        }
+    )
+    def test_from_config_reads_append_blob_write_mode(self):
+        subject = WasbRemoteLogIO.from_config()
+
+        assert subject.write_mode == "append_blob"
 
     @conf_vars(
         {
@@ -465,3 +481,153 @@ class TestWasbTaskHandler:
             delete_local_copy=True,
             filename_template=None,
         )
+
+
+class TestWasbRemoteLogIOAppendBlobMode:
+    """Tests for the opt-in append_blob write mode. Regression tests for #70867."""
+
+    container_name = "test-container"
+
+    class FakeAppendHook:
+        def __init__(self):
+            self.blobs: dict[str, dict] = {}
+            self.append_block_calls: list[tuple[str, bytes, int]] = []
+            self.fail_append_at_offset: int | None = None
+
+        def check_for_blob(self, container, blob_name, **kwargs):
+            return blob_name in self.blobs
+
+        def get_blob_properties(self, container, blob_name, **kwargs):
+            blob = self.blobs[blob_name]
+            props = mock.Mock()
+            props.blob_type = BlobType.APPENDBLOB if blob["type"] == "AppendBlob" else BlobType.BLOCKBLOB
+            props.size = len(blob["content"])
+            return props
+
+        def create_append_blob(self, container, blob_name, **kwargs):
+            self.blobs.setdefault(blob_name, {"type": "AppendBlob", "content": b""})
+
+        def append_block(self, container, blob_name, data, offset, **kwargs):
+            if self.fail_append_at_offset is not None and offset == self.fail_append_at_offset:
+                raise ConnectionError("simulated transient failure")
+            blob = self.blobs[blob_name]
+            if len(blob["content"]) != offset:
+                raise ResourceModifiedError("append position mismatch")
+            blob["content"] += data
+            self.append_block_calls.append((blob_name, data, offset))
+
+        def read_file(self, container, blob_name, **kwargs):
+            return self.blobs[blob_name]["content"].decode("utf-8")
+
+        def load_string(self, string_data, container, blob_name, **kwargs):
+            self.blobs[blob_name] = {"type": "BlockBlob", "content": string_data.encode("utf-8")}
+
+    def _io(self, tmp_path, hook, write_mode="append_blob"):
+        io = WasbRemoteLogIO(
+            remote_base="remote/log/location",
+            base_log_folder=str(tmp_path),
+            delete_local_copy=False,
+            wasb_container=self.container_name,
+            write_mode=write_mode,
+        )
+        io.hook = hook
+        return io
+
+    def test_append_blob_multiple_lifecycles_no_redownload(self, tmp_path):
+        hook = self.FakeAppendHook()
+        io = self._io(tmp_path, hook)
+
+        local_log = tmp_path / "attempt=1.log"
+        for cycle in range(1, 4):
+            with open(local_log, "a") as f:
+                f.write(f"cycle {cycle}\n")
+            io.upload("attempt=1.log")
+
+        blob_name = "remote/log/location/attempt=1.log"
+        assert hook.blobs[blob_name]["content"].decode() == "cycle 1\ncycle 2\ncycle 3\n"
+        assert [call[1] for call in hook.append_block_calls] == [b"cycle 1\n", b"cycle 2\n", b"cycle 3\n"]
+        assert local_log.read_text() == ""
+
+    def test_append_blob_creates_blob_on_first_write(self, tmp_path):
+        hook = self.FakeAppendHook()
+        io = self._io(tmp_path, hook)
+
+        assert io.write("first segment\n", "remote/log/location/attempt=1.log") is True
+        assert hook.blobs["remote/log/location/attempt=1.log"]["content"] == b"first segment\n"
+
+    def test_existing_block_blob_is_not_converted(self, tmp_path):
+        hook = self.FakeAppendHook()
+        hook.blobs["remote/log/location/attempt=1.log"] = {"type": "BlockBlob", "content": b"old log\n"}
+        io = self._io(tmp_path, hook)
+
+        assert io.write("new segment\n", "remote/log/location/attempt=1.log") is True
+        blob = hook.blobs["remote/log/location/attempt=1.log"]
+        assert blob["type"] == "BlockBlob"
+        assert blob["content"] == b"old log\nnew segment\n"
+        assert hook.append_block_calls == []
+
+    def test_segment_larger_than_block_limit_is_chunked(self, tmp_path):
+        hook = self.FakeAppendHook()
+        io = self._io(tmp_path, hook)
+        io._MAX_APPEND_BLOCK_BYTES = 10
+
+        assert io.write("a" * 25, "remote/log/location/attempt=1.log") is True
+
+        blob_name = "remote/log/location/attempt=1.log"
+        assert hook.blobs[blob_name]["content"] == b"a" * 25
+        assert [call[2] for call in hook.append_block_calls] == [0, 10, 20]
+
+    def test_append_position_mismatch_fails_safely(self, tmp_path):
+        hook = self.FakeAppendHook()
+        hook.create_append_blob(self.container_name, "remote/log/location/attempt=1.log")
+        io = self._io(tmp_path, hook)
+
+        original_append_block = hook.append_block
+
+        def append_block_with_race(container, blob_name, data, offset, **kwargs):
+            hook.blobs[blob_name]["content"] += b"a concurrent writer's segment\n"
+            original_append_block(container, blob_name, data, offset, **kwargs)
+
+        hook.append_block = append_block_with_race
+
+        local_log = tmp_path / "attempt=1.log"
+        local_log.write_text("our segment\n")
+
+        io.upload("attempt=1.log")
+
+        assert local_log.read_text() == "our segment\n"
+
+    def test_partial_chunk_failure_trims_local_file_to_uncommitted_remainder(self, tmp_path):
+        hook = self.FakeAppendHook()
+        hook.fail_append_at_offset = 10
+        io = self._io(tmp_path, hook)
+        io._MAX_APPEND_BLOCK_BYTES = 10
+        local_log = tmp_path / "attempt=1.log"
+        local_log.write_text("A" * 10 + "B" * 10 + "C" * 5)
+        io.upload("attempt=1.log")
+        blob_name = "remote/log/location/attempt=1.log"
+        assert hook.blobs[blob_name]["content"] == b"A" * 10
+        assert local_log.read_text() == "B" * 10 + "C" * 5
+        hook.fail_append_at_offset = None
+        io.upload("attempt=1.log")
+        assert hook.blobs[blob_name]["content"] == b"A" * 10 + b"B" * 10 + b"C" * 5
+        assert local_log.read_text() == ""
+
+    def test_chunk_boundary_never_splits_a_multibyte_character(self, tmp_path):
+        hook = self.FakeAppendHook()
+        hook.fail_append_at_offset = 9
+        io = self._io(tmp_path, hook)
+        io._MAX_APPEND_BLOCK_BYTES = 10
+        segment = "a" * 9 + "\u20ac" + "b" * 9
+        local_log = tmp_path / "attempt=1.log"
+        local_log.write_text(segment)
+        io.upload("attempt=1.log")
+        blob_name = "remote/log/location/attempt=1.log"
+        committed = hook.blobs[blob_name]["content"]
+        committed.decode("utf-8")
+        assert committed == b"a" * 9
+        assert local_log.read_text() == "\u20ac" + "b" * 9
+        hook.fail_append_at_offset = None
+        io.upload("attempt=1.log")
+        assert hook.blobs[blob_name]["content"].decode("utf-8") == segment
+        assert local_log.read_text() == ""
