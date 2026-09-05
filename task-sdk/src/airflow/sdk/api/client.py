@@ -926,9 +926,28 @@ class DagRunOperations:
         )
 
         try:
-            self.client.post(
-                f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
+            self.client._request_without_retry(
+                "POST", f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
             )
+        except (httpx.ReadError, httpx.ReadTimeout, httpx.RemoteProtocolError):
+            # The POST reached the server but the response was lost, so the Dag run may or may
+            # not have been created. Probe once rather than retrying a non-idempotent POST.
+            if self.get_count(dag_id=dag_id, run_ids=[run_id]).count == 0:
+                raise
+            if reset_dag_run:
+                log.info(
+                    "Dag Run exists after ambiguous trigger response; Resetting Dag Run.",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                )
+                # TODO: Make clear() idempotent as a follow-up.
+                return self.clear(run_id=run_id, dag_id=dag_id)
+            log.info(
+                "Dag Run exists after ambiguous trigger response; treating trigger as successful.",
+                dag_id=dag_id,
+                run_id=run_id,
+            )
+            return OKResponse(ok=True)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
@@ -1228,6 +1247,19 @@ class Client(httpx.Client):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
+    @staticmethod
+    def _ensure_json_content_type(kwargs: dict[str, Any]) -> None:
+        # Set content type as convenience if not already set
+        if kwargs.get("content", None) is not None and "content-type" not in (
+            kwargs.get("headers", {}) or {}
+        ):
+            kwargs["headers"] = {"content-type": "application/json"}
+
+    def _request_without_retry(self, *args, **kwargs):
+        """Implement a convenience for httpx.Client.request without retrying."""
+        self._ensure_json_content_type(kwargs)
+        return super().request(*args, **kwargs)
+
     @retry(
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
@@ -1237,12 +1269,7 @@ class Client(httpx.Client):
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
-        # Set content type as convenience if not already set
-        if kwargs.get("content", None) is not None and "content-type" not in (
-            kwargs.get("headers", {}) or {}
-        ):
-            kwargs["headers"] = {"content-type": "application/json"}
-
+        self._ensure_json_content_type(kwargs)
         return super().request(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
