@@ -28,6 +28,8 @@ from airflow._shared.timezones.timezone import utc
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils.types import DagRunType
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
@@ -878,3 +880,49 @@ def test_fold_scheduling():
         pendulum.datetime(2023, 10, 29, 1, 30, tz=utc),
         pendulum.datetime(2023, 10, 29, 2, 0, tz=utc),  # Locally 3am (not DST).
     )
+
+
+@pytest.mark.parametrize(
+    "timetable",
+    [
+        pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
+        pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
+    ],
+)
+def test_generate_run_id_anchors_to_data_interval_start(timetable: Timetable) -> None:
+    """Regression test for the CREATE_CRON_DATA_INTERVALS run_id gap described in GH issue #71187."""
+    run_id = timetable.generate_run_id(
+        run_type=DagRunType.SCHEDULED,
+        run_after=PREV_DATA_INTERVAL_END,
+        data_interval=PREV_DATA_INTERVAL,
+    )
+    assert run_id == DagRunType.SCHEDULED.generate_run_id(suffix=PREV_DATA_INTERVAL_START.isoformat())
+    assert PREV_DATA_INTERVAL_END.isoformat() not in run_id
+
+
+@pytest.mark.parametrize(
+    "timetable",
+    [
+        pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
+        pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
+    ],
+)
+def test_generate_run_id_falls_back_without_data_interval(timetable: Timetable) -> None:
+    """When no data interval is available, generate_run_id falls back to run_after-anchored behavior."""
+    run_id = timetable.generate_run_id(
+        run_type=DagRunType.MANUAL,
+        run_after=PREV_DATA_INTERVAL_END,
+        data_interval=None,
+    )
+    assert run_id == DagRunType.MANUAL.generate_run_id(suffix=PREV_DATA_INTERVAL_END.isoformat())
+
+
+def test_generate_run_id_default_timetable_unaffected() -> None:
+    """CronTriggerTimetable (the AIP-76 default) must be unaffected by this change."""
+    timetable = CronTriggerTimetable("@hourly", timezone=utc)
+    run_id = timetable.generate_run_id(
+        run_type=DagRunType.SCHEDULED,
+        run_after=PREV_DATA_INTERVAL_END,
+        data_interval=PREV_DATA_INTERVAL,
+    )
+    assert run_id == DagRunType.SCHEDULED.generate_run_id(suffix=PREV_DATA_INTERVAL_END.isoformat())

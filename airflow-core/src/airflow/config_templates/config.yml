@@ -2890,6 +2890,11 @@ scheduler:
         try to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of
         the data interval, but the DAG Run will try to schedule at the end of the data interval.
 
+        Enabling this setting also anchors the scheduled ``run_id`` to ``logical_date`` (the data
+        interval start), matching the Airflow 2 ``run_id`` semantics this flag is meant to restore.
+        Deployments that leave this setting at its default (``False``) are unaffected; their ``run_id``
+        continues to be anchored to ``run_after``
+
         When a DAG is switched from **CronTriggerTimetable** to **CronDataIntervalTimetable** (for example,
         by flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past
         the most recent **CronTriggerTimetable** run to avoid colliding with its logical date.
