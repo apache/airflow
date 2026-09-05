@@ -2338,6 +2338,7 @@ export type ConfigResponse = {
     external_log_name?: string | null;
     theme: Theme | null;
     multi_team: boolean;
+    sensitive_field_names: Array<(string)>;
     rerun_with_latest_version?: boolean | null;
 };
 
