@@ -1,0 +1,1 @@
+Allow Deadline Alerts to be declared on individual tasks, not just on the Dag. A task-level deadline is evaluated per task instance, independently of the Dag-level deadline, so a slow task surfaces as soon as its own need-by time passes. Pass ``deadline=DeadlineAlert(...)`` to any operator; a Dag can use Dag-level deadlines, task-level deadlines, or both.

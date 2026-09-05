@@ -35,8 +35,10 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DAM
 from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -1437,3 +1439,214 @@ class TestSerializedDagModel:
         assert all(isinstance(ref, str) for ref in returned_uuids)
         assert len(returned_uuids) == len(set(returned_uuids))
         assert set(returned_uuids) == persisted_uuids
+
+
+class TestTaskDeadlineAlerts:
+    @staticmethod
+    def _make_dag(dag_id: str, interval: timedelta = timedelta(hours=1)):
+        dag = DAG(dag_id=dag_id)
+        EmptyOperator(
+            task_id="task1",
+            dag=dag,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=interval,
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        return dag
+
+    def test_scheduler_dag_task_carries_decoded_deadline(self, testing_dag_bundle, session):
+        """Task-level deadline alerts survive serialization and deserialize into alert objects."""
+        dag_id = "test_task_deadline_decoded"
+        scheduler_dag = sync_dag_to_db(self._make_dag(dag_id), session=session)
+
+        task = scheduler_dag.get_task("task1")
+        assert task.deadline
+        assert len(task.deadline) == 1
+        alert = task.deadline[0]
+        assert alert.interval == timedelta(hours=1)
+        assert hasattr(alert.reference, "evaluate_with")
+
+    def test_create_dagrun_materializes_task_deadlines(self, testing_dag_bundle, session):
+        """Each task instance of a new DagRun gets its own Deadline row."""
+        dag_id = "test_task_deadline_materialize"
+        scheduler_dag = sync_dag_to_db(self._make_dag(dag_id), session=session)
+
+        dagrun = scheduler_dag.create_dagrun(
+            run_id="run1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        task_instance = session.scalar(
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == "run1")
+        )
+        deadlines = session.scalars(select(Deadline).where(Deadline.dagrun_id == dagrun.id)).all()
+
+        assert task_instance is not None
+        assert len(deadlines) == 1
+        assert deadlines[0].task_instance_id == task_instance.id
+        assert deadlines[0].dagrun_id == dagrun.id
+        assert deadlines[0].deadline_time == DEFAULT_DATE + timedelta(hours=1)
+
+    def test_unchanged_task_deadline_does_not_create_new_serdag(self, testing_dag_bundle, session):
+        """Re-parsing an unchanged Dag keeps the same serialized Dag (stable hash)."""
+        dag_id = "test_task_deadline_stable"
+        dag = self._make_dag(dag_id)
+        sync_dag_to_db(dag, session=session)
+
+        did_write = SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        assert did_write is False
+        assert count == 1
+
+    def test_task_deadline_change_creates_new_serdag(self, testing_dag_bundle, session):
+        """Changing a task's deadline interval must change the serialized Dag hash."""
+        dag_id = "test_task_deadline_change"
+        scheduler_dag = sync_dag_to_db(self._make_dag(dag_id, interval=timedelta(hours=1)), session=session)
+        session.commit()
+        orig_hash = session.scalar(
+            select(SDM.dag_hash).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()).limit(1)
+        )
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(self._make_dag(dag_id, interval=timedelta(hours=2))),
+            bundle_name="testing",
+            session=session,
+        )
+        session.commit()
+
+        assert did_write is True
+        new_hash = session.scalar(
+            select(SDM.dag_hash).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()).limit(1)
+        )
+        assert new_hash != orig_hash
+        assert scheduler_dag.get_task("task1").deadline
+
+    @staticmethod
+    def _deadline_alert():
+        return DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+            interval=timedelta(hours=1),
+            callback=AsyncCallback(empty_callback_for_deadline),
+        )
+
+    def test_create_dagrun_materializes_literal_mapped_task_deadlines(self, dag_maker, session):
+        """A literally-mapped task's per-map-index instances get Deadline rows at run creation."""
+        from tests_common.test_utils.mock_operators import MockOperator
+
+        with dag_maker() as dag:
+            MockOperator.partial(task_id="mapme", deadline=self._deadline_alert()).expand(arg2=[1, 2, 3])
+
+        dagrun = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        session.commit()
+
+        task_instances = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+                TaskInstance.task_id == "mapme",
+            )
+        ).all()
+        deadlines = session.scalars(select(Deadline).where(Deadline.dagrun_id == dagrun.id)).all()
+
+        assert [ti.map_index for ti in task_instances] == [0, 1, 2]
+        assert {d.task_instance_id for d in deadlines} == {ti.id for ti in task_instances}
+        assert all(d.deadline_time == DEFAULT_DATE + timedelta(hours=1) for d in deadlines)
+
+    def test_dynamic_mapped_task_gets_deadline_rows_on_expansion(self, dag_maker, session):
+        """A dynamically-mapped task gets per-map-index Deadline rows when it is expanded."""
+        from tests_common.test_utils.mock_operators import MockOperator
+        from tests_common.test_utils.taskinstance import run_task_instance
+
+        with dag_maker() as dag:
+
+            @dag.task
+            def produce():
+                return [1, 2, 3]
+
+            MockOperator.partial(task_id="mapme", deadline=self._deadline_alert()).expand(arg2=produce())
+
+        dagrun = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        session.commit()
+
+        # At creation only the map_index == -1 placeholder exists and no rows were materialized.
+        placeholder = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+                TaskInstance.task_id == "mapme",
+            )
+        )
+        assert placeholder.map_index == -1
+        assert session.scalar(select(Deadline).where(Deadline.dagrun_id == dagrun.id)) is None
+
+        # Once the upstream producer finishes, expansion creates the per-index instances.
+        producer_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+                TaskInstance.task_id == "produce",
+            )
+        )
+        run_task_instance(producer_ti, dag.get_task("produce"))
+        session.flush()
+
+        dagrun.task_instance_scheduling_decisions(session=session)
+        session.flush()
+        session.commit()
+
+        task_instances = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+                TaskInstance.task_id == "mapme",
+            )
+        ).all()
+        deadlines = session.scalars(
+            select(Deadline).where(Deadline.dagrun_id == dagrun.id).order_by(Deadline.deadline_time)
+        ).all()
+
+        assert {ti.map_index for ti in task_instances} == {0, 1, 2}
+        assert len(deadlines) == 3
+        assert {d.task_instance_id for d in deadlines} == {ti.id for ti in task_instances}
+
+    def test_zero_length_mapped_task_with_deadline_does_not_crash(self, dag_maker, session):
+        """An upstream yielding no values leaves no deadline rows and must not raise."""
+        from tests_common.test_utils.mock_operators import MockOperator
+        from tests_common.test_utils.taskinstance import run_task_instance
+
+        with dag_maker() as dag:
+
+            @dag.task
+            def produce():
+                return []
+
+            MockOperator.partial(task_id="mapme", deadline=self._deadline_alert()).expand(arg2=produce())
+
+        dagrun = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        session.commit()
+
+        producer_ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+                TaskInstance.task_id == "produce",
+            )
+        )
+        run_task_instance(producer_ti, dag.get_task("produce"))
+        session.flush()
+
+        dagrun.task_instance_scheduling_decisions(session=session)
+        session.flush()
+        session.commit()
+
+        assert session.scalars(select(Deadline).where(Deadline.dagrun_id == dagrun.id)).all() == []

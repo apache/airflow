@@ -1637,6 +1637,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             return None
         elif field_name == "resources":
             return Resources.from_dict(value) if value is not None else None
+        elif field_name == "deadline":
+            # Task-level deadline alerts are serialized with the DeadlineAlert encoding; decode
+            # them back into alert objects so runtime consumers can evaluate reference + interval.
+            return cls.deserialize(value) if value is not None else None
         elif field_name.endswith("_date"):
             return cls._deserialize_datetime(value) if value is not None else None
         else:

@@ -193,6 +193,43 @@ The timeline for this example would look like this:
 .. note::
     Note that since the interval is a negative value, the deadline is before the reference in this case.
 
+Task-level Deadlines
+---------------------
+
+Deadlines can also be set on individual tasks. A task-level deadline is evaluated per task instance,
+independently of the Dag-level deadline, so a slow task surfaces immediately instead of only when the
+whole Dag run is about to miss its deadline. A Dag can use Dag-level deadlines, task-level deadlines,
+or both; task deadlines do not inherit from or override Dag deadlines.
+
+Task deadlines are declared with the same :class:`~airflow.sdk.DeadlineAlert` object, on any operator:
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    with DAG(dag_id="task_deadline_example"):
+        extract = EmptyOperator(
+            task_id="extract",
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=timedelta(hours=1),  # must be done by <logical date> + 1h
+                callback=AsyncCallback(handle_late_extract),
+            ),
+        )
+
+A Deadline row is created for the task instance when the Dag run is created (or, for mapped tasks, when
+each ``map_index`` is expanded) and is enforced by the same scheduler miss loop that enforces Dag
+deadlines. Task deadlines accept the same built-in references as Dag deadlines; they are evaluated per
+task instance of the DagRun. If the task instance finishes before its need-by time the deadline is
+deleted without firing the callback; if it is still unfinished when the need-by time passes, the callback
+fires with ``dag_run``, ``deadline``, and ``task_instance`` available in the context.
+
+.. note::
+    Task deadlines use the same references as Dag deadlines, so a retry does not extend a
+    logical-date-anchored need-by time -- the work must still be done by the original deadline.
+
 Using Callbacks
 ---------------
 

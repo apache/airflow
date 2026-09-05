@@ -135,6 +135,7 @@ from airflow.sdk import (
     task,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert as SdkDeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
@@ -10105,6 +10106,233 @@ class TestSchedulerJob:
 
         # Assert that all deadlines which are both expired and unhandled get processed.
         assert mock_handle_miss.call_count == 2
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines_skips_task_deadline_of_finished_in_time_task(
+        self, mock_handle_miss, session, dag_maker
+    ):
+        """A task-level deadline whose task instance finished before the need-by time is pruned, not fired."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        now = timezone.utcnow()
+        callback_path = "classpath.notify"
+
+        dag_id = "test_deadline_dag_finished_in_time"
+        with dag_maker(dag_id=dag_id):
+            EmptyOperator(task_id="empty")
+        dagrun = dag_maker.create_dagrun()
+
+        task_instance = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+            )
+        )
+        assert task_instance is not None
+        # The task succeeded well before the (now expired) need-by time.
+        task_instance.state = TaskInstanceState.SUCCESS
+        task_instance.end_date = now - timedelta(minutes=10)
+        session.flush()
+
+        deadline = Deadline(
+            deadline_time=now - timedelta(minutes=5),
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+            task_instance_id=task_instance.id,
+        )
+        session.add(deadline)
+        session.flush()
+        deadline_id = deadline.id
+
+        self.job_runner._execute()
+
+        # The deadline row was pruned instead of firing a false-alarm callback.
+        mock_handle_miss.assert_not_called()
+        assert session.get(Deadline, deadline_id) is None
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines_fires_task_deadline_of_still_running_task(
+        self, mock_handle_miss, session, dag_maker
+    ):
+        """A task-level deadline whose task is still running past the need-by time fires normally."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        now = timezone.utcnow()
+        callback_path = "classpath.notify"
+
+        dag_id = "test_deadline_dag_still_running"
+        with dag_maker(dag_id=dag_id):
+            EmptyOperator(task_id="empty")
+        dagrun = dag_maker.create_dagrun()
+
+        task_instance = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+            )
+        )
+        assert task_instance is not None
+        # The task started but has not finished as the need-by time passes.
+        task_instance.state = TaskInstanceState.RUNNING
+        task_instance.start_date = now - timedelta(minutes=10)
+        session.flush()
+
+        session.add(
+            Deadline(
+                deadline_time=now - timedelta(minutes=5),
+                callback=AsyncCallback(callback_path),
+                dagrun_id=dagrun.id,
+                dag_id=dag_id,
+                deadline_alert_id=None,
+                task_instance_id=task_instance.id,
+            )
+        )
+        session.flush()
+
+        self.job_runner._execute()
+
+        assert mock_handle_miss.call_count == 1
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_operator_declared_task_deadline_reaches_miss_loop(self, mock_handle_miss, session, dag_maker):
+        """An operator-declared deadline materializes at DagRun creation and fires in the miss loop."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        dag_id = "test_deadline_dag_operator_declared"
+        with dag_maker(dag_id=dag_id, serialized=True, schedule=timedelta(days=1)):
+            EmptyOperator(
+                task_id="empty",
+                deadline=SdkDeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=timedelta(minutes=-10),
+                    callback=AsyncCallback("classpath.notify"),
+                ),
+            )
+        logical_date = timezone.utcnow() - timedelta(minutes=1)
+
+        # The deadline is anchored to the logical date, so pass a need-by time already elapsed.
+        with time_machine.travel(logical_date, tick=False):
+            dagrun = dag_maker.create_dagrun(logical_date=logical_date)
+            session.commit()
+
+            task_instance = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.run_id == dagrun.run_id,
+                )
+            )
+            assert task_instance is not None
+            deadline = session.scalar(
+                select(Deadline).where(
+                    Deadline.dagrun_id == dagrun.id,
+                    Deadline.task_instance_id == task_instance.id,
+                )
+            )
+            # create_dagrun materialized a Deadline row owned by the task instance, with the
+            # need-by time evaluated from the operator's DeadlineAlert (logical date - 10min).
+            assert deadline is not None
+            assert deadline.deadline_time < timezone.utcnow()
+
+            self.job_runner._execute()
+
+        # The scheduler also creates a new scheduled DagRun for the dag; only the expired
+        # deadline of the run under test fires.
+        # The scheduler also creates a new scheduled DagRun for the dag; the deadline of the
+        # run under test is among the ones that fired. With the instance-method mock, the
+        # Deadline arrives via the call's enclosing loop; match on the loop's expired query.
+        assert mock_handle_miss.call_count == 2
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines_skips_task_deadline_of_removed_task(
+        self, mock_handle_miss, session, dag_maker
+    ):
+        """A deadline of a REMOVED (shrunk mapped) task instance is pruned: it will never run."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        now = timezone.utcnow()
+        callback_path = "classpath.notify"
+
+        dag_id = "test_deadline_dag_removed_task"
+        with dag_maker(dag_id=dag_id):
+            EmptyOperator(task_id="empty")
+        dagrun = dag_maker.create_dagrun()
+
+        task_instance = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+            )
+        )
+        assert task_instance is not None
+        task_instance.state = TaskInstanceState.REMOVED
+        session.flush()
+
+        deadline = Deadline(
+            deadline_time=now - timedelta(minutes=5),
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+            task_instance_id=task_instance.id,
+        )
+        session.add(deadline)
+        session.flush()
+        deadline_id = deadline.id
+
+        self.job_runner._execute()
+
+        mock_handle_miss.assert_not_called()
+        assert session.get(Deadline, deadline_id) is None
+
+    @mock.patch("airflow.models.Deadline.handle_miss")
+    def test_process_expired_deadlines_skips_task_deadline_with_missing_task_instance(
+        self, mock_handle_miss, session, dag_maker
+    ):
+        """A deadline whose task instance relationship resolves to None falls through to the miss path."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        now = timezone.utcnow()
+        callback_path = "classpath.notify"
+
+        dag_id = "test_deadline_dag_missing_ti"
+        with dag_maker(dag_id=dag_id):
+            EmptyOperator(task_id="empty")
+        dagrun = dag_maker.create_dagrun()
+
+        task_instance = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+            )
+        )
+        assert task_instance is not None
+        deadline = Deadline(
+            deadline_time=now - timedelta(minutes=5),
+            callback=AsyncCallback(callback_path),
+            dagrun_id=dagrun.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+            task_instance_id=task_instance.id,
+        )
+        session.add(deadline)
+        session.flush()
+
+        # With FK enforcement a dangling task_instance_id cannot exist in the database, so the
+        # None-returning relationship is simulated on the loaded instance instead of deleting the row.
+        deadline.task_instance = None
+        session.flush()
+
+        self.job_runner._execute()
+
+        # task_instance resolves to None: the deadline falls through to the normal miss handling.
+        assert mock_handle_miss.call_count == 1
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):
