@@ -43,6 +43,7 @@ from airflow.configuration import AIRFLOW_HOME
 from airflow.executors import executor_loader
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_celery_not_installed
 
 pytestmark = pytest.mark.db_test
 
@@ -553,12 +554,16 @@ class TestCli:
     @pytest.mark.parametrize(
         ("executor", "expected_args"),
         [
-            ("CeleryExecutor", ["celery"]),
+            pytest.param("CeleryExecutor", ["celery"], marks=skip_if_celery_not_installed),
             ("KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
-            ("custom_executor.CustomCeleryExecutor", ["celery"]),
+            pytest.param(
+                "custom_executor.CustomCeleryExecutor",
+                ["celery"],
+                marks=skip_if_celery_not_installed,
+            ),
             ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )

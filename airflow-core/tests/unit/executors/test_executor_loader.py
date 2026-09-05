@@ -27,13 +27,13 @@ from airflow.executors.executor_loader import ConnectorSource, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_celery_not_installed
 
 
 class FakeExecutor:
     pass
 
 
-celery_executor = pytest.importorskip("airflow.providers.celery.executors.celery_executor")
 ecs_executor = pytest.importorskip("airflow.providers.amazon.aws.executors.ecs.ecs_executor")
 
 
@@ -55,7 +55,7 @@ class TestExecutorLoader:
     @pytest.mark.parametrize(
         "executor_name",
         [
-            "CeleryExecutor",
+            pytest.param("CeleryExecutor", marks=skip_if_celery_not_installed),
             "KubernetesExecutor",
             "LocalExecutor",
         ],
@@ -316,6 +316,7 @@ class TestExecutorLoader:
                 executors = executor_loader.ExecutorLoader._get_executor_names()
                 assert executors == expected_executors_list
 
+    @skip_if_celery_not_installed
     def test_init_executors(self):
         from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
@@ -363,10 +364,12 @@ class TestExecutorLoader:
     @pytest.mark.parametrize(
         ("executor_config", "expected_value"),
         [
-            ("CeleryExecutor", "CeleryExecutor"),
+            pytest.param("CeleryExecutor", "CeleryExecutor", marks=skip_if_celery_not_installed),
             ("KubernetesExecutor", "KubernetesExecutor"),
             ("LocalExecutor", "LocalExecutor"),
-            ("CeleryExecutor, LocalExecutor", "CeleryExecutor"),
+            pytest.param(
+                "CeleryExecutor, LocalExecutor", "CeleryExecutor", marks=skip_if_celery_not_installed
+            ),
             ("LocalExecutor, CeleryExecutor", "LocalExecutor"),
         ],
     )
