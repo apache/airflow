@@ -381,6 +381,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "bundle_name": None,
         "bundle_version": None,
         "is_paused": None,
+        "scheduling_state": None,
         "is_stale": None,
         "last_parsed_time": None,
         "last_parse_duration": None,

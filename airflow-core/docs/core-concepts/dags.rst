@@ -806,10 +806,11 @@ A Dag can be paused through the UI or API after the scheduler has stored it in t
 not schedule task instances, although you can trigger manual runs. When a Dag is paused, running tasks are
 allowed to complete and downstream tasks remain in the ``scheduled`` state until the Dag is unpaused.
 
-You can also drain a Dag before pausing it. Draining prevents scheduled, asset-triggered, manual, operator,
-and backfill Dag runs from being created while allowing already queued or running Dag runs to continue
-scheduling tasks. After those Dag runs finish, the scheduler automatically changes the Dag to paused. While
-a Dag is draining, you can cancel the drain to make the Dag active again.
+You can also drain a Dag before pausing it. Draining stops the scheduler from creating new Dag runs --
+scheduled and asset-triggered alike -- while letting already queued or running Dag runs continue to schedule
+tasks. As with a paused Dag, you can still trigger runs explicitly. After the outstanding Dag runs finish,
+the scheduler automatically changes the Dag to paused. While a Dag is draining, you can cancel the drain to
+make the Dag active again.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen

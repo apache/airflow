@@ -19,7 +19,7 @@
 import { useState } from "react";
 
 import { Box, Button, useDisclosure } from "@chakra-ui/react";
-import type { DagRunType, DagSchedulingState } from "openapi-gen/requests/types.gen";
+import type { DagRunType } from "openapi-gen/requests/types.gen";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -35,7 +35,6 @@ type TriggerDAGButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly isPaused: boolean;
-  readonly schedulingState?: DagSchedulingState;
   readonly variant?: "ghost" | "outline";
   readonly withText?: boolean;
 };
@@ -45,14 +44,11 @@ export const TriggerDAGButton = ({
   dagDisplayName,
   dagId,
   isPaused,
-  schedulingState,
   variant = "ghost",
   withText = false,
 }: TriggerDAGButtonProps) => {
   const isManualRunDenied =
     allowedRunTypes !== null && allowedRunTypes !== undefined && !allowedRunTypes.includes("manual");
-  const isDraining = schedulingState === "draining";
-  const isTriggerDisabled = isManualRunDenied || isDraining;
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("components");
   const { runId } = useParams();
@@ -95,21 +91,18 @@ export const TriggerDAGButton = ({
     setPrefillConfig(undefined);
     onClose();
   };
-  const disabledReason = isDraining
-    ? translate("triggerDag.draining")
-    : translate("triggerDag.manualRunDenied");
 
   // If there's a selected DAG Run with config, show menu with options
   if (selectedDagRun?.conf !== undefined) {
     return (
       <Box>
         <Menu.Root>
-          <Tooltip content={disabledReason} disabled={!isTriggerDisabled}>
+          <Tooltip content={translate("triggerDag.manualRunDenied")} disabled={!isManualRunDenied}>
             <Menu.Trigger asChild>
               <Button
                 aria-label={translate("triggerDag.title")}
                 data-testid="trigger-dag-button"
-                disabled={isTriggerDisabled}
+                disabled={isManualRunDenied}
                 variant={variant}
               >
                 <FiPlay />
@@ -143,14 +136,14 @@ export const TriggerDAGButton = ({
   return (
     <>
       <Tooltip
-        content={isTriggerDisabled ? disabledReason : translate("triggerDag.button")}
-        disabled={withText ? !isTriggerDisabled : undefined}
+        content={isManualRunDenied ? translate("triggerDag.manualRunDenied") : translate("triggerDag.button")}
+        disabled={withText ? !isManualRunDenied : undefined}
       >
         {withText ? (
           <Button
             aria-label={translate("triggerDag.title")}
             data-testid="trigger-dag-button"
-            disabled={isTriggerDisabled}
+            disabled={isManualRunDenied}
             onClick={handleNormalTrigger}
             variant={variant}
           >
@@ -161,7 +154,7 @@ export const TriggerDAGButton = ({
           <IconButton
             aria-label={translate("triggerDag.title")}
             data-testid="trigger-dag-button"
-            disabled={isTriggerDisabled}
+            disabled={isManualRunDenied}
             onClick={onOpen}
             variant={variant}
           >

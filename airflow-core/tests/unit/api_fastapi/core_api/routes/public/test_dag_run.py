@@ -3375,21 +3375,6 @@ class TestTriggerDagRun:
         session.add(allowed_scheduled_dag)
         session.commit()
 
-    def test_should_reject_trigger_while_dag_is_draining(self, test_client, session):
-        dag_model = session.get(DagModel, DAG1_ID)
-        dag_model.is_draining = True
-        session.commit()
-
-        response = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns",
-            json={"logical_date": timezone.utcnow().isoformat()},
-        )
-
-        assert response.status_code == 409
-        assert response.json()["detail"] == (
-            f"Dag with dag_id: '{DAG1_ID}' is draining and does not accept new runs"
-        )
-
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
         ("dag_run_id", "note", "data_interval_start", "data_interval_end", "note_data"),
