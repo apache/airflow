@@ -202,6 +202,7 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
     )
 
     task = MagicMock(spec=BaseOperator, task_id="task_1")
+    task.databricks_task_key = "explicit_key_1"
     task._convert_to_databricks_workflow_task = MagicMock(return_value={})
     operator.add_task(task.task_id, task)
 
@@ -211,6 +212,7 @@ def test_execute(mock_databricks_hook, context, mock_task_group):
         "conn_id": "databricks_default",
         "job_id": 123,
         "run_id": 789,
+        "task_key_map": {"task_1": "explicit_key_1"},
     }
     mock_hook_instance.run_now.assert_called_once()
 

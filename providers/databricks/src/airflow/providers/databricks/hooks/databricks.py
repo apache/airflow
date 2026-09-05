@@ -611,6 +611,39 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_tasks
 
+    def get_run_failed_task_keys(self, run_id: int) -> list[str]:
+        """
+        Return the ``task_key`` of every sub-task of a run that is in a terminal failure state.
+
+        Resolved from the live Databricks run rather than from Airflow's metadata DB, so it
+        reflects the actual per-task state Databricks ``repair_run`` will act on. The returned
+        keys are the values to pass as ``rerun_tasks`` to :meth:`repair_run`.
+
+        :param run_id: id of the run
+        :return: a list of Databricks ``task_key`` values for failed sub-tasks
+        """
+        failed_result_states = {"FAILED", "TIMEDOUT", "CANCELED", "MAXIMUM_CONCURRENT_RUNS_REACHED"}
+
+        # ``get_run_tasks`` returns one entry per attempt and is not ordered by attempt, so a
+        # retried or already-repaired task appears several times under the same ``task_key``. Keep
+        # only the latest attempt per key (sort by ``start_time``, same idiom as
+        # ``DatabricksTaskBaseOperator._get_current_databricks_task``) before judging its state, so
+        # the result never contains duplicate keys — Databricks rejects duplicates in
+        # ``rerun_tasks`` — and a task whose latest attempt succeeded is not reported as failed.
+        # Never-started sub-tasks omit ``start_time`` or send null; treat those as 0.
+        sorted_tasks = sorted(self.get_run_tasks(run_id), key=lambda task: task.get("start_time") or 0)
+        latest_by_key = {task["task_key"]: task for task in sorted_tasks}
+
+        failed_task_keys = []
+        for task_key, task in latest_by_key.items():
+            state = task.get("state", {})
+            if (
+                state.get("result_state") in failed_result_states
+                or state.get("life_cycle_state") == "INTERNAL_ERROR"
+            ):
+                failed_task_keys.append(task_key)
+        return failed_task_keys
+
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.

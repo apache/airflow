@@ -750,6 +750,100 @@ class TestDatabricksHook:
         assert len(tasks) == 2
         assert tasks == GET_RUN_RESPONSE["tasks"] * 2
 
+    def test_get_run_failed_task_keys(self):
+        run_tasks = [
+            {
+                "task_key": "ok",
+                "start_time": 1,
+                "state": {"result_state": "SUCCESS", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "boom",
+                "start_time": 1,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "slow",
+                "start_time": 1,
+                "state": {"result_state": "TIMEDOUT", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "killed",
+                "start_time": 1,
+                "state": {"result_state": "CANCELED", "life_cycle_state": "SKIPPED"},
+            },
+            {"task_key": "crashed", "start_time": 1, "state": {"life_cycle_state": "INTERNAL_ERROR"}},
+            {"task_key": "running", "start_time": 1, "state": {"life_cycle_state": "RUNNING"}},
+        ]
+        with mock.patch.object(self.hook, "get_run_tasks", return_value=run_tasks):
+            failed = self.hook.get_run_failed_task_keys(RUN_ID)
+
+        assert failed == ["boom", "slow", "killed", "crashed"]
+
+    def test_get_run_failed_task_keys_dedupes_to_latest_attempt(self):
+        # get_run_tasks returns one entry per attempt (unordered). A retried task appears under the
+        # same task_key several times; the key must be reported once and judged by its latest
+        # attempt, so a task whose newest attempt succeeded is not reported as failed.
+        run_tasks = [
+            {
+                "task_key": "flaky",
+                "start_time": 100,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "flaky",
+                "start_time": 300,
+                "state": {"result_state": "SUCCESS", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "flaky",
+                "start_time": 200,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "still_bad",
+                "start_time": 100,
+                "state": {"result_state": "SUCCESS", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "still_bad",
+                "start_time": 200,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+        ]
+        with mock.patch.object(self.hook, "get_run_tasks", return_value=run_tasks):
+            failed = self.hook.get_run_failed_task_keys(RUN_ID)
+
+        # "flaky" latest attempt (start_time 300) succeeded → excluded; "still_bad" latest failed.
+        assert failed == ["still_bad"]
+
+    def test_get_run_failed_task_keys_treats_missing_start_time_as_oldest(self):
+        run_tasks = [
+            {
+                "task_key": "never_started",
+                "state": {"life_cycle_state": "PENDING"},
+            },
+            {
+                "task_key": "flaky",
+                "start_time": None,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "flaky",
+                "start_time": 200,
+                "state": {"result_state": "SUCCESS", "life_cycle_state": "TERMINATED"},
+            },
+            {
+                "task_key": "still_bad",
+                "start_time": 100,
+                "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"},
+            },
+        ]
+        with mock.patch.object(self.hook, "get_run_tasks", return_value=run_tasks):
+            failed = self.hook.get_run_failed_task_keys(RUN_ID)
+
+        assert failed == ["still_bad"]
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
