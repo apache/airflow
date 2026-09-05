@@ -187,6 +187,73 @@ class TestGCSToS3Operator:
             assert sorted(MOCK_FILES) == sorted(uploaded_files)
             assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
 
+    @pytest.mark.parametrize(
+        ("keys", "expected_kept", "expected_dropped"),
+        [
+            ([], [], []),
+            (["a"], ["a"], []),
+            (["a", "b"], ["a", "b"], []),
+            # Non-slash prefix overlaps must NOT be treated as folder markers.
+            (["a", "ax"], ["a", "ax"], []),
+            (["abc", "abcdef"], ["abc", "abcdef"], []),
+            (["foo/", "foo/bar.txt"], ["foo/bar.txt"], ["foo/"]),
+            (
+                ["data/", "data/sub/", "data/sub/file.txt"],
+                ["data/sub/file.txt"],
+                ["data/", "data/sub/"],
+            ),
+            # A lone trailing-slash key with no overlap is a real object and stays.
+            (["lonely/"], ["lonely/"], []),
+            (["lonely/", "report.csv"], ["lonely/", "report.csv"], []),
+        ],
+    )
+    def test_strip_overlapping_folder_markers(self, keys, expected_kept, expected_dropped):
+        """Folder-marker detection: requires both strict-prefix overlap AND trailing slash."""
+        kept, dropped = GCSToS3Operator._strip_overlapping_folder_markers(keys)
+        assert kept == expected_kept
+        assert dropped == expected_dropped
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_skips_overlapping_folder_markers(self, mock_hook):
+        mock_hook.return_value.list.return_value = ["src/", "src/airflow.png", "lonely/"]
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+
+            operator = GCSToS3Operator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                dest_aws_conn_id="aws_default",
+                dest_s3_key=S3_BUCKET,
+                replace=True,
+            )
+            hook, _ = _create_test_bucket()
+
+            uploaded_files = operator.execute(None)
+            assert uploaded_files == ["lonely/", "src/airflow.png"]
+            assert hook.list_keys("bucket") == ["lonely/", "src/airflow.png"]
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_skips_markers_without_a_basename_when_flattening(self, mock_hook):
+        mock_hook.return_value.list.return_value = ["src/", "src/airflow.png", "lonely/"]
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+
+            operator = GCSToS3Operator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                dest_aws_conn_id="aws_default",
+                dest_s3_key="s3://bucket/dest/",
+                flatten_structure=True,
+                replace=True,
+            )
+            hook, _ = _create_test_bucket()
+
+            uploaded_files = operator.execute(None)
+            assert uploaded_files == ["src/airflow.png"]
+            assert hook.list_keys("bucket") == ["dest/airflow.png"]
+
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_with_replace(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
