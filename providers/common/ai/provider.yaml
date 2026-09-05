@@ -445,8 +445,6 @@ connection-types:
     connection-type: llamaindex
     external-services:
       - OpenAI
-      - Ollama
-      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -455,7 +453,7 @@ connection-types:
       relabeling:
         password: API Key
       placeholders:
-        host: "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)"
+        host: "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)"
         extra: '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}'
     conn-fields:
       embed_model:

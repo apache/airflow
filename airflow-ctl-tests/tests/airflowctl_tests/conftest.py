@@ -370,6 +370,9 @@ def docker_compose_up(tmp_path_factory):
         f"AIRFLOW_UID={os.getuid()}\n"
         # To enable config operations to work
         "AIRFLOW__API__EXPOSE_CONFIG=true\n"
+        # The single api-server process also serves the Execution API; a burst of task processes
+        # starting at once starves it of CPU on small CI runners and airflowctl calls time out.
+        "AIRFLOW__CELERY__WORKER_CONCURRENCY=2\n"
     )
 
     # Set environment variables for the test
