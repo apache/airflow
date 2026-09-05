@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. note::
+    ``AsyncKubernetesHook`` now honors its ``config_file`` argument, so deferrable tasks
+    authenticate against the kubeconfig they were given rather than the default one. Because
+    ``config_file`` now takes part in the mutual-exclusion check, combining it with
+    ``in_cluster``, ``kube_config`` or ``config_dict`` raises instead of being ignored — drop
+    whichever option you did not mean to use.
+
 10.21.1
 .......
 
