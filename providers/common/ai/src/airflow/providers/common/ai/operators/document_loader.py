@@ -50,9 +50,9 @@ class DocumentLoaderOperator(BaseOperator):
     with metadata). Framework-agnostic: no LlamaIndex, LangChain, or other
     AI framework dependency.
 
-    Built-in parsers handle ``.txt``, ``.md``, ``.csv``, and ``.json`` with
-    zero extra dependencies. PDF and DOCX support require optional packages
-    installable via extras::
+    Built-in parsers handle ``.txt``, ``.md``, ``.csv``, ``.json``, and
+    ``.jsonl`` with zero extra dependencies. PDF and DOCX support require
+    optional packages installable via extras::
 
         pip install apache-airflow-providers-common-ai[pdf]    # pypdf
         pip install apache-airflow-providers-common-ai[docx]   # python-docx
@@ -89,17 +89,18 @@ class DocumentLoaderOperator(BaseOperator):
         document's ``metadata`` dict. Auto-extracted fields such as
         ``file_name``, ``file_path``, ``row_index``, ``item_index``, and
         ``page_number`` take precedence over keys with the same name.
-    :param encoding: Text encoding used for ``.txt``/``.md``/``.csv``/``.json``
-        and for the bytes path. Defaults to ``"utf-8"``.
+    :param encoding: Text encoding used for
+        ``.txt``/``.md``/``.csv``/``.json``/``.jsonl`` and for the bytes path.
+        Defaults to ``"utf-8"``.
     :param encoding_errors: How decode errors are handled. Defaults to
         ``"strict"``; set to ``"replace"`` or ``"ignore"`` to tolerate
         mixed-encoding inputs at the cost of some character loss.
-    :param json_text_field: When parsing JSON, treat this key as the
-        embedding text and put every other key into ``metadata``. Applies
-        to each item when the top-level JSON is a list, or to the object
-        when it is a single dict. When ``None`` (default), the operator
-        flattens dicts into ``"k: v, k: v"`` text (same shape as the CSV
-        parser).
+    :param json_text_field: When parsing JSON or JSON Lines, treat this key
+        as the embedding text and put every other key into ``metadata``.
+        Applies to each item when the top-level JSON is a list, to the object
+        when it is a single dict, or to each JSON Lines record. When ``None``
+        (default), the operator flattens dicts into ``"k: v, k: v"`` text
+        (same shape as the CSV parser).
     """
 
     template_fields: Sequence[str] = (
@@ -116,6 +117,7 @@ class DocumentLoaderOperator(BaseOperator):
         ".md": "text",
         ".csv": "csv",
         ".json": "json",
+        ".jsonl": "jsonl",
         ".pdf": "pypdf",
         ".docx": "python-docx",
     }
@@ -284,6 +286,8 @@ class DocumentLoaderOperator(BaseOperator):
             return self._parse_csv_text(text)
         if backend == "json":
             return self._parse_json_text(text)
+        if backend == "jsonl":
+            return self._parse_json_lines_text(text)
         return [{"text": text, "metadata": {}}]
 
     def _parse_file(self, file_path: Path, ext: str) -> list[dict[str, Any]]:
@@ -295,6 +299,8 @@ class DocumentLoaderOperator(BaseOperator):
             return self._parse_csv(file_path)
         if backend == "json":
             return self._parse_json(file_path)
+        if backend == "jsonl":
+            return self._parse_json_lines(file_path)
         if backend == "pypdf":
             with file_path.open("rb") as fh:
                 return self._parse_pdf_stream(fh)
@@ -355,6 +361,21 @@ class DocumentLoaderOperator(BaseOperator):
         if isinstance(data, list):
             return [self._json_item_to_doc(item, item_index=idx) for idx, item in enumerate(data)]
         return [self._json_item_to_doc(data, item_index=None)]
+
+    def _parse_json_lines(self, file_path: Path) -> list[dict[str, Any]]:
+        return self._parse_json_lines_text(self._read_text(file_path))
+
+    def _parse_json_lines_text(self, text: str) -> list[dict[str, Any]]:
+        documents: list[dict[str, Any]] = []
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON on line {line_number}, column {e.colno}: {e.msg}") from e
+            documents.append(self._json_item_to_doc(item, item_index=len(documents)))
+        return documents
 
     def _json_item_to_doc(self, item: Any, *, item_index: int | None) -> dict[str, Any]:
         metadata: dict[str, Any] = {}
