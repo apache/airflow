@@ -151,7 +151,6 @@
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",
-    "draining": "This Dag is draining and does not accept new runs",
     "intervalEnd": "End",
     "intervalStart": "Start",
     "loading": "Loading Dag information...",

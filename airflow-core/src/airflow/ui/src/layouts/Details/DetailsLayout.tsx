@@ -249,7 +249,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   dagDisplayName={dag.dag_display_name}
                   dagId={dag.dag_id}
                   isPaused={dag.is_paused}
-                  schedulingState={dag.scheduling_state}
                   variant="outline"
                   withText
                 />

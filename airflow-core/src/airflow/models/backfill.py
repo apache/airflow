@@ -44,7 +44,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import AirflowException, DagIsDraining, DagNotFound, DagRunTypeNotAllowed
+from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error, with_row_locks
@@ -640,16 +640,8 @@ def _create_backfill(
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
 
-        dag_model = session.scalar(
-            with_row_locks(
-                select(DagModel).where(DagModel.dag_id == dag_id).limit(1),
-                of=DagModel,
-                session=session,
-            )
-        )
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
         if dag_model:
-            if dag_model.is_draining:
-                raise DagIsDraining(f"Dag '{dag_id}' is draining and does not accept new runs")
             if (
                 dag_model.allowed_run_types is not None
                 and DagRunType.BACKFILL_JOB not in dag_model.allowed_run_types
@@ -712,19 +704,7 @@ def _create_backfill(
         # for the same dag.
         session.commit()
 
-        dag_model = session.scalar(
-            with_row_locks(
-                select(DagModel).where(DagModel.dag_id == dag_id),
-                of=DagModel,
-                session=session,
-            )
-        )
-        if dag_model is None:
-            _cleanup_partial_backfill(backfill, session)
-            raise DagNotFound(f"Could not find dag {dag_id}")
-        if dag_model.is_draining:
-            _cleanup_partial_backfill(backfill, session)
-            raise DagIsDraining(f"Dag '{dag_id}' is draining and does not accept new runs")
+        session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
 
         first_info = dagrun_info_list[0]
         try:

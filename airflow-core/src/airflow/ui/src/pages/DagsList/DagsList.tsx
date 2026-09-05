@@ -196,7 +196,6 @@ const createColumns = (
         dagDisplayName={original.dag_display_name}
         dagId={original.dag_id}
         isPaused={original.is_paused}
-        schedulingState={original.scheduling_state}
       />
     ),
     enableSorting: false,

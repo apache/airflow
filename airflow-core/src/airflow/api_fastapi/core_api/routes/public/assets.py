@@ -92,7 +92,6 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.typing_compat import Unpack
-from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -474,19 +473,6 @@ def materialize_asset(
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             f"User is not authorized to trigger a run for Dag: {dag_id} that materializes this asset",
-        )
-
-    dag_model = session.scalar(
-        with_row_locks(
-            select(DagModel).where(DagModel.dag_id == dag_id),
-            of=DagModel,
-            session=session,
-        )
-    )
-    if dag_model and dag_model.is_draining:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Dag with dag_id: '{dag_id}' is draining and does not accept new runs",
         )
 
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
