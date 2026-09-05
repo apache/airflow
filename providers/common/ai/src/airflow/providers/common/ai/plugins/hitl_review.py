@@ -79,8 +79,8 @@ if AIRFLOW_V_3_1_PLUS:
         HumanFeedbackRequest,
         SessionStatus,
     )
+    from airflow.sdk import TaskInstanceState
     from airflow.utils.session import create_session
-    from airflow.utils.state import TaskInstanceState
 
     def _get_session():
         with create_session(scoped=False) as session:
