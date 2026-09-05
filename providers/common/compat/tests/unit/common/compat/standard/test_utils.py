@@ -20,8 +20,21 @@ import pytest
 
 from airflow.providers.common.compat.standard import utils
 
+EXPECTED_EXPORTS = (
+    "SkipMixin",
+    "XCOM_SKIPMIXIN_KEY",
+    "XCOM_SKIPMIXIN_SKIPPED",
+    "XCOM_SKIPMIXIN_FOLLOWED",
+    "write_python_script",
+    "prepare_virtualenv",
+)
 
-@pytest.mark.parametrize("name", utils.__all__)
+
+def test_public_exports():
+    assert set(utils.__all__) == set(EXPECTED_EXPORTS)
+
+
+@pytest.mark.parametrize("name", EXPECTED_EXPORTS)
 def test_all_compat_imports_work(name):
     assert getattr(utils, name) is not None
 
