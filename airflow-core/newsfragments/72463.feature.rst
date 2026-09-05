@@ -1,0 +1,1 @@
+Grant DAG Viewers (users with DAG read permission) access to view audit logs for authorized DAGs.
