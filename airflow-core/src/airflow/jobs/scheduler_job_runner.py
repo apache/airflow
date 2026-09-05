@@ -4271,7 +4271,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             active_non_backfill_runs = runs_dict.get(dag_model.dag_id, 0)
 
-        dag_model.exceeds_max_non_backfill = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+        exceeds_max = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+        if dag_model.exceeds_max_non_backfill != exceeds_max:
+            dag_model.exceeds_max_non_backfill = exceeds_max
 
 
 # Backcompat for older versions of task sdk import SchedulerDagBag from here
