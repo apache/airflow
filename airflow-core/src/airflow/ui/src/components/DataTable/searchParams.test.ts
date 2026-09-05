@@ -34,6 +34,45 @@ describe("searchParams", () => {
 
       expect(stateToSearchParams(state).toString()).toEqual("limit=20&offset=1&sort=name");
     });
+
+    it("serializes every sort in order", () => {
+      const state: TableState = {
+        pagination: {
+          pageIndex: 0,
+          pageSize: 20,
+        },
+        sorting: [
+          { desc: true, id: "age" },
+          { desc: false, id: "name" },
+        ],
+      };
+
+      expect(stateToSearchParams(state).toString()).toEqual("limit=20&sort=-age&sort=name");
+    });
+
+    it("omits sort only when it matches the default sorting exactly", () => {
+      const defaultState: TableState = {
+        pagination: {
+          pageIndex: 0,
+          pageSize: 20,
+        },
+        sorting: [{ desc: true, id: "age" }],
+      };
+
+      expect(stateToSearchParams(defaultState, defaultState).toString()).toEqual("");
+      expect(
+        stateToSearchParams(
+          {
+            ...defaultState,
+            sorting: [
+              { desc: true, id: "age" },
+              { desc: false, id: "name" },
+            ],
+          },
+          defaultState,
+        ).toString(),
+      ).toEqual("sort=-age&sort=name");
+    });
   });
 
   describe("searchParamsToState", () => {
