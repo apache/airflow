@@ -27,7 +27,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped
 
 from airflow.models.base import StringID
-from airflow.providers.common.compat.sdk import TaskInstanceKey, timezone
+from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -92,7 +93,13 @@ class EdgeJobModel(Base, LoggingMixin):
     __table_args__ = (Index("rj_order", state, queued_dttm, queue),)
 
     @property
-    def key(self):
+    def key(self) -> TaskInstanceKey:
+        """
+        Key of the job as the executor layer knows it.
+
+        Deliberately the ``airflow.models`` class and not the ``airflow.sdk`` one: ``BaseExecutor``
+        dispatches on it with ``isinstance``, and the two are unrelated classes.
+        """
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @property
