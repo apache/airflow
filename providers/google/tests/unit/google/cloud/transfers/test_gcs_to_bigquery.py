@@ -2124,6 +2124,141 @@ class TestGCSToBigQueryOperator:
 
         assert operator.schema_fields == SCHEMA_FIELDS
 
+    @pytest.mark.parametrize(
+        ("operator_kwargs", "expects_warning"),
+        [
+            pytest.param({"ignore_unknown_values": True}, True, id="autodetect_defaults_to_true"),
+            pytest.param({"ignore_unknown_values": True, "autodetect": True}, True, id="autodetect_true"),
+            pytest.param({"ignore_unknown_values": True, "autodetect": None}, False, id="autodetect_none"),
+            pytest.param(
+                {"ignore_unknown_values": True, "autodetect": False, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="autodetect_false",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="schema_fields_supplied",
+            ),
+            pytest.param({"ignore_unknown_values": False}, False, id="ignore_unknown_values_off"),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"autodetect": None}},
+                False,
+                id="autodetect_cleared_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"schema": {"fields": SCHEMA_FIELDS}}},
+                False,
+                id="schema_supplied_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": False, "extra_config": {"ignoreUnknownValues": True}},
+                True,
+                id="ignore_unknown_values_set_by_extra_config",
+            ),
+        ],
+    )
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_no_op_warning(self, bq_hook, operator_kwargs, expects_warning):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            **operator_kwargs,
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute(context=MagicMock())
+
+        if expects_warning:
+            mock_warning.assert_called_once()
+        else:
+            mock_warning.assert_not_called()
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_no_op_warning_names_the_fix(self, bq_hook):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            ignore_unknown_values=True,
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute(context=MagicMock())
+
+        mock_warning.assert_called_once()
+        assert "autodetect=None" in mock_warning.call_args.args[0]
+
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_no_ignore_unknown_values_warning_with_schema_object(self, bq_hook, gcs_hook):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        gcs_hook.return_value.download.return_value = bytes(json.dumps(SCHEMA_FIELDS), "utf-8")
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            schema_object_bucket=SCHEMA_BUCKET,
+            schema_object=SCHEMA_OBJECT,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            ignore_unknown_values=True,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute(context=MagicMock())
+
+        mock_warning.assert_not_called()
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_no_ignore_unknown_values_warning_for_external_table(self, bq_hook):
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=True,
+            ignore_unknown_values=True,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_warning:
+            operator.execute(context=MagicMock())
+
+        mock_warning.assert_not_called()
+
 
 @pytest.fixture
 def create_task_instance(create_task_instance_of_operator, session):
