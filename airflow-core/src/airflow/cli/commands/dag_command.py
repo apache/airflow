@@ -42,6 +42,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -293,6 +294,13 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
         {"dag_id": dag_model.dag_id, "is_paused": _update_is_paused(dag_model)} for dag_model in matched_dags
     ]
     session.commit()
+
+    for dag_model in matched_dags:
+        try:
+            get_listener_manager().hook.on_dag_pause_status_change(dag=dag_model, is_paused=is_paused)
+        except Exception:
+            log.exception("Error while calling listener")
+
     AirflowConsole().print_as(data=old_values, output=args.output)
 
 
