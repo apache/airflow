@@ -2694,6 +2694,11 @@ components:
           - type: boolean
           - type: 'null'
           title: Rerun With Latest Version
+        pool_include_deferred:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Pool Include Deferred
       type: object
       required:
       - fallback_page_limit
