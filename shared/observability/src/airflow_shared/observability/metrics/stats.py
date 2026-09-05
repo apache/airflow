@@ -20,8 +20,8 @@ import logging
 import os
 import re
 import socket
-import sys
 from collections.abc import Callable, Iterable
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from .base_stats_logger import NoStatsLogger
@@ -101,42 +101,55 @@ def initialize(
     factory: Callable[[], StatsLogger | NoStatsLogger],
     export_legacy_names: bool,
 ) -> None:
-    """Initialize the stats module with a backend factory and legacy name configuration."""
+    """
+    Explicitly initialize the stats module with a backend factory and legacy name configuration.
+
+    This is an eager alternative to the lazy self-configuration in :func:`_self_configure` — call
+    sites use it so that a metrics misconfiguration surfaces immediately at component startup
+    (where it can be caught and logged) rather than on the first metric emission. It only affects
+    *this* module object; see :func:`_self_configure` for how the other copies of this
+    symlinked file end up configured too.
+    """
     global _factory, _backend, _export_legacy_names
     _factory = factory
     _backend = None
     _export_legacy_names = export_legacy_names
-    _propagate_to_sibling_modules(factory=factory, export_legacy_names=export_legacy_names)
 
 
-def _propagate_to_sibling_modules(
-    *,
-    factory: Callable[[], StatsLogger | NoStatsLogger],
-    export_legacy_names: bool,
-) -> None:
+def _self_configure() -> Callable[[], StatsLogger | NoStatsLogger]:
     """
-    Apply the same configuration to other loaded copies of this module.
+    Lazily build this module copy's own factory from its own distribution's configuration.
 
     This source file is symlinked into multiple distributions (e.g. ``airflow-core`` and
     ``task-sdk``), each importing it under a different module name (``airflow._shared...`` vs
     ``airflow.sdk._shared...``). Python treats each as a distinct module object with its own
     module-level globals, so a process that has both loaded (e.g. the scheduler, which also runs
-    plugin/listener code that reaches ``Stats`` through the task-sdk path) would otherwise end up
-    with one singleton initialized and the other silently defaulting to ``NoStatsLogger``.
-    ``__file__`` differs per symlinked path, so siblings are identified by resolved real path
-    instead. Attributes are set via ``setattr`` (mypy has no visibility into another module's
-    globals) rather than by calling the sibling's own ``initialize()``, to avoid re-entering
-    this function.
+    plugin/listener code that reaches ``Stats`` through the task-sdk path) needs both copies
+    configured independently, or one of them silently defaults to ``NoStatsLogger``.
+
+    Rather than have one copy reach across into the other's globals once it is ``initialize()``d
+    (fragile: it depends on both copies already being loaded by the time ``initialize()`` runs, so
+    a later/local import of the sibling, or an ``initialize()`` call that races module loading,
+    could still end up unconfigured), each copy resolves its *own* configuration independently,
+    on first use, from its own module name: ``__name__`` is ``<root>._shared...`` (``root`` is
+    ``airflow`` or ``airflow.sdk``), and every such root exposes ``<root>.configuration.conf`` and
+    ``<root>.observability.metrics.stats_utils.get_stats_factory()``. This works regardless of
+    import order, and regardless of whether the other copy is ever loaded at all.
+
+    Explicit ``initialize()`` calls still take priority over this — they set ``_factory`` directly,
+    so this function only runs when nothing has done that yet.
     """
-    this_file = os.path.realpath(__file__)
-    for name, module in list(sys.modules.items()):
-        if name == __name__ or module is None:
-            continue
-        if os.path.realpath(getattr(module, "__file__", "") or "") != this_file:
-            continue
-        setattr(module, "_factory", factory)
-        setattr(module, "_backend", None)
-        setattr(module, "_export_legacy_names", export_legacy_names)
+    global _factory, _export_legacy_names
+    root, _, _ = __name__.partition("._shared")
+    try:
+        stats_utils = import_module(f"{root}.observability.metrics.stats_utils")
+        conf = import_module(f"{root}.configuration").conf
+        _factory = stats_utils.get_stats_factory()
+        _export_legacy_names = conf.getboolean("metrics", "legacy_names_on")
+    except Exception as e:
+        log.warning("Could not self-configure Stats for '%s': %s, using NoStatsLogger instead.", root, e)
+        _factory = NoStatsLogger
+    return _factory
 
 
 def _get_backend() -> StatsLogger | NoStatsLogger:
@@ -144,7 +157,7 @@ def _get_backend() -> StatsLogger | NoStatsLogger:
     global _backend
 
     if _backend is None:
-        factory = _factory if _factory is not None else NoStatsLogger
+        factory = _factory if _factory is not None else _self_configure()
         try:
             _backend = factory()
         except (socket.gaierror, ImportError) as e:

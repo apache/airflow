@@ -24,7 +24,6 @@ import pytest
 import airflow
 import airflow.observability.stats
 import airflow.sdk.observability.stats
-from airflow.configuration import conf
 from airflow.observability.metrics import stats_utils
 
 from tests_common.test_utils.config import conf_vars
@@ -104,24 +103,23 @@ class TestDogStats:
         importlib.reload(airflow.observability.stats)
 
 
-class TestInitializePropagatesToSdkSingleton:
+class TestSdkStatsSelfConfigures:
     """
     Plugins/listeners typically get ``Stats`` via ``airflow.sdk.observability.stats`` (or the
     deprecated ``airflow.stats`` shim, which re-exports it) — a separate singleton from the one
     this process initializes for its own internal use, because the two are loaded from the same
-    symlinked source under different module names. The shared ``initialize()`` implementation
-    propagates the configuration to that sibling singleton, so plugin code gets a working
-    backend outside the task runner too.
+    symlinked source under different module names. Rather than have this process's
+    ``initialize()`` reach into that sibling's globals, the sibling resolves its own backend
+    lazily — from its own ``airflow.sdk.observability.metrics.stats_utils`` /
+    ``airflow.sdk.configuration`` — the first time it is actually used, independent of whether or
+    when this process's own ``Stats`` gets explicitly initialized.
     """
 
-    def test_configures_sdk_stats_singleton_with_this_process_backend(self):
+    def test_sdk_stats_singleton_self_configures_without_explicit_initialize(self):
         with conf_vars({("metrics", "statsd_on"): "True"}):
-            importlib.reload(airflow.sdk.observability.stats)
-            airflow.observability.stats.initialize(
-                factory=stats_utils.get_stats_factory(),
-                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-            )
+            importlib.reload(airflow.sdk._shared.observability.metrics.stats)
+
             backend = airflow.sdk._shared.observability.metrics.stats._get_backend()
+
             assert hasattr(backend, "statsd")
-        importlib.reload(airflow.observability.stats)
-        importlib.reload(airflow.sdk.observability.stats)
+        importlib.reload(airflow.sdk._shared.observability.metrics.stats)
