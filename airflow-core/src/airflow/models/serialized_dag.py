@@ -866,12 +866,12 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def get_latest_serialized_dags(
-        cls, *, dag_ids: list[str], session: Session = NEW_SESSION
+        cls, *, dag_ids: list[str] | None = None, session: Session = NEW_SESSION
     ) -> Sequence[SerializedDagModel]:
         """
         Get the latest serialized dags of given DAGs.
 
-        :param dag_ids: The list of DAG IDs.
+        :param dag_ids: The list of DAG IDs. If ``None``, cover all dags.
         :param session: The database session.
         :return: The latest serialized dag of the DAGs.
         """
