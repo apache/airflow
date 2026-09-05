@@ -38,6 +38,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from typing_extensions import NotRequired
 
 from airflow.configuration import conf
+from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
@@ -94,6 +95,13 @@ _STATES_WITH_COMPLETED_ATTEMPT = frozenset(
     {
         TaskInstanceState.UP_FOR_RETRY,
         TaskInstanceState.UP_FOR_RESCHEDULE,
+    }
+)
+
+_STATES_WITH_FAILED_ATTEMPT = frozenset(
+    {
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UP_FOR_RETRY,
     }
 )
 
@@ -631,27 +639,40 @@ class FileTaskHandler(logging.Handler):
             # Extend LogSourceInfo
             source_list.extend(sources)
 
-        has_executor_log = False
-        if ti.state == TaskInstanceState.RUNNING:
-            executor = self._get_executor(ti)
-            try:
-                # check for streaming logs first
-                sources, executor_logs = executor.get_streaming_task_log(ti, try_number)
-            except NotImplementedError:
-                # fallback to non-streaming logs if streaming not supported
-                sources, logs = executor.get_task_log(ti, try_number)
-                # make the logs stream-like compatible
-                executor_logs = [_get_compatible_log_stream(logs)]
-
-            if sources:
-                source_list.extend(sources)
-                has_executor_log = True
-
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             sources, local_logs = self._read_from_local(worker_log_full_path)
             source_list.extend(sources)
+
+        has_executor_log = False
+        # A worker that dies before the task runner starts logging (import error, OOM kill on PID 1)
+        # leaves no local or remote log, so ask the executor for the container log as a last resort.
+        if ti.state == TaskInstanceState.RUNNING or (
+            ti.state in _STATES_WITH_FAILED_ATTEMPT and not (local_logs or remote_logs)
+        ):
+            try:
+                executor = self._get_executor(ti)
+            except UnknownExecutorException:
+                # A finished task can name an executor that was since removed from the config,
+                # which must not stop the rest of its log from being served.
+                logger.debug("Executor %r for task instance %s is no longer configured", ti.executor, ti)
+                executor = None
+
+            if executor is not None:
+                try:
+                    # check for streaming logs first
+                    sources, executor_logs = executor.get_streaming_task_log(ti, try_number)
+                except NotImplementedError:
+                    # fallback to non-streaming logs if streaming not supported
+                    sources, logs = executor.get_task_log(ti, try_number)
+                    # make the logs stream-like compatible
+                    executor_logs = [_get_compatible_log_stream(logs)]
+
+                if sources:
+                    source_list.extend(sources)
+                    has_executor_log = True
+
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_executor_log:
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
