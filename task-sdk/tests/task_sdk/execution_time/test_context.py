@@ -27,7 +27,7 @@ import pytest
 from pydantic import ValidationError
 
 from airflow.sdk import BaseOperator, get_current_context, timezone
-from airflow.sdk._shared.state import TaskScope
+from airflow.sdk._shared.state import AssetScope, TaskScope
 from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetResponse,
@@ -1896,6 +1896,170 @@ class TestAssetStateStoreAccessor:
                 assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
         mock_supervisor_comms.send.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_aget_returns_value(self, mock_supervisor_comms):
+        """aget awaits asend and returns the stored value, without touching sync send."""
+        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value="2026-04-30T00:00:00Z")
+
+        result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("watermark")
+
+        assert result == "2026-04-30T00:00:00Z"
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aget_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value="2026-04-30T00:00:00Z")
+
+        result = await AssetStateStoreAccessor(uri=self.ASSET_URI).aget("watermark")
+
+        assert result == "2026-04-30T00:00:00Z"
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetAssetStateStoreByUri(uri=self.ASSET_URI, key="watermark")
+        )
+
+    @pytest.mark.asyncio
+    async def test_aget_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"}
+        )
+
+        result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget(
+            "watermark", default="2026-01-01T00:00:00+00:00"
+        )
+
+        assert result == "2026-01-01T00:00:00+00:00"
+
+    @pytest.mark.asyncio
+    async def test_aget_raises_on_error(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("some_key")
+
+    @pytest.mark.asyncio
+    async def test_aget_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
+        """aget unwraps the external Store marker and resolves the ref via the backend."""
+        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(
+            value=_wrap_external_ref("s3://bucket/assets/orders/watermark")
+        )
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.deserialize_asset_state_store_from_ref.return_value = "2026-05-01"
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("watermark")
+
+        assert result == "2026-05-01"
+        backend.deserialize_asset_state_store_from_ref.assert_called_once_with(
+            "s3://bucket/assets/orders/watermark"
+        )
+
+    @pytest.mark.asyncio
+    async def test_aset_operation(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessor(name=self.ASSET_NAME).aset("watermark", "2026-04-30T00:00:00Z")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aset_by_uri(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessor(uri=self.ASSET_URI).aset("watermark", "2026-04-30T00:00:00Z")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetAssetStateStoreByUri(uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z")
+        )
+
+    @pytest.mark.asyncio
+    async def test_aset_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            await AssetStateStoreAccessor(name=self.ASSET_NAME).aset("watermark", None)
+
+        mock_supervisor_comms.asend.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aset_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
+        """aset wraps the custom backend ref in the external Store marker before sending."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_asset_state_store_to_ref.return_value = "s3://bucket/assets/orders/watermark"
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            await AssetStateStoreAccessor(name=self.ASSET_NAME).aset("watermark", "2026-05-01")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetAssetStateStoreByName(
+                name=self.ASSET_NAME,
+                key="watermark",
+                value=_wrap_external_ref("s3://bucket/assets/orders/watermark"),
+            )
+        )
+
+    @pytest.mark.asyncio
+    async def test_adelete_awaits_asend(self, mock_supervisor_comms):
+        """adelete awaits asend without touching sync send."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessor(name=self.ASSET_NAME).adelete("watermark")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            DeleteAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aclear_awaits_asend(self, mock_supervisor_comms):
+        """aclear awaits asend without touching sync send."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessor(uri=self.ASSET_URI).aclear()
+
+        mock_supervisor_comms.asend.assert_called_once_with(ClearAssetStateStoreByUri(uri=self.ASSET_URI))
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_adelete_purges_via_async_backend(self, mock_supervisor_comms):
+        """adelete awaits the async backend instead of blocking on the sync delete."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            await AssetStateStoreAccessor(name=self.ASSET_NAME).adelete("watermark")
+
+        backend.adelete.assert_awaited_once_with(AssetScope(name=self.ASSET_NAME, uri=None), "watermark")
+        backend.delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aclear_purges_via_async_backend(self, mock_supervisor_comms):
+        """aclear awaits the async backend instead of blocking on the sync clear."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            await AssetStateStoreAccessor(name=self.ASSET_NAME).aclear()
+
+        backend.aclear.assert_awaited_once_with(AssetScope(name=self.ASSET_NAME, uri=None))
+        backend.clear.assert_not_called()
+
 
 class TestAssetStateStoreAccessors:
     ASSET_NAME = "my_asset"
@@ -2058,6 +2222,57 @@ class TestAssetStateStoreAccessors:
 
         assert accessors._total == 0
         mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aget_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value="v5")
+
+        result = await AssetStateStoreAccessors([asset]).aget("watermark")
+
+        assert result == "v5"
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    @pytest.mark.asyncio
+    async def test_aset_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessors([asset]).aset("watermark", "2026-05-01")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
+        )
+
+    @pytest.mark.asyncio
+    async def test_adelete_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessors([asset]).adelete("watermark")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            DeleteAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
+        )
+
+    @pytest.mark.asyncio
+    async def test_aclear_single_inlet_simplified(self, mock_supervisor_comms):
+        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessors([asset]).aclear()
+
+        mock_supervisor_comms.asend.assert_called_once_with(ClearAssetStateStoreByName(name=self.ASSET_NAME))
+
+    @pytest.mark.asyncio
+    async def test_double_reference_raises_for_async_accessor(self):
+        a1 = Asset(name="asset_one", uri="s3://one")
+        a2 = Asset(name="asset_two", uri="s3://two")
+
+        with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
+            await AssetStateStoreAccessors([a1, a2]).aget("watermark")
 
 
 class InMemoryStoreBackend(BaseStoreBackend):
@@ -2278,3 +2493,32 @@ class TestAssetStateStoreAccessorWithCustomBackend:
         assert "watermark" not in backend._actual_key_value_store
         assert "file_count" not in backend._actual_key_value_store
         mock_supervisor_comms.send.assert_any_call(ClearAssetStateStoreByName(name=self.ASSET_NAME))
+
+    @pytest.mark.asyncio
+    async def test_aset_sends_reference_not_value(self, mock_supervisor_comms, backend):
+        """aset() stores actual value in backend and sends mem:// reference via comms."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await AssetStateStoreAccessor(name=self.ASSET_NAME).aset("watermark", "2026-05-01")
+
+        expected_ref = f"mem://{self.ASSET_NAME}/watermark"
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetAssetStateStoreByName(
+                name=self.ASSET_NAME,
+                key="watermark",
+                value=_wrap_external_ref(expected_ref),
+            )
+        )
+        assert backend._actual_key_value_store["watermark"] == "2026-05-01"
+        assert backend.reference["watermark"] == expected_ref
+
+    @pytest.mark.asyncio
+    async def test_aget_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
+        """aget() fetches mem:// reference from DB, resolves it to actual value via backend."""
+        ref = _wrap_external_ref(f"mem://{self.ASSET_NAME}/watermark")
+        backend._actual_key_value_store["watermark"] = "2026-05-01"
+        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value=ref)
+
+        result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("watermark")
+
+        assert result == "2026-05-01"
