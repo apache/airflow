@@ -23,6 +23,9 @@ from unittest import mock
 import pytest
 from gunicorn.config import Config
 
+from airflow.api_fastapi import gunicorn_config
+from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
+
 NOT_SET = object()
 
 
@@ -400,8 +403,6 @@ class TestCreateGunicornApp:
 
     def test_create_basic_app(self):
         """Test creating an app with basic settings."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
-
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
             create_gunicorn_app(
                 host="0.0.0.0",
@@ -420,10 +421,17 @@ class TestCreateGunicornApp:
             assert options["preload_app"] is True
             assert "accesslog" not in options
 
+    def test_create_app_registers_worker_hooks(self, monkeypatch):
+        """The hooks must land on the real gunicorn config, not just in the options dict."""
+        monkeypatch.delenv("GUNICORN_CMD_ARGS", raising=False)
+
+        app = create_gunicorn_app(host="0.0.0.0", port=8080, num_workers=4, worker_timeout=120)
+
+        assert app.cfg.post_worker_init is gunicorn_config.post_worker_init
+        assert app.cfg.worker_exit is gunicorn_config.worker_exit
+
     def test_create_app_with_ssl(self):
         """Test creating an app with SSL settings."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
-
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
             create_gunicorn_app(
                 host="0.0.0.0",
@@ -454,8 +462,6 @@ class TestCreateGunicornApp:
         self, monkeypatch, proxy_headers, forwarded_allow_ips, expected_trusted
     ):
         """An operator who set FORWARDED_ALLOW_IPS gets it honoured instead of overridden."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
-
         if forwarded_allow_ips is None:
             monkeypatch.delenv("FORWARDED_ALLOW_IPS", raising=False)
         else:
@@ -476,7 +482,6 @@ class TestCreateGunicornApp:
 
     def test_create_app_proxy_headers_without_forwarded_allow_ips_is_deprecated(self, monkeypatch):
         """Trusting every client stays the default for now, but is on its way out."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
         from airflow.exceptions import RemovedInAirflow4Warning
 
         monkeypatch.delenv("FORWARDED_ALLOW_IPS", raising=False)
@@ -495,8 +500,6 @@ class TestCreateGunicornApp:
 
     def test_create_app_never_sets_accesslog(self):
         """accesslog is never set; HttpAccessLogMiddleware handles HTTP access logging."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
-
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
             create_gunicorn_app(
                 host="0.0.0.0",

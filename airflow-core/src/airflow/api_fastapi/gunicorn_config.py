@@ -15,15 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Gunicorn configuration hooks for the Airflow API server.
+Gunicorn server hooks for the Airflow API server.
 
-This module provides Gunicorn server hooks that are loaded via the -c config option.
 These hooks handle:
 - Setting process titles to indicate worker readiness (useful for debugging)
 - Cleaning up ORM connections on worker exit
 
-Usage:
-    gunicorn -c python:airflow.api_fastapi.gunicorn_config airflow.api_fastapi.main:app
+``create_gunicorn_app()`` registers them as ``post_worker_init`` / ``worker_exit`` callables.
 """
 
 from __future__ import annotations

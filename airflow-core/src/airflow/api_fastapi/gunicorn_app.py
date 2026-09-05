@@ -43,6 +43,7 @@ from gunicorn.arbiter import Arbiter
 from gunicorn.glogging import Logger as GunicornLogger
 from uvicorn.workers import UvicornWorker
 
+from airflow.api_fastapi import gunicorn_config
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 
@@ -277,8 +278,10 @@ def create_gunicorn_app(
         "loglevel": log_level,
         "logger_class": "airflow.api_fastapi.gunicorn_app.AirflowGunicornLogger",
         "preload_app": True,
-        # Use our gunicorn_config module for hooks (post_worker_init, worker_exit)
-        "config": "python:airflow.api_fastapi.gunicorn_config",
+        # ``cfg.config`` is only read by ``Application.load_config()``, which
+        # ``AirflowGunicornApp`` does not inherit, so the hooks have to be passed as callables.
+        "post_worker_init": gunicorn_config.post_worker_init,
+        "worker_exit": gunicorn_config.worker_exit,
     }
 
     if ssl_cert and ssl_key:
