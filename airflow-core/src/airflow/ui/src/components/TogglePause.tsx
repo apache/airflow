@@ -34,6 +34,8 @@ import { ConfirmationModal } from "./ConfirmationModal";
 type Props = {
   readonly dagDisplayName?: string;
   readonly dagId: string;
+  /** Omitting this offers the drain choice unconditionally, since the two are
+   * only distinguishable once it is known whether anything is still running. */
   readonly hasUnfinishedRuns?: boolean;
   readonly isPaused?: boolean;
   readonly schedulingState?: DagSchedulingState;

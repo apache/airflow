@@ -35,6 +35,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import {
   useDagRunServiceGetDagRun,
+  useDagRunServiceGetDagRuns,
   useDagServiceGetDag,
   useDagWarningServiceListDagWarnings,
 } from "openapi/queries";
@@ -101,6 +102,13 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
     refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
   });
+  // Only asked while the Dag can still be drained; the answer decides whether
+  // pausing needs to offer the drain choice at all.
+  const { data: unfinishedRuns } = useDagRunServiceGetDagRuns(
+    { dagId, limit: 1, state: ["queued", "running"] },
+    undefined,
+    { enabled: dag?.scheduling_state === "active" },
+  );
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
@@ -240,6 +248,9 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   <TogglePause
                     dagDisplayName={dag.dag_display_name}
                     dagId={dag.dag_id}
+                    hasUnfinishedRuns={
+                      unfinishedRuns === undefined ? undefined : unfinishedRuns.dag_runs.length > 0
+                    }
                     isPaused={dag.is_paused}
                     schedulingState={dag.scheduling_state}
                     size="md"
