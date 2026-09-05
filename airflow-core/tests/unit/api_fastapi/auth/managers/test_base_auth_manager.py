@@ -817,3 +817,33 @@ class TestBaseAuthManager:
         user = BaseAuthManagerUserTest(name=user_id)
         result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
         assert result == expected
+
+
+class TestGetRbacReference:
+    def test_reference_lists_every_resource_permission_method(self):
+        reference = BaseAuthManager.get_rbac_reference()
+        for name in dir(BaseAuthManager):
+            if name.startswith("is_authorized_") and name != "is_authorized_hitl_task":
+                assert name.removeprefix("is_authorized_") in reference
+        # is_authorized_hitl_task is an approval check, not a resource permission.
+        assert "hitl_task" not in reference
+
+    def test_reference_is_json_serializable(self):
+        import json
+
+        json.dumps(BaseAuthManager.get_rbac_reference())
+
+    def test_dag_entry_has_scope_and_details(self):
+        entry = BaseAuthManager.get_rbac_reference()["dag"]
+        assert entry["method"] == "is_authorized_dag"
+        assert entry["actions"] == ["GET", "POST", "PUT", "DELETE"]
+        assert entry["scope"]["enum"] == "DagAccessEntity"
+        assert "RUN" in entry["scope"]["values"]
+        assert entry["details"]["type"] == "DagDetails"
+        assert set(entry["details"]["fields"]) >= {"id", "team_name"}
+
+    def test_view_entry_uses_access_view_scope(self):
+        entry = BaseAuthManager.get_rbac_reference()["view"]
+        assert "actions" not in entry
+        assert entry["scope"]["enum"] == "AccessView"
+        assert "CLUSTER_ACTIVITY" in entry["scope"]["values"]
