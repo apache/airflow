@@ -45,7 +45,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
-import httpx
+import httpx2
 from anthropic import BadRequestError
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
@@ -283,8 +283,8 @@ class TestBuildBudget:
 
 def _make_bad_request(message="cannot be archived while its status is running") -> BadRequestError:
     """A real SDK BadRequestError -- archive_session only interrupts on this, not on any error."""
-    request = httpx.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
-    return BadRequestError(message, response=httpx.Response(400, request=request), body=None)
+    request = httpx2.Request("POST", "https://api.anthropic.com/v1/sessions/sess_1/archive")
+    return BadRequestError(message, response=httpx2.Response(400, request=request), body=None)
 
 
 class TestArchiveSession:

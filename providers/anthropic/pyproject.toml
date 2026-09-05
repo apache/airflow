@@ -61,24 +61,20 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.12.0",
-    # 0.121.0 is the first release whose ``sessions.create`` accepts ``budget``, which is
-    # how the guide tells users to set a session ceiling. Reading a ``budget_reached`` stop
-    # reason happens to work further back -- older clients mis-build the discriminated
-    # union into the wrong variant class while preserving ``.type`` -- but only with
-    # response validation left non-strict, so it is not something to depend on.
-    # anthropic 1.0.0 replaces httpx with httpx2 and is a major release the provider
-    # has not been validated against. Remove the <1.0.0 cap (here and in the extras
-    # below) after migrating to the 1.x SDK;
-    # tracked at https://github.com/apache/airflow/issues/72071
-    "anthropic>=0.121.0,<1.0.0",
+    # 1.0.0 is the first release built on ``httpx2`` rather than ``httpx``; the two
+    # packages' ``Response``/``Request`` classes are distinct, so the SDK errors the tests
+    # construct must be built from the same package the client uses. This also subsumes the
+    # previous 0.121.0 floor, which existed because ``sessions.create`` gained ``budget``
+    # there -- the way the guide tells users to set a session ceiling.
+    "anthropic>=1.0.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"bedrock" = ["anthropic[bedrock]>=0.121.0,<1.0.0"]
-"vertex" = ["anthropic[vertex]>=0.121.0,<1.0.0"]
-"aws" = ["anthropic[aws]>=0.121.0,<1.0.0"]
+"bedrock" = ["anthropic[bedrock]>=1.0.0"]
+"vertex" = ["anthropic[vertex]>=1.0.0"]
+"aws" = ["anthropic[aws]>=1.0.0"]
 
 [dependency-groups]
 dev = [

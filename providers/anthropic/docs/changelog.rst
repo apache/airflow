@@ -20,6 +20,12 @@
 Changelog
 ---------
 
+.. note::
+    The minimum required version of the ``anthropic`` SDK is now ``1.0.0``, which replaced
+    ``httpx`` with ``httpx2``. Deployments pinning an older SDK must upgrade it alongside this
+    provider, including the ``bedrock``, ``vertex`` and ``aws`` extras. The provider's own
+    hooks, operators, sensors and triggers are unchanged.
+
 0.3.0
 .....
 
