@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, Header, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -34,6 +34,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     SortParam,
+    update_mask_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
@@ -266,7 +267,7 @@ def patch_connection(
     connection_id: str,
     patch_body: ConnectionBody,
     session: SessionDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[list[str] | None, Depends(update_mask_param_factory(ConnectionBody))] = None,
 ) -> ConnectionResponse:
     """Update a connection entry."""
     if patch_body.connection_id != connection_id:

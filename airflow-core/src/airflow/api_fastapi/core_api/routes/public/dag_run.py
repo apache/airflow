@@ -73,6 +73,7 @@ from airflow.api_fastapi.common.parameters import (
     prefix_search_param_factory,
     search_param_factory,
     teams_filter_factory,
+    update_mask_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -209,7 +210,7 @@ def patch_dag_run(
     session: SessionDep,
     dag_bag: DagBagDep,
     user: GetUserDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[list[str] | None, Depends(update_mask_param_factory(DAGRunPatchBody))] = None,
 ) -> DAGRunResponse:
     """Modify a Dag Run."""
     dag_run = session.scalar(
