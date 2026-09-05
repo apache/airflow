@@ -370,6 +370,11 @@ ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 # teams
 ARG_TEAM_NAME = Arg(("name",), help="Team name")
+ARG_TEAMS_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Show what would be synchronized without making changes.",
+    action="store_true",
+)
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -1681,7 +1686,7 @@ TEAMS_COMMANDS = (
         help="Sync teams",
         description=("Sync missing teams from the dag bundle config into the database.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
-        args=(ARG_VERBOSE,),
+        args=(ARG_TEAMS_DRY_RUN, ARG_VERBOSE),
     ),
     ActionCommand(
         name="verify",
