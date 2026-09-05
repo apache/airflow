@@ -85,7 +85,7 @@ class FABAuthManagerUsers:
         )
 
         stmt = select(User).order_by(ordering).offset(offset).limit(limit)
-        users = session.scalars(stmt).unique().all()
+        users = session.scalars(stmt).all()
 
         return UserCollectionResponse(
             users=[UserResponse.model_validate(u) for u in users],

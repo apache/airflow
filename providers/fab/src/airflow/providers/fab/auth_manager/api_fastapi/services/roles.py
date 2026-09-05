@@ -95,7 +95,7 @@ class FABAuthManagerRoles:
         ordering = build_ordering(order_by, allowed={"name": Role.name, "role_id": Role.id})
 
         stmt = select(Role).order_by(ordering).offset(offset).limit(limit)
-        roles = session.scalars(stmt).unique().all()
+        roles = session.scalars(stmt).all()
 
         return RoleCollectionResponse(
             roles=[RoleResponse.model_validate(r) for r in roles],
