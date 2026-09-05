@@ -329,4 +329,77 @@ describe("GanttTimeline segment bars", () => {
     // Only the execution bar should be rendered; scheduled and queued are too narrow.
     expect(screen.getAllByRole("link")).toHaveLength(1);
   });
+
+  it("hides a Task Group's aggregate bar when hideGroupDurations is true, but keeps its row", () => {
+    const groupNode: GridTask = {
+      depth: 0,
+      id: "group_1",
+      is_mapped: false,
+      isGroup: true,
+      label: "group_1",
+    };
+    const groupSegment: GanttDataItem = {
+      isGroup: true,
+      state: "success",
+      taskId: "group_1",
+      x: [MIN_MS, MIN_MS + 300_000],
+      y: "group_1",
+    };
+
+    const { rerender } = render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[groupNode]}
+        ganttDataItems={[groupSegment]}
+        hideGroupDurations={false}
+        rowSegments={[[groupSegment]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    // Bar visible by default.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+
+    // `rerender` reuses the wrapper passed to the initial `render` call — wrapping again here
+    // would nest a second Router and throw.
+    rerender(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[groupNode]}
+        ganttDataItems={[groupSegment]}
+        hideGroupDurations
+        rowSegments={[[groupSegment]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+    );
+
+    // Bar hidden once the toggle is on — the row itself is still rendered (no crash / no row drop).
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
+  });
+
+  it("still renders a regular task's bar when hideGroupDurations is true", () => {
+    const executionSegment: GanttDataItem = {
+      queued_when: null,
+      scheduled_when: null,
+      state: "success",
+      taskId: "task_1",
+      tryNumber: 1,
+      x: [new Date("2024-03-14T10:00:00Z").getTime(), new Date("2024-03-14T10:05:00Z").getTime()],
+      y: "task_1",
+    };
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        ganttDataItems={[executionSegment]}
+        hideGroupDurations
+        rowSegments={[[executionSegment]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
 });

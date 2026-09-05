@@ -66,6 +66,8 @@ type Props = {
   readonly flatNodes: Array<GridTask>;
   readonly ganttDataItems: Array<GanttDataItem>;
   readonly gridSummaries: Array<LightGridTaskInstanceSummary>;
+  /** When true, Task Group rows keep their place (and sidebar label) but render no duration bar. */
+  readonly hideGroupDurations?: boolean;
   readonly maxMs: number;
   readonly minMs: number;
   readonly onSegmentClick?: () => void;
@@ -107,6 +109,7 @@ export const GanttTimeline = ({
   flatNodes,
   ganttDataItems,
   gridSummaries,
+  hideGroupDurations = false,
   maxMs,
   minMs,
   onSegmentClick,
@@ -279,7 +282,12 @@ export const GanttTimeline = ({
               return undefined;
             }
 
+            // Task Group rows keep their aggregate "envelope" bar even when the toggle is
+            // on - hiding it entirely used to read as missing/lost time. Instead, the bar is
+            // rendered with a hatched overlay below to mark it as an aggregate, not an
+            // individual task's actual runtime.
             const allSegments = rowSegments[vItem.index] ?? [];
+            const isHatchedGroupBar = hideGroupDurations && node.isGroup === true;
             // Hide scheduled/queued bars that are too narrow to see. Re-derive adjacency
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
@@ -334,11 +342,23 @@ export const GanttTimeline = ({
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
                     const barRadius = 4;
 
-                    // Task groups don't have a try number
+                    // Two segments should render with a merged (flat) shared edge whenever
+                    // they are actually adjacent in time (e.g. a "queued" segment ending exactly
+                    // when the following "running"/terminal segment starts) - that's the real
+                    // visual criterion. Falling back to a tryNumber match alone (task groups
+                    // don't have a try number, so that check is skipped for them) isn't enough:
+                    // it missed same-try, time-adjacent segments whose corners then stayed fully
+                    // rounded instead of butting flush against the next segment.
+                    const nextSegment = segments[segIndex + 1];
+                    const prevSegment = segments[segIndex - 1];
                     const touchesNext =
-                      tryNumber === undefined ? false : segments[segIndex + 1]?.tryNumber === tryNumber;
+                      nextSegment !== undefined &&
+                      (x[1] === nextSegment.x[0] ||
+                        (tryNumber !== undefined && nextSegment.tryNumber === tryNumber));
                     const touchesPrev =
-                      tryNumber === undefined ? false : segments[segIndex - 1]?.tryNumber === tryNumber;
+                      prevSegment !== undefined &&
+                      (x[0] === prevSegment.x[1] ||
+                        (tryNumber !== undefined && prevSegment.tryNumber === tryNumber));
 
                     return (
                       <TaskInstanceTooltip
@@ -387,6 +407,26 @@ export const GanttTimeline = ({
                                 <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={state} />
                               )}
                             </Badge>
+                            {isHatchedGroupBar ? (
+                              <Box
+                                aria-hidden
+                                borderRadius={`${barRadius}px`}
+                                inset={0}
+                                pointerEvents="none"
+                                position="absolute"
+                                style={{
+                                  backgroundImage:
+                                    "repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.4) 0px, rgba(255, 255, 255, 0.4) 3px, transparent 3px, transparent 6px)",
+                                  // Anchor the stripe pattern to the row's left edge instead of
+                                  // this segment's own box. Without this, a group bar that is
+                                  // split into multiple state segments (e.g. queued + running)
+                                  // gets a separate stripe pattern per segment, each restarting
+                                  // at its own local origin - the diagonal lines visibly break
+                                  // at the seam between two touching segments.
+                                  backgroundPosition: `${-((leftPct / 100) * bodyWidthPx)}px 0`,
+                                }}
+                              />
+                            ) : undefined}
                           </Link>
                         </Box>
                       </TaskInstanceTooltip>
