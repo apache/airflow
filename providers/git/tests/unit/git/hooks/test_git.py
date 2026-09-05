@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shlex
 import warnings
+from unittest import mock
 
 import pytest
 from git import Repo
@@ -212,11 +214,11 @@ class TestGitHook:
         ("conn_id", "hook_kwargs", "expected_repo_url", "warns_on_default"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT, True),
-            (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git", False),
+            (CONN_HTTPS, {}, AIRFLOW_HTTPS_URL, False),
             (
                 CONN_HTTPS,
                 {"repo_url": "https://github.com/apache/zzzairflow"},
-                f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+                "https://github.com/apache/zzzairflow",
                 False,
             ),
             (
@@ -225,11 +227,11 @@ class TestGitHook:
                 AIRFLOW_GIT,
                 True,
             ),
-            (CONN_HTTP, {}, f"http://user:{ACCESS_TOKEN}@github.com/apache/airflow.git", False),
+            (CONN_HTTP, {}, AIRFLOW_HTTP_URL, False),
             (
                 CONN_HTTP,
                 {"repo_url": "http://github.com/apache/zzzairflow"},
-                f"http://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+                "http://github.com/apache/zzzairflow",
                 False,
             ),
             (CONN_HTTP_NO_AUTH, {}, AIRFLOW_HTTP_URL, False),
@@ -251,6 +253,18 @@ class TestGitHook:
         with warning_context:
             hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
+
+    def test_repo_url_is_expanded_during_init(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_tilde_repo",
+                host="~/repo.git",
+                conn_type="git",
+            )
+        )
+
+        hook = GitHook(git_conn_id="git_tilde_repo")
+        assert hook.repo_url == os.path.expanduser("~/repo.git")
 
     def test_env_var_with_configure_hook_env(self, create_connection_without_db):
         with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
@@ -498,6 +512,108 @@ class TestGitHook:
             assert os.path.exists(askpass_path)
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
+
+    def test_token_askpass_env_and_cleanup(self, create_connection_without_db):
+        token = "tok$with'quote"
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_askpass",
+                host=AIRFLOW_HTTPS_URL,
+                password=token,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_askpass")
+        askpass_path = None
+
+        with mock.patch.dict(
+            os.environ,
+            {"GIT_ASKPASS": "sentinel-askpass", "GIT_TERMINAL_PROMPT": "1"},
+            clear=False,
+        ):
+            with hook.configure_hook_env():
+                assert os.environ["GIT_ASKPASS"] == hook.env["GIT_ASKPASS"]
+                assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
+                askpass_path = hook.env["GIT_ASKPASS"]
+                assert os.path.exists(askpass_path)
+
+                with open(askpass_path) as f:
+                    content = f.read()
+                    assert f"echo {shlex.quote(token)}" in content
+                    assert "#!/bin/sh" in content
+
+            assert os.environ["GIT_ASKPASS"] == "sentinel-askpass"
+            assert os.environ["GIT_TERMINAL_PROMPT"] == "1"
+
+        # The askpass script should be cleaned up after exiting the context
+        assert not os.path.exists(askpass_path)
+
+    def test_token_askpass_uses_connection_login(self, create_connection_without_db):
+        username = "token_user"
+        create_connection_without_db(
+            Connection(
+                conn_id="my_git_conn_https_with_login",
+                host=AIRFLOW_HTTPS_URL,
+                login=username,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="my_git_conn_https_with_login")
+
+        with hook.configure_hook_env():
+            askpass_path = hook.env["GIT_ASKPASS"]
+            with open(askpass_path) as file:
+                content = file.read()
+
+        assert f"*Username*) echo {shlex.quote(username)} ;;" in content
+        assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"key_file": "/files/pkey.pem"}, id="key_file"),
+            pytest.param({"private_key": "inline_key"}, id="private_key"),
+            pytest.param({"known_hosts_file": "/files/known_hosts"}, id="known_hosts_file"),
+            pytest.param({"ssh_config_file": "/files/ssh_config"}, id="ssh_config_file"),
+            pytest.param({"host_proxy_cmd": "nc %h %p"}, id="host_proxy_cmd"),
+            pytest.param({"ssh_port": "2222"}, id="ssh_port"),
+        ],
+    )
+    def test_token_askpass_env_is_set_alongside_ssh_options(self, extra, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_with_ssh_options",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"strict_host_key_checking": "accept-new", **extra},
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_with_ssh_options")
+
+        with hook.configure_hook_env():
+            with open(hook.env["GIT_ASKPASS"]) as file:
+                content = file.read()
+            assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
+
+        assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
+
+    def test_token_askpass_env_skipped_for_ssh_transport(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_ssh_with_password",
+                host=AIRFLOW_GIT,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"key_file": "/files/pkey.pem", "strict_host_key_checking": "accept-new"},
+            )
+        )
+        hook = GitHook(git_conn_id="git_ssh_with_password")
+
+        with hook.configure_hook_env():
+            assert "GIT_ASKPASS" not in hook.env
+            assert "GIT_TERMINAL_PROMPT" not in hook.env
 
     # --- GitHub App auth tests ---
 
