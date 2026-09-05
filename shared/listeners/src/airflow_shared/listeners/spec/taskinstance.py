@@ -57,6 +57,30 @@ def on_task_instance_failed(
 
 
 @hookspec
+def on_task_instance_up_for_retry(
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+    error: None | str | BaseException,
+):
+    """
+    Execute when a task instance is set to UP_FOR_RETRY after a failure.
+
+    This hook fires instead of (in addition to, for backward compatibility)
+    ``on_task_instance_failed`` when the task instance is still eligible for an
+    automatic retry, so listeners that only care about a task's *terminal*
+    failure can subscribe here instead of filtering ``on_task_instance_failed``
+    by ``task_instance.state``. ``on_task_instance_failed`` continues to fire
+    for both the retry and terminal-failure cases, unchanged, to avoid breaking
+    existing listeners.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object (RuntimeTaskInstance when called
+        from task execution context, TaskInstance when called from API server)
+    :param error: The error that caused the retry, if any
+    """
+
+
+@hookspec
 def on_task_instance_skipped(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
