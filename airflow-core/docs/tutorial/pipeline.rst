@@ -174,15 +174,12 @@ Next, we'll download a CSV file, save it locally, and load it into ``employees_t
       with open(data_path, "w") as file:
           file.write(response.text)
 
+
       postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
-      conn = postgres_hook.get_conn()
-      cur = conn.cursor()
-      with open(data_path, "r") as file:
-          cur.copy_expert(
-              "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
-              file,
-          )
-      conn.commit()
+      postgres_hook.copy_expert(
+          "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+          data_path,
+      )
 
 This task gives you a taste of combining Airflow with native Python and SQL hooks -- a common pattern in real-world
 pipelines.
@@ -292,14 +289,10 @@ Now that we've defined all our tasks, it's time to put them together into a Dag.
               file.write(response.text)
 
           postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
-          conn = postgres_hook.get_conn()
-          cur = conn.cursor()
-          with open(data_path, "r") as file:
-              cur.copy_expert(
-                  "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
-                  file,
-              )
-          conn.commit()
+          postgres_hook.copy_expert(
+              "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+              data_path,
+          )
 
       @task
       def merge_data():
