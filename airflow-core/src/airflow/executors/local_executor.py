@@ -310,6 +310,7 @@ class LocalExecutor(BaseExecutor):
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
+            self._read_results()
             self.activity_queue.put(workload)
             # A valid workload will exist in exactly one of these dicts.
             # One pop will succeed, the others will return None gracefully.
