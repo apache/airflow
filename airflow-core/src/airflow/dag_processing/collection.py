@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 import structlog
 from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import load_only, selectinload
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -587,19 +587,27 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
+        # Use selectinload, not joinedload, for these one-to-many collections. joinedload
+        # combines them into a single multi-way join, which multiplies result rows (tags x
+        # asset refs x owner links per dag_id) and forces the caller to receive and
+        # de-duplicate an exploded result set. selectinload issues one extra
+        # "WHERE dag_id IN (...)" query per collection instead, so each query returns only
+        # real rows. See #72393.
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
                 select(DagModel)
-                .options(joinedload(DagModel.tags, innerjoin=False))
+                .options(selectinload(DagModel.tags))
                 .where(DagModel.dag_id.in_(self.dags))
-                .options(joinedload(DagModel.schedule_asset_references))
-                .options(joinedload(DagModel.schedule_asset_alias_references))
-                .options(joinedload(DagModel.task_outlet_asset_references))
-                .options(joinedload(DagModel.dag_owner_links))
+                .options(selectinload(DagModel.schedule_asset_references))
+                .options(selectinload(DagModel.schedule_asset_alias_references))
+                .options(selectinload(DagModel.task_outlet_asset_references))
+                .options(selectinload(DagModel.dag_owner_links))
             ),
             of=DagModel,
             session=session,
         )
+        # .unique() is no longer strictly required now that selectinload doesn't duplicate
+        # parent rows, but it's kept as a cheap, harmless safety net.
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
