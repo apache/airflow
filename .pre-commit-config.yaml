@@ -1345,6 +1345,17 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/known_provide_session_positional\.txt$|^scripts/ci/prek/check_provide_session_kwargs\.py$
+      - id: check-no-new-clear-db-setup
+        name: Check that no new clear_db_* setup pre-cleaning is added
+        entry: ./scripts/ci/prek/check_no_new_clear_db_setup.py
+        language: python
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow-core/tests/unit/.*\.py$|
+          ^providers/.*/tests/unit/.*\.py$|
+          ^generated/known_clear_db_setup\.txt$|
+          ^scripts/ci/prek/check_no_new_clear_db_setup\.py$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils
         entry: ./scripts/ci/prek/check_no_new_airflow_core_utils_modules.py
