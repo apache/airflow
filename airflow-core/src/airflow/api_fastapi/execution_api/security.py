@@ -248,7 +248,12 @@ class ExecutionAPIRoute(APIRoute):
 
 
 async def get_team_name_dep(token=CurrentTIToken) -> str | None:
-    """Return the team name associated to the task (if any)."""
+    """
+    Return the team name associated to the caller (if any).
+
+    Resolved from the token's ``bundle_name`` claim when set (callers without a task instance, i.e. Dag
+    parsing), otherwise from the task instance the token identifies.
+    """
     from airflow.configuration import conf
 
     if not conf.getboolean("core", "multi_team"):
@@ -256,8 +261,12 @@ async def get_team_name_dep(token=CurrentTIToken) -> str | None:
 
     from airflow.utils.session import create_session_async
 
+    if token.claims.bundle_name is not None:
+        stmt = _team_name_for_bundle_stmt(token.claims.bundle_name)
+    else:
+        stmt = _team_name_for_ti_stmt(token.id)
     async with create_session_async() as session:
-        return await session.scalar(_team_name_for_ti_stmt(token.id))
+        return await session.scalar(stmt)
 
 
 def get_team_name_for_ti(ti_id, session) -> str | None:
@@ -288,6 +297,14 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
     )
+
+
+def _team_name_for_bundle_stmt(bundle_name):
+    """Build the select statement resolving ``DagBundleModel.name -> Team.name``."""
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+
+    return select(Team.name).join(DagBundleModel.teams).where(DagBundleModel.name == bundle_name)
 
 
 def _team_name_for_dag_stmt(dag_id):

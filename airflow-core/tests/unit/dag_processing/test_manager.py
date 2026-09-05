@@ -3031,6 +3031,25 @@ class TestDagFileProcessorManager:
         assert len(team2.dag_bundles) == 0
 
     @mock.patch.object(DagFileProcessorProcess, "start")
+    def test_create_process_passes_bundle_client_to_process_start(
+        self, mock_process_start, configure_testing_dag_bundle
+    ):
+        """The process gets the client whose requests identify the file's bundle."""
+        with configure_testing_dag_bundle("/tmp"):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("test_dag.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        mock_process_start.return_value = self.mock_processor()[0]
+
+        manager._create_process(file_info)
+
+        client = mock_process_start.call_args.kwargs["client"]
+        assert client.headers[manager._api_server.bundle_name_header] == "testing"
+
+    @mock.patch.object(DagFileProcessorProcess, "start")
     def test_create_process_passes_bundle_name_to_process_start(
         self, mock_process_start, configure_testing_dag_bundle
     ):
