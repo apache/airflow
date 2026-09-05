@@ -874,22 +874,25 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
         "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica common.ai opensearch",
         "run-unit-tests": "true",
     },
+    # common.ai supports Airflow >= 3.0, but the constraint files these jobs install with pin
+    # pydantic, opentelemetry-api or pydantic-ai-slim itself below its pydantic-ai-slim>=2.0.0
+    # floor - the provider ends up mismatched and its tests fail on import, so skip it there.
     {
         "python-version": "3.10",
         "airflow-version": "3.0.6",
-        "remove-providers": "",
+        "remove-providers": "common.ai",
         "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "3.1.8",
-        "remove-providers": "",
+        "remove-providers": "common.ai",
         "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
         "airflow-version": "3.2.2",
-        "remove-providers": "",
+        "remove-providers": "common.ai",
         "run-unit-tests": "true",
     },
     {
