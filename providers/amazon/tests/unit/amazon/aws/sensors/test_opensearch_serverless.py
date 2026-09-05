@@ -24,7 +24,7 @@ from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchS
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestOpenSearchServerlessCollectionActiveSensor:
@@ -56,6 +56,24 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         assert op.hook._verify is False
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
+
+    def test_deferrable_sensor_forwards_aws_configuration(self):
+        sensor = OpenSearchServerlessCollectionActiveSensor(
+            **self.default_op_kwargs,
+            deferrable=True,
+            aws_conn_id="test_conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute(None)
+
+        serialized_kwargs = deferred.value.trigger.serialize()[1]
+        assert serialized_kwargs["region_name"] == "eu-west-1"
+        assert serialized_kwargs["verify"] is False
+        assert serialized_kwargs["botocore_config"] == {"read_timeout": 42}
 
     @pytest.mark.parametrize(
         ("collection_name", "collection_id", "expected_pass"),

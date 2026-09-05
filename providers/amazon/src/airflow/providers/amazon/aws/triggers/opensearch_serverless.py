@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
@@ -36,6 +36,9 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 60)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 20)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: The AWS region where the collection is located.
+    :param verify: Whether to verify SSL certificates.
+    :param botocore_config: Configuration dictionary for the botocore client.
     """
 
     def __init__(
@@ -46,6 +49,9 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict[str, Any] | None = None,
     ) -> None:
         if not exactly_one(collection_id is None, collection_name is None):
             raise AttributeError("Either collection_ids or collection_names must be provided, not both.")
@@ -63,7 +69,15 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
 
     def hook(self) -> AwsGenericHook:
-        return OpenSearchServerlessHook(aws_conn_id=self.aws_conn_id)
+        return OpenSearchServerlessHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
