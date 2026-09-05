@@ -312,6 +312,14 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
   the executable *is* the bundle.
 - [ADR 0005](./adr/0005-retire-go-edge-worker.md): retire the standalone Go Edge Worker and make the
   coordinator the only execution path.
+- [ADR 0006](./adr/0006-mixed-lang-dag-interface.md): the Mixed Lang Dag task interface — flat
+  positional binding, `arg:` tagged structs, and the untagged folded-name fallback — and a proposal
+  to rename `Registry.AddDag` to `AddMixedLangDag`.
+- [ADR 0007](./adr/0007-native-dag-interface.md): the proposed Native Dag interface (`dag.Task`/
+  `v1.Inputs`/`TaskRef.Then`), not yet merged.
+- [ADR 0008](./adr/0008-taskgroup-shortcircuit-branch.md): proposed `TaskGroup`/`ShortCircuitOperator`/
+  `BranchOperator` sibling methods plus a package-level `v1.TriggerDagRunOperator` function for the
+  Native Dag interface, not yet merged.
 
 Cross-cutting Lang-SDK decisions — the coordinator architecture and how non-Python tasks integrate with
 Airflow core surfaces — are recorded in [`airflow-core/adr/lang-sdk/`](../airflow-core/adr/lang-sdk).
