@@ -1568,7 +1568,10 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[?name=='worker-kerberos']", docs[0]) is not None
+        assert (
+            jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+            is not None
+        )
 
     def test_overwrite_kerberos_sidecar_disable(self):
         docs = render_chart(
@@ -1585,7 +1588,8 @@ class TestWorkerSets:
         )
 
         assert (
-            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
+            jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+            is None
         )
 
     @pytest.mark.parametrize(
@@ -1645,7 +1649,7 @@ class TestWorkerSets:
 
         assert (
             jmespath.search(
-                "spec.template.spec.containers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
+                "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
             )
             == expected
         )
@@ -1699,7 +1703,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].resources", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].resources", docs[0]
         ) == {
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
@@ -1753,7 +1757,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
         ) == {"runAsUser": 10}
 
     @pytest.mark.parametrize(
@@ -1803,7 +1807,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
 
     @pytest.mark.parametrize(
