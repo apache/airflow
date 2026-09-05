@@ -10240,11 +10240,8 @@ class TestSchedulerJob:
 
             self.job_runner._execute()
 
-        # The scheduler also creates a new scheduled DagRun for the dag; only the expired
-        # deadline of the run under test fires.
-        # The scheduler also creates a new scheduled DagRun for the dag; the deadline of the
-        # run under test is among the ones that fired. With the instance-method mock, the
-        # Deadline arrives via the call's enclosing loop; match on the loop's expired query.
+        # The scheduler also creates a new scheduled DagRun for the dag, so one extra
+        # deadline fires alongside the run under test's.
         assert mock_handle_miss.call_count == 2
 
     @mock.patch("airflow.models.Deadline.handle_miss")
@@ -10291,7 +10288,7 @@ class TestSchedulerJob:
         assert session.get(Deadline, deadline_id) is None
 
     @mock.patch("airflow.models.Deadline.handle_miss")
-    def test_process_expired_deadlines_skips_task_deadline_with_missing_task_instance(
+    def test_process_expired_deadlines_fires_task_deadline_with_unresolvable_task_instance(
         self, mock_handle_miss, session, dag_maker
     ):
         """A deadline whose task instance relationship resolves to None falls through to the miss path."""
