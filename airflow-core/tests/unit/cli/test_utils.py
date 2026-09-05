@@ -18,12 +18,19 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import warnings
 
 import pytest
 
-from airflow.cli.utils import deprecated_for_airflowctl, redirect_stdout_log_handlers_to_stderr
+from airflow.cli.utils import (
+    deprecated_for_airflowctl,
+    get_hidden_entries_warning,
+    redirect_stdout_log_handlers_to_stderr,
+)
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestDeprecatedForAirflowctl:
@@ -97,3 +104,55 @@ class TestRedirectStdoutLogHandlersToStderr:
             assert handler.stream is expected_stream(original_stream)
         finally:
             handler.close()
+
+
+class TestGetHiddenEntriesWarning:
+    """Tests for the CLI warning about connections/variables hidden from ``list`` output."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_ambient_env_prefixes(self, monkeypatch):
+        """Strip any ``AIRFLOW_CONN_*``/``AIRFLOW_VAR_*`` vars already present so tests are isolated."""
+        for key in list(os.environ):
+            if key.startswith(("AIRFLOW_CONN_", "AIRFLOW_VAR_")):
+                monkeypatch.delenv(key, raising=False)
+
+    def test_returns_none_when_nothing_is_hidden(self):
+        with conf_vars({("secrets", "backend"): ""}):
+            assert get_hidden_entries_warning("connections", "AIRFLOW_CONN_") is None
+
+    def test_warns_about_env_var_defined_entries(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_CONN_MY_DB", "postgresql://u:p@host/db")
+        with conf_vars({("secrets", "backend"): ""}):
+            warning = get_hidden_entries_warning("connections", "AIRFLOW_CONN_")
+
+        assert warning is not None
+        assert "AIRFLOW_CONN_" in warning
+        assert "secrets backend" not in warning
+
+    def test_warns_about_configured_secrets_backend(self):
+        with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "secrets backend" in warning
+        assert "AIRFLOW_VAR_" not in warning
+
+    def test_warns_about_worker_secrets_backend(self):
+        with conf_vars(
+            {("workers", "secrets_backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}
+        ):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "secrets backend" in warning
+        assert "AIRFLOW_VAR_" not in warning
+
+    def test_warns_about_both_sources_when_both_are_present(self, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_VAR_MY_KEY", "value")
+        with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
+            warning = get_hidden_entries_warning("variables", "AIRFLOW_VAR_")
+
+        assert warning is not None
+        assert "AIRFLOW_VAR_" in warning
+        assert "secrets backend" in warning
+        assert " and " in warning

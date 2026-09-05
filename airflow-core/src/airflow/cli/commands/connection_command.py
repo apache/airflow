@@ -34,6 +34,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import (
     SENSITIVE_PLACEHOLDER,
     deprecated_for_airflowctl,
+    get_hidden_entries_warning,
     is_stdout,
     print_export_output,
 )
@@ -41,6 +42,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
@@ -168,6 +170,9 @@ def connections_list(args):
         mapper = ConnectionDisplayMapper.masked_sensitive
     else:
         mapper = ConnectionDisplayMapper.full_details
+
+    if warning := get_hidden_entries_warning("connections", CONN_ENV_PREFIX):
+        AirflowConsole(stderr=True).print(f"[bold yellow]Warning:[/bold yellow] {warning}\n")
 
     with create_session() as session:
         query = select(Connection)
