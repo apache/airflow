@@ -123,7 +123,9 @@ def variables_set(args):
 @providers_configuration_loaded
 def variables_delete(args):
     """Delete variable by a given name."""
-    Variable.delete(args.key)
+    deleted_count = Variable.delete(args.key)
+    if deleted_count == 0:
+        raise SystemExit(f"Variable {args.key} does not exist")
     print(f"Variable {args.key} deleted")
 
 
