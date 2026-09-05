@@ -589,6 +589,9 @@ class TestCliDags:
         assert DagModel.get_dagmodel("dag.cli_regex_target").is_paused
         assert not DagModel.get_dagmodel("dagXcli_regex_target").is_paused
 
+        clear_db_dags()
+        self.setup_class()
+
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
