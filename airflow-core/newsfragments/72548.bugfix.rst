@@ -1,0 +1,1 @@
+``airflow connections test`` now exits with a non-zero status code when the connection test fails, instead of always exiting successfully.
