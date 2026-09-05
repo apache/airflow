@@ -295,7 +295,7 @@ def create_xcom_entry(
         run_id=dag_run_id,
         map_indexes=request_body.map_index,
     )
-    result = session.execute(already_existing_query.with_only_columns(XComModel.value)).first()
+    result = session.execute(already_existing_query.with_only_columns(XComModel.value).limit(1)).first()
     if result:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

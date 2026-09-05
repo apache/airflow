@@ -24,13 +24,16 @@ from collections import Counter
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import event
+from sqlalchemy import Select, event
+from sqlalchemy.orm import Session
 
 # Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
+    from collections.abc import Generator
+
+    from sqlalchemy.orm import ORMExecuteState
 
 log = logging.getLogger(__name__)
 
@@ -177,3 +180,37 @@ def assert_queries_count(
             message += f"\n\t{location}:\t{count}"
 
         raise AssertionError(message)
+
+
+@contextmanager
+def capture_orm_selects(table: str) -> Generator[list[str], None, None]:
+    """
+    Collect the ORM ``SELECT`` statements issued against ``table`` while the context is active.
+
+    Each statement is rendered with SQLAlchemy's default dialect and with its bound values inlined,
+    so assertions about the shape of a query (``LIMIT 1``, ``OFFSET`` ...) read the same on every
+    backend. The raw text seen by ``before_cursor_execute`` is not enough for ``LIMIT``: SQLite,
+    Postgres and MySQL all emit a ``LIMIT`` of some sort for an offset-only query.
+
+    The listener is attached to the ``Session`` class, so statements executed by sessions the code
+    under test opens itself (for example inside an API request handler) are captured too.
+
+    :param table: Name of the table the captured statements must select from.
+    """
+    statements: list[str] = []
+    selects_from_table = re.compile(rf"\bFROM {re.escape(table)}\b")
+
+    def capture(orm_execute_state: ORMExecuteState) -> None:
+        statement = orm_execute_state.statement
+        if not isinstance(statement, Select):
+            return
+        if not selects_from_table.search(" ".join(str(statement).split())):
+            return
+        rendered = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        statements.append(" ".join(rendered.split()))
+
+    event.listen(Session, "do_orm_execute", capture)
+    try:
+        yield statements
+    finally:
+        event.remove(Session, "do_orm_execute", capture)
