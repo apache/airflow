@@ -280,6 +280,15 @@ class TestXComsGetEndpoint:
         assert response.status_code == 200
         assert response.json() == ["f", "o", "b"][key]
 
+    def test_xcom_get_with_zero_slice_step(self, client):
+        response = client.get("/execution/xcoms/dag/runid/task/xcom_1/slice?step=0")
+
+        assert response.status_code == 422
+        assert response.json()["detail"] == {
+            "reason": "invalid_step",
+            "message": "XCom slice step cannot be zero.",
+        }
+
     @pytest.mark.parametrize(
         ("include_prior_dates", "expected_xcoms"),
         [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],

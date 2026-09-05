@@ -190,6 +190,12 @@ def get_mapped_xcom_by_slice(
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
 ) -> XComSequenceSliceResponse:
+    if params.step == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"reason": "invalid_step", "message": "XCom slice step cannot be zero."},
+        )
+
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -199,7 +205,7 @@ def get_mapped_xcom_by_slice(
     )
     query = query.order_by(None)
 
-    step = params.step or 1
+    step = params.step if params.step is not None else 1
 
     # We want to optimize negative slicing (e.g. seq[-10:]) by not doing an
     # additional COUNT query if possible. This is possible unless both start and
