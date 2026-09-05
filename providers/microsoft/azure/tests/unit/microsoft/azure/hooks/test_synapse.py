@@ -35,7 +35,6 @@ DEFAULT_CONNECTION_DEFAULT_CREDENTIAL = "azure_synapse_test_default_credential"
 
 MODEL = object()
 NAME = "testName"
-ID = "testId"
 JOB_ID = 1
 
 MODULE = "airflow.providers.microsoft.azure.hooks.synapse"
@@ -137,12 +136,31 @@ def test_run_spark_job(hook: AzureSynapseHook):
         hook._conn.spark_batch.create_spark_batch_job.assert_called_with({})  # type: ignore[attr-defined]
 
 
-def test_get_job_run_status(hook: AzureSynapseHook):
+def test_get_job_run_status(hook: AzureSynapseHook) -> None:
+    hook.job_id = JOB_ID
     hook.get_job_run_status()
-    if hook._conn is not None and isinstance(hook._conn, SparkClient):
-        hook._conn.spark_batch.get_spark_batch_job.assert_called_with(  # type: ignore[attr-defined]
-            batch_id=JOB_ID
-        )
+    hook._conn.spark_batch.get_spark_batch_job.assert_called_once_with(batch_id=JOB_ID)  # type: ignore[union-attr]
+
+
+def test_get_job_run_status_uses_explicit_job_id(hook: AzureSynapseHook) -> None:
+    hook.job_id = 2
+    hook.get_job_run_status(job_id=JOB_ID)
+    hook._conn.spark_batch.get_spark_batch_job.assert_called_once_with(batch_id=JOB_ID)  # type: ignore[union-attr]
+
+
+def test_get_job_run_status_requires_job_id(hook: AzureSynapseHook) -> None:
+    hook.job_id = None
+
+    with pytest.raises(ValueError, match="job ID is required"):
+        hook.get_job_run_status()
+
+
+def test_get_job_run_status_requires_status(hook: AzureSynapseHook) -> None:
+    hook.job_id = JOB_ID
+    hook._conn.spark_batch.get_spark_batch_job.return_value.state = None  # type: ignore[union-attr]
+
+    with pytest.raises(ValueError, match=f"Job {JOB_ID} returned no status"):
+        hook.get_job_run_status()
 
 
 _wait_for_job_run_status_test_args = [
@@ -168,17 +186,34 @@ _wait_for_job_run_status_test_args = [
         for argval in _wait_for_job_run_status_test_args
     ],
 )
-def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected_output):
-    config = {"job_id": ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
-
-    with patch.object(AzureSynapseHook, "get_job_run_status") as mock_job_run:
+def test_wait_for_job_run_status(
+    hook: AzureSynapseHook,
+    job_run_status: str,
+    expected_status: str | set[str],
+    expected_output: bool | str,
+) -> None:
+    with patch.object(AzureSynapseHook, "get_job_run_status", autospec=True) as mock_job_run:
         mock_job_run.return_value = job_run_status
 
         if expected_output != "timeout":
-            assert hook.wait_for_job_run_status(**config) == expected_output
+            assert (
+                hook.wait_for_job_run_status(
+                    job_id=JOB_ID,
+                    timeout=3,
+                    check_interval=1,
+                    expected_statuses=expected_status,
+                )
+                == expected_output
+            )
         else:
             with pytest.raises(AirflowTaskTimeout):
-                hook.wait_for_job_run_status(**config)
+                hook.wait_for_job_run_status(
+                    job_id=JOB_ID,
+                    timeout=3,
+                    check_interval=1,
+                    expected_statuses=expected_status,
+                )
+        assert all(call.kwargs == {"job_id": JOB_ID} for call in mock_job_run.call_args_list)
 
 
 def test_cancel_job_run(hook: AzureSynapseHook):

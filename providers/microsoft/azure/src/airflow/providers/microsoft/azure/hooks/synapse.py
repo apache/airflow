@@ -173,9 +173,14 @@ class AzureSynapseHook(BaseHook):
         self.job_id = job.id
         return job
 
-    def get_job_run_status(self):
+    def get_job_run_status(self, job_id: int | None = None) -> str:
         """Get the job run status."""
-        job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=self.job_id).state
+        resolved_job_id = self.job_id if job_id is None else job_id
+        if resolved_job_id is None:
+            raise ValueError("A job ID is required to get the job run status.")
+        job_run_status = self.get_conn().spark_batch.get_spark_batch_job(batch_id=resolved_job_id).state
+        if job_run_status is None:
+            raise ValueError(f"Job {resolved_job_id} returned no status.")
         return job_run_status
 
     def wait_for_job_run_status(
@@ -195,7 +200,7 @@ class AzureSynapseHook(BaseHook):
             status.
 
         """
-        job_run_status = self.get_job_run_status()
+        job_run_status = self.get_job_run_status(job_id=job_id)
         start_time = time.monotonic()
 
         while (
@@ -212,7 +217,7 @@ class AzureSynapseHook(BaseHook):
             self.log.info("Sleeping for %s seconds", check_interval)
             time.sleep(check_interval)
 
-            job_run_status = self.get_job_run_status()
+            job_run_status = self.get_job_run_status(job_id=job_id)
             self.log.info("Current spark job run status is %s", job_run_status)
 
         return job_run_status in expected_statuses
