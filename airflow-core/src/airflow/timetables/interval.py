@@ -111,19 +111,20 @@ class _DataIntervalTimetable(Timetable):
                 # Data interval starts from the end of the previous interval.
                 start = align_last_data_interval_end
 
-            # CronTriggerTimetable stores its runs as point-in-time intervals
-            # (start == end == logical_date). After a switch to a
-            # CronDataIntervalTimetable the aligned `start` lands back on that
-            # same logical_date, so without this guard we'd propose a run
-            # identical to the existing one — which collides with the
-            # (dag_id, logical_date) unique constraint and leaves the scheduler
-            # looping on "run already exists; skipping dagrun creation" until
-            # the next period elapses. Advance one period to skip past it.
-            if (
-                last_automated_data_interval.start == last_automated_data_interval.end
-                and start == last_automated_data_interval.start
-            ):
+            # A schedule change (e.g. a coarser cron) can realign `start` onto or
+            # before the previous run's start, colliding with the (dag_id,
+            # logical_date) unique constraint and stalling the scheduler on "run
+            # already exists; skipping dagrun creation". One retry past it is
+            # provably enough for both shipped subclasses; fail loudly instead of
+            # retrying indefinitely, which would hang the scheduler for every Dag
+            # if `_get_next` ever stopped strictly advancing.
+            if start <= last_automated_data_interval.start:
                 start = self._get_next(start)
+                if start <= last_automated_data_interval.start:
+                    raise AssertionError(
+                        f"{type(self).__name__}._get_next did not advance past "
+                        f"{last_automated_data_interval.start} after one retry"
+                    )
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
