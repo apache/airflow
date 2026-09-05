@@ -27,6 +27,7 @@ import weakref
 from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
+import pendulum
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
@@ -35,6 +36,7 @@ from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
+    DagNotFound,
     DagNotPartitionedError,
     DagVersionNotFound,
     InvalidPartitionKeyError,
@@ -44,10 +46,12 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.decoders import decode_deadline_alert
@@ -93,6 +97,10 @@ class EdgeInfoType(TypedDict):
     """
 
     label: str | None
+
+
+class MaxRecursionDepthError(AirflowException):
+    """Raised when max recursion depth exceeded."""
 
 
 @attrs.define(eq=False, hash=False, slots=False)
@@ -999,9 +1007,11 @@ class SerializedDAG:
         end_date: datetime.datetime | None,
         run_id: str | None,
         state: TaskInstanceState | Sequence[TaskInstanceState],
+        include_dependent_dags: bool = ...,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
+        dag_bag: DBDagBag | None = ...,
     ) -> Iterable[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1014,9 +1024,14 @@ class SerializedDAG:
         end_date: datetime.datetime | None,
         run_id: str | None,
         state: TaskInstanceState | Sequence[TaskInstanceState],
+        include_dependent_dags: bool = ...,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
+        dag_bag: DBDagBag | None = ...,
+        recursion_depth: int = ...,
+        max_recursion_depth: int = ...,
+        visited_external_tis: set[tuple[str, str, str, int]] = ...,
     ) -> set[TaskInstanceKey]: ...  # pragma: no cover
 
     def _get_task_instances(
@@ -1028,9 +1043,14 @@ class SerializedDAG:
         end_date: datetime.datetime | None,
         run_id: str | None,
         state: TaskInstanceState | Sequence[TaskInstanceState],
+        include_dependent_dags: bool = False,
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
+        dag_bag: DBDagBag | None = None,
+        recursion_depth: int = 0,
+        max_recursion_depth: int | None = None,
+        visited_external_tis: set[tuple[str, str, str, int]] | None = None,
     ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
         from airflow.models.taskinstance import TaskInstance
 
@@ -1107,6 +1127,106 @@ class SerializedDAG:
         else:
             tis_full = apply_state_filter(tis_full)
 
+        if include_dependent_dags:
+            external_task_marker_type = "ExternalTaskMarker"
+
+            # Build a full-object query for identifying ExternalTaskMarker TIs in the current set
+            if as_pk_tuple:
+                all_ti_rows = session.execute(tis_pk).all()
+                condition = TaskInstance.filter_for_tis(
+                    TaskInstanceKey(**cols._mapping) for cols in all_ti_rows
+                )
+                marker_query = select(TaskInstance).where(condition) if condition is not None else None
+            else:
+                marker_query = tis_full
+
+            if marker_query is not None:
+                if visited_external_tis is None:
+                    visited_external_tis = set()
+
+                external_marker_tis = session.scalars(
+                    marker_query.where(TaskInstance.operator == external_task_marker_type)
+                )
+
+                for ti in external_marker_tis:
+                    if (ti_key := ti.key.primary) in visited_external_tis:
+                        continue
+
+                    visited_external_tis.add(ti_key)
+                    task = self.get_task(ti.task_id)
+                    task_recursion_depth = getattr(task, "recursion_depth")
+
+                    if max_recursion_depth is None:
+                        # Maximum recursion depth is set from the first ExternalTaskMarker encountered
+                        max_recursion_depth = task_recursion_depth
+
+                    if recursion_depth + 1 > max_recursion_depth:
+                        raise MaxRecursionDepthError(
+                            f"Maximum recursion depth {max_recursion_depth} reached for "
+                            f"{external_task_marker_type} {ti.task_id}. "
+                            f"Attempted to clear too many tasks or there may be a cyclic dependency."
+                        )
+
+                    if ti.dag_run.logical_date is None:
+                        continue
+
+                    # Retrieve the logical date from the TI, Dag/task ID's from the task
+                    logical_date_str: str = ti.dag_run.logical_date.isoformat()
+                    external_dag_id = getattr(task, "external_dag_id")
+                    external_task_id = getattr(task, "external_task_id")
+
+                    if rendered := RenderedTaskInstanceFields.get_templated_fields(ti, session=session):
+                        external_dag_id = rendered.get("external_dag_id", external_dag_id)
+                        external_task_id = rendered.get("external_task_id", external_task_id)
+
+                        if "logical_date" in rendered:
+                            logical_date_str = rendered["logical_date"]
+
+                    external_logical_date = pendulum.parse(logical_date_str)
+                    external_tis = session.scalars(
+                        select(TaskInstance)
+                        .join(TaskInstance.dag_run)
+                        .where(
+                            TaskInstance.dag_id == external_dag_id,
+                            TaskInstance.task_id == external_task_id,
+                            DagRun.logical_date == external_logical_date,
+                        )
+                    )
+
+                    # Load the DagBag such that Dags can be extracted from it
+                    if not dag_bag:
+                        dag_bag = DBDagBag(load_op_links=False)
+
+                    for tii in external_tis:
+                        external_dag = dag_bag.get_latest_version_of_dag(tii.dag_id, session=session)
+                        if not external_dag:
+                            raise DagNotFound(f"Could not find Dag {tii.dag_id}")
+
+                        downstream = external_dag.partial_subset(
+                            task_ids=[tii.task_id],
+                            include_upstream=False,
+                            include_downstream=True,
+                        )
+
+                        result.update(
+                            downstream._get_task_instances(
+                                task_ids=None,
+                                run_id=tii.run_id,
+                                start_date=None,
+                                end_date=None,
+                                state=state,
+                                include_dependent_dags=include_dependent_dags,
+                                as_pk_tuple=True,
+                                exclude_task_ids=exclude_task_ids,
+                                exclude_run_ids=exclude_run_ids,
+                                session=session,
+                                dag_bag=dag_bag,
+                                recursion_depth=recursion_depth + 1,
+                                max_recursion_depth=max_recursion_depth,
+                                visited_external_tis=visited_external_tis,
+                            )
+                        )
+
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results
             if as_pk_tuple:
@@ -1157,6 +1277,8 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> set[str]: ...  # pragma: no cover
 
     @overload
@@ -1174,6 +1296,8 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1208,6 +1332,8 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1225,6 +1351,8 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1242,6 +1370,8 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1261,6 +1391,8 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> int | Iterable[TaskInstance] | set[str]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1280,6 +1412,12 @@ class SerializedDAG:
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
+        :param include_dependent_dags: If True, also clear tasks in downstream Dags that are
+            linked via ExternalTaskMarker. Follows transitive dependencies up to the
+            ``recursion_depth`` configured on each ExternalTaskMarker.
+        :param dag_bag: An existing ``DBDagBag`` to reuse (e.g. the request-scoped bag) when
+            resolving downstream dags for ``include_dependent_dags``, instead of creating a new,
+            uncached, un-configured one.
         """
         from airflow.models.taskinstance import (
             _get_new_task_ids,
@@ -1332,9 +1470,11 @@ class SerializedDAG:
             end_date=end_date,
             run_id=run_id,
             state=state,
+            include_dependent_dags=include_dependent_dags,
             session=session,
             exclude_task_ids=exclude_task_ids,
             exclude_run_ids=exclude_run_ids,
+            dag_bag=dag_bag,
         )
 
         if dry_run:
