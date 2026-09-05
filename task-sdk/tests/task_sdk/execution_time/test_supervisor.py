@@ -4479,6 +4479,31 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+class TestShouldUseExec:
+    """The config opt-in for fork+exec on platforms where it is not forced on."""
+
+    @pytest.mark.parametrize(
+        ("platform", "config_value", "expected"),
+        [
+            ("darwin", None, True),
+            ("darwin", "False", True),
+            ("linux", None, False),
+            ("linux", "False", False),
+            ("linux", "True", True),
+        ],
+    )
+    def test_should_use_exec(self, monkeypatch, platform, config_value, expected):
+        monkeypatch.setattr(supervisor.sys, "platform", platform)
+        # The supervisor reads the task-sdk conf; the env var reaches it regardless
+        # of which config object is active.
+        if config_value is None:
+            monkeypatch.delenv("AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", raising=False)
+        else:
+            monkeypatch.setenv("AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", config_value)
+
+        assert supervisor._should_use_exec() is expected
+
+
 class TestResolveChildTarget:
     """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
 
