@@ -142,16 +142,33 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     when determining the next/previous time.
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+
+    Optional ``seed``/``max_jitter`` jitter (see ``CronMixin``) shifts every cron boundary by a
+    fixed per-Dag offset. Because the boundaries define the data interval, the whole window moves
+    by that offset: it keeps its length and consecutive runs stay contiguous, but it no longer
+    starts exactly on the cron time (e.g. 00:35 to 00:35 instead of 00:00 to 00:00). Keep
+    ``max_jitter`` small relative to the schedule period.
     """
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        return cls(data["expression"], parse_timezone(data["timezone"]))
+        return cls(
+            data["expression"],
+            parse_timezone(data["timezone"]),
+            seed=data.get("seed", ""),
+            max_jitter=datetime.timedelta(seconds=data.get("max_jitter", 0)),
+        )
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_timezone
 
-        return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+        data: dict[str, Any] = {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+
+        if self._max_jitter:
+            data["seed"] = self._seed
+            data["max_jitter"] = self._max_jitter.total_seconds()
+
+        return data
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """

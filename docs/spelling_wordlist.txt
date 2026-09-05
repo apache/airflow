@@ -918,6 +918,10 @@ jinja
 Jira
 jira
 jitter
+Jittered
+jittered
+Jittering
+jittering
 JobComplete
 JobDetails
 JobExists
