@@ -26,6 +26,7 @@ import re
 import shutil
 import signal
 import textwrap
+import threading
 import time
 import zipfile
 from collections import Counter, OrderedDict, defaultdict, namedtuple
@@ -678,7 +679,7 @@ class TestDagFileProcessorManager:
             "dag_processing.processes",
             tags={"file_path": "callbacks_with_spaces.py", "action": "stop"},
         )
-        processor.kill.assert_called_once_with(signal.SIGKILL)
+        processor.kill.assert_called_once_with(signal.SIGKILL, wait=False)
 
     def test_terminate_orphan_processes_tolerates_stale_file_handle_on_close(self):
         """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
@@ -1539,7 +1540,7 @@ class TestDagFileProcessorManager:
             mock.patch("airflow.dag_processing.manager.stats.incr") as stats_incr_mock,
         ):
             manager._kill_timed_out_processors()
-        mock_kill.assert_called_once_with(signal.SIGKILL)
+        mock_kill.assert_called_once_with(signal.SIGKILL, wait=False)
         stats_decr_mock.assert_called_once_with(
             "dag_processing.processes",
             tags={"file_path": "folder_abc_txt.py", "action": "timeout"},
@@ -1587,6 +1588,75 @@ class TestDagFileProcessorManager:
         with mock.patch.object(type(processor), "kill") as mock_kill:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
+
+    def test_ipc_service_thread_starts_and_stops(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.prepare_process_context()
+
+        with manager._ipc_service_thread():
+            ipc_threads = [t for t in threading.enumerate() if t.name == "dag-processor-ipc"]
+            assert len(ipc_threads) == 1
+            assert ipc_threads[0].is_alive()
+
+        ipc_threads = [t for t in threading.enumerate() if t.name == "dag-processor-ipc"]
+        assert ipc_threads == []
+
+    def test_ipc_service_thread_polls_while_caller_is_blocked(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.prepare_process_context()
+        calls: list[float] = []
+        original = manager._service_processor_sockets
+
+        def _track(timeout=1.0):
+            calls.append(timeout)
+            return original(timeout=timeout)
+
+        with mock.patch.object(manager, "_service_processor_sockets", side_effect=_track):
+            with manager._ipc_service_thread():
+                time.sleep(0.35)
+
+        assert calls
+        assert all(timeout == 0.1 for timeout in calls)
+
+    def test_ipc_thread_pauses_around_process_start(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.prepare_process_context()
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.py"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_queue = OrderedDict([(dag_file, None)])
+        paused_at_create: list[bool] = []
+
+        def _fake_create(file):
+            ctl = manager._ipc_control
+            paused_at_create.append(bool(ctl and ctl.parked.is_set()))
+            processor, _ = self.mock_processor()
+            return processor
+
+        with manager._ipc_service_thread():
+            with mock.patch.object(manager, "_create_process", side_effect=_fake_create):
+                manager._start_new_processes()
+
+        assert paused_at_create == [True]
+        assert dag_file in manager._processors
+
+    def test_wait_between_loop_iterations_collects_ready_processors(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.py"), bundle_path=TEST_DAGS_FOLDER)
+        processor, _ = self.mock_processor()
+        manager._processors[dag_file] = processor
+        manager._file_stats[dag_file] = DagFileStat()
+        manager._num_run = 1
+
+        def _handle(file, proc):
+            manager._file_stats[file] = DagFileStat(run_count=1)
+
+        with (
+            mock.patch.object(type(processor), "is_ready", new_callable=mock.PropertyMock, return_value=True),
+            mock.patch.object(manager, "handle_parsing_result", side_effect=_handle),
+        ):
+            manager._wait_between_loop_iterations(loop_start_time=time.monotonic())
+
+        assert manager._processors == {}
+        assert manager.max_runs_reached()
 
     def test_terminate_normalizes_file_path_stats_tag(self):
         manager = DagFileProcessorManager(max_runs=1)
