@@ -163,7 +163,7 @@ class TestSmtpNotifier:
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email=TEST_SENDER,
             to=TEST_RECEIVER,
-            subject=f"DAG {TEST_DAG_ID} - Task {TEST_TASK_ID} - Run ID {TEST_RUN_ID} in State {TEST_TASK_STATE}",
+            subject=f"[Airflow] {TEST_DAG_ID}.{TEST_TASK_ID} {TEST_TASK_STATE} - Run {TEST_RUN_ID}",
             html_content=mock.ANY,
             smtp_conn_id=SMTP_CONN_ID,
             **DEFAULT_EMAIL_PARAMS,
