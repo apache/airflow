@@ -311,6 +311,7 @@ def __getattr__(name: str):
     except KeyError:
         raise AttributeError(f"module '{__name__}' has no attribute '{name}'") from None
 
+    import importlib
     import warnings
 
     warnings.warn(
@@ -318,4 +319,5 @@ def __getattr__(name: str):
         DeprecationWarning,
         stacklevel=2,
     )
-    return getattr(__import__(modpath), name)
+    mod = importlib.import_module(modpath)
+    return getattr(mod, name)

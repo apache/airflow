@@ -241,6 +241,29 @@ class TestHelpers:
         d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]], "f": {}, "g": [""]}
         assert prune_dict(d2, mode=mode) == expected
 
+    @pytest.mark.parametrize(
+        ("func_name", "target_module"),
+        [
+            ("render_template_as_native", "airflow.sdk.definitions.context"),
+            ("render_template_to_string", "airflow.sdk.definitions.context"),
+            ("prevent_duplicates", "airflow.sdk.definitions.mappedoperator"),
+        ],
+    )
+    def test_deprecated_imports(self, func_name, target_module):
+        import importlib
+
+        with pytest.deprecated_call():
+            imported_func = getattr(helpers, func_name)
+        target_mod = importlib.import_module(target_module)
+        expected_func = getattr(target_mod, func_name)
+        assert imported_func is expected_func
+
+    def test_deprecated_imports_unknown_attribute(self):
+        with pytest.raises(
+            AttributeError, match="module 'airflow.utils.helpers' has no attribute 'non_existent_func'"
+        ):
+            _ = helpers.non_existent_func
+
 
 class MockJobRunner(BaseJobRunner):
     job_type = "MockJob"
