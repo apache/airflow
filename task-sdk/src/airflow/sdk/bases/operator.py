@@ -1148,7 +1148,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.start_date = timezone.convert_to_utc(start_date)
         self.end_date = timezone.convert_to_utc(end_date)
         self.executor = executor
-        self.executor_config = executor_config or {}
+        self.executor_config = copy.copy(executor_config) if executor_config else {}
         self.run_as_user = run_as_user
         # TODO:
         # self.retries = parse_retries(retries)
