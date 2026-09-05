@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
@@ -88,7 +88,9 @@ class DateTimeSensorAsync(DateTimeSensor):
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+    :param start_from_trigger: Start the task directly from the triggerer instead of a worker.
+        Supports static ``target_time`` values and, on Airflow >= 3.3, templated
+        ``target_time`` values.
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
@@ -116,16 +118,49 @@ class DateTimeSensorAsync(DateTimeSensor):
 
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
-            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
-            # assigning through it would overwrite the arguments of every other task built
-            # from this operator.
-            self.start_trigger_args = dataclasses.replace(
-                self.start_trigger_args,
-                trigger_kwargs=dict(
-                    moment=self._moment,
-                    end_from_trigger=self.end_from_trigger,
-                ),
-            )
+            try:
+                moment = self._moment
+            except ValueError:
+                if not self._looks_like_template(self.target_time):
+                    # genuinely invalid input (e.g. "not-a-date"), not a template: fail fast
+                    raise
+                moment = None
+
+            # start_trigger_args is a class attribute, so replace it rather than mutate it
+            if moment is not None:
+                self.start_trigger_args = dataclasses.replace(
+                    self.start_trigger_args,
+                    trigger_kwargs=dict(
+                        moment=moment,
+                        end_from_trigger=self.end_from_trigger,
+                    ),
+                )
+            elif AIRFLOW_V_3_3_PLUS:
+                # Pass the unresolved template to the trigger. On Airflow >= 3.3 the
+                # triggerer renders trigger kwargs that correspond to template fields before
+                # starting the trigger.
+                self.start_trigger_args = dataclasses.replace(
+                    self.start_trigger_args,
+                    trigger_kwargs=dict(
+                        target_time=self.target_time,
+                        end_from_trigger=self.end_from_trigger,
+                    ),
+                )
+            else:
+                self.log.warning(
+                    "start_from_trigger=True requires a static target_time on Airflow < 3.3, but "
+                    "%r looks like a template for task %r. Disabling start_from_trigger and "
+                    "deferring from the worker instead. Upgrade to Airflow >= 3.3 to defer "
+                    "directly from the triggerer with a templated target_time.",
+                    self.target_time,
+                    self.task_id,
+                )
+                self.start_from_trigger = False
+
+    @staticmethod
+    def _looks_like_template(target_time: Any) -> bool:
+        """Whether ``target_time`` contains unrendered Jinja delimiters."""
+        return isinstance(target_time, str) and ("{{" in target_time or "{%" in target_time)
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
