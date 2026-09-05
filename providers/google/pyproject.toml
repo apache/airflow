@@ -84,10 +84,9 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    # Floor raised to 1.164.0: earlier "evaluation" extras cap litellm below the version that
-    # carries the fixes for CVE-2026-35030 and its follow-on advisories on Python 3.14.
-    # - https://github.com/googleapis/python-aiplatform/issues/7057
-    "google-cloud-aiplatform[evaluation]>=1.164.0",
+    # Vertex AI evaluation dependencies ship in the ``vertex-eval`` extra so base installs stay lean.
+    # - https://github.com/apache/airflow/issues/69323
+    "google-cloud-aiplatform>=1.164.0",
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
     "ray[default]>=2.55.0;python_version>='3.14' and python_version <'3.15'",
@@ -221,6 +220,12 @@ dependencies = [
 ]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
+]
+# Floor 1.164.0: earlier "evaluation" extras cap litellm below the version that carries
+# the fixes for CVE-2026-35030 and its follow-on advisories on Python 3.14.
+# - https://github.com/googleapis/python-aiplatform/issues/7057
+"vertex-eval" = [
+    "google-cloud-aiplatform[evaluation]>=1.164.0",
 ]
 
 [dependency-groups]
