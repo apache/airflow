@@ -280,6 +280,25 @@ repos:
           (?x)
           ^java-sdk/gradle\.properties$|
           ^java-sdk/sdk/schema/schema\.json$
+      - id: regenerate-java-sdk-verification-metadata
+        name: Regenerate the Java SDK dependency verification metadata
+        description: "Drop trusted checksums that no Java SDK build task resolves any more"
+        entry: ./java-sdk/scripts/ci/regenerate-verification-metadata.sh
+        language: system
+        pass_filenames: false
+        # example/ and scala_spark_example/ are separate builds this metadata does
+        # not cover, so their build files are excluded.
+        files: >
+          (?x)
+          ^java-sdk/build\.gradle\.kts$|
+          ^java-sdk/buildSrc/.*$|
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/gradle/libs\.versions\.toml$|
+          ^java-sdk/gradle/verification-metadata\.xml$|
+          ^java-sdk/gradle/wrapper/gradle-wrapper\.properties$|
+          ^java-sdk/scripts/ci/regenerate-verification-metadata\.sh$|
+          ^java-sdk/settings\.gradle\.kts$|
+          ^java-sdk/(?!example/|scala_spark_example/)[^/]+/(?:build\.gradle\.kts|gradle\.properties)$
       - id: update-java-sdk-readme-matrix
         name: Update the Java SDK compatibility matrix in java-sdk/README.md and Dokka module doc
         entry: ./scripts/ci/prek/update_java_sdk_readme_matrix.py
