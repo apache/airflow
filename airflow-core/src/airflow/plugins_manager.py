@@ -363,6 +363,46 @@ def get_operator_extra_links() -> list[Any]:
 
 
 @cache
+def _get_extra_link_class_teams() -> dict[type, frozenset[str | None]]:
+    """
+    Map every plugin-registered extra link class to the teams that registered it.
+
+    Keyed by class because neither of the alternatives works: ``BaseOperatorLink`` sets
+    ``__hash__ = None`` and compares equal across instances, and two distinct link
+    classes may share a ``name`` (plugin links deliberately override operator links of
+    the same name), so a name key would conflate them.
+
+    A class registered by several plugins maps to all of their teams, which
+    :func:`is_extra_link_visible_to_team` then resolves least restrictively.
+    """
+    teams: dict[type, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for link in (*plugin.global_operator_extra_links, *plugin.operator_extra_links):
+            teams.setdefault(type(link), set()).add(plugin.team_name)
+    return {link_class: frozenset(team_names) for link_class, team_names in teams.items()}
+
+
+def is_extra_link_visible_to_team(link: Any, team_name: str | None) -> bool:
+    """
+    Whether ``link`` should be shown on a task instance belonging to ``team_name``.
+
+    A team-scoped plugin's links are shown only on that team's task instances, so they
+    appear neither on another team's Dags nor on teamless (global) ones. Links from
+    global plugins, and links the operator defines itself, stay visible everywhere.
+
+    :param link: The operator link object, whose class identifies the registering plugin.
+    :param team_name: Team owning the Dag the link would be rendered for, or ``None``
+        when the Dag is not team-owned.
+    """
+    link_teams = _get_extra_link_class_teams().get(type(link))
+    # Not registered by any plugin (defined by the operator), or registered by at least
+    # one global plugin: either way it is not restricted to a team.
+    if link_teams is None or None in link_teams:
+        return True
+    return team_name in link_teams
+
+
+@cache
 def get_timetables_plugins() -> dict[str, type[Timetable]]:
     """Collect and get timetable classes registered by plugins."""
     log.debug("Initialize extra timetables plugins")
