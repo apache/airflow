@@ -45,7 +45,7 @@ try:
     from airflow.sdk import TriggerRule, task
 except ImportError:
     # Compatibility for Airflow < 3.1
-    from airflow.decorators import task  # type: ignore[no-redef]
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
