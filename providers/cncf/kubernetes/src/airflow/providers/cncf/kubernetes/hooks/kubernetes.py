@@ -870,7 +870,7 @@ class AsyncKubernetesHook(KubernetesHook):
         return any("exec" in (u.get("user") or {}) for u in users)
 
     async def _kubeconfig_file_uses_exec_auth(self, kubeconfig_path: str, context: str | None) -> bool:
-        """Detect exec-based authentication in the kubeconfig at ``kubeconfig_path``."""
+        """Detect exec auth in the kubeconfig at ``kubeconfig_path``; an unreadable file counts as exec."""
         try:
             async with aiofiles.open(kubeconfig_path) as f:
                 kubeconfig_data = yaml.safe_load(await f.read())
@@ -900,11 +900,11 @@ class AsyncKubernetesHook(KubernetesHook):
         return existing[0]
 
     async def _default_kubeconfig_uses_exec_auth(self, context: str | None) -> bool:
-        """Detect exec-based authentication in the kubeconfig loaded from the default location."""
+        """Detect exec auth in the default kubeconfig; anything but one readable file counts as exec."""
         kubeconfig_path = self._resolve_default_kubeconfig_path()
         if kubeconfig_path is None:
-            # KUBECONFIG names several files; reimplementing the merge rules kubernetes_asyncio
-            # applies to them would be a second source of truth, so leave the config uncached.
+            # No single file to read: which user is active is kubernetes_asyncio's to decide,
+            # so leave the config uncached rather than reimplementing its merge rules here.
             return True
         return await self._kubeconfig_file_uses_exec_auth(kubeconfig_path, context)
 
