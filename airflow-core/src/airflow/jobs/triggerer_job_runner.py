@@ -46,6 +46,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.logging.tracebacks import format_exception_dicts
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
@@ -1049,8 +1050,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 log = fallback_log
 
             if exc := event.pop("exception", None):
-                # TODO: convert the dict back to a pretty stack trace
-                event["error_detail"] = exc
+                if log is fallback_log:
+                    # The triggerer's own log is read as plain text, where structlog's list of
+                    # exception dicts is unreadable. Per-trigger records instead go to the task
+                    # log, whose readers render the structured payload themselves, so those keep
+                    # it as it arrived.
+                    event["error_detail"] = format_exception_dicts(exc) or exc
+                else:
+                    event["error_detail"] = exc
             if lvl_name := NAME_TO_LEVEL.get(event.pop("level")):
                 log.log(lvl_name, event.pop("event", None), **event)
 

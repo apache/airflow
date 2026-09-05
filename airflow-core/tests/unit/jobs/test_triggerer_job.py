@@ -421,6 +421,103 @@ def test_process_log_messages_configures_logging_matching_json_logs(supervisor_b
     configure_logging.assert_called_once_with(json_output=json_logs)
 
 
+EXCEPTION_PAYLOAD = [
+    {
+        "exc_type": "RuntimeError",
+        "exc_value": "outer",
+        "exc_notes": [],
+        "syntax_error": None,
+        "is_cause": False,
+        "frames": [{"filename": "/dags/t.py", "lineno": 12, "name": "run"}],
+        "is_group": False,
+        "exceptions": [],
+    },
+    {
+        "exc_type": "ValueError",
+        "exc_value": "inner",
+        "exc_notes": [],
+        "syntax_error": None,
+        "is_cause": True,
+        "frames": [{"filename": "/dags/t.py", "lineno": 7, "name": "boom"}],
+        "is_group": False,
+        "exceptions": [],
+    },
+]
+
+
+def test_process_log_messages_renders_exceptions_from_the_triggerer_itself(
+    supervisor_builder, mocker, cap_structlog
+):
+    """The triggerer's own log is read as text, so the exception dicts become a stack trace."""
+    supervisor = supervisor_builder()
+    # Priming the generator calls configure_logging(), which reconfigures structlog globally
+    # and would replace the capture cap_structlog installed. Keep the patch.
+    mocker.patch("airflow.sdk.log.configure_logging")
+    mocker.patch("airflow.sdk.log.logging_processors")
+
+    gen = supervisor._process_log_messages_from_subprocess()
+    next(gen)
+    gen.send(
+        msgspec.json.encode({"event": "Trigger failed", "level": "error", "exception": EXCEPTION_PAYLOAD})
+    )
+
+    assert {
+        "event": "Trigger failed",
+        "log_level": "error",
+        "error_detail": (
+            "Traceback (most recent call last):\n"
+            '  File "/dags/t.py", line 7, in boom\n'
+            "ValueError: inner\n"
+            "\n"
+            "The above exception was the direct cause of the following exception:\n"
+            "\n"
+            "Traceback (most recent call last):\n"
+            '  File "/dags/t.py", line 12, in run\n'
+            "RuntimeError: outer"
+        ),
+    } in cap_structlog
+
+
+def test_process_log_messages_leaves_task_log_exceptions_structured(supervisor_builder, mocker):
+    """Per-trigger records go to the task log, whose readers render the payload themselves."""
+    supervisor = supervisor_builder()
+    mocker.patch("airflow.sdk.log.logging_processors")
+    trigger_log = mocker.MagicMock()
+    supervisor.logger_cache[7] = mocker.MagicMock(return_value=trigger_log)
+
+    gen = supervisor._process_log_messages_from_subprocess()
+    next(gen)
+    gen.send(
+        msgspec.json.encode(
+            {
+                "event": "Trigger failed",
+                "level": "error",
+                "trigger_id": 7,
+                "exception": EXCEPTION_PAYLOAD,
+            }
+        )
+    )
+
+    assert trigger_log.log.call_args.kwargs["error_detail"] == EXCEPTION_PAYLOAD
+
+
+def test_process_log_messages_keeps_an_unrecognised_exception_payload(
+    supervisor_builder, mocker, cap_structlog
+):
+    """A payload that is not transformer output is passed through rather than dropped."""
+    supervisor = supervisor_builder()
+    # Same reason as the test above: priming reconfigures structlog and drops the capture.
+    mocker.patch("airflow.sdk.log.configure_logging")
+    mocker.patch("airflow.sdk.log.logging_processors")
+    payload = {"not": "a transformer payload"}
+
+    gen = supervisor._process_log_messages_from_subprocess()
+    next(gen)
+    gen.send(msgspec.json.encode({"event": "Trigger failed", "level": "error", "exception": payload}))
+
+    assert {"event": "Trigger failed", "log_level": "error", "error_detail": payload} in cap_structlog
+
+
 def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
     """``supervisor.client`` delegates to ``make_client`` (the subclass-override hook)
     and caches the result across accesses."""
