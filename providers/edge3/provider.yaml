@@ -106,6 +106,47 @@ config:
         type: string
         example: https://airflow.hosting.org/edge_worker/v1/rpcapi
         default: ~
+      trusted_jwks_url:
+        description: |
+          When set, edge worker tokens are verified against this JSON Web Key Set
+          (JWKS) URL of a trusted OpenID Connect provider, using asymmetric
+          signatures, instead of the shared ``[api_auth] jwt_secret``. This lets
+          edge workers authenticate with tokens minted by an external identity
+          provider.
+
+          When empty (the default) the shared-secret (symmetric) verification is
+          used, so existing deployments are unaffected.
+        version_added: 4.4.0
+        type: string
+        example: https://idp.example.com/oauth2/v1/keys
+        default: ~
+      jwt_issuer:
+        description: |
+          Expected ``iss`` claim of edge worker tokens when ``trusted_jwks_url`` is
+          set. Ignored when ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: https://idp.example.com
+        default: ~
+      jwt_audience:
+        description: |
+          Expected ``aud`` claim of edge worker tokens when ``trusted_jwks_url`` is
+          set. Leave empty to skip audience verification, which is required for
+          provider tokens that do not carry an ``aud`` claim. Ignored when
+          ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: api
+        default: ~
+      jwt_algorithm:
+        description: |
+          Comma-separated list of JWS signing algorithms accepted for edge worker
+          tokens when ``trusted_jwks_url`` is set. Set it to match the algorithm the
+          trusted provider signs with. Ignored when ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: RS256,RS512
+        default: RS256
       job_poll_interval:
         description: |
           Edge Worker currently polls for new jobs via HTTP. This parameter defines the number

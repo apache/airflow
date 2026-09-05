@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from functools import cache
+from typing import cast
 from uuid import uuid4
 
 from fastapi import Header, HTTPException, Request, status
@@ -30,19 +31,62 @@ from jwt import (
     InvalidSignatureError,
 )
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWKS, JWTValidator
 from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
 
 
-@cache
-def jwt_validator() -> JWTValidator:
+def _trusted_jwks_url() -> str:
+    """Return the configured trusted JWKS URL, or an empty string when unset."""
+    return conf.get("edge", "trusted_jwks_url", fallback="") or ""
+
+
+def _jwt_algorithms() -> list[str]:
+    """Return the accepted signing algorithms for OIDC worker tokens."""
+    configured = conf.get("edge", "jwt_algorithm", fallback="RS256") or "RS256"
+    return [algorithm.strip() for algorithm in configured.split(",") if algorithm.strip()]
+
+
+def _jwt_audience() -> str | None:
+    """Return the expected token audience, or None to skip audience verification."""
+    return conf.get("edge", "jwt_audience", fallback="") or None
+
+
+def _shared_secret_validator() -> JWTValidator:
+    """Build a validator for worker tokens signed with the shared ``[api_auth] jwt_secret``."""
     return JWTValidator(
         secret_key=conf.get("api_auth", "jwt_secret"),
         leeway=conf.getint("api_auth", "jwt_leeway", fallback=30),
         audience="api",
     )
+
+
+def _oidc_validator(jwks_url: str) -> JWTValidator:
+    """
+    Build a validator for worker tokens issued by a trusted OIDC provider.
+
+    Verifies the token signature against the provider JWKS and checks the
+    ``iss`` and (optionally) ``aud`` claims. Used when ``[edge] trusted_jwks_url``
+    is configured, so workers can authenticate with tokens minted by an
+    external identity provider instead of the shared secret.
+    """
+    return JWTValidator(
+        jwks=JWKS(url=jwks_url),
+        issuer=conf.get("edge", "jwt_issuer", fallback=None),
+        audience=cast("str", _jwt_audience()),
+        algorithm=_jwt_algorithms(),
+        required_claims=frozenset({"iat", "exp"}),
+        leeway=conf.getint("api_auth", "jwt_leeway", fallback=30),
+    )
+
+
+@cache
+def jwt_validator() -> JWTValidator:
+    jwks_url = _trusted_jwks_url()
+    if jwks_url:
+        return _oidc_validator(jwks_url)
+    return _shared_secret_validator()
 
 
 def jwt_validate(authorization: str) -> dict:
@@ -59,17 +103,31 @@ def _forbidden_response(message: str):
     )
 
 
+def _check_method_claim(method: str, payload: dict) -> None:
+    """
+    Verify the signed ``method`` claim for shared-secret tokens.
+
+    Tokens minted by the Edge API carry the request ``method`` they are valid
+    for. Tokens issued by an external OIDC provider do not, so the check is
+    skipped when OIDC verification is enabled.
+    """
+    if _trusted_jwks_url():
+        return
+
+    signed_method = payload.get("method")
+    if not signed_method or signed_method != method:
+        _forbidden_response(
+            "Invalid method in token authorization. "
+            f"signed method='{signed_method}' "
+            f"called method='{method}'",
+        )
+
+
 def jwt_token_authorization(method: str, authorization: str):
     """Check if the JWT token is correct."""
     try:
         payload = jwt_validate(authorization)
-        signed_method = payload.get("method")
-        if not signed_method or signed_method != method:
-            _forbidden_response(
-                "Invalid method in token authorization. "
-                f"signed method='{signed_method}' "
-                f"called method='{method}'",
-            )
+        _check_method_claim(method, payload)
     except BadSignature:
         _forbidden_response("Bad Signature. Please use only the tokens provided by the API.")
     except InvalidAudienceError:
