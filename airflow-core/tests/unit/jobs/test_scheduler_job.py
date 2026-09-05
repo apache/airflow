@@ -5204,6 +5204,55 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_verify_integrity_if_dag_changed_moves_unscheduled_tis(self, dag_maker, session):
+        """Task instances that have not been scheduled yet must also be moved to the new Dag version."""
+        with dag_maker(dag_id="test_verify_integrity_unscheduled_tis", serialized=False) as dag:
+            BashOperator(task_id="upstream", bash_command="echo hi") >> BashOperator(
+                task_id="downstream", bash_command="echo hi"
+            )
+
+        orm_dag = dag_maker.dag_model
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
+        )
+        session.commit()
+        assert orm_dag.bundle_version is None
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner._create_dag_runs([orm_dag], session)
+        dr = DagRun.find(dag_id=dag.dag_id, session=session)[0]
+
+        self.job_runner._schedule_dag_run(dag_run=dr, session=session)
+        session.commit()
+        dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
+
+        states = {ti.task_id: ti.state for ti in dr.task_instances}
+        assert states == {"upstream": State.SCHEDULED, "downstream": None}
+
+        BashOperator(task_id="extra", dag=dag, bash_command="echo hi")
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
+        )
+        session.commit()
+        dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
+        assert dag_version_2.id != dag_version_1.id
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.commit()
+
+        versions = dict(
+            session.execute(
+                select(TaskInstance.task_id, TaskInstance.dag_version_id).where(
+                    TaskInstance.dag_id == dr.dag_id, TaskInstance.run_id == dr.run_id
+                )
+            ).all()
+        )
+        assert versions == {
+            "upstream": dag_version_2.id,
+            "downstream": dag_version_2.id,
+            "extra": dag_version_2.id,
+        }
+
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
