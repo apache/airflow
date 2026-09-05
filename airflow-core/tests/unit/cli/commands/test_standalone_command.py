@@ -307,8 +307,8 @@ class TestStandaloneCommand:
 
     def test_subcommand_stop_does_not_block_siblings_when_a_process_never_started(self):
         """Shutdown stops each component in turn, so one that never spawned must not abort the loop."""
-        never_started = SubCommand(mock.Mock(), "scheduler", ["scheduler"], {})
-        running = SubCommand(mock.Mock(), "triggerer", ["triggerer"], {})
+        never_started = SubCommand(mock.Mock(spec=StandaloneCommand), "scheduler", ["scheduler"], {})
+        running = SubCommand(mock.Mock(spec=StandaloneCommand), "triggerer", ["triggerer"], {})
         running.process = mock.Mock(spec=subprocess.Popen)
 
         assert never_started.process is None
