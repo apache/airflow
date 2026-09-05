@@ -2316,7 +2316,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
                 .limit(self._max_partition_dag_runs_per_loop),
-                of=(AssetPartitionDagRun, DagModel),
+                of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
                 session=session,
