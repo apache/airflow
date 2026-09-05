@@ -29,7 +29,7 @@ import { Modal, Menu, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
-import { allowedStates } from "src/components/MarkAs/utils";
+import { allowedTaskStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
@@ -96,7 +96,7 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
           </Button>
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState) => {
+          {allowedTaskStates.map((menuState) => {
             const count = affectedCount(menuState);
 
             return (
