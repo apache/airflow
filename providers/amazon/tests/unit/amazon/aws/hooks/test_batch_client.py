@@ -24,7 +24,7 @@ from unittest import mock
 import botocore.exceptions
 import pytest
 
-from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook, BatchJobNotFoundException
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -246,11 +246,19 @@ class TestBatchClient:
     def test_check_job_success_raises_without_jobs(self, caplog):
         self.client_mock.describe_jobs.return_value = {"jobs": []}
         with caplog.at_level(level=logging.WARNING):
-            with pytest.raises(AirflowException):
+            with pytest.raises(BatchJobNotFoundException):
                 self.batch_client.check_job_success(JOB_ID)
             self.client_mock.describe_jobs.assert_has_calls([mock.call(jobs=[JOB_ID])] * 3)
-            msg = f"AWS Batch job ({JOB_ID}) description error"
+            msg = f"AWS Batch job ({JOB_ID}) was not found"
             assert msg in caplog.messages[0]
+
+    def test_get_job_description_raises_not_found_after_retries(self):
+        self.client_mock.describe_jobs.return_value = {"jobs": []}
+
+        with pytest.raises(BatchJobNotFoundException):
+            self.batch_client.get_job_description(JOB_ID)
+
+        self.client_mock.describe_jobs.assert_has_calls([mock.call(jobs=[JOB_ID])] * self.STATUS_RETRIES)
 
     def test_terminate_job(self):
         self.client_mock.terminate_job.return_value = {}
