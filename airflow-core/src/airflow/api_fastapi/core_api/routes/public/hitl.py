@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Annotated
 
 import structlog
@@ -23,6 +24,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from airflow._shared.serialization import CLASSNAME, SCHEMA_ID
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -78,6 +80,27 @@ task_instances_hitl_router = AirflowRouter(
 task_instance_hitl_path = "/taskInstances/{task_id}/{map_index}/hitlDetails"
 
 log = structlog.get_logger(__name__)
+
+
+# Keys that ``serde.serialize`` refuses at any depth. A ``params_input`` carrying one could not be
+# serialized into the resume event, so the response is rejected before it is stored. Extend this
+# tuple if serde gains another reserved key; the write-side check and its tests read from here.
+_SERDE_RESERVED_KEYS = (CLASSNAME, SCHEMA_ID)
+
+
+def _find_serde_reserved_key(value: object) -> str | None:
+    """Return the first ``_SERDE_RESERVED_KEYS`` entry found at any depth in ``value``, else ``None``."""
+    stack: list[object] = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, Mapping):
+            for key in _SERDE_RESERVED_KEYS:
+                if key in current:
+                    return key
+            stack.extend(current.values())
+        elif isinstance(current, (list, tuple)):
+            stack.extend(current)
+    return None
 
 
 def _get_task_instance_with_hitl_detail(
@@ -221,6 +244,13 @@ def update_hitl_detail(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
+        )
+    reserved_key = _find_serde_reserved_key(update_hitl_detail_payload.params_input)
+    if reserved_key is not None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"params_input may not contain the reserved key {reserved_key!r}, which cannot be "
+            "serialized when the task resumes.",
         )
 
     hitl_detail_model.responded_by = hitl_user

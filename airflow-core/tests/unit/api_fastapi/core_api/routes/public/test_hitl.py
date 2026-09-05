@@ -29,6 +29,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utc, utcnow
+from airflow.api_fastapi.core_api.routes.public.hitl import _SERDE_RESERVED_KEYS
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
@@ -407,6 +408,75 @@ class TestUpdateHITLDetailEndpoint:
         )
         assert response.status_code == 400
         assert "Invalid options" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.parametrize("reserved_key", _SERDE_RESERVED_KEYS)
+    @pytest.mark.parametrize(
+        "make_params_input",
+        [
+            pytest.param(lambda key: {key: "x"}, id="top-level"),
+            pytest.param(lambda key: {"nested": {key: "x"}}, id="nested-dict"),
+            pytest.param(lambda key: {"items": [{key: "x"}]}, id="inside-list"),
+        ],
+    )
+    def test_should_respond_400_for_serde_reserved_key_in_params_input(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        reserved_key: str,
+        make_params_input: Callable[[str], dict[str, Any]],
+    ) -> None:
+        """A params_input carrying a serde-reserved key at any depth is rejected (400) at submission time."""
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": make_params_input(reserved_key)},
+        )
+        assert response.status_code == 400
+        assert reserved_key in response.json()["detail"]
+
+    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_rejected_reserved_key_leaves_task_resumable(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """A rejected reserved-key response records nothing, so the parked task is still resumable by a corrected resubmission."""
+        ti = session.get(TIModel, sample_ti.id)
+        assert ti is not None
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        ti.trigger_id = None
+        session.commit()
+
+        rejected = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {_SERDE_RESERVED_KEYS[0]: "x"}},
+        )
+        assert rejected.status_code == 400
+
+        session.expire_all()
+        parked = session.get(TIModel, sample_ti.id)
+        assert parked is not None
+        assert parked.state == TaskInstanceState.AWAITING_INPUT
+        detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == sample_ti.id))
+        assert detail is not None
+        assert detail.response_received is False
+
+        accepted = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
+        assert accepted.status_code == 200
+
+        session.expire_all()
+        resumed = session.get(TIModel, sample_ti.id)
+        assert resumed is not None
+        assert resumed.state == TaskInstanceState.SCHEDULED
+        assert "event" in (resumed.next_kwargs or {})
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail_respondent")
