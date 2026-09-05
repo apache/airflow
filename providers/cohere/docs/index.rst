@@ -19,16 +19,18 @@
 ``apache-airflow-providers-cohere``
 ======================================
 
-The ``cohere`` provider gives Dags direct access to Cohere's own Embed API — this page
+The ``cohere`` provider gives Dags direct access to Cohere's Embed and Rerank APIs — this page
 compares that choice against ``common.ai``.
 
 When to use this provider
 --------------------------
 
-Use ``cohere`` when a Dag needs Cohere's native embedding models specifically:
+Use ``cohere`` when a Dag needs Cohere's native embedding or reranking models:
 
 * ``CohereEmbeddingOperator`` — call Cohere's
   `Embed API <https://docs.cohere.com/docs/embeddings>`__ directly via ``CohereHook``.
+* ``CohereRerankOperator`` — reorder documents with Cohere's
+  `Rerank API <https://docs.cohere.com/docs/rerank-overview>`__.
 
 Use :doc:`apache-airflow-providers-common-ai:index` instead when the embedding step should
 stay vendor-neutral:
@@ -53,6 +55,7 @@ stay vendor-neutral:
 
     Connection types <connections>
     Operators <operators/embedding>
+    Rerank operator <operators/rerank>
 
 .. toctree::
     :hidden:
