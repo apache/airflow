@@ -105,10 +105,8 @@ COMMAND = """
                 exit "$status"
             fi
 
-            # Use pure bash below to parse so that it's posix compliant
-            # Only the token line should be on stdout (stderr captured above)
-
-            last_line=${{output##*$'\\n'}}  # strip everything up to the last newline
+            # Keep only the token line even if a dependency logs to stdout.
+            last_line=$(printf '%s\\n' "$output" | tail -n 1)
 
             timestamp=${{last_line#expirationTimestamp: }}  # drop the label
             timestamp=${{timestamp%%,*}}  # keep up to the first comma
