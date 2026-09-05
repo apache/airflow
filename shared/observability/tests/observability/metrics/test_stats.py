@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import importlib
 import logging
+import sys
 import time
+import types
 from collections.abc import Callable
 from unittest import mock
 from unittest.mock import Mock
@@ -32,7 +34,7 @@ import airflow_shared.observability.metrics.stats
 import airflow_shared.observability.metrics.validators
 from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import datadog_logger, statsd_logger
-from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow_shared.observability.metrics.base_stats_logger import NoStatsLogger, StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow_shared.observability.metrics.stats import build_dag_metric_tags
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
@@ -863,3 +865,77 @@ def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -
 
 def test_build_dag_metric_tags_accepts_generator() -> None:
     assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}
+
+
+class TestSelfConfigure:
+    """
+    This source file is symlinked into both ``airflow-core`` and ``task-sdk``, each importing it
+    under a different module name (``<root>._shared...``). Rather than one copy reaching into the
+    other's globals once ``initialize()`` runs, each copy lazily resolves its own configuration
+    from ``<root>.observability.metrics.stats_utils`` / ``<root>.configuration`` the first time it
+    is used, independent of import order and of whether the other copy is ever loaded at all.
+    """
+
+    def setup_method(self):
+        importlib.reload(airflow_shared.observability.metrics.stats)
+
+    def teardown_method(self):
+        for name in list(sys.modules):
+            if name.startswith("fake_distribution"):
+                del sys.modules[name]
+        importlib.reload(airflow_shared.observability.metrics.stats)
+
+    def _install_fake_distribution(self, *, legacy_names_on: bool, factory) -> None:
+        stats_utils = types.ModuleType("fake_distribution.observability.metrics.stats_utils")
+        stats_utils.get_stats_factory = lambda: factory  # type: ignore[attr-defined]
+        configuration = types.ModuleType("fake_distribution.configuration")
+        configuration.conf = Mock(getboolean=Mock(return_value=legacy_names_on))  # type: ignore[attr-defined]
+        sys.modules[stats_utils.__name__] = stats_utils
+        sys.modules[configuration.__name__] = configuration
+
+    def test_self_configures_from_own_module_name(self, monkeypatch):
+        factory = get_statsd_logger_factory(stats_class=statsd.StatsClient)
+        self._install_fake_distribution(legacy_names_on=False, factory=factory)
+        monkeypatch.setattr(
+            airflow_shared.observability.metrics.stats,
+            "__name__",
+            "fake_distribution._shared.observability.metrics.stats",
+        )
+
+        backend = airflow_shared.observability.metrics.stats._get_backend()
+
+        assert isinstance(backend.statsd, statsd.StatsClient)
+        assert airflow_shared.observability.metrics.stats._export_legacy_names is False
+
+    def test_explicit_initialize_is_not_overridden_by_self_configure(self, monkeypatch):
+        explicit_factory = get_statsd_logger_factory(stats_class=CustomStatsd)
+        self._install_fake_distribution(
+            legacy_names_on=False, factory=get_statsd_logger_factory(stats_class=statsd.StatsClient)
+        )
+        monkeypatch.setattr(
+            airflow_shared.observability.metrics.stats,
+            "__name__",
+            "fake_distribution._shared.observability.metrics.stats",
+        )
+
+        airflow_shared.observability.metrics.stats.initialize(
+            factory=explicit_factory, export_legacy_names=True
+        )
+        backend = airflow_shared.observability.metrics.stats._get_backend()
+
+        assert isinstance(backend.statsd, CustomStatsd)
+        assert airflow_shared.observability.metrics.stats._export_legacy_names is True
+
+    def test_self_configure_failure_falls_back_to_no_stats_logger(self, monkeypatch, caplog):
+        # No fake_distribution.* modules installed, so the dynamic import fails.
+        monkeypatch.setattr(
+            airflow_shared.observability.metrics.stats,
+            "__name__",
+            "fake_distribution._shared.observability.metrics.stats",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            backend = airflow_shared.observability.metrics.stats._get_backend()
+
+        assert isinstance(backend, NoStatsLogger)
+        assert "Could not self-configure Stats" in caplog.text
