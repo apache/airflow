@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import re
+import selectors
 import shutil
 import signal
 import textwrap
@@ -1522,6 +1523,72 @@ class TestDagFileProcessorManager:
 
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
+
+    def test_terminate_orphan_processes_kills_then_closes_processor(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+        file_info = DagFileInfo(
+            bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+        )
+        manager._processors = {file_info: processor}
+
+        call_order: list[str] = []
+        processor.close = mock.Mock(side_effect=lambda: call_order.append("close"))
+
+        with mock.patch.object(
+            type(processor), "kill", side_effect=lambda *_args, **_kwargs: call_order.append("kill")
+        ):
+            manager.terminate_orphan_processes(present=set())
+
+        assert call_order == ["kill", "close"]
+
+    def test_terminate_orphan_processes_does_not_dispatch_request_frames_after_kill(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        processor, _ = self.mock_processor()
+        request_sock, request_peer = socketpair()
+        real_selector = selectors.DefaultSelector()
+        try:
+            processor.selector = real_selector
+            processor._open_sockets[request_sock] = "requests"
+
+            file_info = DagFileInfo(
+                bundle_name="testing", rel_path=Path("removed.py"), bundle_path=TEST_DAGS_FOLDER
+            )
+            manager._processors = {file_info: processor}
+
+            request_handler = mock.Mock(return_value=False)
+
+            def on_close(sock):
+                real_selector.unregister(sock)
+
+            real_selector.register(request_sock, selectors.EVENT_READ, (request_handler, on_close))
+
+            with mock.patch.object(type(processor), "kill"):
+                manager.terminate_orphan_processes(present=set())
+
+            request_handler.assert_not_called()
+            with pytest.raises((KeyError, ValueError)):
+                real_selector.get_key(request_sock)
+        finally:
+            real_selector.close()
+            request_peer.close()
+
+    def test_kill_timed_out_processors_kills_then_closes_processor(self):
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+        file_info = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        manager._processors = {file_info: processor}
+
+        call_order: list[str] = []
+        processor.close = mock.Mock(side_effect=lambda: call_order.append("close"))
+
+        with mock.patch.object(
+            type(processor), "kill", side_effect=lambda *_args, **_kwargs: call_order.append("kill")
+        ):
+            manager._kill_timed_out_processors()
+
+        assert call_order == ["kill", "close"]
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)

@@ -1062,6 +1062,46 @@ class WatchedSubprocess:
                     pass
         self._process.send_signal(sig)
 
+    def cleanup_sockets_after_kill(self) -> None:
+        """Drain log-bearing sockets, then close every remaining socket after a forced kill."""
+        for sock, socket_type in list(self._open_sockets.items()):
+            try:
+                key = self.selector.get_key(sock)
+            except KeyError:
+                key = None
+
+            if key is not None:
+                socket_handler, on_close = key.data
+                try:
+                    if socket_type != "requests":
+                        sock.setblocking(False)
+                        while True:
+                            try:
+                                if not socket_handler(sock):
+                                    break
+                            except (BlockingIOError, InterruptedError, OSError):
+                                break
+
+                    if on_close is not None:
+                        on_close(sock)
+                    else:
+                        with suppress(KeyError):
+                            self.selector.unregister(sock)
+                        self._open_sockets.pop(sock, None)
+                except Exception:
+                    log.exception(
+                        "Failed to clean up killed subprocess socket",
+                        pid=self.pid,
+                        socket_type=socket_type,
+                    )
+                    with suppress(KeyError):
+                        self.selector.unregister(sock)
+                    self._open_sockets.pop(sock, None)
+            with suppress(OSError, ValueError):
+                sock.close()
+
+        self._open_sockets.clear()
+
     def kill(
         self,
         signal_to_send: signal.Signals = signal.SIGINT,
@@ -2423,7 +2463,17 @@ def process_log_messages_from_subprocess(
         if level := NAME_TO_LEVEL.get(event.pop("level")):
             msg = event.pop("event", None)
             for target in loggers:
-                target.log(level, msg, **event)
+                _log_to_target(target, level, msg, **event)
+
+
+def _log_to_target(target: FilteringBoundLogger, level: int, msg: str | None, **event) -> None:
+    rendered_msg = msg if msg is not None else ""
+    try:
+        target.log(level, rendered_msg, **event)
+    except ValueError as e:
+        if "closed file" not in str(e):
+            raise
+        log.debug("Dropped log line for closed logger handle", level=level, logger=event.get("logger"))
 
 
 def forward_to_log(
@@ -2438,7 +2488,7 @@ def forward_to_log(
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
         for log in target_loggers:
-            log.log(level, msg, logger=logger)
+            _log_to_target(log, level, msg, logger=logger)
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:

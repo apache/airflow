@@ -757,6 +757,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
 
     def close(self):
+        self.cleanup_sockets_after_kill()
         try:
             self.logger_filehandle.close()
         except OSError:
