@@ -673,6 +673,29 @@ class TestGetAssetsUi:
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["newer"]
 
+    @pytest.mark.parametrize(
+        ("has_events", "expected_names"),
+        [
+            pytest.param(None, ["evented", "never"], id="unset"),
+            pytest.param(True, ["evented"], id="has-events"),
+            pytest.param(False, ["never"], id="no-events"),
+        ],
+    )
+    def test_filter_by_has_events(self, test_client, session, has_events, expected_names):
+        evented = AssetModel(name="evented", uri="s3://bucket/evented", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/never", group="asset")
+        session.add_all([evented, never])
+        session.add_all([AssetActive.for_asset(evented), AssetActive.for_asset(never)])
+        session.flush()
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        params = {} if has_events is None else {"has_events": has_events}
+        response = test_client.get("/assets", params=params)
+
+        assert response.status_code == 200
+        assert sorted(asset["name"] for asset in response.json()["assets"]) == expected_names
+
     def test_aliases_present_for_asset_via_alias(self, test_client, session):
         """
         Regression test for https://github.com/apache/airflow/issues/58058:

@@ -235,6 +235,15 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.HAS_EVENTS]: {
+      icon: <MdCheckCircle />,
+      label: translate("assets:filters.hasEvents"),
+      options: [
+        { label: translate("assets:filters.hasEventsTrue"), value: "true" },
+        { label: translate("assets:filters.hasEventsFalse"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.HOSTNAME]: {
       hotkeyDisabled: true,
       icon: <MdComputer />,
