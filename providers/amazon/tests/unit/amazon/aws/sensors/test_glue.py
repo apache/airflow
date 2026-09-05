@@ -167,6 +167,31 @@ class TestGlueJobSensor:
         with pytest.raises(TaskDeferred):
             sensor.execute({})
 
+    def test_deferrable_execute_forwards_hook_config_to_trigger(self):
+        """The deferred half must reach AWS with the same hook settings as the synchronous half."""
+        botocore_config = {"read_timeout": 42}
+        sensor = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name="job_name",
+            run_id="job_run_id",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            verify=False,
+            botocore_config=botocore_config,
+            deferrable=True,
+            poke_interval=1,
+            timeout=5,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            sensor.execute({})
+
+        # assert on the serialized payload: that is what actually reaches the triggerer
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["region_name"] == "us-west-2"
+        assert serialized["verify"] is False
+        assert serialized["botocore_config"] == botocore_config
+
     @mock.patch.object(GlueJobSensor, "defer")
     def test_default_timeout(self, mock_defer):
         mock_defer.side_effect = TaskDeferred(trigger=mock.Mock(), method_name="execute_complete")
