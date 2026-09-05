@@ -1,0 +1,1 @@
+Fix Dag serialization crash for Dags scheduled with the Task SDK ``EventsTimetable``.
