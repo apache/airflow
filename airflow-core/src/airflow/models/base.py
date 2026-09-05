@@ -83,6 +83,15 @@ def get_id_collation_args():
 COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 
+def get_asset_str_field(length: int = 1500) -> String:
+    """Build the string type used for indexed asset identifiers."""
+    collation = conf.get("database", "sql_engine_collation_for_asset_names", fallback="latin1_general_cs")
+    return String(length=length).with_variant(String(length=length, collation=collation), "mysql")
+
+
+ASSET_STR_FIELD: String = get_asset_str_field()
+
+
 def StringID(*, length=ID_LEN, **kwargs) -> String:
     return String(length=length, **kwargs, **COLLATION_ARGS)
 
