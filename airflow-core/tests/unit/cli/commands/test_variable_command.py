@@ -331,6 +331,10 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo")
 
+    def test_variables_delete_non_existent(self):
+        with pytest.raises(SystemExit, match="Variable missing_key does not exist"):
+            variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "missing_key"]))
+
     @pytest.mark.parametrize(
         "filename",
         [
