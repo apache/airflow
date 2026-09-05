@@ -174,8 +174,11 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
     """
     merged = dict1.copy()
     for k, v in dict2.items():
-        if k in merged and isinstance(v, dict):
-            merged[k] = merge_dicts(merged.get(k, {}), v)
+        # Recurse only when both sides are dicts. Recursing on a non-dict left
+        # side would call .copy()/item access on it and raise, instead of
+        # letting dict2 overwrite as documented above.
+        if isinstance(v, dict) and isinstance(merged.get(k), dict):
+            merged[k] = merge_dicts(merged[k], v)
         else:
             merged[k] = v
     return merged

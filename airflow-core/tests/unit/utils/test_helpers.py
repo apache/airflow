@@ -113,6 +113,21 @@ class TestHelpers:
         merged = merge_dicts(dict1, dict2)
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
+    @pytest.mark.parametrize(
+        "existing",
+        ["a string", ["a", "list"], None, 42],
+        ids=["str", "list", "none", "int"],
+    )
+    def test_merge_dicts_dict_overwrites_non_dict(self, existing):
+        """
+        Test merge_dicts when dict2 replaces a non-dict value with a dict.
+
+        Recursing into the non-dict left side used to raise instead of
+        overwriting, which is what the docstring promises.
+        """
+        merged = merge_dicts({"a": existing}, {"a": {"b": 1}})
+        assert merged == {"a": {"b": 1}}
+
     def test_build_airflow_dagrun_url(self):
         expected_url = "/dags/somedag/runs/abc123"
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url

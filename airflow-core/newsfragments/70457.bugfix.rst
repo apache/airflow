@@ -1,0 +1,1 @@
+``merge_dicts`` no longer raises when a dict in the right-hand mapping replaces a non-dict value on the left. It now overwrites, as the function documents. Previously ``merge_dicts({"a": "x"}, {"a": {"b": 1}})`` raised ``AttributeError: 'str' object has no attribute 'copy'``, which surfaced when JSON log extras or an executor ``exec_config`` promoted a scalar to a mapping.
