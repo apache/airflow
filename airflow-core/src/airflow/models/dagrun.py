@@ -70,6 +70,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
+from airflow._shared.observability.attributes import expand_dag_tags
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow._shared.observability.traces import (
@@ -1213,6 +1214,15 @@ class DagRun(Base, LoggingMixin):
             attributes: dict[str, str] = {
                 **dagrun_trace_attributes(self),
             }
+            if airflow_conf.getboolean("traces", "dag_tags_in_spans", fallback=False):
+                try:
+                    if self.dag_model and self.dag_model.tags:
+                        attributes = {
+                            **expand_dag_tags(tag.name for tag in self.dag_model.tags),
+                            **attributes,
+                        }
+                except SQLAlchemyError:
+                    pass
             if self.start_date:
                 attributes["airflow.dag_run.start_date"] = str(self.start_date)
             if self.end_date:

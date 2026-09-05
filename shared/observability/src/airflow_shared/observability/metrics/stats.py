@@ -23,6 +23,7 @@ import socket
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
+from ..attributes import expand_dag_tags
 from .base_stats_logger import NoStatsLogger
 from .metrics_registry import MetricsRegistry
 
@@ -37,19 +38,8 @@ _INVALID_STAT_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
 
 
 def build_dag_metric_tags(tag_names: Iterable[str]) -> dict[str, str]:
-    """
-    Convert Dag tag strings into metric tags.
-
-    Tags with a non-empty value after a ``:`` (e.g. ``env:prod``) split into a
-    ``key: value`` pair. Plain tags (e.g. ``production``) and tags with no value
-    after the colon (e.g. ``env:``) map to an empty string, emitted as a standalone
-    DogStatsd tag or as ``tag=true`` in InfluxDB line protocol.
-    """
-    result: dict[str, str] = {}
-    for name in tag_names:
-        key, _, value = name.partition(":")
-        result[key] = value
-    return result
+    """Expand DAG tags into key-value pairs."""
+    return expand_dag_tags(tag_names)
 
 
 # Module-level singleton state.
