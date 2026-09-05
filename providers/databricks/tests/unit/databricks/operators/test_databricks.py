@@ -3271,14 +3271,14 @@ class TestDatabricksSQLStatementsOperator:
         op.execute(None)
 
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
             caller="DatabricksSQLStatementsOperator",
         )
 
-        db_mock.post_sql_statement.assert_called_once_with(expected_json)
+        db_mock.post_sql_statement.assert_called_once_with(json=expected_json)
         db_mock.get_sql_statement_state.assert_called_once_with(STATEMENT_ID)
         assert op.statement_id == STATEMENT_ID
 
@@ -3300,7 +3300,7 @@ class TestDatabricksSQLStatementsOperator:
             op.execute(None)
 
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
@@ -3583,7 +3583,7 @@ class TestDatabricksSQLStatementsOperator:
         )
         op.execute(None)
 
-        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        posted_json = db_mock.post_sql_statement.call_args.kwargs["json"]
         assert posted_json["query_tags"] == [{"key": "team", "value": "data"}]
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3599,7 +3599,7 @@ class TestDatabricksSQLStatementsOperator:
         )
         op.execute(None)
 
-        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        posted_json = db_mock.post_sql_statement.call_args.kwargs["json"]
         assert "query_tags" not in posted_json
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3613,16 +3613,19 @@ class TestDatabricksSQLStatementsOperator:
             warehouse_id=WAREHOUSE_ID,
             query_tags={"custom": "value"},
         )
-        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti = mock.MagicMock(
+            spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "stats_tags", "xcom_push"]
+        )
         mock_ti.dag_id = "my_dag"
         mock_ti.task_id = "my_task"
         mock_ti.run_id = "run_1"
         mock_ti.try_number = 1
         mock_ti.map_index = -1
+        mock_ti.stats_tags = {}
 
         op.execute(context={"ti": mock_ti})
 
-        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        posted_json = db_mock.post_sql_statement.call_args.kwargs["json"]
         tag_keys = {t["key"] for t in posted_json["query_tags"]}
         assert "airflow_dag_id" in tag_keys
         assert "custom" in tag_keys
@@ -3638,18 +3641,233 @@ class TestDatabricksSQLStatementsOperator:
             warehouse_id=WAREHOUSE_ID,
             query_tags={"airflow_dag_id": "overridden"},
         )
-        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti = mock.MagicMock(
+            spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "stats_tags", "xcom_push"]
+        )
         mock_ti.dag_id = "original"
         mock_ti.task_id = "t"
         mock_ti.run_id = "r"
         mock_ti.try_number = 1
         mock_ti.map_index = -1
+        mock_ti.stats_tags = {}
 
         op.execute(context={"ti": mock_ti})
 
-        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        posted_json = db_mock.post_sql_statement.call_args.kwargs["json"]
         tag_map = {t["key"]: t["value"] for t in posted_json["query_tags"]}
         assert tag_map["airflow_dag_id"] == "overridden"
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestDatabricksSQLStatementsOperatorDurable:
+    @staticmethod
+    def _context(task_store: Any | None = None) -> dict[str, Any]:
+        context: dict[str, Any] = {"ti": MagicMock(stats_tags={})}
+        if task_store is not None:
+            context["task_state_store"] = task_store
+        return context
+
+    @staticmethod
+    def _operator(**kwargs: Any) -> DatabricksSQLStatementsOperator:
+        return DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            polling_period_seconds=0,
+            **kwargs,
+        )
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_persists_statement_id_on_fresh_submit(self, db_mock_class):
+        op = self._operator()
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+
+        op.execute(self._context(task_store))
+
+        db_mock.post_sql_statement.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_sql_statement_id", STATEMENT_ID)
+        assert op.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_xcom_failure_after_submit_keeps_statement_id_for_retry(self, db_mock_class):
+        stored: dict[str, Any] = {}
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.side_effect = stored.get
+        task_store.set.side_effect = stored.__setitem__
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.side_effect = [
+            SQLStatementState("RUNNING"),
+            SQLStatementState("SUCCEEDED"),
+        ]
+        first_context = self._context(task_store)
+        first_context["ti"].xcom_push.side_effect = RuntimeError("xcom unavailable")
+
+        with pytest.raises(RuntimeError, match="xcom unavailable"):
+            self._operator().execute(first_context)
+
+        assert stored == {"databricks_sql_statement_id": STATEMENT_ID}
+
+        retry_context = self._context(task_store)
+        retry = self._operator()
+        retry.execute(retry_context)
+
+        db_mock.post_sql_statement.assert_called_once()
+        retry_context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+        assert retry.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_active_statement_without_resubmitting(self, db_mock_class):
+        op = self._operator()
+        db_mock = db_mock_class.return_value
+        db_mock.get_sql_statement_state.side_effect = [
+            SQLStatementState("RUNNING"),
+            SQLStatementState("SUCCEEDED"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = STATEMENT_ID
+        context = self._context(task_store)
+
+        op.execute(context)
+
+        db_mock.post_sql_statement.assert_not_called()
+        task_store.set.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+        assert op.statement_id == STATEMENT_ID
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksSQLStatementsMixin._handle_execution"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_recovers_succeeded_statement_without_polling(self, db_mock_class, mock_poll):
+        op = self._operator()
+        db_mock = db_mock_class.return_value
+        db_mock.host = "host"
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = STATEMENT_ID
+        context = self._context(task_store)
+
+        assert op.execute(context) is None
+
+        db_mock.post_sql_statement.assert_not_called()
+        mock_poll.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+        assert op.statement_id == STATEMENT_ID
+        assert (
+            op.get_openlineage_facets_on_complete(None).run_facets["externalQuery"].externalQueryId
+            == STATEMENT_ID
+        )
+
+    @pytest.mark.parametrize("terminal_state", ["FAILED", "CANCELED", "CLOSED"])
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_resubmits_after_terminal_statement(self, db_mock_class, terminal_state):
+        op = self._operator()
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.side_effect = [
+            SQLStatementState(terminal_state),
+            SQLStatementState("SUCCEEDED"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = "terminal_statement_id"
+        context = self._context(task_store)
+
+        op.execute(context)
+
+        db_mock.post_sql_statement.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_sql_statement_id", STATEMENT_ID)
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+        assert op.statement_id == STATEMENT_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_resubmits_when_stored_statement_no_longer_exists(self, db_mock_class):
+        op = self._operator()
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.side_effect = [
+            DatabricksApiError("Response: RESOURCE_DOES_NOT_EXIST, Status Code: 404", http_status_code=404),
+            SQLStatementState("SUCCEEDED"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = "missing_statement_id"
+
+        op.execute(self._context(task_store))
+
+        db_mock.post_sql_statement.assert_called_once()
+        task_store.set.assert_called_once_with("databricks_sql_statement_id", STATEMENT_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_fire_and_forget_does_not_use_task_state_store(self, db_mock_class):
+        op = self._operator(wait_for_termination=False)
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        task_store = MagicMock(spec_set=["get", "set"])
+        context = self._context(task_store)
+
+        assert op.execute(context) is None
+
+        db_mock.post_sql_statement.assert_called_once()
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_deferrable_does_not_use_task_state_store(self, db_mock_class):
+        op = self._operator(deferrable=True)
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
+        task_store = MagicMock(spec_set=["get", "set"])
+        context = self._context(task_store)
+
+        with pytest.raises(TaskDeferred):
+            op.execute(context)
+
+        db_mock.post_sql_statement.assert_called_once()
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(key="statement_id", value=STATEMENT_ID)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_durable_false_does_not_use_task_state_store(self, db_mock_class):
+        op = self._operator(durable=False)
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
+        task_store = MagicMock(spec_set=["get", "set"])
+
+        op.execute(self._context(task_store))
+
+        db_mock.post_sql_statement.assert_called_once()
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_cancellation_during_reconnect_status_check_uses_stored_statement_id(self, db_mock_class):
+        op = self._operator()
+        db_mock = db_mock_class.return_value
+        db_mock.get_sql_statement_state.side_effect = lambda statement_id: (
+            op.on_kill(),
+            SQLStatementState("SUCCEEDED"),
+        )[1]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = STATEMENT_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.cancel_sql_statement.assert_called_once_with(STATEMENT_ID)
+
+    def test_default_args_durable_reaches_operator(self):
+        op = self._operator(default_args={"durable": False})
+
+        assert op.durable is False
 
 
 class TestDatabricksNotebookOperator:

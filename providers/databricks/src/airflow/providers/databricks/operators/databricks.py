@@ -28,6 +28,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
@@ -1496,7 +1497,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
 
-class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator):
+class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, ResumableJobMixin, BaseOperator):
     """
     Submits a Databricks SQL Statement to Databricks using the api/2.0/sql/statements/ API endpoint.
 
@@ -1536,6 +1537,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         See https://docs.databricks.com/api/workspace/statementexecution/executestatement
     :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
         Defaults to True.
+    :param durable: Reconnect to an unfinished SQL statement after a worker crash or task retry.
+        This applies only when waiting synchronously for termination.
     """
 
     # Used in airflow.models.BaseOperator
@@ -1564,9 +1567,12 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         query_tags: dict[str, str | None] | None = None,
         include_airflow_query_tags: bool = True,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSQLStatementsOperator``."""
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.statement = statement
         self.warehouse_id = warehouse_id
@@ -1595,16 +1601,22 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
 
     def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
-            self.databricks_conn_id,
+            databricks_conn_id=self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
             caller=caller,
         )
 
-    def execute(self, context: Context):
-        tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
-        json = {
+    external_id_key: str = "databricks_sql_statement_id"
+
+    def _build_statement_payload(self, context: Context) -> dict[str, Any]:
+        tags = build_query_tags(
+            context=context,
+            user_query_tags=self.query_tags,
+            include_airflow_query_tags=self.include_airflow_query_tags,
+        )
+        payload: dict[str, Any] = {
             "statement": self.statement,
             "warehouse_id": self.warehouse_id,
             "catalog": self.catalog,
@@ -1616,18 +1628,61 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
             "wait_timeout": "0s",
         }
         if tags:
-            json["query_tags"] = dict_to_query_tag_list(tags)
-        self.statement_id = self._hook.post_sql_statement(json)
-        if self.do_xcom_push and context is not None:
-            context["ti"].xcom_push(key=XCOM_STATEMENT_ID_KEY, value=self.statement_id)
+            payload["query_tags"] = dict_to_query_tag_list(tags)
+        return payload
 
-        self.log.info("SQL Statement submitted with statement_id: %s", self.statement_id)
+    def _restore_statement_id(self, statement_id: str, context: Context) -> None:
+        self.statement_id = statement_id
+        if (
+            self.do_xcom_push
+            and context is not None
+            and context.get("ti") is not None
+            and not getattr(self, "_statement_id_xcom_pushed", False)
+        ):
+            context["ti"].xcom_push(key=XCOM_STATEMENT_ID_KEY, value=statement_id)
+            self._statement_id_xcom_pushed = True
+
+    def submit_job(self, context: Context) -> str:
+        statement_id: str = self._hook.post_sql_statement(json=self._build_statement_payload(context))
+        if self.durable and self.wait_for_termination and not self.deferrable:
+            self.statement_id = statement_id
+        else:
+            self._restore_statement_id(statement_id=statement_id, context=context)
+        self.log.info("SQL Statement submitted with statement_id: %s", statement_id)
+        return statement_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.statement_id = cast("str", external_id)
+        try:
+            return self._hook.get_sql_statement_state(statement_id=cast("str", external_id)).state
+        except DatabricksApiError as error:
+            if error.http_status_code == HTTPStatus.NOT_FOUND:
+                return "NOT_FOUND"
+            raise
+
+    @staticmethod
+    def is_job_active(status: str) -> bool:
+        return status in {"PENDING", "RUNNING"}
+
+    @staticmethod
+    def is_job_succeeded(status: str) -> bool:
+        return status == "SUCCEEDED"
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self._restore_statement_id(statement_id=cast("str", external_id), context=context)
+        self._handle_execution()  # type: ignore[misc]
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self._restore_statement_id(statement_id=cast("str", external_id), context=context)
+
+    def execute(self, context: Context) -> None:
+        if self.wait_for_termination and not self.deferrable:
+            return self.execute_resumable(context or cast("Context", {}))
+
+        self.submit_job(context)
         if not self.wait_for_termination:
             return
-        if self.deferrable:
-            self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
-        else:
-            self._handle_execution()  # type: ignore[misc]
+        self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
 
     def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
         """Implement _on_complete because we use statement_id."""
