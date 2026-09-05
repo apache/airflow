@@ -258,8 +258,6 @@ body:
         - "1.0.0"
         - "main (development)"
       default: 0
-    validations:
-      required: true
   - type: input
     attributes:
       label: Kubernetes Version
