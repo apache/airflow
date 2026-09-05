@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import time_machine
@@ -28,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-from airflow.models import DagRun
+from airflow.models import DagRun, TaskInstance
 from airflow.models.deadline import Deadline, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import timezone
@@ -43,7 +44,7 @@ from airflow.sdk.definitions.deadline import (
     deadline_reference,
 )
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -164,11 +165,15 @@ class TestDeadline:
                 conditions[Deadline.dagrun_id] = dagrun.id
 
         expected_result = 1 if conditions else 0
-        # Set up the query chain to return a list of (Deadline, DagRun) pairs
+        # Set up the query chain to return a list of (Deadline, DagRun, TaskInstance) rows; a task
+        # deadline row has a task instance, a Dag deadline row has none.
         mock_dagrun = mock.Mock(spec=DagRun, end_date=datetime.now())
         mock_deadline = mock.Mock(spec=Deadline, deadline_time=mock_dagrun.end_date + timedelta(days=365))
         mock_query = mock_session.execute.return_value
-        mock_query.all.return_value = [(mock_deadline, mock_dagrun)] if conditions else []
+        # (Deadline, dagrun end_date, dag_id, run_id, task_instance end_date, task_instance state)
+        mock_query.all.return_value = (
+            [(mock_deadline, mock_dagrun.end_date, DAG_ID, "run_id", None, None)] if conditions else []
+        )
 
         result = Deadline.prune_deadlines(conditions=conditions, session=mock_session)
         assert result == expected_result
@@ -224,7 +229,26 @@ class TestDeadline:
         repr_str = repr(deadline_orm)  # must not raise
         assert "[DagRun Deadline]" in repr_str
         assert f"Run: {deadline_orm.dagrun_id}" in repr_str
-        assert "Dag: <unknown>" in repr_str
+
+    def test_repr_with_task_instance(self, deadline_orm, dagrun, session):
+        task_instance = self._task_instance(dagrun, session)
+        deadline_orm.task_instance_id = task_instance.id
+        session.flush()
+
+        repr_str = repr(deadline_orm)
+        assert "[TaskInstance Deadline]" in repr_str
+        assert f"Dag: {DAG_ID}" in repr_str
+        assert f"Task: {task_instance.task_id}" in repr_str
+        assert f"Map: {task_instance.map_index}" in repr_str
+
+    def test_repr_with_task_instance_id_but_no_task_instance_relationship(self, deadline_orm):
+        """__repr__ must not raise when task_instance_id is set but the relationship is None."""
+        deadline_orm.task_instance = None
+        deadline_orm.task_instance_id = uuid4()
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[TaskInstance Deadline]" in repr_str
+        assert f"id: {deadline_orm.task_instance_id}" in repr_str
 
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
@@ -332,6 +356,114 @@ class TestDeadline:
         assert callback.data["dag_run_id"] == str(dagrun_id)
         assert callback.data["dag_id"] == dag_id
         assert callback.data["deadline_id"] == str(deadline_id)
+
+    @staticmethod
+    def _task_instance(dagrun, session) -> TaskInstance:
+        task_instance = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dagrun.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+            )
+        )
+        assert task_instance is not None
+        return task_instance
+
+    @pytest.mark.db_test
+    def test_task_deadline_pruned_when_task_finished_before_deadline(self, dagrun, session):
+        task_instance = self._task_instance(dagrun, session)
+        with time_machine.travel(DEFAULT_DATE, tick=False):
+            deadline_orm = Deadline(
+                deadline_time=DEFAULT_DATE + timedelta(hours=2),
+                callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                dagrun_id=dagrun.id,
+                dag_id=dagrun.dag_id,
+                deadline_alert_id=None,
+                task_instance_id=task_instance.id,
+            )
+            session.add(deadline_orm)
+            session.flush()
+            # The task finishes before its need-by time, so the deadline is not missed.
+            task_instance.end_date = DEFAULT_DATE + timedelta(hours=1)
+            session.flush()
+
+            removed = Deadline.prune_deadlines(session=session, conditions={Deadline.dagrun_id: dagrun.id})
+
+            assert removed == 1
+            assert session.get(Deadline, deadline_orm.id) is None
+
+    @pytest.mark.db_test
+    def test_task_deadline_kept_when_task_finished_after_deadline(self, dagrun, session):
+        task_instance = self._task_instance(dagrun, session)
+        with time_machine.travel(DEFAULT_DATE, tick=False):
+            deadline_orm = Deadline(
+                deadline_time=DEFAULT_DATE + timedelta(minutes=30),
+                callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+                dagrun_id=dagrun.id,
+                dag_id=dagrun.dag_id,
+                deadline_alert_id=None,
+                task_instance_id=task_instance.id,
+            )
+            session.add(deadline_orm)
+            session.flush()
+            # The task finishes after its need-by time: the deadline is breached.
+            task_instance.end_date = DEFAULT_DATE + timedelta(hours=2)
+            session.flush()
+
+            removed = Deadline.prune_deadlines(session=session, conditions={Deadline.dagrun_id: dagrun.id})
+
+            assert removed == 0
+            assert session.get(Deadline, deadline_orm.id) is not None
+
+    @pytest.mark.db_test
+    def test_task_deadline_of_removed_task_instance_is_pruned(self, dagrun, session):
+        """A deadline owned by a REMOVED task instance is pruned: the instance will never run."""
+        task_instance = self._task_instance(dagrun, session)
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE + timedelta(hours=2),
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+            task_instance_id=task_instance.id,
+        )
+        session.add(deadline_orm)
+        session.flush()
+        # A shrunk mapped task leaves its orphaned instances REMOVED with no end date.
+        task_instance.state = TaskInstanceState.REMOVED
+        session.flush()
+
+        removed = Deadline.prune_deadlines(session=session, conditions={Deadline.dagrun_id: dagrun.id})
+
+        assert removed == 1
+        assert session.get(Deadline, deadline_orm.id) is None
+
+    @pytest.mark.db_test
+    def test_handle_miss_includes_task_instance_context(self, dagrun, session):
+        task_instance = self._task_instance(dagrun, session)
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+            task_instance_id=task_instance.id,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        deadline_id = deadline_orm.id
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        context = callback.data["kwargs"]["context"]
+        assert context["task_instance"]["dag_id"] == dagrun.dag_id
+        assert context["task_instance"]["task_id"] == "TASK_ID"
+        assert context["task_instance"]["run_id"] == dagrun.run_id
+
+        callback.trigger = None
+        session.commit()
 
 
 @pytest.mark.db_test

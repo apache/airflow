@@ -62,6 +62,7 @@ from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
+from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
@@ -1054,6 +1055,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
+        deadline: DeadlineAlert | list[DeadlineAlert] | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
         on_execute_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
@@ -1136,6 +1138,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"execution_timeout must be timedelta object but passed as type: {type(execution_timeout)}"
             )
         self.execution_timeout = execution_timeout
+
+        if deadline is not None:
+            if isinstance(deadline, DeadlineAlert):
+                deadline = [deadline]
+            elif not isinstance(deadline, list) or not all(
+                isinstance(alert, DeadlineAlert) for alert in deadline
+            ):
+                raise ValueError("deadline must be a DeadlineAlert or a list of DeadlineAlert objects")
+        self.deadline = deadline
 
         self.on_execute_callback = _collect_from_input(on_execute_callback)
         self.on_failure_callback = _collect_from_input(on_failure_callback)

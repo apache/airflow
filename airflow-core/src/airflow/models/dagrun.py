@@ -87,6 +87,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.deadline import create_deadlines_for_task_instance, get_task_deadline_alerts
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -1368,16 +1369,23 @@ class DagRun(Base, LoggingMixin):
                     execute=execute_callbacks,
                 )
 
-            if dag.deadline:
-                # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
-                deadline_alerts = [
-                    DeadlineAlertModel.get_by_id(alert_id, session=session) for alert_id in dag.deadline
-                ]
+            task_has_deadline = any(
+                get_task_deadline_alerts(task) for task in (getattr(dag, "task_dict", None) or {}).values()
+            )
+            if dag.deadline or task_has_deadline:
+                # The dagrun has succeeded. If there were any Deadlines for it which were not
+                # breached, they are no longer needed -- neither Dag-level nor task-level ones.
+                dagrun_has_dagrun_deadlines = False
+                if dag.deadline:
+                    deadline_alerts = [
+                        DeadlineAlertModel.get_by_id(alert_id, session=session) for alert_id in dag.deadline
+                    ]
+                    dagrun_has_dagrun_deadlines = any(
+                        deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
+                        for deadline_alert in deadline_alerts
+                    )
 
-                if any(
-                    deadline_alert.reference_class in SerializedReferenceModels.TYPES.DAGRUN
-                    for deadline_alert in deadline_alerts
-                ):
+                if dagrun_has_dagrun_deadlines or task_has_deadline:
                     Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
         # if *all tasks* are deadlocked, the run failed
@@ -2155,6 +2163,18 @@ class DagRun(Base, LoggingMixin):
             new_tis.append(ti)
         if new_tis:
             session.flush()
+        # A task that grew also grew its deadlines: give each newly added map_index the same
+        # deadline rows its siblings got when they were expanded.
+        deadline_alerts = get_task_deadline_alerts(task)
+        if deadline_alerts and new_tis:
+            bundle_name = self.dag_model.bundle_name if self.dag_model is not None else None
+            for ti in new_tis:
+                create_deadlines_for_task_instance(
+                    deadline_alerts=deadline_alerts,
+                    task_instance=ti,
+                    bundle_name=bundle_name,
+                    session=session,
+                )
         return new_tis
 
     @classmethod

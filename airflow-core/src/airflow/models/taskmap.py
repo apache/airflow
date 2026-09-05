@@ -140,6 +140,7 @@ class TaskMap(TaskInstanceDependencies):
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
+        from airflow.models.deadline import create_deadlines_for_task_instance, get_task_deadline_alerts
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.taskinstance import TaskInstance, _add_and_prime_mapped_ti
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
@@ -178,6 +179,9 @@ class TaskMap(TaskInstanceDependencies):
         ).one_or_none()
 
         all_expanded_tis: list[TaskInstance] = []
+        # Set when an unfinished unmapped placeholder is converted into the map_index=0
+        # task instance so its deadline rows can be created alongside the new indexes.
+        unmapped_ti_became_index_zero = False
 
         if unmapped_ti:
             if TYPE_CHECKING:
@@ -214,6 +218,7 @@ class TaskMap(TaskInstanceDependencies):
                     unmapped_ti.map_index = 0
                     task.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
+                    unmapped_ti_became_index_zero = True
                     # execute hook for task instance map index 0
                     task_instance_mutation_hook(unmapped_ti, dag_run=dr)
                     session.flush()
@@ -273,6 +278,27 @@ class TaskMap(TaskInstanceDependencies):
         if new_tis:
             session.flush()
         all_expanded_tis.extend(new_tis)
+
+        # Create deadline rows for the mapped task instances that came into existence now:
+        # the converted map_index=0 instance and any newly expanded indexes. Task-level
+        # deadline alerts on the operator apply per expanded task instance.
+        deadline_alerts = get_task_deadline_alerts(task)
+        # dr is bound whenever a task instance came into existence here (either the
+        # placeholder-conversion branch or the DagRun query above ran), so guarding on
+        # that also guards the dr access below.
+        if deadline_alerts and (new_tis or unmapped_ti_became_index_zero):
+            tis_with_deadlines = list(new_tis)
+            if unmapped_ti_became_index_zero:
+                if TYPE_CHECKING:
+                    assert unmapped_ti is not None
+                tis_with_deadlines.append(unmapped_ti)
+            for ti in tis_with_deadlines:
+                create_deadlines_for_task_instance(
+                    deadline_alerts=deadline_alerts,
+                    task_instance=ti,
+                    bundle_name=dr.dag_model.bundle_name if dr.dag_model is not None else None,
+                    session=session,
+                )
 
         # Coerce the None case to 0 -- these two are almost treated identically,
         # except the unmapped ti (if exists) is marked to different states.

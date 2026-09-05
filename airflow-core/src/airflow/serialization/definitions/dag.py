@@ -46,7 +46,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.deadline import Deadline
+from airflow.models.deadline import Deadline, create_deadlines_for_task_instance, get_task_deadline_alerts
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
@@ -707,7 +707,52 @@ class SerializedDAG:
         if params_dag.deadline:
             self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
+        self._process_task_deadline_alerts(orm_dagrun, params_dag, session)
+
         return orm_dagrun
+
+    def _process_task_deadline_alerts(
+        self,
+        orm_dagrun: DagRun,
+        params_dag: SerializedDAG,
+        session: Session,
+    ) -> None:
+        """
+        Process task-level deadline alerts for a newly created DagRun.
+
+        Creates a Deadline record per task instance for every task that declares a deadline.
+        Mapped tasks with a parse-time known count already have per-``map_index`` instances here
+        and each gets its own row; a not-yet-expanded mapped task only has its ``map_index == -1``
+        placeholder instance, whose rows are created when the task is expanded (see TaskMap).
+
+        :param orm_dagrun: The newly created DagRun
+        :param params_dag: The resolved SerializedDAG whose tasks carry the deadline definitions
+        :param session: Database session
+        """
+        from airflow.serialization.definitions.mappedoperator import is_mapped
+
+        task_instances = orm_dagrun.get_task_instances(session=session)
+        for ti in task_instances:
+            try:
+                task = params_dag.get_task(ti.task_id)
+            except TaskNotFound:
+                # The task no longer exists in this dag version; nothing to schedule deadlines for.
+                continue
+
+            deadline_alerts = get_task_deadline_alerts(task)
+            if not deadline_alerts:
+                continue
+            if ti.map_index < 0 and is_mapped(task):
+                # The not-yet-expanded placeholder of a dynamically mapped task; its deadline rows
+                # are created per map_index when the task is expanded (see TaskMap).
+                continue
+
+            create_deadlines_for_task_instance(
+                deadline_alerts=deadline_alerts,
+                task_instance=ti,
+                bundle_name=orm_dagrun.dag_model.bundle_name if orm_dagrun.dag_model is not None else None,
+                session=session,
+            )
 
     def _process_dagrun_deadline_alerts(
         self,

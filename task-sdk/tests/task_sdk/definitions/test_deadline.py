@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from task_sdk.definitions.test_callback import TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH, UNIMPORTABLE_DOT_PATH
 
+from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.sdk.definitions.variable import Variable
@@ -213,3 +214,44 @@ class TestVariableInterval:
         with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
             with pytest.raises(ValueError, match=match):
                 interval.resolve()
+
+
+class TestOperatorDeadlineParam:
+    @staticmethod
+    def _make_alert():
+        return DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+            interval=timedelta(hours=1),
+            callback=TEST_DEADLINE_CALLBACK,
+        )
+
+    def test_accepts_single_deadline_alert(self):
+        alert = self._make_alert()
+        op = BaseOperator(task_id="deadline_op", deadline=alert)
+        assert op.deadline == [alert]
+
+    def test_accepts_list_of_deadline_alerts(self):
+        alert1 = self._make_alert()
+        alert2 = DeadlineAlert(
+            reference=DeadlineReference.FIXED_DATETIME(DEFAULT_DATE),
+            interval=timedelta(minutes=30),
+            callback=TEST_DEADLINE_CALLBACK,
+        )
+        op = BaseOperator(task_id="deadline_op", deadline=[alert1, alert2])
+        assert op.deadline == [alert1, alert2]
+
+    def test_defaults_to_none(self):
+        op = BaseOperator(task_id="no_deadline_op")
+        assert op.deadline is None
+
+    @pytest.mark.parametrize(
+        "invalid",
+        [
+            pytest.param(timedelta(hours=1), id="timedelta"),
+            pytest.param("not_a_deadline", id="string"),
+            pytest.param([timedelta(hours=1)], id="list_with_bad_member"),
+        ],
+    )
+    def test_rejects_invalid_deadline(self, invalid):
+        with pytest.raises(ValueError, match="deadline"):
+            BaseOperator(task_id="deadline_op", deadline=invalid)

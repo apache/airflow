@@ -42,7 +42,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
-from airflow.utils.state import CallbackState
+from airflow.utils.state import CallbackState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -50,9 +50,101 @@ if TYPE_CHECKING:
 
     from airflow.models.callback import CallbackDefinitionProtocol
     from airflow.models.deadline_alert import DeadlineAlert
+    from airflow.models.taskinstance import TaskInstance
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_task_deadline_alerts(task: Any) -> list[Any] | None:
+    """
+    Return the deadline alerts declared on a task, whether stored on the operator or in partial kwargs.
+
+    A task's deadline definition travels with the operator. For a mapped task the definition is kept
+    in ``partial_kwargs`` (the ``SerializedMappedOperator`` has no ``deadline`` attribute), so both
+    locations must be consulted. A single alert is normalized to a one-element list.
+
+    :param task: Serialized operator (or partial kwargs holder) to inspect
+    :return: List of deadline alerts, or None when the task declares none
+    """
+    deadline_alerts = getattr(task, "deadline", None)
+    if not deadline_alerts:
+        partial_kwargs = getattr(task, "partial_kwargs", None) or {}
+        deadline_alerts = partial_kwargs.get("deadline")
+    if deadline_alerts is None:
+        return None
+    if isinstance(deadline_alerts, list):
+        return deadline_alerts
+    return [deadline_alerts]
+
+
+def create_deadlines_for_task_instance(
+    *,
+    deadline_alerts: list[Any],
+    task_instance: TaskInstance,
+    bundle_name: str | None,
+    session: Session,
+) -> int:
+    """
+    Create Deadline rows for each of a task instance's DeadlineAlerts.
+
+    Used whenever a runnable task instance comes into existence: at DagRun creation for regular
+    tasks, and at expansion time for each ``map_index`` of a mapped task.
+
+    :param deadline_alerts: Deserialized DeadlineAlert objects attached to the task
+    :param task_instance: The TaskInstance that owns the deadlines
+    :param bundle_name: The bundle name for callback resolution
+    :param session: Database session
+    :return: The number of Deadline rows created
+    """
+    from airflow.serialization.definitions.deadline import SerializedVariableInterval
+
+    created = 0
+    for deadline_alert in deadline_alerts:
+        interval = deadline_alert.interval
+        # The variable-backed interval is resolved lazily at evaluation time. Every alert
+        # reaching the scheduler arrives decoded as a SerializedDeadlineAlert, whose interval
+        # is a timedelta or SerializedVariableInterval.
+        if isinstance(interval, SerializedVariableInterval):
+            interval = interval.resolve()
+
+        deadline_time = deadline_alert.reference.evaluate_with(
+            session=session,
+            interval=interval,
+            dag_id=task_instance.dag_id,
+            run_id=task_instance.run_id,
+        )
+
+        if deadline_time is None:
+            continue
+
+        session.add(
+            Deadline(
+                deadline_time=deadline_time,
+                callback=deadline_alert.callback,
+                dagrun_id=task_instance.dag_run.id,
+                deadline_alert_id=None,
+                dag_id=task_instance.dag_id,
+                bundle_name=bundle_name,
+                task_instance_id=task_instance.id,
+            )
+        )
+        created += 1
+
+    if created:
+        from airflow.models.dag import DagModel  # Avoids circular import
+
+        team_name = (
+            DagModel.get_team_name(task_instance.dag_id, session=session)
+            if conf.getboolean("core", "multi_team")
+            else None
+        )
+        stats.incr(
+            "deadline_alerts.deadline_created",
+            tags=prune_dict({"dag_id": task_instance.dag_id, "team_name": team_name}),
+        )
+    return created
+
 
 CALLBACK_METRICS_PREFIX = "deadline_alerts"
 
@@ -101,6 +193,14 @@ class Deadline(Base):
     )
     dagrun = relationship("DagRun", back_populates="deadlines")
 
+    # If the Deadline Alert is for a task, store the task instance that owns it.
+    # ``dagrun_id`` is still set in that case so the run can group, prune, and
+    # provide callback context for all of its deadlines.
+    task_instance_id: Mapped[UUID | None] = mapped_column(
+        Uuid(), ForeignKey("task_instance.id", ondelete="CASCADE"), nullable=True
+    )
+    task_instance = relationship("TaskInstance")
+
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline_time: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
@@ -122,6 +222,7 @@ class Deadline(Base):
     __table_args__ = (
         Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),
         Index("deadline_callback_id_idx", callback_id, unique=False),
+        Index("idx_deadline_task_instance_id", task_instance_id, unique=False),
     )
 
     def __init__(
@@ -132,10 +233,12 @@ class Deadline(Base):
         deadline_alert_id: UUID | None,
         dag_id: str | None = None,
         bundle_name: str | None = None,
+        task_instance_id: UUID | None = None,
     ):
         super().__init__()
         self.deadline_time = deadline_time
         self.dagrun_id = dagrun_id
+        self.task_instance_id = task_instance_id
         self.missed = False
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
@@ -146,6 +249,16 @@ class Deadline(Base):
     def __repr__(self):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
+            if self.task_instance_id:
+                # Guard the relationship: the FK can be set while ``task_instance`` resolves to None
+                # (e.g. after a cascade delete). __repr__ must not raise, so fall back to id-only.
+                ti = self.task_instance
+                if ti is not None:
+                    return (
+                        "TaskInstance",
+                        f"Dag: {ti.dag_id} Run: {ti.run_id} Task: {ti.task_id} Map: {ti.map_index}",
+                    )
+                return "TaskInstance", f"id: {self.task_instance_id}"
             if self.dagrun_id:
                 # Guard the relationship: the FK can be set while ``dagrun`` resolves to None (e.g.
                 # after a cascade delete). __repr__ must not raise, so fall back to the id-only form.
@@ -187,8 +300,25 @@ class Deadline(Base):
         try:
             # Exclude deadlines already marked ``missed``: the scheduler owns their (queued)
             # callbacks, so prune must never cascade-delete them.
+            from airflow.models.taskinstance import TaskInstance  # Avoids circular import
+
+            # Select scalar columns (not the DagRun/TaskInstance entities) to avoid SQLAlchemy
+            # auto-joining their relationships, which would drop deadline rows whose task instance
+            # is NULL via the TaskInstance -> DagRun relationship.
             deadline_dagrun_pairs = session.execute(
-                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions)).where(~Deadline.missed)
+                select(
+                    Deadline,
+                    DagRun.end_date,
+                    DagRun.dag_id,
+                    DagRun.run_id,
+                    TaskInstance.end_date,
+                    TaskInstance.state,
+                )
+                .select_from(Deadline)
+                .join(DagRun, Deadline.dagrun_id == DagRun.id)
+                .outerjoin(TaskInstance, TaskInstance.id == Deadline.task_instance_id)
+                .where(and_(*filter_conditions))
+                .where(~Deadline.missed)
             ).all()
 
         except AttributeError as e:
@@ -201,30 +331,44 @@ class Deadline(Base):
         deleted_count = 0
         dagruns_to_refresh = set()
 
-        for deadline, dagrun in deadline_dagrun_pairs:
-            if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
-                # If the DagRun finished before the Deadline:
+        for (
+            deadline,
+            dagrun_end,
+            dag_id,
+            run_id,
+            task_instance_end,
+            task_instance_state,
+        ) in deadline_dagrun_pairs:
+            # A deadline is not missed when the resource owning it finished before the
+            # need-by time. Task deadlines compare against the task instance's end date;
+            # Dag deadlines keep comparing against the DagRun's end date.
+            resource_end = task_instance_end if task_instance_end is not None else dagrun_end
+            # A REMOVED task instance will never run, so its deadline can never be missed.
+            removed = task_instance_state == TaskInstanceState.REMOVED
+            if removed or (resource_end is not None and resource_end <= deadline.deadline_time):
+                # If the resource finished before the Deadline:
                 session.delete(deadline)
                 team_name = (
-                    DagModel.get_team_name(dagrun.dag_id, session=session)
+                    DagModel.get_team_name(dag_id, session=session)
                     if conf.getboolean("core", "multi_team")
                     else None
                 )
                 stats.incr(
                     "deadline_alerts.deadline_not_missed",
-                    tags=prune_dict(
-                        {"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id, "team_name": team_name}
-                    ),
+                    tags=prune_dict({"dag_id": dag_id, "dagrun_id": run_id, "team_name": team_name}),
                 )
                 deleted_count += 1
-                dagruns_to_refresh.add(dagrun)
+                if deadline.dagrun_id is not None:
+                    dagruns_to_refresh.add(deadline.dagrun_id)
         session.flush()
 
         logger.debug("%d deadline records were deleted matching the conditions %s", deleted_count, conditions)
 
-        # Refresh any affected DAG runs.
-        for dagrun in dagruns_to_refresh:
-            session.refresh(dagrun)
+        # Refresh any affected DAG runs so callers see consistent state after the deletion.
+        for dagrun_id in dagruns_to_refresh:
+            dagrun = session.get(DagRun, dagrun_id)
+            if dagrun is not None:
+                session.refresh(dagrun)
 
         return deleted_count
 
@@ -234,7 +378,7 @@ class Deadline(Base):
 
         def get_simple_context():
             from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-            from airflow.models import DagRun
+            from airflow.models import DagRun, TaskInstance
 
             # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
             #  from the scheduler
@@ -243,10 +387,24 @@ class Deadline(Base):
             # are not in the current session.
             dagrun = session.get(DagRun, self.dagrun_id)
 
-            return {
+            context: dict[str, Any] = {
                 "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
                 "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
             }
+            if self.task_instance_id is not None:
+                task_instance = session.get(TaskInstance, self.task_instance_id)
+                if task_instance is not None:
+                    context["task_instance"] = {
+                        "dag_id": task_instance.dag_id,
+                        "task_id": task_instance.task_id,
+                        "run_id": task_instance.run_id,
+                        "map_index": task_instance.map_index,
+                        "try_number": task_instance.try_number,
+                        "state": task_instance.state,
+                        "start_date": task_instance.start_date,
+                        "end_date": task_instance.end_date,
+                    }
+            return context
 
         def callback_data_with_context():
             data = self.callback.data.copy()

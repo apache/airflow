@@ -1938,7 +1938,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
                         .where(~Deadline.missed)
-                        .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+                        .options(
+                            selectinload(Deadline.callback),
+                            selectinload(Deadline.dagrun),
+                            selectinload(Deadline.task_instance),
+                        )
                     )
                     for deadline in session.scalars(
                         with_row_locks(
@@ -1949,6 +1953,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             key_share=False,
                         )
                     ):
+                        if deadline.task_instance_id is not None:
+                            # Prune, don't fire, when the task finished in time or was removed —
+                            # see Deadline.prune_deadlines for the full rationale.
+                            task_instance = deadline.task_instance
+                            if task_instance is not None and (
+                                task_instance.state == TaskInstanceState.REMOVED
+                                or (
+                                    task_instance.end_date is not None
+                                    and task_instance.end_date <= deadline.deadline_time
+                                )
+                            ):
+                                session.delete(deadline)
+                                continue
                         deadline.handle_miss(session)
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
