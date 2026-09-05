@@ -86,6 +86,38 @@ class TestGetConnection:
         session.delete(connection)
         session.commit()
 
+    def test_connection_get_with_slash(self, client, session):
+        connection = Connection(
+            conn_id="dev/test_conn",
+            conn_type="http",
+            description="description",
+            host="localhost",
+            login="root",
+            password="admin",
+            schema="http",
+            port=8080,
+            extra='{"x_secret": "testsecret", "y_secret": "test"}',
+        )
+        session.add(connection)
+        session.commit()
+
+        response = client.get("/execution/connections/dev/test_conn")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "conn_id": "dev/test_conn",
+            "conn_type": "http",
+            "host": "localhost",
+            "login": "root",
+            "password": "admin",
+            "schema": "http",
+            "port": 8080,
+            "extra": '{"x_secret": "testsecret", "y_secret": "test"}',
+        }
+
+        session.delete(connection)
+        session.commit()
+
     @mock.patch.dict(
         "os.environ",
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
