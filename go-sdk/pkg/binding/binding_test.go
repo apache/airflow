@@ -46,6 +46,21 @@ func argSchema(jsonType string) *genmodels.ArgValueSchema {
 	return &s
 }
 
+func temporalSchema(format string) *genmodels.ArgValueSchema {
+	s := genmodels.ArgValueSchema{"type": "string", "format": format}
+	return &s
+}
+
+func arraySchema(items map[string]any) *genmodels.ArgValueSchema {
+	s := genmodels.ArgValueSchema{"type": "array", "items": items}
+	return &s
+}
+
+func objectSchema(values map[string]any) *genmodels.ArgValueSchema {
+	s := genmodels.ArgValueSchema{"type": "object", "additionalProperties": values}
+	return &s
+}
+
 func anyOfSchema(branches ...map[string]any) *genmodels.ArgValueSchema {
 	alternatives := make([]any, len(branches))
 	for i, b := range branches {
@@ -275,6 +290,219 @@ func (s *BindingSuite) TestResolveSelfDecodingLiterals() {
 	s.Equal(3.0, got[2].Interface())
 }
 
+func (s *BindingSuite) TestResolveTemporalLiterals() {
+	fn := func(
+		aware time.Time, naive time.Time, day time.Time, clock time.Time, window time.Duration,
+	) error {
+		return nil
+	}
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Value: "2024-01-02T03:04:05Z", ValueSchema: temporalSchema("date-time")},
+		LiteralArg{Value: "2024-01-02T03:04:05", ValueSchema: temporalSchema("date-time")},
+		LiteralArg{Value: "2024-01-02", ValueSchema: temporalSchema("date")},
+		LiteralArg{Value: "03:04:05", ValueSchema: temporalSchema("time")},
+		LiteralArg{Value: "P1DT2H3M4S", ValueSchema: temporalSchema("duration")},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC), got[0].Interface())
+	s.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC), got[1].Interface(),
+		"an offset-less timestamp is read as UTC")
+	s.Equal(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC), got[2].Interface())
+	s.Equal(time.Date(0, 1, 1, 3, 4, 5, 0, time.UTC), got[3].Interface())
+	s.Equal(26*time.Hour+3*time.Minute+4*time.Second, got[4].Interface())
+}
+
+func (s *BindingSuite) TestSoleTemporalParamStaysFlat() {
+	for name, fn := range map[string]any{
+		"time.Time":  func(when time.Time) error { return nil },
+		"*time.Time": func(when *time.Time) error { return nil },
+	} {
+		s.Run(name, func() {
+			plan := analyze(s, fn)
+			s.False(plan.loneStruct, "a sole timestamp parameter must bind positionally")
+			s.Equal(1, plan.numData)
+		})
+	}
+
+	got, err := s.resolve(
+		func(when time.Time) error { return nil },
+		[]Arg{LiteralArg{Value: "2024-01-02T03:04:05Z", ValueSchema: temporalSchema("date-time")}},
+		&fakeXComClient{},
+	)
+	s.Require().NoError(err)
+	s.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC), got[0].Interface())
+}
+
+func (s *BindingSuite) TestResolveNestedTemporalContainers() {
+	fn := func(
+		windows []time.Duration,
+		days []time.Time,
+		stamps []time.Time,
+		byName map[string]time.Duration,
+	) error {
+		return nil
+	}
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       []any{"PT5M", "P1DT2H"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "duration"}),
+		},
+		LiteralArg{
+			Value:       []any{"2024-01-02"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "date"}),
+		},
+		LiteralArg{
+			Value:       []any{"2024-01-02T03:04:05Z"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "date-time"}),
+		},
+		LiteralArg{
+			Value:       map[string]any{"short": "PT30S"},
+			ValueSchema: objectSchema(map[string]any{"type": "string", "format": "duration"}),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal([]time.Duration{5 * time.Minute, 26 * time.Hour}, got[0].Interface())
+	s.Equal([]time.Time{time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)}, got[1].Interface())
+	s.Equal([]time.Time{time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)}, got[2].Interface())
+	s.Equal(map[string]time.Duration{"short": 30 * time.Second}, got[3].Interface())
+}
+
+func (s *BindingSuite) TestResolveNestedTemporalReportsTheBadElement() {
+	fn := func(windows []time.Duration) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       []any{"PT5M", "nope"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "duration"}),
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "element 1")
+		s.Contains(err.Error(), "not an ISO-8601 duration")
+	}
+}
+
+func (s *BindingSuite) TestResolveNestedUUIDContainers() {
+	a := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	b := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	fn := func(ids []uuid.UUID, byName map[string]uuid.UUID) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       []any{a.String(), b.String()},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "uuid"}),
+		},
+		LiteralArg{
+			Value:       map[string]any{"primary": a.String()},
+			ValueSchema: objectSchema(map[string]any{"type": "string", "format": "uuid"}),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal([]uuid.UUID{a, b}, got[0].Interface())
+	s.Equal(map[string]uuid.UUID{"primary": a}, got[1].Interface())
+}
+
+func (s *BindingSuite) TestResolveNestedUUIDRejectsFormatMismatch() {
+	fn := func(ids []uuid.UUID) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Value:       []any{"550e8400-e29b-41d4-a716-446655440000"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "date-time"}),
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "cannot bind")
+	}
+}
+
+func (s *BindingSuite) TestResolveNullableTemporalLiteral() {
+	nullable := anyOfSchema(
+		map[string]any{"type": "string", "format": "date-time"},
+		map[string]any{"type": "null"},
+	)
+	fn := func(when *time.Time) error { return nil }
+
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Value: nil, ValueSchema: nullable, FromDefault: true},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.True(got[0].IsNil(), "a null datetime arrives as a nil pointer")
+
+	got, err = s.resolve(fn, []Arg{
+		LiteralArg{Value: "2024-01-02T03:04:05Z", ValueSchema: nullable},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC), got[0].Elem().Interface())
+}
+
+func (s *BindingSuite) TestResolveDurationRejectsNumber() {
+	fn := func(window time.Duration) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{Value: 300, ValueSchema: temporalSchema("duration")},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "would be read as nanoseconds")
+	}
+}
+
+func (s *BindingSuite) TestParseISO8601Duration() {
+	valid := map[string]time.Duration{
+		"PT5M":        5 * time.Minute,
+		"P1DT2H3M4S":  26*time.Hour + 3*time.Minute + 4*time.Second,
+		"-PT1M30S":    -(time.Minute + 30*time.Second),
+		"PT1.5S":      1500 * time.Millisecond,
+		"P2W":         14 * 24 * time.Hour,
+		"P1D":         24 * time.Hour,
+		"PT0S":        0,
+		"+PT10M":      10 * time.Minute,
+		"P1DT2H":      26 * time.Hour,
+		"PT0.000001S": time.Microsecond,
+	}
+	for text, want := range valid {
+		s.Run(text, func() {
+			got, err := parseISO8601Duration(text)
+			s.Require().NoError(err)
+			s.Equal(want, got)
+		})
+	}
+
+	invalid := map[string]string{
+		"P1M":     "no fixed length",
+		"P1Y":     "no fixed length",
+		"-P2M":    "no fixed length",
+		"300":     "not an ISO-8601 duration",
+		"5m":      "not an ISO-8601 duration",
+		"":        "not an ISO-8601 duration",
+		"P":       "carries no components",
+		"PT":      "carries no components",
+		"PT5X":    "not an ISO-8601 duration",
+		"P1DT2H3": "not an ISO-8601 duration",
+	}
+	for text, wantErr := range invalid {
+		s.Run("invalid/"+text, func() {
+			_, err := parseISO8601Duration(text)
+			if s.Assert().Error(err) {
+				s.Contains(err.Error(), wantErr)
+			}
+		})
+	}
+}
+
+func (s *BindingSuite) TestParseTemporalRejectsMalformedValues() {
+	for _, tc := range []struct{ text, format string }{
+		{"not-a-date", "date-time"},
+		{"2024-13-45", "date"},
+		{"99:99:99", "time"},
+		{"2024-01-02", "date-time"},
+	} {
+		s.Run(tc.format+"/"+tc.text, func() {
+			_, err := parseTemporal(tc.text, tc.format)
+			if s.Assert().Error(err) {
+				s.Contains(err.Error(), "is not a valid")
+			}
+		})
+	}
+}
+
 func (s *BindingSuite) TestResolveTypedMapParam() {
 	fn := func(labels map[string]string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
@@ -333,15 +561,40 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 		"unknown-type-skips": {argSchema("uuid"), reflect.TypeFor[string](), ""},
 		"any-target-skips":   {argSchema("string"), reflect.TypeFor[any](), ""},
 
+		"datetime-to-time":     {temporalSchema("date-time"), reflect.TypeFor[time.Time](), ""},
+		"datetime-to-time-ptr": {temporalSchema("date-time"), reflect.TypeFor[*time.Time](), ""},
+		"date-to-time":         {temporalSchema("date"), reflect.TypeFor[time.Time](), ""},
+		"time-to-time":         {temporalSchema("time"), reflect.TypeFor[time.Time](), ""},
+		"duration-to-duration": {temporalSchema("duration"), reflect.TypeFor[time.Duration](), ""},
+		"uuid-to-uuid":         {temporalSchema("uuid"), reflect.TypeFor[uuid.UUID](), ""},
+		"datetime-to-string":   {temporalSchema("date-time"), reflect.TypeFor[string](), ""},
+
+		"integer-vs-time":      {argSchema("integer"), reflect.TypeFor[time.Time](), "cannot bind"},
+		"plain-string-vs-time": {argSchema("string"), reflect.TypeFor[time.Time](), "cannot bind"},
+		"plain-string-vs-uuid": {argSchema("string"), reflect.TypeFor[uuid.UUID](), "cannot bind"},
+		"date-time-vs-uuid": {
+			temporalSchema("date-time"),
+			reflect.TypeFor[uuid.UUID](),
+			"cannot bind",
+		},
+		"date-time-vs-slice": {
+			temporalSchema("date-time"),
+			reflect.TypeFor[[]string](),
+			"cannot bind",
+		},
+		"integer-vs-duration": {
+			argSchema("integer"),
+			reflect.TypeFor[time.Duration](),
+			"cannot bind",
+		},
+		"duration-vs-int64": {
+			temporalSchema("duration"),
+			reflect.TypeFor[int64](),
+			"cannot bind",
+		},
 		// Pydantic encodes bytes as a string.
-		"binary-to-string": {
-			&genmodels.ArgValueSchema{"type": "string", "format": "binary"},
-			reflect.TypeFor[string](), "",
-		},
-		"binary-vs-bytes": {
-			&genmodels.ArgValueSchema{"type": "string", "format": "binary"},
-			reflect.TypeFor[[]byte](), "cannot bind",
-		},
+		"binary-to-string": {temporalSchema("binary"), reflect.TypeFor[string](), ""},
+		"binary-vs-bytes":  {temporalSchema("binary"), reflect.TypeFor[[]byte](), "cannot bind"},
 
 		// Unions match any branch but preserve nullability.
 		"anyof-matching-branch": {
@@ -354,6 +607,13 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 		},
 		"anyof-nullable-ptr-ok": {
 			anyOfSchema(
+				map[string]any{"type": "string", "format": "date-time"},
+				map[string]any{"type": "null"},
+			),
+			reflect.TypeFor[*time.Time](), "",
+		},
+		"anyof-nullable-string-ptr-ok": {
+			anyOfSchema(
 				map[string]any{"type": "string"},
 				map[string]any{"type": "null"},
 			),
@@ -361,14 +621,14 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 		},
 		"anyof-nullable-needs-pointer": {
 			anyOfSchema(
-				map[string]any{"type": "string"},
+				map[string]any{"type": "string", "format": "date-time"},
 				map[string]any{"type": "null"},
 			),
-			reflect.TypeFor[string](), "must be a pointer",
+			reflect.TypeFor[time.Time](), "must be a pointer",
 		},
 		"anyof-nullable-wrong-type": {
 			anyOfSchema(
-				map[string]any{"type": "string"},
+				map[string]any{"type": "string", "format": "date-time"},
 				map[string]any{"type": "null"},
 			),
 			reflect.TypeFor[*int64](), "cannot bind",
@@ -380,7 +640,7 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 	}
 	for name, tt := range cases {
 		s.Run(name, func() {
-			err := checkValueType(tt.schema, tt.target)
+			_, err := checkValueType(tt.schema, tt.target)
 			if tt.errContains == "" {
 				s.NoError(err)
 			} else if s.Assert().Error(err) {
@@ -388,6 +648,29 @@ func (s *BindingSuite) TestCheckValueTypeMatrix() {
 			}
 		})
 	}
+}
+
+func (s *BindingSuite) TestCheckValueTypeReturnsMatchedShape() {
+	shape, err := checkValueType(temporalSchema("date-time"), reflect.TypeFor[time.Time]())
+	s.Require().NoError(err)
+	s.Equal("date-time", shape.format)
+
+	shape, err = checkValueType(
+		anyOfSchema(
+			map[string]any{"type": "string", "format": "date-time"},
+			map[string]any{"type": "null"},
+		),
+		reflect.TypeFor[*time.Time](),
+	)
+	s.Require().NoError(err)
+	s.Equal("date-time", shape.format)
+
+	shape, err = checkValueType(
+		arraySchema(map[string]any{"type": "string", "format": "duration"}),
+		reflect.TypeFor[[]time.Duration](),
+	)
+	s.Require().NoError(err)
+	s.Equal("duration", shape.child("items").format)
 }
 
 func (s *BindingSuite) TestResolveTypeMismatchFailsLoudly() {
@@ -905,6 +1188,51 @@ func (s *BindingSuite) TestResolveEmbeddedStructFields() {
 	s.Equal(0.75, input.Threshold)
 }
 
+type windowConfig struct {
+	Name   string        `json:"name"`
+	Window time.Duration `json:"window"`
+	Start  time.Time     `json:"start"`
+}
+
+func (s *BindingSuite) TestResolveNativeStructFields() {
+	schema := genmodels.ArgValueSchema{
+		"type": "object",
+		"properties": map[string]any{
+			"window": map[string]any{"type": "string", "format": "duration"},
+			"start":  map[string]any{"type": "string", "format": "date"},
+		},
+	}
+	fn := func(config windowConfig) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name: "config",
+			Value: map[string]any{
+				"name":   "nightly",
+				"window": "PT5M",
+				"start":  "2024-01-02",
+			},
+			ValueSchema: &schema,
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(windowConfig{
+		Name:   "nightly",
+		Window: 5 * time.Minute,
+		Start:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+	}, got[0].Interface())
+}
+
+func (s *BindingSuite) TestResolveNativeContainerWithoutItemsSchema() {
+	fn := func(windows []time.Duration, byName map[string]time.Duration) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "windows", Value: []any{"PT5M", "PT30S"}},
+		LiteralArg{Name: "by_name", Value: map[string]any{"short": "PT1S"}},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal([]time.Duration{5 * time.Minute, 30 * time.Second}, got[0].Interface())
+	s.Equal(map[string]time.Duration{"short": time.Second}, got[1].Interface())
+}
+
 type money struct {
 	Amount string
 }
@@ -951,4 +1279,183 @@ func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal(map[string]any{"k": "v"}, got[0].Interface())
+}
+
+func (s *BindingSuite) TestParseISO8601DurationRejectsOverflow() {
+	_, err := parseISO8601Duration("P200000D")
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "does not fit in a time.Duration")
+	}
+}
+
+type nativeCommon struct {
+	Window time.Duration `json:"window"`
+}
+
+type embeddedNativeConfig struct {
+	nativeCommon
+	Name string `json:"name"`
+}
+
+func (s *BindingSuite) TestResolveNativeFieldPromotedFromEmbeddedStruct() {
+	schema := genmodels.ArgValueSchema{
+		"type": "object",
+		"properties": map[string]any{
+			"window": map[string]any{"type": "string", "format": "duration"},
+		},
+	}
+	fn := func(config embeddedNativeConfig) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "config",
+			Value:       map[string]any{"name": "nightly", "window": "PT5M"},
+			ValueSchema: &schema,
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	config := got[0].Interface().(embeddedNativeConfig)
+	s.Equal("nightly", config.Name)
+	s.Equal(5*time.Minute, config.Window)
+}
+
+func (s *BindingSuite) TestResolveNativeFixedArray() {
+	fn := func(windows [2]time.Duration) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "windows",
+			Value:       []any{"PT5M", "PT30S"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "duration"}),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal([2]time.Duration{5 * time.Minute, 30 * time.Second}, got[0].Interface())
+
+	_, err = s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "windows",
+			Value:       []any{"PT5M"},
+			ValueSchema: arraySchema(map[string]any{"type": "string", "format": "duration"}),
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "expected 2 elements")
+	}
+}
+
+func (s *BindingSuite) TestParseISO8601DurationRejectsBoundaryOverflow() {
+	_, err := parseISO8601Duration("PT9223372036.854775808S")
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "does not fit in a time.Duration")
+	}
+}
+
+func (s *BindingSuite) TestResolveNestedTypeMismatchFailsLoudly() {
+	fn := func(windows []time.Duration) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:        "windows",
+			Value:       []any{"PT5M"},
+			ValueSchema: arraySchema(map[string]any{"type": "string"}),
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "cannot bind to Go type time.Duration")
+	}
+
+	fn2 := func(config windowConfig) error { return nil }
+	_, err = s.resolve(fn2, []Arg{
+		LiteralArg{
+			Name:  "config",
+			Value: map[string]any{"name": "nightly", "window": "PT5M"},
+			ValueSchema: &genmodels.ArgValueSchema{
+				"type":       "object",
+				"properties": map[string]any{"window": map[string]any{"type": "string"}},
+			},
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "cannot bind to Go type time.Duration")
+	}
+}
+
+func (s *BindingSuite) TestResolveNestedNullFailsLoudly() {
+	fn := func(windows []time.Duration) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:  "windows",
+			Value: []any{"PT5M", nil},
+			ValueSchema: arraySchema(map[string]any{
+				"anyOf": []any{
+					map[string]any{"type": "string", "format": "duration"},
+					map[string]any{"type": "null"},
+				},
+			}),
+		},
+	}, &fakeXComClient{})
+	if s.Assert().Error(err) {
+		s.Contains(err.Error(), "element 1")
+		s.Contains(err.Error(), "not nilable")
+	}
+
+	fnPtr := func(windows []*time.Duration) error { return nil }
+	got, err := s.resolve(fnPtr, []Arg{
+		LiteralArg{
+			Name:  "windows",
+			Value: []any{"PT5M", nil},
+			ValueSchema: arraySchema(map[string]any{
+				"anyOf": []any{
+					map[string]any{"type": "string", "format": "duration"},
+					map[string]any{"type": "null"},
+				},
+			}),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	windows := got[0].Interface().([]*time.Duration)
+	s.Require().Len(windows, 2)
+	s.Equal(5*time.Minute, *windows[0])
+	s.Nil(windows[1], "a nested None arrives as a nil pointer")
+}
+
+type shallowOuter struct {
+	inner
+	Window string `json:"window"`
+}
+
+type inner struct {
+	Window time.Duration `json:"window"`
+}
+
+func (s *BindingSuite) TestResolveShallowestFieldWinsOverEmbedded() {
+	fn := func(prefix string, config shallowOuter) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "prefix", Value: "p", ValueSchema: argSchema("string")},
+		LiteralArg{
+			Name:        "config",
+			Value:       map[string]any{"window": "PT5M"},
+			ValueSchema: argSchema("object"),
+		},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	config := got[1].Interface().(shallowOuter)
+	s.Equal("PT5M", config.Window, "the shallow string field takes the value verbatim")
+	s.Zero(config.inner.Window, "the embedded duration field is not the target")
+}
+
+func (s *BindingSuite) TestResolveNestedNullableTemporalKeepsFormat() {
+	nullableDate := arraySchema(map[string]any{
+		"anyOf": []any{
+			map[string]any{"type": "string", "format": "date"},
+			map[string]any{"type": "null"},
+		},
+	})
+	fn := func(days []*time.Time) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "days", Value: []any{"2024-01-02", nil}, ValueSchema: nullableDate},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	days := got[0].Interface().([]*time.Time)
+	s.Require().Len(days, 2)
+	s.Equal(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC), *days[0])
+	s.Nil(days[1])
 }

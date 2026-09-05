@@ -169,6 +169,33 @@ data parameters is rejected at registration. A sole struct parameter also falls 
 decoding when it gets exactly one passed argument no field claims, so a task can still take an
 upstream object as a single argument.
 
+### Temporal and UUID arguments
+
+The stub's Python annotation decides which Go type an argument binds onto. The annotation describes
+what the Go task receives, not what the Dag passes: a TaskFlow call argument has to be
+JSON-serializable to cross into another runtime, so pass the formatted string (`window="PT5M"`)
+rather than a native `timedelta`, which fails when the Dag is serialized.
+
+| Python annotation | Go parameter type |
+| --- | --- |
+| `datetime`, `pendulum.DateTime` | `time.Time` |
+| `date` | `time.Time` (midnight) |
+| `time` | `time.Time` (zero date) |
+| `timedelta`, `pendulum.Duration` | `time.Duration` |
+| `UUID` | `uuid.UUID` |
+
+Any of these also binds onto a plain Go `string` if the task would rather parse the value itself —
+the escape hatch for annotations the table doesn't cover, alongside any type that decodes itself
+from JSON. They nest too: `list[timedelta]` binds onto `[]time.Duration`, `dict[str, datetime]` onto
+`map[string]time.Time`, and a struct field is reached just as readily, with a malformed value
+reported by its position, key or field name.
+
+The annotation is authoritative: a Go type the declared Python type cannot fill fails the task
+before its body runs rather than binding a value the author never meant — including a plain `int`
+declared as a Go `time.Duration`, which would otherwise be read as a count of nanoseconds. A
+nullable annotation (`datetime | None`) needs a pointer on the Go side so a `None` has somewhere to
+land.
+
 ### Reading the task runtime context
 
 Declare an `sdk.TIRunContext` parameter on a task to read the identifiers and scheduling timestamps of the
