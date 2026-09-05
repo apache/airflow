@@ -1,0 +1,1 @@
+Honor ``[core] execute_tasks_new_python_interpreter`` when the task supervisor forks the task runner, so Linux deployments can opt into fork+exec for tasks and avoid inheriting held C-library locks (e.g. OpenSSL's) from supervisor threads.

@@ -4479,6 +4479,66 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         in_process_api_server.cache_clear()
 
 
+class TestActivitySubprocessExecSelection:
+    """Which launch mode ``ActivitySubprocess.start()`` picks for the task runner."""
+
+    @pytest.fixture
+    def captured_kwargs(self, monkeypatch):
+        captured = {}
+
+        @classmethod
+        def fake_start(cls, **kwargs):
+            captured.update(kwargs)
+            return MagicMock(spec=supervisor.ActivitySubprocess)
+
+        monkeypatch.setattr(supervisor.WatchedSubprocess, "start", fake_start)
+        return captured
+
+    def _start(self, **kwargs):
+        args = {
+            "what": TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            "dag_rel_path": os.devnull,
+            "bundle_info": FAKE_BUNDLE,
+            "client": MagicMock(spec=sdk_client.Client),
+        }
+        args.update(kwargs)
+        return ActivitySubprocess.start(**args)
+
+    def test_bare_fork_by_default(self, monkeypatch, captured_kwargs):
+        monkeypatch.setattr(supervisor, "_should_use_exec", lambda: False)
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): "false"}):
+            self._start()
+        assert captured_kwargs["use_exec"] is False
+
+    def test_exec_when_config_requests_fresh_interpreter(self, monkeypatch, captured_kwargs):
+        """Linux + execute_tasks_new_python_interpreter=True still execs (issue #71707)."""
+        monkeypatch.setattr(supervisor, "_should_use_exec", lambda: False)
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): "true"}):
+            self._start()
+        assert captured_kwargs["use_exec"] is True
+
+    def test_exec_on_fork_unsafe_platform_regardless_of_config(self, monkeypatch, captured_kwargs):
+        monkeypatch.setattr(supervisor, "_should_use_exec", lambda: True)
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): "false"}):
+            self._start()
+        assert captured_kwargs["use_exec"] is True
+
+    def test_stub_target_keeps_bare_fork_even_when_config_set(self, monkeypatch, captured_kwargs):
+        """Tests override `target` with local stubs; those can't be rehydrated across exec."""
+        monkeypatch.setattr(supervisor, "_should_use_exec", lambda: False)
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): "true"}):
+            self._start(target=lambda: None)
+        assert captured_kwargs["use_exec"] is False
+
+
 class TestResolveChildTarget:
     """Test rehydrating the exec'd child's entry point from _AIRFLOW_CHILD_TARGET."""
 
