@@ -246,6 +246,26 @@ class TestPipelineJobWithoutDefaultProjectIdHook:
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
+    @pytest.mark.parametrize("method_name", ["run_pipeline_job", "submit_pipeline_job"])
+    @pytest.mark.parametrize("reserved_ip_ranges", [None, [], ["range-1", "range-2"]])
+    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_job_object"))
+    def test_pipeline_job_forwards_reserved_ip_ranges(
+        self, mock_get_pipeline_job_object, reserved_ip_ranges, method_name
+    ) -> None:
+        method = getattr(self.hook, method_name)
+
+        method(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            display_name="display-name",
+            template_path="gs://bucket/template.json",
+            reserved_ip_ranges=reserved_ip_ranges,
+        )
+
+        assert mock_get_pipeline_job_object.return_value.submit.call_args.kwargs["reserved_ip_ranges"] == (
+            reserved_ip_ranges
+        )
+
 
 class TestPipelineJobAsyncHook:
     @pytest.mark.asyncio

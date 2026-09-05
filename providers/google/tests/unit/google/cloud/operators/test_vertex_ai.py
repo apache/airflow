@@ -2859,9 +2859,10 @@ class TestVertexAIDeleteModelVersionOperator:
 
 
 class TestVertexAIRunPipelineJobOperator:
+    @pytest.mark.parametrize("reserved_ip_ranges", [None, [], ["range-1", "range-2"]])
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
     @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
-    def test_execute(self, to_dict_mock, mock_hook):
+    def test_execute(self, to_dict_mock, mock_hook, reserved_ip_ranges):
         op = RunPipelineJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -2880,6 +2881,7 @@ class TestVertexAIRunPipelineJobOperator:
             failure_policy="",
             service_account="",
             network="",
+            reserved_ip_ranges=reserved_ip_ranges,
             create_request_timeout=None,
             experiment=None,
         )
@@ -2900,6 +2902,7 @@ class TestVertexAIRunPipelineJobOperator:
             failure_policy="",
             service_account="",
             network="",
+            reserved_ip_ranges=reserved_ip_ranges,
             create_request_timeout=None,
             experiment=None,
         )
