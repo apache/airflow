@@ -20,7 +20,10 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.timezones import timezone
+from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.utils.state import DagRunState
+
+from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = pytest.mark.db_test
 
@@ -88,3 +91,53 @@ def test_get_previous_dag_run_without_a_match(old_ver_client):
 
     assert response.status_code == 200
     assert response.json() is None
+
+
+@pytest.fixture
+def dag_run_with_consumed_event(session, dag_maker):
+    """A Dag run that consumed an asset event carrying a ``partition_key``."""
+    # dag_maker resets Dag/DagRun tables between tests but not asset tables, and this fixture
+    # commits (the API request needs to see the row), so a leftover asset from a prior test
+    # using this fixture would collide on the name/uri unique constraint.
+    clear_db_assets()
+    with dag_maker(dag_id="test_dag_run_consumed_event", session=session, serialized=True):
+        pass
+    run = dag_maker.create_dagrun(
+        state=DagRunState.SUCCESS,
+        logical_date=timezone.datetime(2025, 1, 1),
+        run_id="run1",
+    )
+    asset = AssetModel(name="upstream", uri="s3://bucket/upstream", group="asset", extra={})
+    session.add_all([asset, AssetActive.for_asset(asset)])
+    session.flush()
+    run.consumed_asset_events.append(
+        AssetEvent(asset_id=asset.id, source_dag_id="src", source_run_id="r1", partition_key="2024-01-15")
+    )
+    session.commit()
+    yield
+    clear_db_assets()
+
+
+@pytest.mark.usefixtures("dag_run_with_consumed_event")
+def test_get_dag_run_strips_consumed_event_partition_key(old_ver_client):
+    """A bare-DagRun route must not leak an event-level partition_key to a pre-2026-06-30 client."""
+    response = old_ver_client.get("/execution/dag-runs/test_dag_run_consumed_event/run1")
+
+    assert response.status_code == 200
+    assert all("partition_key" not in event for event in response.json()["consumed_asset_events"])
+
+
+@pytest.mark.usefixtures("dag_run_with_consumed_event")
+def test_get_previous_dag_run_strips_consumed_event_partition_key(old_ver_client):
+    """Same invariant via /previous, which also returns a bare DagRun."""
+    response = old_ver_client.get(
+        "/execution/dag-runs/previous",
+        params={
+            "dag_id": "test_dag_run_consumed_event",
+            "logical_date": timezone.datetime(2025, 1, 2).isoformat(),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "run1"
+    assert all("partition_key" not in event for event in response.json()["consumed_asset_events"])
