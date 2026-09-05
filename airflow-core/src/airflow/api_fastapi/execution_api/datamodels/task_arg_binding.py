@@ -37,7 +37,43 @@ ArgValueSchema = TypeAliasType(
     "ArgValueSchema", Annotated[dict[str, JsonValue], Field(title="ArgValueSchema")]
 )
 """JSON-schema fragment constraining the value a stub-task argument binds to; generated
-by pydantic from the stub annotation, carried verbatim, unknown keywords ignored."""
+by pydantic from the stub annotation, carried verbatim, unknown keywords ignored.
+
+``format`` carries the part of the contract ``type`` alone cannot: which native type a
+lang SDK should decode the value into. Every SDK is expected to follow the same table,
+so a Dag author sees one behaviour regardless of the task's language:
+
+=========================  ========================  ====================================  ==================  =================================
+Python annotation          JSON-schema signal        Wire spelling                         Native target       Inline literal handling
+=========================  ========================  ====================================  ==================  =================================
+``datetime``               string + ``date-time``    ``2024-01-02T03:04:05Z``              timestamp           converted
+``date``                   string + ``date``         ``2024-01-02``                         date                converted
+``time``                   string + ``time``         ``03:04:05``                           time of day         converted
+``timedelta``              string + ``duration``     ``P1DT2H3M4S`` or ``-PT1M30S``         duration            converted
+``UUID``                   string + ``uuid``         ``6ba7b810-9dad-...-...``              UUID                converted
+``int``                    integer + ``int64``       ``42``                                 64-bit integer      JSON-native
+``float``                  number + ``double``       ``1.5``                                64-bit float        JSON-native
+``Enum`` (string value)    string + ``enum``         ``"value"``                            enum                member rejected; pass ``.value``
+``str``-backed ``Enum``    string + ``enum``         ``"value"``                            enum                JSON-native
+``int``-backed ``Enum``    integer + ``enum``        ``1``                                  enum                JSON-native
+``Decimal``                number or string          ``1.2`` or ``"1.20"``                   decimal             rejected; pass number/string
+``Path``                   string + ``path``         ``"/tmp/example"``                     path or string      rejected; pass string
+``set[datetime]``          array + ``uniqueItems``   ``["2024-01-02T03:04:05Z"]``           set of timestamps   converted in stable order
+=========================  ========================  ====================================  ==================  =================================
+
+``Inline literal handling`` describes a value captured directly from the Python Dag. The
+schema also accompanies XCom bindings, where the value is produced later. Schema generation
+does not itself serialize a literal: unsupported Python objects are rejected before a binding
+is emitted even when pydantic can describe their eventual JSON representation.
+
+Timestamps always carry an explicit offset -- a naive ``datetime`` is pinned to Airflow's
+default timezone at serialization time -- because an offset-less timestamp means different
+instants to different runtimes (UTC in Go, worker-local in JavaScript, unparsable in Java).
+
+A ``string`` target is always acceptable for any of the string formats: an SDK that does
+not model a format hands the raw text to the task and lets it parse. Unions serialize as
+``anyOf``, and a ``null`` branch means the argument may arrive absent, so the native
+parameter has to be nullable."""
 
 
 class _ArgBindingBase(BaseModel):
