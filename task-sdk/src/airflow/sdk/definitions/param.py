@@ -383,17 +383,22 @@ def process_params(
     if task.params:
         params.update(task.params)
     if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
+        # Mask before logging: dag.params/task.params are already merged into `params` at this
+        # point, so the declared format="password" schema for a key is available here even though
+        # dagrun_conf hasn't been merged in yet. Registering first ensures the debug log below is
+        # redacted by the SecretsMasker logging filter rather than emitting the raw value.
+        _mask_password_values(params, dagrun_conf)
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
         params.update(dagrun_conf)
 
     resolved_params = params.validate()
-    _mask_password_params(params, resolved_params)
+    _mask_password_values(params, resolved_params)
     return resolved_params
 
 
-def _mask_password_params(params: ParamsDict, resolved: dict[str, Any]) -> None:
-    """Register string params declared with schema format="password" as secrets."""
-    for key, value in resolved.items():
+def _mask_password_values(params: ParamsDict, values: dict[str, Any]) -> None:
+    """Register string values declared with schema format="password" as secrets."""
+    for key, value in values.items():
         if not isinstance(value, str):
             continue
         try:
