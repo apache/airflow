@@ -22,7 +22,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -33,6 +33,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
@@ -133,6 +134,27 @@ async def xcom_query(
     return query
 
 
+def _get_mapped_length(dag_id: str, run_id: str, task_id: str, *, session: SessionDep) -> int | None:
+    """
+    Get the number of mapped task instances ``task_id`` expands into for this run.
+
+    Returns *None* if ``task_id`` is not a mapped task in this run (no task instance
+    with ``map_index >= 0`` exists), in which case callers should fall back to treating
+    the XCom rows as an unmapped/non-sparse sequence.
+    """
+    max_map_index = session.scalar(
+        select(func.max(TaskInstance.map_index)).where(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id == task_id,
+            TaskInstance.map_index >= 0,
+        )
+    )
+    if max_map_index is None:
+        return None
+    return max_map_index + 1
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
     description="Get a single XCom value from a mapped task by sequence index",
@@ -145,6 +167,40 @@ def get_mapped_xcom_by_index(
     offset: int,
     session: SessionDep,
 ) -> XComSequenceIndexResponse:
+    mapped_length = _get_mapped_length(dag_id, run_id, task_id, session=session)
+
+    def not_found() -> HTTPException:
+        message = (
+            f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+        )
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": message},
+        )
+
+    if mapped_length is not None:
+        any_pushed = XComModel.get_many(
+            run_id=run_id,
+            key=key,
+            task_ids=task_id,
+            dag_ids=dag_id,
+        ).order_by(None)
+        if session.execute(any_pushed.limit(1)).first() is not None:
+            map_index = offset if offset >= 0 else mapped_length + offset
+            if not (0 <= map_index < mapped_length):
+                raise not_found()
+            xcom_query = XComModel.get_many(
+                run_id=run_id,
+                key=key,
+                task_ids=task_id,
+                dag_ids=dag_id,
+                map_indexes=map_index,
+            )
+            result: tuple[XComModel] | None = session.scalars(xcom_query.order_by(None)).first()
+            if result is None:
+                return XComSequenceIndexResponse(None)
+            return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
+
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -157,15 +213,9 @@ def get_mapped_xcom_by_index(
     else:
         xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - offset)
 
-    result: tuple[XComModel] | None
-    if (result := session.scalars(xcom_query).first()) is None:
-        message = (
-            f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": message},
-        )
+    result = session.scalars(xcom_query).first()
+    if result is None:
+        raise not_found()
     return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
 
 
@@ -190,14 +240,33 @@ def get_mapped_xcom_by_slice(
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
 ) -> XComSequenceSliceResponse:
-    query = XComModel.get_many(
+    mapped_length = (
+        None if params.include_prior_dates else _get_mapped_length(dag_id, run_id, task_id, session=session)
+    )
+    base_query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
-    )
-    query = query.order_by(None)
+    ).order_by(None)
+
+    # Only fall back to fetching every XCom row (needed to place each value at its true
+    # map_index) when there's an actual gap for this key -- i.e. some, but not all, of the
+    # mapped instances have pushed it. If none have (e.g. the key doesn't exist at all),
+    # that's not a gap to fill with None; it's an empty/not-found result, handled below by
+    # the unchanged SQL-side path. The common case -- every instance has pushed -- also
+    # keeps that cheaper OFFSET/LIMIT/slice() path.
+    existing_count = get_query_count(base_query, session=session) if mapped_length is not None else 0
+    if mapped_length is not None and 0 < existing_count < mapped_length:
+        by_map_index = {
+            row.map_index: row.value
+            for row in session.execute(base_query.with_only_columns(XComModel.map_index, XComModel.value))
+        }
+        values = [by_map_index.get(i) for i in range(mapped_length)]
+        return XComSequenceSliceResponse(values[params.start : params.stop : params.step])
+
+    query = base_query
 
     step = params.step or 1
 
@@ -276,6 +345,9 @@ def get_mapped_xcom_by_slice(
     description="Returns the count of mapped XCom values found in the `Content-Range` response header",
 )
 def head_xcom(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
     response: Response,
     session: SessionDep,
     xcom_query: Annotated[Select, Depends(xcom_query)],
@@ -288,7 +360,10 @@ def head_xcom(
             detail={"reason": "invalid_request", "message": "Cannot specify map_index in a HEAD request"},
         )
 
-    count = get_query_count(xcom_query, session=session)
+    if (mapped_length := _get_mapped_length(dag_id, run_id, task_id, session=session)) is not None:
+        count = mapped_length
+    else:
+        count = get_query_count(xcom_query, session=session)
     # Tell the caller how many items in this query. We define a custom range unit (HTTP spec only defines
     # "bytes" but we can add our own)
     response.headers["Content-Range"] = f"map_indexes {count}"
