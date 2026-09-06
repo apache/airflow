@@ -214,3 +214,61 @@ def test_unmapped_parent_skip_mapped_downstream(session, dag_maker):
     assert len(list(dep.get_dep_statuses(tis["op2"], DepContext(), session=session))) == 1
     assert not dep.is_met(tis["op2"], session=session)
     assert tis["op2"].state == State.SKIPPED
+
+
+def test_branch_in_mapped_taskgroup_skips_non_selected_sibling(session, dag_maker):
+    """
+    A branch operator inside a mapped task group is not itself mapped
+    (parent.is_mapped is False) but runs at each group's map_index and
+    writes its skip XCom there — not at -1.
+
+    NotPreviouslySkippedDep must query the XCom at the matching map_index
+    so siblings are correctly skipped per mapped instance.
+
+    Regression test for https://github.com/apache/airflow/issues/67265
+    """
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        "test_branch_in_mapped_tg_dag",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+        branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "followed")
+        followed = EmptyOperator(task_id="followed")
+        skipped = EmptyOperator(task_id="skipped")
+        branch >> [followed, skipped]
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+
+    # Simulate the branch running inside a mapped task group at map_index=1:
+    # the TI itself has map_index=1 and writes XCom at that index.
+    tis["branch"].map_index = 1
+    tis["branch"].state = State.SUCCESS
+    tis["followed"].map_index = 1
+    tis["skipped"].map_index = 1
+    for ti in tis.values():
+        session.merge(ti)
+    session.flush()  # persist map_index changes before inserting XCom (FK constraint)
+
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value={XCOM_SKIPMIXIN_FOLLOWED: ["followed"]},
+        dag_id=dr.dag_id,
+        task_id="branch",
+        run_id=dr.run_id,
+        map_index=1,
+        session=session,
+    )
+
+    dep = NotPreviouslySkippedDep()
+
+    # "followed" is in XCOM_SKIPMIXIN_FOLLOWED — dep is met, task should run.
+    assert dep.is_met(tis["followed"], session=session)
+    assert tis["followed"].state != State.SKIPPED
+
+    # "skipped" is NOT in XCOM_SKIPMIXIN_FOLLOWED — dep fails, task is skipped.
+    assert len(list(dep.get_dep_statuses(tis["skipped"], DepContext(), session=session))) == 1
+    assert not dep.is_met(tis["skipped"], session=session)
+    assert tis["skipped"].state == State.SKIPPED
