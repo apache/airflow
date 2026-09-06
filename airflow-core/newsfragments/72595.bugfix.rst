@@ -1,0 +1,1 @@
+Fix the scheduler deadlocking against the triggerer when it fails deferred tasks whose trigger timeout has passed. The sweep now claims the timed-out rows with ``SKIP LOCKED`` and fails at most 500 of them per tick, leaving the rest for later ticks.
