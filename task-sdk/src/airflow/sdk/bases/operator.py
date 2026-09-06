@@ -270,6 +270,18 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
 }
 
 
+def _get_operator_defaults(operator_class: type[BaseOperator]) -> dict[str, Any]:
+    """Get default values for an operator class's BaseOperator arguments."""
+    return {
+        **OPERATOR_DEFAULTS,
+        **{
+            name: parameter.default
+            for name, parameter in inspect.signature(operator_class.__init__).parameters.items()
+            if name in OPERATOR_DEFAULTS and parameter.default is not inspect.Parameter.empty
+        },
+    }
+
+
 # This is what handles the actual mapping.
 
 if TYPE_CHECKING:
@@ -372,7 +384,11 @@ else:
         )
 
         # Fill fields not provided by the user with default values.
-        partial_kwargs.update((k, v) for k, v in OPERATOR_DEFAULTS.items() if k not in partial_kwargs)
+        partial_kwargs.update(
+            (k, v)
+            for k, v in _get_operator_defaults(operator_class).items()
+            if k not in partial_kwargs
+        )
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
         if "task_concurrency" in kwargs:  # Reject deprecated option.
