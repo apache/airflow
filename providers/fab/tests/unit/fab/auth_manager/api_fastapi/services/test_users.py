@@ -250,7 +250,7 @@ class TestUsersService:
 
         mock_session = MagicMock()
         mock_session.scalars.return_value.one.return_value = 2
-        mock_session.scalars.return_value.unique.return_value.all.return_value = [user1, user2]
+        mock_session.scalars.return_value.all.return_value = [user1, user2]
         security_manager.session = mock_session
         fab_auth_manager.security_manager = security_manager
         get_fab_auth_manager.return_value = fab_auth_manager
