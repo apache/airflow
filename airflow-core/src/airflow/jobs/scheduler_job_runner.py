@@ -176,6 +176,10 @@ deployment, so eviction costs a re-fetch only where that working set is genuinel
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
+# Per-tick cap on timed-out deferred task instances the scheduler fails, for the
+# same reason as above; the rest are failed on subsequent ticks.
+MAX_TIMED_OUT_TASK_INSTANCES_PER_LOOP = 500
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -3499,23 +3503,49 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
             with attempt:
-                result = session.execute(
-                    update(TI)
-                    .where(
-                        TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
+                try:
+                    now = timezone.utcnow()
+                    query = (
+                        select(TI.id)
+                        .where(
+                            TI.state == TaskInstanceState.DEFERRED,
+                            TI.trigger_timeout < now,
+                        )
+                        .order_by(TI.id)
+                        .limit(MAX_TIMED_OUT_TASK_INSTANCES_PER_LOOP)
                     )
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        next_method=TRIGGER_FAIL_REPR,
-                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
-                        trigger_id=None,
+                    # Claim the rows instead of letting a blind bulk UPDATE wait on them: waiting
+                    # is what lets this sweep deadlock against the triggerer, which writes the same
+                    # rows in the opposite order as tasks defer and fire. SKIP LOCKED leaves rows a
+                    # writer already holds for the next tick rather than queueing behind them.
+                    query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                    timed_out_ids = session.scalars(query).all()
+                    if not timed_out_ids:
+                        return
+
+                    result = session.execute(
+                        update(TI)
+                        .where(
+                            TI.id.in_(timed_out_ids),
+                            TI.state == TaskInstanceState.DEFERRED,
+                            TI.trigger_timeout < now,
+                        )
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            next_method=TRIGGER_FAIL_REPR,
+                            next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                            scheduled_dttm=timezone.utcnow(),
+                            trigger_id=None,
+                        )
                     )
-                )
-                num_timed_out_tasks = getattr(result, "rowcount", 0)
-                if num_timed_out_tasks:
-                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+                    num_timed_out_tasks = getattr(result, "rowcount", 0)
+                    if num_timed_out_tasks:
+                        self.log.info(
+                            "Timed out %i deferred tasks without fired triggers", num_timed_out_tasks
+                        )
+                except OperationalError:
+                    session.rollback()
+                    raise
 
     @provide_session
     def check_awaiting_input_timeouts(

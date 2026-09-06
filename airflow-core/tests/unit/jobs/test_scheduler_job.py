@@ -8143,6 +8143,95 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def _make_timed_out_deferred_tis(self, dag_maker, session, count: int) -> list[TaskInstance]:
+        with dag_maker(
+            dag_id="test_timeout_triggers_sweep",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            max_active_runs=count,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+
+        tis = []
+        for i in range(count):
+            dag_run = dag_maker.create_dagrun(
+                run_id=f"test_sweep_{i}",
+                logical_date=DEFAULT_DATE + datetime.timedelta(seconds=i),
+            )
+            ti = dag_run.get_task_instance("dummy1", session=session)
+            ti.state = State.DEFERRED
+            ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+            tis.append(ti)
+        session.flush()
+        return tis
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", wraps=with_row_locks)
+    def test_timeout_triggers_locks_rows_with_skip_locked(self, wrapped, dag_maker, session):
+        """
+        The timeout sweep must claim the TI rows with ``skip_locked`` rather than letting a blind
+        bulk UPDATE wait on rows the triggerer holds, which is what deadlocks it on MySQL.
+        """
+        self._make_timed_out_deferred_tis(dag_maker, session, 1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        ti_lock_calls = [call for call in wrapped.mock_calls if call.kwargs.get("of") is TaskInstance]
+        assert len(ti_lock_calls) == 1, f"Expected one with_row_locks call for TI, got {ti_lock_calls}"
+        assert ti_lock_calls[0].kwargs["skip_locked"] is True
+        assert ti_lock_calls[0].kwargs["session"] is session
+
+    def test_timeout_triggers_roll_back_before_retrying(self, dag_maker, session):
+        """
+        A failed attempt must roll back before the next one, the way ``adopt_or_reset_orphaned_tasks``
+        does, so the retry starts from a clean transaction instead of the half-claimed rows.
+        """
+        from sqlalchemy.exc import OperationalError
+
+        tis = self._make_timed_out_deferred_tis(dag_maker, session, 1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        might_fail_session = MagicMock(wraps=session)
+        # Not wrapped: rolling the real session back would discard the fixture's unflushed rows.
+        might_fail_session.rollback = MagicMock()
+        claim_failed = False
+
+        def claim(*args, **kwargs):
+            nonlocal claim_failed
+            if not claim_failed:
+                claim_failed = True
+                raise OperationalError("any_statement", "any_params", "any_orig")
+            return session.scalars(*args, **kwargs)
+
+        might_fail_session.scalars.side_effect = claim
+
+        self.job_runner.check_trigger_timeouts(max_retries=2, session=might_fail_session)
+
+        might_fail_session.rollback.assert_called_once()
+        session.refresh(tis[0])
+        assert tis[0].state == State.SCHEDULED
+        assert tis[0].next_method == "__fail__"
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.MAX_TIMED_OUT_TASK_INSTANCES_PER_LOOP", 2)
+    def test_timeout_triggers_sweep_is_bounded(self, dag_maker, session):
+        """Each sweep fails at most one batch; the rest are picked up on later ticks."""
+        tis = self._make_timed_out_deferred_tis(dag_maker, session, 3)
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        for ti in tis:
+            session.refresh(ti)
+        assert sorted(ti.state for ti in tis) == [State.DEFERRED, State.SCHEDULED, State.SCHEDULED]
+
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        for ti in tis:
+            session.refresh(ti)
+        assert all(ti.state == State.SCHEDULED for ti in tis)
+        assert all(ti.next_method == "__fail__" for ti in tis)
+
     def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
         """
         A parked ``awaiting_input`` task past its deadline with defaults is resumed to SCHEDULED by
@@ -8337,7 +8426,8 @@ class TestSchedulerJob:
                 ti1.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
                 ti2.state = State.DEFERRED
                 ti2.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=60)
-                session.flush()
+                # Committed, not just flushed: a failed attempt now rolls back before retrying.
+                session.commit()
 
                 # Boot up the scheduler and make it check timeouts
                 scheduler_job = Job()
