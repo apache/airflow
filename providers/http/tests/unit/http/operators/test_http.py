@@ -569,3 +569,13 @@ class TestHttpOperator:
             base.BaseHook, "get_connection", lambda _cid: SimpleNamespace(login=None, password=None)
         )
         assert HttpOperator(task_id="test_HTTP_op_3")._resolve_auth_type() is None
+
+    def test_http_conn_id_is_templated(self):
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            endpoint="/",
+            http_conn_id="{{ conn_id }}",
+        )
+        assert "http_conn_id" in operator.template_fields
+        operator.render_template_fields({"conn_id": "http_staging"})
+        assert operator.http_conn_id == "http_staging"
