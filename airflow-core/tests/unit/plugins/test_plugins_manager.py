@@ -237,16 +237,13 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [
-                {"name": "A-view", "href": "/a", "url_route": "/test_route"},
-                {"name": "A-no_url_route", "href": "/b"},
-            ]
+            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]  # type: ignore[typeddict-item, typeddict-unknown-key]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
 
-            external_views = [{"name": "B-view", "href": "/b", "url_route": "/test_route"}]
-            react_apps = [{"name": "B-react", "bundle_url": "/b.js", "url_route": "/test_route"}]
+            external_views = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
+            react_apps = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
@@ -269,14 +266,8 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [
-                [{"nested_list": "/test_route"}],
-                {"name": "A-view", "href": "/a", "url_route": "/test_route"},
-            ]
-            react_apps = [
-                [{"nested_list": "/test_route"}],
-                {"name": "A-react", "bundle_url": "/a.js", "url_route": "/test_route_react_app"},
-            ]
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[list-item, typeddict-item]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[list-item, typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA()]),
@@ -290,10 +281,8 @@ class TestPluginsManager:
             plugin_a = next(
                 plugin for plugin in plugins_manager._get_plugins()[0] if plugin.name == "test_plugin_a"
             )
-            assert plugin_a.external_views == [{"name": "A-view", "href": "/a", "url_route": "/test_route"}]
-            assert plugin_a.react_apps == [
-                {"name": "A-react", "bundle_url": "/a.js", "url_route": "/test_route_react_app"}
-            ]
+            assert plugin_a.external_views == [{"url_route": "/test_route"}]
+            assert plugin_a.react_apps == [{"url_route": "/test_route_react_app"}]
             assert len(external_views) == 1
             assert len(react_apps) == 1
 
@@ -311,6 +300,24 @@ class TestPluginsManager:
                 "The React App will not be loaded.",
             ),
         ]
+
+    def test_loads_typed_external_views_and_react_apps(self):
+        class TypedPlugin(AirflowPlugin):
+            name = "typed_plugin"
+
+            # Recommended `ExternalViewDict` / `ReactAppDict` shapes — no `# type: ignore` needed here.
+            external_views = [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            react_apps = [{"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}]
+
+        with mock_plugin_manager(plugins=[TypedPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, react_apps = plugins_manager._get_ui_plugins()
+
+            assert external_views == [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            assert react_apps == [
+                {"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}
+            ]
 
     @pytest.mark.parametrize(
         ("applies_to", "error"),
