@@ -264,3 +264,25 @@ class SchedulerJobRunner(MockJobRunner):
 
 class TriggererJobRunner(MockJobRunner):
     job_type = "TriggererJob"
+
+
+@pytest.mark.parametrize(
+    ("name", "expected_modpath"),
+    [
+        ("render_template_as_native", "airflow.sdk.definitions.context"),
+        ("render_template_to_string", "airflow.sdk.definitions.context"),
+        ("prevent_duplicates", "airflow.sdk.definitions.mappedoperator"),
+    ],
+)
+def test_deprecated_imports_return_callable(name, expected_modpath):
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        obj = getattr(helpers, name)
+
+    assert callable(obj), f"{name} should be callable"
+    assert any(issubclass(w.category, DeprecationWarning) for w in caught), "should emit DeprecationWarning"
+    assert any(expected_modpath in str(w.message) for w in caught), (
+        f"warning should mention {expected_modpath}"
+    )
