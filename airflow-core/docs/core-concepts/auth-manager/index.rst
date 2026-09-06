@@ -143,6 +143,10 @@ These authorization methods are:
 * ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``). An optional ``team_name`` scopes the check to a team -- see :ref:`team-scoped-view-authorization` below.
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
+* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task.
+  This is an optional method: the default implementation returns whether the user's ID is in ``assigned_users``, the IDs of the users assigned to the task.
+  Airflow only calls this method for tasks that have assigned users. When a task has none, Airflow skips this method and any user allowed to
+  update the task's HITL detail (``is_authorized_dag`` with ``access_entity=DagAccessEntity.HITL_DETAIL``) can respond.
 
 It should be noted that the ``method`` parameter listed above may only have relevance for a specific subset of the auth manager's authorization methods.
 For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.
@@ -239,7 +243,6 @@ The following methods aren't required to override to have a functional Airflow a
 * ``filter_authorized_dag_ids``: Given a list of Dag IDs, return the list of Dag IDs the user has access to.  If not overridden, it calls ``is_authorized_dag`` for every single Dag passes as parameter.
 * ``filter_authorized_pools``: Given a list of pool names, return the list of pool names the user has access to.  If not overridden, it calls ``is_authorized_pool`` for every single pool passed as parameter.
 * ``filter_authorized_variables``: Given a list of variable keys, return the list of variable keys the user has access to.  If not overridden, it calls ``is_authorized_variable`` for every single variable passed as parameter.
-* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task. Override this method to implement custom authorization logic for HITL tasks. If not overridden, it checks if the user's ID is in the assigned users list.
 
 CLI
 ^^^
