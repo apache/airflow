@@ -735,6 +735,18 @@ class TestDataprocSubmitTrigger:
 
         await async_gen.aclose()
 
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Cancellation is handled inline before Airflow 3.3.0")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    async def test_submit_trigger_run_reraises_cancelled_error(self, mock_get_async_hook, submit_trigger):
+        mock_async_hook = mock_get_async_hook.return_value
+        mock_async_hook.get_job_client = mock.AsyncMock()
+        mock_async_hook.get_job.side_effect = asyncio.CancelledError
+
+        with pytest.raises(asyncio.CancelledError):
+            async for _ in submit_trigger.run():
+                pass
+
 
 class TestDataprocSubmitJobDirectTrigger:
     def test_serialization(self, submit_job_direct_trigger):
@@ -908,3 +920,19 @@ class TestDataprocSubmitJobDirectTrigger:
             mock_sync_hook.cancel_job.assert_not_called()
 
         await async_gen.aclose()
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Cancellation is handled inline before Airflow 3.3.0")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger.get_async_hook"
+    )
+    async def test_run_reraises_cancelled_error(self, mock_get_async_hook, submit_job_direct_trigger):
+        mock_hook = mock_get_async_hook.return_value
+        submit_future = asyncio.Future()
+        submit_future.set_result(Job(reference={"job_id": TEST_JOB_ID}))
+        mock_hook.submit_job.return_value = submit_future
+        mock_hook.get_job.side_effect = asyncio.CancelledError
+
+        with pytest.raises(asyncio.CancelledError):
+            async for _ in submit_job_direct_trigger.run():
+                pass
