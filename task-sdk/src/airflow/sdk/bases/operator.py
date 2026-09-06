@@ -272,14 +272,18 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
 
 def _get_operator_defaults(operator_class: type[BaseOperator]) -> dict[str, Any]:
     """Get default values for an operator class's BaseOperator arguments."""
-    return {
-        **OPERATOR_DEFAULTS,
-        **{
-            name: parameter.default
-            for name, parameter in inspect.signature(operator_class.__init__).parameters.items()
+    operator_defaults = OPERATOR_DEFAULTS.copy()
+    operator_classes = operator_class.mro()
+    for operator_base in reversed(operator_classes[: operator_classes.index(BaseOperator)]):
+        init = operator_base.__dict__.get("__init__")
+        if init is None:
+            continue
+        operator_defaults.update(
+            (name, parameter.default)
+            for name, parameter in inspect.signature(init).parameters.items()
             if name in OPERATOR_DEFAULTS and parameter.default is not inspect.Parameter.empty
-        },
-    }
+        )
+    return operator_defaults
 
 
 # This is what handles the actual mapping.
@@ -385,9 +389,7 @@ else:
 
         # Fill fields not provided by the user with default values.
         partial_kwargs.update(
-            (k, v)
-            for k, v in _get_operator_defaults(operator_class).items()
-            if k not in partial_kwargs
+            (k, v) for k, v in _get_operator_defaults(operator_class).items() if k not in partial_kwargs
         )
 
         # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().

@@ -135,6 +135,7 @@ def test_mapped_task_preserves_custom_base_operator_default():
 
     assert direct.retry_policy is retry_policy
     assert mapped.partial_kwargs["retry_policy"] is retry_policy
+    assert mapped.partial_kwargs["inlets"] == []
     assert unmapped.retry_policy is retry_policy
 
 
