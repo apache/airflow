@@ -60,6 +60,7 @@ TEST_COMMANDS = [
     "assets get-state-store 1 test_key",
     "assets list-state-store 1",
     "assets delete-state-store 1 test_key",
+    "assets set-state-store 1 clear_key value",
     "assets clear-state-store 1",
     # Backfill commands
     "backfill list example_bash_operator",

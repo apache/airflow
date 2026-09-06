@@ -30,7 +30,7 @@ assets:
   delete-queued-event: "Delete a specific queued asset event for a given Dag and asset"
   list-state-store: "List all state store entries for an asset"
   get-state-store: "Retrieve a single asset state store entry by its ID and key"
-  set-state-store: "Set an asset state store value. Creates or overwrites the key."
+  set-state-store: "Set an asset state store value. Parsed as JSON if valid, otherwise stored as a string"
   delete-state-store: "Delete a single asset state store key by its ID and key"
   clear-state-store: "Delete all state store keys for an asset by its ID"
 
