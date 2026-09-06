@@ -108,10 +108,9 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
 add_deprecated_classes(
     {
         __name__: {
-            "KNOWN_CONTEXT_KEYS": "airflow.sdk.definitions.context",
-            "Context": "airflow.sdk.definitions.context",
-            "context_copy_partial": "airflow.sdk.definitions.context",
-            "context_merge": "airflow.sdk.definitions.context",
+            "KNOWN_CONTEXT_KEYS": "airflow.sdk.definitions.context.KNOWN_CONTEXT_KEYS",
+            "Context": "airflow.sdk.Context",
+            "context_merge": "airflow.sdk.definitions.context.context_merge",
         },
     },
     package=__name__,
