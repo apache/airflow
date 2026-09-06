@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Separator, Text, VStack } from "@chakra-ui/react";
+import { HStack, Separator, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { StateIcon } from "src/components/StateIcon";
+
 import { dayjs } from "./dateUtils";
+import { getTimelineItemIconState } from "./timelineUtils";
 import type { TimelineItem } from "./types";
 
 type TimelineTooltipProps = {
@@ -33,12 +36,13 @@ const formatTime = (datetime: string | null, selectedTimezone: string) =>
 export const TimelineTooltip = ({ item, selectedTimezone }: TimelineTooltipProps) => {
   const { t: translate } = useTranslation();
   const startTime = formatTime(item.startDate, selectedTimezone);
-  const state = item.isPlanned ? "scheduled" : item.state;
+  const iconState = getTimelineItemIconState(item);
+  const state = iconState ?? item.state;
 
   return (
     <VStack
       align="start"
-      color="fg.inverted"
+      color="fg"
       data-testid="time-schedule-tooltip"
       gap={1}
       lineHeight="short"
@@ -55,9 +59,12 @@ export const TimelineTooltip = ({ item, selectedTimezone }: TimelineTooltipProps
         opacity={0.2}
         width="100%"
       />
-      <Text fontSize="xs" fontWeight="medium">
-        {translate(`states.${state}`)}
-      </Text>
+      <HStack gap={1}>
+        <StateIcon color="currentColor" size={12} state={iconState} />
+        <Text fontSize="xs" fontWeight="medium">
+          {translate(`states.${state}`)}
+        </Text>
+      </HStack>
       <Text fontSize="xs">
         {item.isPlanned
           ? translate("timeSchedule.nextRun", { time: startTime })

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
 
 export type AggregationMode = "max" | "mean" | "min";
 export const DAG_RUN_LIMITS = [200, 600, 1000, 2000, 5000] as const;
@@ -37,7 +37,7 @@ export type TimelineItem = {
   readonly label: string;
   readonly runCount: number;
   readonly startDate: string | null;
-  readonly state: DAGRunResponse["state"] | "placeholder" | "planned";
+  readonly state: TimeScheduleItem["state"];
 };
 
 export type TimelineRow = {

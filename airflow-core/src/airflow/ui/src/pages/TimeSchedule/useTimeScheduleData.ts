@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useDebounce } from "use-debounce";
 
@@ -39,7 +39,7 @@ type UseTimeScheduleDataProps = {
   readonly viewMode: ViewMode;
 };
 
-const mapStreamItem = (item: TimeScheduleItem): TimelineItem => ({
+const buildTimelineItem = (item: TimeScheduleItem): TimelineItem => ({
   dagId: item.dag_id,
   dagRunId: item.dag_run_id,
   durationMs: item.duration_ms,
@@ -87,7 +87,7 @@ export const useTimeScheduleData = ({
   }
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
-  const streamQuery = useMemo(() => {
+  const buildStreamQuery = () => {
     const query = new URLSearchParams();
     const forwardedKeys = [
       SearchParamsKeys.DAG_ID_PATTERN,
@@ -120,23 +120,12 @@ export const useTimeScheduleData = ({
     query.set("view_mode", viewMode);
 
     return query.toString();
-  }, [
-    aggregationMode,
-    dagRunLimit,
-    multiTeamEnabled,
-    searchParams,
-    selectedTimezone,
-    showScheduledOnly,
-    streamTimeScale,
-    viewMode,
-  ]);
-  const nonZoomStreamQuery = useMemo(() => {
-    const query = new URLSearchParams(streamQuery);
+  };
+  const streamQuery = buildStreamQuery();
+  const nonZoomQuery = new URLSearchParams(streamQuery);
 
-    query.delete("time_scale");
-
-    return query.toString();
-  }, [streamQuery]);
+  nonZoomQuery.delete("time_scale");
+  const nonZoomStreamQuery = nonZoomQuery.toString();
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -154,7 +143,7 @@ export const useTimeScheduleData = ({
     setError(undefined);
 
     const applyBatch = (batch: TimeScheduleBatch, shouldReplaceTimelineItems: boolean) => {
-      const batchItems = batch.items.map(mapStreamItem);
+      const batchItems = batch.items.map(buildTimelineItem);
 
       setTimelineItems((currentItems) =>
         shouldReplaceTimelineItems ? batchItems : [...currentItems, ...batchItems],
@@ -227,7 +216,6 @@ export const useTimeScheduleData = ({
     viewMode === "day" ? buildTimelineRows({ items: timelineItems, rowSortMode, selectedTimezone }) : [];
 
   return {
-    aggregatedWeekItems: viewMode === "week" ? timelineItems : [],
     controls: {
       filterConfigs,
       initialValues,

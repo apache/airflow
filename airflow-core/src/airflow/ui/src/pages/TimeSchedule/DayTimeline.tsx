@@ -25,7 +25,7 @@ import { RouterLink } from "src/components/ui/RouterLink";
 
 import { TimelineBar } from "./TimelineBar";
 import { dayjs } from "./dateUtils";
-import { getPosition, getVisualDurationWidth } from "./timelineUtils";
+import { getPosition, getTimelineBarLeft, getVisualDurationWidth } from "./timelineUtils";
 import type { DayRowLayout, RowSortMode, TimeMarker, TimelineItem } from "./types";
 
 type DayTimelineProps = {
@@ -212,7 +212,6 @@ export const DayTimeline = ({
                     const dayStart = start?.startOf("day");
                     const startPosition = start && dayStart ? getPosition(start, dayStart) : 0;
                     const endPosition = end && dayStart ? getPosition(end, dayStart) : startPosition;
-                    const width = Math.max(1.5, Math.abs(endPosition - startPosition));
                     const barWidth = getVisualDurationWidth(item.durationMs);
 
                     return (
@@ -226,7 +225,7 @@ export const DayTimeline = ({
                         <TimelineBar
                           height="12px"
                           item={item}
-                          left={`${Math.min(Math.min(startPosition, endPosition), 100 - width)}%`}
+                          left={getTimelineBarLeft(Math.min(startPosition, endPosition), barWidth)}
                           renderTooltip={renderTooltip}
                           testId={`time-schedule-run-bar-${item.dagRunId}`}
                           width={barWidth}

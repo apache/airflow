@@ -129,11 +129,7 @@ export const routerConfig = [
         path: "task_instances",
       },
       {
-        element: (
-          <DagsLayout>
-            <TimeSchedule />
-          </DagsLayout>
-        ),
+        element: <TimeSchedule />,
         path: "time_schedule",
       },
       {

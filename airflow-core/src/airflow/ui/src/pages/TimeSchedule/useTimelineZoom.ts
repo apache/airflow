@@ -27,6 +27,7 @@ import {
   type SetStateAction,
 } from "react";
 
+import { TIMELINE_HORIZONTAL_PADDING } from "./constants";
 import { buildHourMarkers, buildTimeMarkers } from "./timelineUtils";
 import type { TimeScale, ViewMode, ZoomAnchor } from "./types";
 
@@ -34,7 +35,6 @@ const TIME_SCALE_OPTIONS: Array<TimeScale> = [60, 30, 20, 10, 5, 1];
 const FINE_ZOOM_STEPS: Array<TimeScale> = [60, 50, 40, 30, 20, 15, 10, 5, 1];
 const MIN_TIME_LABEL_SPACING = 48;
 const MIN_CHART_WIDTH = 1440;
-const TIMELINE_HORIZONTAL_PADDING = 40;
 const HOUR_MARKERS = buildHourMarkers();
 
 const getNextScale = (current: TimeScale, direction: "in" | "out", steps: Array<TimeScale>) => {

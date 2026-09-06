@@ -36,7 +36,7 @@ export const StatsCard = ({
   state,
 }: {
   readonly colorScheme: string;
-  readonly count: number;
+  readonly count?: number;
   readonly icon?: ReactNode;
   readonly isLoading?: boolean;
   readonly isRTL: boolean;

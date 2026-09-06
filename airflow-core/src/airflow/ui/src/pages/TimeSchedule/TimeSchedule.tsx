@@ -35,13 +35,13 @@ import { DayTimeline } from "./DayTimeline";
 import { TimeScheduleControls, TimeScheduleViewControls } from "./TimeScheduleControls";
 import { TimelineTooltip } from "./TimelineTooltip";
 import { WeekTimeline } from "./WeekTimeline";
+import { TIMELINE_HORIZONTAL_PADDING } from "./constants";
 import { buildDayRowLayouts } from "./timelineUtils";
 import type { AggregationMode, DagRunLimit, RowSortMode, ViewMode } from "./types";
 import { useTimeScheduleData } from "./useTimeScheduleData";
 import { useTimelineZoom } from "./useTimelineZoom";
 
-const CHART_VIEWPORT_HEIGHT = "calc(100dvh - 200px)";
-const TIMELINE_HORIZONTAL_PADDING = 40;
+const CHART_VIEWPORT_HEIGHT = "calc(100dvh - 160px)";
 
 export const TimeSchedule = () => {
   const { t: translate } = useTranslation();
@@ -61,21 +61,19 @@ export const TimeSchedule = () => {
 
   useDocumentTitle(translate("timeSchedule.title"));
 
-  const { aggregatedWeekItems, controls, dagRunCount, dayRows, error, isLoading, timelineItems } =
-    useTimeScheduleData({
-      aggregationMode,
-      dagRunLimit,
-      rowSortMode,
-      selectedTimezone,
-      showScheduledOnly,
-      timeScale: zoom.timeScale,
-      viewMode,
-    });
+  const { controls, dagRunCount, dayRows, error, isLoading, timelineItems } = useTimeScheduleData({
+    aggregationMode,
+    dagRunLimit,
+    rowSortMode,
+    selectedTimezone,
+    showScheduledOnly,
+    timeScale: zoom.timeScale,
+    viewMode,
+  });
   const dayRowLayouts = buildDayRowLayouts({
     rows: dayRows,
     selectedTimezone,
     timelineWidth: zoom.chartWidth - TIMELINE_HORIZONTAL_PADDING,
-    timeScale: zoom.timeScale,
   });
   const dayGridHeight = Math.max(480, dayRowLayouts.reduce((height, row) => height + row.height, 0) + 32);
   const chartContentHeight = Math.max(320, dayGridHeight - 48);
@@ -97,7 +95,7 @@ export const TimeSchedule = () => {
 
   return (
     <VStack align="stretch" gap={4}>
-      <TimeScheduleControls {...controls} />
+      <TimeScheduleControls {...controls} onViewModeChange={setViewMode} viewMode={viewMode} />
 
       <Box
         bg="bg.panel"
@@ -125,12 +123,10 @@ export const TimeSchedule = () => {
               onAggregationModeChange={setAggregationMode}
               onDagRunLimitChange={setDagRunLimit}
               onScheduledOnlyChange={setShowScheduledOnly}
-              onViewModeChange={setViewMode}
               onZoomIn={zoom.zoomIn}
               onZoomOut={zoom.zoomOut}
               showScheduledOnly={showScheduledOnly}
               timeScale={zoom.timeScale}
-              viewMode={viewMode}
               zoomInDisabled={zoom.zoomInDisabled}
               zoomOutDisabled={zoom.zoomOutDisabled}
             />
@@ -164,7 +160,7 @@ export const TimeSchedule = () => {
               chartRootRef={zoom.chartRootRef}
               chartViewportHeight={CHART_VIEWPORT_HEIGHT}
               hourMarkers={zoom.hourMarkers}
-              items={aggregatedWeekItems}
+              items={timelineItems}
               onMouseLeave={zoom.onChartMouseLeave}
               onMouseMove={zoom.onChartMouseMove}
               renderTooltip={renderTimelineTooltip}

@@ -21,6 +21,7 @@ import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react"
 import { useTranslation } from "react-i18next";
 
 import { TimelineBar } from "./TimelineBar";
+import { WEEK_LABEL_LINE_HEIGHT_PX } from "./constants";
 import { dayjs } from "./dateUtils";
 import { buildTimeMarkers, buildWeekItemLayouts } from "./timelineUtils";
 import type { TimeMarker, TimeScale, TimelineItem } from "./types";
@@ -152,9 +153,10 @@ export const WeekTimeline = ({
                     height={`${height}px`}
                     item={item}
                     key={item.dagRunId}
+                    labelLineClamp={Math.max(1, Math.floor(height / WEEK_LABEL_LINE_HEIGHT_PX))}
                     left={`calc(${(column / columnCount) * 100}% + 2px)`}
                     renderTooltip={renderTooltip}
-                    showDagId
+                    showDagLabel
                     testId={`time-schedule-week-bar-${item.dagRunId}`}
                     top={`${top}px`}
                     width={`calc(${100 / columnCount}% - 4px)`}

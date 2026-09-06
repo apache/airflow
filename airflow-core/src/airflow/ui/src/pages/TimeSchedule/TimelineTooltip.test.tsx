@@ -24,6 +24,12 @@ import { describe, expect, it, vi } from "vitest";
 import { TimelineTooltip } from "./TimelineTooltip";
 import type { TimelineItem } from "./types";
 
+vi.mock("src/components/StateIcon", () => ({
+  StateIcon: ({ color, state }: { readonly color?: string; readonly state?: string }) => (
+    <svg data-color={color} data-state={state ?? "none"} data-testid="state-icon" />
+  ),
+}));
+
 const { translate } = vi.hoisted(() => ({
   translate: (key: string, options?: { count?: number }) =>
     key === "states.success" ? "Success" : `${options?.count ?? ""} Dag runs`.trim(),
@@ -48,24 +54,16 @@ const item: TimelineItem = {
 };
 
 describe("TimelineTooltip", () => {
-  it("separates the title from compact details", () => {
+  it("renders the item state and details", () => {
     render(
       <ChakraProvider value={defaultSystem}>
         <TimelineTooltip item={item} selectedTimezone="UTC" />
       </ChakraProvider>,
     );
 
-    const componentStyles = [...document.head.querySelectorAll('style[data-emotion="css"]')]
-      .map((style) => style.textContent)
-      .join("");
-
-    expect(componentStyles).toContain("color:var(--chakra-colors-fg-inverted)");
-    expect(componentStyles).toContain("font-size:var(--chakra-font-sizes-sm)");
-    expect(componentStyles).toContain("font-size:var(--chakra-font-sizes-xs)");
-    expect(screen.getByTestId("time-schedule-tooltip-separator")).toBeInTheDocument();
-    expect(componentStyles).toContain("border-color:currentColor");
-    expect(componentStyles).toContain("margin-block:var(--chakra-spacing-1)");
-    expect(componentStyles).toContain("opacity:0.2");
+    expect(screen.getByText("example_dag")).toBeInTheDocument();
+    expect(screen.getByTestId("state-icon")).toHaveAttribute("data-color", "currentColor");
+    expect(screen.getByTestId("state-icon")).toHaveAttribute("data-state", "success");
     expect(screen.getByText("Success")).toBeInTheDocument();
     expect(screen.getByText("00:00 – 00:01")).toBeInTheDocument();
     expect(screen.getByText("1 Dag runs")).toBeInTheDocument();

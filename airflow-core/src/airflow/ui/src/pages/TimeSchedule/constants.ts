@@ -16,25 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { useTranslation } from "react-i18next";
+export const TIMELINE_HORIZONTAL_PADDING = 40;
+export const WEEK_LABEL_LINE_HEIGHT_PX = 14;
 
-import { NavTabs } from "./Details/NavTabs";
-
-export const DagsLayout = ({ children }: PropsWithChildren) => {
-  const { t: translate } = useTranslation();
-
-  const tabs = [
-    { label: translate("nav.dags"), value: "/dags" },
-    { label: translate("dagRun_other"), value: "/dag_runs" },
-    { label: translate("taskInstance_other"), value: "/task_instances" },
-  ];
-
-  return (
-    <Box>
-      <NavTabs tabs={tabs} />
-      {children}
-    </Box>
-  );
-};
+export const TIMELINE_TOOLTIP_CONTENT_PROPS = {
+  bg: "bg.panel",
+  borderColor: "border.emphasized",
+  borderWidth: "1px",
+  boxShadow: "lg",
+  color: "fg",
+} as const;

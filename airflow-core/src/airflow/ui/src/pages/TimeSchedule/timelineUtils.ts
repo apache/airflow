@@ -56,7 +56,13 @@ export const buildTimelineRows = ({
   const rowsByDagId = new Map<string, Array<TimelineItem>>();
 
   items.forEach((item) => {
-    rowsByDagId.set(item.dagId, [...(rowsByDagId.get(item.dagId) ?? []), item]);
+    const rowItems = rowsByDagId.get(item.dagId);
+
+    if (rowItems) {
+      rowItems.push(item);
+    } else {
+      rowsByDagId.set(item.dagId, [item]);
+    }
   });
 
   return Array.from(rowsByDagId, ([dagId, rowItems]) => ({
@@ -107,21 +113,33 @@ export const formatDurationLabel = (durationMs: number) => {
   return minutes % 60 > 0 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${Math.floor(minutes / 60)}h`;
 };
 
+const STATE_ICON_AND_SPACING_WIDTH_PX = 30;
+const DURATION_CHARACTER_WIDTH_PX = 10;
+const TIMELINE_BAR_BREATHING_ROOM_PX = 4;
+
+export const getTimelineBarMinimumWidth = (durationMs: number) =>
+  STATE_ICON_AND_SPACING_WIDTH_PX +
+  formatDurationLabel(durationMs).length * DURATION_CHARACTER_WIDTH_PX +
+  TIMELINE_BAR_BREATHING_ROOM_PX;
+
 export const getVisualDurationWidth = (durationMs: number) =>
-  durationMs <= 0 ? 42 : `max(42px, ${(durationMs / 60_000 / (24 * 60)) * 100}%)`;
+  durationMs <= 0
+    ? getTimelineBarMinimumWidth(durationMs)
+    : `max(${getTimelineBarMinimumWidth(durationMs)}px, ${(durationMs / 60_000 / (24 * 60)) * 100}%)`;
+
+export const getTimelineBarLeft = (startPosition: number, width: number | string) =>
+  `min(${startPosition}%, calc(100% - ${typeof width === "number" ? `${width}px` : width}))`;
 
 type BuildDayRowLayoutsParams = {
   readonly rows: Array<TimelineRow>;
   readonly selectedTimezone: string;
   readonly timelineWidth: number;
-  readonly timeScale: TimeScale;
 };
 
 export const buildDayRowLayouts = ({
   rows,
   selectedTimezone,
   timelineWidth,
-  timeScale,
 }: BuildDayRowLayoutsParams): Array<DayRowLayout> => {
   let top = 0;
 
@@ -138,7 +156,7 @@ export const buildDayRowLayouts = ({
         const start = dayjs(item.startDate).tz(selectedTimezone);
         const startX = (getPosition(start, start.startOf("day")) / 100) * timelineWidth;
         const width = Math.max(
-          timeScale === 1 ? timelineWidth / (24 * 60) : 42,
+          getTimelineBarMinimumWidth(item.durationMs),
           (item.durationMs / (24 * 60 * 60 * 1000)) * timelineWidth,
         );
         let lane = laneEnds.findIndex((laneEnd) => laneEnd <= startX);
@@ -250,6 +268,13 @@ export const buildHourMarkers = () =>
 
 export const getTimelineItemColorPalette = (item: Pick<TimelineItem, "isPlanned" | "state">) =>
   item.isPlanned ? "scheduled" : item.state;
+export const getTimelineItemIconState = ({ state }: Pick<TimelineItem, "state">) => {
+  if (state === "planned") {
+    return "scheduled";
+  }
+
+  return state === "placeholder" ? undefined : state;
+};
 export const getTimelineItemDestination = (item: TimelineItem) =>
   item.isPlanned || item.isPlaceholder
     ? `/dags/${item.dagId}/runs`

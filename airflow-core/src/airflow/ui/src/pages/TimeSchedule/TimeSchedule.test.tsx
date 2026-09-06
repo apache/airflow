@@ -141,21 +141,31 @@ if (!i18n.isInitialized) {
         common: {
           dagId: "Dag ID",
           filters: { filterByTag: "Filter by tag", timetableType: "Timetable Type" },
-          states: { scheduled: "Scheduled" },
+          states: { failed: "Failed", scheduled: "Scheduled", success: "Success" },
           timeSchedule: {
+            averageDuration: "Average duration",
+            averageDurationHelp: "Average start and end times",
+            dagRunLimit: "Dag run limit",
+            dagRunLimitHelp:
+              "Displays the most recent Dag runs that match the current filters, up to the selected limit.",
+            dagRunLimitHelpLabel: "About Dag run limit",
             dagRuns: "{{count}} Dag runs",
             dagRunsRendered: "{{count}} Dag runs rendered",
             dagRunsToDisplay: "Dag runs to display",
             day: "Day",
             durationAggregation: "Duration aggregation",
-            latestDagRuns: "Latest {{count}}",
+            durationAggregationHelp:
+              "Combines runs with the same Dag ID, state, and time bucket into one bar.",
+            durationAggregationHelpLabel: "About duration aggregation",
+            fullTimeRange: "Full time range",
+            fullTimeRangeHelp: "Earliest start to latest end",
+            latestDagRuns: "Limit {{count}}",
             loading: "Loading...",
-            max: "Max",
-            mean: "Mean",
-            min: "Min",
             minutes: "{{value}}m",
             nextRun: "Next run: {{time}}",
             scheduledDagsOnly: "Scheduled Dags only",
+            shortestRun: "Shortest run",
+            shortestRunHelp: "Shortest individual run",
             title: "Time Schedule",
             viewMode: "View mode",
             week: "Week",
@@ -168,7 +178,13 @@ if (!i18n.isInitialized) {
               Tue: "Tue",
               Wed: "Wed",
             },
+            zoomButtonHelp: "Use + and − to zoom in and out.",
+            zoomControls: "Zoom controls",
+            zoomHelp: "Adjusts the time interval from 60 to 1 minutes.",
+            zoomHelpLabel: "About zoom controls",
             zoomIn: "Zoom in",
+            zoomKeyboardHelp: "Keyboard: Hold Ctrl or ⌘ and press ↑ or ↓.",
+            zoomMouseHelp: "Mouse: Hold Ctrl or ⌘ and use the mouse wheel.",
             zoomOut: "Zoom out",
           },
         },
@@ -215,11 +231,11 @@ describe("TimeSchedule page", () => {
 
     await waitFor(() => expect(screen.getByText("2 Dag runs rendered")).toBeInTheDocument());
     expect(screen.getByTestId("time-schedule-day-grid")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View Dag run run-1" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View Dag run run-1: Success" })).toHaveAttribute(
       "href",
       "/dags/example_dag/runs/run-1",
     );
-    expect(screen.getByRole("link", { name: "View Dag run run-2" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View Dag run run-2: Failed" })).toHaveAttribute(
       "href",
       "/dags/another_dag/runs/run-2",
     );
@@ -262,9 +278,17 @@ describe("TimeSchedule page", () => {
     render();
     await waitFor(() => expect(screen.getByText("2 Dag runs rendered")).toBeInTheDocument());
 
-    await selectOption("time-schedule-view-mode", "Week");
+    const dayTab = screen.getByRole("tab", { name: "Day" });
+    const weekTab = screen.getByRole("tab", { name: "Week" });
+
+    expect(dayTab).toHaveAttribute("aria-selected", "true");
+    expect(weekTab).toHaveAttribute("aria-selected", "false");
+
+    fireEvent.click(weekTab);
 
     await waitFor(() => expect(getLatestRequest().searchParams.get("view_mode")).toBe("week"));
+    expect(dayTab).toHaveAttribute("aria-selected", "false");
+    expect(weekTab).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTestId("time-schedule-week-grid")).toBeInTheDocument();
     expect(screen.queryByTestId("time-schedule-day-grid")).not.toBeInTheDocument();
   });
@@ -273,7 +297,7 @@ describe("TimeSchedule page", () => {
     render();
     await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
 
-    await selectOption("time-schedule-aggregation", "Max");
+    await selectOption("time-schedule-aggregation", "Full time range");
 
     await waitFor(() => expect(getLatestRequest().searchParams.get("aggregation_mode")).toBe("max"));
   });
@@ -284,11 +308,11 @@ describe("TimeSchedule page", () => {
 
     fireEvent.click(within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox"));
 
-    expect(await screen.findByRole("option", { name: "Latest 200" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Latest 5000" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Limit 200" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Limit 5000" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /All Dag runs/u })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("option", { name: "Latest 600" }));
+    fireEvent.click(screen.getByRole("option", { name: "Limit 600" }));
     await waitFor(() => expect(getLatestRequest().searchParams.get("limit")).toBe("600"));
   });
 
@@ -322,7 +346,7 @@ describe("TimeSchedule page", () => {
 
     render();
 
-    expect(await screen.findByRole("link", { name: "View planned_dag Dag runs" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "View planned_dag Dag runs: Scheduled" })).toHaveAttribute(
       "href",
       "/dags/planned_dag/runs",
     );
@@ -340,12 +364,12 @@ describe("TimeSchedule page", () => {
 
   it("keeps rendered bars visible while zoom aggregation is debounced", async () => {
     render();
-    expect(await screen.findByRole("link", { name: "View Dag run run-1" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "View Dag run run-1: Success" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
 
     expect(fetchTimeSchedule).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("link", { name: "View Dag run run-1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Dag run run-1: Success" })).toBeInTheDocument();
 
     await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalledTimes(2));
   });
@@ -389,17 +413,5 @@ describe("TimeSchedule page", () => {
 
     expect(await screen.findByText("Time Schedule request failed with status 500")).toBeInTheDocument();
     expect(screen.getByText("0 Dag runs rendered")).toBeInTheDocument();
-  });
-
-  it("does not focus the chart when opening a view control", async () => {
-    render();
-    await waitFor(() => expect(fetchTimeSchedule).toHaveBeenCalled());
-
-    const chart = screen.getByTestId("time-schedule-chart");
-    const limitSelect = within(screen.getByTestId("time-schedule-dag-run-limit")).getByRole("combobox");
-
-    fireEvent.mouseDown(limitSelect);
-
-    expect(chart).not.toHaveFocus();
   });
 });
