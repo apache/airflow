@@ -83,8 +83,9 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
     property reads as an optimized substitute for traversing TI/TIH
     relationships. Sorting and deduplication remain in ``DagRun.dag_versions``.
 
-    Bundle-versioned runs are included: after a partial ``run_on_latest_version``
-    clear they can have mixed TI versions, so they must not skip this prefetch.
+    Bundle-versioned runs are included: after a ``run_on_latest_version``
+    clear they can keep older versions on uncleared TIs or TIH, so they
+    must not skip this prefetch.
     """
     if not dag_runs:
         return

@@ -59,6 +59,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
@@ -1440,6 +1441,70 @@ class TestDagRun:
         assert version_ids == {old_dag_version.id, new_dag_version.id}
 
         # Grid/UI path: attach must prefetch mixed versions even when bundle_version is set.
+        dag_run._prefetched_dag_version_ids = None
+        attach_dag_versions_to_runs([dag_run], session=session)
+        assert dag_run._prefetched_dag_version_ids is not None
+        assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
+        assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
+
+    def test_bundled_dag_run_dag_versions_after_full_run_on_latest_version(self, dag_maker, session):
+        """Bundled dag_versions still include TIH versions after a full run_on_latest_version clear.
+
+        Clearing every TI with run_on_latest_version=True bumps created_dag_version_id
+        and bundle_version to latest, and all current TIs move to that version. The
+        previous version remains on TIH, so the property must still report both.
+        """
+        with dag_maker(
+            "test_dag_run_dag_versions_full_latest",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            bundle_version="v1",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dag_run = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+
+        old_dag_version = DagVersion.get_latest_version(dag_run.dag_id)
+        for ti in dag_run.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+        dag_run.state = DagRunState.SUCCESS
+        session.merge(dag_run)
+        session.flush()
+
+        with dag_maker(
+            "test_dag_run_dag_versions_full_latest",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            bundle_version="v2",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dag_run.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+        session.commit()
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.run_id == dag_run.run_id))
+        assert dag_run.created_dag_version_id == new_dag_version.id
+        assert dag_run.bundle_version == new_dag_version.bundle_version
+        assert {ti.dag_version_id for ti in dag_run.task_instances} == {new_dag_version.id}
+
+        tih_version_ids = set(
+            session.scalars(
+                select(TaskInstanceHistory.dag_version_id).where(
+                    TaskInstanceHistory.dag_id == dag_run.dag_id,
+                    TaskInstanceHistory.run_id == dag_run.run_id,
+                    TaskInstanceHistory.dag_version_id.isnot(None),
+                )
+            )
+        )
+        assert old_dag_version.id in tih_version_ids
+
+        version_ids = {dv.id for dv in dag_run.dag_versions}
+        assert version_ids == {old_dag_version.id, new_dag_version.id}
+
         dag_run._prefetched_dag_version_ids = None
         attach_dag_versions_to_runs([dag_run], session=session)
         assert dag_run._prefetched_dag_version_ids is not None
