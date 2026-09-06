@@ -36,6 +36,7 @@ from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesStartKueueJobOperator,
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
 from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
@@ -59,6 +60,7 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDescribeJobOperator,
     GKEListJobsOperator,
     GKEOperatorMixin,
+    GKEPodExecOperator,
     GKEResumeJobOperator,
     GKEStartJobOperator,
     GKEStartKueueInsideClusterOperator,
@@ -823,6 +825,104 @@ class TestGKEStartKueueInsideClusterOperator:
         mock_log.info.assert_called_once_with(
             "Cluster doesn't have ability to autoscale, will not install Kueue inside. Aborting"
         )
+
+
+class TestGKEPodExecOperator:
+    def setup_method(self):
+        self.operator = GKEPodExecOperator(
+            task_id=TEST_TASK_ID,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            pod_name=K8S_POD_NAME,
+            namespace=K8S_NAMESPACE,
+            container_name="worker",
+            command=["dbt", "run"],
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            do_xcom_push=True,
+            max_xcom_output_size=1024,
+        )
+
+    def test_constructor_forces_gke_auth_and_forwards_exec_options(self):
+        assert self.operator.kubernetes_conn_id is None
+        assert self.operator.in_cluster is False
+        assert self.operator.cluster_context is None
+        assert self.operator.config_file is None
+        assert self.operator.do_xcom_push is True
+        assert self.operator.max_xcom_output_size == 1024
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_message"),
+        [
+            (
+                {"config_file": "/path/to/kubeconfig"},
+                "`config_file` is not allowed for GKEPodExecOperator",
+            ),
+            (
+                {"gcp_conn_id": None},
+                "`gcp_conn_id` must not be None",
+            ),
+        ],
+        ids=["config-file", "missing-gcp-connection"],
+    )
+    def test_invalid_auth_parameters(self, kwargs, expected_message):
+        with pytest.raises(ValueError, match=expected_message):
+            GKEPodExecOperator(
+                task_id=TEST_TASK_ID,
+                location=TEST_LOCATION,
+                cluster_name=GKE_CLUSTER_NAME,
+                pod_name=K8S_POD_NAME,
+                command=["true"],
+                **kwargs,
+            )
+
+    def test_template_fields(self):
+        expected_template_fields = set(GKEOperatorMixin.template_fields) | (
+            set(KubernetesPodExecOperator.template_fields)
+            - {"cluster_context", "config_file", "kubernetes_conn_id"}
+        )
+
+        assert set(GKEPodExecOperator.template_fields) == expected_template_fields
+
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEKubernetesHook"), autospec=True)
+    @mock.patch(GKE_OPERATORS_PATH.format("GKEOperatorMixin.cluster_info"), new_callable=PropertyMock)
+    def test_hook_uses_gke_authentication(self, mock_cluster_info, mock_hook):
+        mock_cluster_info.return_value = (GKE_CLUSTER_URL, GKE_SSL_CA_CERT)
+
+        result = self.operator.hook
+
+        assert result == mock_hook.return_value
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            cluster_url=GKE_CLUSTER_URL,
+            ssl_ca_cert=GKE_SSL_CA_CERT,
+            enable_tcp_keepalive=False,
+            use_dns_endpoint=False,
+        )
+
+    @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEnginePodLink.persist"), autospec=True)
+    @mock.patch(
+        GKE_OPERATORS_PATH.format("KubernetesPodExecOperator.execute"),
+        autospec=True,
+        return_value="command output",
+    )
+    def test_execute_persists_link_and_returns_output(self, mock_execute, mock_persist_link):
+        context = {}
+
+        result = self.operator.execute(context)
+
+        assert result == "command output"
+        mock_persist_link.assert_called_once_with(
+            context=context,
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_name=GKE_CLUSTER_NAME,
+            namespace=K8S_NAMESPACE,
+            pod_name=K8S_POD_NAME,
+        )
+        mock_execute.assert_called_once_with(self.operator, context)
 
 
 class TestGKEStartPodOperator:
