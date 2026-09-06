@@ -28,6 +28,8 @@ from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 if TYPE_CHECKING:
+    from pendulum.tz.timezone import FixedTimezone, Timezone
+
     from airflow.timetables.base import TimeRestriction
 
 Delta = datetime.timedelta | relativedelta
