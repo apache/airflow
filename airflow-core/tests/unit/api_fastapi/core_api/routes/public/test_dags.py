@@ -967,6 +967,24 @@ class TestPatchDag(TestDagEndpoint):
 
         assert response.status_code == 422
 
+    @pytest.mark.parametrize(
+        ("body", "expected_state"),
+        [
+            ({"is_paused": True, "scheduling_state": None}, DagSchedulingState.PAUSED),
+            ({"is_paused": False, "scheduling_state": None}, DagSchedulingState.ACTIVE),
+            (
+                {"is_paused": None, "scheduling_state": DagSchedulingState.DRAINING},
+                DagSchedulingState.DRAINING,
+            ),
+        ],
+    )
+    def test_patch_dag_accepts_unset_counterpart_sent_as_null(self, test_client, body, expected_state):
+        """Generated clients send the whole model, so the unused field arrives as an explicit null."""
+        response = test_client.patch(f"/dags/{DAG1_ID}", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["scheduling_state"] == expected_state
+
     @pytest.mark.parametrize("field", ["is_paused", "scheduling_state"])
     def test_patch_dag_rejects_null_state(self, test_client, field):
         response = test_client.patch(f"/dags/{DAG1_ID}", json={field: None})

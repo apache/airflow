@@ -171,8 +171,10 @@ class DAGPatchBody(StrictBaseModel):
     @model_validator(mode="after")
     def validate_single_state_update(self) -> DAGPatchBody:
         """Require exactly one scheduling-state representation."""
-        state_fields = self.model_fields_set.intersection({"is_paused", "scheduling_state"})
-        if len(state_fields) != 1 or getattr(self, next(iter(state_fields))) is None:
+        # Generated clients serialize the whole model, so the field they are not
+        # setting arrives as an explicit null rather than being absent.
+        provided = [name for name in ("is_paused", "scheduling_state") if getattr(self, name) is not None]
+        if len(provided) != 1:
             raise ValueError("Exactly one of `is_paused` or `scheduling_state` must be provided")
         return self
 
