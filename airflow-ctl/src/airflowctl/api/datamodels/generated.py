@@ -1284,6 +1284,7 @@ class XComResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
     run_after: Annotated[datetime, Field(title="Run After")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class XComResponseNative(BaseModel):
@@ -1301,6 +1302,7 @@ class XComResponseNative(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
     run_after: Annotated[datetime, Field(title="Run After")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
     value: Annotated[Any, Field(title="Value")]
 
 
@@ -1319,6 +1321,7 @@ class XComResponseString(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     task_display_name: Annotated[str, Field(title="Task Display Name")]
     run_after: Annotated[datetime, Field(title="Run After")]
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
     value: Annotated[str | None, Field(title="Value")]
 
 

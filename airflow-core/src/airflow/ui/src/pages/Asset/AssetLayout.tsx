@@ -16,20 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Code, HStack, Text } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineStorage, MdTimeline } from "react-icons/md";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset } from "openapi/queries";
+
+import { ProgressBar } from "src/system-components";
+
+import { NavTabs } from "src/layouts/Details/NavTabs";
+
 import { BreadcrumbRow, CrumbStack, CrumbText } from "src/components/Breadcrumb";
-import { ProgressBar } from "src/components/ui";
+
 import { GroupsProvider } from "src/context/groups";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { NavTabs } from "src/layouts/Details/NavTabs";
 import { useDocumentTitle } from "src/utils";
 
 import { AssetGraph } from "./AssetGraph";

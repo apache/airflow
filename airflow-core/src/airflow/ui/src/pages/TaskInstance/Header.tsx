@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
@@ -30,6 +32,7 @@ import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
+
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";

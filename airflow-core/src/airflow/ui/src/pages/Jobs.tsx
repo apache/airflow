@@ -24,12 +24,14 @@ import { useSearchParams } from "react-router-dom";
 
 import { useJobServiceGetJobs } from "openapi/queries";
 import type { JobResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
