@@ -3514,10 +3514,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .order_by(TI.id)
                         .limit(MAX_TIMED_OUT_TASK_INSTANCES_PER_LOOP)
                     )
-                    # Claim the rows instead of letting a blind bulk UPDATE wait on them: waiting
-                    # is what lets this sweep deadlock against the triggerer, which writes the same
-                    # rows in the opposite order as tasks defer and fire. SKIP LOCKED leaves rows a
-                    # writer already holds for the next tick rather than queueing behind them.
+                    # Claim the rows rather than letting a blind bulk UPDATE wait on them: a sweep
+                    # that waits can be one side of a lock cycle with the triggerer, which writes
+                    # these same rows as tasks defer and fire. SKIP LOCKED leaves the rows a writer
+                    # already holds for the next tick.
                     query = with_row_locks(query, of=TI, session=session, skip_locked=True)
                     timed_out_ids = session.scalars(query).all()
                     if not timed_out_ids:

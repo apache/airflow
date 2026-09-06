@@ -8193,7 +8193,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=Job())
 
         might_fail_session = MagicMock(wraps=session)
-        # Not wrapped: rolling the real session back would discard the fixture's unflushed rows.
+        # Not wrapped: rolling the real session back would discard the fixture's uncommitted rows.
         might_fail_session.rollback = MagicMock()
         claim_failed = False
 
