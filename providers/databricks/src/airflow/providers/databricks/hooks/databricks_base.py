@@ -197,9 +197,9 @@ class BaseDatabricksHook(BaseHook):
         return self.databricks_conn
 
     async def _get_conn_async(self) -> Connection:
-        if not hasattr(self, "_adatabricks_conn"):
-            self._adatabricks_conn = await get_async_connection(self.databricks_conn_id, hook=self)
-        return self._adatabricks_conn
+        if not hasattr(self, "_conn_async_cache"):
+            self._conn_async_cache = await get_async_connection(self.databricks_conn_id, hook=self)
+        return self._conn_async_cache
 
     async def _a_host(self):
         conn = await self._get_conn_async()
