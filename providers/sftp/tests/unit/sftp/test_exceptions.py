@@ -67,9 +67,6 @@ class TestConnectionNotOpenedException:
         # Callers catch the base class, so narrowing this later would be a breaking change.
         assert issubclass(ConnectionNotOpenedException, AirflowException)
 
-    def test_keeps_its_message(self) -> None:
-        assert str(ConnectionNotOpenedException("connection is not open")) == "connection is not open"
-
     def test_can_be_caught_as_airflow_exception(self) -> None:
         with pytest.raises(AirflowException, match="connection is not open"):
             raise ConnectionNotOpenedException("connection is not open")
