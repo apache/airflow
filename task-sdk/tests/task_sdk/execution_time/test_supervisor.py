@@ -20,6 +20,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import multiprocessing
 import os
 import re
 import selectors
@@ -300,7 +301,30 @@ class TestWatchedSubprocess:
             lambda: [EnvironmentVariablesBackend(), fresh_execution_backend()],
         )
 
-    def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
+    def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start, monkeypatch):
+        stdout_consumed = multiprocessing.Event()
+
+        create_log_forwarder = ActivitySubprocess._create_log_forwarder
+
+        def signalling_log_forwarder(self, loggers, name, **kwargs):
+            handler, on_close = create_log_forwarder(self, loggers, name, **kwargs)
+            if name != "task.stdout":
+                return handler, on_close
+
+            def signalling_handler(sock):
+                need_more = handler(sock)
+                stdout_consumed.set()
+                return need_more
+
+            return signalling_handler, on_close
+
+        monkeypatch.setattr(ActivitySubprocess, "_create_log_forwarder", signalling_log_forwarder)
+
+        def await_stdout_consumed():
+            if not stdout_consumed.wait(10):
+                raise AssertionError("parent did not read the pending stdout")
+            stdout_consumed.clear()
+
         def subprocess_main():
             # This is run in the subprocess!
 
@@ -311,12 +335,14 @@ class TestWatchedSubprocess:
             import warnings
 
             print("I'm a short message")
+            await_stdout_consumed()
+
+            # stdout is line buffered, so the partial line only reaches the parent once flushed
             sys.stdout.write("Message ")
+            sys.stdout.flush()
             print("stderr message", file=sys.stderr)
-            # We need a short sleep for the main process to process things. I worry this timing will be
-            # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
-            # stderr full line be read
-            sleep(0.1)
+            await_stdout_consumed()
+
             sys.stdout.write("split across two writes\n")
 
             logging.getLogger("airflow.foobar").error("An error message")
