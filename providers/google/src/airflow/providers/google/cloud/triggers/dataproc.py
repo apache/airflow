@@ -233,6 +233,9 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 except Exception as e:
                     self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                     raise e
+            else:
+                # The triggerer only calls on_kill() when CancelledError propagates out of run().
+                raise
 
 
 class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
@@ -437,6 +440,9 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
                 except Exception as e:
                     self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                     raise e
+            else:
+                # The triggerer only calls on_kill() when CancelledError propagates out of run().
+                raise
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
