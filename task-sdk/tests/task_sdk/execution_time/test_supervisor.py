@@ -2681,6 +2681,7 @@ REQUEST_TEST_CASES = [
                 True,
                 None,
             ),
+            kwargs={"only_failed": False},
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger_with_run_after",
@@ -2706,6 +2707,7 @@ REQUEST_TEST_CASES = [
                 True,
                 "Test Note",
             ),
+            kwargs={"only_failed": False},
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -2722,9 +2724,28 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
             args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), None, True, None),
+            kwargs={"only_failed": False},
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
+    ),
+    RequestTestCase(
+        message=TriggerDagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            conf={"key": "value"},
+            logical_date=timezone.datetime(2025, 1, 1),
+            reset_dag_run=True,
+            only_failed_and_downstream=True,
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="dag_runs.trigger",
+            args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), None, True, None),
+            kwargs={"only_failed": True},
+            response=OKResponse(ok=True),
+        ),
+        test_id="dag_run_trigger_only_failed_and_downstream",
     ),
     RequestTestCase(
         message=TriggerDagRun(dag_id="test_dag", run_id="test_run"),
@@ -2732,6 +2753,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
             args=("test_dag", "test_run", None, None, None, False, None),
+            kwargs={"only_failed": False},
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",

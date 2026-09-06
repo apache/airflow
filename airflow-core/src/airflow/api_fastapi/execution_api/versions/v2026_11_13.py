@@ -17,31 +17,19 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from cadwyn import VersionChange, schema
 
-from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.utils.state import DagRunState
+from airflow.api_fastapi.execution_api.datamodels.dagrun import ClearDagRunPayload
 
 
-class TriggerDAGRunPayload(StrictBaseModel):
-    """Schema for Trigger DAG Run API request."""
+class AddOnlyFailedToClearDagRunPayload(VersionChange):
+    """Add the ``only_failed`` field to the clear-dag-run request payload."""
 
-    logical_date: UtcDateTime | None = None
-    run_after: UtcDateTime | None = None
-    conf: dict = Field(default_factory=dict)
-    reset_dag_run: bool = False
-    partition_key: str | None = None
-    note: str | None = None
+    description = __doc__
 
-
-class ClearDagRunPayload(StrictBaseModel):
-    """Schema for Clear DAG Run API request."""
-
-    only_failed: bool = False
-
-
-class DagRunStateResponse(BaseModel):
-    """Schema for DAG Run State response."""
-
-    state: DagRunState
+    # Request-body-only additive field: for older versions the field simply does not exist on
+    # ``ClearDagRunPayload`` (which forbids extra fields), so an older client omitting it clears the
+    # whole run, and one that sends it is rejected rather than silently downgraded to a whole-run clear.
+    instructions_to_migrate_to_previous_version = (
+        schema(ClearDagRunPayload).field("only_failed").didnt_exist,
+    )

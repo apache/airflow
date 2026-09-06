@@ -29,3 +29,43 @@ Use the :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagR
     :dedent: 4
     :start-after: [START howto_operator_trigger_dagrun]
     :end-before: [END howto_operator_trigger_dagrun]
+
+Automatically clearing failed child tasks
+-----------------------------------------
+
+By default, when the triggered child Dag run already exists, ``TriggerDagRunOperator`` either
+raises, skips, or -- with ``reset_dag_run=True`` -- clears and re-runs the *whole* child run. The
+opt-in ``auto_clear_failed_tasks`` flag offers a narrower behavior: when the existing child run is in
+a failed state, only its failed tasks (and their downstream) are cleared and re-run, so
+already-succeeded upstream tasks are preserved and not re-executed.
+
+The flag is off by default. To enable it, set ``auto_clear_failed_tasks=True`` and run the operator
+synchronously (``wait_for_completion=True``). The failed-only clear happens on the next execution of
+the operator -- for example on a task retry -- so bound the attempts with ``retries``:
+
+.. code-block:: python
+
+    TriggerDagRunOperator(
+        task_id="run_child",
+        trigger_dag_id="child_dag",
+        wait_for_completion=True,  # sync mode (v1 scope)
+        retries=2,  # bounds the auto-clear + retry
+        auto_clear_failed_tasks=True,  # on retry, clear failed + downstream of the failed child run
+    )
+
+Caveats
+~~~~~~~
+
+* **Synchronous-only (v1).** ``auto_clear_failed_tasks`` applies when ``wait_for_completion=True`` and
+  is not supported with ``deferrable=True`` -- setting both raises ``ValueError``.
+* **Cosmetic window.** Until the operator re-executes and triggers the clear, the child run may still
+  be shown as ``failed`` in the UI.
+* **Task idempotency.** Previously-succeeded tasks are not re-run and the failed ones are, so the
+  triggered Dag's tasks should be idempotent; re-running a non-idempotent task may cause duplicate
+  side effects.
+* **Precedence with ``reset_dag_run``.** If both are set, ``reset_dag_run`` wins and the whole run is
+  cleared; at most one clear is performed.
+* **Airflow 3.x core-version requirement.** On Airflow 3.x the failed-only clear is delivered
+  server-side via the Execution API and requires a new enough core (Execution API version
+  ``2026-11-13`` or later). Against an older core the operator raises ``NotImplementedError`` rather
+  than silently falling back to a whole-run clear.

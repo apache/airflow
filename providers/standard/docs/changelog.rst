@@ -35,6 +35,17 @@
 Changelog
 ---------
 
+
+.. note::
+    ``TriggerDagRunOperator`` gains an opt-in ``auto_clear_failed_tasks`` flag (default ``False``).
+    When enabled and the triggered child Dag run already exists in a failed state, only its failed
+    tasks and their downstream are cleared and re-run on the next execution of the operator (for
+    example on a retry), preserving already-succeeded tasks instead of resetting the whole run. The
+    feature is synchronous-only in this version (``wait_for_completion=True``) and is not supported
+    with ``deferrable=True``. ``reset_dag_run`` still takes precedence when both are set. On Airflow
+    3.x the failed-only clear is delivered via the Execution API and requires a new enough core; the
+    operator raises ``NotImplementedError`` rather than silently falling back to a whole-run clear.
+=======
 1.18.0
 ......
 

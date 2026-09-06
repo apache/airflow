@@ -55,9 +55,16 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_11_13 import AddOnlyFailedToClearDagRunPayload
+
+# Minimum Execution API version that honours the ``only_failed`` clear scope. Clients (e.g. the
+# TriggerDagRunOperator failed-only path added in F1-T3) must gate on this and raise an explicit
+# error when negotiating against an older core, rather than silently clearing the whole run.
+MIN_VERSION_ONLY_FAILED_CLEAR = "2026-11-13"
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-11-13", AddOnlyFailedToClearDagRunPayload),
     Version("2026-10-30", AddArgBindingsToTIRunContext, AddCallbackRunEndpoint),
     Version(
         "2026-06-30",

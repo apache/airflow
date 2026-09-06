@@ -1952,6 +1952,7 @@ def _handle_trigger_dag_run(
             run_after=drte.run_after,
             conf=drte.conf,
             reset_dag_run=drte.reset_dag_run,
+            only_failed_and_downstream=drte.only_failed_and_downstream,
             note=drte.note,
         ),
     )
