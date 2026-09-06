@@ -147,14 +147,19 @@ def _mask_password_conf(dag, conf: dict | None) -> dict | None:
 
 
 def _build_masked_dag_run_responses(dag_runs, dag_bag, session) -> list[DAGRunResponse]:
-    """Convert ORM DagRuns to DAGRunResponse, redacting password-format conf keys per-run."""
-    dag_cache: dict[str, object] = {}
+    """
+    Convert ORM DagRuns to DAGRunResponse, redacting password-format conf keys per-run.
+
+    Deliberately does not cache DAGs by dag_id: two DagRuns can share a dag_id but resolve to
+    different Dag versions (get_dag_for_run keys off dag_run.created_dag_version_id), and a param's
+    format="password" declaration can differ between versions. dag_bag itself already caches by
+    dag_version_id internally, so this stays cheap without an extra, incorrect layer on top.
+    """
     responses = []
     for dag_run in dag_runs:
         response = DAGRunResponse.model_validate(dag_run)
-        if dag_run.dag_id not in dag_cache:
-            dag_cache[dag_run.dag_id] = get_dag_for_run(dag_bag, dag_run, session=session)
-        response.conf = _mask_password_conf(dag_cache[dag_run.dag_id], response.conf)
+        dag = get_dag_for_run(dag_bag, dag_run, session=session)
+        response.conf = _mask_password_conf(dag, response.conf)
         responses.append(response)
     return responses
 
@@ -280,7 +285,9 @@ def patch_dag_run(
     if not final_dag_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
-    return final_dag_run
+    response = DAGRunResponse.model_validate(final_dag_run)
+    response.conf = _mask_password_conf(dag, response.conf)
+    return response
 
 
 @dag_run_router.patch(
@@ -489,7 +496,7 @@ def clear_dag_runs(
             )
         )
     return DAGRunCollectionResponse(
-        dag_runs=cleared_runs,
+        dag_runs=_build_masked_dag_run_responses(cleared_runs, dag_bag, session),
         total_entries=len(cleared_runs),
     )
 
@@ -867,7 +874,9 @@ def trigger_dag_run(
         if dag_run_note:
             current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
-        return dag_run
+        response = DAGRunResponse.model_validate(dag_run)
+        response.conf = _mask_password_conf(context_dag, response.conf)
+        return response
 
     except (ParamValidationError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

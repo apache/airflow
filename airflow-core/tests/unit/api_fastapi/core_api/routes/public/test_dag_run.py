@@ -408,6 +408,134 @@ class TestGetDagRun:
         assert response.status_code == 403
 
 
+class TestGetDagRunsMasksPasswordConfAcrossVersions:
+    def test_list_masks_only_the_version_that_declares_password(self, test_client, dag_maker, session):
+        from airflow.models.dag_version import DagVersion
+
+        # Version 1 of the Dag: api_token is a plain string param (not masked).
+        with dag_maker(
+            "test_dag_password_versioned",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        version_1 = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_dag_password_versioned")
+            .order_by(DagVersion.version_number.desc())
+        )
+
+        run_v1 = dag_maker.create_dagrun(
+            run_id="run_v1_not_password",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        run_v1.conf = {"api_token": "not-actually-a-secret"}
+        # dag_maker doesn't set bundle_version by default, and DBDagBag._version_from_dag_run
+        # falls back to the *latest* Dag version whenever bundle_version is falsy, regardless of
+        # created_dag_version_id. Pin both explicitly so this run actually resolves to version 1,
+        # which is the exact behavior this test needs to exercise.
+        run_v1.created_dag_version_id = version_1.id
+        run_v1.bundle_version = "test-bundle-v1"
+        session.merge(run_v1)
+        session.commit()
+
+        # Version 2 of the SAME dag_id: api_token is now declared format="password".
+        # Re-entering dag_maker with a different params schema produces a new DagVersion.
+        with dag_maker(
+            "test_dag_password_versioned",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        version_2 = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == "test_dag_password_versioned")
+            .order_by(DagVersion.version_number.desc())
+        )
+        assert version_2.id != version_1.id, "expected a new Dag version to have been created"
+
+        run_v2 = dag_maker.create_dagrun(
+            run_id="run_v2_is_password",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE2,
+        )
+        run_v2.conf = {"api_token": "super-secret-v2"}
+        run_v2.created_dag_version_id = version_2.id
+        run_v2.bundle_version = "test-bundle-v2"
+        session.merge(run_v2)
+        session.commit()
+
+        response = test_client.get("/dags/~/dagRuns", params={"dag_ids": ["test_dag_password_versioned"]})
+        assert response.status_code == 200
+        by_run_id = {run["dag_run_id"]: run for run in response.json()["dag_runs"]}
+
+        # v1's run must stay unmasked: its Dag version never declared format="password".
+        assert by_run_id["run_v1_not_password"]["conf"]["api_token"] == "not-actually-a-secret"
+        # v2's run must be masked: its Dag version does declare format="password".
+        assert by_run_id["run_v2_is_password"]["conf"]["api_token"] == "***"
+
+
+class TestTriggerDagRunMasksPasswordConf:
+    def test_trigger_response_masks_password_conf(self, test_client, dag_maker):
+        with dag_maker(
+            "test_dag_password_trigger",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            "/dags/test_dag_password_trigger/dagRuns",
+            json={"conf": {"api_token": "super-secret-value"}, "logical_date": now},
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"]["api_token"] == "***"
+
+
+class TestPatchDagRunMasksPasswordConf:
+    def test_patch_response_masks_password_conf(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_patch",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_patch_secret",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"api_token": "super-secret-value"}
+        session.merge(dag_run)
+        session.commit()
+
+        response = test_client.patch(
+            "/dags/test_dag_password_patch/dagRuns/run_patch_secret",
+            json={"note": "updated note"},
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"]["api_token"] == "***"
+
+
 class TestGetDagRunMasksPasswordConf:
     def test_masks_conf_value_for_password_format_param(self, test_client, dag_maker, session):
         with dag_maker(
@@ -578,7 +706,11 @@ class TestGetDagRuns:
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
 
-        with assert_queries_count(7):
+        # +2 vs. the pre-masking baseline: one query to resolve the Dag version for these runs and
+        # one to fetch/cache the serialized Dag, needed to check each run's Param schema for
+        # format="password" conf keys to redact. Both rows share one Dag/version here, so the cost
+        # is paid once, not per-row (see DBDagBag's per-version cache in models/dagbag.py).
+        with assert_queries_count(9):
             response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
 
         assert response.status_code == 200
@@ -1303,7 +1435,9 @@ class TestGetDagRuns:
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_return_200(self, test_client, session):
-        with assert_queries_count(5):
+        # +6 vs. the pre-masking baseline: this page spans multiple distinct dag_ids/versions, each
+        # needing its own Dag-version resolve+fetch to check for format="password" conf keys.
+        with assert_queries_count(11):
             response = test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 200
         body = response.json()
@@ -1345,7 +1479,11 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
-        with assert_queries_count(5):
+        # Upper bound covers all three parametrized cases: filtering to one dag_id costs less
+        # (8, fewer distinct Dag versions to resolve for conf masking) than no filter (11, all
+        # dags in play); assert_queries_count only checks an upper bound, so one number with
+        # margin is enough rather than a per-case expectation.
+        with assert_queries_count(8, margin=3):
             response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
