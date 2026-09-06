@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import urllib.parse
 from uuid import uuid4
 
@@ -37,6 +38,7 @@ from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -327,6 +329,81 @@ class TestXComsGetEndpoint:
         assert response.status_code == 200
 
         assert set(response.json()) == set(expected_xcoms)
+
+    @pytest.mark.parametrize("offset", [0, 2, -1])
+    def test_xcom_get_by_index_query_is_bounded(self, client, dag_maker, session, offset):
+        """Reading one item of a mapped XCom must ask the database for one row, not every row after ``offset``."""
+        xcom_values = ["f", "o", "o", "b"]
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=xcom_values)
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        for ti in dag_run.task_instances:
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=xcom_values[ti.map_index],
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=ti.map_index,
+                )
+            )
+        session.commit()
+
+        with capture_orm_selects("xcom") as statements:
+            response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/item/{offset}")
+
+        assert response.status_code == 200
+        assert response.json() == xcom_values[offset]
+        assert statements, "expected the endpoint to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
+
+    @pytest.mark.parametrize(
+        "query_string",
+        [
+            pytest.param("", id="map_index"),
+            pytest.param("?include_prior_dates=true", id="include_prior_dates"),
+            pytest.param("?offset=0", id="offset"),
+        ],
+    )
+    def test_xcom_get_query_is_bounded(self, client, dag_maker, session, query_string):
+        """Reading one XCom value must ask the database for one row, however many rows match the filters."""
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task")
+
+        for run_id, logical_date, value in [
+            ("earlier_run", "2024-01-01T00:00:00Z", "earlier_value"),
+            ("later_run", "2024-01-02T00:00:00Z", "later_value"),
+        ]:
+            dag_run = dag_maker.create_dagrun(run_id=run_id, logical_date=timezone.parse(logical_date))
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=value,
+                    dag_run_id=dag_run.id,
+                    run_id=run_id,
+                    task_id="task",
+                    dag_id="dag",
+                )
+            )
+        session.commit()
+
+        with capture_orm_selects("xcom") as statements:
+            response = client.get(f"/execution/xcoms/dag/later_run/task/xcom_1{query_string}")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "xcom_1", "value": "later_value"}
+        assert statements, "expected the endpoint to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
 
 
 class TestXComsSetEndpoint:
