@@ -573,16 +573,11 @@ def get_asset(
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
-    # Build a subquery to be used to retrieve the latest AssetEvent by matching timestamp
-    last_asset_event = (
-        select(func.max(AssetEvent.timestamp)).where(AssetEvent.asset_id == asset_id).scalar_subquery()
-    )
-
-    # Now, find the latest AssetEvent details using the subquery from above
     asset_event_rows = session.execute(
-        select(AssetEvent.asset_id, AssetEvent.id, AssetEvent.timestamp).where(
-            AssetEvent.asset_id == asset_id, AssetEvent.timestamp == last_asset_event
-        )
+        select(AssetEvent.asset_id, AssetEvent.id, AssetEvent.timestamp)
+        .where(AssetEvent.asset_id == asset_id)
+        .order_by(AssetEvent.timestamp.desc(), AssetEvent.id.desc())
+        .limit(1)
     ).one_or_none()
 
     # Retrieve the Asset; there should only be one for that asset_id

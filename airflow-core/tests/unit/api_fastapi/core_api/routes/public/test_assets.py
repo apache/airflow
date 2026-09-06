@@ -1702,6 +1702,29 @@ class TestGetAssetEndpoint(TestAssets):
         assert {ref["team_name"] for ref in body["scheduled_dags"]} == {"team-assets"}
         assert {ref["team_name"] for ref in body["producing_tasks"]} == {"team-assets"}
 
+    def test_should_respond_200_with_tied_last_event_timestamps(self, test_client, session):
+        self.create_assets(num=1)
+        for event_id in (1, 2):
+            session.add(
+                AssetEvent(
+                    id=event_id,
+                    asset_id=1,
+                    extra={"foo": "bar"},
+                    source_task_id="source_task_id",
+                    source_dag_id="source_dag_id",
+                    source_run_id=f"source_run_id_{event_id}",
+                    timestamp=DEFAULT_DATE,
+                )
+            )
+        session.commit()
+
+        response = test_client.get("/assets/1")
+        assert response.status_code == 200
+        assert response.json()["last_asset_event"] == {
+            "id": 2,
+            "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+        }
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/assets/1")
         assert response.status_code == 401
