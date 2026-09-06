@@ -139,6 +139,10 @@ class FoundMoreThanOnePodFailure(AirflowException):
     """When during reconnect more than one matching pod was found."""
 
 
+class PodInterrupted(AirflowException):
+    """When ``on_kill`` deleted the pod before its workload completed."""
+
+
 class KubernetesPodOperator(BaseOperator):
     """
     Execute a task in a Kubernetes Pod.
@@ -893,9 +897,8 @@ class KubernetesPodOperator(BaseOperator):
             # instance as success. This check sits after the finally block on purpose: if
             # the body raised, that exception propagates untouched and already fails the
             # task with its own reason.
-            raise AirflowException(
-                f"Pod {self.pod and self.pod.metadata.name} was interrupted before it completed."
-            )
+            pod_name = self.pod.metadata.name if self.pod else self.name
+            raise PodInterrupted(f"Pod {pod_name} was interrupted before it completed.")
 
         if self.do_xcom_push:
             return result

@@ -38,6 +38,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import (
     POD_IDENTIFIER_STATE_KEY,
     KubernetesPodOperator,
     PodEventType,
+    PodInterrupted,
     _optionally_suppress,
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
@@ -858,7 +859,7 @@ class TestKubernetesPodOperator:
         calls on_kill(), which deletes the child, and the wait in execute_sync then returns
         normally because the pod it was watching has gone away. cleanup() skips its usual
         failure signalling once _killed is set, so execute_sync used to fall through and
-        return, and the task was recorded as success (apache/airflow#71202).
+        return, and the task was recorded as success.
         """
         k = self._interrupted_pod_operator()
         running_pod = self._running_pod()
@@ -873,7 +874,7 @@ class TestKubernetesPodOperator:
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
 
-        with pytest.raises(AirflowException, match="was interrupted before it completed"):
+        with pytest.raises(PodInterrupted, match="was interrupted before it completed"):
             k.execute(context=context)
 
     @patch(HOOK_CLASS, new=MagicMock)
@@ -896,14 +897,14 @@ class TestKubernetesPodOperator:
 
         def _kill_then_fail(pod):
             k.on_kill()
-            raise AirflowException("original failure")
+            raise RuntimeError("original failure")
 
         await_pod_completion_mock.side_effect = _kill_then_fail
 
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
 
-        with pytest.raises(AirflowException, match="original failure"):
+        with pytest.raises(RuntimeError, match="original failure"):
             k.execute(context=context)
 
     @pytest.mark.parametrize(
