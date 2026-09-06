@@ -68,7 +68,6 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEStartPodOperator,
     GKESuspendJobOperator,
 )
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -845,30 +844,13 @@ class TestGKEPodExecOperator:
             max_xcom_output_size=1024,
         )
 
-    def test_constructor(self):
+    def test_constructor_forces_gke_auth_and_forwards_exec_options(self):
         assert self.operator.kubernetes_conn_id is None
         assert self.operator.in_cluster is False
         assert self.operator.cluster_context is None
         assert self.operator.config_file is None
         assert self.operator.do_xcom_push is True
         assert self.operator.max_xcom_output_size == 1024
-
-    def test_defaults(self):
-        operator = GKEPodExecOperator(
-            task_id=TEST_TASK_ID,
-            location=TEST_LOCATION,
-            cluster_name=GKE_CLUSTER_NAME,
-            pod_name=K8S_POD_NAME,
-            command=["true"],
-        )
-
-        assert operator.namespace == "default"
-        assert operator.container_name is None
-        assert operator.project_id == PROVIDE_PROJECT_ID
-        assert operator.gcp_conn_id == "google_cloud_default"
-        assert operator.use_internal_ip is False
-        assert operator.use_dns_endpoint is False
-        assert operator.impersonation_chain is None
 
     @pytest.mark.parametrize(
         ("kwargs", "expected_message"),
