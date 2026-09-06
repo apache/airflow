@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Text, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Flex, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useLocalStorage } from "usehooks-ts";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import {
   TIME_SCHEDULE_AGGREGATION_MODE_KEY,
   TIME_SCHEDULE_DAG_RUN_LIMIT_KEY,

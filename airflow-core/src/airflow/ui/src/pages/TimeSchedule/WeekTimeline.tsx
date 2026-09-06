@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
 import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+
+import { Box, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { TimelineBar } from "./TimelineBar";
