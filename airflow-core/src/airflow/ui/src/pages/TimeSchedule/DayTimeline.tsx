@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Text } from "@chakra-ui/react";
 import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
+
+import { Box, Button, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 
-import { RouterLink } from "src/components/ui/RouterLink";
+import { RouterLink } from "src/system-components";
 
 import { TimelineBar } from "./TimelineBar";
 import { dayjs } from "./dateUtils";

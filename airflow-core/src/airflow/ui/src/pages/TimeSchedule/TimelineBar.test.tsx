@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -45,7 +46,7 @@ vi.mock("src/components/StateIcon", () => ({
   }) => <svg data-color={color} data-size={size} data-state={state ?? "none"} data-testid="state-icon" />,
 }));
 
-vi.mock("src/components/ui/Tooltip", () => ({
+vi.mock("src/system-components", () => ({
   Tooltip: ({ children }: { readonly children: ReactNode }) => children,
 }));
 

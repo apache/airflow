@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, createListCollection, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, Button, createListCollection, Flex, Tabs, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiInfo } from "react-icons/fi";
 
+import { Checkbox, IconButton, Select, Tooltip } from "src/system-components";
+
 import { FilterBar } from "src/components/FilterBar";
-import { Checkbox } from "src/components/ui/Checkbox";
-import { IconButton } from "src/components/ui/IconButton";
-import { Select } from "src/components/ui/Select";
-import { Tooltip } from "src/components/ui/Tooltip";
 
 import { TIMELINE_TOOLTIP_CONTENT_PROPS } from "./constants";
 import {

@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, Link, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as ReactRouterLink } from "react-router-dom";
 
+import { Tooltip } from "src/system-components";
+
 import { StateIcon } from "src/components/StateIcon";
-import { Tooltip } from "src/components/ui/Tooltip";
 
 import { TIMELINE_TOOLTIP_CONTENT_PROPS, WEEK_LABEL_LINE_HEIGHT_PX } from "./constants";
 import {
