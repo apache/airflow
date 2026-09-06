@@ -51,6 +51,7 @@ from tenacity import (
 )
 
 from airflow import __version__
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.exceptions import DatabricksApiError
@@ -953,8 +954,8 @@ class BaseDatabricksHook(BaseHook):
         client_id = self.databricks_conn.extra_dejson.get("client_id")
         if not client_id:
             # see: https://github.com/kubernetes/kubernetes/issues/116638
-            raise AirflowException(
-                "client_id is required for Kubernetes OIDC token federation. "
+            raise ValueError(
+                "`client_id` is required for Kubernetes OIDC token federation. "
                 "Kubernetes service account tokens do not support custom claims, "
                 "so service principal-level federation must be used. "
                 "Please provide client_id in the connection extra parameters."
@@ -1291,41 +1292,42 @@ class BaseDatabricksHook(BaseHook):
         return None
 
     async def _a_get_token(self, raise_error: bool = False) -> str | None:
-        if "token" in (await self._get_conn_async()).extra_dejson:
+        conn = await self._get_conn_async()
+        if "token" in conn.extra_dejson:
             self.log.info(
                 "Using token auth. For security reasons, please set token in Password field instead of extra"
             )
-            return (await self._get_conn_async()).extra_dejson["token"]
-        if not (await self._get_conn_async()).login and (await self._get_conn_async()).password:
+            return conn.extra_dejson["token"]
+        if not conn.login and conn.password:
             self.log.debug("Using token auth.")
-            return (await self._get_conn_async()).password
-        if "azure_tenant_id" in (await self._get_conn_async()).extra_dejson:
-            if (await self._get_conn_async()).login == "" or (await self._get_conn_async()).password == "":
+            return conn.password
+        if "azure_tenant_id" in conn.extra_dejson:
+            if conn.login == "" or conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")
             self.log.debug("Using AAD Token for SPN.")
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
-        if (await self._get_conn_async()).extra_dejson.get("use_azure_managed_identity", False):
+        if conn.extra_dejson.get("use_azure_managed_identity", False):
             self.log.debug("Using AAD Token for managed identity.")
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
-        if (await self._get_conn_async()).extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
+        if conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using AzureDefaultCredential for authentication.")
 
             return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
-        if (await self._get_conn_async()).extra_dejson.get("service_principal_oauth", False):
-            if (await self._get_conn_async()).login == "" or (await self._get_conn_async()).password == "":
+        if conn.extra_dejson.get("service_principal_oauth", False):
+            if conn.login == "" or conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
             return await self._a_get_sp_token(await self._a_get_oidc_token_service_url())
-        if (await self._get_conn_async()).extra_dejson.get("federated_token_provider"):
+        if conn.extra_dejson.get("federated_token_provider"):
             self.log.debug("Using OIDC token federation with a supplied token provider.")
             return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
         if await self._a_is_aws_federation():
             self.log.debug("Using AWS IAM OIDC token federation.")
             return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
-        if (await self._get_conn_async()).login == "federated_k8s" or (
-            await self._get_conn_async()
-        ).extra_dejson.get("federated_k8s", False):
+        if conn.login == "federated_k8s" or (await self._get_conn_async()).extra_dejson.get(
+            "federated_k8s", False
+        ):
             self.log.debug("Using Kubernetes OIDC token federation.")
             return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
         if raise_error:
@@ -1436,6 +1438,7 @@ class BaseDatabricksHook(BaseHook):
         :return: If the api call returns a OK status code,
             this function returns the response in JSON. Otherwise, throw an AirflowException.
         """
+        conn = await self._get_conn_async()
         method, endpoint = endpoint_info
 
         full_endpoint = f"api/{endpoint}"
@@ -1450,9 +1453,7 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = aiohttp.BasicAuth(
-                await self._a_get_connection_attr("login"), (await self._get_conn_async()).password
-            )
+            auth = aiohttp.BasicAuth(await self._a_get_connection_attr("login"), conn.password)
 
         request_func: Any
         if method == "GET":

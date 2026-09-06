@@ -2386,3 +2386,22 @@ class TestBaseDatabricksHook:
                 token = await hook._a_get_token()
 
         assert token == "async_databricks_token_extra"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.get_async_connection")
+    async def test_get_conn_async(self, mock_get_async_connection):
+        mock_conn = mock.Mock()
+        mock_get_async_connection.return_value = mock_conn
+
+        hook = BaseDatabricksHook()
+        hook.databricks_conn_id = "test_conn_id"
+
+        conn = await hook._get_conn_async()
+
+        mock_get_async_connection.assert_called_once_with("test_conn_id", hook=hook)
+        assert conn == mock_conn
+
+        # Test caching
+        conn2 = await hook._get_conn_async()
+        mock_get_async_connection.assert_called_once()  # Still called once
+        assert conn2 == mock_conn
