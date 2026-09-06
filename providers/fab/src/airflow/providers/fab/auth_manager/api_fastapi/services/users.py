@@ -31,6 +31,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_orderin
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.utils import get_fab_auth_manager
+from airflow.utils.session import create_session
 
 
 class FABAuthManagerUsers:
@@ -66,31 +67,29 @@ class FABAuthManagerUsers:
     @classmethod
     def get_users(cls, *, order_by: str, limit: int, offset: int) -> UserCollectionResponse:
         """Get users with pagination and ordering."""
-        security_manager = get_fab_auth_manager().security_manager
-        session = security_manager.session
+        with create_session(scoped=False) as session:
+            total_entries = session.scalars(select(func.count(User.id))).one()
 
-        total_entries = session.scalars(select(func.count(User.id))).one()
+            ordering = build_ordering(
+                order_by,
+                allowed={
+                    "id": User.id,
+                    "user_id": User.id,
+                    "first_name": User.first_name,
+                    "last_name": User.last_name,
+                    "username": User.username,
+                    "email": User.email,
+                    "active": User.active,
+                },
+            )
 
-        ordering = build_ordering(
-            order_by,
-            allowed={
-                "id": User.id,
-                "user_id": User.id,
-                "first_name": User.first_name,
-                "last_name": User.last_name,
-                "username": User.username,
-                "email": User.email,
-                "active": User.active,
-            },
-        )
+            stmt = select(User).order_by(ordering).offset(offset).limit(limit)
+            users = session.scalars(stmt).unique().all()
 
-        stmt = select(User).order_by(ordering).offset(offset).limit(limit)
-        users = session.scalars(stmt).unique().all()
-
-        return UserCollectionResponse(
-            users=[UserResponse.model_validate(u) for u in users],
-            total_entries=total_entries,
-        )
+            return UserCollectionResponse(
+                users=[UserResponse.model_validate(u) for u in users],
+                total_entries=total_entries,
+            )
 
     @classmethod
     def create_user(cls, body: UserBody) -> UserResponse:
