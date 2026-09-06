@@ -1568,9 +1568,13 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
         assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
-            is not None
+            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
         )
 
     def test_overwrite_kerberos_sidecar_disable(self):
@@ -1590,6 +1594,9 @@ class TestWorkerSets:
         assert (
             jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
             is None
+        )
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
         )
 
     @pytest.mark.parametrize(
@@ -1647,12 +1654,12 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert (
-            jmespath.search(
-                "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].startupProbe", docs[0]
-            )
-            == expected
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
         )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert sidecar.get("startupProbe") == expected
 
     @pytest.mark.parametrize(
         "values",
