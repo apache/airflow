@@ -852,14 +852,15 @@ def _build_ts_sdk_docs(generated_path: Path) -> int:
             f"node:{TYPESCRIPT_SDK_NODE_VERSION}-bookworm-slim",
             "sh",
             "-c",
-            # `npm ci` keeps the lock file authoritative; `npm run build` strips the ASF
-            # header from the landing page and then runs TypeDoc.
-            "npm ci --no-audit --no-fund && npm run build",
+            # `npm ci` keeps the lock file authoritative; `npm test` covers the postbuild
+            # checks; `npm run build` strips the ASF header from the landing page, runs
+            # TypeDoc, then checks the generated HTML is publishable.
+            "npm ci --no-audit --no-fund && npm test && npm run build",
         ],
         check=False,
     )
     if result.returncode != 0:
-        console_print("[error]TypeDoc build failed.")
+        console_print("[error]TypeScript SDK docs build failed.")
         return result.returncode
 
     _stage_sdk_docs(

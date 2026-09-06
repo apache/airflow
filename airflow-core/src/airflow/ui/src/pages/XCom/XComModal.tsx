@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Button, Input, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -29,8 +30,10 @@ import {
   useXcomServiceUpdateXcomEntry,
 } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
+
+import { Modal, ProgressBar, toaster } from "src/system-components";
+
 import { JsonEditor } from "src/components/JsonEditor";
-import { Modal, ProgressBar, toaster } from "src/components/ui";
 
 type XComModalProps = {
   readonly dagId: string;

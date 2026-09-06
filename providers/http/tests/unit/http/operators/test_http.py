@@ -20,7 +20,9 @@ from __future__ import annotations
 import base64
 import contextlib
 import json
+import logging
 import pickle
+import warnings
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import call, patch
@@ -35,8 +37,14 @@ from airflow.hooks import base
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.providers.http.operators.http import HttpOperator
+from airflow.providers.http.operators.http import (
+    HTTP_DEFERRABLE_DOCS,
+    IDEMPOTENT_METHODS,
+    HttpOperator,
+)
 from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
+
+_DEFER_WARN_FRAGMENT = "may send duplicate requests if the Triggerer restarts"
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
@@ -112,6 +120,180 @@ class TestHttpOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute({})
         assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
+
+    def _defer_warning_records(self, caplog):
+        return [
+            r
+            for r in caplog.records
+            if r.levelno >= logging.WARNING and _DEFER_WARN_FRAGMENT in r.getMessage()
+        ]
+
+    @pytest.mark.parametrize(
+        ("method", "deferrable", "expect_warning"),
+        [
+            # E1: lowercase non-idempotent
+            ("post", True, True),
+            # E6: PATCH is not idempotent (RFC 9110)
+            ("PATCH", True, True),
+            # E7: PUT / DELETE are idempotent — do not warn
+            ("PUT", True, False),
+            ("DELETE", True, False),
+            # E8: deferrable=False + POST — no warning
+            ("POST", False, False),
+            # E9: custom method outside the idempotent set
+            ("REPORT", True, True),
+            # Standard defaults / safe methods
+            ("POST", True, True),
+            ("GET", True, False),
+            ("HEAD", True, False),
+            ("OPTIONS", True, False),
+            ("TRACE", True, False),
+            ("get", True, False),
+        ],
+    )
+    def test_deferrable_non_idempotent_warning_on_execute(
+        self, monkeypatch, caplog, method, deferrable, expect_warning
+    ):
+        """Exactly one log.warning per task attempt when deferrable + non-idempotent; else zero."""
+        captured = self._capture_defer(monkeypatch) if deferrable else None
+        operator = HttpOperator(task_id="test_HTTP_op", method=method, deferrable=deferrable)
+
+        with caplog.at_level(logging.WARNING):
+            if deferrable:
+                operator.execute(context={})
+            else:
+                # Non-deferrable path needs a network mock; only assert no advisory was logged.
+                with mock.patch.object(operator, "execute_sync", return_value="ok") as sync:
+                    result = operator.execute(context={})
+                assert result == "ok"
+                sync.assert_called_once()
+
+        records = self._defer_warning_records(caplog)
+        if expect_warning:
+            assert len(records) == 1
+            message = records[0].getMessage()
+            assert f"method={method}" in message
+            assert HTTP_DEFERRABLE_DOCS in message
+            assert "issues/67945" not in message
+            assert "warn_on_non_idempotent=False" in message
+        else:
+            assert len(records) == 0
+
+        if deferrable:
+            assert isinstance(captured["trigger"], HttpTrigger)
+
+    def test_silences_warning_when_warn_on_non_idempotent_false(self, monkeypatch, caplog):
+        captured = self._capture_defer(monkeypatch)
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            method="POST",
+            deferrable=True,
+            warn_on_non_idempotent=False,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            operator.execute(context={})
+
+        assert self._defer_warning_records(caplog) == []
+        assert isinstance(captured["trigger"], HttpTrigger)
+
+    def test_does_not_warn_on_construction_for_deferrable_post(self, caplog):
+        """E10: construction / parse-time must not warn (would flood the Dag processor)."""
+        with caplog.at_level(logging.WARNING), warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            HttpOperator(task_id="test_HTTP_op", method="POST", deferrable=True)
+
+        assert self._defer_warning_records(caplog) == []
+        assert not [w for w in caught if _DEFER_WARN_FRAGMENT in str(w.message)]
+
+    def test_deferrable_method_none_does_not_raise_and_warns(self, monkeypatch, caplog):
+        """E2: method is None — guard so .upper() is not called on None; treat as non-idempotent."""
+        captured = self._capture_defer(monkeypatch)
+        operator = HttpOperator(task_id="test_HTTP_op", method="POST", deferrable=True)
+        operator.method = None
+
+        with caplog.at_level(logging.WARNING):
+            operator.execute(context={})
+
+        assert len(self._defer_warning_records(caplog)) == 1
+        assert isinstance(captured["trigger"], HttpTrigger)
+
+    def test_paginated_deferrable_non_idempotent_warns_once(self, monkeypatch, caplog):
+        """E3: paginated non-idempotent — exactly ONE warning for the task attempt, not per page."""
+        captured_defers: list[dict] = []
+
+        def _fake_defer(self, *, trigger, method_name, **kwargs):
+            captured_defers.append({"trigger": trigger, "kwargs": kwargs})
+
+        monkeypatch.setattr(HttpOperator, "defer", _fake_defer)
+
+        def pagination_function(response: Response) -> dict | None:
+            if response.url.endswith("/page1"):
+                return {"endpoint": "/page2"}
+            return None
+
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            method="POST",
+            deferrable=True,
+            pagination_function=pagination_function,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            operator.execute(context={})
+            # Simulate first page completing and requesting another page (second defer).
+            page1 = Response()
+            page1._content = b'{"page": 1}'
+            page1.url = "http://test:8080/page1"
+            page1.status_code = 200
+            page1.headers["Content-Type"] = "application/json"
+            operator.execute_complete(
+                context={},
+                event={
+                    "status": "success",
+                    "response": HttpResponseSerializer.serialize(page1),
+                },
+            )
+
+        assert len(self._defer_warning_records(caplog)) == 1
+        # Initial execute defers once; execute_complete with pagination defers again — still one warn.
+        assert len(captured_defers) == 2
+
+    def test_http_trigger_deserialize_emits_no_warning(self, caplog):
+        """E4/E5: Trigger reconstruct from serialized kwargs (Triggerer restart) must not warn."""
+        trigger = HttpTrigger(method="POST", endpoint="/", http_conn_id="http_default")
+        classpath, kwargs = trigger.serialize()
+        assert classpath.endswith("HttpTrigger")
+
+        with caplog.at_level(logging.WARNING), warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            # Triggerer path: trigger_class(**deserialised_kwargs)
+            reconstructed = HttpTrigger(**kwargs)
+
+        assert reconstructed.method == "POST"
+        assert self._defer_warning_records(caplog) == []
+        assert not [w for w in caught if _DEFER_WARN_FRAGMENT in str(w.message)]
+        assert not any(issubclass(w.category, UserWarning) for w in caught)
+
+    def test_idempotent_methods_match_rfc9110(self):
+        # PUT and DELETE are idempotent per RFC 9110 §9.2.2 even though not safe.
+        assert "PUT" in IDEMPOTENT_METHODS
+        assert "DELETE" in IDEMPOTENT_METHODS
+        assert "PATCH" not in IDEMPOTENT_METHODS
+        assert "POST" not in IDEMPOTENT_METHODS
+
+    def test_deferrable_warning_links_to_stable_docs(self, monkeypatch, caplog):
+        self._capture_defer(monkeypatch)
+        operator = HttpOperator(task_id="test_HTTP_op", method="POST", deferrable=True)
+
+        with caplog.at_level(logging.WARNING):
+            operator.execute(context={})
+
+        records = self._defer_warning_records(caplog)
+        assert len(records) == 1
+        message = records[0].getMessage()
+        assert HTTP_DEFERRABLE_DOCS in message
+        assert "issues/67945" not in message
 
     def test_async_execute_successfully(self, requests_mock):
         operator = HttpOperator(

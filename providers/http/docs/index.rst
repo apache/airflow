@@ -36,6 +36,7 @@
 
     Connection types <connections/http>
     Operators <operators>
+    Deferrable HttpOperator <deferrable>
     Triggers <triggers>
 
 .. toctree::

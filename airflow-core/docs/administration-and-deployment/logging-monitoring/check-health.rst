@@ -36,48 +36,94 @@ Webserver Health Check Endpoint
 -------------------------------
 
 To check the health status of your Airflow instance, you can simply access the endpoint
-``/api/v2/monitor/health``. It will return a JSON object that provides a high-level glance at the health status across multiple Airflow components.
+``/api/v2/monitor/health``. It will return a JSON object that provides a high-level glance at the health status across multiple Airflow components,
+including per-instance details when multiple schedulers, triggerers, or Dag processors are running.
 
 .. code-block:: JSON
 
   {
-    "metadatabase":{
-      "status":"healthy"
+    "metadatabase": {
+      "status": "healthy"
     },
-    "scheduler":{
-      "status":"healthy",
-      "latest_scheduler_heartbeat":"2018-12-26 17:15:11+00:00"
+    "scheduler": {
+      "status": "healthy",
+      "latest_scheduler_heartbeat": "2018-12-26T17:15:11+00:00",
+      "detailed_status": "healthy",
+      "instances": [
+        {
+          "status": "healthy",
+          "hostname": "scheduler-1.example.com",
+          "latest_scheduler_heartbeat": "2018-12-26T17:15:11+00:00"
+        }
+      ]
     },
-    "triggerer":{
-      "status":"healthy",
-      "latest_triggerer_heartbeat":"2018-12-26 17:16:12+00:00"
+    "triggerer": {
+      "status": "healthy",
+      "latest_triggerer_heartbeat": "2018-12-26T17:16:12+00:00",
+      "detailed_status": "degraded",
+      "instances": [
+        {
+          "status": "healthy",
+          "hostname": "triggerer-1.example.com",
+          "latest_triggerer_heartbeat": "2018-12-26T17:16:12+00:00",
+          "team_name": "team-a"
+        },
+        {
+          "status": "unhealthy",
+          "hostname": "triggerer-2.example.com",
+          "latest_triggerer_heartbeat": "2018-12-26T17:10:00+00:00",
+          "team_name": null
+        }
+      ]
     },
-    "dag_processor":{
-      "status":"healthy",
-      "latest_dag_processor_heartbeat":"2018-12-26 17:16:12+00:00"
+    "dag_processor": {
+      "status": "healthy",
+      "latest_dag_processor_heartbeat": "2018-12-26T17:16:12+00:00",
+      "detailed_status": "healthy",
+      "instances": [
+        {
+          "status": "healthy",
+          "hostname": "dag-processor-1.example.com",
+          "latest_dag_processor_heartbeat": "2018-12-26T17:16:12+00:00",
+          "bundle_names": ["dags-team-a"]
+        }
+      ]
     }
   }
 
-* The ``status`` of each component can be either "healthy" or "unhealthy"
+* ``metadatabase``
 
-  * The status of ``metadatabase`` depends on whether a valid connection can be initiated with the database
+  * ``status`` is ``"healthy"`` when a valid connection can be initiated with the database, otherwise ``"unhealthy"``.
 
-  * The status of ``scheduler`` depends on when the latest scheduler heartbeat was received
+* Component-level fields for ``scheduler``, ``triggerer``, and ``dag_processor``
 
-    * If the last heartbeat was received more than 30 seconds (default value) earlier than the current time, the scheduler is
-      considered unhealthy
-    * This threshold value can be specified using the option ``scheduler_health_check_threshold`` within the
-      ``[scheduler]`` section in ``airflow.cfg``
-    * If you run more than one scheduler, only the state of one scheduler will be reported, i.e. only one working scheduler is enough
-      for the scheduler state to be considered healthy
+  * ``status`` (legacy aggregate): ``"healthy"`` if **any** running instance is alive, otherwise ``"unhealthy"``
+    (including when no running jobs exist for that component).
 
-  * The status of the ``triggerer`` behaves exactly like that of the ``scheduler`` as described above.
-    Note that the ``status`` and ``latest_triggerer_heartbeat`` fields in the health check response will be null for
-    deployments that do not include a ``triggerer`` component.
+  * ``detailed_status``: reflects the full set of running instances:
 
-  * The status of the ``dag_processor`` behaves exactly like that of the ``scheduler`` as described above.
-    Note that the ``status`` and ``latest_dag_processor_heartbeat`` fields in the health check response will be null for
-    deployments that do not include a ``dag_processor`` component.
+    * ``"healthy"`` — every running instance is alive
+    * ``"degraded"`` — some instances are alive and some are not
+    * ``"down"`` — no running instance is alive (including when no jobs exist)
+
+  * ``latest_*_heartbeat``: the most recent heartbeat among running jobs of that type (ordered by heartbeat descending),
+    or ``null`` when there are none.
+    An instance is considered alive when its latest heartbeat is within the component health-check threshold
+    (defaults and config options: ``[scheduler] scheduler_health_check_threshold``,
+    ``[triggerer] triggerer_health_check_threshold``,
+    ``[dag_processor] health_check_threshold``).
+
+  * ``instances``: one entry per **running** job of that type (``null`` when there are none). Each entry includes:
+
+    * ``status``: ``"healthy"`` or ``"unhealthy"`` for that instance
+    * ``hostname``: host where the component is running
+    * the corresponding ``latest_*_heartbeat`` for that instance
+    * ``team_name`` (triggerer only): team the triggerer is scoped to, or ``null`` when unscoped
+    * ``bundle_names`` (Dag processor only): Dag bundles that processor is configured to parse, or ``null`` when unset
+
+  * For HA deployments, prefer ``detailed_status`` and ``instances`` when you need to see every scheduler,
+    triggerer, or Dag processor. The top-level ``status`` remains useful for simple probes that only care
+    whether at least one instance is healthy.
 
 Please keep in mind that the HTTP response code of ``/api/v2/monitor/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).

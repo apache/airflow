@@ -16,24 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect } from "react";
+
 import { Box, Spinner, useToken } from "@chakra-ui/react";
 import { Background, MiniMap, ReactFlow, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRun, useStructureServiceStructureData } from "openapi/queries";
+
+import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
+
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import { getGatePathEdgeIdsForSelection, type CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
+
 import { SHOW_ALL_DEPENDENCIES_KEY, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useGroups } from "src/context/groups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useDefaultGraphDirection } from "src/hooks/useUserSettings";
-import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";

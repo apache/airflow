@@ -315,7 +315,14 @@ def get_flask_plugins() -> tuple[list[Any], list[Any], list[Any]]:
 
 @cache
 def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
-    """Collect extension points for the API."""
+    """
+    Collect extension points for the API.
+
+    Each returned dict is a shallow copy of the plugin's own dict with the owning
+    plugin's ``team_name`` added, so the API server can authorize a team-scoped
+    plugin's app without re-deriving which plugin it came from. The plugin's dicts are
+    left untouched, so this does not alter what ``get_plugin_info`` reports.
+    """
     log.debug("Initialize FastAPI plugins")
 
     # Validate here (the API-server, DB-available path) so callers cannot mount
@@ -325,8 +332,10 @@ def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     for plugin in _get_plugins()[0]:
-        fastapi_apps.extend(plugin.fastapi_apps)
-        fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
+        fastapi_apps.extend({**app, "team_name": plugin.team_name} for app in plugin.fastapi_apps)
+        fastapi_root_middlewares.extend(
+            {**middleware, "team_name": plugin.team_name} for middleware in plugin.fastapi_root_middlewares
+        )
     return fastapi_apps, fastapi_root_middlewares
 
 

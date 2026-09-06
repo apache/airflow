@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai.models import Model
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import (
@@ -722,7 +723,7 @@ class TestPydanticAIVertexHook:
             None,
             None,
             {
-                "model": "google-vertex:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.0-flash",
                 "project": "my-project",
                 "location": "us-central1",
             },
@@ -739,7 +740,7 @@ class TestPydanticAIVertexHook:
         result = hook._get_provider_kwargs(
             None,
             None,
-            {"model": "google-gla:gemini-2.0-flash", "api_key": "gla-key"},
+            {"model": "google:gemini-2.0-flash", "api_key": "gla-key"},
         )
         assert result["api_key"] == "gla-key"
 
@@ -758,7 +759,7 @@ class TestPydanticAIVertexHook:
             None,
             None,
             {
-                "model": "google-vertex:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.0-flash",
                 "project": "my-project",
                 "location": "us-central1",
                 "vertexai": vertexai_value,
@@ -792,7 +793,7 @@ class TestPydanticAIVertexHook:
                 None,
                 None,
                 {
-                    "model": "google-vertex:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.0-flash",
                     "service_account_info": sa_info_dict,
                 },
             )
@@ -807,7 +808,7 @@ class TestPydanticAIVertexHook:
     def test_get_provider_kwargs_returns_empty_for_adc(self):
         """When no keys are in extra, return {} so ADC path is taken."""
         hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
-        result = hook._get_provider_kwargs(None, None, {"model": "google-vertex:gemini-2.0-flash"})
+        result = hook._get_provider_kwargs(None, None, {"model": "google-cloud:gemini-2.0-flash"})
         assert result == {}
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -817,12 +818,12 @@ class TestPydanticAIVertexHook:
         conn = Connection(
             conn_id="vertex_test",
             conn_type="pydanticai-vertex",
-            extra=json.dumps({"model": "google-vertex:gemini-2.0-flash"}),
+            extra=json.dumps({"model": "google-cloud:gemini-2.0-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_infer_model.assert_called_once_with("google-vertex:gemini-2.0-flash")
+        mock_infer_model.assert_called_once_with("google-cloud:gemini-2.0-flash")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
@@ -837,7 +838,7 @@ class TestPydanticAIVertexHook:
             conn_type="pydanticai-vertex",
             extra=json.dumps(
                 {
-                    "model": "google-vertex:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.0-flash",
                     "project": "my-project",
                     "location": "europe-west4",
                 }
@@ -847,7 +848,7 @@ class TestPydanticAIVertexHook:
             hook.get_conn()
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
-        factory("google-vertex")
+        factory("google-cloud")
         mock_provider_cls.assert_called_with(project="my-project", location="europe-west4")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -913,3 +914,19 @@ class TestPydanticAIVertexHook:
         assert provider.kwargs["location"] == "us-central1"
         # The TypeError fallback must never have been reached.
         mock_infer_provider.assert_not_called()
+
+    def test_documented_model_prefix_is_a_valid_pydantic_ai_provider(self):
+        """Regression test: the model-prefix documented in the connection form and
+        docstrings must be a provider id pydantic-ai actually recognizes (see
+        pydantic/pydantic-ai#5336, which renamed the old Vertex provider id shortly
+        before Airflow's docstrings/placeholders were written).
+        """
+        try:
+            infer_provider_class("google-cloud")
+        except ValueError as exc:
+            pytest.fail(f"Documented prefix 'google-cloud' is not a recognized provider: {exc}")
+        except ImportError:
+            # The optional `google-genai` dependency isn't installed in the test
+            # environment; failing past provider-name resolution is enough to
+            # prove "google-cloud" is recognized.
+            pass

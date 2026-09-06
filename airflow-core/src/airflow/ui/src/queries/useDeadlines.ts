@@ -17,6 +17,7 @@
  * under the License.
  */
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+
 import { useAutoRefresh } from "src/utils";
 
 type UseDeadlinesParams = {
