@@ -1359,9 +1359,11 @@ class TestSparkSubmitHook:
     @pytest.mark.db_test
     def test_masks_passwords_stays_fast_on_large_input(self) -> None:
         # The previous pattern retried at every offset on long inputs, taking tens of
-        # seconds for this payload and blocking the worker slot.
+        # seconds for this payload and blocking the worker slot. The trailing space is
+        # deliberate: it makes 25,000 separate tokens, which is what exercises the
+        # per-offset retry rather than a single very long token.
         hook = SparkSubmitHook()
-        payload = ("spark-submit", "--arg", "x " * 25_000)
+        payload = ["spark-submit", "--arg", "x " * 25_000]
 
         start = time.monotonic()
         command_masked = hook._mask_cmd(payload)
@@ -1371,12 +1373,23 @@ class TestSparkSubmitHook:
         assert elapsed < 5
 
     @pytest.mark.db_test
+    def test_masks_passwords_does_not_swallow_following_lines(self) -> None:
+        # An unterminated quote must not consume the log lines after it: the value
+        # ends at the newline, so the rest of the captured output survives masking.
+        hook = SparkSubmitHook()
+        command = 'spark-submit --conf password="abc\nERROR: job failed\n--other=1 "tail'
+
+        command_masked = hook._mask_cmd([command])
+
+        assert command_masked == 'spark-submit --conf password=******\nERROR: job failed\n--other=1 "tail'
+
+    @pytest.mark.db_test
     def test_masks_passwords_stays_fast_on_repeated_keywords(self) -> None:
         # A token packing many sensitive keywords is the worst remaining case: it still
         # backtracks, so this only guards against regressing to the previous pattern,
         # which needed minutes for an input of this size.
         hook = SparkSubmitHook()
-        payload = ("spark-submit", "--arg", "secret" * 2000)
+        payload = ["spark-submit", "--arg", "secret" * 2000]
 
         start = time.monotonic()
         command_masked = hook._mask_cmd(payload)

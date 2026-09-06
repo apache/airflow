@@ -61,10 +61,11 @@ _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 # token packing many "secret"/"password" occurrences still backtracks quadratically --
 # but it removes the retry-per-offset factor and is orders of magnitude faster in
 # practice. A quote only closes the value when whitespace or the end of the string
-# follows it, so quoted values may themselves contain quotes.
+# follows it, so quoted values may themselves contain quotes, but never a newline:
+# an unterminated quote would otherwise swallow the log lines that follow it.
 _SENSITIVE_VALUE_RE = re.compile(
     r"(?<!\S)(\S*?(?:secret|password)\S*?(?:=|\s+))"
-    r"(?:'((?:[^']|'(?!\s|$))*)'|\"((?:[^\"]|\"(?!\s|$))*)\"|(\S*))",
+    r"(?:'((?:[^'\n]|'(?!\s|$))*)'|\"((?:[^\"\n]|\"(?!\s|$))*)\"|(\S*))",
     re.IGNORECASE,
 )
 
