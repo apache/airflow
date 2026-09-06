@@ -823,6 +823,89 @@ class TestKubernetesPodOperator:
 
         assert result == should_delete
 
+    def _interrupted_pod_operator(self, **kwargs):
+        return KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["sleep 120"],
+            name="sleep-worker",
+            task_id="task",
+            do_xcom_push=False,
+            get_logs=True,
+            **kwargs,
+        )
+
+    @staticmethod
+    def _running_pod():
+        pod = MagicMock()
+        pod.metadata.name = "sleep-worker"
+        pod.metadata.namespace = "default"
+        pod.status.phase = PodPhase.RUNNING
+        return pod
+
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    @patch(KUB_OP_PATH.format("find_pod"))
+    @patch(KUB_OP_PATH.format("await_pod_completion"))
+    def test_execute_sync_fails_when_on_kill_ran_during_the_wait(
+        self, await_pod_completion_mock, find_pod_mock, get_or_create_pod_mock
+    ):
+        """A pod interrupted by on_kill must not finalise the task instance as success.
+
+        Under KubernetesExecutor the task pod and the KPO child pod can be interrupted
+        within about a second of each other. SIGTERM reaches the task process, the runner
+        calls on_kill(), which deletes the child, and the wait in execute_sync then returns
+        normally because the pod it was watching has gone away. cleanup() skips its usual
+        failure signalling once _killed is set, so execute_sync used to fall through and
+        return, and the task was recorded as success (apache/airflow#71202).
+        """
+        k = self._interrupted_pod_operator()
+        running_pod = self._running_pod()
+        get_or_create_pod_mock.return_value = running_pod
+        find_pod_mock.return_value = running_pod
+        self.await_pod_mock.return_value = running_pod
+
+        # The wait returns rather than raising: the log stream simply ended when the
+        # child pod was deleted out from under it.
+        await_pod_completion_mock.side_effect = lambda pod: k.on_kill()
+
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException, match="was interrupted before it completed"):
+            k.execute(context=context)
+
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    @patch(KUB_OP_PATH.format("find_pod"))
+    @patch(KUB_OP_PATH.format("await_pod_completion"))
+    def test_execute_sync_keeps_the_original_error_when_on_kill_ran(
+        self, await_pod_completion_mock, find_pod_mock, get_or_create_pod_mock
+    ):
+        """When the body already failed, that failure is what the user needs to see.
+
+        The interrupted-pod check sits after the finally block on purpose, so it cannot
+        replace an exception that is already propagating.
+        """
+        k = self._interrupted_pod_operator()
+        running_pod = self._running_pod()
+        get_or_create_pod_mock.return_value = running_pod
+        find_pod_mock.return_value = running_pod
+        self.await_pod_mock.return_value = running_pod
+
+        def _kill_then_fail(pod):
+            k.on_kill()
+            raise AirflowException("original failure")
+
+        await_pod_completion_mock.side_effect = _kill_then_fail
+
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(AirflowException, match="original failure"):
+            k.execute(context=context)
+
     @pytest.mark.parametrize(
         "pod_phase",
         [

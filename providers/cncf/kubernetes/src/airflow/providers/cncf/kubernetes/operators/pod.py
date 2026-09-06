@@ -886,6 +886,17 @@ class KubernetesPodOperator(BaseOperator):
                 pod=pod_to_clean, remote_pod=self.remote_pod, context=context, result=result
             )
 
+        if self._killed:
+            # on_kill() ran while the block above was waiting on the pod, and that wait
+            # returned normally because the pod it was watching simply went away. The
+            # workload never finished, so falling through here would finalise the task
+            # instance as success. This check sits after the finally block on purpose: if
+            # the body raised, that exception propagates untouched and already fails the
+            # task with its own reason.
+            raise AirflowException(
+                f"Pod {self.pod and self.pod.metadata.name} was interrupted before it completed."
+            )
+
         if self.do_xcom_push:
             return result
 
