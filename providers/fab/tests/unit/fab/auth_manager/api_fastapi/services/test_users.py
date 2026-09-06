@@ -240,8 +240,9 @@ class TestUsersService:
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.build_ordering")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.select")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.create_session")
     def test_get_users_success(
-        self, mock_select, mock_build_ordering, get_fab_auth_manager, fab_auth_manager, security_manager
+        self, mock_create_session, mock_select, mock_build_ordering, get_fab_auth_manager
     ):
         user1 = _make_user_obj(
             username="alice", email="alice@example.com", first_name="Alice", last_name="Liddell"
@@ -251,9 +252,7 @@ class TestUsersService:
         mock_session = MagicMock()
         mock_session.scalars.return_value.one.return_value = 2
         mock_session.scalars.return_value.unique.return_value.all.return_value = [user1, user2]
-        security_manager.session = mock_session
-        fab_auth_manager.security_manager = security_manager
-        get_fab_auth_manager.return_value = fab_auth_manager
+        mock_create_session.return_value.__enter__.return_value = mock_session
 
         mock_build_ordering.return_value = "ordering"
 
@@ -263,11 +262,13 @@ class TestUsersService:
         assert len(out.users) == 2
         assert out.users[0].username == "alice"
         assert out.users[1].username == "bob"
+        mock_create_session.assert_called_once_with(scoped=False)
+        mock_create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.build_ordering")
-    def test_get_users_invalid_order_by(
-        self, mock_build_ordering, get_fab_auth_manager, fab_auth_manager, security_manager
-    ):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.create_session")
+    def test_get_users_invalid_order_by(self, mock_create_session, mock_build_ordering, get_fab_auth_manager):
+        mock_create_session.return_value.__enter__.return_value = MagicMock()
         mock_build_ordering.side_effect = HTTPException(
             status_code=400,
             detail="Ordering with 'invalid' is disallowed or the attribute does not exist on the model",
@@ -278,6 +279,8 @@ class TestUsersService:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerUsers.get_users(order_by="invalid", limit=10, offset=0)
         assert ex.value.status_code == 400
+        mock_create_session.assert_called_once_with(scoped=False)
+        mock_create_session.return_value.__exit__.assert_called_once()
 
     def test_update_user_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         user_obj = _make_user_obj(
