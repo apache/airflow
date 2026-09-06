@@ -44,7 +44,7 @@ airflow_version = "3.0.0"
 # --- Value-sanitization SQL, factored out so migration tests can run the real statements
 # against an isolated table via the helpers below; ``table`` defaults to "xcom" for the
 # production calls. Both classes of value that are legal in the pickled blob but illegal in
-# strict JSON/JSONB are handled: non-finite floats (NaN/Infinity/-Infinity) are quoted, and
+# strict JSON/JSONB are handled: non-finite floats (NaN/Infinity/-Infinity) are replaced with null, and
 # the active U+0000 (NUL) escape is stripped (escaped backslashes are protected first so a
 # literal U+0000 escape embedded in the data survives).
 _XCOM_PG_SANITIZE_SQL = r"""
@@ -69,7 +69,7 @@ _XCOM_PG_SANITIZE_SQL = r"""
                         -- (e.g. [NaN, Infinity]) are each matched independently.
                         -- NaN and Infinity are done in the same query to avoid another table scan.
                         '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
-                        '\1"\2"',
+                        '\1null',
                         'g'
                     ),
                     'UTF8'
@@ -96,7 +96,7 @@ _XCOM_MYSQL_SANITIZE_SQL = """
                         -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
                         -- NaN and Infinity are done in the same query to avoid another table scan.
                         '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
-                        '$1"$2"',
+                        '$1null',
                         1,
                         0,
                         'c'
@@ -120,14 +120,14 @@ _XCOM_SQLITE_SANITIZE_SQL = """
                                     ),
                                     char(1), '\\\\'
                                 ),
-                                'NaN', '"NaN"'
+                                'NaN', 'null'
                             ),
                             -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
-                            -- turning -Infinity into -"Infinity").
-                            'Infinity', '"Infinity"'
+                            -- turning -Infinity into -null).
+                            'Infinity', 'null'
                         ),
-                        -- Step 3: fix the -"Infinity" artifact left by step 2.
-                        '-"Infinity"', '"-Infinity"'
+                        -- Step 3: fix the -null artifact left by step 2.
+                        '-null', 'null'
                     ) AS BLOB)
                 -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
                 -- This is a substring operation and will incorrectly alter XCom values
@@ -156,7 +156,7 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Sanitize values illegal in strict JSON/JSONB (quote NaN/Infinity, strip the U+0000 NUL escape)
+    # 4. Sanitize values illegal in strict JSON/JSONB (replace NaN/Infinity with null, strip the U+0000 NUL escape)
     # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
@@ -223,10 +223,10 @@ def upgrade():
 
     # Sanitize values that round-trip through pickle but are illegal in strict JSON/JSONB
     # before changing the column type:
-    #   * NaN / Infinity / -Infinity -> quoted strings (valid Python floats, illegal JSON).
+    #   * NaN / Infinity / -Infinity -> null (valid Python floats, illegal JSON).
     #   * the U+0000 (NUL) escape -> stripped. PostgreSQL JSON/JSONB cannot represent it
     #     ("unsupported Unicode escape sequence ... cannot be converted to text") and,
-    #     unlike the non-finite floats, it cannot be quoted/kept, so it is removed.
+    #     unlike the non-finite floats, it cannot be kept, so it is removed.
     #     json.dumps() emits a literal NUL as the 6-char escape, never a raw 0x00 byte, so
     #     stripping the escape covers values produced by normal XCom serialization.
     if dialect == "postgresql":
