@@ -462,6 +462,12 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
         jobs = [job for job in jobs if job["name"].startswith(prefix_name)]
         return jobs
 
+    def fetch_job_id_by_name(self, prefix_name: str) -> str | None:
+        jobs = self._fetch_jobs_by_prefix_name(prefix_name)
+        if len(jobs) == 1:
+            return jobs[0]["id"]
+        return None
+
     def _refresh_jobs(self) -> None:
         """
         Get all jobs by name.
@@ -1172,6 +1178,30 @@ class DataflowHook(GoogleBaseHook):
             location=location,
         )
         return jobs_controller.fetch_job_by_id(job_id)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_id_by_name(
+        self,
+        prefix_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> str | None:
+        """
+        Fetch the Dataflow job ID for a unique job name prefix.
+
+        :param prefix_name: Job name prefix to search for.
+        :param project_id: Optional, the Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: The location of the Dataflow job (for example europe-west1). See:
+            https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
+        :return: the job ID if exactly one matching job exists, otherwise None.
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        return jobs_controller.fetch_job_id_by_name(prefix_name.lower())
 
     @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
