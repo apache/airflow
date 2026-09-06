@@ -21,8 +21,11 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { PoolResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import { StateIcon } from "src/components/StateIcon";
-import { Tooltip } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { type Slots, slotConfigs } from "src/utils/slots";
 

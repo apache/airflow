@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { NavTabs } from "./Details/NavTabs";

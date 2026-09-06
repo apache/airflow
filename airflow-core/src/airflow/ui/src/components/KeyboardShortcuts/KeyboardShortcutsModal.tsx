@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Flex, HStack, Heading, Kbd, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Modal } from "src/components/ui";
+import { Modal } from "src/system-components";
+
 import {
   SHORTCUTS,
   SHORTCUT_CATEGORIES,

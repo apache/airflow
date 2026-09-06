@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Skeleton } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { usePoolServiceGetPools } from "openapi/queries";
 import type { PoolResponse } from "openapi/requests/types.gen";
+
+import { Select } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { Select } from "src/components/ui";
+
 import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";

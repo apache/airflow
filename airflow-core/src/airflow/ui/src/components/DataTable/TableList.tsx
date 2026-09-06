@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { Button, Icon, Table } from "@chakra-ui/react";
 import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 

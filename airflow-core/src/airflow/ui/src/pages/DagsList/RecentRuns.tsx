@@ -23,8 +23,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
+
 import { renderDuration } from "src/utils";
 
 dayjs.extend(duration);

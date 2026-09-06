@@ -20,7 +20,7 @@ import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 
-import { Modal } from "src/components/ui";
+import { Modal } from "src/system-components";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 
