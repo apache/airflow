@@ -24,13 +24,36 @@ import pytest
 import run_generate_constraints as m
 
 
-def _config(latest: Path, current: Path, constraints_dir: Path | None = None) -> SimpleNamespace:
+def _config(
+    latest: Path,
+    current: Path,
+    constraints_dir: Path | None = None,
+    allow_pre_releases: bool = False,
+) -> SimpleNamespace:
     return SimpleNamespace(
         latest_constraints_file=latest,
         current_constraints_file=current,
         constraints_dir=constraints_dir if constraints_dir is not None else latest.parent,
         python="3.10",
+        allow_pre_releases=allow_pre_releases,
     )
+
+
+def _file(*, yanked: bool = False, requires_python: str | None = ">=3.10") -> dict:
+    return {"yanked": yanked, "requires_python": requires_python}
+
+
+class _FakeResponse:
+    def __init__(self, payload: dict, status_code: int = 200):
+        self._payload = payload
+        self.status_code = status_code
+
+    def json(self) -> dict:
+        return self._payload
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise AssertionError(f"Unexpected status {self.status_code}")
 
 
 class TestReadProviderVersionsFromConstraints:
@@ -82,6 +105,16 @@ class TestCheckProvidersNotDowngraded:
         payload = json.loads((tmp_path / "provider-downgrade-slack-message.json").read_text())
         assert payload["channel"] == "some-other-channel"
 
+    def test_skips_the_check_for_a_release_candidate(self, tmp_path):
+        latest = tmp_path / "latest.txt"
+        current = tmp_path / "current.txt"
+        latest.write_text("apache-airflow-providers-amazon==8.0.0\n")
+        current.write_text("apache-airflow-providers-amazon==7.5.0\n")
+
+        m.check_providers_not_downgraded(_config(latest, current, allow_pre_releases=True))
+
+        assert not (tmp_path / "provider-downgrade-slack-message.json").exists()
+
     def test_passes_when_no_provider_is_downgraded(self, tmp_path):
         latest = tmp_path / "latest.txt"
         current = tmp_path / "current.txt"
@@ -109,3 +142,133 @@ class TestCheckProvidersNotDowngraded:
         latest.write_text("apache-airflow-providers-amazon==not-a-version\n")
         current.write_text("apache-airflow-providers-amazon==also-bad\n")
         m.check_providers_not_downgraded(_config(latest, current))
+
+
+class TestFindNewestVersionInPypi:
+    @pytest.mark.parametrize(
+        "releases, allow_pre_releases, expected",
+        [
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0": [_file()]},
+                False,
+                "1.1.0",
+                id="newest-final-release",
+            ),
+            pytest.param(
+                {"1.1.0": [_file()], "1.2.0rc1": [_file()]},
+                True,
+                "1.2.0rc1",
+                id="candidate-newer-than-the-release-wins-when-allowed",
+            ),
+            pytest.param(
+                {"1.1.0": [_file()], "1.2.0rc1": [_file()]},
+                False,
+                "1.1.0",
+                id="candidate-is-ignored-when-not-allowed",
+            ),
+            pytest.param(
+                {"1.1.0rc1": [_file()], "1.1.0": [_file()]},
+                True,
+                "1.1.0",
+                id="superseded-candidate-loses-to-its-release",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0": [_file(yanked=True)]},
+                False,
+                "1.0.0",
+                id="yanked-version-is-passed-over",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0": []},
+                False,
+                "1.0.0",
+                id="version-with-no-files-is-passed-over",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0": [_file(requires_python=">=3.12")]},
+                False,
+                "1.0.0",
+                id="version-excluded-by-requires-python-is-passed-over",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "not-a-version": [_file()]},
+                False,
+                "1.0.0",
+                id="unparseable-version-is-passed-over",
+            ),
+            pytest.param(
+                {"1.0.0": [_file(requires_python=None)]},
+                False,
+                "1.0.0",
+                id="file-without-requires-python-is-installable",
+            ),
+            pytest.param(
+                {"1.0.0": [_file(requires_python="not-a-specifier")]},
+                False,
+                "1.0.0",
+                id="file-with-broken-requires-python-is-not-excluded",
+            ),
+            pytest.param({"1.0.0": [_file(yanked=True)]}, False, None, id="nothing-installable-is-unpinned"),
+            pytest.param({"1.0.0rc1": [_file()]}, False, None, id="only-a-candidate-is-unpinned"),
+        ],
+    )
+    def test_picks_the_newest_installable_version(self, monkeypatch, releases, allow_pre_releases, expected):
+        monkeypatch.setattr(m.requests, "get", lambda url, timeout: _FakeResponse({"releases": releases}))
+
+        newest = m.find_newest_version_in_pypi("apache-airflow-providers-amazon", "3.10", allow_pre_releases)
+
+        assert newest == expected
+
+    def test_unpublished_distribution_is_unpinned(self, monkeypatch):
+        monkeypatch.setattr(m.requests, "get", lambda url, timeout: _FakeResponse({}, status_code=404))
+
+        assert m.find_newest_version_in_pypi("apache-airflow-providers-brand-new", "3.10", True) is None
+
+
+class TestBuildPinnedProviderRequirements:
+    """Providers are pinned at what PyPI holds rather than left for the resolution to pick."""
+
+    def test_every_provider_is_pinned_to_its_newest_pypi_version(self, monkeypatch):
+        monkeypatch.setattr(
+            m,
+            "get_all_active_provider_distributions",
+            lambda python_version=None: [
+                "apache-airflow-providers-amazon",
+                "apache-airflow-providers-cncf-kubernetes",
+                "apache-airflow-providers-brand-new",
+            ],
+        )
+        newest = {
+            "apache-airflow-providers-amazon": "9.0.0rc1",
+            "apache-airflow-providers-cncf-kubernetes": "10.20.0",
+            "apache-airflow-providers-brand-new": None,
+        }
+        monkeypatch.setattr(
+            m, "find_newest_version_in_pypi", lambda dist, python_version, allow_pre_releases: newest[dist]
+        )
+
+        assert m.build_pinned_provider_requirements("3.10", True) == [
+            "apache-airflow-providers-amazon==9.0.0rc1",
+            "apache-airflow-providers-cncf-kubernetes==10.20.0",
+        ]
+
+    def test_the_python_version_and_the_pre_release_choice_reach_the_lookup(self, monkeypatch):
+        """Providers excluded on a Python version must not be named, nor pinned to a version it cannot install."""
+        seen_for_distributions: list[str | None] = []
+        seen_for_lookup: list[tuple[str, bool]] = []
+
+        def fake_distributions(python_version=None):
+            seen_for_distributions.append(python_version)
+            return ["apache-airflow-providers-amazon"]
+
+        def fake_lookup(distribution, python_version, allow_pre_releases):
+            seen_for_lookup.append((python_version, allow_pre_releases))
+            return "9.0.0"
+
+        monkeypatch.setattr(m, "get_all_active_provider_distributions", fake_distributions)
+        monkeypatch.setattr(m, "find_newest_version_in_pypi", fake_lookup)
+
+        m.build_pinned_provider_requirements("3.14", False)
+
+        assert seen_for_distributions == ["3.14"]
+        assert seen_for_lookup == [("3.14", False)]

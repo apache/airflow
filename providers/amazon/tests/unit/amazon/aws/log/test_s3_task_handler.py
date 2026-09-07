@@ -32,6 +32,7 @@ from moto import mock_aws
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO, S3TaskHandler
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import EmptyOperator
@@ -40,11 +41,6 @@ from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_2_PLUS
-
-try:
-    from airflow.sdk.timezone import datetime
-except ImportError:
-    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -132,6 +128,50 @@ class TestS3RemoteLogIOFromConfig:
         assert conn_id == "aws_default"
         legacy_discover.assert_not_called()
 
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control",
+        }
+    )
+    def test_from_config_reads_acl_policy(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy == "bucket-owner-full-control"
+
+    @conf_vars({("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location"})
+    def test_from_config_acl_policy_defaults_to_none(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy is None
+
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("logging", "remote_task_handler_kwargs"): '{"acl_policy": "bucket-owner-full-control"}',
+        }
+    )
+    def test_from_config_acl_policy_via_remote_task_handler_kwargs(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy == "bucket-owner-full-control"
+
+
+class TestS3TaskHandlerInit:
+    @conf_vars({("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control"})
+    def test_init_reads_acl_policy_from_conf(self):
+        handler = S3TaskHandler("/tmp/local", "s3://bucket/remote/log/location")
+
+        assert handler.io.acl_policy == "bucket-owner-full-control"
+
+    @conf_vars({("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control"})
+    def test_init_acl_policy_kwarg_overrides_conf(self):
+        handler = S3TaskHandler(
+            "/tmp/local", "s3://bucket/remote/log/location", acl_policy="bucket-owner-read"
+        )
+
+        assert handler.io.acl_policy == "bucket-owner-read"
+
 
 @pytest.mark.db_test
 class TestS3RemoteLogIO:
@@ -154,7 +194,7 @@ class TestS3RemoteLogIO:
             self.subject = self.s3_task_handler.io
             assert self.subject.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -280,6 +320,15 @@ class TestS3RemoteLogIO:
         body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
         assert body == b"text"
 
+    def test_write_with_acl_policy(self):
+        self.subject.acl_policy = "bucket-owner-full-control"
+        conn = self.subject.hook.get_conn()
+        with mock.patch.object(conn, "put_object", wraps=conn.put_object) as mock_put_object:
+            self.subject.write("text", self.remote_log_location)
+        assert mock_put_object.call_args.kwargs["ACL"] == "bucket-owner-full-control"
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"text"
+
     def test_upload_repeated_appends_no_duplication(self):
         """Simulate reschedule-mode sensor: each cycle appends to the local log, then uploads.
 
@@ -329,7 +378,7 @@ class TestS3TaskHandler:
             # Verify the hook now with the config override
             assert self.s3_task_handler.io.hook is not None
 
-        date = datetime(2016, 1, 1)
+        date = timezone.datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:

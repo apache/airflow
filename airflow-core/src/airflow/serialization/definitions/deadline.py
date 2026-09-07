@@ -28,6 +28,7 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.models.deadline import classproperty
+from airflow.models.variable import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -37,8 +38,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
-
-    from airflow.sdk.definitions.deadline import VariableInterval
 
 logger = logging.getLogger(__name__)
 
@@ -320,7 +319,15 @@ class SerializedReferenceModels:
         def deserialize_reference(cls, reference_data: dict):
             from airflow.serialization.helpers import find_registered_custom_deadline_reference
 
-            custom_class = find_registered_custom_deadline_reference(reference_data["__class_path"])
+            class_path = reference_data.get("__class_path")
+            if not class_path:
+                raise ValueError(
+                    "Cannot deserialize deadline reference: unrecognized reference_type "
+                    f"{reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)!r} with no "
+                    "'__class_path' to import. The stored reference is corrupt, from a newer "
+                    "Airflow version, or references a custom class whose plugin is no longer installed."
+                )
+            custom_class = find_registered_custom_deadline_reference(class_path)
             inner_ref = custom_class.deserialize_reference(reference_data)
             return cls(inner_ref)
 
@@ -372,11 +379,34 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
     return result
 
 
+@attrs.define(frozen=True)
+class SerializedVariableInterval:
+    """Core-side serialized representation of a variable-backed deadline interval."""
+
+    key: str
+
+    def resolve(self) -> timedelta:
+
+        try:
+            value = Variable.get(self.key)
+        except KeyError as e:
+            raise ValueError(f"VariableInterval '{self.key}' not found") from e
+
+        try:
+            seconds = int(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
+            ) from e
+
+        return timedelta(seconds=seconds)
+
+
 @attrs.define
 class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
-    interval: timedelta | VariableInterval
+    interval: timedelta | SerializedVariableInterval
     callback: Any
     name: str | None = None

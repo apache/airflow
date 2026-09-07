@@ -22,11 +22,12 @@ import warnings
 from base64 import b64encode
 from os.path import dirname
 from typing import Any
+from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context
+from airflow.providers.common.compat.sdk import AirflowException, Context, timezone
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 
@@ -38,11 +39,6 @@ from unit.microsoft.azure.test_utils import (
     mock_response,
     patch_hook_and_request_adapter,
 )
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef]
 
 
 class TestMSGraphAsyncOperator:
@@ -317,6 +313,140 @@ class TestMSGraphAsyncOperator:
 
         assert url == "users"
         assert query_parameters == {"$skip": 12, "$top": 12}
+
+    def test_trigger_next_link_forwards_the_request_configuration(self):
+        headers = {"ConsistencyLevel": "eventual"}
+        data = {"requestBody": "value"}
+        scopes = ["https://graph.microsoft.com/.default"]
+        operator = MSGraphAsyncOperator(
+            task_id="user_license_details",
+            conn_id="msgraph_api",
+            url="users",
+            headers=headers,
+            data=data,
+            scopes=scopes,
+        )
+        context = mock_context(task=operator)
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            operator.trigger_next_link(response, method_name="execute_complete", context=context)
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert trigger.headers == headers
+        assert trigger.data == data
+        assert trigger.scopes == scopes
+
+    def test_trigger_next_link_forwards_the_path_parameters(self):
+        path_parameters = {"user_id": "48d31887-5fad-4d73-a9f5-3c356e68a038", "mailFolder_id": "inbox"}
+        operator = MSGraphAsyncOperator(
+            task_id="messages",
+            conn_id="msgraph_api",
+            url="users/{user_id}/mailFolders/{mailFolder_id}/messages",
+            path_parameters=path_parameters,
+            query_parameters={"$top": 12, "$count": True},
+        )
+        context = mock_context(task=operator)
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            operator.trigger_next_link(messages, method_name="execute_complete", context=context)
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert trigger.url == "users/{user_id}/mailFolders/{mailFolder_id}/messages"
+        assert trigger.path_parameters == path_parameters
+
+    def test_skip_pagination_expands_the_url_template_on_every_page(self):
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+        next_messages = load_json_from_resources(dirname(__file__), "..", "resources", "next_messages.json")
+        response = mock_json_response(200, messages, next_messages)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="messages",
+                conn_id="msgraph_api",
+                url="users/{user_id}/mailFolders/{mailFolder_id}/messages",
+                path_parameters={"user_id": "48d31887-5fad-4d73-a9f5-3c356e68a038", "mailFolder_id": "inbox"},
+                query_parameters={"$top": 12, "$count": True},
+                result_processor=lambda result, **context: result.get("value"),
+            )
+
+            execute_operator(operator)
+
+        urls = [call.args[0].url for call in mock_get_http_response.call_args_list]
+
+        assert urls == [
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true",
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true&%24skip=12",
+        ]
+
+    def test_pagination_issues_every_page_with_the_configured_request(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+        headers = {"ConsistencyLevel": "eventual"}
+        data = {"requestBody": "value"}
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+                method="POST",
+                headers=headers,
+                data=data,
+                result_processor=lambda result, **context: result.get("value"),
+            )
+
+            execute_operator(operator)
+
+        requests = [call.args[0] for call in mock_get_http_response.call_args_list]
+
+        assert len(requests) == 2
+        for request in requests:
+            assert request.headers.try_get("ConsistencyLevel") == {"eventual"}
+            assert request.content == json.dumps(data).encode("utf-8")
+
+    def test_pagination_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        second_page = {"value": [{"id": "2"}]}
+        response = mock_json_response(200, first_page, second_page)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+            )
+
+            with pytest.raises(AirflowException, match="attacker.example"):
+                execute_operator(operator)
+
+        # assert_allowed_host rejects the link before the request goes out, so the second page is never
+        # fetched and the bearer token does not reach attacker.example.
+        assert mock_get_http_response.call_count == 1
+
+    def test_relative_pagination_link_is_not_treated_as_cross_host(self):
+        pages = [{"next": "users?$skip=1", "value": [{"id": "1"}]}, {"value": [{"id": "2"}]}]
+        response = mock_json_response(200, *pages)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="users",
+                pagination_function=lambda operator, response, **context: (response.get("next"), None),
+            )
+
+            results, _ = execute_operator(operator)
+
+        # A pagination function may return a relative url, whose netloc is empty and never matches the
+        # configured endpoint. The startswith("http") check in assert_allowed_host lets it pass.
+        assert mock_get_http_response.call_count == 2
+        assert results == pages
 
     def test_execute_callable(self):
         with pytest.warns(

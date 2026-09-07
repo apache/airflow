@@ -311,6 +311,26 @@ def sample_update_payload() -> dict[str, Any]:
 class TestUpdateHITLDetailEndpoint:
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_response_records_responder_display_name(
+        self,
+        mock_display_name: mock.MagicMock,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+    ) -> None:
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json=sample_update_payload,
+        )
+        assert response.status_code == 200
+        assert response.json()["responded_by"] == {"id": "test", "name": "Jane Doe"}
+
+    @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
+    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,

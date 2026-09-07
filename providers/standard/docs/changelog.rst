@@ -35,6 +35,57 @@
 Changelog
 ---------
 
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support TaskFlow call syntax on stub tasks for the Lang SDK (#69757)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+1.17.0
+......
+
+.. note::
+    ``HITLOperator.hitl_summary`` is now a read-only property that builds a fresh snapshot on
+    each access, so mutating the returned dict has no effect. Subclasses and runtime code that
+    previously did ``self.hitl_summary["key"] = value`` must write to the new public
+    ``hitl_summary_extra`` dict instead -- ``self.hitl_summary_extra["key"] = value``. Reading
+    ``hitl_summary`` is unchanged: it still returns the merged summary including those entries.
+
+    ``ExternalTaskSensor``'s ``poll_interval`` is deprecated in favor of ``poke_interval``.
+    The old name still works, but the effective deferrable poll interval for users who set
+    neither now comes from ``BaseSensorOperator.poke_interval`` (60s) instead of the previous
+    hard-coded 2s. Set ``poke_interval`` explicitly to keep a faster cadence.
+
+Features
+~~~~~~~~
+
+* ``WaitSensor: make time_to_wait templated (#70480)``
+* ``Make the HITLOperator summary a lazily rendered read-only property with a public 'hitl_summary_extra' extension point (#70345, #70391)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Give each task its own start trigger arguments in standard sensors (#70888)``
+* ``Deprecating 'poll_interval' in 'ExternalTaskSensor' for 'poke_interval' (#68997)``
+* ``Fix BashOperator script detection after templating (#70369)``
+* ``Fix DateTimeSensor crash when target_time renders to a datetime (#70320)``
+
+Misc
+~~~~
+
+* ``Validate TriggerDagRunOperator logical_date after template rendering (#70490)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 1.16.0
 ......
 

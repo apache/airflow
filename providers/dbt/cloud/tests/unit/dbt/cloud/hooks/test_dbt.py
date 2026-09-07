@@ -356,6 +356,107 @@ class TestDbtCloudHook:
             assert mock_get_connection.call_count == 1
             assert mock_get_async_connection.call_count == 0
 
+    @pytest.mark.asyncio
+    async def test_get_headers_tenants_from_connection_does_not_use_sync_get_connection(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with (
+            patch.object(DbtCloudHook, "get_connection") as mock_get_connection,
+            patch(
+                "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+                new=AsyncMock(
+                    return_value=Connection(
+                        conn_id=ACCOUNT_ID_CONN,
+                        conn_type=DbtCloudHook.conn_type,
+                        login=str(DEFAULT_ACCOUNT_ID),
+                        password=TOKEN,
+                        host=SINGLE_TENANT_DOMAIN,
+                    )
+                ),
+            ) as mock_get_async_connection,
+        ):
+            headers, tenant = await hook.get_headers_tenants_from_connection()
+
+            assert tenant == SINGLE_TENANT_DOMAIN
+            assert headers["Authorization"] == f"Token {TOKEN}"
+            mock_get_connection.assert_not_called()
+            assert mock_get_async_connection.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_resolve_connection_cached_async(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+            new=AsyncMock(
+                return_value=Connection(
+                    conn_id=ACCOUNT_ID_CONN,
+                    conn_type=DbtCloudHook.conn_type,
+                    login=str(DEFAULT_ACCOUNT_ID),
+                    password=TOKEN,
+                )
+            ),
+        ) as mock_get_async_connection:
+            first_call = await hook._resolve_connection_async()
+            second_call = await hook._resolve_connection_async()
+
+            assert first_call.password == TOKEN
+            assert second_call.password == TOKEN
+            assert mock_get_async_connection.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_connection_cache_shared_between_sync_and_async(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with (
+            patch.object(
+                DbtCloudHook,
+                "get_connection",
+                return_value=Connection(
+                    conn_id=ACCOUNT_ID_CONN,
+                    conn_type=DbtCloudHook.conn_type,
+                    login=str(DEFAULT_ACCOUNT_ID),
+                    password=TOKEN,
+                ),
+            ) as mock_get_connection,
+            patch(
+                "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+                new=AsyncMock(
+                    return_value=Connection(
+                        conn_id=ACCOUNT_ID_CONN,
+                        conn_type=DbtCloudHook.conn_type,
+                        login=str(DEFAULT_ACCOUNT_ID),
+                        password=TOKEN,
+                    )
+                ),
+            ) as mock_get_async_connection,
+        ):
+            sync_conn = hook.connection
+            async_conn = await hook._resolve_connection_async()
+
+            assert sync_conn.password == TOKEN
+            assert async_conn.password == TOKEN
+
+            assert mock_get_connection.call_count == 1
+            assert mock_get_async_connection.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_resolve_connection_async_requires_password(self):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+
+        with patch(
+            "airflow.providers.dbt.cloud.hooks.dbt.get_async_connection",
+            new=AsyncMock(
+                return_value=Connection(
+                    conn_id=ACCOUNT_ID_CONN,
+                    conn_type=DbtCloudHook.conn_type,
+                    login=str(DEFAULT_ACCOUNT_ID),
+                )
+            ),
+        ):
+            with pytest.raises(AirflowException, match="An API token is required"):
+                await hook._resolve_connection_async()
+
     @pytest.mark.parametrize(
         argnames=("conn_id", "account_id"),
         argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],

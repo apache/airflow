@@ -175,6 +175,20 @@ class TestEksDeleteClusterTriggerRun(TestEksTrigger):
         assert exception._excinfo[1].operation_name == operation_name
 
     @pytest.mark.asyncio
+    @patch("asyncio.sleep", return_value=None)
+    async def test_run_retries_on_resource_in_use(self, mock_sleep):
+        in_use = ClientError({"Error": {"Code": "ResourceInUseException"}}, "delete_eks_cluster")
+        delete_cluster_mock = AsyncMock(side_effect=[in_use, in_use, None])
+        self.mock_client.delete_cluster = delete_cluster_mock
+
+        generator = self.trigger.run()
+        response = await generator.asend(None)
+
+        assert delete_cluster_mock.call_count == 3
+        delete_cluster_mock.assert_called_with(name=CLUSTER_NAME)
+        assert response == TriggerEvent({"status": "deleted"})
+
+    @pytest.mark.asyncio
     async def test_run_parameterizes_async_wait_correctly(self):
         self.mock_client.get_waiter = Mock(return_value="waiter")
 
@@ -246,6 +260,36 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
             status_message="Deleting nodegroups associated with the cluster",
             status_args=["nodegroups"],
         )
+
+    @pytest.mark.asyncio
+    @patch("asyncio.sleep", return_value=None)
+    async def test_delete_nodegroups_retries_on_resource_in_use(self, mock_sleep):
+        in_use = ClientError({"Error": {"Code": "ResourceInUseException"}}, "DeleteNodegroup")
+        mock_list_node_groups = AsyncMock(return_value={"nodegroups": ["g1"]})
+        mock_delete_nodegroup = AsyncMock(side_effect=[in_use, in_use, None])
+        mock_client = AsyncMock(list_nodegroups=mock_list_node_groups, delete_nodegroup=mock_delete_nodegroup)
+
+        await self.trigger.delete_any_nodegroups(mock_client)
+
+        assert mock_delete_nodegroup.call_count == 3
+        mock_delete_nodegroup.assert_called_with(clusterName=CLUSTER_NAME, nodegroupName="g1")
+
+    @pytest.mark.asyncio
+    @patch("asyncio.sleep", return_value=None)
+    async def test_delete_fargate_profiles_retries_on_resource_in_use(self, mock_sleep):
+        in_use = ClientError({"Error": {"Code": "ResourceInUseException"}}, "DeleteFargateProfile")
+        mock_list_fargate_profiles = AsyncMock(return_value={"fargateProfileNames": ["p1"]})
+        mock_delete_fargate_profile = AsyncMock(side_effect=[in_use, in_use, None])
+        mock_client = AsyncMock(
+            list_fargate_profiles=mock_list_fargate_profiles,
+            delete_fargate_profile=mock_delete_fargate_profile,
+            get_waiter=self.mock_waiter,
+        )
+
+        await self.trigger.delete_any_fargate_profiles(mock_client)
+
+        assert mock_delete_fargate_profile.call_count == 3
+        mock_delete_fargate_profile.assert_called_with(clusterName=CLUSTER_NAME, fargateProfileName="p1")
 
     @pytest.mark.asyncio
     async def test_when_there_are_no_nodegroups_it_should_only_log_message(self):

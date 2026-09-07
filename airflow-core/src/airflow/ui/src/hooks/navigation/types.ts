@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { GridRunsResponse } from "openapi/requests";
+
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
 export const NavigationModes = {

@@ -144,6 +144,8 @@ class SnowparkContainerJobOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+        if spec_text is not None and (spec is not None or spec_stage is not None):
+            raise ValueError("Cannot specify both 'spec_text' and 'spec'/'spec_stage'")
         self.compute_pool = compute_pool
         self.container_name = container_name
         self.spec = spec
@@ -232,8 +234,6 @@ class SnowparkContainerJobOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Submit and optionally wait for a Snowpark Container Services job."""
-        if self.spec_text and (self.spec or self.spec_stage):
-            raise ValueError("Cannot specify both 'spec_text' and 'spec'/'spec_stage'")
         if not self.spec_text and not (self.spec and self.spec_stage):
             raise ValueError("Must provide either 'spec_text' or both 'spec' and 'spec_stage'")
 

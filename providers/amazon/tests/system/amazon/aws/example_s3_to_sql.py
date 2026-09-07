@@ -115,6 +115,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         vpc_security_group_ids=[security_group_id],
         cluster_subnet_group_name=cluster_subnet_group_name,
+        publicly_accessible=False,
         cluster_type="single-node",
         node_type="ra3.large",
         master_username=DB_LOGIN,

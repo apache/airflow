@@ -23,11 +23,13 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import utcnow
+
+# Bound at import time so tests patching ``temporal.timezone.utcnow`` still read a real clock here.
+utcnow = timezone.utcnow
 
 
 def test_input_validation():

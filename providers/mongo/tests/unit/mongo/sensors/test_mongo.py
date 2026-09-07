@@ -20,9 +20,9 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.providers.mongo.sensors.mongo import MongoSensor
-from airflow.utils import timezone
 
 from tests_common.test_utils.compat import Context
 

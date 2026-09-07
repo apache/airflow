@@ -262,6 +262,7 @@ class TaskCommandMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
 
+@deprecated_for_airflowctl("airflowctl tasks failed-deps")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_failed_deps(args) -> None:
@@ -290,6 +291,7 @@ def task_failed_deps(args) -> None:
         print("Task instance dependencies are all met.")
 
 
+@deprecated_for_airflowctl("airflowctl tasks state")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -307,6 +309,7 @@ def task_state(args) -> None:
     print(ti.state)
 
 
+@deprecated_for_airflowctl("airflowctl tasks list")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -414,7 +417,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     env_vars = {"AIRFLOW_TEST_MODE": "True"}
     if args.env_vars:
         env_vars.update(args.env_vars)
-        os.environ.update(env_vars)
+    os.environ.update(env_vars)
 
     if dag:
         sdk_dag = dag

@@ -217,28 +217,10 @@ class GCSToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.source_bucket = source_bucket
-        if source_object and WILDCARD in source_object:
-            warnings.warn(
-                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.source_object = source_object
-        if source_objects and any(WILDCARD in obj for obj in source_objects):
-            warnings.warn(
-                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.source_objects = source_objects
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
-        if delimiter:
-            warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.delimiter = delimiter
         self.move_object = move_object
         self.replace = replace
@@ -253,7 +235,29 @@ class GCSToGCSOperator(BaseOperator):
         self.retain_until_time = retain_until_time
         self.retention_mode = retention_mode
 
+    def _warn_on_deprecated_template_fields(self) -> None:
+        if self.source_object and WILDCARD in self.source_object:
+            warnings.warn(
+                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if self.source_objects and any(WILDCARD in obj for obj in self.source_objects):
+            warnings.warn(
+                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if self.delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
     def execute(self, context: Context) -> list[str]:
+        self._warn_on_deprecated_template_fields()
+
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

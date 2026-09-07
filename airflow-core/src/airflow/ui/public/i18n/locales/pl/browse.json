@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Typ zdarzenia"
-    },
-    "title": "Dziennik audytu"
+    }
   },
   "deadlines": {
     "columns": {

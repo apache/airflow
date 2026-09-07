@@ -760,8 +760,8 @@ Give the server 20-30 seconds to serialize the example Dags to DB
 
 3. In the meantime install the python client you want to test - in the terminal window in the container.
    It can be installed from `PyPI` via `pip install apache-airflow-client==X.Y.Zrc1` or installed
-   from a file (for example if you nust built the client with `breeze release-management prepare-python-client`,
-   there will be `/dist/apache_airflow_client-py*.whl` file in in your `/dist` folder (mapped from `dist`
+   from a file (for example if you just built the client with `breeze release-management prepare-python-client`,
+   there will be `/dist/apache_airflow_client-py*.whl` file in your `/dist` folder (mapped from `dist`
    folder in your checked out airflow repository and you can install it with:
    `pip install /dist/apache_airflow_client-py*.whl`.
 

@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2018, 1, 1)
 

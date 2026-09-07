@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, cast
 
 import botocore.exceptions
@@ -28,6 +29,20 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
@@ -37,9 +52,9 @@ except ImportError:
 
         external_id_key: str = "redshift_statement_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -83,6 +98,9 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
     :param session_id: the session identifier of the query
     :param session_keep_alive_seconds: duration in seconds to keep the session alive after the query
         finishes. The maximum time a session can keep alive is 24 hours
+    :param cancel_on_kill: If True (default), cancel the running Redshift statement when the task is
+        killed. This applies both while the operator is running and, for a deferred task, while it
+        waits in the triggerer.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -131,8 +149,14 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         session_id: str | None = None,
         session_keep_alive_seconds: int | None = None,
+        cancel_on_kill: bool = True,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.database = database
         self.sql = sql
@@ -152,6 +176,7 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
         self.deferrable = deferrable
         self.session_id = session_id
         self.session_keep_alive_seconds = session_keep_alive_seconds
+        self.cancel_on_kill = cancel_on_kill
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
                 "deferrable=True and wait_for_completion=False are set; deferrable will be "
@@ -202,6 +227,7 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
                         region_name=self.region_name,
                         verify=self.verify,
                         botocore_config=self.botocore_config,
+                        cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
                 )
@@ -256,6 +282,8 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""
+        if not self.cancel_on_kill:
+            return
         if hasattr(self, "statement_id"):
             self.log.info("Received a kill signal.")
             self.log.info("Stopping Query with statementId - %s", self.statement_id)

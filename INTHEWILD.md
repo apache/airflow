@@ -286,6 +286,7 @@ Currently, **officially** using Airflow:
 1. [HotelQuickly](https://github.com/HotelQuickly) [[@zinuzoid](https://github.com/zinuzoid)]
 1. [Hotstar](https://hotstar.com)
 1. [HP Inc](https://www.hp.com/) [[@hpinc](https://github.com/HPInc)]
+1. [HSBC](https://www.hsbc.com/) [[@MukundKularni](https://github.com/MukundKulkarni)]
 1. [Huq Industries](https://huq.io) [[@huqindustries](https://github.com/huq-industries), [@alepuccetti](https://github.com/alepuccetti), [@turbomerl](https://github.com/turbomerl)]
 1. [Hurb](https://hurb.com/) [[@hurbcom](https://github.com/hurbcom)]
 1. [Idrica](https://www.idrica.com/) [[@xavipuerto](https://github.com/xavipuerto)]
@@ -357,6 +358,7 @@ Currently, **officially** using Airflow:
 1. [Met Office](https://www.metoffice.gov.uk/) [[@MetOffice](https://github.com/MetOffice)]
 1. [MeuVendoo](https://www.meuvendoo.com.br) [[@CarlosDutra](https://github.com/CarlosDutra)]
 1. [MFG Labs](https://github.com/MfgLabs)
+1. [Microsoft](https://www.microsoft.com/) [[@1fanwang](https://github.com/1fanwang)]
 1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
 1. [MiNODES](https://www.minodes.com) [[@dice89](https://github.com/dice89), [@diazcelsa](https://github.com/diazcelsa)]
 1. [MobiKwik](https://www.mobikwik.com) [[@mobikwik](https://github.com/mobikwik)]
@@ -438,7 +440,7 @@ Currently, **officially** using Airflow:
 1. [Qliro](https://www.qliro.com) [[@kvackkvackanka](https://github.com/kvackkvackanka)]
 1. [Qoala](https://www.qoala.id) [[@gnomeria](https://github.com/gnomeria), [@qoala-engineering](https://github.com/qoala-engineering)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
-1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga), [@shubhamraj-git](https://github.com/shubhamraj-git), &  [@suhaas-vaddadi](https://github.com/suhaas-vaddadi)]
+1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga), [@shubhamraj-git](https://github.com/shubhamraj-git), [@YashrajG](https://github.com/YashrajG) &  [@suhaas-vaddadi](https://github.com/suhaas-vaddadi)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](https://github.com/eronarn)]
 1. [Quero Educação](https://querobolsa.com.br/) [[@joaopedro02](https://github.com/joaopedro02)]
 1. [Quick Algorithm Analytics](https://quickalgorithm.com) [[@QuickAlgorithm](https://github.com/QuickAlgorithm), [@jacojaki](https://github.com/jacojaki), [@Giuzzilla](https://github.com/Giuzzilla), [@breizh24](https://github.com/breizh24) & [@AndreaSoprani](https://github.com/andreasoprani)]
@@ -596,6 +598,7 @@ Currently, **officially** using Airflow:
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zerodha](https://zerodha.com/) [[@johnnybravo-xyz](https://github.com/johnnybravo-xyz)]
 1. [Zomato](https://www.zomato.com/) [[@zomato](https://github.com/zomato)]
+1. [Zoom](https://www.zoom.com/) [[@singhAbhishek16](https://github.com/singhAbhishek16)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [Zynga](https://www.zynga.com)
 1. [Ørsted](https://orsted.com/en) [[@arjunanan6](https://github.com/arjunanan6)]

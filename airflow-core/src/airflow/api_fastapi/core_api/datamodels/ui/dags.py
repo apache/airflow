@@ -42,6 +42,13 @@ class DAGWithLatestDagRunsCollectionResponse(BaseModel):
     dags: list[DAGWithLatestDagRunsResponse]
 
 
+class DagTimetableTypeCollectionResponse(BaseModel):
+    """Timetable types used by Dags."""
+
+    timetable_types: list[str]
+    total_entries: int
+
+
 class DAGRunStateCountsResponse(BaseModel):
     """Per-Dag counts of DagRuns grouped by state."""
 

@@ -253,6 +253,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--distributions-list-file",
                 "--skip-deleting-generated-files",
+                "--skip-git-fetch",
                 "--skip-tag-check",
                 "--version-suffix",
                 "--distributions-list",
@@ -339,6 +340,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Generate constraints flags",
             "options": [
                 "--airflow-constraints-mode",
+                "--allow-pre-releases",
                 "--github-repository",
                 "--python",
                 "--use-uv",

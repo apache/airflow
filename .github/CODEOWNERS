@@ -93,9 +93,9 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl
 /providers/common/messaging/ @vincbeck
-/providers/common/ai/ @gopidesupavan @kaxil @Lee-W
+/providers/common/ai/ @gopidesupavan @kaxil @Lee-W @ashb
 /providers/dbt/cloud/ @josh-fell
-/providers/edge3/ @jscheffl @dheerajturaga
+/providers/edge3/ @jscheffl @dheerajturaga @shubhamraj-git
 /providers/fab/ @vincbeck
 /providers/google/ @shahar1
 /providers/hashicorp/ @hussein-awala
@@ -115,11 +115,11 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /generated/provider_metadata.json @potiuk @eladkal @shahar1 @vincbeck @jscheffl
 
 # Provider Registry
-/registry/ @kaxil
-/dev/registry/ @kaxil
-/dev/breeze/src/airflow_breeze/commands/registry_commands*.py @kaxil
-/dev/breeze/src/airflow_breeze/utils/publish_registry_versions.py @kaxil
-/dev/breeze/tests/test_publish_registry_versions.py @kaxil
+/registry/ @kaxil @amoghrajesh
+/dev/registry/ @kaxil @amoghrajesh
+/dev/breeze/src/airflow_breeze/commands/registry_commands*.py @kaxil @amoghrajesh
+/dev/breeze/src/airflow_breeze/utils/publish_registry_versions.py @kaxil @amoghrajesh
+/dev/breeze/tests/test_publish_registry_versions.py @kaxil @amoghrajesh
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
@@ -179,12 +179,12 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ja
 /shared/ @ashb @amoghrajesh @potiuk
 
 # Agentic instructions
-/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
-/.claude/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @sjyangkevin @Dev-iL @jason810496 @shahar1 @choo121600
+/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.github/instructions/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/airflow-core/src/airflow/api_fastapi/execution_api/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/providers/AGENTS.md @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.github/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
+/.claude/skills/ @potiuk @kaxil @jscheffl @amoghrajesh @ashb @jason810496 @shahar1 @choo121600
 
 # RMs on release documents
 /dev/README_RELEASE_*.md @potiuk @jscheffl @vincbeck @shahar1 @jedcunningham @bugraoz93

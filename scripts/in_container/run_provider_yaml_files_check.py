@@ -379,6 +379,39 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
     return num_integrations, num_errors
 
 
+@run_check("Checking remote-logging scheme duplicates")
+def check_remote_logging_scheme_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    """Remote-logging ``scheme`` values must be globally unique across providers.
+
+    The scheme in ``[logging] remote_base_log_folder`` selects which provider's
+    ``RemoteLogIO`` handler serves a user's task logs. ``ProvidersManager`` resolves a
+    collision silently — the first provider in alphabetical order wins and the rest are
+    dropped — so a duplicate scheme can quietly shadow another provider's log handler.
+    Fail here so the clash is caught before it ships instead of at runtime.
+    """
+    num_errors = 0
+    packages_by_scheme: dict[str, set[str]] = {}
+    for provider_data in yaml_files.values():
+        package_name = provider_data["package-name"]
+        for entry in provider_data.get("remote-logging", []):
+            packages_by_scheme.setdefault(entry["scheme"], set()).add(package_name)
+    num_schemes = len(packages_by_scheme)
+    duplicates = [
+        (scheme, ", ".join(sorted(packages)))
+        for scheme, packages in sorted(packages_by_scheme.items())
+        if len(packages) > 1
+    ]
+    if duplicates:
+        console.print(
+            "Duplicate remote-logging schemes found. Each scheme may be registered by only "
+            "one provider; otherwise ProvidersManager silently keeps the first provider "
+            "alphabetically and shadows the others. Please give each handler a unique scheme."
+        )
+        errors.append(tabulate(duplicates, headers=["Remote-logging scheme", "Registered by"]))
+        num_errors += 1
+    return num_schemes, num_errors
+
+
 @run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles, toolsets}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     yaml_files: dict[str, dict],
@@ -418,14 +451,18 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     return num_modules, num_errors
 
 
-@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers, bundles, toolsets}")
+@run_check(
+    "Checking for duplicates in list of "
+    "{sensors, hooks, operators, triggers, bundles, toolsets, retry-policies}"
+)
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_integrations = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets"]
+        yaml_files.items(),
+        ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets", "retry-policies"],
     ):
         resource_data = provider_data.get(resource_type, [])
         count_integrations = Counter(r.get("integration-name", "") for r in resource_data)
@@ -487,6 +524,26 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
                 hook_class_names, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
             )
     return num_connection_types, num_errors
+
+
+@run_check("Checking that python-modules in retry-policies exist and belong to provider package")
+def check_retry_policy_modules_exist_and_belong_to_package(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    # parse_module_data's glob-based completeness check assumes a category's modules live in a
+    # directory named after its yaml key. Retry policies intentionally live under policies/ instead,
+    # so that check cannot be reused and this existence-only check stands in for it.
+    resource_type = "retry-policies"
+    num_errors = 0
+    num_retry_policy_modules = 0
+    for yaml_file_path, provider_data in yaml_files.items():
+        provider_package = _filepath_to_module(yaml_file_path)
+        resource_data = provider_data.get(resource_type)
+        if resource_data:
+            current_modules = {str(i) for r in resource_data for i in r.get("python-modules", [])}
+            num_retry_policy_modules += len(current_modules)
+            num_errors += check_if_objects_exist_and_belong_to_package(
+                current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
+            )
+    return num_retry_policy_modules, num_errors
 
 
 @run_check("Checking that conn-fields in provider.yaml match get_connection_form_widgets() of the hook class")
@@ -606,13 +663,13 @@ def check_hook_classes_with_conn_type_are_registered(yaml_files: dict[str, dict]
 
 
 @run_check(
-    "Checking that all provider Hook/Operator/Sensor/Trigger/Executor/Notifier/Toolset"
+    "Checking that all provider Hook/Operator/Sensor/Trigger/Executor/Notifier/Toolset/RetryPolicy"
     " classes are registered in provider.yaml"
 )
 def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """
     Walk all provider source files, find Hook/Operator/Sensor/Trigger/Executor/Notifier/
-    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager/Toolset subclasses, and
+    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager/Toolset/RetryPolicy subclasses, and
     verify they are registered in the appropriate provider.yaml section.
 
     This catches classes placed in non-standard directories or modules that were missed
@@ -626,6 +683,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
     from airflow.models.baseoperator import BaseOperator
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
+    from airflow.sdk.definitions.retry_policy import RetryPolicy
     from airflow.secrets.base_secrets import BaseSecretsBackend
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.base import BaseTrigger
@@ -646,6 +704,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
         (BaseDagBundle, "bundles"),
         (BaseDBManager, "db-managers"),
         (AbstractToolset, "toolsets"),
+        (RetryPolicy, "retry-policies"),
     ]
 
     # Resource types where registration is by class path (not module)
@@ -670,7 +729,15 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
 
         # Collect all modules registered in provider.yaml across all resource types
         registered_modules: set[str] = set()
-        for resource_type in ("hooks", "operators", "sensors", "triggers", "bundles", "toolsets"):
+        for resource_type in (
+            "hooks",
+            "operators",
+            "sensors",
+            "triggers",
+            "bundles",
+            "toolsets",
+            "retry-policies",
+        ):
             for entry in provider_data.get(resource_type, []):
                 registered_modules.update(entry.get("python-modules", []))
         for entry in provider_data.get("transfers", []):
@@ -905,7 +972,8 @@ def check_invalid_integration(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_integrations = len(all_integration_names)
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets"]
+        yaml_files.items(),
+        ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets", "retry-policies"],
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}
@@ -1118,11 +1186,13 @@ if __name__ == "__main__":
 
     all_files_loaded = len(all_provider_files) == len(paths)
     check_integration_duplicates(all_parsed_yaml_files)
+    check_remote_logging_scheme_duplicates(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_integrations_names_of_hooks_sensors_operators(all_parsed_yaml_files)
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
+    check_retry_policy_modules_exist_and_belong_to_package(all_parsed_yaml_files)
     check_conn_fields_match_form_widgets(all_parsed_yaml_files)
     check_hook_classes_with_conn_type_are_registered(all_parsed_yaml_files)
     check_executor_classes(all_parsed_yaml_files)

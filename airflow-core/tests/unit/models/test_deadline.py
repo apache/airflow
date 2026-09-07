@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -207,6 +208,23 @@ class TestDeadline:
             assert f"Run: {dagrun.id}" in repr_str
             assert f"needed by {DEFAULT_DATE}" in repr_str
             assert TEST_CALLBACK_PATH in repr_str
+
+    def test_repr_with_dagrun_id_but_no_dagrun_relationship(self, deadline_orm):
+        """__repr__ must NOT raise when dagrun_id is set but the dagrun relationship is None.
+
+        The FK (dagrun_id) can be set while the relationship resolves to None — e.g. the DagRun
+        was deleted (ondelete=CASCADE) and this is a stale/expired in-memory Deadline. A __repr__
+        that raised AttributeError here would break log lines, tracebacks, and debugger displays
+        exactly when something is already going wrong. The repr falls back to an id-only form.
+        """
+        # Sever the relationship while keeping the FK id (simulates deleted/detached DagRun).
+        deadline_orm.dagrun = None
+        assert deadline_orm.dagrun_id is not None
+
+        repr_str = repr(deadline_orm)  # must not raise
+        assert "[DagRun Deadline]" in repr_str
+        assert f"Run: {deadline_orm.dagrun_id}" in repr_str
+        assert "Dag: <unknown>" in repr_str
 
     @pytest.mark.db_test
     def test_bundle_name_propagated_to_callback(self, dagrun, session):
@@ -912,6 +930,44 @@ class TestDeadlineReferenceDecorator:
                 return timezone.datetime(DEFAULT_DATE)
 
         mock_register.assert_called_once_with(DecoratedCustomRef, timing)
+
+    def test_deadline_reference_decorator_without_parentheses(self):
+        @deadline_reference
+        class BareDecoratedRef(BaseDeadlineReference):
+            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                return timezone.datetime(DEFAULT_DATE)
+
+        # The decorated name must still be the class, not the inner decorator function.
+        assert isinstance(BareDecoratedRef, type)
+        assert issubclass(BareDecoratedRef, BaseDeadlineReference)
+
+        assert hasattr(DeadlineReference, BareDecoratedRef.__name__)
+        assert getattr(DeadlineReference, BareDecoratedRef.__name__).__class__ is BareDecoratedRef
+
+        assert_correct_timing(BareDecoratedRef, DeadlineReference.TYPES.DAGRUN_CREATED)
+        assert_builtin_types_unchanged(
+            DeadlineReference.TYPES.DAGRUN_QUEUED, DeadlineReference.TYPES.DAGRUN_CREATED
+        )
+
+    def test_deadline_reference_decorator_without_parentheses_invalid_class(self):
+        """Test that the bare form must inherit the base class."""
+        with pytest.raises(ValueError, match="InvalidBareRef must inherit from BaseDeadlineReference"):
+
+            @deadline_reference
+            class InvalidBareRef:
+                pass
+
+    def test_deadline_reference_requiring_arguments_raises_helpful_error(self):
+        """Test that a reference which cannot be instantiated with no arguments explains itself."""
+        with pytest.raises(TypeError, match="must be constructible with no arguments"):
+
+            @deadline_reference()
+            @dataclass
+            class RefWithRequiredField(BaseDeadlineReference):
+                required_field: str
+
+                def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
+                    return timezone.datetime(DEFAULT_DATE)
 
 
 @pytest.mark.db_test

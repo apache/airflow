@@ -174,6 +174,128 @@
                     "state": "failure"
                 }
             ]
+        },
+        "table_reload_complete": {
+            "operation": "DescribeTableStatistics",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Table completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Table is being reloaded",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Before load",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Full load",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Table cancelled",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Table does not exist",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
+                    "expected": "Table error",
+                    "state": "failure"
+                }
+            ]
+        },
+        "table_validation_complete": {
+            "operation": "DescribeTableStatistics",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Validated",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Pending records",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Pending validation",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Preparing table",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Pending revalidation",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Mismatched records",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Suspended records",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "No primary key",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Table error",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Error",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].ValidationState",
+                    "expected": "Not enabled",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }

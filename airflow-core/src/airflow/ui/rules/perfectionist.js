@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
@@ -60,6 +59,14 @@ export const perfectionistRules = /** @type {const} @satisfies {FlatConfig.Confi
      * @see [perfectionist/sort-enums](https://perfectionist.dev/rules/sort-enums)
      */
     [`${perfectionistNamespace}/sort-enums`]: ERROR,
+
+    /*
+     * `sort-imports` is intentionally left off: import order is owned by
+     * `@trivago/prettier-plugin-sort-imports` (see `importOrder` in
+     * `.prettierrc`). The prek hook runs `eslint --fix` before
+     * `prettier --write`, so enabling it here would let Prettier overwrite
+     * ESLint's ordering and leave `pnpm lint` failing with no possible fix.
+     */
 
     /**
      * Enforce sorted TypeScript interface properties.

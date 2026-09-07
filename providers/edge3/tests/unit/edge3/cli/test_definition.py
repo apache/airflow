@@ -160,6 +160,12 @@ class TestEdgeCliDefinition:
         assert args.state == ["running", "maintenance"]
         assert args.worker_name_pattern == "prod-*"
 
+    def test_list_workers_command_queues_arg(self):
+        """Test list-workers command with the queues filter."""
+        params = ["edge", "list-workers", "--queues", "gpu,default"]
+        args = self.arg_parser.parse_args(params)
+        assert args.queues == "gpu,default"
+
     def test_remote_edge_worker_request_maintenance_args(self):
         """Test remote-edge-worker-request-maintenance command with required arguments."""
         params = [

@@ -17,10 +17,12 @@
  * under the License.
  */
 import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+  SearchParamsKeys.RUN_ID_PATTERN,
   SearchParamsKeys.STATE,
   SearchParamsKeys.RUN_TYPE,
   SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,

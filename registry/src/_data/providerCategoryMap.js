@@ -19,6 +19,7 @@
 
 const providersData = require("./providers.json");
 const exploreCategories = require("./exploreCategories");
+const { providerMatchesKeyword } = require("./providerKeywordMatch");
 
 module.exports = function () {
   const map = {};
@@ -26,7 +27,7 @@ module.exports = function () {
     const cats = [];
     for (const category of exploreCategories) {
       for (const keyword of category.keywords) {
-        if (provider.id.includes(keyword) || keyword.includes(provider.id)) {
+        if (providerMatchesKeyword(provider, keyword)) {
           cats.push(category.id);
           break;
         }

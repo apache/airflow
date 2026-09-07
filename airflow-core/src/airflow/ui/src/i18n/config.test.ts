@@ -17,9 +17,11 @@
  * under the License.
  */
 import { createInstance } from "i18next";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { convertDetectedLanguage, i18nBaseOptions } from "./config";
+import { VersionService } from "openapi/requests/services.gen";
+
+import { convertDetectedLanguage, i18nBaseOptions, resolveI18nVersion } from "./config";
 
 // getBestMatchFromCodes is the resolver i18next runs on the array the
 // LanguageDetector returns. It is not part of i18next's public types
@@ -33,7 +35,7 @@ type LanguageUtils = { getBestMatchFromCodes: (codes: ReadonlyArray<string>) => 
 const resolveLanguage = async (navigatorLanguages: ReadonlyArray<string>): Promise<string> => {
   const instance = createInstance();
 
-  await instance.init({ ...i18nBaseOptions, initImmediate: false, resources: {} });
+  await instance.init({ ...i18nBaseOptions, resources: {} });
 
   const languageUtils = instance.services.languageUtils as LanguageUtils;
 
@@ -87,5 +89,19 @@ describe("i18n language resolution", () => {
   it("still honors a genuinely preferred non-English language", async () => {
     expect(await resolveLanguage(["hi"])).toBe("hi");
     expect(await resolveLanguage(["hi-IN", "en"])).toBe("hi");
+  });
+});
+
+describe("resolveI18nVersion", () => {
+  it("resolves to the running version", async () => {
+    vi.spyOn(VersionService, "getVersion").mockResolvedValueOnce({ git_version: null, version: "3.2.2" });
+
+    await expect(resolveI18nVersion()).resolves.toBe("3.2.2");
+  });
+
+  it("falls back to a cache-busting value, not an empty string, when the version lookup fails", async () => {
+    vi.spyOn(VersionService, "getVersion").mockRejectedValueOnce(new Error("network error"));
+
+    await expect(resolveI18nVersion()).resolves.not.toBe("");
   });
 });

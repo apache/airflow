@@ -33,6 +33,9 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
+import org.apache.airflow.sdk.execution.comm.ErrorResponse
+import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.runTask
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
 
@@ -144,24 +147,50 @@ class Server(
 
       launch {
         try {
-          aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(comm).use { socket ->
-            logger.debug("Connected comm", mapOf("addr" to comm))
-            CoordinatorComm(
-              bundle,
-              socket.openReadChannel(),
-              socket.openWriteChannel(autoFlush = true),
-            ).startProcessing()
+          SelectorManager(Dispatchers.IO).use { selector ->
+            aSocket(selector).tcp().connect(comm).use { socket ->
+              logger.debug("Connected comm", mapOf("addr" to comm))
+              CoordinatorComm(
+                socket.openReadChannel(),
+                socket.openWriteChannel(autoFlush = true),
+              ).use { coordinator ->
+                dispatchTask(bundle, coordinator)
+              }
+            }
           }
         } finally {
           deferral.complete(Unit)
         }
       }
       launch {
-        aSocket(SelectorManager(Dispatchers.IO)).tcp().connect(logs).use { socket ->
-          logger.debug("Connected logs", mapOf("addr" to logs))
-          LogSender.configure(socket.openWriteChannel(autoFlush = true))
-          deferral.await()
+        SelectorManager(Dispatchers.IO).use { selector ->
+          aSocket(selector).tcp().connect(logs).use { socket ->
+            logger.debug("Connected logs", mapOf("addr" to logs))
+            LogSender.configure(socket.openWriteChannel(autoFlush = true))
+            deferral.await()
+          }
         }
       }
     }
+
+  internal suspend fun dispatchTask(
+    bundle: Bundle,
+    coordinator: CoordinatorComm,
+  ) {
+    val frame = coordinator.readMessage()
+    when (val body = frame.body) {
+      is StartupDetails -> runTaskAndReport(bundle, body, coordinator)
+      is ErrorResponse -> throw ApiError("[${body.error}] ${body.detail}")
+      else -> throw ApiError("Unexpected initial frame (id=${frame.id})")
+    }
+  }
+
+  private suspend fun runTaskAndReport(
+    bundle: Bundle,
+    startup: StartupDetails,
+    coordinator: CoordinatorComm,
+  ) {
+    val result = runTask(bundle, startup, coordinator)
+    coordinator.communicate<Unit>(result)
+  }
 }

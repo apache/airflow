@@ -37,8 +37,7 @@ from airflow.providers.cncf.kubernetes.operators.job import (
 )
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 

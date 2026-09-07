@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import cast
+from decimal import ROUND_FLOOR, Context
+from typing import TYPE_CHECKING, cast
 
 from fastapi import Depends, status
-from sqlalchemy import func, literal, select, union_all
+from sqlalchemy import func, select
 from sqlalchemy.sql.expression import case, false
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import EXACT_COUNT_LIMIT, SessionDep
 from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.dashboard import (
@@ -38,11 +39,42 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
 
-# Cap for state counts — avoids counting millions of rows.
-# The UI shows "N+" when the returned count equals this value.
-STATE_COUNT_CAP = 1000
+
+_ROUNDING = Context(prec=2, rounding=ROUND_FLOOR)
+
+
+def _round_down(value: int) -> int:
+    """Round to two significant digits, never upwards: that would claim uncounted rows."""
+    return int(_ROUNDING.create_decimal(value))
+
+
+def _compute_state_counts(
+    model, filters, *, session: Session, join=None, null_label: str | None = None
+) -> tuple[dict[str, int], bool]:
+    """
+    Per-state counts for the window, and whether they are lower bounds rather than exact.
+
+    A scan that stopped early counted only some of the rows, but each count is still a floor
+    on the real value.
+    """
+    stmt = select(model.state.label("state")).select_from(model)
+    if join is not None:
+        stmt = stmt.join(join)
+    window = stmt.where(*filters).limit(EXACT_COUNT_LIMIT + 1).subquery()
+    rows = session.execute(select(window.c.state, func.count().label("cnt")).group_by(window.c.state)).all()
+    are_lower_bounds = sum(row.cnt for row in rows) > EXACT_COUNT_LIMIT
+    counts: dict[str, int] = {}
+    for row in rows:
+        label = row.state or null_label
+        if label is None:
+            continue
+        counts[label] = _round_down(row.cnt) if are_lower_bounds else row.cnt
+    return counts, are_lower_bounds
 
 
 @dashboard_router.get(
@@ -70,50 +102,31 @@ def historical_metrics(
         DagRun.dag_id.in_(permitted_dag_ids),
     ]
 
-    # Build one LIMIT-capped subquery per state, then UNION ALL them into a
-    # single query.  Every state gets the same treatment: at most STATE_COUNT_CAP
-    # rows are read from the index, so even states with millions of rows
-    # (typically "success") are counted in single-digit milliseconds.
-    # Each branch is wrapped in a subquery so LIMIT works on all backends
-    # (SQLite rejects LIMIT inside bare UNION ALL arms).
-    def _capped_state_counts(model, states, label_fn, join=None):
-        branches = []
-        for state in states:
-            stmt = select(literal(label_fn(state)).label("state")).select_from(model)
-            if join is not None:
-                stmt = stmt.join(join)
-            branch = (
-                stmt.where(*dag_run_filters)
-                .where(model.state == state if state else model.state.is_(None))
-                .limit(STATE_COUNT_CAP)
-                .subquery()
-            )
-            branches.append(select(branch.c.state))
-        capped = union_all(*branches).subquery()
-        return session.execute(
-            select(capped.c.state, func.count().label("cnt")).group_by(capped.c.state)
-        ).all()
-
-    dag_run_state_counts = _capped_state_counts(DagRun, list(DagRunState), lambda s: s.value)
-    ti_state_counts = _capped_state_counts(
+    # Judged separately: dag runs often fit when task instances do not.
+    dag_run_states, dag_runs_are_lower_bounds = _compute_state_counts(
+        DagRun, dag_run_filters, session=session
+    )
+    task_instance_states, task_instances_are_lower_bounds = _compute_state_counts(
         TaskInstance,
-        [None, *TaskInstanceState],
-        lambda s: s.value if s else "no_status",
+        dag_run_filters,
+        session=session,
         join=TaskInstance.dag_run,
+        null_label="no_status",
     )
 
     return HistoricalMetricDataResponse.model_validate(
         {
             "dag_run_states": {
                 **{dag_run_state.value: 0 for dag_run_state in DagRunState},
-                **{row.state: row.cnt for row in dag_run_state_counts},
+                **dag_run_states,
             },
             "task_instance_states": {
                 "no_status": 0,
                 **{ti_state.value: 0 for ti_state in TaskInstanceState},
-                **{row.state: row.cnt for row in ti_state_counts},
+                **task_instance_states,
             },
-            "state_count_limit": STATE_COUNT_CAP,
+            "dag_run_counts_are_lower_bounds": dag_runs_are_lower_bounds,
+            "task_instance_counts_are_lower_bounds": task_instances_are_lower_bounds,
         }
     )
 

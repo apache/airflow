@@ -51,7 +51,9 @@ class TestCliConnectionCommands:
                 port=1234,
                 extra="{}",
                 description="Test connection description",
-            )
+                schema=None,
+                team_name=None,
+            )  # type: ignore[call-arg]
         ],
         total_entries=1,
     )

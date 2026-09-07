@@ -198,15 +198,15 @@ internal class Logger(
     arguments: Map<String, Any> = emptyMap(),
   ) = log(Level.DEBUG, message, arguments)
 
-  fun error(
-    message: String,
-    arguments: Map<String, Any> = emptyMap(),
-  ) = log(Level.ERROR, message, arguments)
-
   fun warning(
     message: String,
     arguments: Map<String, Any> = emptyMap(),
   ) = log(Level.WARNING, message, arguments)
+
+  fun error(
+    message: String,
+    arguments: Map<String, Any> = emptyMap(),
+  ) = log(Level.ERROR, message, arguments)
 
   private fun log(
     level: Level,

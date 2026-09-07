@@ -21,7 +21,9 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const BAR_WIDTH = 100;
@@ -48,6 +50,7 @@ export const MetricSection = ({
   state,
   total,
 }: MetricSectionProps) => {
+  // A lower bound has no known proportion, so it deliberately fills the bar.
   const stateWidth = capped ? BAR_WIDTH : total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
   const hidePercent = isTotalTruncated;
@@ -57,7 +60,7 @@ export const MetricSection = ({
   const searchParams = new URLSearchParams(
     `?${stateParam}=${state}&${SearchParamsKeys.START_DATE_GTE}=${startDate}`,
   );
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
 
   if (endDate !== undefined) {
     searchParams.append(SearchParamsKeys.END_DATE, endDate);
@@ -70,7 +73,7 @@ export const MetricSection = ({
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {}
-              {capped ? `${runs}+` : runs}
+              {`${runs.toLocaleString(i18n.language)}${capped ? "+" : ""}`}
             </StateBadge>
           </RouterLink>
           <Text>{translate(`states.${state}`)}</Text>

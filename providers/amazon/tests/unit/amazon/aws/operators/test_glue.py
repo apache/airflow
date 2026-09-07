@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import re
+import warnings
 from collections.abc import Generator
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -24,20 +26,26 @@ from unittest import mock
 import boto3
 import pytest
 from boto3 import client
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
+from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import (
+    _DURABLE_UNSET,
     GlueDataQualityOperator,
     GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -48,6 +56,16 @@ TASK_ID = "test_glue_operator"
 DAG_ID = "test_dag_id"
 JOB_NAME = "test_job_name/with_slash"
 JOB_RUN_ID = "11111"
+
+_DEPRECATION_MESSAGE_PREFIX = (
+    "`resume_glue_job_on_retry` is deprecated and will be removed once this provider's "
+    "minimum supported Airflow version reaches 3.3. "
+)
+DEPRECATION_MESSAGE_PRE_3_3 = _DEPRECATION_MESSAGE_PREFIX + "On Airflow 3.3+, use `durable` instead."
+DEPRECATION_MESSAGE_3_3_PLUS = _DEPRECATION_MESSAGE_PREFIX + "Use `durable` instead."
+EXPECTED_DEPRECATION_MESSAGE = (
+    DEPRECATION_MESSAGE_3_3_PLUS if AIRFLOW_V_3_3_PLUS else DEPRECATION_MESSAGE_PRE_3_3
+)
 
 
 class TestGlueJobOperator:
@@ -99,6 +117,7 @@ class TestGlueJobOperator:
         script_location,
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location=script_location,
@@ -120,6 +139,7 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_role_arn_execute_deferrable(self, _, mock_initialize_job):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -141,6 +161,7 @@ class TestGlueJobOperator:
     @mock.patch.object(GlueJobHook, "get_conn")
     def test_execute_deferrable(self, _, mock_initialize_job):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -163,6 +184,116 @@ class TestGlueJobOperator:
         assert defer.value.trigger.attempts == 75
         assert defer.value.trigger.aws_conn_id == "aws_default"
 
+    @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_first_attempt_injects_task_uuid_but_skips_scan(
+        self, mock_get_conn, mock_initialize_job, mock_conn
+    ):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_ti = mock.MagicMock()
+        mock_ti.try_number = 1
+
+        with pytest.raises(TaskDeferred):
+            glue.execute({"ti": mock_ti})
+
+        call_args = mock_initialize_job.call_args[0][0]
+        assert GlueJobOperator.TASK_UUID_ARG in call_args
+        mock_conn.return_value.get_job_runs.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_reattaches_via_task_uuid_scan(self, mock_get_conn, mock_initialize_job):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(
+                task_id=TASK_ID,
+                job_name=JOB_NAME,
+                script_location="s3://folder/file",
+                deferrable=True,
+                resume_glue_job_on_retry=True,
+            )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
+
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {
+            "JobRuns": [
+                {
+                    "Id": JOB_RUN_ID,
+                    "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                    "JobRunState": "RUNNING",
+                }
+            ]
+        }
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute({"ti": mock_ti})
+
+        assert defer.value.trigger.run_id == JOB_RUN_ID
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="task_state_store only exists as an execute() context key on Airflow 3.3+",
+    )
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_reattaches_via_fallback_when_task_store_errors(
+        self, mock_get_conn, mock_initialize_job
+    ):
+        glue = GlueJobOperator(
+            durable=True,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            deferrable=True,
+        )
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
+
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {
+            "JobRuns": [
+                {
+                    "Id": JOB_RUN_ID,
+                    "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                    "JobRunState": "RUNNING",
+                }
+            ]
+        }
+        erroring_store = mock.MagicMock()
+        erroring_store.get.side_effect = RuntimeError("store unavailable")
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute({"ti": mock_ti, "task_state_store": erroring_store})
+
+        assert defer.value.trigger.run_id == JOB_RUN_ID
+        mock_initialize_job.assert_not_called()
+        mock_initialize_job.assert_not_called()
+
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
     @mock.patch.object(GlueJobHook, "initialize_job")
@@ -172,6 +303,7 @@ class TestGlueJobOperator:
         self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_print_job_logs
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3_uri",
@@ -199,6 +331,7 @@ class TestGlueJobOperator:
         self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_print_job_logs
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3_uri",
@@ -224,6 +357,7 @@ class TestGlueJobOperator:
         self, mock_load_file, mock_get_conn, mock_initialize_job, mock_job_completion, mock_print_job_logs
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
@@ -253,6 +387,7 @@ class TestGlueJobOperator:
     ):
         region = "us-west-2"
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
@@ -328,6 +463,7 @@ class TestGlueJobOperator:
         self, mock_load_file, mock_conn, mock_get_connection, mock_initialize_job, mock_get_job_state
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="folder/file",
@@ -360,6 +496,7 @@ class TestGlueJobOperator:
         mock_get_job_state,
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://my_bucket/folder/file",
@@ -391,6 +528,7 @@ class TestGlueJobOperator:
         mock_get_job_state,
     ):
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             iam_role_name="role_arn",
@@ -436,56 +574,49 @@ class TestGlueJobOperator:
 
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "initialize_job")
-    def test_check_previous_job_id_run_reuse_in_progress(self, mock_initialize_job, mock_get_conn):
-        """Test that when resume_glue_job_on_retry=True and previous job is in progress, it is reused."""
-        glue = GlueJobOperator(
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            s3_bucket="some_bucket",
-            iam_role_name="my_test_role",
-            resume_glue_job_on_retry=True,
-            wait_for_completion=False,
-        )
+    @pytest.mark.parametrize("state", ["RUNNING", "STARTING", "WAITING", "STOPPING"])
+    def test_find_previous_job_run_reuses_from_xcom(self, mock_initialize_job, mock_get_conn, state):
+        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    script_location="s3://folder/file",
+                    aws_conn_id="aws_default",
+                    region_name="us-west-2",
+                    s3_bucket="some_bucket",
+                    iam_role_name="my_test_role",
+                    wait_for_completion=False,
+                    resume_glue_job_on_retry=True,
+                )
 
-        # Mock the context and task instance
-        mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+            mock_ti = mock.MagicMock()
+            mock_ti.try_number = 2  # the lookup only runs on a retry
+            previous_job_run_id = "previous_run_12345"
+            mock_ti.xcom_pull.return_value = previous_job_run_id
+            mock_context = {"ti": mock_ti}
 
-        # Simulate previous job_run_id in XCom
-        previous_job_run_id = "previous_run_12345"
-        mock_ti.xcom_pull.return_value = previous_job_run_id
+            mock_glue_client = mock.MagicMock()
+            glue.hook.conn = mock_glue_client
+            mock_glue_client.get_job_run.return_value = {"JobRun": {"JobRunState": state}}
 
-        # Mock the Glue client to return RUNNING state for the previous job
-        mock_glue_client = mock.MagicMock()
-        glue.hook.conn = mock_glue_client
-        mock_glue_client.get_job_run.return_value = {
-            "JobRun": {
-                "JobRunState": "RUNNING",
-            }
-        }
+            job_run_id = glue.execute(mock_context)
 
-        # Execute the operator
-        glue.execute(mock_context)
-
-        # Verify that the previous job_run_id was reused
+        assert job_run_id == previous_job_run_id
         assert glue._job_run_id == previous_job_run_id
-        # Verify that initialize_job was NOT called
         mock_initialize_job.assert_not_called()
-        # Verify that XCom push was not called for glue_job_run_id (since we reused the previous one)
-        # Note: xcom_push may be called for other purposes like glue_job_run_details
-        xcom_calls = [
-            call for call in mock_ti.xcom_push.call_args_list if call[1].get("key") == "glue_job_run_id"
-        ]
-        assert len(xcom_calls) == 0, "Should not push new glue_job_run_id when reusing previous one"
+        mock_glue_client.get_job_runs.assert_not_called()
 
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "initialize_job")
-    def test_check_previous_job_id_run_new_on_finished(self, mock_initialize_job, mock_get_conn):
-        """Test that when previous job is finished, a new job is started and pushed to XCom."""
+    def test_find_previous_job_run_does_not_fall_back_to_scan_on_xcom_state_mismatch(
+        self, mock_initialize_job, mock_get_conn
+    ):
+        """A stale XCom state doesn't fall back to the task-UUID scan -- it's elif, not a chain."""
         glue = GlueJobOperator(
+            durable=True,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -493,100 +624,77 @@ class TestGlueJobOperator:
             region_name="us-west-2",
             s3_bucket="some_bucket",
             iam_role_name="my_test_role",
-            resume_glue_job_on_retry=True,
             wait_for_completion=False,
         )
 
-        # Mock the context and task instance
         mock_ti = mock.MagicMock()
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = "previous_run_12345"
         mock_context = {"ti": mock_ti}
 
-        # Simulate previous job_run_id in XCom
-        previous_job_run_id = "previous_run_12345"
-        mock_ti.xcom_pull.return_value = previous_job_run_id
-
-        # Mock the Glue client to return SUCCEEDED state for the previous job
         mock_glue_client = mock.MagicMock()
         glue.hook.conn = mock_glue_client
-        mock_glue_client.get_job_run.return_value = {
-            "JobRun": {
-                "JobRunState": "SUCCEEDED",
-            }
-        }
+        mock_glue_client.get_job_run.return_value = {"JobRun": {"JobRunState": "SUCCEEDED"}}
 
-        # Mock initialize_job to return a new job run ID
         new_job_run_id = "new_run_67890"
-        mock_initialize_job.return_value = {
-            "JobRunState": "RUNNING",
-            "JobRunId": new_job_run_id,
-        }
+        mock_initialize_job.return_value = {"JobRunId": new_job_run_id}
 
-        # Execute the operator
-        glue.execute(mock_context)
+        job_run_id = glue.execute(mock_context)
 
-        # Verify that a new job_run_id was created
-        assert glue._job_run_id == new_job_run_id
-        # Verify that initialize_job was called
+        assert job_run_id == new_job_run_id
         mock_initialize_job.assert_called_once()
-        # Verify that the new job_run_id was pushed to XCom
-        xcom_calls = [
-            call for call in mock_ti.xcom_push.call_args_list if call[1].get("key") == "glue_job_run_id"
-        ]
-        assert len(xcom_calls) == 1, "Should push new glue_job_run_id"
-        assert xcom_calls[0][1]["value"] == new_job_run_id
+        mock_glue_client.get_job_runs.assert_not_called()
+        mock_ti.xcom_push.assert_any_call(key="glue_job_run_id", value=new_job_run_id)
 
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "initialize_job")
-    def test_resume_glue_job_on_retry_find_job_run_by_task_uuid(self, mock_initialize_job, mock_get_conn):
-        """Test that when XCom is missing, job run is found by task UUID."""
-        glue = GlueJobOperator(
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            aws_conn_id="aws_default",
-            region_name="us-west-2",
-            s3_bucket="some_bucket",
-            iam_role_name="my_test_role",
-            resume_glue_job_on_retry=True,
-            wait_for_completion=False,
-        )
+    @pytest.mark.parametrize("state", ["RUNNING", "STARTING", "WAITING", "STOPPING"])
+    def test_find_job_run_by_task_uuid_reconnects(self, mock_initialize_job, mock_get_conn, state):
+        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    script_location="s3://folder/file",
+                    aws_conn_id="aws_default",
+                    region_name="us-west-2",
+                    s3_bucket="some_bucket",
+                    iam_role_name="my_test_role",
+                    wait_for_completion=False,
+                    resume_glue_job_on_retry=True,
+                )
 
-        mock_ti = mock.MagicMock()
-        mock_ti.dag_id = "test_dag_id"
-        mock_ti.task_id = TASK_ID
-        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
-        mock_ti.map_index = -1
-        mock_ti.xcom_pull.return_value = None
-        mock_context = {"ti": mock_ti}
+            mock_ti = mock.MagicMock()
+            mock_ti.dag_id = "test_dag_id"
+            mock_ti.task_id = TASK_ID
+            mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+            mock_ti.map_index = -1
+            mock_ti.try_number = 2
+            mock_ti.xcom_pull.return_value = None
+            mock_context = {"ti": mock_ti}
 
-        task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
+            task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
 
-        mock_glue_client = mock.MagicMock()
-        glue.hook.conn = mock_glue_client
-        mock_glue_client.get_job_runs.return_value = {
-            "JobRuns": [
-                {
-                    "Id": "existing_run_123",
-                    "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
-                    "JobRunState": "STARTING",
-                }
-            ]
-        }
-        mock_glue_client.get_job_run.return_value = {
-            "JobRun": {
-                "JobRunState": "RUNNING",
+            mock_glue_client = mock.MagicMock()
+            glue.hook.conn = mock_glue_client
+            mock_glue_client.get_job_runs.return_value = {
+                "JobRuns": [
+                    {
+                        "Id": "existing_run_123",
+                        "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                        "JobRunState": state,
+                    }
+                ]
             }
-        }
 
-        glue.execute(mock_context)
+            job_run_id = glue.execute(mock_context)
 
+        assert job_run_id == "existing_run_123"
         assert glue._job_run_id == "existing_run_123"
         mock_initialize_job.assert_not_called()
-        xcom_calls = [
-            call for call in mock_ti.xcom_push.call_args_list if call[1].get("key") == "glue_job_run_id"
-        ]
-        assert len(xcom_calls) == 1, "Should push existing glue_job_run_id when found by task UUID"
-        assert xcom_calls[0][1]["value"] == "existing_run_123"
+        mock_ti.xcom_push.assert_any_call(key="glue_job_run_id", value="existing_run_123")
 
 
 class TestGlueJobOperatorOpenLineageInjection:
@@ -607,6 +715,7 @@ class TestGlueJobOperatorOpenLineageInjection:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -633,6 +742,7 @@ class TestGlueJobOperatorOpenLineageInjection:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -659,6 +769,7 @@ class TestGlueJobOperatorOpenLineageInjection:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -696,6 +807,7 @@ class TestGlueJobOperatorOpenLineageInjection:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -727,6 +839,7 @@ class TestGlueJobOperatorOpenLineageInjection:
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
         glue = GlueJobOperator(
+            durable=False,
             task_id=TASK_ID,
             job_name=JOB_NAME,
             script_location="s3://folder/file",
@@ -746,7 +859,7 @@ class TestGlueJobOperatorOpenLineageInjection:
     @mock.patch(
         "airflow.providers.amazon.aws.operators.glue.inject_parent_job_information_into_glue_arguments"
     )
-    def test_inject_parent_job_info_with_resume_on_retry(
+    def test_inject_parent_job_info_with_durable_scan(
         self, mock_inject_parent, mock_initialize_job, mock_get_conn
     ):
         """OL injection is applied before task UUID is added; both end up in the args passed to initialize_job."""
@@ -756,26 +869,432 @@ class TestGlueJobOperatorOpenLineageInjection:
         }
         mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
 
-        glue = GlueJobOperator(
-            task_id=TASK_ID,
-            job_name=JOB_NAME,
-            script_location="s3://folder/file",
-            iam_role_name="my_test_role",
-            wait_for_completion=False,
-            openlineage_inject_parent_job_info=True,
-            resume_glue_job_on_retry=True,
-        )
+        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    script_location="s3://folder/file",
+                    iam_role_name="my_test_role",
+                    wait_for_completion=False,
+                    openlineage_inject_parent_job_info=True,
+                    resume_glue_job_on_retry=True,
+                )
 
-        mock_ti = mock.MagicMock()
-        mock_ti.xcom_pull.return_value = None  # no previous run
-        context = {"ti": mock_ti}
-        glue.execute(context)
+            mock_ti = mock.MagicMock()
+            mock_ti.try_number = 2
+            mock_ti.xcom_pull.return_value = None
+            context = {"ti": mock_ti}
+            mock_glue_client = mock.MagicMock()
+            glue.hook.conn = mock_glue_client
+            mock_glue_client.get_job_runs.return_value = {"JobRuns": []}
+            glue.execute(context)
 
         mock_inject_parent.assert_called_once()
         # The injected OL arg and the task UUID arg should both be present
         call_args = mock_initialize_job.call_args[0][0]
         assert "--conf" in call_args
         assert GlueJobOperator.TASK_UUID_ARG in call_args
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
+
+
+class TestGlueJobOperatorDeprecation:
+    @pytest.mark.parametrize("resume_value", [True, False])
+    def test_warns_and_maps_to_durable_old_flag(self, resume_value):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(EXPECTED_DEPRECATION_MESSAGE)}$"
+        ):
+            glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=resume_value)
+        assert glue.durable is resume_value
+
+    def test_warns_on_every_supported_airflow_version(self):
+        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, resume_glue_job_on_retry=True)
+
+    def test_default_args_durable_reaches_operator(self):
+        with DAG(
+            dag_id="test_glue_durable_default_args",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+            default_args={"durable": False},
+        ):
+            glue = GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME)
+        assert glue.durable is False
+
+    def test_legacy_flag_wins_over_conflicting_durable_below_3_3(self):
+        with mock.patch("airflow.providers.amazon.aws.operators.glue.AIRFLOW_V_3_3_PLUS", False):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_PRE_3_3)}$"
+            ):
+                glue = GlueJobOperator(
+                    task_id=TASK_ID,
+                    job_name=JOB_NAME,
+                    durable=False,
+                    resume_glue_job_on_retry=True,
+                )
+        # assert that glube.durable is True even though durable is set to False, because resume_glue_job_on_retry takes precedence in this case.
+        assert glue.durable is True
+
+
+class FakeTaskStateStore:
+    """In-memory task state store for tests."""
+
+    def __init__(self, stored: dict[str, str] | None = None):
+        self._store: dict[str, str] = dict(stored or {})
+
+    def get(self, key: str) -> str | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: str) -> None:
+        self._store[key] = value
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+)
+class TestGlueJobOperatorDurableExecution:
+    def _build(self, **kwargs):
+        return GlueJobOperator(task_id=TASK_ID, job_name=JOB_NAME, **kwargs)
+
+    def _stub_empty_scan(self, glue):
+        # submit_job scans for a task UUID tagged run whenever durable is set, regardless of why it
+        # was called. Stub it to return no matches so tests don't depend on that fallback mechanism.
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {"JobRuns": []}
+
+    def _context(self, store=None, try_number=2):
+        ti = mock.MagicMock()
+        ti.try_number = try_number
+        ti.xcom_pull.return_value = None
+        ctx = {"ti": ti}
+        if store is not None:
+            ctx["task_state_store"] = store
+        return ctx
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_fresh_submit_persists_before_polling(
+        self, mock_get_conn, mock_initialize_job, mock_job_completion
+    ):
+        glue = self._build(durable=True)
+        self._stub_empty_scan(glue)
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        store = FakeTaskStateStore()
+        persisted_before_poll = []
+        mock_job_completion.side_effect = lambda *a, **k: (
+            persisted_before_poll.append(store.get("glue_job_run_id")) or {"JobRunState": "SUCCEEDED"}
+        )
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_new"
+        assert store.get("glue_job_run_id") == "jr_new"
+        assert persisted_before_poll == ["jr_new"]
+        mock_initialize_job.assert_called_once()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_reconnect_when_stored_run_is_running(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        glue = self._build(durable=True)
+        mock_get_job_state.return_value = "RUNNING"
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+        context = self._context(store)
+
+        job_run_id = glue.execute(context)
+
+        assert job_run_id == "jr_old"
+        mock_initialize_job.assert_not_called()
+        mock_job_completion.assert_called_once_with(JOB_NAME, "jr_old", False, 0)
+        context["ti"].xcom_push.assert_any_call(key="glue_job_run_id", value="jr_old")
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_legacy_flag_still_warns_and_reconnects_like_durable(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        """resume_glue_job_on_retry warns on 3.3+, but durable execution behaves identically to durable=True."""
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=f"^{re.escape(DEPRECATION_MESSAGE_3_3_PLUS)}$"
+        ):
+            glue = self._build(resume_glue_job_on_retry=True)
+        mock_get_job_state.return_value = "RUNNING"
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_old"
+        mock_initialize_job.assert_not_called()
+
+    @pytest.mark.parametrize("status", ["STARTING", "RUNNING", "WAITING", "STOPPING"])
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_reconnect_from_every_active_state(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion, status
+    ):
+        glue = self._build(durable=True)
+        mock_get_job_state.return_value = status
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        glue.execute(self._context(store))
+
+        mock_initialize_job.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_reconnect_to_stopping_run_that_settles_stopped_raises(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        glue = self._build(durable=True)
+        mock_get_job_state.return_value = "STOPPING"
+        mock_job_completion.return_value = {"JobRunState": "STOPPED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        with pytest.raises(GlueJobRunStoppedError, match="jr_old"):
+            glue.execute(self._context(store))
+
+        mock_initialize_job.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_already_succeeded_returns_without_resubmit(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        glue = self._build(durable=True)
+        mock_get_job_state.return_value = "SUCCEEDED"
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+        context = self._context(store)
+
+        job_run_id = glue.execute(context)
+
+        assert job_run_id == "jr_old"
+        mock_initialize_job.assert_not_called()
+        mock_job_completion.assert_not_called()
+        context["ti"].xcom_push.assert_any_call(key="glue_job_run_id", value="jr_old")
+
+    @pytest.mark.parametrize("status", ["FAILED", "TIMEOUT", "STOPPED"])
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_terminal_failure_resubmits_fresh(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion, status
+    ):
+        glue = self._build(durable=True)
+        self._stub_empty_scan(glue)
+        mock_get_job_state.return_value = status
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_new"
+        assert store.get("glue_job_run_id") == "jr_new"
+        mock_initialize_job.assert_called_once()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_terminal_resubmit_skips_the_scan_when_store_already_had_an_id(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        glue = self._build(durable=True)
+        glue.hook.conn = mock.MagicMock()
+        mock_get_job_state.return_value = "FAILED"
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_new"
+        glue.hook.conn.get_job_runs.assert_not_called()
+        mock_initialize_job.assert_called_once()
+
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_terminal_resubmit_clears_stale_id_if_initialize_job_fails(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state
+    ):
+        glue = self._build(durable=True, stop_job_run_on_kill=True)
+        glue.hook.conn = mock.MagicMock()
+        mock_get_job_state.return_value = "FAILED"
+        mock_initialize_job.side_effect = ClientError(
+            {"Error": {"Code": "Throttling", "Message": "slow down"}}, "StartJobRun"
+        )
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        with pytest.raises(ClientError):
+            glue.execute(self._context(store))
+
+        assert glue._job_run_id is None
+        glue.on_kill()
+        glue.hook.conn.batch_stop_job_run.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_not_found_resubmits_fresh(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_job_completion
+    ):
+        glue = self._build(durable=True)
+        self._stub_empty_scan(glue)
+        mock_get_job_state.side_effect = ClientError(
+            {"Error": {"Code": "EntityNotFoundException", "Message": "gone"}}, "GetJobRun"
+        )
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_new"
+        mock_initialize_job.assert_called_once()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_durable_false_never_touches_store(self, mock_get_conn, mock_initialize_job, mock_job_completion):
+        glue = self._build(durable=False)
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore({"glue_job_run_id": "jr_old"})
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_new"
+        assert store.get("glue_job_run_id") == "jr_old", "store must be left untouched"
+        mock_initialize_job.assert_called_once()
+
+    @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_first_attempt_skips_the_retry_lookup_entirely(
+        self, mock_get_conn, mock_initialize_job, mock_job_completion, mock_conn
+    ):
+        glue = self._build(durable=True)
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore()
+
+        job_run_id = glue.execute(self._context(store, try_number=1))
+
+        assert job_run_id == "jr_new"
+        mock_initialize_job.assert_called_once()
+        # No tag needed on 3.3+ synchronous runs: task_state_store is the sole reconnect mechanism.
+        assert GlueJobOperator.TASK_UUID_ARG not in mock_initialize_job.call_args[0][0]
+        mock_conn.return_value.get_job_run.assert_not_called()
+        mock_conn.return_value.get_job_runs.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_retry_on_3_3_plus_sync_never_scans_or_tags(
+        self, mock_get_conn, mock_initialize_job, mock_job_completion, mock_conn
+    ):
+        glue = self._build(durable=True)
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        mock_job_completion.return_value = {"JobRunState": "SUCCEEDED"}
+        store = FakeTaskStateStore()
+
+        job_run_id = glue.execute(self._context(store, try_number=3))
+
+        assert job_run_id == "jr_new"
+        assert GlueJobOperator.TASK_UUID_ARG not in mock_initialize_job.call_args[0][0]
+        mock_conn.return_value.get_job_run.assert_not_called()
+        mock_conn.return_value.get_job_runs.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "job_completion")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_wait_for_completion_false_still_persists_immediately(
+        self, mock_get_conn, mock_initialize_job, mock_job_completion
+    ):
+        glue = self._build(durable=True, wait_for_completion=False)
+        self._stub_empty_scan(glue)
+        mock_initialize_job.return_value = {"JobRunId": "jr_new"}
+        store = FakeTaskStateStore()
+
+        job_run_id = glue.execute(self._context(store))
+
+        assert job_run_id == "jr_new"
+        assert store.get("glue_job_run_id") == "jr_new"
+        mock_job_completion.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("status", "expected_active"),
+        [
+            ("STARTING", True),
+            ("RUNNING", True),
+            ("WAITING", True),
+            ("STOPPING", True),
+            ("SUCCEEDED", False),
+            ("STOPPED", False),
+            ("FAILED", False),
+            ("TIMEOUT", False),
+            ("ERROR", False),
+            ("EXPIRED", False),
+            ("NOT_FOUND", False),
+            ("SOME_FUTURE_STATE", True),
+        ],
+    )
+    def test_is_job_active(self, status, expected_active):
+        glue = self._build()
+        assert glue.is_job_active(status) is expected_active
+
+    @pytest.mark.parametrize(
+        ("status", "expected_succeeded"),
+        [
+            ("SUCCEEDED", True),
+            ("STOPPED", False),
+            ("RUNNING", False),
+            ("FAILED", False),
+        ],
+    )
+    def test_is_job_succeeded(self, status, expected_succeeded):
+        glue = self._build()
+        assert glue.is_job_succeeded(status) is expected_succeeded
 
 
 class TestGlueDataQualityOperator:

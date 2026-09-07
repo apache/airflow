@@ -1,5 +1,8 @@
 {
   "additional_data": "Zusätzliche Daten",
+  "alias_one": "Alias",
+  "alias_other": "Aliase",
+  "aliases": "Aliase",
   "asset_many": "Datensets (Assets)",
   "asset_one": "Datenset (Asset)",
   "assetStateStore": {
@@ -13,6 +16,8 @@
     "deleteWarning": "Das Datenset (Asset) verliert diesen gespeicherten Eintrag.",
     "edit": "Datenset (Asset) Zwischenspeicher bearbeiten",
     "emptyState": "Der Datenset (Asset) Zwischenspeicher speichert Werte, die auf ein Datenset (Asset) beschränkt sind und über alle Dag-Läufe hinweg geteilt werden. Worker können den Datenset (Asset) Zwischenspeicher über das Task SDK schreiben.",
+    "entry_one": "Eintrag",
+    "entry_other": "Einträge",
     "lastUpdatedBy": "Zuletzt aktualisiert von",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Ereignis",
@@ -42,7 +47,10 @@
     "title": "Ereignis zu Datenset (Asset) {{name}} erstellen"
   },
   "events": "Ereignisse",
-  "extra": "Extra",
+  "filters": {
+    "groupPlaceholder": "Gruppe suchen",
+    "lastEventDateRange": "Datum des letzten Ereignisses"
+  },
   "group": "Gruppe",
   "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",
   "name": "Name",
@@ -50,5 +58,8 @@
   "scheduledDags": "Geplante Dags",
   "scheduling": "Planend",
   "searchPlaceholder": "Datenset (Asset) suchen",
-  "taskDependencies": "Task Abhängigkeiten"
+  "taskDependencies": "Task Abhängigkeiten",
+  "watcher_one": "Überwachung",
+  "watcher_other": "Überwachungen",
+  "watchers": "Überwachungen"
 }

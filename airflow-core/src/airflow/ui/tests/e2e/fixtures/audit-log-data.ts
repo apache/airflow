@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Audit log data fixture — triggers Dag runs to generate audit log entries.
  */
 import { testConfig } from "playwright.config";
+
 import { test as base } from "tests/e2e/fixtures";
 import {
   apiTriggerDagRun,

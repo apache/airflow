@@ -1,4 +1,22 @@
 {
+  "alerts": {
+    "seeLessContext": "Weniger anzeigen",
+    "seeMoreContext": "Mehr anzeigen",
+    "showMoreAlerts_one": "+{{count}} weitere Warnung",
+    "showMoreAlerts_other": "+{{count}} weitere Warnungen"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Keine bevorstehenden Fristen",
+      "title": "Bevorstehend"
+    },
+    "recentlyMissed": {
+      "empty": "Keine verpassten Fristen",
+      "title": "Verpasste Fristen"
+    },
+    "showMore": "Mehr anzeigen",
+    "title": "Fristen"
+  },
   "deferredSlotsNotCounted": "Delegierte Tasks, die nicht für die Pool-Belegung zählen: {{count}}",
   "deferredSlotsNotCountedTooltip": "Delegierte Tasks, die in der Leiste angezeigt werden, werden bei der Berechnung der Pool-Belegung berücksichtigt. Delegierte Tasks, die unterhalb der Leiste angezeigt werden, stammen aus Pools, die delegierte Tasks nicht für ihre Belegung berücksichtigen.",
   "favorite": {

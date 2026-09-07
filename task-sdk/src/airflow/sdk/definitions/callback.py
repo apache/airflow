@@ -28,6 +28,18 @@ from airflow.sdk._shared.module_loading import import_string, is_valid_dotpath
 log = structlog.getLogger(__name__)
 
 
+class _SerializedCallbackPath(str):
+    """
+    A callback path which was read back from serialized data.
+
+    See :meth:`Callback.get_callback_path` for what the marker buys.
+
+    :meta private:
+    """
+
+    __slots__ = ()
+
+
 class Callback(ABC):
     """
     Base class for Deadline Alert callbacks.
@@ -66,6 +78,14 @@ class Callback(ABC):
 
         stripped_callback = _callback.strip()
 
+        if isinstance(_callback, _SerializedCallbackPath):
+            # This path was already checked when the Callback it belongs to was created, so
+            # rebuilding that Callback keeps it as it is. Reconstruction happens in components
+            # which never call the callback themselves, and resolving the path there is neither
+            # needed nor wanted: the module it names is not necessarily importable in that
+            # process, and importing it has no bearing on the path we return either way.
+            return stripped_callback
+
         try:
             # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
             callback = import_string(stripped_callback)
@@ -95,6 +115,8 @@ class Callback(ABC):
     @classmethod
     def deserialize(cls, data: dict, version):
         path = data.pop("path")
+        if isinstance(path, str):
+            path = _SerializedCallbackPath(path)
         return cls(callback_callable=path, **data)
 
     @classmethod
@@ -129,15 +151,31 @@ class AsyncCallback(Callback):
     triggerer.
 
     It will be called with Airflow context and specified kwargs when a deadline is missed.
+
+    Pass ``queue`` to assign the resulting trigger to a specific trigger queue (see
+    :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
     """
 
-    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
+    queue: str | None
+
+    def __init__(
+        self,
+        callback_callable: Callable | str,
+        kwargs: dict | None = None,
+        *,
+        queue: str | None = None,
+    ):
         super().__init__(callback_callable=callback_callable, kwargs=kwargs)
+        self.queue = queue
 
     @classmethod
     def verify_callable(cls, callback: Callable):
         if not (inspect.iscoroutinefunction(callback) or hasattr(callback, "__await__")):
             raise AttributeError(f"Provided callback {callback} is not awaitable.")
+
+    @classmethod
+    def serialized_fields(cls) -> tuple[str, ...]:
+        return super().serialized_fields() + ("queue",)
 
 
 class SyncCallback(Callback):

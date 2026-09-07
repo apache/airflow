@@ -28,7 +28,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Connection
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 

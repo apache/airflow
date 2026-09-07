@@ -23,12 +23,14 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1784746595
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.16.1
+  - 6.16.0
   - 6.15.0
   - 6.14.0
   - 6.13.0
@@ -120,6 +122,7 @@ integrations:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark.rst
       - /docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst
+      - /docs/apache-airflow-providers-snowflake/operators/snowflake_cortex_agent.rst
     logo: /docs/integration-logos/Snowflake.png
     tags: [service]
 
@@ -129,6 +132,7 @@ operators:
       - airflow.providers.snowflake.operators.snowflake
       - airflow.providers.snowflake.operators.snowpark
       - airflow.providers.snowflake.operators.snowpark_containers
+      - airflow.providers.snowflake.operators.snowflake_cortex_agent
 
 task-decorators:
   - class-name: airflow.providers.snowflake.decorators.snowpark.snowpark_task
@@ -179,11 +183,11 @@ connection-types:
       placeholders:
         extra: |
           {
-            "authenticator": "snowflake oauth",
+            "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",
             "private_key_file": "private key",
             "session_parameters": "session parameters",
             "client_request_mfa_token": "client request mfa token",
-            "client_store_temporary_credential": "client store temporary credential",
+            "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",
             "grant_type": "refresh_token client_credentials",
             "token_endpoint": "token endpoint",
             "refresh_token": "refresh token",
@@ -203,6 +207,7 @@ connection-types:
         role: snowflake role
         private_key_file: Path of snowflake private key (PEM Format)
         private_key_content: Content to snowflake private key (PEM format)
+        workload_identity_provider: AWS, AZURE, GCP or OIDC
         insecure_mode: insecure mode
         proxy_host: Proxy server hostname
         proxy_port: Proxy server port

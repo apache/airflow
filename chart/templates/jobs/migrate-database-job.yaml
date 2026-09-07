@@ -73,7 +73,9 @@ spec:
         {{- end }}
       {{- end }}
     spec:
+      {{- if $securityContext }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       restartPolicy: {{ .Values.migrateDatabaseJob.restartPolicy }}
       {{- if .Values.migrateDatabaseJob.priorityClassName }}
       priorityClassName: {{ .Values.migrateDatabaseJob.priorityClassName }}
@@ -96,7 +98,9 @@ spec:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}

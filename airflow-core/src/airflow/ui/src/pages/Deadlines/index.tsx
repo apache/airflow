@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Heading, Link, VStack } from "@chakra-ui/react";
+import { Badge, Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -24,18 +24,22 @@ import { Link as RouterLink, useSearchParams } from "react-router-dom";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 type DeadlineRow = { row: { original: DeadlineResponse } };
 
-const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>> => [
+const createColumns = (translate: TFunction, multiTeam: boolean): Array<ColumnDef<DeadlineResponse>> => [
   {
     accessorKey: "dag_id",
     cell: ({ row: { original } }: DeadlineRow) => (
@@ -47,6 +51,16 @@ const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>>
     ),
     header: translate("common:dagId"),
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: DeadlineRow) => <TeamName teamName={original.team_name} />,
+          enableSorting: false,
+          header: translate("common:dagDetails.team"),
+        },
+      ]
+    : []),
   {
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }: DeadlineRow) => (
@@ -100,15 +114,18 @@ const deadlinesFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 export const Deadlines = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useDocumentTitle(translate("common:browse.deadlines"));
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams] = useSearchParams();
 
-  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(deadlinesFilterKeys);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(
+    multiTeamEnabled ? [...deadlinesFilterKeys, SearchParamsKeys.TEAMS] : deadlinesFilterKeys,
+  );
 
-  const columns = createColumns(translate);
+  const columns = createColumns(translate, multiTeamEnabled);
 
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
@@ -118,6 +135,7 @@ export const Deadlines = () => {
   const filteredMissed = searchParams.get(SearchParamsKeys.MISSED);
   const deadlineTimeGte = searchParams.get(SearchParamsKeys.DEADLINE_TIME_GTE);
   const deadlineTimeLte = searchParams.get(SearchParamsKeys.DEADLINE_TIME_LTE);
+  const teams = searchParams.getAll(SearchParamsKeys.TEAMS);
 
   const missedFilter = filteredMissed === "true" ? true : filteredMissed === "false" ? false : undefined;
 
@@ -130,28 +148,27 @@ export const Deadlines = () => {
     missed: missedFilter,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
+    teams: teams.length > 0 ? teams : undefined,
   });
 
   return (
-    <Box p={2}>
-      <Heading>{translate("browse:deadlines.title")}</Heading>
-      <VStack align="start" gap={4} paddingY="4px">
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
+    <Box px={2}>
       <DataTable
         columns={columns}
         data={data?.deadlines ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          <FilterBar
+            configs={filterConfigs}
+            initialValues={initialValues}
+            onFiltersChange={handleFiltersChange}
+          />
+        }
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:deadlines.deadline"
         onStateChange={setTableURLState}
-        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

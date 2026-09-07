@@ -175,6 +175,16 @@ def _disable_ol_plugin():
 
 
 @pytest.fixture(autouse=True)
+def _clear_secrets_backends_cache():
+    """Keep memoised backends from leaking config between tests."""
+    from airflow.sdk.configuration import clear_secrets_backends_cache
+
+    clear_secrets_backends_cache()
+    yield
+    clear_secrets_backends_cache()
+
+
+@pytest.fixture(autouse=True)
 def _cleanup_async_resources(request):
     """
     Clean up async resources that can cause Python 3.12 fork warnings.
@@ -290,6 +300,8 @@ def make_ti_context() -> MakeTIContextCallable:
                 state=DagRunState.RUNNING,
                 conf=conf,  # type: ignore
                 consumed_asset_events=list(consumed_asset_events),
+                end_date=None,
+                partition_key=None,
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=max_tries,

@@ -89,7 +89,7 @@ class PydanticAIHook(BaseHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {
-                "host": "https://api.openai.com/v1  (optional, for custom endpoints / Ollama)",
+                "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
                 "extra": '{"model": "openai:gpt-5.6-sol"}',
             },
         }
@@ -355,9 +355,10 @@ class PydanticAIBedrockHook(PydanticAIHook):
 
     Credentials are resolved in order:
 
-    1. IAM keys from ``extra`` (``aws_access_key_id`` + ``aws_secret_access_key``,
+    1. Bearer token in ``extra`` (``api_key``, maps to env ``AWS_BEARER_TOKEN_BEDROCK``).
+       Takes precedence over IAM keys if both are set.
+    2. IAM keys from ``extra`` (``aws_access_key_id`` + ``aws_secret_access_key``,
        optionally ``aws_session_token``).
-    2. Bearer token in ``extra`` (``api_key``, maps to env ``AWS_BEARER_TOKEN_BEDROCK``).
     3. Environment-variable / instance-role chain (``AWS_PROFILE``, IAM role, …)
        when no explicit keys are provided.
 
@@ -458,21 +459,22 @@ class PydanticAIVertexHook(PydanticAIHook):
         - **extra** JSON::
 
             {
-                "model": "google-vertex:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.0-flash",
                 "project": "my-gcp-project",
                 "location": "us-central1",
                 "service_account_info": {...},
-                "vertexai": true,
             }
 
         Use ``"service_account_info"`` to embed the service-account JSON directly
         (as an object, not a string path).
 
-        Set ``"vertexai": true`` to force Vertex AI mode when only ``api_key`` is
-        provided.  Omit ``vertexai`` for the Generative Language API (GLA).
+        ``"vertexai"`` is accepted for backward compatibility but has no effect:
+        pydantic-ai now selects Vertex AI vs. the Generative Language API from the
+        model prefix (``google-cloud:`` vs. ``google:``) rather than a
+        constructor flag, so there is nothing left for this field to control.
 
     :param llm_conn_id: Airflow connection ID.
-    :param model_id: Model identifier, e.g. ``"google-vertex:gemini-2.0-flash"``.
+    :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``.
     """
 
     conn_type = "pydanticai-vertex"
@@ -487,8 +489,8 @@ class PydanticAIVertexHook(PydanticAIHook):
             "relabeling": {},
             "placeholders": {
                 "extra": (
-                    '{"model": "google-vertex:gemini-2.0-flash", '
-                    '"project": "my-project", "location": "us-central1", "vertexai": true}'
+                    '{"model": "google-cloud:gemini-2.0-flash", '
+                    '"project": "my-project", "location": "us-central1"}'
                     "  — add service_account_info (object) for SA auth;"
                     " omit both to use Application Default Credentials"
                 ),
@@ -509,10 +511,18 @@ class PydanticAIVertexHook(PydanticAIHook):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
 
-        # Optional vertexai bool flag (force Vertex AI mode for API-key auth).
-        _vertexai = extra.get("vertexai")
-        if _vertexai is not None:
-            kwargs["vertexai"] = bool(_vertexai)
+        # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
+        # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
+        # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
+        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
+        # swallow by falling back to env-var auth with *all* other kwargs discarded — silently
+        # authenticating as the wrong identity. Accept the field for backward compatibility but
+        # never forward it: which API is used is now controlled by the model prefix.
+        if extra.get("vertexai") is not None:
+            self.log.warning(
+                "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
+                "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
+            )
 
         # Service-account credentials — loaded lazily to avoid importing
         # google-auth on non-Vertex code paths (optional heavy dependency).

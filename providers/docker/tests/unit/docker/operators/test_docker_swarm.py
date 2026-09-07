@@ -209,6 +209,25 @@ class TestDockerSwarmOperator:
             "Docker service being removed even when `auto_remove` set to `never`"
         )
 
+    @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
+    def test_dict_mounts_converted_at_execute(self, types_mock, docker_api_client_patcher):
+        client_mock = mock.Mock(spec=APIClient)
+        client_mock.create_service.return_value = {"ID": "some_id"}
+        client_mock.images.return_value = []
+        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
+        docker_api_client_patcher.return_value = client_mock
+
+        operator = DockerSwarmOperator(
+            image="",
+            task_id="unittest",
+            enable_logging=False,
+            mounts=[{"source": "/host", "target": "/container", "type": "bind"}],
+        )
+        operator.execute(None)
+
+        assert all(isinstance(m, types.Mount) for m in operator.mounts)
+
     @pytest.mark.parametrize("status", ["failed", "shutdown", "rejected", "orphaned", "remove"])
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_non_complete_service_raises_error(self, types_mock, docker_api_client_patcher, status):

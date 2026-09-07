@@ -56,6 +56,10 @@ from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.security.access_view import (
+    AUDIT_LOGS_ALL_ACCESS_VIEW,
+    IMPORT_ERRORS_ALL_ACCESS_VIEW,
+)
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -64,6 +68,7 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_AUDIT_LOG_ALL,
     RESOURCE_BACKFILL,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -77,6 +82,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
+    RESOURCE_IMPORT_ERROR_ALL,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_POOL,
@@ -145,6 +151,14 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
+
+# ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
+# core >= 3.4.0; the compat shim yields ``None`` on older core so this provider still
+# imports there.
+if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
+if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[AUDIT_LOGS_ALL_ACCESS_VIEW] = RESOURCE_AUDIT_LOG_ALL
 
 _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.ASSETS: RESOURCE_ASSET,
@@ -278,9 +292,17 @@ class FabAuthManager(BaseAuthManager[User]):
         def _fetch_user() -> User:
             with create_session() as session:
                 try:
-                    return session.scalars(select(User).where(User.id == user_id)).one()
+                    user = session.scalars(select(User).where(User.id == user_id)).one()
                 except NoResultFound:
                     raise ValueError(f"User with id {token['sub']} not found")
+                # A token stays syntactically valid until it expires, so the account it
+                # names has to be re-checked on every request rather than trusted from
+                # the signature alone. ``is_active`` reads the nullable ``active``
+                # column, and a null is treated as inactive here for the same reason it
+                # is on the password path in ``auth_user_db``.
+                if not user.is_active:
+                    raise ValueError(f"User with id {token['sub']} is not active")
+                return user
 
         try:
             return _fetch_user()
@@ -512,7 +534,10 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
-    def is_authorized_view(self, *, access_view: AccessView, user: User) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: User, team_name: str | None = None
+    ) -> bool:
+        # ``team_name`` is ignored: FAB has no multi-team support.
         # "Docs" are only links in the menu, there is no page associated
         method: ExtendedResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(

@@ -84,7 +84,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 14.0.0
+Release: 15.0.1
 
 Provider package
 ----------------
@@ -111,7 +111,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
 ``aiohttp``                                 ``>=3.14.0``
-``azure-batch``                             ``<15.0.0,>=8.0.0``
+``azure-batch``                             ``>=15.0.0``
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.6.0``
 ``azure-mgmt-cosmosdb``                     ``>=3.0.0``
@@ -194,5 +194,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 14.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 14.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-14.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 15.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.0.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 15.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-15.0.1-py3-none-any.whl.sha512>`__)

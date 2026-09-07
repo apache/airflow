@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "イベントタイプ"
-    },
-    "title": "監査ログ"
+    }
   },
   "xcom": {
     "columns": {

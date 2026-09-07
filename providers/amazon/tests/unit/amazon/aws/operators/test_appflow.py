@@ -193,6 +193,45 @@ def test_run_daily(appflow_conn, ctx, waiter_mock):
 
 
 @pytest.mark.db_test
+def test_run_daily_with_templated_validation_fields(appflow_conn, ctx, waiter_mock):
+    operator = AppflowRunDailyOperator(
+        source="{{ params.source }}",
+        flow_name=FLOW_NAME,
+        source_field="{{ params.source_field }}",
+        filter_date="{{ params.filter_date }}",
+        poll_interval=0,
+        task_id=TASK_ID,
+    )
+    context = {
+        **ctx,
+        "params": {
+            "source": SOURCE,
+            "source_field": "col0",
+            "filter_date": "2022-05-26T00:00+00:00",
+        },
+    }
+
+    operator.render_template_fields(context)
+    operator.execute(context)
+
+    run_assertions_base(
+        appflow_conn,
+        [
+            {
+                "taskType": "Filter",
+                "connectorOperator": {"Salesforce": "BETWEEN"},
+                "sourceFields": ["col0"],
+                "taskProperties": {
+                    "DATA_TYPE": "datetime",
+                    "LOWER_BOUND": "1653523199999",
+                    "UPPER_BOUND": "1653609600000",
+                },
+            }
+        ],
+    )
+
+
+@pytest.mark.db_test
 def test_short_circuit(appflow_conn, ctx):
     with mock.patch("airflow.models.TaskInstance.xcom_pull") as mock_xcom_pull:
         with mock.patch("airflow.models.TaskInstance.xcom_push") as mock_xcom_push:

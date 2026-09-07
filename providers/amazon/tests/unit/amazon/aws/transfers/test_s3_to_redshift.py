@@ -407,18 +407,19 @@ class TestS3ToRedshiftTransfer:
     @pytest.mark.parametrize("param", ["sql", "parameters"])
     def test_invalid_param_in_redshift_data_api_kwargs(self, param):
         """
-        Test passing invalid param in RS Data API kwargs raises an error
+        Test passing invalid param in RS Data API kwargs raises an error at execute time
         """
-        with pytest.raises(AirflowException):
-            S3ToRedshiftOperator(
-                schema="schema",
-                table="table",
-                s3_bucket="bucket",
-                s3_key="key",
-                task_id="task_id",
-                dag=None,
-                redshift_data_api_kwargs={param: "param"},
-            )
+        op = S3ToRedshiftOperator(
+            schema="schema",
+            table="table",
+            s3_bucket="bucket",
+            s3_key="key",
+            task_id="task_id",
+            dag=None,
+            redshift_data_api_kwargs={param: "param"},
+        )
+        with pytest.raises(AirflowException, match=f"Cannot include param '{param}'"):
+            op.execute({})
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")

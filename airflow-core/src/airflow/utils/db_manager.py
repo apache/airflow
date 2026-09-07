@@ -295,6 +295,14 @@ class RunDBManager(LoggingMixin):
         for manager in self._managers:
             RunDBManager._validate(manager)
 
+    def get_required_table_names(self) -> set[str]:
+        """Return table names required by the configured external DB managers."""
+        required_tables: set[str] = set()
+        for manager in self._managers:
+            required_tables.update(table.name for table in manager.metadata.tables.values())
+            required_tables.add(manager.version_table_name)
+        return required_tables
+
     @staticmethod
     def _validate(manager: BaseDBManager):
         """Validate the external database migration."""

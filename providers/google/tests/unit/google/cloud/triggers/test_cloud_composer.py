@@ -18,15 +18,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerAirflowCLICommandTrigger,
     CloudComposerDAGRunTrigger,
+    CloudComposerExecutionTrigger,
     CloudComposerExternalTaskTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -59,6 +62,23 @@ TEST_EXEC_RESULT = {
     "output_end": True,
     "exit_info": {"exit_code": 0, "error": ""},
 }
+TEST_OPERATION_NAME = "test_operation_name"
+TEST_POOLING_PERIOD_SECONDS = 30
+TEST_OPERATION_ERROR_MESSAGE = "Environment creation failed: quota exceeded"
+
+
+def make_operation(*, done: bool, error_message: str = ""):
+    """
+    Build a stand-in for a ``google.longrunning.Operation``.
+
+    Per the LRO contract, a finished operation has ``done=True`` and exactly one of
+    ``error`` or ``response`` set; while it is still running neither is set.
+    """
+    return SimpleNamespace(
+        name=TEST_OPERATION_NAME,
+        done=done,
+        error=SimpleNamespace(message=error_message),
+    )
 
 
 @pytest.fixture
@@ -125,6 +145,45 @@ def external_task_trigger(mock_conn):
         poll_interval=TEST_POLL_INTERVAL,
         composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
     )
+
+
+@pytest.fixture
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+    return_value=Connection(conn_id="test_conn"),
+)
+def execution_trigger(mock_conn):
+    return CloudComposerExecutionTrigger(
+        project_id=TEST_PROJECT_ID,
+        region=TEST_LOCATION,
+        operation_name=TEST_OPERATION_NAME,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        pooling_period_seconds=TEST_POOLING_PERIOD_SECONDS,
+    )
+
+
+class TestCloudComposerExecutionTrigger:
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_composer.CloudComposerAsyncHook.get_operation")
+    async def test_run_raises_when_operation_finished_with_error(self, mock_get_operation, execution_trigger):
+        mock_get_operation.return_value = make_operation(
+            done=True, error_message=TEST_OPERATION_ERROR_MESSAGE
+        )
+
+        with pytest.raises(AirflowException, match=TEST_OPERATION_ERROR_MESSAGE):
+            await execution_trigger.run().asend(None)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_composer.CloudComposerAsyncHook.get_operation")
+    async def test_run_yields_event_when_operation_finished_without_error(
+        self, mock_get_operation, execution_trigger
+    ):
+        mock_get_operation.return_value = make_operation(done=True)
+
+        actual_event = await execution_trigger.run().asend(None)
+
+        assert actual_event == TriggerEvent({"operation_name": TEST_OPERATION_NAME, "operation_done": True})
 
 
 class TestCloudComposerAirflowCLICommandTrigger:

@@ -116,3 +116,39 @@ Extra (optional)
             "strict_host_key_checking": "yes",
             "known_hosts_file": "/path/to/known_hosts"
         }
+
+    **GitHub App authentication:**
+
+    In order to use GitHub App authentication the ``github`` extra needs to be installed:
+
+    .. code-block:: bash
+
+        pip install 'apache-airflow-providers-git[github]'
+
+    * ``github_app_id``: The App ID of your GitHub App. Note that the GitHub App Client ID can also be used.
+    * ``github_installation_id``: The installation ID of your GitHub app.
+    * ``key_file``: Path to a PEM-encoded private key file for your GitHub App.
+    * ``private_key``: An inline PEM-encoded private key string. When provided, the hook writes it
+      to a temporary file and uses it for the GitHub App connection.
+      Mutually exclusive with ``key_file``.
+
+
+    Example with key file:
+
+    .. code-block:: json
+
+        {
+            "github_app_id": "1234567",
+            "github_installation_id": "67890",
+            "key_file": "/path/to/private-key.pem"
+        }
+
+    Example with inline private key:
+
+    .. code-block:: json
+
+        {
+            "github_app_id": "1234567",
+            "github_installation_id": "67890",
+            "private_key": "<content of your PEM-encoded private key>"
+        }

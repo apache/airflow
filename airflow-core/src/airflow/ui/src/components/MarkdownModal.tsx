@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, HStack, Text, Textarea, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
+
+import { Box, Button, Flex, HStack, Text, Textarea, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit, FiEye } from "react-icons/fi";
 
+import { Dialog, MARKDOWN_DIALOG_STORAGE_KEY, ResizableWrapper } from "src/system-components";
+
 import NoteIcon from "src/components/NoteIcon";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Dialog } from "src/components/ui";
-import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 export const MAX_NOTE_LENGTH = 1000;
 
@@ -48,7 +49,7 @@ const MarkdownModal = ({
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const hasContent = Boolean(mdContent?.trim());
   // Open straight into editing when there's nothing to read; otherwise show the
@@ -104,9 +105,9 @@ const MarkdownModal = ({
           minSize={{ height: 600, width: 800 }}
           storageKey={MARKDOWN_DIALOG_STORAGE_KEY}
         >
-          <Dialog.Header bg="brand.muted" flexShrink={0}>
-            <Heading size="xl">{header}</Heading>
-            <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
+          <Dialog.Header alignItems="center" borderTopRadius="md" justifyContent="space-between">
+            <Dialog.Title>{header}</Dialog.Title>
+            <Dialog.CloseTrigger />
           </Dialog.Header>
           <Dialog.Body alignItems="stretch" as={VStack} flex="1" gap="0" overflow="hidden" p={0}>
             <Box display="flex" flex="1" flexDirection="column" minH={0} overflow="hidden" p={4} width="100%">
@@ -127,7 +128,7 @@ const MarkdownModal = ({
                 </Box>
               )}
             </Box>
-            <Box bg="bg.panel" flexShrink={0} width="100%">
+            <Box flexShrink={0} width="100%">
               <Flex alignItems="center" gap={4} justifyContent="space-between" p={4}>
                 {isEditing ? (
                   <Text color={isOverLimit ? "fg.error" : "fg.muted"} fontSize="sm">

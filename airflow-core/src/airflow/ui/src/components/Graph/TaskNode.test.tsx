@@ -16,12 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render } from "@testing-library/react";
-import { ReactFlowProvider } from "@xyflow/react";
 import type { ComponentProps, ReactNode } from "react";
+
+import { render, screen } from "@testing-library/react";
+import { ReactFlowProvider } from "@xyflow/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
+import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { TaskNode } from "./TaskNode";
 import { readableTextForFill } from "./nodeColors";
@@ -81,6 +85,44 @@ describe("TaskNode operator colors", () => {
   it("alternates the group fill shade by nesting depth so nested groups stay distinct", () => {
     expect(renderHtml({ depth: 0, isGroup: true, isOpen: true, uiColor: "blue.500" })).not.toBe(
       renderHtml({ depth: 1, isGroup: true, isOpen: true, uiColor: "blue.500" }),
+    );
+  });
+});
+
+describe("TaskNode links", () => {
+  it("links to the task overview when the run has no task instance", () => {
+    render(
+      <ReactFlowProvider>
+        <TaskNode
+          {...({
+            data: {
+              height: 80,
+              id: "missing_task",
+              label: "missing_task",
+              taskInstance: { dag_version_number: null } as LightGridTaskInstanceSummary,
+              type: "task",
+              width: 200,
+            },
+            id: "missing_task",
+          } as unknown as ComponentProps<typeof TaskNode>)}
+        />
+      </ReactFlowProvider>,
+      {
+        wrapper: ({ children }: { readonly children: ReactNode }) => (
+          <BaseWrapper>
+            <MemoryRouter initialEntries={["/dags/test_dag/runs/test_run"]}>
+              <Routes>
+                <Route element={children} path="/dags/:dagId/runs/:runId" />
+              </Routes>
+            </MemoryRouter>
+          </BaseWrapper>
+        ),
+      },
+    );
+
+    expect(screen.getByRole("link", { name: "missing_task" })).toHaveAttribute(
+      "href",
+      "/dags/test_dag/tasks/missing_task",
     );
   });
 });

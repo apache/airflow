@@ -49,6 +49,7 @@ const successDag = {
   pending_actions: [],
   tags: [{ dag_id: "tutorial_taskflow_api_success", name: "example" }],
   timetable_description: "Never, external triggers only",
+  timetable_type: "NullTimetable",
 };
 
 const failedDag = {
@@ -82,6 +83,7 @@ const failedDag = {
   pending_actions: [],
   tags: [{ dag_id: "tutorial_taskflow_api_failed", name: "example" }],
   timetable_description: "Never, external triggers only",
+  timetable_type: "CronTriggerTimetable",
 };
 
 const pausedDag = {
@@ -104,10 +106,15 @@ const pausedDag = {
   pending_actions: [],
   tags: [{ dag_id: "paused_dag", name: "example" }],
   timetable_description: "Never, external triggers only",
+  timetable_type: "NullTimetable",
 };
 
-const filterDagsByPaused = (paused: string | null) => {
-  const allDags = [successDag, failedDag, pausedDag];
+const filterDags = ({ paused, timetableTypes }: { paused: string | null; timetableTypes: Array<string> }) => {
+  let allDags = [successDag, failedDag, pausedDag];
+
+  if (timetableTypes.length > 0) {
+    allDags = allDags.filter((dag) => timetableTypes.includes(dag.timetable_type));
+  }
 
   if (paused === "true") {
     return allDags.filter((dag) => dag.is_paused);
@@ -120,11 +127,24 @@ const filterDagsByPaused = (paused: string | null) => {
 };
 
 export const handlers: Array<HttpHandler> = [
+  http.get("/ui/dags/timetable_types", ({ request }) => {
+    const url = new URL(request.url);
+    const prefix = url.searchParams.get("timetable_type_prefix_pattern") ?? "";
+    const timetableTypes = ["CronTriggerTimetable", "NullTimetable"].filter((timetableType) =>
+      timetableType.startsWith(prefix),
+    );
+
+    return HttpResponse.json({
+      timetable_types: timetableTypes,
+      total_entries: timetableTypes.length,
+    });
+  }),
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
     const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
+    const timetableTypes = url.searchParams.getAll("timetable_type");
 
     if (lastDagRunState === "success") {
       return HttpResponse.json({
@@ -138,7 +158,7 @@ export const handlers: Array<HttpHandler> = [
       });
     }
 
-    let dags = filterDagsByPaused(paused);
+    let dags = filterDags({ paused, timetableTypes });
 
     if (orderBy === "last_run_run_after" || orderBy === "-last_run_run_after") {
       dags = [failedDag, successDag, pausedDag].filter((dag) => dags.includes(dag));

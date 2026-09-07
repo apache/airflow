@@ -28,7 +28,7 @@ import pytest
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -36,7 +36,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
-from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.taskinstance import create_task_instance as _create_task_instance

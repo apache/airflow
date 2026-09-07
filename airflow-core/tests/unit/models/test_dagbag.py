@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
@@ -26,7 +27,7 @@ from cachetools import LRUCache, TTLCache
 
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import DBDagBag, _CacheEntry
+from airflow.models.dagbag import CachedDBDagBag, DBDagBag, _CacheEntry
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -37,6 +38,26 @@ from airflow.utils.session import create_session
 from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
+
+STATS_PATH = "airflow.models.dagbag.stats"
+
+CACHE_METRIC_SUFFIXES = ("cache_hit", "cache_miss", "cache_clear", "cache_size")
+
+# Every namespace a component can report under. CachedDBDagBag builds names from the prefix each
+# component passes in, so the shared plumbing is exercised once per component.
+METRIC_PREFIXES = ["api_server.dag_bag", "scheduler.dag_bag"]
+
+STUB_PREFIX = "test.dag_bag"
+
+
+def _stub_dag_bag(*, cache_size: int, cache_ttl: int = 0) -> CachedDBDagBag:
+    """Build a configured cache with a test-only metric prefix."""
+    return CachedDBDagBag(
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix=STUB_PREFIX,
+    )
+
 
 # This file previously contained tests for DagBag functionality, but those tests
 # have been moved to airflow-core/tests/unit/dag_processing/test_dagbag.py to match
@@ -244,35 +265,26 @@ class TestDBDagBag:
 
 
 class TestDBDagBagCache:
-    """Tests for DBDagBag optional caching behavior."""
+    """Tests for plain and configured DBDagBag caching behavior."""
 
-    def test_no_caching_by_default(self):
-        """Test that DBDagBag uses a simple dict without caching by default."""
-        dag_bag = DBDagBag()
-        assert dag_bag._use_cache is False
-        assert isinstance(dag_bag._dags, dict)
-
-    def test_lru_cache_enabled_with_cache_size(self):
-        """Test that LRU cache is enabled when cache_size is provided."""
-        dag_bag = DBDagBag(cache_size=10)
-        assert dag_bag._use_cache is True
-        assert isinstance(dag_bag._dags, LRUCache)
-
-    def test_ttl_cache_enabled_with_cache_size_and_ttl(self):
-        """Test that TTL cache is enabled when both cache_size and cache_ttl are provided."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
-        assert dag_bag._use_cache is True
-        assert isinstance(dag_bag._dags, TTLCache)
-
-    def test_zero_cache_size_uses_unbounded_dict(self):
-        """Test that cache_size=0 uses unbounded dict (same as no caching)."""
-        dag_bag = DBDagBag(cache_size=0, cache_ttl=60)
-        assert dag_bag._use_cache is False
-        assert isinstance(dag_bag._dags, dict)
+    @pytest.mark.parametrize(
+        ("cache_size", "cache_ttl", "expected_type", "expected_maxsize"),
+        [
+            pytest.param(10, 0, LRUCache, 10, id="size_only_lru"),
+            pytest.param(10, 60, TTLCache, 10, id="size_and_ttl_bounded_ttl"),
+            pytest.param(0, 60, TTLCache, math.inf, id="ttl_only_uncapped"),
+            pytest.param(0, 0, dict, None, id="no_eviction"),
+        ],
+    )
+    def test_cache_selection(self, cache_size, cache_ttl, expected_type, expected_maxsize):
+        dag_bag = _stub_dag_bag(cache_size=cache_size, cache_ttl=cache_ttl)
+        assert isinstance(dag_bag._dags, expected_type)
+        if expected_maxsize is not None:
+            assert dag_bag._dags.maxsize == expected_maxsize
 
     def test_clear_cache_with_caching(self):
         """Test clear_cache() with caching enabled."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
 
         mock_dag = MagicMock()
         dag_bag._dags["version_1"] = mock_dag
@@ -282,6 +294,46 @@ class TestDBDagBagCache:
         count = dag_bag.clear_cache()
         assert count == 2
         assert len(dag_bag._dags) == 0
+
+    @pytest.mark.parametrize("prefix", METRIC_PREFIXES)
+    def test_stats_prefix_expands_to_registered_metrics(self, prefix):
+        """Every name a component can emit must exist in the metrics registry.
+
+        The registry prek check sees only the ``{_stats_prefix}.<suffix>`` template, so it can
+        verify the suffixes but not the prefix each component supplies. This pins the expanded
+        names so a renamed or misspelled prefix cannot ship unregistered.
+        """
+        from airflow._shared.observability.metrics.metrics_registry import MetricsRegistry
+
+        registry = MetricsRegistry()
+        missing = [
+            name for suffix in CACHE_METRIC_SUFFIXES if registry.get(name := f"{prefix}.{suffix}") is None
+        ]
+        assert not missing
+
+    def test_api_server_reports_under_its_own_namespace(self):
+        from airflow.api_fastapi.common.dagbag import create_dag_bag
+
+        assert create_dag_bag()._stats_prefix == "api_server.dag_bag"
+
+    def test_cached_bag_requires_non_empty_stats_prefix(self):
+        """A cache with no namespace to report under must fail at wiring time, not mid-request."""
+        with pytest.raises(ValueError, match="requires a stats_prefix"):
+            CachedDBDagBag(cache_size=10, cache_ttl=60, stats_prefix="")
+
+    def test_plain_bag_emits_no_metrics(self):
+        """The unbounded base implementation does not report component cache metrics."""
+        dag_bag = DBDagBag()
+        mock_serdag = MagicMock()
+        mock_serdag.dag_version_id = "test_version_1"
+        mock_serdag.dag = MagicMock()
+
+        with patch(STATS_PATH) as mock_stats:
+            dag_bag._read_dag(mock_serdag)
+            dag_bag.clear_cache()
+
+        mock_stats.incr.assert_not_called()
+        mock_stats.gauge.assert_not_called()
 
     def test_clear_cache_without_caching(self):
         """Test clear_cache() without caching enabled."""
@@ -299,7 +351,7 @@ class TestDBDagBagCache:
         """Test that cached DAGs expire after TTL."""
         # TTLCache defaults to time.monotonic which time_machine cannot control.
         # Use time.time as the timer so time_machine can advance it.
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=1)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=1)
         dag_bag._dags = TTLCache(maxsize=10, ttl=1, timer=time.time)
 
         with time_machine.travel("2025-01-01 00:00:00", tick=False):
@@ -312,7 +364,7 @@ class TestDBDagBagCache:
 
     def test_lru_eviction(self):
         """Test that LRU eviction works when cache is full."""
-        dag_bag = DBDagBag(cache_size=2)
+        dag_bag = _stub_dag_bag(cache_size=2)
 
         dag_bag._dags["version_1"] = MagicMock()
         dag_bag._dags["version_2"] = MagicMock()
@@ -325,7 +377,7 @@ class TestDBDagBagCache:
 
     def test_thread_safety_with_caching(self):
         """Test concurrent access doesn't cause race conditions with caching enabled."""
-        dag_bag = DBDagBag(cache_size=100, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=100, cache_ttl=60)
         errors = []
         mock_session = MagicMock()
 
@@ -355,7 +407,7 @@ class TestDBDagBagCache:
 
     def test_read_dag_stores_in_bounded_cache(self):
         """Test that _read_dag stores DAG in bounded cache when cache_size > 0."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
 
         mock_sdm = MagicMock()
         mock_sdm.dag = MagicMock()
@@ -381,7 +433,7 @@ class TestDBDagBagCache:
 
     def test_iter_all_latest_version_dags_does_not_cache(self):
         """Test that iter_all_latest_version_dags does not cache to prevent thrashing."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
 
         mock_session = MagicMock()
         mock_sdm = MagicMock()
@@ -397,7 +449,7 @@ class TestDBDagBagCache:
     @patch("airflow.models.dagbag.stats")
     def test_cache_hit_metric_emitted(self, mock_stats):
         """Test that cache hit metric is emitted when caching is enabled."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         mock_session = MagicMock()
         # last_validated=0.0 forces revalidation; the hash matches, so it counts as a hit.
         dag_bag._dags["test_version"] = _CacheEntry(MagicMock(), "hash1", 0.0)
@@ -405,12 +457,12 @@ class TestDBDagBagCache:
 
         dag_bag._get_dag("test_version", mock_session)
 
-        mock_stats.incr.assert_called_with("api_server.dag_bag.cache_hit")
+        mock_stats.incr.assert_called_with(f"{STUB_PREFIX}.cache_hit")
 
     @patch("airflow.models.dagbag.stats")
     def test_cache_miss_metric_emitted(self, mock_stats):
         """Test that cache miss metric is emitted when DAG is found in DB but not in cache."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         mock_session = MagicMock()
 
         # Set up a DB result so _get_dag reaches the miss metric path
@@ -423,22 +475,22 @@ class TestDBDagBagCache:
 
         dag_bag._get_dag("uncached_version", mock_session)
 
-        mock_stats.incr.assert_any_call("api_server.dag_bag.cache_miss")
+        mock_stats.incr.assert_any_call(f"{STUB_PREFIX}.cache_miss")
 
     @patch("airflow.models.dagbag.stats")
     def test_cache_clear_metric_emitted(self, mock_stats):
         """Test that cache clear metric is emitted when caching is enabled."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         dag_bag._dags["test_version"] = MagicMock()
 
         dag_bag.clear_cache()
 
-        mock_stats.incr.assert_called_with("api_server.dag_bag.cache_clear")
+        mock_stats.incr.assert_called_with(f"{STUB_PREFIX}.cache_clear")
 
     @patch("airflow.models.dagbag.stats")
     def test_cache_size_gauge_emitted(self, mock_stats):
         """Test that cache size gauge is emitted when a DAG is cached."""
-        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
         mock_serdag = MagicMock()
         mock_serdag.dag_version_id = "test_version_1"
         mock_serdag.dag = MagicMock()
@@ -446,4 +498,4 @@ class TestDBDagBagCache:
 
         dag_bag._read_dag(mock_serdag)
 
-        mock_stats.gauge.assert_called_with("api_server.dag_bag.cache_size", 1, rate=0.1)
+        mock_stats.gauge.assert_called_with(f"{STUB_PREFIX}.cache_size", 1, rate=0.1)

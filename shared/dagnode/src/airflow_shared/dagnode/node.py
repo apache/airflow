@@ -140,6 +140,16 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
             raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
+    @property
+    def _topological_upstream_ids(self) -> Collection[str]:
+        """
+        Node ids this node must be ordered after within its parent group.
+
+        A plain task depends only on its direct upstream tasks. Task groups override
+        this to also cover group-to-group and cross-group edges.
+        """
+        return self.upstream_task_ids
+
     def has_dag(self) -> bool:
         return self.dag is not None
 
@@ -263,3 +273,31 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
         for task in self.get_upstreams_only_setups_and_teardowns():
             if task.is_setup:
                 yield task
+
+
+class TaskGroupMixin:
+    """Mixin to host common logic between authored and serialized task group classes."""
+
+    upstream_task_ids: set[str]
+    upstream_group_ids: set[str | None]
+
+    def get_roots(self) -> Iterable[GenericDAGNode]:
+        raise NotImplementedError()
+
+    @property
+    def _topological_upstream_ids(self) -> Collection[str]:
+        """
+        Node ids this node must be ordered after within its parent group.
+
+        A group's upstream_task_ids only reflects direct task-to-group edges
+        (e.g. ``task >> this_group``). This explicitly pulls in two more cases:
+
+        * Group-to-group edges (e.g. ``another_group >> this_group``).
+        * Task-level edges crossing into the group.
+        """
+        return self.upstream_task_ids.union(
+            (gid for gid in self.upstream_group_ids if gid is not None),
+            (t for root in self.get_roots() for t in root.upstream_task_ids),
+        )
+
+    # TODO: Move more duplicated logic between Core and SDK task group types.

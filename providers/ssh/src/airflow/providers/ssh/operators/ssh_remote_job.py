@@ -135,9 +135,6 @@ class SSHRemoteJobOperator(BaseOperator):
         self.command = command
         self.remote_host = remote_host
         self.environment = environment
-
-        if remote_base_dir is not None:
-            self._validate_base_dir(remote_base_dir)
         self.remote_base_dir = remote_base_dir
 
         self.poll_interval = poll_interval
@@ -270,6 +267,9 @@ class SSHRemoteJobOperator(BaseOperator):
         """
         if not self.command:
             raise AirflowException("SSH operator error: command not specified.")
+
+        if self.remote_base_dir is not None:
+            self._validate_base_dir(self.remote_base_dir)
 
         ti = context["ti"]
         self._job_id = generate_job_id(
@@ -452,9 +452,9 @@ class SSHRemoteJobOperator(BaseOperator):
         """
         self.log.info("Cleaning up remote job directory: %s", job_dir)
         if remote_os == "posix":
-            cleanup_cmd = build_posix_cleanup_command(job_dir)
+            cleanup_cmd = build_posix_cleanup_command(job_dir, base_dir=self.remote_base_dir)
         else:
-            cleanup_cmd = build_windows_cleanup_command(job_dir)
+            cleanup_cmd = build_windows_cleanup_command(job_dir, base_dir=self.remote_base_dir)
 
         last_error: Exception | None = None
         for attempt in range(1, self.cleanup_retries + 1):

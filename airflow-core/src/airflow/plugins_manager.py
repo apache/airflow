@@ -137,6 +137,89 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     return plugins, import_errors
 
 
+_DAG_APPLIES_TO_CRITERIA = frozenset({"dag_tags", "dag_ids"})
+_TASK_APPLIES_TO_CRITERIA = frozenset({"task_ids", "operators", "operator_names"})
+_APPLIES_TO_CRITERIA = _DAG_APPLIES_TO_CRITERIA | _TASK_APPLIES_TO_CRITERIA
+
+# Which `applies_to` criteria each destination can resolve a record for. A destination
+# missing from this mapping cannot evaluate any criterion. Kept in sync with the table in
+# docs/administration-and-deployment/plugins.rst.
+_EVALUABLE_CRITERIA_BY_DESTINATION: dict[str, frozenset[str]] = {
+    "dag": _DAG_APPLIES_TO_CRITERIA,
+    "dag_run": _DAG_APPLIES_TO_CRITERIA,
+    "dag_overview": _DAG_APPLIES_TO_CRITERIA,
+    "task": _APPLIES_TO_CRITERIA,
+    "task_overview": _APPLIES_TO_CRITERIA,
+    "task_instance": _APPLIES_TO_CRITERIA,
+    "nav": frozenset(),
+    "base": frozenset(),
+    "dashboard": frozenset(),
+    "asset": frozenset(),
+}
+
+
+def _describe_applies_to_error(applies_to: Any) -> str | None:
+    """Return a description of why ``applies_to`` is malformed, or ``None`` if it is valid."""
+    if not isinstance(applies_to, dict):
+        return f"expected a dictionary, got {type(applies_to).__name__}"
+    if non_string_keys := [key for key in applies_to if not isinstance(key, str)]:
+        return f"criterion names must be strings, got {sorted(non_string_keys, key=repr)!r}"
+    if unknown_keys := set(applies_to) - _APPLIES_TO_CRITERIA:
+        return f"unknown criteria {sorted(unknown_keys)}, expected any of {sorted(_APPLIES_TO_CRITERIA)}"
+    for criterion, values in applies_to.items():
+        if values is None:
+            continue
+        if not isinstance(values, (list, tuple)) or not all(isinstance(value, str) for value in values):
+            return f"'{criterion}' must be a list of strings, got {values!r}"
+    return None
+
+
+def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: str) -> None:
+    """
+    Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
+
+    A malformed block is removed so the view still loads unscoped, matching the default for
+    a view that omits ``applies_to`` entirely. Criteria the destination cannot evaluate are
+    only warned about — they are skipped at match time by design, so that one block can be
+    shared across a plugin's Dag- and task-level destinations.
+    """
+    if "applies_to" not in view:
+        return
+
+    applies_to = view["applies_to"]
+    if applies_to is None:
+        return
+
+    if error := _describe_applies_to_error(applies_to):
+        log.warning(
+            "Plugin '%s' has %s '%s' with an invalid 'applies_to': %s. The scoping will be ignored.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            error,
+        )
+        del view["applies_to"]
+        return
+
+    destination = view.get("destination", "nav")
+    if destination not in _EVALUABLE_CRITERIA_BY_DESTINATION:
+        # An unrecognised destination already fails serialization; warning here too would
+        # only add noise pointing at the wrong problem.
+        return
+
+    configured = {criterion for criterion, values in applies_to.items() if values}
+    if unevaluable := configured - _EVALUABLE_CRITERIA_BY_DESTINATION[destination]:
+        log.warning(
+            "Plugin '%s' has %s '%s' with destination '%s', which cannot evaluate %s. "
+            "Those criteria will be ignored.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            destination,
+            sorted(unevaluable),
+        )
+
+
 @cache
 def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
     """Collect extension points for the UI."""
@@ -157,6 +240,7 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 external_views_to_remove.append(external_view)
                 continue
+            _validate_applies_to(plugin.name, external_view, "an external view")
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
@@ -181,6 +265,7 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 react_apps_to_remove.append(react_app)
                 continue
+            _validate_applies_to(plugin.name, react_app, "a React App")
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue
@@ -230,7 +315,14 @@ def get_flask_plugins() -> tuple[list[Any], list[Any], list[Any]]:
 
 @cache
 def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
-    """Collect extension points for the API."""
+    """
+    Collect extension points for the API.
+
+    Each returned dict is a shallow copy of the plugin's own dict with the owning
+    plugin's ``team_name`` added, so the API server can authorize a team-scoped
+    plugin's app without re-deriving which plugin it came from. The plugin's dicts are
+    left untouched, so this does not alter what ``get_plugin_info`` reports.
+    """
     log.debug("Initialize FastAPI plugins")
 
     # Validate here (the API-server, DB-available path) so callers cannot mount
@@ -240,8 +332,10 @@ def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     for plugin in _get_plugins()[0]:
-        fastapi_apps.extend(plugin.fastapi_apps)
-        fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
+        fastapi_apps.extend({**app, "team_name": plugin.team_name} for app in plugin.fastapi_apps)
+        fastapi_root_middlewares.extend(
+            {**middleware, "team_name": plugin.team_name} for middleware in plugin.fastapi_root_middlewares
+        )
     return fastapi_apps, fastapi_root_middlewares
 
 

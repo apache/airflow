@@ -16,11 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, type FlexProps } from "@chakra-ui/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Flex, type FlexProps } from "@chakra-ui/react";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import Editor, { type OnMount } from "src/components/MonacoEditor";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+
 import { useMonacoTheme } from "src/context/colorMode";
 
 const MAX_HEIGHT = 300;

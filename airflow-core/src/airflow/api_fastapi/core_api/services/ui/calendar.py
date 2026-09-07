@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import collections
+import itertools
 from collections.abc import Iterator, Sequence
 from datetime import datetime
 from typing import Literal, cast
@@ -221,7 +222,10 @@ class CalendarService:
             ret_type=datetime,
         )
 
-        for dt in dates_iter:
+        # Cap the iteration like _calculate_timetable_planned_runs does; a high-frequency
+        # expression (e.g. "* * * * *", or a seconds-resolution cron) would otherwise take
+        # hundreds of thousands of steps before hitting the year boundary.
+        for dt in itertools.islice(dates_iter, self.MAX_PLANNED_RUNS):
             if dt is None or dt.year != year:
                 break
             if dag.end_date and dt > dag.end_date:

@@ -20,12 +20,12 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.opsgenie.operators.opsgenie import (
     OpsgenieCloseAlertOperator,
     OpsgenieCreateAlertOperator,
     OpsgenieDeleteAlertOperator,
 )
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

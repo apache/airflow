@@ -1427,3 +1427,113 @@ def _dag_version_config_without_row_exclusion():
         if key in config:
             config[key] = None
     return config
+
+
+class TestSchemaQualifiedTableConfig:
+    """
+    ``_TableConfig`` / ``reflect_tables`` support for schema-qualified table names.
+
+    A table config may be schema-qualified with ``schema.table`` dot notation so that
+    ``airflow db clean`` can reach a table living in a schema other than the metadata
+    connection's default (for example a result backend provisioned into its own schema),
+    instead of silently skipping it.
+    """
+
+    def test_table_config_parses_schema_qualified_table_name(self):
+        config = _TableConfig(table_name="my_schema.some_table", recency_column_name="date_done")
+        assert config.schema_name == "my_schema"
+        assert config.bare_table_name == "some_table"
+        assert config.table_name == "my_schema.some_table"
+        assert config.orm_model.schema == "my_schema"
+        assert config.orm_model.name == "some_table"
+
+    def test_table_config_without_schema_prefix(self):
+        config = _TableConfig(table_name="some_table", recency_column_name="date_done")
+        assert config.schema_name is None
+        assert config.bare_table_name == "some_table"
+        assert config.table_name == "some_table"
+        assert config.orm_model.schema is None
+
+
+@pytest.mark.backend("postgres")
+class TestSchemaQualifiedTableCleanupIntegration:
+    """
+    End-to-end db clean + archive + export/drop against a schema-qualified table config --
+    the scenario a table provisioned into a non-default schema (e.g. a schema-split result
+    backend) hits.
+    """
+
+    SCHEMA = "test_schema_qualified_cleanup"
+    TABLE = "schema_qualified_cleanup_test"
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text(f"DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE"))
+            session.execute(text(f"CREATE SCHEMA {self.SCHEMA}"))
+            session.execute(
+                text(
+                    f"CREATE TABLE {self.SCHEMA}.{self.TABLE} "
+                    "(id serial primary key, task_id varchar(155), date_done timestamp)"
+                )
+            )
+            session.commit()
+
+    def teardown_method(self):
+        with create_session() as session:
+            session.execute(text(f"DROP SCHEMA IF EXISTS {self.SCHEMA} CASCADE"))
+            session.commit()
+
+    def test_clean_archive_export_and_drop_schema_qualified_table(self, tmp_path):
+        old_date = pendulum.now("UTC").subtract(days=400)
+        new_date = pendulum.now("UTC")
+        with create_session() as session:
+            session.execute(
+                text(
+                    f"INSERT INTO {self.SCHEMA}.{self.TABLE} (task_id, date_done) "
+                    "VALUES ('old-task', :old_date), ('new-task', :new_date)"
+                ),
+                {"old_date": old_date, "new_date": new_date},
+            )
+            session.commit()
+
+        qualified_name = f"{self.SCHEMA}.{self.TABLE}"
+        # Register a schema-qualified table config for the duration of the test rather than
+        # relying on any provider-specific configuration -- this exercises the generic
+        # schema-qualified support directly.
+        test_config = _TableConfig(table_name=qualified_name, recency_column_name="date_done")
+        with patch.dict(config_dict, {qualified_name: test_config}):
+            assert qualified_name in config_dict
+
+            with create_session() as session:
+                run_cleanup(
+                    clean_before_timestamp=pendulum.now("UTC").subtract(days=300),
+                    table_names=[qualified_name],
+                    dry_run=False,
+                    confirm=False,
+                    session=session,
+                )
+
+                remaining = session.execute(text(f"SELECT task_id FROM {qualified_name}")).scalars().all()
+                assert remaining == ["new-task"]
+
+                archived = _get_archived_table_names([qualified_name], session)
+                assert len(archived) == 1
+                assert archived[0].startswith(f"{self.SCHEMA}.")
+
+                archived_rows = session.execute(text(f"SELECT task_id FROM {archived[0]}")).scalars().all()
+                assert archived_rows == ["old-task"]
+
+                export_archived_records(
+                    export_format="csv",
+                    output_path=str(tmp_path),
+                    table_names=[qualified_name],
+                    drop_archives=True,
+                    needs_confirm=False,
+                    session=session,
+                )
+                # export_archived_records takes a caller-owned session and does not commit it;
+                # commit here so the reflection-based existence check below, which may use a
+                # separate connection, observes the DROP TABLE.
+                session.commit()
+
+                assert _get_archived_table_names([qualified_name], session) == []

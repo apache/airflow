@@ -41,10 +41,7 @@ class TestCliVariableCommands:
     variable_collection_response = VariableCollectionResponse(
         variables=[
             VariableResponse(
-                key=key,
-                value=value,
-                description=description,
-                is_encrypted=False,
+                key=key, value=value, description=description, is_encrypted=False, team_name=None
             ),
         ],
         total_entries=1,

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import AliasPath, Field
+from pydantic import AliasPath, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -37,6 +38,7 @@ class DeadlineResponse(BaseModel):
     dag_run_id: str = Field(validation_alias=AliasPath("dagrun", "run_id"))
     alert_id: UUID | None = Field(validation_alias="deadline_alert_id", default=None)
     alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
+    team_name: str | None = Field(validation_alias=AliasPath("dagrun", "team_name"), default=None)
 
 
 class DeadlineCollectionResponse(BaseModel):
@@ -52,8 +54,34 @@ class DeadlineAlertResponse(BaseModel):
     id: UUID
     name: str | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
-    interval: float = Field(description="Interval in seconds between deadline evaluations.")
+    interval: float | None = Field(
+        default=None,
+        description=(
+            "Interval in seconds between the reference time and the deadline. "
+            "Null for a dynamic interval (e.g. a VariableInterval) whose value is "
+            "only resolved at scheduler evaluation time."
+        ),
+    )
     created_at: datetime
+
+    @field_validator("interval", mode="before")
+    @classmethod
+    def coerce_interval_to_seconds(cls, value: Any) -> float | None:
+        """
+        Coerce the stored ``interval`` into seconds.
+
+        ``interval`` is the Airflow-serialized SDK interval: a dict
+        ``{"__classname__": ..., "__data__": <seconds|dict>}``, not a plain number.
+        Return the seconds for a fixed ``timedelta``, or ``None`` for a dynamic
+        interval (resolved later by the scheduler). Without this, Pydantic 500s on the dict.
+        """
+        if value is None or isinstance(value, (int, float)):
+            return value
+        if isinstance(value, dict):
+            data = value.get("__data__")
+            if isinstance(data, (int, float)):
+                return float(data)
+        return None
 
 
 class DeadlineAlertCollectionResponse(BaseModel):

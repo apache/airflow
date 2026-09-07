@@ -107,7 +107,7 @@ def _detail_asset(args, *, session: Session) -> BaseModel:
     return AssetResponse.model_validate(asset)
 
 
-@deprecated_for_airflowctl("airflowctl assets get / airflowctl assets get-by-alias")
+@deprecated_for_airflowctl("airflowctl assets get / airflowctl assets get-alias")
 @cli_utils.action_cli
 @provide_session
 def asset_details(args, *, session: Session = NEW_SESSION) -> None:

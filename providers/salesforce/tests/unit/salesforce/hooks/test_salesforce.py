@@ -24,11 +24,14 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pandas as pd
 import pytest
+from packaging.version import Version
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
 from airflow.models.connection import Connection
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+PANDAS_3_PLUS = Version(pd.__version__).major >= 3
 
 
 class TestSalesforceHook:
@@ -349,10 +352,12 @@ class TestSalesforceHook:
         data_frame = self.salesforce_hook.write_object_to_file(query_results=[], filename=filename, fmt="csv")
 
         mock_data_frame.return_value.to_csv.assert_called_once_with(filename, index=False)
-        # Note that the latest version of pandas dataframes (1.1.2) returns "nan" rather than "None" here
+        # Note that the latest version of pandas dataframes (1.1.2) returns "nan" rather than "None" here,
+        # and pandas 3 keeps missing values as NA instead of stringifying them to "nan" at all
+        missing = np.nan if PANDAS_3_PLUS else "nan"
         pd.testing.assert_frame_equal(
             data_frame,
-            pd.DataFrame({"test": [1, 2, 3], "dict": ["nan", "nan", str({"foo": "bar"})]}),
+            pd.DataFrame({"test": [1, 2, 3], "dict": [missing, missing, str({"foo": "bar"})]}),
             check_index_type=False,
         )
 

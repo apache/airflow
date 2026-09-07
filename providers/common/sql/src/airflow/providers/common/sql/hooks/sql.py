@@ -1110,7 +1110,7 @@ class DbApiHook(BaseHook):
 
         return status, message
 
-    def get_openlineage_database_info(self, connection) -> DatabaseInfo | None:
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo | None:
         """
         Return database specific information needed to generate and parse lineage metadata.
 

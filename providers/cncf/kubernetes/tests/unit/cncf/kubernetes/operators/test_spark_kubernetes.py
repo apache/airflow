@@ -38,8 +38,7 @@ from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKu
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
-from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import TaskDeferred, timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.taskinstance import create_task_instance

@@ -30,6 +30,7 @@ import { FieldMultiType } from "./FieldMultiType";
 import { FieldMultilineText } from "./FieldMultilineText";
 import { FieldNumber } from "./FieldNumber";
 import { FieldObject } from "./FieldObject";
+import { FieldPassword } from "./FieldPassword";
 import { FieldString } from "./FieldString";
 import { FieldStringArray } from "./FieldStringArray";
 
@@ -90,6 +91,9 @@ const isFieldNumber = (fieldType: string) => {
 
 const isFieldObject = (fieldType: string) => fieldType === "object";
 
+const isFieldPassword = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "string" && fieldSchema.format === "password";
+
 const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "array" && (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
 
@@ -148,6 +152,8 @@ export const FieldSelector = ({ name, namespace = "default", onUpdate }: Flexibl
     return <FieldDuration name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
     return <FieldMultilineText name={name} namespace={namespace} onUpdate={onUpdate} />;
+  } else if (isFieldPassword(fieldType, param.schema)) {
+    return <FieldPassword name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else {
     return <FieldString name={name} namespace={namespace} onUpdate={onUpdate} />;
   }

@@ -64,8 +64,6 @@ class TeradataToTeradataOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if sql_params is None:
-            sql_params = {}
         self.dest_teradata_conn_id = dest_teradata_conn_id
         self.destination_table = destination_table
         self.source_teradata_conn_id = source_teradata_conn_id
@@ -86,7 +84,7 @@ class TeradataToTeradataOperator(BaseOperator):
         dest_hook = self.dest_hook
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
-            cursor.execute(self.sql, self.sql_params)
+            cursor.execute(self.sql, self.sql_params or {})
             target_fields = [field[0] for field in cursor.description]
             rows_total = 0
             if len(target_fields) != 0:

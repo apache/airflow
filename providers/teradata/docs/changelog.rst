@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+3.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BteqOperator declaring template_fields as a bare string (#70862)``
+
+Misc
+~~~~
+
+* ``Fix Teradata transfer template field initialization (#70392)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.6.1
 .....
 

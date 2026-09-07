@@ -85,7 +85,7 @@ class TestKafkaBaseHook:
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection(self, mock_get_connection, admin_client, hook):
-        config = {"bootstrap.servers": MagicMock()}
+        config = {"bootstrap.servers": "localhost:9092"}
         mock_get_connection.return_value.extra_dejson = config
         connection = hook.test_connection()
         admin_client.assert_called_once_with(config)
@@ -99,7 +99,7 @@ class TestKafkaBaseHook:
     )
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection_no_topics(self, mock_get_connection, admin_client, hook):
-        config = {"bootstrap.servers": MagicMock()}
+        config = {"bootstrap.servers": "localhost:9092"}
         mock_get_connection.return_value.extra_dejson = config
         connection = hook.test_connection()
         admin_client.assert_called_once_with(config)
@@ -122,11 +122,30 @@ class TestKafkaBaseHook:
     @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_test_connection_exception(self, mock_get_connection, admin_client, hook):
-        config = {"bootstrap.servers": MagicMock()}
+        config = {"bootstrap.servers": "localhost:9092"}
         mock_get_connection.return_value.extra_dejson = config
         admin_client.return_value.list_topics.side_effect = [ValueError("some error")]
         connection = hook.test_connection()
         assert connection == (False, "some error")
+
+    @mock.patch("airflow.providers.google.cloud.hooks.managed_kafka.ManagedKafkaHook")
+    @mock.patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_test_connection_injects_managed_kafka_oauth(
+        self, mock_get_connection, admin_client, managed_kafka_hook, hook
+    ):
+        # A managed Kafka cluster needs an oauth_cb token callback. test_connection must apply
+        # the same injection as get_conn, otherwise "Test Connection" fails in the UI even though
+        # the hook itself authenticates correctly.
+        config = {
+            "bootstrap.servers": "bootstrap.my-cluster.us-central1.managedkafka.my-project.cloud.goog:9092"
+        }
+        mock_get_connection.return_value.extra_dejson = config
+        connection = hook.test_connection()
+        admin_client.assert_called_once()
+        passed_config = admin_client.call_args.args[0]
+        assert passed_config["oauth_cb"] is managed_kafka_hook.return_value.get_confluent_token
+        assert connection == (True, "Connection successful.")
 
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_get_conn_msk_iam_provisioned(self, mock_get_connection, hook):

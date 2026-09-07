@@ -28,6 +28,45 @@
 Changelog
 ---------
 
+6.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make SparkSubmitOperator durable execution inert below Airflow 3.3 (#71534)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
+
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Anchor spark-submit log trail on actual exception instead of lines (#70513)``
+* ``Spark: Fix missing space in YARN waitAppCompletion error message (#71055)``
+
+Misc
+~~~~
+
+* ``Decouple SparkSubmitOperator resumable deployment backends (#68679)``
+* ``Drop unused post_submit_commands copy from SparkSubmitOperator init (#70323)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+
 6.3.0
 .....
 

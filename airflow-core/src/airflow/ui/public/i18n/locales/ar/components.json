@@ -11,9 +11,15 @@
     "backwards": "تشغيل رجعي",
     "dateRange": "نطاق التاريخ",
     "errorStartDateBeforeEndDate": "يجب أن يكون تاريخ البدء قبل تاريخ الانتهاء",
+    "exceptionReason": {
+      "alreadyExists": "موجود مسبقاً",
+      "inFlight": "قيد التنفيذ",
+      "unknown": "غير معروف"
+    },
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
     "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
     "missingRuns": "تشغيلات مفقودة",
+    "notCreatedReason": "سبب عدم الإنشاء",
     "overrideExistingParams": "تجاوز المعلمات في التشغيلات الحالية",
     "permissionDenied": "فشل التشغيل التجريبي (Dry Run): ليس لدى المستخدم صلاحية لإنشاء تعبئات رجعية.",
     "reprocessBehavior": "اعادة معالجة السلوك",
@@ -33,7 +39,8 @@
     "validation": {
       "datesRequired": "يجب توفير بيانات كل من تاريخ بدء فترة وتاريخ الانتهاء.",
       "startBeforeEnd": "بيانات فترة تاريخ البدء يجب ان تكون من او قبل تاريخ الانتهاء. "
-    }
+    },
+    "viewSlots": "عرض الحصص للتعبئة الرجعية {{id}}"
   },
   "banner": {
     "backfillInProgress": "التعبئة الرجعية قيد التنفيذ",
@@ -81,6 +88,7 @@
     "lastTaskInstance_other": "آخر {{count}} مثيل مهمة",
     "lastTaskInstance_two": "آخر مثيلين مهمة",
     "lastTaskInstance_zero": "لا يوجد أي مثيل مهمة",
+    "medianTotalDuration": "الإجمالي: {{duration}}",
     "queuedDuration": "مدة الانتظار في الطابور",
     "runAfter": "تشغيل بعد",
     "runDuration": "مدة التشغيل"
@@ -145,6 +153,10 @@
     "location": "سطر {{line}} في {{name}}"
   },
   "reparseDag": "إعادة تحليل Dag",
+  "slowestTaskInstances": {
+    "empty": "لا توجد مثيلات مهام مكتملة ضمن هذا النطاق",
+    "title": "أبطأ مثيلات المهام"
+  },
   "sortedAscending": "الترتيب تصاعدي",
   "sortedDescending": "الترتيب تنازلي",
   "sortedUnsorted": "غير مرتب",
@@ -169,6 +181,7 @@
     "loading": "جارٍ تحميل معلومات Dag...",
     "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
     "manualRunDenied": "التشغيلات اليدوية غير مسموح بها لهذا الـDag",
+    "partitionKeyHelp": "اختياري - ينطبق فقط على Dags المُجزأة",
     "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
     "selectDescription": "تشغيل عملية واحدة من هذا Dag",
     "selectLabel": "تشغيلة واحدة",

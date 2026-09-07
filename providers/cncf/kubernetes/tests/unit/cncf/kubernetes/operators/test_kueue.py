@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from unittest import mock
 
 import pytest
 from kubernetes.utils import FailToCreateError
 
+from airflow.models.dag import DAG
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesInstallKueueOperator,
@@ -51,6 +53,19 @@ class TestKubernetesInstallKueueOperator:
     def test_template_fields(self):
         expected_template_fields = {"kueue_version", "kubernetes_conn_id"}
         assert set(KubernetesInstallKueueOperator.template_fields) == expected_template_fields
+
+    def test_kueue_yaml_url_uses_rendered_version(self):
+        with DAG("kueue", schedule=None, start_date=datetime(2020, 1, 1)):
+            op = KubernetesInstallKueueOperator(
+                task_id=TEST_TASK_ID,
+                kueue_version="{{ params.v }}",
+                kubernetes_conn_id=TEST_K8S_CONN_ID,
+            )
+        op.render_template_fields({"params": {"v": "v0.9.1"}})
+        assert (
+            op._kueue_yaml_url
+            == "https://github.com/kubernetes-sigs/kueue/releases/download/v0.9.1/manifests.yaml"
+        )
 
     @mock.patch(KUEUE_OPERATORS_PATH.format("KubernetesHook"))
     def test_hook(self, mock_hook):

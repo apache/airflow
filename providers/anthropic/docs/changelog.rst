@@ -20,6 +20,42 @@
 Changelog
 ---------
 
+0.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Record Anthropic agent session token usage and cost in XCom (#71463)``
+* ``Add a budget argument to AnthropicAgentSessionOperator and update_session to the hook (#71462)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Interrupt a running Anthropic session before archiving it (#71465)``
+* ``Fix misleading error when an Anthropic agent session stops on its budget (#71461)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document Anthropic advisor rosters and pinned inference regions (#71464)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+0.2.1
+.....
+
+Misc
+~~~~
+
+* ``Move template-field validation out of AnthropicAgentSessionOperator __init__ (#70432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.2.0
 .....
 

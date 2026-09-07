@@ -16,22 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex } from "@chakra-ui/react";
 import { useRef } from "react";
 import type { RefObject } from "react";
+
+import { Box, Flex } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
-import { useGroups } from "src/context/groups";
-import { useTimezone } from "src/context/timezone";
-import { NavigationModes, useNavigation } from "src/hooks/navigation";
+
 import {
   GANTT_AXIS_HEIGHT_PX,
   GANTT_ROW_OFFSET_PX,
   GANTT_TOP_PADDING_PX,
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
+
+import { useGroups } from "src/context/groups";
+import { useTimezone } from "src/context/timezone";
+import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries";
@@ -48,6 +51,7 @@ type Props = {
   readonly offset?: number;
   readonly runAfterGte?: string | undefined;
   readonly runAfterLte?: string | undefined;
+  readonly runIdPattern?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
   readonly triggeringUser?: string | undefined;
@@ -59,6 +63,7 @@ export const Gantt = ({
   offset,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   sharedScrollContainerRef,
   triggeringUser,
@@ -85,6 +90,7 @@ export const Gantt = ({
     offset,
     runAfterGte,
     runAfterLte,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -95,6 +101,7 @@ export const Gantt = ({
     includeUpstream,
     limit,
     root: filterRoot,
+    runIdPattern,
     runType,
     triggeringUser,
   });

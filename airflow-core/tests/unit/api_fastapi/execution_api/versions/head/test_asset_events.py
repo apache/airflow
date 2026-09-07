@@ -23,6 +23,9 @@ import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dagrun import DagRun
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 
@@ -93,6 +96,27 @@ def test_asset_alias(session, test_asset_events, test_asset):
 
 
 class TestGetAssetEventByAsset:
+    @pytest.mark.usefixtures("test_asset")
+    def test_get_by_asset_with_created_dagrun_without_start_date(self, client, session, test_asset_events):
+        created_dagrun = DagRun(
+            dag_id="created_dag",
+            run_id="queued_run",
+            logical_date=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.ASSET_TRIGGERED,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
+        test_asset_events[0].created_dagruns.append(created_dagrun)
+        session.commit()
+
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": "test_get_asset_by_name", "uri": None},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["asset_events"][0]["created_dagruns"][0]["start_date"] is None
+
     @pytest.mark.parametrize(
         ("uri", "name"),
         [

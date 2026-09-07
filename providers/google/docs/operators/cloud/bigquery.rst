@@ -403,10 +403,16 @@ the same logical run doesn't submit a second job, that guarantee is unrelated to
 and keeping ``force_rerun=False`` is still the right choice for it.
 
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
-earlier Airflow versions the flag is a no-op and the operator always submits a fresh job on retry,
-exactly as before -- including the pre-existing ``reattach_states``/``Conflict`` behavior, which is
-unchanged. If the task state store is unavailable at runtime, the operator logs that crash
-recovery is disabled and behaves the same way.
+earlier Airflow versions the flag is a no-op -- setting it explicitly only emits a warning -- and
+the operator always submits a fresh job on retry, exactly as before -- including the pre-existing
+``reattach_states``/``Conflict`` behavior, which is unchanged. If the task state store is
+unavailable at runtime, the operator logs that crash recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored job id isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+job id won't be there for the next retry, and the operator will submit a fresh job instead of
+reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
 To opt out and always submit a fresh job on retry, set ``durable=False``:
 

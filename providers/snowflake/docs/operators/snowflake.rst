@@ -182,6 +182,23 @@ earlier Airflow versions the flag is a no-op and the operator always submits fre
 exactly as before. If the task state store is unavailable at runtime, the operator logs that crash
 recovery is disabled and behaves the same way.
 
+Like the persisted state itself, the stored statement handles aren't deleted automatically, that
+only happens when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is
+longer than ``[state_store] default_retention_days`` (30 days by default) and cleanup runs in
+between, the handles won't be there for the next retry, and the operator will submit the SQL
+fresh instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
+``retry_delay``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose
+statements already succeeded: clearing does not delete the stored handles, so the next attempt
+reads them back and returns immediately without submitting the SQL again. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the statements via ``on_kill`` before the next attempt gets a
+chance to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 
 .. code-block:: python
@@ -197,3 +214,7 @@ To opt out and always submit fresh SQL on retry, set ``durable=False``:
 Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the Triggerer
 already tracks the statement handles across the wait, so deferrable mode takes precedence and
 ``durable`` has no effect.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always submits fresh SQL on retry, exactly as before this feature existed.

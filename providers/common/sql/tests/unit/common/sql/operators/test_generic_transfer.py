@@ -29,10 +29,10 @@ from more_itertools import flatten
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils import timezone
 
 from tests_common.test_utils.compat import GenericTransfer
 from tests_common.test_utils.operators.run_deferrable import execute_operator, mock_context

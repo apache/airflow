@@ -103,7 +103,7 @@ class TelegramFileOperator(BaseOperator):
     :param telegram_kwargs: Extra args to be passed to telegram client
     """
 
-    template_fields: Sequence[str] = "chat_id"
+    template_fields: Sequence[str] = ("chat_id",)
     ui_color = "#FFBA40"
 
     def __init__(

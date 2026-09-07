@@ -17,13 +17,16 @@
  * under the License.
  */
 import { useEffect, useRef, type PropsWithChildren } from "react";
+
 import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
-import { allGroupsKey, dependenciesKey, openGroupsKey } from "src/constants/localStorage";
-import useSelectedVersion from "src/hooks/useSelectedVersion";
+
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
+
+import { allGroupsKey, openGroupsKey } from "src/constants/localStorage";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 
 import { GroupsContext, type GroupsContextType } from "./Context";
 
@@ -42,12 +45,10 @@ export const GroupsProvider = ({ children, dagId }: Props) => {
   }, [allGroupIds]);
 
   const selectedVersion = useSelectedVersion();
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
 
   const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
-      externalDependencies: dependencies === "immediate",
       versionNumber: selectedVersion,
     },
     undefined,

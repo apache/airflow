@@ -146,6 +146,25 @@ class TestEmail:
         assert [mail_to] == recipients
         assert msg["To"] == ",".join(recipients)
 
+    def test_build_mime_message_escapes_attachment_filename(self, tmp_path):
+        # A quote in the filename must not break out of the quoted
+        # Content-Disposition value and inject extra parameters.
+        malicious = 'report.txt"; x-evil="1'
+        attachment = tmp_path / malicious
+        attachment.write_bytes(b"data")
+
+        msg, _ = email.build_mime_message(
+            mail_from="from@example.com",
+            to="to@example.com",
+            subject="subject",
+            html_content="<html></html>",
+            files=[os.fspath(attachment)],
+        )
+
+        part = msg.get_payload()[-1]
+        assert part.get_filename() == malicious
+        assert "x-evil" not in dict(part.get_params(header="Content-Disposition"))
+
 
 @pytest.mark.db_test
 class TestEmailSmtp:

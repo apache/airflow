@@ -29,7 +29,7 @@ from time import sleep
 import click
 from click import IntRange
 
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     option_airflow_ui_base_url,
     option_allow_pre_releases,
@@ -104,6 +104,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     notify_on_unhealthy_backend_container,
     perform_environment_checks,
+    pull_images_with_retries,
     remove_docker_networks,
 )
 from airflow_breeze.utils.environment_check import is_ci_environment
@@ -275,6 +276,12 @@ def _run_test(
     run_cmd.extend(pytest_args)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
+        if shell_params.test_group in (GroupOfTests.INTEGRATION_CORE, GroupOfTests.INTEGRATION_PROVIDERS):
+            pull_images_with_retries(
+                compose_project_name=compose_project_name,
+                env=env,
+                skip_images={shell_params.airflow_image_name},
+            )
         result = run_command(
             run_cmd,
             output=output,
@@ -1420,7 +1427,7 @@ def python_api_client_tests(
         install_airflow_python_client=True,
         start_api_server_with_examples=True,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
@@ -1946,7 +1953,7 @@ def _run_test_command(
         run_tests=True,
         db_reset=db_reset if not skip_db_tests else False,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()

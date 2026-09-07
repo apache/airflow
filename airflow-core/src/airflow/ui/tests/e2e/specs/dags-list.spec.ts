@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect, test } from "tests/e2e/fixtures";
 import { apiDeleteDagRun, waitForDagRunStatus } from "tests/e2e/utils/api/dag-runs";
 
@@ -44,7 +45,7 @@ test.describe("Dag Trigger Workflow", () => {
       });
 
       await page.goto(`/dags/${testDagId}/runs/${dagRunId}`);
-      const stateBadge = page.getByTestId("state-badge").first();
+      const stateBadge = page.getByTestId("header-card").getByTestId("state-badge").first();
 
       await expect(stateBadge).toContainText("Success", { timeout: 30_000 });
 
@@ -110,6 +111,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.waitForDagList();
     await dagsPage.switchToTableView();
 
+    await dagsPage.openAddFilterMenu();
     await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
     await dagsPage.needsReviewFilter.click();
 
@@ -131,6 +133,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.waitForDagList();
     await dagsPage.switchToCardView();
 
+    await dagsPage.openAddFilterMenu();
     await expect(dagsPage.needsReviewFilter).toBeVisible({ timeout: 30_000 });
     await dagsPage.needsReviewFilter.click();
 
@@ -197,7 +200,7 @@ test.describe("Dags Status Filtering", () => {
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
 
-    await expect(dagsPage.lastRunStateFilter).toBeVisible();
+    await expect(dagsPage.addFilterButton).toBeVisible();
 
     await dagsPage.filterByStatus("success");
     await dagsPage.waitForDagList();

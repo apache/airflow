@@ -178,3 +178,33 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 		assert.Equal(t, expected["key"], rawToMap(t, frame.Body)["key"])
 	}
 }
+
+func TestEncodeRequestHonoursJSONTags(t *testing.T) {
+	type userValue struct {
+		GoVersion string `json:"go_version"`
+		Ignored   string `json:"-"`
+		Untagged  int
+	}
+	type protocolValue struct {
+		Field string `msgpack:"wire_name" json:"json_name"`
+	}
+
+	data, err := encodeRequest(1, map[string]any{
+		"user":     userValue{GoVersion: "go1.25", Ignored: "dropped", Untagged: 7},
+		"protocol": protocolValue{Field: "v"},
+	})
+	require.NoError(t, err)
+
+	var frame []any
+	require.NoError(t, msgpack.Unmarshal(data[:], &frame))
+	require.Len(t, frame, 2)
+	body, ok := frame[1].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(
+		t,
+		map[string]any{"go_version": "go1.25", "Untagged": int8(7)},
+		body["user"],
+	)
+	assert.Equal(t, map[string]any{"wire_name": "v"}, body["protocol"])
+}

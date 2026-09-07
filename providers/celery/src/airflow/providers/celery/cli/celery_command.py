@@ -36,14 +36,13 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
-from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
 )
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
@@ -309,6 +308,9 @@ def worker(args):
     celery_log_level = config.get("logging", "CELERY_LOGGING_LEVEL")
     if not celery_log_level:
         celery_log_level = config.get("logging", "LOGGING_LEVEL")
+
+    if args.verbose:
+        celery_log_level = "DEBUG"
 
     # Setup Celery worker
     options = [

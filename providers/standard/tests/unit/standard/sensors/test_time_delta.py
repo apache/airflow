@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -253,3 +254,27 @@ class TestTimeDeltaSensorAsync:
             op.execute(context)
 
         assert caught.value.trigger.moment == expected_time
+
+    @pytest.mark.parametrize(
+        "time_to_wait",
+        [timedelta(minutes=1), 1, "{{ 1*2 }}"],
+    )
+    def test_wait_sensor_templating(self, mocker, time_to_wait):
+        defer_mock = mocker.patch(DEFER_PATH)
+        op = WaitSensor(task_id="wait_sensor_check", time_to_wait=time_to_wait, dag=self.dag, deferrable=True)
+
+        with time_machine.travel(pendulum.datetime(year=2024, month=8, day=1, tz="UTC"), tick=False):
+            context = op.render_template_fields({})
+            op.execute(context)
+            defer_mock.assert_called_once()
+
+    def test_wait_sensor_templating_error(self, mocker):
+        op = WaitSensor(
+            task_id="wait_sensor_check", time_to_wait="{{ 'nothing' }}", dag=self.dag, deferrable=True
+        )
+        with time_machine.travel(pendulum.datetime(year=2024, month=8, day=1, tz="UTC"), tick=False):
+            context = op.render_template_fields({})
+            with pytest.raises(
+                ValueError, match=re.escape("invalid literal for int() with base 10: 'nothing'")
+            ):
+                op.execute(context)

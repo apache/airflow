@@ -1,0 +1,224 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Build CI image with cache'
+description: >
+  Builds the CI image in the job that uses it, seeding the build from what a previous run stashed
+  for the same ref and stashing the result for the next one. Exists so a job needing an image does
+  not have to take it from another job as a multi-gigabyte artifact; ci-image-build.yml remains the
+  reusable-workflow form for callers that do want a job of their own.
+inputs:
+  python:
+    description: 'Python version to build the image for'
+    required: true
+  platform:
+    description: 'Platform to build for'
+    default: 'linux/amd64'
+  image-stash-ref:
+    description: >
+      Discriminator the image, its commit marker and the mount cache are stashed under. Scoped to
+      the ref rather than the branch: these images are built from a ref that is not the branch tip,
+      so the shared per-branch stash would hand the next reader sources it never asked for.
+    required: true
+  github-token:
+    description: 'Token used to log in to ghcr.io and read the registry build cache'
+    required: true
+  constraints-github-repository:
+    description: 'Repository the constraints are taken from'
+    default: 'apache/airflow'
+runs:
+  using: "composite"
+  steps:
+    # A stashed image is only an answer when the sources have not moved since; otherwise it is
+    # cache. The commit it was built from tells the two apart and is stashed on its own, so
+    # deciding costs a few bytes rather than the image the decision may make unnecessary.
+    - name: "Restore the commit the stashed CI image was built from"
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
+      with:
+        key: "ci-image-commit-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          -${{ inputs.image-stash-ref }}"
+        path: "/mnt/"
+        only-current-branch: 'true'
+      id: restore-commit
+    - name: "Check whether the stashed CI image was built from this commit"
+      id: stashed-image
+      env:
+        COMMIT_FILE: "/mnt/ci-image-commit-${{ inputs.python }}.txt"
+      shell: bash
+      run: |
+        head_sha="$(git rev-parse HEAD)"
+        stashed_sha="$(cat "${COMMIT_FILE}" 2>/dev/null || true)"
+        if [[ "${stashed_sha}" == "${head_sha}" ]]; then
+          echo "The stashed image was built from ${head_sha} - reusing it, without a build."
+          echo "reusable=true" >> "${GITHUB_OUTPUT}"
+        else
+          echo "The stashed image was built from '${stashed_sha:-unknown}', not ${head_sha}."
+          echo "It can only seed the build cache."
+        fi
+      if: steps.restore-commit.outputs.stash-hit == 'true'
+    # Restored ahead of the caches that feed the build, so a build made unnecessary skips them too.
+    - name: "Restore the CI image stashed for this ref"
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
+      with:
+        key: "ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          -${{ inputs.image-stash-ref }}"
+        path: "/mnt/"
+        only-current-branch: 'true'
+      id: restore-image
+    - name: "Load the stashed CI image as the image to use"
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+      run: breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
+      if: steps.stashed-image.outputs.reusable == 'true'
+    # BuildKit reads `--cache-from` from a registry, never from the local engine, so the restored
+    # image has to be served from one to contribute anything.
+    - name: "Serve the stashed CI image as build cache"
+      id: serve-cache
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+        CACHE_IMAGE: "localhost:5000/ci-image-cache:${{ inputs.python }}"
+      run: |
+        docker run -d --name cache-registry -p 5000:5000 registry:2
+        breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}" \
+          --image-file-dir "/mnt" --tag-as "${CACHE_IMAGE}"
+        docker push "${CACHE_IMAGE}"
+        echo "cache-from-image=${CACHE_IMAGE}" >> "${GITHUB_OUTPUT}"
+      if: >
+        steps.stashed-image.outputs.reusable != 'true' &&
+        steps.restore-image.outputs.stash-hit == 'true'
+    # Scoped to the ref for the same reason the image is: the mount cache holds the dependency set
+    # the sources resolve to, and a ref's and the branch tip's are exactly what differ.
+    - name: "Restore the mount cache stashed for this ref"
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
+      with:
+        key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          -${{ inputs.image-stash-ref }}"
+        path: "/tmp/"
+      id: restore-mount-cache
+      if: steps.stashed-image.outputs.reusable != 'true'
+    - name: "Import the mount cache"
+      shell: bash
+      env:
+        PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.python }}
+        CACHE_FILE: "/tmp/ci-cache-mount-save-v3-${{ inputs.python }}.tar.gz"
+      run: |
+        if [[ ! -f "${CACHE_FILE}" ]]; then
+          echo "${CACHE_FILE} is missing - the stash restore may have timed out. Building without it."
+          exit 0
+        fi
+        breeze ci-image import-mount-cache --cache-file "${CACHE_FILE}"
+      if: >
+        steps.stashed-image.outputs.reusable != 'true' &&
+        steps.restore-mount-cache.outputs.stash-hit == 'true'
+    - name: "Login to ghcr.io"
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ACTOR: ${{ github.actor }}
+      run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
+      if: steps.stashed-image.outputs.reusable != 'true'
+    - name: "Build the CI image"
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.python }}
+        DOCKER_CACHE: "registry"
+        DISABLE_AIRFLOW_REPO_CACHE: "false"
+        UPGRADE_TO_NEWER_DEPENDENCIES: "false"
+        CONSTRAINTS_GITHUB_REPOSITORY: ${{ inputs.constraints-github-repository }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_USERNAME: ${{ github.actor }}
+        PUSH: "false"
+        VERBOSE: "true"
+        # Empty when nothing was stashed for this ref; breeze then builds off the registry cache
+        # alone. BuildKit reads --cache-from from a registry, never from the local engine.
+        CACHE_FROM_IMAGE: ${{ steps.serve-cache.outputs.cache-from-image }}
+      run: |
+        if breeze ci-image build --platform "${PLATFORM}"; then
+          exit 0
+        fi
+        # Reached when this ref's pyproject.toml has drifted far enough from the branch the
+        # registry cache was built for that the cached layers cannot satisfy it. Slow, but correct
+        # - and the case that matters here, since these refs are cut days or weeks before main.
+        echo "Build with the registry cache failed - retrying with the cache disabled."
+        DOCKER_CACHE="disabled" breeze ci-image build --platform "${PLATFORM}"
+      if: steps.stashed-image.outputs.reusable != 'true'
+    - name: "Stop serving the stashed image as cache"
+      # The registry holds a second copy of a multi-gigabyte image and the export below needs room.
+      shell: bash
+      env:
+        CACHE_FROM_IMAGE: ${{ steps.serve-cache.outputs.cache-from-image }}
+      run: |
+        docker rm -f cache-registry
+        docker rmi "${CACHE_FROM_IMAGE}"
+      if: always() && steps.serve-cache.outputs.cache-from-image != ''
+    - name: "Export the CI image for the next run"
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        COMMIT_FILE: "/mnt/ci-image-commit-${{ inputs.python }}.txt"
+      run: |
+        breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
+        git rev-parse HEAD > "${COMMIT_FILE}"
+      if: steps.stashed-image.outputs.reusable != 'true'
+    - name: "Stash the CI image"
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+      with:
+        key: "ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          -${{ inputs.image-stash-ref }}"
+        path: "/mnt/ci-image-save-*-${{ inputs.python }}.tar"
+        if-no-files-found: 'error'
+        # Read by the next run for this same ref - an RC and then the final, days apart.
+        retention-days: '6'
+      if: steps.stashed-image.outputs.reusable != 'true'
+    # Saved last and with the image's retention, so that finding this commit is enough to know the
+    # image it describes is there to be restored.
+    - name: "Stash the commit the CI image was built from"
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+      with:
+        key: "ci-image-commit-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          -${{ inputs.image-stash-ref }}"
+        path: "/mnt/ci-image-commit-${{ inputs.python }}.txt"
+        if-no-files-found: 'error'
+        retention-days: '6'
+      if: steps.stashed-image.outputs.reusable != 'true'
+    - name: "Export the mount cache for the next run"
+      shell: bash
+      env:
+        PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.python }}
+      run: >
+        breeze ci-image export-mount-cache
+        --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+      if: steps.stashed-image.outputs.reusable != 'true'
+    - name: "Stash the mount cache"
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+      with:
+        key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+          -${{ inputs.image-stash-ref }}"
+        path: "/tmp/ci-cache-mount-save-v3-${{ inputs.python }}.tar.gz"
+        if-no-files-found: 'error'
+        retention-days: '6'
+      if: steps.stashed-image.outputs.reusable != 'true'

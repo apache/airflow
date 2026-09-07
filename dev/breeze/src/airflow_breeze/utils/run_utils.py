@@ -25,16 +25,18 @@ import re
 import shlex
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from subprocess import CalledProcessError, CompletedProcess
 from typing import Any
 
 from rich.markup import escape
 
+from airflow_breeze.global_constants import SIMPLE_AUTH_MANAGER_VITE_DEV_PORT, VITE_DEV_PORT
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -532,12 +534,30 @@ def _clean_ui_assets(additional_ui_hooks: list[str]):
     console_print("[success]Cleaned ui assets[/]")
 
 
+def _find_occupied_local_ports(ports: Iterable[str]) -> list[str]:
+    occupied_ports = []
+    for port in ports:
+        with contextlib.suppress(OSError):
+            with socket.create_connection(("localhost", int(port)), timeout=0.1):
+                occupied_ports.append(port)
+    return occupied_ports
+
+
 def run_compile_ui_assets(
     dev: bool,
     run_in_background: bool,
     force_clean: bool,
     additional_ui_hooks: list[str],
 ):
+    if dev:
+        occupied_ports = _find_occupied_local_ports((VITE_DEV_PORT, SIMPLE_AUTH_MANAGER_VITE_DEV_PORT))
+        if occupied_ports:
+            console_print(
+                "[error]Cannot start UI development servers because the following local port(s) "
+                f"are already in use: {', '.join(occupied_ports)}.[/]\n"
+                "[info]Stop the processes using these ports and try again.[/]"
+            )
+            sys.exit(1)
     if force_clean:
         _clean_ui_assets(additional_ui_hooks)
     if dev:
