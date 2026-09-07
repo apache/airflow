@@ -1466,24 +1466,6 @@ class TestSchedulerJob:
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
 
-    def test_missing_serialized_dag_keeps_scheduled_tasks_for_a_later_tick(self, dag_maker, session):
-        """A transient serialization gap must not fail every scheduled task for a DAG."""
-        with dag_maker(dag_id="missing_serialized_dag", max_active_tasks=16):
-            task = EmptyOperator(task_id="task", max_active_tis_per_dag=1)
-
-        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        task_instance = dag_run.get_task_instance(task.task_id, session=session)
-        task_instance.state = State.SCHEDULED
-        session.flush()
-
-        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        self.job_runner.scheduler_dag_bag = mock.MagicMock()
-        self.job_runner.scheduler_dag_bag.get_dag_for_run.return_value = None
-
-        assert self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session) == []
-        session.refresh(task_instance)
-        assert task_instance.state == State.SCHEDULED
-
     def test_executable_task_instances_no_per_ti_queries(self, dag_maker, session):
         """Guard against an N+1 when enqueuing task instances.
 
@@ -2206,8 +2188,8 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    def test_queued_task_instances_fails_with_missing_dag(self, dag_maker, session):
-        """Check that task instances of missing DAGs are failed"""
+    def test_queued_task_instances_remain_scheduled_with_missing_dag(self, dag_maker, session):
+        """Keep task instances scheduled when their serialized DAG is temporarily unavailable."""
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_not_in_dagbag"
         task_id_1 = "dummy"
         task_id_2 = "dummydummy"
@@ -2234,7 +2216,7 @@ class TestSchedulerJob:
         assert len(res) == 0
         tis = dr.get_task_instances(session=session)
         assert len(tis) == 2
-        assert all(ti.state == State.FAILED for ti in tis)
+        assert all(ti.state == State.SCHEDULED for ti in tis)
 
     def test_nonexistent_pool(self, dag_maker):
         dag_id = "SchedulerJobTest.test_nonexistent_pool"
