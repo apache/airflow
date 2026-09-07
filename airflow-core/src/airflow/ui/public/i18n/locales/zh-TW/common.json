@@ -135,6 +135,7 @@
   },
   "filter": "篩選",
   "filters": {
+    "date": "日期",
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
     "endTime": "結束時間",
@@ -144,12 +145,15 @@
     "runAfterTo": "從最早可執行時間",
     "searchAsset": "搜尋資源",
     "selectDateRange": "選擇日期範圍",
-    "startTime": "起始時間"
+    "selectDateTime": "選擇日期與時間",
+    "startTime": "起始時間",
+    "time": "時間"
   },
   "fullscreen": {
     "tooltip": "按下 {{hotkey}} 進入全螢幕"
   },
   "generateToken": "產生權杖",
+  "includedIn": "包含於",
   "key": "鍵",
   "logicalDate": "邏輯日期",
   "logout": "登出",

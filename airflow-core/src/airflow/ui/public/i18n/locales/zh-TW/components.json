@@ -112,6 +112,10 @@
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
   },
+  "passwordToggle": {
+    "hide": "隱藏值",
+    "show": "顯示值"
+  },
   "reparseDag": "重新解析 Dag",
   "sortedAscending": "遞增排序",
   "sortedDescending": "遞減排序",
