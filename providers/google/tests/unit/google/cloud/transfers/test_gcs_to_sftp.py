@@ -565,3 +565,49 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         with pytest.raises(ValueError, match="escapes configured destination_path"):
             task._resolve_destination_path(source_object)
+
+    @pytest.mark.parametrize(
+        ("keys", "expected_kept", "expected_dropped"),
+        [
+            ([], [], []),
+            (["a"], ["a"], []),
+            (["a", "b"], ["a", "b"], []),
+            # Non-slash prefix overlaps must NOT be treated as folder markers.
+            (["a", "ax"], ["a", "ax"], []),
+            (["abc", "abcdef"], ["abc", "abcdef"], []),
+            (["foo/", "foo/bar.txt"], ["foo/bar.txt"], ["foo/"]),
+            (
+                ["data/", "data/sub/", "data/sub/file.txt"],
+                ["data/sub/file.txt"],
+                ["data/", "data/sub/"],
+            ),
+            # A lone trailing-slash key with no overlap is a real object and stays.
+            (["lonely/"], ["lonely/"], []),
+            (["lonely/", "report.csv"], ["lonely/", "report.csv"], []),
+        ],
+    )
+    def test_strip_overlapping_folder_markers(self, keys, expected_kept, expected_dropped):
+        """Folder-marker detection: requires both strict-prefix overlap AND trailing slash."""
+        kept, dropped = GCSToSFTPOperator._strip_overlapping_folder_markers(keys)
+        assert kept == expected_kept
+        assert dropped == expected_dropped
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
+    def test_execute_skips_folder_markers_colliding_with_their_children(self, sftp_hook_mock, gcs_hook_mock):
+        """``folder/`` normalises to the path its children need as a directory."""
+        gcs_hook_mock.return_value.list.return_value = ["folder/", "folder/file.txt", "lonely/"]
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="*",
+            destination_path=DESTINATION_SFTP,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        assert sftp_hook_mock.return_value.store_file.call_args_list == [
+            mock.call(os.path.join(DESTINATION_SFTP, "folder/file.txt"), mock.ANY),
+            mock.call(os.path.join(DESTINATION_SFTP, "lonely"), mock.ANY),
+        ]

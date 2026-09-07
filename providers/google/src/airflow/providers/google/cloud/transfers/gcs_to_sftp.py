@@ -138,6 +138,29 @@ class GCSToSFTPOperator(BaseOperator):
     def sftp_hook(self):
         return SFTPHook(self.sftp_conn_id)
 
+    @staticmethod
+    def _strip_overlapping_folder_markers(keys: list[str]) -> tuple[list[str], list[str]]:
+        """
+        Drop trailing-slash keys that are strict prefixes of other listed keys.
+
+        Treated as directory markers. A lone trailing-slash key with no overlap
+        (e.g. ``lonely/``) is preserved, and a non-slash key that happens to be a
+        strict prefix of another (e.g. ``abc`` of ``abcdef``) is also preserved.
+        Returns ``(kept, dropped)``.
+        """
+        if not keys:
+            return [], []
+        ordered = sorted(set(keys))
+        kept: list[str] = []
+        dropped: list[str] = []
+        for current, nxt in zip(ordered, ordered[1:]):
+            if current.endswith("/") and nxt.startswith(current):
+                dropped.append(current)
+            else:
+                kept.append(current)
+        kept.append(ordered[-1])
+        return kept, dropped
+
     def execute(self, context: Context):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -159,6 +182,14 @@ class GCSToSFTPOperator(BaseOperator):
             #       remove the previous line and uncomment the following:
             # match_glob = f"**/*{delimiter}" if delimiter else None
             # objects = gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
+
+            objects, dropped_keys = self._strip_overlapping_folder_markers(objects)
+            if dropped_keys:
+                self.log.info(
+                    "Skipping %s GCS folder-marker key(s) (omitted from transfer): %s",
+                    len(dropped_keys),
+                    dropped_keys,
+                )
 
             for source_object in objects:
                 destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)
