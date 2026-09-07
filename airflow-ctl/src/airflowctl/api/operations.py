@@ -332,7 +332,7 @@ class AssetsOperations(BaseOperations):
     def list_state_store(self, asset_id: str) -> AssetStateStoreCollectionResponse | ServerResponseError:
         """List all state store entries for an asset."""
         return super().execute_list(
-            path=f"/assets/{asset_id}/state-store", data_model=AssetStateStoreCollectionResponse
+            path=f"assets/{asset_id}/state-store", data_model=AssetStateStoreCollectionResponse
         )
 
     def get_state_store(self, asset_id: str, key: str) -> AssetStateStoreResponse | ServerResponseError:
