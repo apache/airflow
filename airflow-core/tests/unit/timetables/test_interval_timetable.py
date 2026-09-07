@@ -79,7 +79,7 @@ def test_no_catchup_first_starts_at_current_time(
 def test_zero_length_last_interval_does_not_re_emit_logical_date(catchup: bool) -> None:
     """A zero-length ``data_interval`` (``start == end``) on the previous run must not
     cause ``next_dagrun_info`` to re-emit that run's logical_date. These appear when a
-    DAG was scheduled by ``CronTriggerTimetable`` and later switched to
+    Dag was scheduled by ``CronTriggerTimetable`` and later switched to
     ``CronDataIntervalTimetable``; without the guard the scheduler loops on "run
     already exists; skipping dagrun creation". The guard's single retry always
     resolves this for ``CronDataIntervalTimetable``.
