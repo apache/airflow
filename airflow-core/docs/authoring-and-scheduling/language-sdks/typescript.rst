@@ -27,13 +27,13 @@ plain JavaScript), running on Node.js. A matching Python stub Dag still declares
 dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
 :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
 
-The SDK is an ESM-only package that ships from the ``ts-sdk/`` directory of the Airflow repository. It is currently in **beta** and its API may change.
+The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in **beta** and its API may change.
 
 .. warning::
 
-  The SDK is not yet published to npm. To try it today, build it from source in the
-  `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and
-  depend on it locally (see ``ts-sdk/example/`` for a working setup).
+  Install an available release from npm. To try an unreleased change, build it from source in the
+  `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository
+  and depend on it locally (see ``ts-sdk/example/`` for a working setup).
 
 .. seealso::
 
@@ -53,6 +53,11 @@ Prerequisites
   the worker, under a directory the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
+* In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
+
+  .. code-block:: bash
+
+      npm install apache-airflow-ts-sdk
 
 Quick start
 -----------
@@ -259,8 +264,12 @@ a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the `
 map plus the supervisor schema version) as a leading ``//# airflowMetadata=<base64>`` comment — one file to
 deploy, with no separate manifest or ``node_modules``.
 
+``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
+``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
+
 .. code-block:: bash
 
+    npm install --save-dev esbuild
     npx airflow-ts-pack src/main.ts --outdir dist
 
 Use ``--outdir <dir>`` to choose the output directory (default ``dist``) and ``--source <name>`` to set the
@@ -290,8 +299,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``bundles_root``
      - *(required)*
-     - One or more directories searched, in order, for a ``bundle.mjs`` (with embedded metadata, or with an
-       ``airflow-metadata.yaml`` sidecar). Accepts a string, a path, or a list of strings/paths.
+     - One or more directories searched, in order, for a ``bundle.mjs`` with embedded metadata. Accepts a
+       string, a path, or a list of strings/paths.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.

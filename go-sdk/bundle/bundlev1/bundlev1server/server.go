@@ -19,27 +19,17 @@ package bundlev1server
 
 import (
 	"errors"
-	"log/slog"
-	"os"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	flag "github.com/spf13/pflag"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server/impl"
-	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
-	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/execution"
-	"github.com/apache/airflow/go-sdk/pkg/logging/hclogslog"
 )
 
-// ErrCoordinatorFlagsIncomplete is returned by [Serve] when exactly one of
-// --comm or --logs is supplied. Both flags select coordinator mode and must
-// be set together; callers (typically main) can check for this sentinel to
-// print usage before exiting non-zero.
-var ErrCoordinatorFlagsIncomplete = errors.New(
-	"--comm and --logs must be supplied together",
+// ErrCoordinatorFlagsRequired is returned by [Serve] unless both --comm and
+// --logs are supplied. Bundle execution always uses the coordinator protocol.
+var ErrCoordinatorFlagsRequired = errors.New(
+	"--comm and --logs are required for bundle execution",
 )
 
 // ErrFormatRequiresMetadata is returned by [Serve] when --format is supplied
@@ -98,16 +88,14 @@ type ServerConfig struct{}
 type serveMode int
 
 const (
-	modePlugin                serveMode = iota // go-plugin gRPC (existing Edge Worker path)
-	modeAirflowMetadata                        // --airflow-metadata: print the manifest JSON (ADR 0002/0004)
+	modeAirflowMetadata       serveMode = iota // --airflow-metadata: print the manifest JSON (ADR 0002/0004)
 	modeCoordinator                            // --comm/--logs: msgpack-over-IPC (ADR 0003)
-	modeCoordinatorUsageError                  // misuse: print usage and exit non-zero
+	modeCoordinatorUsageError                  // missing coordinator flags
 )
 
-// Serve is the entrypoint for your bundle, and sets it up ready for Airflow's
-// Go Worker (go-plugin) or Python supervisor (coordinator protocol) to use.
+// Serve is the entrypoint for a bundle executed by Airflow's coordinator.
 //
-// The mode is decided from CLI flags and process environment. Callers should
+// The mode is decided from CLI flags. Callers should
 // surface the returned error so misuse (e.g. only one of --comm/--logs
 // supplied) produces a non-zero exit:
 //
@@ -121,8 +109,6 @@ const (
 // no options yet; the parameter exists to allow future additions without
 // breaking compatibility.
 func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
-	config.SetupViper("")
-
 	flag.Parse()
 
 	serveConfig := &ServerConfig{}
@@ -130,7 +116,7 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 		c.ApplyServeOpt(serveConfig)
 	}
 
-	mode := decideMode()
+	mode := decideMode(*printMetadata, *commAddr, *logsAddr)
 
 	// --format applies only to --airflow-metadata; reject it elsewhere instead
 	// of silently ignoring it.
@@ -146,61 +132,21 @@ func Serve(bundle bundlev1.BundleProvider, opts ...ServeOpt) error {
 		}
 		return execution.DumpAirflowMetadata(bundle, format)
 	case modeCoordinator:
-		// In coordinator mode the supervisor reads the logs channel for
-		// structured records, so configuring the hclog/stderr default
-		// logger here is unnecessary — execution.Serve installs its own
-		// slog handler against the logs socket before any user code runs.
 		return execution.Serve(bundle, *commAddr, *logsAddr)
-	case modePlugin:
-		installPluginLogger()
-		return servePlugin(bundle)
 	case modeCoordinatorUsageError:
-		return ErrCoordinatorFlagsIncomplete
+		return ErrCoordinatorFlagsRequired
 	}
 	return nil
 }
 
-func decideMode() serveMode {
-	if *printMetadata {
+func decideMode(metadata bool, comm, logs string) serveMode {
+	if metadata {
 		return modeAirflowMetadata
 	}
-	commSet := *commAddr != ""
-	logsSet := *logsAddr != ""
+	commSet := comm != ""
+	logsSet := logs != ""
 	if commSet && logsSet {
 		return modeCoordinator
 	}
-	if commSet || logsSet {
-		// Partial use is a hard error, both flags are required
-		return modeCoordinatorUsageError
-	}
-	return modePlugin
-}
-
-func installPluginLogger() {
-	hcLogger := hclog.New(&hclog.LoggerOptions{
-		Level:                    hclog.Trace,
-		Output:                   os.Stderr,
-		JSONFormat:               true,
-		IncludeLocation:          true,
-		AdditionalLocationOffset: 3,
-	})
-	log := slog.New(hclogslog.Adapt(hcLogger))
-	slog.SetDefault(log)
-}
-
-func servePlugin(bundle bundlev1.BundleProvider) error {
-	pluginConfig := &plugin.ServeConfig{
-		HandshakeConfig: shared.Handshake,
-		Plugins: plugin.PluginSet{
-			"dag-bundle": &impl.BundleGRPCPlugin{
-				Factory: func() bundlev1.BundleProvider { return bundle },
-			},
-		},
-		GRPCServer: plugin.DefaultGRPCServer,
-	}
-
-	// Likely never returns
-	plugin.Serve(pluginConfig)
-
-	return nil
+	return modeCoordinatorUsageError
 }

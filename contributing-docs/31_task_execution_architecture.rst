@@ -64,9 +64,9 @@ a **compiled, non-Python language**. A Python Dag still declares the task with `
 Python and non-Python tasks can be mixed in one Dag), but the actual work is delegated to the matching runtime.
 The **first-class** integration is the **Coordinator** layer — the Python Supervisor drives the language runtime
 as a subprocess and proxies every Execution-API call for it — and it is the shared direction for the Java, Go,
-and upcoming language SDKs. The Go SDK additionally offers a second, standalone **edge-worker** mode.
+and upcoming language SDKs.
 
-**Coordinator (Java and Go) — recommended.** Both the
+**Coordinator (Java and Go).** Both the
 `Java SDK <../airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst>`__ and the
 `Go SDK <../airflow-core/docs/authoring-and-scheduling/language-sdks/go.rst>`__ *reuse* the existing Python
 Supervisor through the **Coordinator** layer. ``CoordinatorManager`` resolves the task's ``queue`` to a
@@ -89,18 +89,6 @@ sequence diagram. The **Supervisor** is the central lifeline, so the subprocess 
 loopback TCP is drawn as arrows going back and forth to its neighbours:
 
 .. image:: images/diagram_coordinator_execution_sequence.png
-
-**Go SDK — standalone edge worker (alternative).** The Go SDK can also run with **no Python in the data
-path**, but this mode is still missing features the Supervisor provides — non-default task states, remote task
-logs, and alternate XCom backends (see the Go SDK
-`limitations <../airflow-core/docs/authoring-and-scheduling/language-sdks/go.rst#limitations>`__) — so the
-Coordinator mode above stays the recommended path. When it is used, a long-running, compiled **edge worker**
-(``airflow-go-edge-worker``) *pulls* work from the **Edge Executor API**, launches the user's compiled Dag
-bundle as a **go-plugin (gRPC) subprocess**, and invokes the task over gRPC. The task then uses the **native
-TEI client** to reach the **Execution API** directly over HTTPS — so, unlike the coordinator path, it holds the
-task JWT itself:
-
-.. image:: images/diagram_go_edge_worker_architecture.png
 
 .. note::
 

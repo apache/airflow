@@ -68,11 +68,12 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 if AIRFLOW_V_3_2_PLUS:
     from airflow.executors.base_executor import ExecutorConf
+from airflow.providers.common.compat.sdk import timezone
+
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseOperator, timezone
+    from airflow.sdk import BaseOperator
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[attr-defined,no-redef]
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -1568,6 +1569,25 @@ class TestAmqpsSslConfig:
         assert broker_ssl["cert_reqs"] == ssl.CERT_REQUIRED
         assert "keyfile" not in broker_ssl
         assert "certfile" not in broker_ssl
+
+
+@pytest.mark.parametrize(
+    "get_team_conf",
+    [
+        pytest.param(lambda: conf, id="sdk_conf"),
+        pytest.param(
+            lambda: ExecutorConf(team_name=None),
+            id="executor_conf",
+            marks=pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+"),
+        ),
+    ],
+)
+@conf_vars({("celery", "SSL_ACTIVE"): "yes"})
+def test_non_boolean_ssl_active_degrades_to_no_ssl(get_team_conf):
+    """A malformed [celery] ssl_active must degrade to a no-SSL config instead of raising."""
+    config = default_celery.get_default_celery_config(get_team_conf())
+
+    assert "broker_use_ssl" not in config
 
 
 class TestCreateCeleryAppTeamIsolation:

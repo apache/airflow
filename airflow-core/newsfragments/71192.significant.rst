@@ -1,0 +1,12 @@
+Callbacks now redeem a single-use token before they run
+
+A worker now redeems a callback's single-use token with the API server
+(``PATCH /execution/callbacks/{callback_id}/run``) before importing and running the callback.
+Redeeming the token moves the callback from queued to running and swaps it for a short-lived
+execution-scoped token. Before this change a callback ran without the worker making any
+authenticated call, so the token minted for it was never checked.
+
+Because the token is single-use, a redelivered or replayed message that reaches a callback that is
+already running or finished is refused rather than run again. A worker on 3.4 needs an API server
+that serves this endpoint; a worker talking to an older API server negotiates the API version and
+behaves as though the endpoint is not there.

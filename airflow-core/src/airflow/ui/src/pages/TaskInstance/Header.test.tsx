@@ -21,6 +21,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -32,7 +33,7 @@ import { Header } from "./Header";
 vi.mock("src/components/Clear", () => ({ ClearTaskInstanceButton: () => undefined }));
 vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceDialog", () => ({ default: () => undefined }));
 vi.mock("src/components/MarkAs", () => ({ MarkTaskInstanceAsButton: () => undefined }));
-vi.mock("src/components/NotePreview", () => ({ default: () => undefined }));
+vi.mock("src/components/NotePreview", () => ({ NotePreview: () => undefined }));
 
 const mockConfig: Record<string, unknown> = { multi_team: false };
 

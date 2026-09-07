@@ -21,7 +21,9 @@ import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
+
+import { RouterLink } from "src/system-components";
+
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
@@ -31,8 +33,8 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { TeamName } from "src/components/TeamName";
-import { TogglePause } from "src/components/TogglePause";
-import { RouterLink } from "src/components/ui";
+
+import { DagIcon } from "src/assets/DagIcon";
 import { useShowTeam } from "src/hooks/useShowTeam";
 
 import { DagOwners } from "../DagsList/DagOwners";
@@ -146,26 +148,31 @@ export const Header = ({
             <NeedsReviewButtonWithModal dagId={dag.dag_id} />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
+                bg="bg"
                 header={translate("dagDetails.documentation")}
                 icon={<FiBookOpen />}
                 mdContent={dag.doc_md}
                 text={translate("dag:header.buttons.dagDocs")}
+                variant="outline"
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
-            {isStale ? undefined : <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />}
-            <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
+            <FavoriteDagButton bg="bg" dagId={dag.dag_id} isFavorite={dag.is_favorite} variant="outline" />
+            {isStale ? undefined : (
+              <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
+            )}
+            <DeleteDagButton
+              bg="bg"
+              dagDisplayName={dag.dag_display_name}
+              dagId={dag.dag_id}
+              variant="outline"
+            />
           </>
         )
       }
       icon={<DagIcon />}
       stats={stats}
-      subTitle={
-        dag !== undefined && !isStale ? (
-          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
-        ) : undefined
-      }
       title={dag?.dag_display_name ?? dagId}
+      type="dag"
     />
   );
 };

@@ -21,8 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiUsers } from "react-icons/fi";
 
 import type { DagScheduleAssetReference, TaskOutletAssetReference } from "openapi/requests/types.gen";
+
+import { Popover, RouterLink, Tooltip } from "src/system-components";
+
 import { TeamName } from "src/components/TeamName";
-import { Popover, RouterLink, Tooltip } from "src/components/ui";
+
 import { useShowTeam } from "src/hooks/useShowTeam";
 
 type Props = {
@@ -57,7 +60,7 @@ const IconTeamName = ({ teamName }: { readonly teamName?: string | null }) => {
 };
 
 export const DependencyPopover = ({ dependencies, type }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const dependencyKey = type.toLowerCase() as "dag" | "task";
 
   return (

@@ -341,6 +341,7 @@ class MSGraphAsyncOperator(BaseOperator):
                     trigger=MSGraphTrigger(
                         url=url,
                         method=self.method,
+                        path_parameters=self.path_parameters,
                         query_parameters=query_parameters,
                         headers=self.headers,
                         data=self.data,
@@ -351,6 +352,7 @@ class MSGraphAsyncOperator(BaseOperator):
                         scopes=self.scopes,
                         api_version=self.api_version,
                         serializer=type(self.serializer),
+                        pagination_link=True,
                     ),
                     method_name=method_name,
                 )

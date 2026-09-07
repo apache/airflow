@@ -33,7 +33,7 @@ from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoS
 from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.google.cloud.operators.cloud_build import (
     BuildProcessor,
     CloudBuildCancelBuildOperator,
@@ -49,7 +49,6 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildUpdateBuildTriggerOperator,
 )
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 GCP_CONN_ID = "google_cloud_default"
@@ -537,7 +536,7 @@ def test_async_load_templated_should_execute_successfully(file_type, file_conten
 
 def create_context(task):
     dag = DAG(dag_id="dag", schedule=None)
-    logical_date = datetime(2022, 1, 1, 0, 0, 0)
+    logical_date = timezone.datetime(2022, 1, 1, 0, 0, 0)
     dag_run = DagRun(
         dag_id=dag.dag_id,
         logical_date=logical_date,

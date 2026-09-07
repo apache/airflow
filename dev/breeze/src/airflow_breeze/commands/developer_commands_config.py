@@ -142,12 +142,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Run experimental workers",
-            "options": [
-                "--worker-type",
-            ],
-        },
-        {
             "name": "Installing packages after entering shell",
             "options": [
                 "--airflow-constraints-location",
@@ -259,12 +253,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Mounting the sources and volumes",
             "options": [
                 "--mount-sources",
-            ],
-        },
-        {
-            "name": "Run experimental workers",
-            "options": [
-                "--worker-type",
             ],
         },
         {

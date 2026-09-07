@@ -260,6 +260,18 @@ def warn_if_shim_outdated(airflow_sources: Path, shim_text: str | None = None) -
     return True
 
 
+def has_uv_breeze_tool_dir() -> bool:
+    """Tell whether uv owns a tool directory for breeze."""
+    try:
+        result = subprocess.run(["uv", "tool", "dir"], text=True, capture_output=True, check=False)
+    except FileNotFoundError:
+        return False
+    if result.returncode != 0:
+        return False
+    tool_dir = result.stdout.strip()
+    return bool(tool_dir) and (Path(tool_dir) / "apache-airflow-breeze").is_dir()
+
+
 def detect_legacy_global_breeze_install() -> str | None:
     """
     Detect a legacy global breeze install superseded by the shim (ADR 0017).
@@ -273,6 +285,10 @@ def detect_legacy_global_breeze_install() -> str | None:
             return "uv"
     except FileNotFoundError:
         pass
+    # `uv tool list` drops a tool whose environment is corrupted, so an install the listing above
+    # cannot see may still be there, owning ~/.local/bin/breeze.
+    if has_uv_breeze_tool_dir():
+        return "uv"
     try:
         result = subprocess.run(["pipx", "list", "--short"], text=True, capture_output=True, check=False)
         if result.returncode == 0 and "apache-airflow-breeze" in result.stdout:

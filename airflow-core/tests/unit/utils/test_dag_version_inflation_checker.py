@@ -812,3 +812,51 @@ with DAG(
 """
         warnings = self._check_code(code)
         assert len(warnings) == 1
+
+    def test_nested_non_dag_with_does_not_exit_dag_context(self):
+        """A non-Dag with-statement nested inside a Dag with-block must not exit the Dag context."""
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('some_file.txt') as f:
+        data = f.read()
+    t1 = BashOperator(
+        task_id='test',
+        bash_command=str(datetime.now()),  # !problem
+    )
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 1
+
+    def test_task_inside_nested_non_dag_with_is_still_flagged(self):
+        """A task constructed inside a nested non-Dag with-block is still in Dag context."""
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('a.txt') as f:
+        t1 = BashOperator(task_id='t', bash_command=str(datetime.now()))  # !problem
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 1
+
+    def test_task_outside_dag_with_not_flagged(self):
+        """Tasks genuinely outside any Dag block must not be flagged."""
+        code = """
+from airflow import DAG
+from datetime import datetime
+from airflow.operators.bash import BashOperator
+
+with DAG('my_dag') as dag:
+    with open('a.txt') as f:
+        pass
+
+t_outside = BashOperator(task_id='outside', bash_command=str(datetime.now()))
+"""
+        warnings = self._check_code(code)
+        assert len(warnings) == 0

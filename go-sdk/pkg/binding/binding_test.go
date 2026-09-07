@@ -28,7 +28,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -87,18 +86,16 @@ func (f *fakeXComClient) GetXCom(
 	return f.values[taskID+"/"+key], nil
 }
 
-func workloadCtx() context.Context {
+func runtimeCtx() context.Context {
+	ti := sdk.TaskInstance{
+		DagID:  "dag1",
+		RunID:  "run1",
+		TaskID: "transform",
+	}
 	return context.WithValue(
 		context.Background(),
-		sdkcontext.WorkloadContextKey,
-		api.ExecuteTaskWorkload{
-			TI: api.TaskInstance{
-				Id:     uuid.New(),
-				DagId:  "dag1",
-				RunId:  "run1",
-				TaskId: "transform",
-			},
-		},
+		sdkcontext.RuntimeContextKey,
+		sdk.NewTIRunContext(context.Background(), ti, sdk.DagRun{DagID: ti.DagID, RunID: ti.RunID}),
 	)
 }
 
@@ -110,7 +107,7 @@ func analyze(s *BindingSuite, fn any) *Plan {
 
 func (s *BindingSuite) resolve(fn any, args []Arg, client sdk.Client) ([]reflect.Value, error) {
 	plan := analyze(s, fn)
-	return plan.Resolve(workloadCtx(), slog.Default(), client, args)
+	return plan.Resolve(runtimeCtx(), slog.Default(), client, args)
 }
 
 func (s *BindingSuite) TestAnalyzeClassification() {
@@ -468,7 +465,7 @@ func (s *BindingSuite) TestResolveXComArgs() {
 		s.Equal("dag1", call.dagID)
 		s.Equal("run1", call.runID)
 		s.Equal(
-			api.XComReturnValueKey,
+			sdk.XComReturnValueKey,
 			call.key,
 			"an XCom argument always pulls the return-value key",
 		)
@@ -532,14 +529,14 @@ func (s *BindingSuite) TestResolveWholeStructFromXCom() {
 	)
 }
 
-func (s *BindingSuite) TestResolveXComWithoutWorkload() {
+func (s *BindingSuite) TestResolveXComWithoutRuntimeContext() {
 	plan := analyze(s, func(res map[string]any) error { return nil })
 	_, err := plan.Resolve(
 		context.Background(), slog.Default(), &fakeXComClient{},
 		[]Arg{XComArg{TaskID: "extract"}},
 	)
 	if s.Assert().Error(err) {
-		s.Contains(err.Error(), "no workload in context")
+		s.Contains(err.Error(), "no task runtime context")
 	}
 }
 
@@ -587,7 +584,7 @@ func (s *BindingSuite) TestResolveTIRunContextRebuild() {
 	ti := sdk.TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "transform"}
 	dagRun := sdk.DagRun{DagID: "dag1", RunID: "run1"}
 	ctx := context.WithValue(
-		workloadCtx(),
+		runtimeCtx(),
 		sdkcontext.RuntimeContextKey,
 		sdk.NewTIRunContext(context.Background(), ti, dagRun),
 	)
@@ -954,23 +951,4 @@ func (s *BindingSuite) TestResolveEmptyInterfaceDataParam() {
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal(map[string]any{"k": "v"}, got[0].Interface())
-}
-
-func (s *BindingSuite) TestResolveUnboundZeroFillsDataParameters() {
-	plan := analyze(s, func(
-		ctx context.Context, country string, config wholeConfig, note *string,
-	) error {
-		return nil
-	})
-	got := plan.ResolveUnbound(workloadCtx(), slog.Default(), &fakeXComClient{})
-	s.Require().Len(got, 4)
-	s.Equal("", got[1].Interface())
-	s.Equal(wholeConfig{}, got[2].Interface())
-	s.True(got[3].IsNil())
-
-	soleStruct := analyze(s, func(input combineInput) error { return nil })
-	s.Equal(
-		combineInput{},
-		soleStruct.ResolveUnbound(workloadCtx(), slog.Default(), &fakeXComClient{})[0].Interface(),
-	)
 }

@@ -518,7 +518,7 @@ def add_missing_translations(language: str, summary: dict[str, LocaleSummary]):
             lang_data = {}  # Start with an empty dict if the file doesn't exist
 
         # Helper to recursively add missing keys, including plural forms
-        def add_keys(src, dst, prefix=""):
+        def add_keys(src, dst, prefix="", missing_keys=missing_keys):
             for k, v in src.items():
                 full_key = f"{prefix}.{k}" if prefix else k
                 base = get_plural_base(full_key, suffixes)
@@ -575,7 +575,7 @@ def remove_unused_translations(language: str, summary: dict[str, LocaleSummary])
             continue
 
         # Helper to recursively remove unused keys
-        def remove_keys(dst, prefix=""):
+        def remove_keys(dst, prefix="", unused_keys=unused_keys):
             keys_to_remove = []
             for k, v in list(dst.items()):
                 full_key = f"{prefix}.{k}" if prefix else k

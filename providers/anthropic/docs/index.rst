@@ -133,13 +133,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-==========================================  ==================
+==========================================  ====================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ====================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``anthropic``                               ``>=0.121.0``
-==========================================  ==================
+``anthropic``                               ``>=0.121.0,<1.0.0``
+==========================================  ====================
 
 Optional dependencies
 ---------------------
@@ -152,13 +152,13 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-anthropic[bedrock]
 
 
-===========  ===============================
+===========  ======================================
 Extra        Dependencies
-===========  ===============================
-``bedrock``  ``anthropic[bedrock]>=0.121.0``
-``vertex``   ``anthropic[vertex]>=0.121.0``
-``aws``      ``anthropic[aws]>=0.121.0``
-===========  ===============================
+===========  ======================================
+``bedrock``  ``anthropic[bedrock]>=0.121.0,<1.0.0``
+``vertex``   ``anthropic[vertex]>=0.121.0,<1.0.0``
+``aws``      ``anthropic[aws]>=0.121.0,<1.0.0``
+===========  ======================================
 
 Downloading official packages
 -----------------------------

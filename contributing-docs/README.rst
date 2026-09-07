@@ -167,4 +167,4 @@ Task Execution Lifecycle
 
 * `Task execution architecture <31_task_execution_architecture.rst>`__ explains what happens inside a
   worker when a task runs: the Python Supervisor and task runner, the Coordinator layer shared by the Java
-  and Go SDKs, and the standalone Go edge worker.
+  and Go SDKs.

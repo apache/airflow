@@ -19,7 +19,7 @@
 import { Button, type DialogBodyProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Modal } from "src/components/ui";
+import { Modal } from "src/system-components";
 
 type Props = {
   readonly children?: DialogBodyProps["children"];
@@ -30,7 +30,7 @@ type Props = {
 };
 
 export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, open }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Modal

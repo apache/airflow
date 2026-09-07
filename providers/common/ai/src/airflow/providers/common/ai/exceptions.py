@@ -37,3 +37,14 @@ class LLMFileAnalysisLimitExceededError(LLMFileAnalysisError):
 
 class LLMFileAnalysisMultimodalRequiredError(LLMFileAnalysisUnsupportedFormatError):
     """Raised when image/PDF inputs are used without ``multi_modal=True``."""
+
+
+class ManagedAgentInvocationError(RuntimeError):
+    """
+    Raised when a managed agent cannot be reached and retrying will not help.
+
+    Reserved for terminal conditions -- bad credentials, a missing agent, a
+    revoked quota. Transient failures should propagate unchanged so Airflow's
+    task-level retry handles them, and requests the model could fix by
+    rephrasing should raise ``pydantic_ai.exceptions.ModelRetry`` instead.
+    """

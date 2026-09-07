@@ -19,21 +19,28 @@ package bundlev1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
 	"runtime"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// TaskWithArgs binds TaskFlow arguments supplied by the coordinator.
-type TaskWithArgs interface {
-	Task
-	ExecuteArgs(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
+// Task is one registered task that the coordinator runtime can execute. Bundle
+// authors do not implement this directly; Dag.AddTask wraps a plain Go
+// function into a Task.
+type Task interface {
+	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
+}
+
+// Bundle is the execution-time view of a registry. It looks up a task by
+// dag_id and task_id.
+type Bundle interface {
+	LookupTask(dagId, taskId string) (Task, bool)
 }
 
 type taskFunction struct {
@@ -42,7 +49,7 @@ type taskFunction struct {
 	plan     *binding.Plan
 }
 
-var _ TaskWithArgs = (*taskFunction)(nil)
+var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
 func NewTaskFunction(fn any) (Task, error) {
@@ -55,19 +62,16 @@ func NewTaskFunction(fn any) (Task, error) {
 	return f, nil
 }
 
-// Execute runs without TaskFlow arguments, as required by the Edge Worker.
-func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {
-	sdkClient := clientFrom(ctx)
-	return f.call(ctx, sdkClient, f.plan.ResolveUnbound(ctx, logger, sdkClient), logger)
-}
-
-// ExecuteArgs binds the supplied TaskFlow arguments and runs the task.
-func (f *taskFunction) ExecuteArgs(
+// Execute binds the supplied TaskFlow arguments and runs the task.
+func (f *taskFunction) Execute(
 	ctx context.Context,
 	logger *slog.Logger,
 	args []binding.Arg,
 ) error {
-	sdkClient := clientFrom(ctx)
+	sdkClient, err := clientFrom(ctx)
+	if err != nil {
+		return err
+	}
 	reflectArgs, err := f.plan.Resolve(ctx, logger, sdkClient, args)
 	if err != nil {
 		return err
@@ -75,11 +79,12 @@ func (f *taskFunction) ExecuteArgs(
 	return f.call(ctx, sdkClient, reflectArgs, logger)
 }
 
-func clientFrom(ctx context.Context) sdk.Client {
-	if injected, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client); ok {
-		return injected
+func clientFrom(ctx context.Context) (sdk.Client, error) {
+	client, ok := ctx.Value(sdkcontext.SdkClientContextKey).(sdk.Client)
+	if !ok {
+		return nil, errors.New("coordinator SDK client is missing from task context")
 	}
-	return sdk.NewClient()
+	return client, nil
 }
 
 func (f *taskFunction) call(
@@ -115,8 +120,18 @@ func (f *taskFunction) sendXcom(
 	c sdk.XComClient,
 	logger *slog.Logger,
 ) {
-	workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
-	err := c.PushXCom(ctx, workload.TI, api.XComReturnValueKey, value)
+	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
+		return
+	}
+	ti := runtimeContext.TaskInstance()
+	err := c.PushXCom(ctx, sdk.TaskInstance{
+		DagID:    ti.DagID,
+		RunID:    ti.RunID,
+		TaskID:   ti.TaskID,
+		MapIndex: ti.MapIndex,
+	}, sdk.XComReturnValueKey, value)
 	if err != nil {
 		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
 	}
