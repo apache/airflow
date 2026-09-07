@@ -702,6 +702,76 @@ class TestBedrockCreateKnowledgeBaseOperator:
         assert mock_conn.create_knowledge_base.call_count == 21
         assert mock_sleep.call_count == 20
 
+    def test_create_managed_knowledge_base(self, mock_conn):
+        self.operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_knowledge_base",
+            name="managed_kb",
+            role_arn="role-arn",
+            knowledge_base_configuration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModeType": "MANAGED"},
+            },
+            wait_for_completion=False,
+        )
+
+        result = self.operator.execute({})
+
+        assert result == self.KNOWLEDGE_BASE_ID
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name="managed_kb",
+            roleArn="role-arn",
+            knowledgeBaseConfiguration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModeType": "MANAGED"},
+            },
+        )
+
+    def test_create_managed_knowledge_base_from_kwargs(self, mock_conn):
+        self.operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_knowledge_base",
+            name="managed_kb",
+            role_arn="role-arn",
+            create_knowledge_base_kwargs={
+                "knowledgeBaseConfiguration": {
+                    "type": "MANAGED",
+                    "managedKnowledgeBaseConfiguration": {"embeddingModeType": "MANAGED"},
+                }
+            },
+            wait_for_completion=False,
+        )
+
+        result = self.operator.execute({})
+
+        assert result == self.KNOWLEDGE_BASE_ID
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name="managed_kb",
+            roleArn="role-arn",
+            knowledgeBaseConfiguration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModeType": "MANAGED"},
+            },
+        )
+
+    def test_managed_knowledge_base_does_not_retry_indexing(self, mock_conn):
+        self.operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_knowledge_base",
+            name="managed_kb",
+            role_arn="role-arn",
+            knowledge_base_configuration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {"embeddingModeType": "MANAGED"},
+            },
+            wait_for_completion=False,
+        )
+        mock_conn.create_knowledge_base.side_effect = [
+            self._create_validation_error("no such index [managed-index]")
+        ]
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
+
+        assert mock_conn.create_knowledge_base.call_count == 1
+
 
 class TestBedrockCreateDataSourceOperator:
     DATA_SOURCE_ID = "data_source_id"

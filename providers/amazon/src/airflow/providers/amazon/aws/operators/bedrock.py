@@ -669,9 +669,13 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         :ref:`howto/operator:BedrockCreateKnowledgeBaseOperator`
 
     :param name: The name of the knowledge base. (templated)
-    :param embedding_model_arn: ARN of the model used to create vector embeddings for the knowledge base. (templated)
+    :param embedding_model_arn: ARN of the model used to create vector embeddings for the knowledge base.
+        Required unless ``knowledge_base_configuration`` is provided. (templated)
     :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
-    :param storage_config: Configuration details of the vector database used for the knowledge base. (templated)
+    :param storage_config: Configuration details of the vector database used for the knowledge base.
+        Omit when creating a managed knowledge base. (templated)
+    :param knowledge_base_configuration: Configuration details for the knowledge base. Use this to create
+        managed knowledge bases or to provide a custom self-managed configuration. (templated)
     :param wait_for_indexing: Vector indexing can take some time and there is no apparent way to check the state
         before trying to create the Knowledge Base.  If this is True, and creation fails due to the index not
         being available, the operator will wait and retry.  (default: True) (templated)
@@ -703,6 +707,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         "embedding_model_arn",
         "role_arn",
         "storage_config",
+        "knowledge_base_configuration",
         "wait_for_indexing",
         "indexing_error_retry_delay",
         "indexing_error_max_attempts",
@@ -712,9 +717,10 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
     def __init__(
         self,
         name: str,
-        embedding_model_arn: str,
-        role_arn: str,
-        storage_config: dict[str, Any],
+        embedding_model_arn: str | None = None,
+        role_arn: str | None = None,
+        storage_config: dict[str, Any] | None = None,
+        knowledge_base_configuration: dict[str, Any] | None = None,
         create_knowledge_base_kwargs: dict[str, Any] | None = None,
         wait_for_indexing: bool = True,
         indexing_error_retry_delay: int = 5,  # seconds
@@ -731,6 +737,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.storage_config = storage_config
         self.create_knowledge_base_kwargs = create_knowledge_base_kwargs or {}
         self.embedding_model_arn = embedding_model_arn
+        self.knowledge_base_configuration = knowledge_base_configuration
         self.wait_for_indexing = wait_for_indexing
         self.indexing_error_retry_delay = indexing_error_retry_delay
         self.indexing_error_max_attempts = indexing_error_max_attempts
@@ -750,10 +757,24 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         return validated_event["knowledge_base_id"]
 
     def execute(self, context: Context) -> str:
-        knowledge_base_config = {
-            "type": "VECTOR",
-            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
-        }
+        if self.role_arn is None:
+            raise ValueError("`role_arn` must be specified to create a knowledge base.")
+
+        create_kwargs = self.create_knowledge_base_kwargs.copy()
+        knowledge_base_config = create_kwargs.pop(
+            "knowledgeBaseConfiguration", self.knowledge_base_configuration
+        )
+        if knowledge_base_config is None:
+            if self.embedding_model_arn is None:
+                raise ValueError(
+                    "Either `knowledge_base_configuration` or `embedding_model_arn` must be provided."
+                )
+            knowledge_base_config = {
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+            }
+        storage_config = create_kwargs.pop("storageConfiguration", self.storage_config)
+        is_managed = knowledge_base_config.get("type") == "MANAGED"
 
         def _create_kb():
             # This API call will return the following if the index has not completed, but there is no apparent
@@ -762,13 +783,15 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
             #       when calling the CreateKnowledgeBase operation: The knowledge base storage configuration
             #       provided is invalid... no such index [bedrock-sample-rag-index-abc108]
             try:
-                return self.hook.conn.create_knowledge_base(
-                    name=self.name,
-                    roleArn=self.role_arn,
-                    knowledgeBaseConfiguration=knowledge_base_config,
-                    storageConfiguration=self.storage_config,
-                    **self.create_knowledge_base_kwargs,
-                )["knowledgeBase"]["knowledgeBaseId"]
+                api_kwargs = {
+                    "name": self.name,
+                    "roleArn": self.role_arn,
+                    "knowledgeBaseConfiguration": knowledge_base_config,
+                    **create_kwargs,
+                }
+                if storage_config is not None:
+                    api_kwargs["storageConfiguration"] = storage_config
+                return self.hook.conn.create_knowledge_base(**api_kwargs)["knowledgeBase"]["knowledgeBaseId"]
             except ClientError as error:
                 error_message = error.response["Error"]["Message"].lower()
                 is_known_retryable_message = (
@@ -784,6 +807,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                         error.response["Error"]["Code"] == "ValidationException",
                         is_known_retryable_message,
                         self.wait_for_indexing,
+                        not is_managed,
                         self.indexing_error_max_attempts > 0,
                     ]
                 ):
