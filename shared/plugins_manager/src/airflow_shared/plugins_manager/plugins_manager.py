@@ -104,11 +104,11 @@ class _BaseUIDict(TypedDict):
     """Shared UI fields mirroring ``BaseUIResponse``."""
 
     name: str
-    icon: NotRequired[str]
-    icon_dark_mode: NotRequired[str]
-    url_route: NotRequired[str]
-    category: NotRequired[str]
-    nav_top_level: NotRequired[bool]
+    icon: NotRequired[str | None]
+    icon_dark_mode: NotRequired[str | None]
+    url_route: NotRequired[str | None]
+    category: NotRequired[str | None]
+    nav_top_level: NotRequired[bool | None]
     applies_to: NotRequired[AppliesToDict | None]
 
 
@@ -131,7 +131,7 @@ class FastAPIAppDict(TypedDict):
 
     app: Any
     url_prefix: str
-    name: NotRequired[str]
+    name: str
 
 
 class FastAPIRootMiddlewareDict(TypedDict):
@@ -140,7 +140,7 @@ class FastAPIRootMiddlewareDict(TypedDict):
     middleware: Any
     args: NotRequired[list[Any]]
     kwargs: NotRequired[dict[str, Any]]
-    name: NotRequired[str]
+    name: str
 
 
 class AirflowPlugin:
