@@ -53,7 +53,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs
+from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs, get_or_create_dagrun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
@@ -5062,3 +5062,42 @@ class TestApplyPartitionDateWindowSubDay:
             session=session,
         )
         assert cleared == 3
+
+
+class TestGetOrCreateDagrun:
+    @pytest.fixture(autouse=True)
+    def _clean_db(self):
+        clear_db_runs()
+        clear_db_dags()
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_none_logical_date_keeps_unrelated_runs(self, dag_maker, session):
+        with dag_maker("test_get_or_create_dagrun", serialized=True):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(run_id="manual__existing", logical_date=None, state=DagRunState.SUCCESS)
+        now = timezone.utcnow()
+
+        created = get_or_create_dagrun(
+            dag=dag_maker.serialized_dag,
+            run_id="__airflow_temporary_run_x",
+            logical_date=None,
+            data_interval=None,
+            run_after=now,
+            conf=None,
+            triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=None,
+            start_date=now,
+            session=session,
+        )
+
+        assert created.run_id == "__airflow_temporary_run_x"
+        run_ids = set(
+            session.scalars(select(DagRun.run_id).where(DagRun.dag_id == "test_get_or_create_dagrun"))
+        )
+        assert run_ids == {"manual__existing", "__airflow_temporary_run_x"}
+        existing_ti_count = session.scalar(
+            select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id == "manual__existing")
+        )
+        assert existing_ti_count == 1

@@ -1289,14 +1289,16 @@ class DAG:
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
             logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
 
-            log.debug("Clearing existing task instances for logical date %s", logical_date)
-            # TODO: Replace with calling client.dag_run.clear in Execution API at some point
-            SerializedDAG.clear_dags(
-                dags=[scheduler_dag],
-                start_date=logical_date,
-                end_date=logical_date,
-                dag_run_state=False,
-            )
+            # Unset bounds match every run, so a dateless test would clear unrelated runs.
+            if logical_date is not None:
+                log.debug("Clearing existing task instances for logical date %s", logical_date)
+                # TODO: Replace with calling client.dag_run.clear in Execution API at some point
+                SerializedDAG.clear_dags(
+                    dags=[scheduler_dag],
+                    start_date=logical_date,
+                    end_date=logical_date,
+                    dag_run_state=False,
+                )
 
             log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
