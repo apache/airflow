@@ -198,6 +198,24 @@ describe("FilterBar abandoned filters", () => {
   });
 });
 
+describe("FilterBar text filter input testid", () => {
+  it("exposes the actively-editing pill's input via a stable, unique testid", async () => {
+    render(<FilterBar configs={[textConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-dag_id"));
+
+    // Regression guard for #72433: e2e tests locate this input via `filter-pill-input`
+    // rather than `page.locator("div").filter({ hasText })`, which matched any ancestor
+    // whose descendant text contained the filter label and broke once the filter bar's
+    // DOM was restructured. `getByTestId` throws if more than one match is found, so this
+    // also proves the testid stays unique while a pill is being edited.
+    const input = screen.getByTestId("filter-pill-input");
+
+    expect(input).toBe(screen.getByRole("textbox"));
+  });
+});
+
 describe("FilterBar keyboard handling", () => {
   it("leaves Enter to editors that use it to commit a value", async () => {
     render(<FilterBar configs={[multiSelectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
