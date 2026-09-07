@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 import contextlib
+import http.server
 import os
 import pathlib
+import socketserver
 import subprocess
+import threading
 import warnings
 from unittest import mock
 
@@ -60,6 +63,41 @@ CONN_APP_ONLY_INSTALLATION_ID = "git_app_only_installation_id"
 CONN_APP_NO_KEY = "git_app_no_key"
 CONN_APP_INVALID_APP_ID = "git_app_invalid_app_id"
 CONN_APP_INVALID_INSTALLATION_ID = "git_app_invalid_installation_id"
+
+
+def capture_git_credential_prompts(tmp_path: pathlib.Path) -> tuple[list[str], int]:
+    """Record what the real git binary asks GIT_ASKPASS when a server demands credentials."""
+
+    class Unauthorized(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="git"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), Unauthorized)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    prompt_log = tmp_path / "prompts.log"
+    askpass = tmp_path / "askpass.sh"
+    askpass.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> '{prompt_log}'\necho asked\n")
+    askpass.chmod(0o700)
+    try:
+        subprocess.run(
+            ["git", "-c", "credential.helper=", "ls-remote", f"http://127.0.0.1:{port}/repo.git"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**os.environ, "GIT_ASKPASS": str(askpass), "GIT_TERMINAL_PROMPT": "0"},
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+    return prompt_log.read_text().splitlines(), port
 
 
 @pytest.fixture
@@ -597,6 +635,23 @@ class TestGitHook:
             assert hook.env["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
             assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
 
+    def test_git_credential_prompt_format_is_unchanged(self, tmp_path):
+        """Pin the prompt shapes the askpass host guard is written against.
+
+        git builds these in ``credential_describe`` (credential.c) as
+        ``<scheme>://[user@]<host>[:port]``. The guard recognises the host inside them, so if a
+        git upgrade changes the wording it stops answering — fail closed, but broken. This is the
+        test that surfaces that, rather than a bundle failing to authenticate in production.
+        """
+        prompts, port = capture_git_credential_prompts(tmp_path)
+
+        assert prompts == [
+            f"Username for 'http://127.0.0.1:{port}': ",
+            f"Password for 'http://asked@127.0.0.1:{port}': ",
+        ]
+
+    # The prompts below are the shapes pinned by test_git_credential_prompt_format_is_unchanged,
+    # plus the path variant git appends when credential.useHttpPath is set.
     @pytest.mark.parametrize(
         ("prompt", "expected"),
         [
