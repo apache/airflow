@@ -355,6 +355,35 @@ class TestStatsd:
             jmespath.search("spec.template.metadata.annotations", docs[0])["test_pod_annotation"]
             == "test_pod_annotation_value"
         )
+        assert "checksum/statsd-config" in jmespath.search("spec.template.metadata.annotations", docs[0])
+
+    @pytest.mark.parametrize(
+        ("statsd_values", "expect_rollout"),
+        [
+            pytest.param(
+                {"overrideMappings": [{"match": "foo.*", "name": "foo", "match_type": "regex"}]},
+                True,
+                id="overrideMappings",
+            ),
+            pytest.param({"cache": {"ttl": "10m"}}, True, id="cache-ttl"),
+            pytest.param({"configMapAnnotations": {"foo": "bar"}}, False, id="configmap-metadata-only"),
+        ],
+    )
+    def test_configmap_checksum_should_follow_configmap_data(self, statsd_values, expect_rollout):
+        def get_checksum(values):
+            docs = render_chart(
+                values={"statsd": {"enabled": True, **values}},
+                show_only=["templates/statsd/statsd-deployment.yaml"],
+            )
+            annotations = jmespath.search("spec.template.metadata.annotations", docs[0]) or {}
+            assert "checksum/statsd-config" in annotations
+            return annotations["checksum/statsd-config"]
+
+        baseline = get_checksum({})
+        if expect_rollout:
+            assert get_checksum(statsd_values) != baseline
+        else:
+            assert get_checksum(statsd_values) == baseline
 
     def test_should_add_custom_env_variables(self):
         env1 = {"name": "TEST_ENV_1", "value": "test_env_1"}
