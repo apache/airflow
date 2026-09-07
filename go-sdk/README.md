@@ -328,12 +328,14 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
   folded-name fallback.
 - [ADR 0007](./adr/0007-native-dag-interface.md): the proposed Native Dag interface (`airflow.Dag`/
   `dag.Task`/`airflow.Inputs`/`Before`-`After`), not yet merged.
-- [ADR 0008](./adr/0008-taskgroup-shortcircuit-branch.md): proposed `TaskGroup`/`ShortCircuitOperator`/
-  `BranchOperator` sibling methods plus a package-level `v1.TriggerDagRunOperator` function for the
-  Native Dag interface, not yet merged.
 
 Cross-cutting Lang-SDK decisions — the coordinator architecture and how non-Python tasks integrate with
 Airflow core surfaces — are recorded in [`airflow-core/adr/lang-sdk/`](../airflow-core/adr/lang-sdk).
+Two of them shape the interfaces above:
+[ADR-0008](../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md) for grouping, conditions,
+branching, and triggering a Dag run, and
+[ADR-0009](../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md) for reaching
+Python provider operators from a native Dag.
 
 The normative, language-agnostic on-disk bundle format (the footer layout, manifest fields, and what the
 `ExecutableCoordinator` reads) is specified in
