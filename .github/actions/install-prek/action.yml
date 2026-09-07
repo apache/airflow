@@ -19,9 +19,6 @@
 name: 'Install prek'
 description: 'Installs prek and related packages'
 inputs:
-  python-version:
-    description: 'Python version to use'
-    default: "3.10"
   save-cache:
     description: "Whether to save prek cache"
     required: true
@@ -46,6 +43,21 @@ runs:
         echo "Extracted uv==${UV_VERSION}, prek==${PREK_VERSION}"
         echo "uv-version=${UV_VERSION}" >> "${GITHUB_OUTPUT}"
         echo "prek-version=${PREK_VERSION}" >> "${GITHUB_OUTPUT}"
+    - name: "Compute prek cache key"
+      id: cache-key
+      shell: bash
+      # Built here rather than assembled from a version each caller formats for itself, which is how
+      # the readers ended up asking for keys no job had ever saved under. uv resolves the hook
+      # environments against the Python on PATH, so callers must run this after Breeze sets it up.
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        UV_VERSION: ${{ steps.versions.outputs.uv-version }}
+        PREK_CONFIG_HASH: ${{ hashFiles('**/.pre-commit-config.yaml') }}
+      run: |
+        PYTHON_VERSION=$(python3 -c 'import platform; print(platform.python_version())')
+        KEY="cache-prek-v9-${PLATFORM}-python${PYTHON_VERSION}-uv${UV_VERSION}-${PREK_CONFIG_HASH}"
+        echo "Prek cache key: ${KEY}"
+        echo "key=${KEY}" >> "${GITHUB_OUTPUT}"
     - name: "Install uv"
       shell: bash
       run: pip install "uv==${UV_VERSION}"
@@ -73,8 +85,7 @@ runs:
       # yamllint disable-line rule:line-length
       uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
-        # yamllint disable rule:line-length
-        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ steps.versions.outputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        key: ${{ steps.cache-key.outputs.key }}
         path: /tmp/
       id: restore-prek-cache
     - name: "Restore .cache from the tar file"
@@ -105,7 +116,9 @@ runs:
         ls -la ~/.cache/prek || true
         rm -rf ~/.cache/prek
       shell: bash
-      if: steps.restore-prek-cache.outputs.stash-hit != 'true' || steps.restore-prek-tar.outputs.tar-restored != 'true'
+      if: >
+        steps.restore-prek-cache.outputs.stash-hit != 'true'
+        || steps.restore-prek-tar.outputs.tar-restored != 'true'
     - name: Install prek hooks
       shell: bash
       run: prek install-hooks
@@ -122,8 +135,7 @@ runs:
     - name: "Save prek cache"
       uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
-        # yamllint disable rule:line-length
-        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ steps.versions.outputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        key: ${{ steps.cache-key.outputs.key }}
         path: /tmp/cache-prek.tar.gz
         if-no-files-found: 'error'
         retention-days: '2'

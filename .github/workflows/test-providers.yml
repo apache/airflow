@@ -92,13 +92,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ inputs.default-python-version }}
-          platform: ${{ inputs.platform }}
-          save-cache: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -106,6 +99,12 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Set current date as RELEASE_DATE variable"
@@ -202,13 +201,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{ matrix.compat.python-version }}
-          platform: ${{ inputs.platform }}
-          save-cache: false
       - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -216,6 +208,12 @@ jobs:
           python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider distributions: wheel"
