@@ -42,6 +42,11 @@ FORBIDDEN_XCOM_KEYS = frozenset(
     }
 )
 
+# serde.serialize refuses to serialize a dict that contains either of these keys. This is narrower
+# than FORBIDDEN_XCOM_KEYS above, which also blocks keys that only matter when XCom reads a value
+# back and decodes it into an object.
+SERDE_RESERVED_DICT_KEYS = frozenset({CLASSNAME, SCHEMA_ID})
+
 OLD_TYPE_TO_FULL_QUALNAME: dict[str, str] = {
     "tuple": "builtins.tuple",
     "set": "builtins.set",

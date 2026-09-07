@@ -224,8 +224,8 @@ calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
 .. note::
 
     Keys in ``params_input`` may not be Airflow's reserved serialization keys (``__classname__`` or
-    ``__id__``). A response containing one is rejected with ``400`` at submission time, because it
-    could not be serialized when the task resumes.
+    ``__id__``), at any nesting depth. A response containing one is rejected with ``422`` at
+    submission time, because it could not be serialized when the task resumes.
 
 .. note::
 

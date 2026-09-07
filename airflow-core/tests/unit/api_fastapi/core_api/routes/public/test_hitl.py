@@ -28,8 +28,8 @@ import time_machine
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from airflow._shared.serialization import CLASSNAME, SERDE_RESERVED_DICT_KEYS
 from airflow._shared.timezones.timezone import utc, utcnow
-from airflow.api_fastapi.core_api.routes.public.hitl import _SERDE_RESERVED_KEYS
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
@@ -410,7 +410,7 @@ class TestUpdateHITLDetailEndpoint:
         assert "Invalid options" in response.json()["detail"]
 
     @pytest.mark.usefixtures("sample_hitl_detail")
-    @pytest.mark.parametrize("reserved_key", _SERDE_RESERVED_KEYS)
+    @pytest.mark.parametrize("reserved_key", sorted(SERDE_RESERVED_DICT_KEYS))
     @pytest.mark.parametrize(
         "make_params_input",
         [
@@ -419,20 +419,43 @@ class TestUpdateHITLDetailEndpoint:
             pytest.param(lambda key: {"items": [{key: "x"}]}, id="inside-list"),
         ],
     )
-    def test_should_respond_400_for_serde_reserved_key_in_params_input(
+    def test_should_respond_422_for_serde_reserved_key_in_params_input(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         reserved_key: str,
         make_params_input: Callable[[str], dict[str, Any]],
     ) -> None:
-        """A params_input carrying a serde-reserved key at any depth is rejected (400) at submission time."""
+        """A params_input carrying a serde-reserved key at any depth is rejected (422) at submission time."""
         response = test_client.patch(
             f"{sample_ti_url_identifier}/hitlDetails",
             json={"chosen_options": ["Approve"], "params_input": make_params_input(reserved_key)},
         )
-        assert response.status_code == 400
-        assert reserved_key in response.json()["detail"]
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert reserved_key in detail
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    @pytest.mark.parametrize(
+        "params_input",
+        [
+            pytest.param({"input_1": {"__version__": 1, "__data__": "x"}}, id="non-serde-reserved-keys"),
+            pytest.param({"input_1": '{"__classname__": "x"}'}, id="json-string-stays-a-string"),
+        ],
+    )
+    def test_should_respond_200_for_params_input_serde_accepts(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        params_input: dict[str, Any],
+    ) -> None:
+        """Only the two keys serde.serialize refuses are rejected, not the wider XCom set."""
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": params_input},
+        )
+        assert response.status_code == 200
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
@@ -454,9 +477,9 @@ class TestUpdateHITLDetailEndpoint:
 
         rejected = test_client.patch(
             f"{sample_ti_url_identifier}/hitlDetails",
-            json={"chosen_options": ["Approve"], "params_input": {_SERDE_RESERVED_KEYS[0]: "x"}},
+            json={"chosen_options": ["Approve"], "params_input": {CLASSNAME: "x"}},
         )
-        assert rejected.status_code == 400
+        assert rejected.status_code == 422
 
         session.expire_all()
         parked = session.get(TIModel, sample_ti.id)

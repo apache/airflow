@@ -23,7 +23,9 @@ Common Data Models for Airflow REST API.
 from __future__ import annotations
 
 import enum
+import json
 import logging
+from collections.abc import Collection, Mapping
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
 from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
@@ -31,6 +33,56 @@ from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, Va
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 log = logging.getLogger(__name__)
+
+
+def find_reserved_keys(
+    value: Any,
+    reserved_keys: Collection[str],
+    *,
+    root: str = "value",
+    decode_json_strings: bool = False,
+) -> tuple[str, list[str]] | None:
+    """
+    Find the first mapping under ``value`` that holds one of ``reserved_keys``.
+
+    Returns the dotted path to that mapping and the reserved keys it holds, or ``None`` if there
+    are none.
+
+    Write paths that take arbitrary user data use this to turn away bad input while there is still
+    a request to fail. Storing it instead pushes the failure into whatever reads the value back,
+    where the error surfaces far from the person who submitted it.
+
+    Pass ``decode_json_strings`` when the read path parses stored strings back into containers, the
+    way XCom's does. Without it, a payload sent as ``json.dumps({...})`` slips through and comes
+    back out as a dict holding the reserved key. Leave it off where a string stays a string, as
+    with ``serde.serialize``.
+    """
+    reserved = frozenset(reserved_keys)
+
+    def walk(obj: Any, path: str) -> tuple[str, list[str]] | None:
+        if isinstance(obj, str):
+            if not decode_json_strings:
+                return None
+            try:
+                decoded = json.loads(obj)
+            except (ValueError, TypeError):
+                return None
+            return walk(decoded, path) if isinstance(decoded, (dict, list)) else None
+        if isinstance(obj, Mapping):
+            found = reserved & obj.keys()
+            if found:
+                return path, sorted(found)
+            for key, item in obj.items():
+                if hit := walk(item, f"{path}.{key}"):
+                    return hit
+        elif isinstance(obj, (list, tuple)):
+            for index, item in enumerate(obj):
+                if hit := walk(item, f"{path}[{index}]"):
+                    return hit
+        return None
+
+    return walk(value, root)
+
 
 # Asset Scheduling Expression Data Models
 #

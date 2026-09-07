@@ -22,7 +22,9 @@ from typing import Any
 
 from pydantic import Field, field_validator
 
+from airflow._shared.serialization import SERDE_RESERVED_DICT_KEYS
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import TaskInstanceHistoryResponse
 from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
 
@@ -32,6 +34,21 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
+
+    @field_validator("params_input")
+    @classmethod
+    def _check_serde_reserved_keys(cls, params_input: Mapping) -> Mapping:
+        # serde.serialize refuses these keys, and it only runs once the task resumes, long after the
+        # response was stored and the request returned. Reject it here instead, while the user can
+        # still correct the input and resubmit.
+        found = find_reserved_keys(params_input, SERDE_RESERVED_DICT_KEYS, root="params_input")
+        if found is not None:
+            path, keys = found
+            raise ValueError(
+                f"{path} contains reserved serialization keys: {', '.join(keys)}. "
+                "These keys are reserved for internal use."
+            )
+        return params_input
 
 
 class HITLDetailResponse(BaseModel):
