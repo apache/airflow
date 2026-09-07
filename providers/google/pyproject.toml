@@ -169,7 +169,7 @@ dependencies = [
     "plyvel>=1.5.1; python_version < '3.13'",
 ]
 "oracle" = [
-    "apache-airflow-providers-oracle>=3.1.0",
+    "apache-airflow-providers-oracle-oracledb>=4.6.4",
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=2.2.0",
@@ -241,7 +241,7 @@ dev = [
     "apache-airflow-providers-mongo",
     "apache-airflow-providers-mysql",
     "apache-airflow-providers-openlineage",
-    "apache-airflow-providers-oracle",
+    "apache-airflow-providers-oracle-oracledb",
     "apache-airflow-providers-postgres",
     "apache-airflow-providers-presto",
     "apache-airflow-providers-salesforce",

@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 import oracledb
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
-from airflow.providers.oracle.hooks.oracle import OracleHook
+from airflow.providers.oracle.oracledb.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage

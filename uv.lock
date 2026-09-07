@@ -70,7 +70,6 @@ apache-airflow-providers-openfaas = false
 apache-airflow-devel-common = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
-apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
@@ -113,6 +112,7 @@ apache-airflow-scripts = false
 apache-airflow-providers-exasol = false
 apache-airflow-providers-mongo = false
 apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-oracle-oracledb = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
@@ -260,7 +260,7 @@ members = [
     "apache-airflow-providers-openlineage",
     "apache-airflow-providers-opensearch",
     "apache-airflow-providers-opsgenie",
-    "apache-airflow-providers-oracle",
+    "apache-airflow-providers-oracle-oracledb",
     "apache-airflow-providers-pagerduty",
     "apache-airflow-providers-papermill",
     "apache-airflow-providers-pgvector",
@@ -1238,7 +1238,7 @@ all = [
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-providers-opensearch" },
     { name = "apache-airflow-providers-opsgenie" },
-    { name = "apache-airflow-providers-oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb" },
     { name = "apache-airflow-providers-pagerduty" },
     { name = "apache-airflow-providers-papermill" },
     { name = "apache-airflow-providers-pgvector" },
@@ -1527,8 +1527,8 @@ opensearch = [
 opsgenie = [
     { name = "apache-airflow-providers-opsgenie" },
 ]
-oracle = [
-    { name = "apache-airflow-providers-oracle" },
+oracle-oracledb = [
+    { name = "apache-airflow-providers-oracle-oracledb" },
 ]
 otel = [
     { name = "apache-airflow-core", extra = ["otel"] },
@@ -1879,8 +1879,8 @@ requires-dist = [
     { name = "apache-airflow-providers-opensearch", marker = "extra == 'opensearch'", editable = "providers/opensearch" },
     { name = "apache-airflow-providers-opsgenie", marker = "extra == 'all'", editable = "providers/opsgenie" },
     { name = "apache-airflow-providers-opsgenie", marker = "extra == 'opsgenie'", editable = "providers/opsgenie" },
-    { name = "apache-airflow-providers-oracle", marker = "extra == 'all'", editable = "providers/oracle" },
-    { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb", marker = "extra == 'all'", editable = "providers/oracle/oracledb" },
+    { name = "apache-airflow-providers-oracle-oracledb", marker = "extra == 'oracle-oracledb'", editable = "providers/oracle/oracledb" },
     { name = "apache-airflow-providers-pagerduty", marker = "extra == 'all'", editable = "providers/pagerduty" },
     { name = "apache-airflow-providers-pagerduty", marker = "extra == 'pagerduty'", editable = "providers/pagerduty" },
     { name = "apache-airflow-providers-papermill", marker = "extra == 'all'", editable = "providers/papermill" },
@@ -1951,7 +1951,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.12.5" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle-oracledb", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -5888,7 +5888,7 @@ openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
 oracle = [
-    { name = "apache-airflow-providers-oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb" },
 ]
 postgres = [
     { name = "apache-airflow-providers-postgres" },
@@ -5930,7 +5930,7 @@ dev = [
     { name = "apache-airflow-providers-mongo" },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-openlineage" },
-    { name = "apache-airflow-providers-oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb" },
     { name = "apache-airflow-providers-postgres" },
     { name = "apache-airflow-providers-presto" },
     { name = "apache-airflow-providers-salesforce" },
@@ -5961,7 +5961,7 @@ requires-dist = [
     { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mysql", marker = "extra == 'mysql'", editable = "providers/mysql" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb", marker = "extra == 'oracle'", editable = "providers/oracle/oracledb" },
     { name = "apache-airflow-providers-postgres", marker = "extra == 'postgres'", editable = "providers/postgres" },
     { name = "apache-airflow-providers-presto", marker = "extra == 'presto'", editable = "providers/presto" },
     { name = "apache-airflow-providers-salesforce", marker = "extra == 'salesforce'", editable = "providers/salesforce" },
@@ -6067,7 +6067,7 @@ dev = [
     { name = "apache-airflow-providers-mongo", editable = "providers/mongo" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
-    { name = "apache-airflow-providers-oracle", editable = "providers/oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb", editable = "providers/oracle/oracledb" },
     { name = "apache-airflow-providers-postgres", editable = "providers/postgres" },
     { name = "apache-airflow-providers-presto", editable = "providers/presto" },
     { name = "apache-airflow-providers-salesforce", editable = "providers/salesforce" },
@@ -6639,7 +6639,7 @@ openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
 oracle = [
-    { name = "apache-airflow-providers-oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb" },
 ]
 sftp = [
     { name = "apache-airflow-providers-sftp" },
@@ -6654,7 +6654,7 @@ dev = [
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-openlineage" },
-    { name = "apache-airflow-providers-oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb" },
     { name = "apache-airflow-providers-sftp" },
     { name = "apache-airflow-task-sdk" },
     { name = "moto" },
@@ -6674,7 +6674,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "apache-airflow-providers-oracle", marker = "extra == 'oracle'", editable = "providers/oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb", marker = "extra == 'oracle'", editable = "providers/oracle/oracledb" },
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
     { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=15.0.0" },
@@ -6717,7 +6717,7 @@ dev = [
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
-    { name = "apache-airflow-providers-oracle", editable = "providers/oracle" },
+    { name = "apache-airflow-providers-oracle-oracledb", editable = "providers/oracle/oracledb" },
     { name = "apache-airflow-providers-sftp", editable = "providers/sftp" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "moto", specifier = ">=5.1.2" },
@@ -7265,9 +7265,9 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
-name = "apache-airflow-providers-oracle"
-version = "4.6.3"
-source = { editable = "providers/oracle" }
+name = "apache-airflow-providers-oracle-oracledb"
+version = "4.6.4"
+source = { editable = "providers/oracle/oracledb" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
