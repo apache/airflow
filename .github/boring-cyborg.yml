@@ -245,8 +245,8 @@ labelPRBasedOnFilePath:
   provider:opsgenie:
     - providers/opsgenie/**
 
-  provider:oracle:
-    - providers/oracle/**
+  provider:oracle-oracledb:
+    - providers/oracle/oracledb/**
 
   provider:pagerduty:
     - providers/pagerduty/**

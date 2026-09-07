@@ -316,7 +316,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-opsgenie>=5.8.0"
 ]
 "oracle.oracledb" = [
-    "apache-airflow-providers-oracle-oracledb>=4.6.3"
+    "apache-airflow-providers-oracle-oracledb>=4.6.4"
 ]
 "pagerduty" = [
     "apache-airflow-providers-pagerduty>=3.8.1"
@@ -483,7 +483,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opensearch>=1.9.3", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opsgenie>=5.8.0",
-    "apache-airflow-providers-oracle-oracledb>=4.6.3",
+    "apache-airflow-providers-oracle-oracledb>=4.6.4",
     "apache-airflow-providers-pagerduty>=3.8.1",
     "apache-airflow-providers-papermill>=3.8.2",
     "apache-airflow-providers-pgvector>=1.4.0",

@@ -24,7 +24,7 @@ from airflow.providers.oracle.oracledb.hooks.handlers import (
     fetch_one_handler,
 )
 
-from unit.oracle.test_utils import mock_oracle_lob
+from unit.oracle.oracledb.test_utils import mock_oracle_lob
 
 
 class TestHandlers:
