@@ -20,8 +20,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowConfigException
-from airflow.providers.common.compat.sdk import AirflowPlugin, conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, AirflowPlugin, conf
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 

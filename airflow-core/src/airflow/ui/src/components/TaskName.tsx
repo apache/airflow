@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type TextProps } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
+
+import { Box, type TextProps } from "@chakra-ui/react";
 import { FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 
 import type { NodeResponse } from "openapi/requests/types.gen";

@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Heading, HStack, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import { usePartitionedDagRunServiceGetPartitionedDagRuns } from "openapi/queries";
 import type { PartitionedDagRunResponse } from "openapi/requests/types.gen";
+
+import { Modal } from "src/system-components";
+
 import { AssetProgressCell } from "src/components/AssetProgressCell";
 import { DataTable } from "src/components/DataTable";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { Modal } from "src/components/ui";
+
 import { useConfig } from "src/queries/useConfig";
 
 type PartitionScheduleModalProps = {

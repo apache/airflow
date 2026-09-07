@@ -33,3 +33,36 @@ export enum TabName {
   Runs = "runs",
   Tasks = "tasks",
 }
+
+/** Route path segments for the task-instance detail tabs. Single source of truth powering the router. */
+export enum TaskInstanceTab {
+  AssetEvents = "asset_events",
+  Code = "code",
+  Details = "details",
+  Events = "events",
+  Logs = "logs",
+  RenderedTemplates = "rendered_templates",
+  RequiredActions = "required_actions",
+  TaskInstances = "task_instances",
+  TaskStateStore = "task-state-store",
+  XCom = "xcom",
+}
+
+/** Plain-string form of the tab paths, for APIs that accept a path segment. */
+export type TaskInstanceTabValue = `${TaskInstanceTab}`;
+
+/**
+ * Tabs offered as the user's default landing tab on the Settings page, each mapped to the
+ * route path it redirects to. Logs is the index route, so it maps to "" (renders in place).
+ */
+export const DEFAULT_TASK_INSTANCE_TAB_PATHS = {
+  asset_events: "asset_events",
+  code: "code",
+  details: "details",
+  events: "events",
+  logs: "",
+  rendered_templates: "rendered_templates",
+  xcom: "xcom",
+} as const satisfies Partial<Record<TaskInstanceTabValue, TaskInstanceTabValue | "">>;
+
+export type DefaultTaskInstanceTab = keyof typeof DEFAULT_TASK_INSTANCE_TAB_PATHS;

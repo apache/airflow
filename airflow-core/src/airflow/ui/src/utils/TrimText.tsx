@@ -19,7 +19,7 @@
 import { Text, Box, useDisclosure, Stack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Modal, Tooltip } from "src/components/ui";
+import { Modal, Tooltip } from "src/system-components";
 
 import { capitalize } from "./capitalize";
 import { trimText } from "./trimTextFn";

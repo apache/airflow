@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+
 import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchBar } from "src/components/SearchBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { isStatePending, useAutoRefresh } from "src/utils";

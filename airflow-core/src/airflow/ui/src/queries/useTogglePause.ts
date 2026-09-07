@@ -33,6 +33,7 @@ import type {
   DAGResponse,
   DAGWithLatestDagRunsCollectionResponse,
 } from "openapi/requests/types.gen";
+
 import { createErrorToaster } from "src/utils";
 
 type TogglePauseVariables = { dagId: string; requestBody: DAGPatchBody };

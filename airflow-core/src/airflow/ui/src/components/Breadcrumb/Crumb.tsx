@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, type ButtonProps, HStack, type StackProps } from "@chakra-ui/react";
 import { type ReactNode, forwardRef } from "react";
+
+import { Box, Button, type ButtonProps, HStack, type StackProps } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
 
 import { type CrumbShape, crumbButtonStyles, getSegmentStyles, getWedgePadding } from "./segment";

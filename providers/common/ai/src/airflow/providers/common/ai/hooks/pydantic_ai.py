@@ -89,7 +89,7 @@ class PydanticAIHook(BaseHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {
-                "host": "https://api.openai.com/v1  (optional, for custom endpoints / Ollama)",
+                "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
                 "extra": '{"model": "openai:gpt-5.6-sol"}',
             },
         }

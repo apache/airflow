@@ -243,23 +243,27 @@ def _bulk_clear_runs(
 @cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl dags pause")
 @providers_configuration_loaded
-def dag_pause(args) -> None:
+def dag_pause(args, dag: DAG | None = None) -> None:
     """Pauses a DAG."""
-    set_is_paused(True, args)
+    set_is_paused(True, args, dag)
 
 
 @cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl dags unpause")
 @providers_configuration_loaded
-def dag_unpause(args) -> None:
+def dag_unpause(args, dag: DAG | None = None) -> None:
     """Unpauses a DAG."""
-    set_is_paused(False, args)
+    set_is_paused(False, args, dag)
 
 
 @providers_configuration_loaded
 @provide_session
-def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> None:
+def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """Set is_paused for DAG by a given dag_id."""
+    if dag:
+        # A Dag object fully determines the target, so pattern matching has nothing left to match on.
+        args.dag_id = dag.dag_id
+        args.treat_dag_id_as_regex = False
     query = select(DagModel)
     if args.treat_dag_id_as_regex:
         query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
@@ -274,7 +278,7 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
-        dags_ids = [dag.dag_id for dag in matched_dags]
+        dags_ids = [dag_model.dag_id for dag_model in matched_dags]
         question = (
             f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
             f"{','.join(dags_ids)}"

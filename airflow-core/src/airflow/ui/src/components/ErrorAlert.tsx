@@ -20,7 +20,7 @@ import { HStack, Text } from "@chakra-ui/react";
 import type { ApiError } from "openapi-gen/requests/core/ApiError";
 import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
 
-import { Alert } from "./ui";
+import { Alert } from "src/system-components";
 
 export type ExpandedApiError = {
   body: HTTPExceptionResponse | HTTPValidationError | undefined;

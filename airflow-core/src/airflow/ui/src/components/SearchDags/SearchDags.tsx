@@ -30,7 +30,9 @@ import type {
   DAGWithLatestDagRunsCollectionResponse,
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
+
 import { TabEntity } from "src/constants/tab";
 import type { DagSearchOption } from "src/utils/option";
 import { getTabPath } from "src/utils/tab";

@@ -21,11 +21,14 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { renderDuration } from "src/utils";
 

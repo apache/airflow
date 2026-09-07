@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { JSX } from "react";
+
 import type { UseQueryOptions } from "@tanstack/react-query";
 import Anser from "anser";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
@@ -30,11 +31,13 @@ import type {
   TaskInstanceResponse,
   TaskInstancesLogResponse,
 } from "openapi/requests/types.gen";
+
 import {
   extractTIContext,
   renderStructuredLog,
   renderTIContextPreamble,
 } from "src/components/renderStructuredLog";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
@@ -120,7 +123,7 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
+  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance, "logs")}?try_number=${tryNumber}` : "";
 
   try {
     let lineNumber = 0;

@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+.. warning::
+  The default waiter timeout of ``ComprehendCreateDocumentClassifierOperator`` was raised from
+  20 minutes (``waiter_max_attempts=20``) to 60 minutes (``waiter_max_attempts=60``), because
+  document classifier training sometimes takes longer than 20 minutes. When the operator waits
+  for completion (the default, in both synchronous and deferrable mode), tasks that previously
+  failed with a waiter timeout around the 20-minute mark now keep waiting for up to an hour.
+  Pass ``waiter_max_attempts`` explicitly to restore the previous timeout.
+
 9.35.1
 ......
 

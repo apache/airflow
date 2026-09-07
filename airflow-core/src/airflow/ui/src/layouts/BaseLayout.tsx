@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, LocaleProvider } from "@chakra-ui/react";
 import { useEffect, type PropsWithChildren } from "react";
+
+import { Box, LocaleProvider } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
-import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
+
 import { ReactPlugin } from "src/pages/ReactPlugin";
+
+import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
+
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
 

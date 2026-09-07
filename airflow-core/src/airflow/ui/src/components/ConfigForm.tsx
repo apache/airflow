@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field } from "@chakra-ui/react";
 import type { ReactNode, Dispatch, SetStateAction } from "react";
+
+import { Box, Field } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+
+import { Accordion } from "src/system-components";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
-import { Accordion } from "./ui";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
   readonly children?: ReactNode;

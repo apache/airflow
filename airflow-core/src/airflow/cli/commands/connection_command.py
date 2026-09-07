@@ -469,3 +469,4 @@ def connections_test(args) -> None:
         console.print("[bold green]\nConnection success!\n")
     else:
         console.print(f"[bold][red]\nConnection failed![/bold]\n{message}\n")
+        raise SystemExit(1)

@@ -19,6 +19,7 @@ from __future__ import annotations
 import random
 import string
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -28,6 +29,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     VERSION_MINOR_INDEX,
     VERSION_PATCHLEVEL_INDEX,
     Change,
+    PrepareReleaseDocsChangesOnlyException,
     TypeOfChange,
     _convert_git_changes_to_table,
     _find_insertion_index_for_version,
@@ -38,7 +40,12 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     classify_change_deterministically,
     get_most_impactful_change,
     get_version_tag,
+    update_release_notes,
 )
+from airflow_breeze.utils.confirm import Answer
+from airflow_breeze.utils.packages import ProviderPackageDetails
+
+PROVIDER_DOCUMENTATION = "airflow_breeze.prepare_providers.provider_documentation"
 
 CHANGELOG_CONTENT = """
 Changelog
@@ -563,3 +570,34 @@ def test_classify_change_deterministically(files_class, subject, expected):
         classification, reason = classify_change_deterministically("amazon", _make_change(subject))
     assert classification == expected
     assert reason, "a non-empty reason must always be returned"
+
+
+@mock.patch(f"{PROVIDER_DOCUMENTATION}.get_provider_details")
+@mock.patch(f"{PROVIDER_DOCUMENTATION}.classify_provider_pr_files", return_value="documentation")
+@mock.patch(f"{PROVIDER_DOCUMENTATION}.user_confirm", return_value=Answer.YES)
+@mock.patch(f"{PROVIDER_DOCUMENTATION}._get_all_changes_for_package")
+def test_doc_only_marker_written_when_classification_overrides_user_answer(
+    mock_get_all_changes, _mock_user_confirm, _mock_classify, mock_get_provider_details, tmp_path
+):
+    """Every change classifying as documentation makes the provider doc-only, whatever the release
+    manager answered."""
+    (tmp_path / "docs").mkdir()
+    marker_file = tmp_path / "docs" / ".latest-doc-only-change.txt"
+    change = _make_change("Fix a typo in the amazon docs")
+    mock_get_all_changes.return_value = (False, [[change]], "")
+    provider_details = mock.MagicMock(spec=ProviderPackageDetails)
+    provider_details.provider_id = "amazon"
+    provider_details.root_provider_path = tmp_path
+    mock_get_provider_details.return_value = provider_details
+
+    with pytest.raises(PrepareReleaseDocsChangesOnlyException):
+        update_release_notes(
+            provider_id="amazon",
+            reapply_templates_only=False,
+            base_branch="main",
+            regenerate_missing_docs=False,
+            non_interactive=False,
+            only_min_version_update=False,
+        )
+
+    assert marker_file.read_text().strip() == change.full_hash

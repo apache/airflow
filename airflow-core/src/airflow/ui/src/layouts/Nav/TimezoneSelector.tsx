@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Field, Text, VStack } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useTimezone } from "src/context/timezone";

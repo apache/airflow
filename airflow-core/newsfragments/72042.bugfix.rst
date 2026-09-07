@@ -1,0 +1,1 @@
+The write-conflict check performed when setting or updating a team-scoped Variable now resolves against that team rather than the global scope, so a secrets backend shadowing the key within the team is detected and a global-only definition no longer warns about a conflict that would not shadow the read.

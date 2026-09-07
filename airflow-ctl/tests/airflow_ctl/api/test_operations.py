@@ -36,6 +36,8 @@ from airflowctl.api.datamodels.generated import (
     AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    AssetStateStoreCollectionResponse,
+    AssetStateStoreResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
@@ -321,7 +323,11 @@ class TestAssetsOperations:
         queued_events=[asset_queued_event_response],
         total_entries=1,
     )
-
+    asset_state_store_response = AssetStateStoreResponse(
+        key="my_key",
+        value={"my_val": 0},  # type: ignore[arg-type]
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+    )
     dag_run_response = DAGRunResponse(
         dag_display_name=dag_id,
         dag_run_id=dag_id,
@@ -528,6 +534,73 @@ class TestAssetsOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.delete_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
+        assert response == self.asset_id
+
+    def test_list_state_store(self):
+        collection_response = AssetStateStoreCollectionResponse(
+            asset_state_store=[self.asset_state_store_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store"
+            return httpx.Response(200, json=json.loads(collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.list_state_store(self.asset_id)
+        assert response == collection_response
+
+    def test_get_state_store(self):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            return httpx.Response(200, json=json.loads(self.asset_state_store_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_state_store(self.asset_id, key)
+        assert response == self.asset_state_store_response
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_set_state_store(self, value, expected):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            assert json.loads(request.content) == {"value": expected}
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.set_state_store(self.asset_id, key, value)
+        assert response == key
+
+    def test_delete_state_store(self):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_state_store(self.asset_id, key)
+        assert response == key
+
+    def test_clear_state_store(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.clear_state_store(self.asset_id)
         assert response == self.asset_id
 
 

@@ -15,7 +15,13 @@ Each provider is an independent package with its own `pyproject.toml`, tests, an
 
 - Keep `provider.yaml` metadata, docs, and tests in sync.
 - Don't upper-bound dependencies by default; add limits only with justification.
-- Changing a symbol another provider imports from yours? Bump the consuming provider's dependency with a `# use next version` marker so independently-released packages stay compatible — see [`contributing-docs/13_airflow_dependencies_and_extras.rst`](../contributing-docs/13_airflow_dependencies_and_extras.rst).
+- **Never edit an `apache-airflow-providers-*` `>=` floor in a `pyproject.toml`.** Only Release Managers do that; a contributor PR that raises one fails the `check_provider_dependency_bumps` selective check. When a provider needs something added to another provider in the same PR (most often `common.compat`), leave the existing version untouched and append the exact comment `# use next version` to that dependency line — release tooling rewrites it to the real version at release time:
+
+  ```toml
+  "apache-airflow-providers-common-compat>=1.8.0",  # use next version
+  ```
+
+  Modifying `common.compat` alongside any other provider makes the marker **mandatory** on that provider's common-compat line — a second selective check (`common_compat_changed_without_next_version`) enforces it. See [`contributing-docs/13_airflow_dependencies_and_extras.rst`](../contributing-docs/13_airflow_dependencies_and_extras.rst).
 - Tests live alongside the provider — mirror source paths in test directories.
 - Full guide: [`contributing-docs/12_provider_distributions.rst`](../contributing-docs/12_provider_distributions.rst)
 

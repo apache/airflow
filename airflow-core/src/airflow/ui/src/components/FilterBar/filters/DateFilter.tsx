@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import dayjs from "dayjs";
 import type { ChangeEvent } from "react";
+
+import dayjs from "dayjs";
 
 import { DateTimeInput } from "src/components/DateTimeInput";
 

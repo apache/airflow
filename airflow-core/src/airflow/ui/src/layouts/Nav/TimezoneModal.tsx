@@ -18,7 +18,7 @@
  */
 import { useTranslation } from "react-i18next";
 
-import { Modal } from "src/components/ui";
+import { Modal } from "src/system-components";
 
 import TimezoneSelector from "./TimezoneSelector";
 

@@ -17,11 +17,14 @@
  * under the License.
  */
 import type { Dispatch, SetStateAction } from "react";
+
 import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceTestConnection } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
+
 import { createErrorToaster } from "src/utils";
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {

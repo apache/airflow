@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { TimezoneContext } from "src/context/timezone";

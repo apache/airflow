@@ -141,6 +141,15 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     def hook(self) -> AwsGenericHook:
         """Override in subclasses to return the right hook."""
 
+    def _event_from_exception(self, error: AirflowException) -> TriggerEvent:
+        return TriggerEvent(
+            {
+                "status": "error",
+                "message": str(error),
+                self.return_key: self.return_value,
+            }
+        )
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()
         async with await hook.get_async_conn() as client:
@@ -160,7 +169,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
                     self.status_message,
                     self.status_queries,
                 )
-            except AirflowException as e:
-                yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
+            except AirflowException as error:
+                yield self._event_from_exception(error)
             else:
                 yield TriggerEvent({"status": "success", self.return_key: self.return_value})

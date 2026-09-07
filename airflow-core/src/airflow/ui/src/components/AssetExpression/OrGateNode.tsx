@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
+
+import { Box, HStack } from "@chakra-ui/react";
 
 export const OrGateNode = ({ children }: PropsWithChildren) => (
   <Box bg="bg.muted" border="2px dashed" borderRadius="lg" minW="fit-content" p={4} position="relative">

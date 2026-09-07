@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { lazy, useState, Suspense } from "react";
+
 import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { lazy, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -29,15 +30,18 @@ import {
   usePluginServiceGetPlugins,
   useTaskInstanceServiceGetTaskInstances,
 } from "openapi/queries";
+
+import { ReactPlugin } from "src/pages/ReactPlugin";
+
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
 import { SlowestTaskInstancesChart } from "src/components/SlowestTaskInstancesChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+
 import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
-import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 

@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent } from "react";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import type { ChangeEvent } from "react";
 import type { Mock } from "vitest";
 import { describe, it, expect, vi } from "vitest";
 

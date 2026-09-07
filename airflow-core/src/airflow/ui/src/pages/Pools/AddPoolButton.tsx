@@ -20,7 +20,8 @@ import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdAdd } from "react-icons/md";
 
-import { Modal, Toaster } from "src/components/ui";
+import { Modal, Toaster } from "src/system-components";
+
 import { useAddPool } from "src/queries/useAddPool";
 
 import PoolForm, { type PoolBody } from "./PoolForm";

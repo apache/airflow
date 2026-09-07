@@ -24,6 +24,12 @@ description: |
 state: not-ready
 lifecycle: incubation
 source-date-epoch: 1743033600
+# IBM ships no Db2 client for Linux ARM64, so `ibm-db` publishes no aarch64 wheel and its
+# sdist build fails there with `NameError: name 'arch_' is not defined`, breaking the
+# linux/arm64 CI image. Exclude the provider from the linux/arm64 test matrix until IBM
+# publishes an aarch64 build.
+excluded-platforms:
+  - linux/arm64
 versions:
   - 0.1.0
 

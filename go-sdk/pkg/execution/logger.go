@@ -22,9 +22,21 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+)
+
+const (
+	loggingLevelEnv    = "AIRFLOW__LOGGING__LOGGING_LEVEL"
+	namespaceLevelsEnv = "AIRFLOW__LOGGING__NAMESPACE_LEVELS"
+
+	// NOTSET sits below every supported record level. CRITICAL sits above ERROR
+	// because slog has no built-in equivalents for either Airflow level.
+	notsetLogLevel   = slog.Level(-100)
+	criticalLogLevel = slog.LevelError + 4
 )
 
 // SocketLogHandler is an slog.Handler that streams structured JSON log lines
@@ -44,7 +56,7 @@ import (
 // updating the supervisor side in lockstep.
 type SocketLogHandler struct {
 	shared *socketLogHandlerShared
-	level  slog.Level
+	filter *logLevelFilter
 	// attrs is the list of attributes accumulated via WithAttrs. Each entry's
 	// key has already been qualified with whatever groups were active at the
 	// WithAttrs call site, so a later WithGroup does NOT retroactively prefix
@@ -75,9 +87,35 @@ type socketLogHandlerShared struct {
 
 var _ slog.Handler = (*SocketLogHandler)(nil)
 
+type logLevelFilter struct {
+	defaultLevel    slog.Level
+	namespaceLevels map[string]slog.Level
+}
+
 // NewSocketLogHandler creates a new handler. If writer is nil, messages are
 // buffered until Connect() is called.
 func NewSocketLogHandler(writer io.Writer, level slog.Level) *SocketLogHandler {
+	return newSocketLogHandler(writer, newLogLevelFilter(level, nil))
+}
+
+func newSocketLogHandlerFromEnv(writer io.Writer) *SocketLogHandler {
+	defaultLevel, ok := parseLogLevel(os.Getenv(loggingLevelEnv))
+	if !ok {
+		defaultLevel = slog.LevelInfo
+	}
+	namespaceLevels, invalidEntries := parseNamespaceLogLevels(os.Getenv(namespaceLevelsEnv))
+	handler := newSocketLogHandler(
+		writer,
+		newLogLevelFilter(defaultLevel, namespaceLevels),
+	)
+	logger := slog.New(handler)
+	for _, invalidEntry := range invalidEntries {
+		logger.Error("Ignoring invalid namespace_levels entry", "entry", invalidEntry)
+	}
+	return handler
+}
+
+func newSocketLogHandler(writer io.Writer, filter *logLevelFilter) *SocketLogHandler {
 	shared := &socketLogHandlerShared{}
 	if writer != nil {
 		shared.writer = writer
@@ -85,8 +123,91 @@ func NewSocketLogHandler(writer io.Writer, level slog.Level) *SocketLogHandler {
 	}
 	return &SocketLogHandler{
 		shared: shared,
-		level:  level,
+		filter: filter,
 	}
+}
+
+func newLogLevelFilter(
+	defaultLevel slog.Level,
+	namespaceLevels map[string]slog.Level,
+) *logLevelFilter {
+	return &logLevelFilter{
+		defaultLevel:    defaultLevel,
+		namespaceLevels: namespaceLevels,
+	}
+}
+
+func parseLogLevel(value string) (slog.Level, bool) {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "NOTSET":
+		return notsetLogLevel, true
+	case "DEBUG":
+		return slog.LevelDebug, true
+	case "INFO":
+		return slog.LevelInfo, true
+	case "WARN", "WARNING":
+		return slog.LevelWarn, true
+	case "ERROR", "EXCEPTION":
+		return slog.LevelError, true
+	case "CRITICAL", "FATAL":
+		return criticalLogLevel, true
+	default:
+		return 0, false
+	}
+}
+
+func getAirflowLogLevelName(level slog.Level) string {
+	switch {
+	case level < slog.LevelDebug:
+		return "notset"
+	case level < slog.LevelInfo:
+		return "debug"
+	case level < slog.LevelWarn:
+		return "info"
+	case level < slog.LevelError:
+		return "warning"
+	case level < criticalLogLevel:
+		return "error"
+	default:
+		return "critical"
+	}
+}
+
+func parseNamespaceLogLevels(value string) (map[string]slog.Level, []string) {
+	levels := make(map[string]slog.Level)
+	var invalidEntries []string
+	entries := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || unicode.IsSpace(r)
+	})
+	for _, entry := range entries {
+		loggerName, levelName, ok := strings.Cut(entry, "=")
+		loggerName = strings.TrimSpace(loggerName)
+		level, validLevel := parseLogLevel(levelName)
+		if !ok || loggerName == "" || !validLevel {
+			invalidEntries = append(invalidEntries, entry)
+			continue
+		}
+		levels[loggerName] = level
+	}
+	return levels, invalidEntries
+}
+
+func (f *logLevelFilter) getLevel(loggerName string) slog.Level {
+	for namespace := loggerName; namespace != ""; {
+		if level, ok := f.namespaceLevels[namespace]; ok {
+			return level
+		}
+		separator := strings.LastIndexByte(namespace, '.')
+		if separator == -1 {
+			break
+		}
+		namespace = namespace[:separator]
+	}
+	return f.defaultLevel
+}
+
+func (f *logLevelFilter) isEnabled(loggerName string, level slog.Level) bool {
+	return level >= f.getLevel(loggerName)
 }
 
 // Connect sets the writer and flushes any buffered log messages.
@@ -104,15 +225,19 @@ func (h *SocketLogHandler) Connect(w io.Writer) {
 }
 
 func (h *SocketLogHandler) Enabled(_ context.Context, level slog.Level) bool {
-	return level >= h.level
+	return h.filter.isEnabled(h.getLoggerName(), level)
 }
 
 func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
+	loggerName := h.getLoggerName()
+	if !h.filter.isEnabled(loggerName, r.Level) {
+		return nil
+	}
+
 	entry := make(map[string]any)
 
 	// Set standard fields.
 	entry["event"] = r.Message
-	entry["level"] = strings.ToLower(r.Level.String())
 	if !r.Time.IsZero() {
 		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
 	}
@@ -133,6 +258,11 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 		appendAttr(entry, prefix, a)
 		return true
 	})
+
+	if loggerName != "" {
+		entry["logger"] = loggerName
+	}
+	entry["level"] = getAirflowLogLevelName(r.Level)
 
 	line, err := json.Marshal(entry)
 	if err != nil {
@@ -170,7 +300,7 @@ func (h *SocketLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 	return &SocketLogHandler{
 		shared: h.shared,
-		level:  h.level,
+		filter: h.filter,
 		attrs:  newAttrs,
 		groups: h.groups,
 	}
@@ -182,10 +312,14 @@ func (h *SocketLogHandler) WithGroup(name string) slog.Handler {
 	}
 	return &SocketLogHandler{
 		shared: h.shared,
-		level:  h.level,
+		filter: h.filter,
 		attrs:  h.attrs,
 		groups: append(append([]string{}, h.groups...), name),
 	}
+}
+
+func (h *SocketLogHandler) getLoggerName() string {
+	return strings.Join(h.groups, ".")
 }
 
 // groupPrefix returns the dotted prefix (including trailing ".") to apply to

@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { init } from "@guanmingchiu/sqlparser-ts";
 import { type ReactNode, useEffect, useState } from "react";
+
+import { init } from "@guanmingchiu/sqlparser-ts";
 
 /**
  * Waits for the sqlparser WASM module to load before rendering children.

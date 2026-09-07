@@ -29,6 +29,7 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
+from jwt import InvalidTokenError
 from keycloak import KeycloakOpenID
 from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
@@ -148,7 +149,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
         if AIRFLOW_V_3_3_PLUS:
-            # Omit Keycloak JWTs from claims, they are stored in separate cookies
+            # Omit Keycloak JWTs from claims, they are stored in separate cookies.
+            # That keeps the browser session cookie under the 4096 byte limit. Tokens
+            # minted for API clients are never stored in a cookie and keep the JWTs in
+            # their claims instead -- see ``generate_api_jwt``.
             return {
                 "user_id": user.get_id(),
                 "name": user.get_name(),
@@ -159,6 +163,31 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "access_token": user.access_token,
             "refresh_token": user.refresh_token,
         }
+
+    def generate_api_jwt(
+        self,
+        user: KeycloakAuthManagerUser,
+        *,
+        expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
+    ) -> str:
+        """
+        Return a JWT for a client that authenticates with the ``Authorization`` header.
+
+        Such a client sends no cookies, so the Keycloak tokens have to travel in the
+        claims for the request to be authorized.
+
+        :param user: the user to generate the token for
+        :param expiration_time_in_seconds: expiration time in seconds of the token
+        """
+        return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
+            {
+                # Build on serialize_user so an API token cannot silently miss a claim
+                # that the browser flow gained; only the Keycloak JWTs differ.
+                **self.serialize_user(user),
+                "access_token": user.access_token,
+                "refresh_token": user.refresh_token,
+            }
+        )
 
     async def get_user_from_token(
         self, token: str, access_token: str | None = None, refresh_token: str | None = None
@@ -174,11 +203,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         if not AIRFLOW_V_3_3_PLUS:
             return user
         if access_token:
+            # The Airflow JWT is signed and establishes who the caller is. The Keycloak
+            # tokens arrive in separate cookies that the signature does not cover, so
+            # pairing them unchecked would let a caller combine their own Airflow session
+            # with somebody else's Keycloak token: every authorization decision is then
+            # made for that subject, while the session identity, audit trail and logs
+            # continue to show this one.
+            if self._token_subject(access_token) != user.get_id():
+                raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
             user.access_token = access_token
             user.refresh_token = refresh_token
             return user
-        # Skip refreshing JWT if Keycloak JWTs are not included.
-        return None
+        # No cookie-supplied tokens. A token minted for an API client carries the
+        # Keycloak JWTs in its own claims, so the user is already complete -- and unlike
+        # the cookie path those claims are covered by the Airflow JWT signature, so they
+        # need no separate subject check. A browser token does not carry them and can
+        # only be completed by KeycloakJWTMiddleware from the cookies; without them
+        # there is nothing to authorize against.
+        return user if user.access_token else None
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -817,6 +859,29 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @staticmethod
+    def _token_subject(token: str) -> str | None:
+        """
+        Return the ``sub`` claim of a JWT without verifying its signature.
+
+        :meta private:
+
+        The value is only ever compared against an identity the signed Airflow JWT has
+        already established, so it is never trusted on its own. A forged token is
+        rejected by Keycloak when it is presented; a genuine token belonging to somebody
+        else is exactly what this comparison exists to catch. A token that cannot be
+        parsed yields ``None``, which matches no user id.
+
+        :param token: the token
+        """
+        try:
+            payload_b64 = token.split(".")[1] + "=="
+            payload = json.loads(urlsafe_b64decode(payload_b64))
+            subject = payload["sub"]
+        except (IndexError, KeyError, TypeError, ValueError):
+            return None
+        return str(subject) if subject is not None else None
 
     @staticmethod
     def _token_expired(token: str) -> bool:

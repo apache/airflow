@@ -799,6 +799,15 @@ def test_stale_bundle_cleanup(mock_process):
     assert actual[0] is _bundle_cleanup_main
 
 
+@patch("airflow.providers.celery.cli.celery_command.Process")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): "not-an-int"})
+def test_stale_bundle_cleanup_skipped_on_non_integer_interval(mock_process):
+    with _run_stale_bundle_cleanup():
+        ...
+    mock_process.assert_not_called()
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
 def test_bundle_cleanup_main_is_picklable():
     """Regression test: _bundle_cleanup_main must be a module-level function so it can be

@@ -21,13 +21,16 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
@@ -39,7 +42,13 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_teams,
+    clear_db_xcom,
+)
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
@@ -101,6 +110,17 @@ def _create_dag_run(dag_maker, *, session: Session = NEW_SESSION):
     session.commit()
 
 
+@provide_session
+def _attach_dag_to_team(dag_id: str, team_name: str, *, session: Session = NEW_SESSION) -> None:
+    """Move a Dag into a team-scoped bundle, which is how a Dag gains a team."""
+    bundle = DagBundleModel(name=f"team-bundle-{team_name}")
+    bundle.teams.append(Team(name=team_name))
+    session.add(bundle)
+    session.flush()
+    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle.name))
+    session.commit()
+
+
 class CustomXCom(BaseXCom):
     @classmethod
     def deserialize_value(cls, xcom):
@@ -113,6 +133,7 @@ class TestXComEndpoint:
         clear_db_dags()
         clear_db_runs()
         clear_db_dag_bundles()
+        clear_db_teams()
         clear_db_xcom()
 
     @pytest.fixture(autouse=True)
@@ -145,10 +166,22 @@ class TestGetXComEntry(TestXComEndpoint):
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "task_display_name": TEST_TASK_DISPLAY_NAME,
+            "team_name": None,
             "map_index": -1,
             "timestamp": current_data["timestamp"],
             "value": json.dumps(TEST_XCOM_VALUE),
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_respond_200_with_team_name(self, test_client):
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+        _attach_dag_to_team(TEST_DAG_ID, "team-xcom-entry")
+
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 200
+        assert response.json()["team_name"] == "team-xcom-entry"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -259,6 +292,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -271,6 +305,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -301,6 +336,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -313,6 +349,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -325,6 +362,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": f"{TEST_XCOM_KEY}-0",
                     "task_id": TEST_TASK_ID_2,
                     "task_display_name": TEST_TASK_DISPLAY_NAME_2,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -337,6 +375,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": f"{TEST_XCOM_KEY}-1",
                     "task_id": TEST_TASK_ID_2,
                     "task_display_name": TEST_TASK_DISPLAY_NAME_2,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
                 },
@@ -368,6 +407,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": idx,
                 }
@@ -384,6 +424,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     "key": TEST_XCOM_KEY,
                     "task_id": TEST_TASK_ID,
                     "task_display_name": TEST_TASK_DISPLAY_NAME,
+                    "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": map_index,
                 }
@@ -410,6 +451,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "task_display_name": TEST_TASK_DISPLAY_NAME,
+                        "team_name": None,
                         "timestamp": "TIMESTAMP",
                         "map_index": 0,
                     },
@@ -422,6 +464,7 @@ class TestGetXComEntries(TestXComEndpoint):
                         "key": TEST_XCOM_KEY,
                         "task_id": TEST_TASK_ID,
                         "task_display_name": TEST_TASK_DISPLAY_NAME,
+                        "team_name": None,
                         "timestamp": "TIMESTAMP",
                         "map_index": 1,
                     },
@@ -446,6 +489,40 @@ class TestGetXComEntries(TestXComEndpoint):
             "xcom_entries": expected_entries,
             "total_entries": len(expected_entries),
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_respond_200_with_team_name(self, test_client):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
+        _attach_dag_to_team(TEST_DAG_ID, "team-xcom")
+
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
+
+        assert response.status_code == 200
+        assert {(entry["dag_id"], entry["team_name"]) for entry in response.json()["xcom_entries"]} == {
+            (TEST_DAG_ID, "team-xcom"),
+            (TEST_DAG_ID_2, None),
+        }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_respond_200_filtered_by_team(self, test_client):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
+        _attach_dag_to_team(TEST_DAG_ID, "team-xcom")
+
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries", params={"teams": ["team-xcom"]}
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 2
+        assert {entry["dag_id"] for entry in response_data["xcom_entries"]} == {TEST_DAG_ID}
+
+        response = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries", params={"teams": ["team-without-dags"]}
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
 
     @provide_session
     def _create_xcom_entries(
@@ -696,6 +773,18 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["map_index"] == request_body.map_index
         check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_create_xcom_entry_with_team_name(self, test_client):
+        _attach_dag_to_team(TEST_DAG_ID, "team-xcom-create")
+
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json=XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE).dict(),
+        )
+
+        assert response.status_code == 201
+        assert response.json()["team_name"] == "team-xcom-create"
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
             "/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/xcomEntries",
@@ -892,6 +981,19 @@ class TestPatchXComEntry(TestXComEndpoint):
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_patch_xcom_entry_with_team_name(self, test_client):
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+        _attach_dag_to_team(TEST_DAG_ID, "team-xcom-patch")
+
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            json={"value": "new_value"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["team_name"] == "team-xcom-patch"
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(

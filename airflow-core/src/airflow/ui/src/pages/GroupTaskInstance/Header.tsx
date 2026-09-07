@@ -17,14 +17,17 @@
  * under the License.
  */
 import type { ReactNode } from "react";
+
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
+
 import { getDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {

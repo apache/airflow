@@ -23,15 +23,20 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -47,16 +52,19 @@ const {
   MAP_INDEX: MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
+  TEAMS: TEAMS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type ColumnsProps = {
   readonly isTaskInstancePage: boolean;
+  readonly multiTeam: boolean;
   readonly open: boolean;
   readonly translate: (key: string) => string;
 };
 
 const getColumns = ({
   isTaskInstancePage,
+  multiTeam,
   open,
   translate,
 }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
@@ -76,6 +84,18 @@ const getColumns = ({
           ),
           header: translate("xcom.columns.dag"),
         },
+        ...(multiTeam
+          ? [
+              {
+                accessorKey: "team_name",
+                cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
+                  <TeamName teamName={original.team_name} />
+                ),
+                enableSorting: false,
+                header: translate("common:dagDetails.team"),
+              },
+            ]
+          : []),
         {
           accessorKey: "run_id",
           cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
@@ -151,6 +171,7 @@ const getColumns = ({
 export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
   const { t: translate } = useTranslation(["browse", "common"]);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone list page owns the tab title; the task-instance tab inherits that page's title.
   useDocumentTitle(dagId === "~" ? translate("common:browse.xcoms") : undefined);
@@ -168,6 +189,7 @@ export const XCom = () => {
   const filteredMapIndex = searchParams.get(MAP_INDEX_PARAM);
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
+  const teams = searchParams.getAll(TEAMS_PARAM);
 
   const { LOGICAL_DATE_GTE, LOGICAL_DATE_LTE, RUN_AFTER_GTE, RUN_AFTER_LTE } = SearchParamsKeys;
   const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE);
@@ -220,6 +242,7 @@ export const XCom = () => {
     ...runIdArg,
     taskId,
     ...taskIdArg,
+    teams: teams.length > 0 ? teams : undefined,
     ...xcomKeyArg,
   };
 
@@ -230,6 +253,7 @@ export const XCom = () => {
 
   const columns = getColumns({
     isTaskInstancePage,
+    multiTeam: multiTeamEnabled,
     open,
     translate,
   });

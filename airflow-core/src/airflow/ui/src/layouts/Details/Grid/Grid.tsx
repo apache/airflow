@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { RefObject } from "react";
+import { useCallback, useMemo, useRef } from "react";
+
 import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import type { RefObject } from "react";
-import { useCallback, useMemo, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
+
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useGroups } from "src/context/groups";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";

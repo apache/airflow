@@ -352,6 +352,7 @@ class MSGraphAsyncOperator(BaseOperator):
                         scopes=self.scopes,
                         api_version=self.api_version,
                         serializer=type(self.serializer),
+                        pagination_link=True,
                     ),
                     method_name=method_name,
                 )

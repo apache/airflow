@@ -18,7 +18,7 @@
  */
 import { Box, Flex, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiDatabase, FiHome, FiClock } from "react-icons/fi";
+import { FiDatabase, FiGrid, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import {
@@ -27,14 +27,17 @@ import {
   usePluginServiceGetPlugins,
 } from "openapi/queries";
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
+
+import { Tooltip } from "src/system-components";
+
 import { Logo } from "src/components/Logo";
+
+import { DagIcon } from "src/assets/DagIcon";
 import { useTimezone } from "src/context/timezone";
 import { useConfig } from "src/queries/useConfig";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
 import type { NavItemResponse } from "src/utils/types";
 
-import { Tooltip } from "../../components/ui";
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
@@ -171,7 +174,12 @@ export const Nav = () => {
             />
           </Link>
         </Box>
-        <NavButton data-testid="nav-home-link" icon={FiHome} title={translate("nav.home")} to="/" />
+        <NavButton
+          data-testid="nav-dashboard-link"
+          icon={FiGrid}
+          title={translate("nav.dashboard")}
+          to="/home"
+        />
         <NavButton
           data-testid="nav-dags-link"
           disabled={!authLinks?.authorized_menu_items.includes("Dags")}

@@ -491,12 +491,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
-        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
-        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
-        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
-        # response could redirect the token off-host. Pin follow-up requests to the configured
-        # endpoint's host (CWE-918).
-        self.allowed_netloc = urlparse(request_adapter.base_url).netloc
+        self.allowed_netloc = urlparse(request_adapter.base_url).netloc.lower()
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict | None:
@@ -620,6 +615,39 @@ class KiotaRequestAdapterHook(BaseHook):
 
         return response
 
+    async def get_allowed_netlocs(self) -> set[str]:
+        """Return the endpoint's host and the connection's allowed hosts, for checking pagination links."""
+        request_adapter = await self.get_async_conn()
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        allowed_hosts = access_token_provider.get_allowed_hosts_validator().get_allowed_hosts()
+        netlocs = {host.lower() for host in allowed_hosts}
+
+        if self.allowed_netloc:
+            netlocs.add(self.allowed_netloc)
+        return netlocs
+
+    async def assert_allowed_host(self, url: str | None) -> None:
+        """
+        Refuse an absolute ``url`` whose host the connection does not allow.
+
+        A pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is re-fetched
+        with the connection's bearer token attached. That token is withheld only from hosts outside
+        ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered response
+        could send it to an arbitrary host (CWE-918).
+        """
+        if not url or not url.startswith("http"):
+            return
+
+        allowed_netlocs = await self.get_allowed_netlocs()
+
+        if urlparse(url).netloc.lower() not in allowed_netlocs:
+            raise ValueError(
+                f"Refusing to follow pagination link {url!r}: its host is not among the allowed "
+                f"Microsoft Graph endpoints {sorted(allowed_netlocs)}."
+            )
+
     async def paginated_run(
         self,
         url: str = "",
@@ -667,15 +695,7 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
-                        if (
-                            next_url
-                            and next_url.startswith("http")
-                            and urlparse(next_url).netloc != self.allowed_netloc
-                        ):
-                            raise ValueError(
-                                f"Refusing to follow pagination link {next_url!r}: its host differs "
-                                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
-                            )
+                        await self.assert_allowed_host(next_url)
                         url = next_url
                 else:
                     break

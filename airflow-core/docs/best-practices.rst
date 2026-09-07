@@ -319,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.16.3"
+      pip install "ruff>=0.16.4"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 

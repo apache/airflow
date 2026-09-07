@@ -4,7 +4,7 @@
     "Connections": "連線",
     "Plugins": "外掛",
     "Pools": "資源池",
-    "Providers": "Providers",
+    "Providers": "整合套件",
     "Variables": "變數"
   },
   "allOperators": "所有任務操作器",
@@ -24,6 +24,7 @@
   },
   "backfill_one": "回填",
   "backfill_other": "回填",
+  "breadcrumb": "麵包屑導覽",
   "browse": {
     "auditLog": "稽核日誌",
     "deadlines": "截止期限",
@@ -121,6 +122,8 @@
       "title": "存取被拒"
     }
   },
+  "event_one": "事件",
+  "event_other": "事件",
   "expand": {
     "collapse": "收合",
     "expand": "展開",
@@ -136,21 +139,27 @@
   },
   "filter": "篩選",
   "filters": {
+    "addFilter": "新增篩選",
+    "date": "日期",
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
     "endTime": "結束時間",
     "logicalDateFrom": "從邏輯日期",
     "logicalDateTo": "到邏輯日期",
+    "removeFilter": "移除篩選",
     "runAfterFrom": "從最早可執行時間",
     "runAfterTo": "從最早可執行時間",
     "searchAsset": "搜尋資源",
     "selectDateRange": "選擇日期範圍",
-    "startTime": "起始時間"
+    "selectDateTime": "選擇日期與時間",
+    "startTime": "起始時間",
+    "time": "時間"
   },
   "fullscreen": {
     "tooltip": "按下 {{hotkey}} 進入全螢幕"
   },
   "generateToken": "產生權杖",
+  "includedIn": "包含於",
   "key": "鍵",
   "logicalDate": "邏輯日期",
   "logout": "登出",
@@ -196,6 +205,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "收到的資源事件"
   },
+  "pause": "暫停",
   "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
   "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
   "presetFilters": {
@@ -353,6 +363,7 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
+  "switchDag": "切換 $t(dag_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -362,8 +373,10 @@
     "filterReset_other": "重置篩選",
     "from": "從",
     "maxActiveRuns": "最大活躍執行數",
+    "noResultsFound": "找不到結果",
     "noTagsFound": "找不到標籤",
     "noTeamsFound": "找不到團隊",
+    "ownerPlaceholder": "依擁有者篩選",
     "tagMode": {
       "all": "全部",
       "any": "任何"
@@ -419,6 +432,12 @@
   },
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
+  "teams": {
+    "more_one": "還有 {{count}} 個",
+    "more_other": "還有 {{count}} 個",
+    "none": "沒有團隊",
+    "title": "團隊"
+  },
   "timeRange": {
     "last12Hours": "最近 12 小時",
     "last24Hours": "最近 24 小時",
@@ -503,6 +522,7 @@
   "total": "總計 {{state}}",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
+  "unpause": "取消暫停",
   "user": "使用者",
   "validation": {
     "mustBeAtLeast": "必須至少為 {{min}}。",

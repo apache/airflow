@@ -407,6 +407,47 @@ class TestMSGraphAsyncOperator:
             assert request.headers.try_get("ConsistencyLevel") == {"eventual"}
             assert request.content == json.dumps(data).encode("utf-8")
 
+    def test_pagination_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        second_page = {"value": [{"id": "2"}]}
+        response = mock_json_response(200, first_page, second_page)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+            )
+
+            with pytest.raises(AirflowException, match="attacker.example"):
+                execute_operator(operator)
+
+        # assert_allowed_host rejects the link before the request goes out, so the second page is never
+        # fetched and the bearer token does not reach attacker.example.
+        assert mock_get_http_response.call_count == 1
+
+    def test_relative_pagination_link_is_not_treated_as_cross_host(self):
+        pages = [{"next": "users?$skip=1", "value": [{"id": "1"}]}, {"value": [{"id": "2"}]}]
+        response = mock_json_response(200, *pages)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="users",
+                pagination_function=lambda operator, response, **context: (response.get("next"), None),
+            )
+
+            results, _ = execute_operator(operator)
+
+        # A pagination function may return a relative url, whose netloc is empty and never matches the
+        # configured endpoint. The startswith("http") check in assert_allowed_host lets it pass.
+        assert mock_get_http_response.call_count == 2
+        assert results == pages
+
     def test_execute_callable(self):
         with pytest.warns(
             AirflowProviderDeprecationWarning,
