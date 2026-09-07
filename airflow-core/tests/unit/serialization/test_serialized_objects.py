@@ -1632,3 +1632,137 @@ def test_serialized_dag_getitem_returns_task_group(dag_maker):
     ser_dag = DagSerialization.from_dict(ser_dict)
     assert isinstance(ser_dag, SerializedDAG)
     assert ser_dag["section"].group_id == tg.group_id
+
+
+class _DeadlineGadget:
+    """Stands in for any allow-listed class a Dag author could name in a deadline field.
+
+    Deliberately constructible by serde -- it carries the ``serialize`` /
+    ``deserialize`` pair serde requires. A gadget serde cannot build would make the
+    test pass for the wrong reason: deserialization would fail on its own and the
+    "was it constructed" assertion would never be exercised.
+    """
+
+    instantiated = False
+
+    def __init__(self, **kwargs):
+        type(self).instantiated = True
+        self.kwargs = kwargs
+
+    def serialize(self):
+        return {}
+
+    @staticmethod
+    def deserialize(data, version):
+        return _DeadlineGadget(**(data or {}))
+
+
+def _encode_as(classname: str) -> dict:
+    """Build a serde payload naming ``classname``."""
+    from airflow.sdk.serde import CLASSNAME, DATA, VERSION
+
+    return {CLASSNAME: classname, VERSION: 1, DATA: {}}
+
+
+@pytest.mark.parametrize("field", [DeadlineAlertFields.CALLBACK, DeadlineAlertFields.INTERVAL])
+def test_deadline_fields_refuse_unexpected_classes_without_constructing_them(field):
+    """A Dag author must not be able to name an arbitrary class in a deadline field.
+
+    These decoders run in the scheduler and API server whenever a serialized Dag is
+    loaded, and the Security Model says a Dag author reaches those processes only
+    through registered plugins. The assertion that matters is that the class is never
+    *constructed*: `deserialize()` instantiates before returning, so a check on the
+    returned object would already be too late for a class with side effects in
+    `__init__`.
+    """
+    from unittest import mock
+
+    from airflow.sdk import serde
+
+    gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
+    _DeadlineGadget.instantiated = False
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][field] = _encode_as(gadget_name)
+
+    # Make the gadget acceptable to serde itself, so the refusal comes from the
+    # deadline gate rather than from the general deserialization allow list.
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        with pytest.raises(ValueError, match="Refusing to deserialize"):
+            BaseSerialization.deserialize(serialized)
+
+    assert _DeadlineGadget.instantiated is False, "the class was constructed before being rejected"
+
+
+def test_deadline_callback_kwargs_still_construct_nested_classes():
+    """Documents a known residual: kwargs are still generically deserialized.
+
+    The outer payload is a valid AsyncCallback and the class sits under ``kwargs``,
+    which serde deserializes recursively. This is NOT closed here, and the test asserts
+    the current behaviour rather than the desired one so the gap is visible and a future
+    change has to update it deliberately.
+
+    It is not specific to deadlines -- it is the general property of deserializing
+    Dag-author data, shared with every other serde call site. Closing it means deferring
+    the kwargs decode to the process that runs the callback, which spans two consumption
+    paths using two different encodings and belongs with that broader work.
+    """
+    from unittest import mock
+
+    from airflow.sdk import serde
+
+    gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
+    _DeadlineGadget.instantiated = False
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    callback_payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
+    callback_payload[serde.DATA]["kwargs"] = {"evil": _encode_as(gadget_name)}
+
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        BaseSerialization.deserialize(serialized)
+
+    assert _DeadlineGadget.instantiated is True, (
+        "kwargs deserialization behaviour changed -- if this is now closed, update the "
+        "docstring on _decode_deadline_callback and this test together"
+    )
+
+
+@pytest.mark.parametrize("field", [DeadlineAlertFields.CALLBACK, DeadlineAlertFields.INTERVAL])
+def test_deadline_fields_refuse_legacy_encoded_classes(field):
+    """The legacy ``{"__type", "__var"}`` spelling must not slip past the check.
+
+    serde rewrites that shape into ``__classname__`` *inside* deserialize, so a payload
+    inspected beforehand carries no ``__classname__`` at all and an unnormalised check
+    sees nothing to reject.
+    """
+    from unittest import mock
+
+    from airflow.sdk import serde
+    from airflow.sdk._shared.serialization import OLD_DATA, OLD_TYPE
+
+    gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
+    _DeadlineGadget.instantiated = False
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][field] = {OLD_TYPE: gadget_name, OLD_DATA: {}}
+
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        with pytest.raises(ValueError, match="Refusing to deserialize"):
+            BaseSerialization.deserialize(serialized)
+
+    assert _DeadlineGadget.instantiated is False
