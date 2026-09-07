@@ -1149,10 +1149,9 @@ class TestDbtCloudHook:
         with patch.object(hook.log, "error"):
             hook.log_job_run_failure_details(run_id=RUN_ID, account_id=account_id)
 
-        _account_id = account_id or DEFAULT_ACCOUNT_ID
         mock_get_job_run.assert_called_once_with(
             run_id=RUN_ID,
-            account_id=_account_id,
+            account_id=account_id,
             include_related=["run_steps"],
         )
 
