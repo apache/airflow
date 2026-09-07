@@ -283,15 +283,17 @@ def get_partitioned_dag_runs(
 
     if not (rows := session.execute(query).all()):
         if dag_id.value is not None and total_entries == 0:
-            # Scope the existence probe to Dags the caller may read: without this, an
-            # unreadable-but-existing Dag returns 200-empty while a nonexistent Dag
-            # returns 404, letting the caller distinguish the two and learn which Dags
-            # exist outside their permitted set.
-            dag_exists_query = select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value)
+            # An unreadable-but-existing Dag must not be distinguishable from a
+            # nonexistent one, otherwise a caller can probe by dag_id and learn which
+            # Dags exist outside their permitted set. Since readable_dag_ids already
+            # comes from DagModel, membership in the set proves existence and skips
+            # the extra query and IN list; only the admin path needs the probe.
             if readable_dag_ids is not None:
-                dag_exists_query = dag_exists_query.where(DagModel.dag_id.in_(readable_dag_ids))
-            dag_exists = session.scalar(dag_exists_query)
-            if dag_exists is None:
+                if dag_id.value not in readable_dag_ids:
+                    raise HTTPException(
+                        status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found"
+                    )
+            elif session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value)) is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found")
         return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=total_entries)
 

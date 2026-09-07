@@ -310,14 +310,18 @@ class TestGetPartitionedDagRuns:
     ):
         """
         An unreadable-but-existing Dag must not be distinguishable from a nonexistent
-        Dag via the ``dag_id`` filter: both return 404. Without the scoped existence
-        probe, the existing Dag returned 200-empty while the nonexistent one returned
-        404, giving the caller an oracle for Dag ids outside their permitted set.
+        Dag via the ``dag_id`` filter: both return 404. Without the scoping, the
+        readable-dags row filter drops the APDR rows, ``total_entries`` collapses to
+        0, and the DagModel probe still finds the Dag — returning 200-empty and
+        giving the caller an oracle for Dag ids outside their permitted set.
         """
         schedule = PartitionedAssetTimetable(assets=Asset(uri="s3://bucket/a", name="a"))
         with dag_maker(dag_id="restricted_dag", schedule=schedule, serialized=True):
             EmptyOperator(task_id="t")
         dag_maker.sync_dagbag_to_db()
+        # An APDR row exists but the readable-dags filter drops it — this is the
+        # branch where the pre-fix DagModel probe leaked existence.
+        session.add(AssetPartitionDagRun(target_dag_id="restricted_dag", partition_key="2024-06-01"))
         session.commit()
 
         existing_unreadable = test_client.get("/partitioned_dag_runs?dag_id=restricted_dag")
