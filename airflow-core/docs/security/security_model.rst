@@ -1067,3 +1067,104 @@ judged on the Linux behavior; the non-Linux aspect is informational.
 
 Reporters who identify a non-Linux-only bug should still report it through the regular contribution
 process — fixes are welcome as defense-in-depth hardening, with no CVE or advisory.
+
+Hardening opportunities with no demonstrated exploitation path
+...............................................................
+
+Many reports describe code that could be written more defensively — a shell command assembled by
+string formatting, a path that is not confined, a check that fails open on a branch the reporter
+has not shown to be reachable. Where no path exists by which an actor reaches an outcome they were
+not already entitled to, the finding is hardening rather than a vulnerability.
+
+Hardening is handled in public: open a normal pull request or issue and it is reviewed like any
+other change. No CVE is allocated and no advisory is issued. This is the disposition the security
+team applies most often, and it is not a dismissal — such findings are frequently fixed soon after
+they reach the public process, which is the faster route precisely because it does not wait on a
+coordinated release.
+
+A report that states a weakness and then observes that it is not reachable has answered its own
+question. If you believe the weakness *is* reachable, show the path; that is the part that decides
+which process handles it.
+
+Findings whose premise is a misconfiguration
+.............................................
+
+Airflow gives Deployment Managers settings that widen what the software will do: deserialization
+allow-lists, module and plugin paths loaded by name, and the ``test connection`` feature among
+others. Reports of the form "if this allow-list were misconfigured, arbitrary classes could be
+instantiated", or "a misconfigured module path could load unintended code", describe the
+consequence of choosing an unsafe value. They do not describe a defect in the code that reads it.
+
+Choosing that value is a Deployment Manager decision of the same kind as granting a user the Admin
+role, and Deployment Managers are trusted. For a report in this shape to be actionable it has to
+establish one of two things: that the **default** configuration is exploitable, or that some actor
+who is not a Deployment Manager can cause the setting to take the unsafe value.
+
+The same applies to a call site presented without a route to it. Pointing at ``import_string()``, a
+deserialization helper, or a subprocess invocation does not establish that attacker-controlled
+input reaches it. Name the entry point, the role of the actor who controls the input, and each hop
+in between — that trace is the finding, not the call site.
+
+Restating a documented design property
+.......................................
+
+Sections of this document record decisions the project has made and the consequences that follow:
+that a symmetric JWT signing secret is held by every component that must verify tokens, that Dag
+authors execute arbitrary code, that the Execution API does not isolate workloads from one another.
+A report whose evidence is a link to one of those sections restates the project's position rather
+than contradicting it, and submitting the same restatement more than once does not change the
+assessment.
+
+Such a report becomes useful at the point where it shows behaviour that differs from what this
+document describes, or a consequence of a documented decision that the document does not
+acknowledge and that a Deployment Manager could not reasonably have anticipated. Disagreement with
+a documented decision is welcome and often productive, but it is a design discussion for the
+developer mailing list rather than a security report.
+
+Components the project does not release
+........................................
+
+The security process covers what the Apache Airflow project releases: ``apache-airflow``, the
+provider distributions, the Task SDK, the Helm chart, and the reference Docker image. Third-party
+plugins, operators distributed outside the project, forks, vendor builds, and images built by
+others are not ASF releases and fall outside it — including when they are widely deployed
+alongside Airflow, and when their name contains "airflow".
+
+Report those to whoever publishes them. Where a third-party component is only exploitable because
+of something Airflow itself does, that part is in scope and worth reporting here; say which part is
+which.
+
+Findings whose precondition already grants the capability
+..........................................................
+
+A report has to gain an attacker something they could not already do. Where the stated precondition
+is write access to the metadata database, the ability to place a file in a Dag bundle, or a
+permission whose documented purpose is the action being demonstrated, the conclusion follows from
+the premise and no boundary has been crossed.
+
+Two shapes recur. The first assumes a principal that is already inside a trust boundary — a
+metadata-database writer can approve a gated task, but that principal can already set task and Dag
+run states directly. The second reads an administrative permission as an escalation: a role holding
+the FAB user-administration permission can grant roles, Admin included, because granting roles is
+what that permission is for.
+
+State what the attacker holds at the start and what they hold at the end. Where those are the same,
+there is no escalation to report.
+
+Values outside the secret-masking contract
+...........................................
+
+Secret masking covers values Airflow has been told are secret: a connection's password and its
+``extra``, and values whose field name matches the sensitive-field list that
+``[core] sensitive_var_conn_names`` extends. It reduces accidental disclosure in logs and the UI.
+It is not a boundary that contains a Dag author, who can always read and print the values their
+tasks are given.
+
+Two consequences of that scope are by design. Identity fields are not secrets — a connection's
+``login`` is deliberately absent from the sensitive-field list, as are ``user`` and ``username`` —
+so a report that ``login`` appears in logs describes intended behaviour. And values placed
+somewhere Airflow has not been told is sensitive, most often a Dag run configuration, are not
+masked; the project has never documented them as being.
+
+A value that *is* within the contract and appears in clear text is a real bug and worth raising, in most
+cases through the public issue tracker rather than the security process.
