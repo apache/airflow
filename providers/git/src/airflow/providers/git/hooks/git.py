@@ -293,6 +293,11 @@ class GitHook(BaseHook):
                     self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
                     os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
 
+    def _extract_repo_host(self) -> str:
+        """Return the ``host[:port]`` of the repo url, as written."""
+        rest = str(self.repo_url).partition("://")[2]
+        return rest.partition("/")[0].rpartition("@")[2]
+
     @contextlib.contextmanager
     def _token_askpass_env(self):
         """Hand the token to git through GIT_ASKPASS so it never reaches the repo URL."""
@@ -302,21 +307,36 @@ class GitHook(BaseHook):
             yield
             return
 
+        host = self._extract_repo_host()
+        if not host:
+            yield
+            return
+
         username = shlex.quote(self.user_name)
         password = shlex.quote(self.auth_token)
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(
-                f"""#!/bin/sh
+        with tempfile.TemporaryDirectory() as askpass_dir:
+            askpass_path = os.path.join(askpass_dir, "askpass.sh")
+            # git passes the target as ``<scheme>://[user@]<host>[:port][/path]`` in $1. Matching
+            # it means a submodule hosted elsewhere gets nothing instead of this connection's
+            # token. Quoting the host keeps an IPv6 address's brackets out of glob interpretation.
+            with open(askpass_path, "w") as askpass_script:
+                askpass_script.write(
+                    f"""#!/bin/sh
+case "$1" in
+    *"://{host}'"*|*"://{host}/"*|*"@{host}'"*|*"@{host}/"*) ;;
+    *) exit 1 ;;
+esac
 case "$1" in
     *Username*) echo {username} ;;
     *Password*) echo {password} ;;
     *) exit 1 ;;
 esac
 """
-            )
-            askpass_script.flush()
-            os.chmod(askpass_script.name, stat.S_IRWXU)
+                )
+            # The handle has to be closed before git runs: Linux refuses to exec a file that is
+            # still open for writing, which git surfaces as "cannot exec: Text file busy".
+            os.chmod(askpass_path, stat.S_IRWXU)
 
             # ``self.env`` alone is not enough: callers only forward it on the initial clone,
             # so fetches would run without the credential and hang on the terminal prompt.
@@ -326,7 +346,7 @@ esac
             ]
             try:
                 for env in envs:
-                    env["GIT_ASKPASS"] = askpass_script.name
+                    env["GIT_ASKPASS"] = askpass_path
                     env["GIT_TERMINAL_PROMPT"] = "0"
                 yield
             finally:

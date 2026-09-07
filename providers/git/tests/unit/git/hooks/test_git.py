@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import os
 import shlex
+import subprocess
 import warnings
 from unittest import mock
 
@@ -598,6 +599,43 @@ class TestGitHook:
             assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
 
         assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
+
+    @pytest.mark.parametrize(
+        ("prompt", "expected"),
+        [
+            pytest.param("Username for 'https://github.com': ", "token_user", id="username"),
+            pytest.param("Password for 'https://token_user@github.com': ", ACCESS_TOKEN, id="password"),
+            pytest.param(
+                "Username for 'https://github.com/apache/airflow.git': ",
+                "token_user",
+                id="username-with-http-path",
+            ),
+            pytest.param("Username for 'https://evil.com': ", "", id="other-host"),
+            pytest.param("Password for 'https://token_user@evil.com': ", "", id="other-host-password"),
+            pytest.param("Username for 'https://github.com.evil.com': ", "", id="host-suffixed"),
+            pytest.param("Username for 'https://evil-github.com': ", "", id="host-prefixed"),
+            pytest.param("Username for 'https://github.com:8443': ", "", id="other-port"),
+            pytest.param("Enter passphrase for key: ", "", id="unrecognised-prompt"),
+        ],
+    )
+    def test_token_askpass_answers_only_its_own_host(self, prompt, expected, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_askpass_host",
+                host=AIRFLOW_HTTPS_URL,
+                login="token_user",
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_askpass_host")
+
+        with hook.configure_hook_env():
+            result = subprocess.run(
+                [hook.env["GIT_ASKPASS"], prompt], capture_output=True, text=True, check=False
+            )
+
+        assert result.stdout.strip() == expected
 
     def test_token_askpass_env_skipped_for_ssh_transport(self, create_connection_without_db):
         create_connection_without_db(
