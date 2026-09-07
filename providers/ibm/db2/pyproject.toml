@@ -62,8 +62,12 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    "ibm-db>=3.2.0",
-    "ibm-db-sa>=0.4.0",
+    # `ibm-db` publishes no Linux aarch64 wheel and its sdist cannot be built there, so
+    # skip it on Linux ARM (mirrors provider.yaml excluded-platforms). macOS Apple Silicon
+    # is unaffected — IBM does ship macosx arm64 wheels. `ibm-db-sa` is pure Python but
+    # depends on `ibm-db`, so it carries the same marker or it drags `ibm-db` back in.
+    "ibm-db>=3.2.0; platform_machine != \"aarch64\"",
+    "ibm-db-sa>=0.4.0; platform_machine != \"aarch64\"",
     "methodtools>=0.4.7",
 ]
 

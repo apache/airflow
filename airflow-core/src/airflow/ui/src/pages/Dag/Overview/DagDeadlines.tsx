@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Button, Flex, Heading, Separator, Skeleton, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useDeadlines } from "src/queries/useDeadlines";
 
 import { AllDeadlinesModal } from "./AllDeadlinesModal";

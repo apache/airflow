@@ -31,11 +31,42 @@ services:
       start_period: 30s
       retries: 50
     restart: "on-failure"
+  redis-cluster:
+    image: redis:7-alpine
+    labels:
+      breeze.description: "Integration required for Redis cluster mode tests."
+    # All three masters share one network namespace so the cluster can be formed without
+    # inter-container discovery. The cluster is created against the container's own IP rather
+    # than 127.0.0.1: nodes record the address they are created with and hand it back in
+    # CLUSTER SLOTS, and a client in another container cannot follow a 127.0.0.1 redirect.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        ip=$$(hostname -i | awk '{print $$1}')
+        for port in 7001 7002 7003; do
+          redis-server --port $$port --bind 0.0.0.0 --protected-mode no \
+            --cluster-enabled yes --cluster-config-file nodes-$$port.conf \
+            --cluster-node-timeout 5000 --appendonly no --daemonize yes
+        done
+        until redis-cli -p 7003 ping > /dev/null 2>&1; do sleep 1; done
+        redis-cli --cluster create $$ip:7001 $$ip:7002 $$ip:7003 --cluster-yes
+        sleep infinity
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p 7001 cluster info | grep -q cluster_state:ok"]
+      interval: 5s
+      timeout: 30s
+      start_period: 30s
+      retries: 50
+    restart: "on-failure"
   airflow:
     environment:
       - INTEGRATION_REDIS=true
     depends_on:
       redis:
+        condition: service_healthy
+      redis-cluster:
         condition: service_healthy
 volumes:
   redis-db-volume:

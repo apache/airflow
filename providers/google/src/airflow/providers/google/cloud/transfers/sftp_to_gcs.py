@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import gzip
 import os
 from collections.abc import Sequence
 from functools import cached_property
@@ -59,8 +60,9 @@ class SFTPToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :param mime_type: The mime-type string
-    :param gzip: Allows for file to be compressed and uploaded as gzip
+    :param mime_type: The mime-type string. Applied on both the tempfile and stream paths.
+    :param gzip: Compress the object body before upload. Applied on both the tempfile and stream
+        paths. The object name is unchanged; ``Content-Encoding`` is not set.
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -73,10 +75,13 @@ class SFTPToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
+        Prefetch can queue the whole file in worker RAM; for large files prefer
+        ``use_stream=True`` and ``sftp_prefetch=False``.
     :param use_stream: Determines the transfer method from SFTP to GCS.
         When ``False`` (default), the file downloads locally
         then uploads (may require significant disk space).
         When ``True``, the file streams directly without using local disk.
+        Streaming skips disk but does not bound RAM if prefetch is on.
         Defaults to ``False``.
     :param fail_on_file_not_exist: If True, operator fails when file does not exist,
         if False, operator will not fail and skips transfer. Default is True.
@@ -185,8 +190,16 @@ class SFTPToGCSOperator(BaseOperator):
         if self.use_stream:
             dest_bucket = gcs_hook.get_bucket(self.destination_bucket)
             dest_blob = dest_bucket.blob(destination_object)
-            with dest_blob.open("wb") as write_stream:
-                sftp_hook.retrieve_file(source_path, write_stream, prefetch=self.sftp_prefetch)
+            dest_blob.content_type = self.mime_type
+            # GzipFile.close() flushes the wrapped writer; BlobWriter.flush() raises unless
+            # ignore_flush is set.
+            open_kwargs = {"ignore_flush": True} if self.gzip else {}
+            with dest_blob.open("wb", **open_kwargs) as write_stream:
+                if self.gzip:
+                    with gzip.GzipFile(fileobj=write_stream, mode="wb") as compressed:
+                        sftp_hook.retrieve_file(source_path, compressed, prefetch=self.sftp_prefetch)
+                else:
+                    sftp_hook.retrieve_file(source_path, write_stream, prefetch=self.sftp_prefetch)
         else:
             with NamedTemporaryFile("w") as tmp:
                 sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)

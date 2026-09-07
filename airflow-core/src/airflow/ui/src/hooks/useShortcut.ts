@@ -17,6 +17,7 @@
  * under the License.
  */
 import { type DependencyList, useEffect, useId } from "react";
+
 import { type HotkeyCallback, type Options, useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 

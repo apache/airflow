@@ -129,3 +129,117 @@ class TestRedisHook:
         hook = RedisHook(redis_conn_id="redis_default")
         hook.get_conn()
         assert hook.password is None
+
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisCluster")
+    @mock.patch("airflow.providers.redis.hooks.redis.Redis")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")
+    def test_get_conn_defaults_to_single_node_client(
+        self, mock_get_connection, mock_redis, mock_redis_cluster
+    ):
+        mock_get_connection.return_value = Connection(host="remote_host", port=1234)
+
+        RedisHook().get_conn()
+
+        mock_redis.assert_called_once()
+        mock_redis_cluster.assert_not_called()
+
+    @mock.patch("airflow.providers.redis.hooks.redis.Redis")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisCluster")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")
+    def test_get_conn_cluster_mode(self, mock_get_connection, mock_redis_cluster, mock_redis):
+        connection = Connection(login="user", password="password", host="node-1", port=6379)
+        connection.set_extra('{"cluster": true, "ssl": true, "ssl_cert_reqs": "required"}')
+        mock_get_connection.return_value = connection
+
+        RedisHook().get_conn()
+
+        mock_redis.assert_not_called()
+        mock_redis_cluster.assert_called_once()
+        call_kwargs = mock_redis_cluster.call_args[1]
+        assert call_kwargs["host"] == connection.host
+        assert call_kwargs["port"] == connection.port
+        assert call_kwargs["username"] == connection.login
+        assert call_kwargs["password"] == connection.password
+        assert call_kwargs["ssl"] is True
+        assert call_kwargs["ssl_cert_reqs"] == "required"
+        # RedisCluster raises RedisClusterException when handed a `db` kwarg at all, even `db=0`.
+        assert "db" not in call_kwargs
+
+    @pytest.mark.parametrize("db", [1, 2])
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisCluster")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")
+    def test_get_conn_cluster_mode_rejects_non_zero_db(self, mock_get_connection, mock_redis_cluster, db):
+        connection = Connection(host="node-1", port=6379)
+        connection.set_extra(f'{{"cluster": true, "db": {db}}}')
+        mock_get_connection.return_value = connection
+
+        with pytest.raises(ValueError, match="only supports database 0"):
+            RedisHook().get_conn()
+
+        mock_redis_cluster.assert_not_called()
+
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisCluster")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")
+    def test_get_conn_cluster_mode_accepts_db_zero(self, mock_get_connection, mock_redis_cluster):
+        """`db` defaults to 0 in the connection form, so that value must not be treated as a conflict."""
+        connection = Connection(host="node-1", port=6379)
+        connection.set_extra('{"cluster": true, "db": 0}')
+        mock_get_connection.return_value = connection
+
+        RedisHook().get_conn()
+
+        mock_redis_cluster.assert_called_once()
+        assert "db" not in mock_redis_cluster.call_args[1]
+
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisCluster")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")
+    def test_get_conn_cluster_mode_passes_startup_nodes(self, mock_get_connection, mock_redis_cluster):
+        connection = Connection(host="node-1", port=6379)
+        connection.set_extra('{"cluster": true, "startup_nodes": "node-2:6379,node-3:6380"}')
+        mock_get_connection.return_value = connection
+
+        RedisHook().get_conn()
+
+        startup_nodes = mock_redis_cluster.call_args[1]["startup_nodes"]
+        assert [(node.host, node.port) for node in startup_nodes] == [("node-2", 6379), ("node-3", 6380)]
+
+    @pytest.mark.parametrize(
+        ("raw_nodes", "expected"),
+        [
+            pytest.param("node-2:6379,node-3:6380", [("node-2", 6379), ("node-3", 6380)], id="csv-string"),
+            pytest.param("node-2 , node-3:6380", [("node-2", 6379), ("node-3", 6380)], id="default-port"),
+            pytest.param(None, [], id="unset"),
+            pytest.param("", [], id="empty"),
+        ],
+    )
+    def test_build_startup_nodes(self, raw_nodes, expected):
+        nodes = RedisHook(startup_nodes=raw_nodes)._build_startup_nodes()
+
+        assert [(node.host, node.port) for node in nodes] == expected
+
+    @pytest.mark.parametrize(
+        ("raw_nodes", "expected_error"),
+        [
+            pytest.param("node-2:not-a-port", "Invalid port", id="non-numeric-port"),
+            pytest.param(":6379", "Missing host", id="missing-host"),
+            pytest.param(["node-2:6379"], "must be a comma-separated string", id="list"),
+            pytest.param({"host": "node-2"}, "must be a comma-separated string", id="mapping"),
+            pytest.param(6379, "must be a comma-separated string", id="not-a-string"),
+        ],
+    )
+    def test_build_startup_nodes_rejects_invalid_entries(self, raw_nodes, expected_error):
+        with pytest.raises(ValueError, match=expected_error):
+            RedisHook(startup_nodes=raw_nodes)._build_startup_nodes()
+
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisCluster")
+    @mock.patch("airflow.providers.redis.hooks.redis.RedisHook.get_connection")
+    @mock.patch("airflow.providers.redis.hooks.redis.DriverInfo", None)
+    @mock.patch("airflow.providers.redis.hooks.redis._SUPPORTS_LIB_NAME", True)
+    def test_cluster_mode_passes_client_identification(self, mock_get_connection, mock_redis_cluster):
+        connection = Connection(host="node-1", port=6379)
+        connection.set_extra('{"cluster": true}')
+        mock_get_connection.return_value = connection
+
+        RedisHook().get_conn()
+
+        assert "apache-airflow-providers-redis" in mock_redis_cluster.call_args[1]["lib_name"]

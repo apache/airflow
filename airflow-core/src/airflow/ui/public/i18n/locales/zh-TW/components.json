@@ -123,6 +123,10 @@
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
   },
+  "passwordToggle": {
+    "hide": "隱藏值",
+    "show": "顯示值"
+  },
   "reparseDag": "重新解析 Dag",
   "slowestTaskInstances": {
     "empty": "此範圍內沒有已完成的任務實例",
