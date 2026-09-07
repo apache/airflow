@@ -51,6 +51,8 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     "GET /connection-tests/{connection_test_id}/connection": {"workload"},
     # Callback /run exchanges a single-use callback token for an execution token.
     "PATCH /callbacks/{callback_id}/run": {"callback"},
+    # Argument bindings are fetched during task startup with either token type.
+    "GET /task-instances/{task_instance_id}/arg-bindings": {"execution", "workload"},
 }
 
 
