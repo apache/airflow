@@ -179,35 +179,6 @@ def scala_spark_example_run() -> _CompletedRun:
     return _trigger_and_wait_for_dag(_SCALA_SPARK_DAG_ID, _SPARK_TASK_TIMEOUT)
 
 
-def _wait_for_task_log_record(
-    airflow_client: AirflowClient,
-    dag_id: str,
-    task_id: str,
-    run_id: str,
-    try_number: int,
-    match: Callable[[dict], bool],
-) -> tuple[dict | None, list[dict]]:
-    """Poll a task's logs until a record matching *match* appears.
-
-    Logs can lag behind the terminal task state, and earlier records arrive
-    before the one under test, so returning on any record would race. Keep
-    polling until the target record shows up or the deadline passes. Returns
-    the matching record (or ``None``) and the last batch of records seen for
-    diagnostics.
-    """
-    deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
-    records: list[dict] = []
-    while True:
-        resp = airflow_client.get_task_logs(
-            dag_id=dag_id, run_id=run_id, task_id=task_id, try_number=try_number
-        )
-        records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
-        record = next((r for r in records if match(r)), None)
-        if record is not None or time.monotonic() > deadline:
-            return record, records
-        time.sleep(3)
-
-
 class TestJavaSDKAnnotationExample:
     """Verify the annotation-based Java SDK example executes correctly."""
 
@@ -304,8 +275,6 @@ class TestJavaSDKUninstantiableTask:
     example bundle.
     """
 
-    airflow_client = AirflowClient()
-
     @pytest.mark.parametrize(
         ("task_id", "expected_task_class"),
         [
@@ -321,34 +290,18 @@ class TestJavaSDKUninstantiableTask:
     )
     def test_uninstantiable_task_fails_with_actionable_error(self, task_id: str, expected_task_class: str):
         """A task class the runner cannot instantiate fails with a clear log message."""
-        resp = self.airflow_client.trigger_dag(
-            "java_uninstantiable",
-            json={"logical_date": datetime.now(timezone.utc).isoformat()},
-        )
-        run_id = resp["dag_run_id"]
-
-        dag_state = self.airflow_client.wait_for_dag_run(
-            dag_id="java_uninstantiable",
-            run_id=run_id,
-            timeout=_JAVA_TASK_TIMEOUT,
-        )
-
-        ti_resp = self.airflow_client.get_task_instances(dag_id="java_uninstantiable", run_id=run_id)
-        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
-        ti = ti_map.get(task_id, {})
+        completed_run = _trigger_and_wait_for_dag("java_uninstantiable", _JAVA_TASK_TIMEOUT)
+        ti = completed_run.get_task_instance(task_id)
 
         assert ti.get("state") == "failed", (
             f"Java {task_id!r} task should fail cleanly.\n"
             f"  task state : {ti.get('state')!r}\n"
-            f"  dag state  : {dag_state!r}\n"
-            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+            f"  dag state  : {completed_run.state!r}\n"
+            f"  all tasks  : {completed_run.ti_states}"
         )
 
-        record, records = _wait_for_task_log_record(
-            self.airflow_client,
-            "java_uninstantiable",
+        record, records = completed_run.wait_for_log_record(
             task_id,
-            run_id,
             ti.get("try_number", 1),
             lambda r: str(r.get("event", "")).startswith("Cannot instantiate task class"),
         )
