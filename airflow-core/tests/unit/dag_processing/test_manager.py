@@ -49,6 +49,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.importers import DagImporterRegistry
 from airflow.dag_processing.manager import (
     BundleState,
     DagFileInfo,
@@ -435,23 +436,40 @@ class TestDagFileProcessorManager:
             pytest.param(True, id="safe-mode-on-filters-keywordless"),
         ],
     )
-    def test_find_files_in_bundle_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
-        from airflow.dag_processing.importers import DagImporterRegistry
-
+    def test_refresh_dag_bundles_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
         (tmp_path / "with_keywords.py").write_text("from airflow.sdk import DAG\n")
         (tmp_path / "no_keywords.py").write_text("from mycompany.pipelines import flow\n")
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.name = "testing"
         bundle.path = tmp_path
-        bundle.importer_registry = DagImporterRegistry()
+        bundle.refresh_interval = 0
+        bundle.supports_versioning = False
+        bundle.is_initialized = True
 
         with conf_vars({("core", "dag_discovery_safe_mode"): str(safe_mode)}):
             manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = [bundle]
+            manager._force_refresh_bundles = set()
+            known_files: dict[str, set[DagFileInfo]] = {}
+
+            with (
+                mock.patch.object(
+                    manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+                ),
+                mock.patch.object(manager, "update_bundle_state"),
+                mock.patch.object(manager, "deactivate_deleted_dags"),
+                mock.patch.object(manager, "clear_orphaned_import_errors"),
+                mock.patch.object(manager, "handle_removed_files"),
+                mock.patch.object(manager, "_resort_file_queue"),
+                mock.patch.object(manager, "_add_new_files_to_queue"),
+            ):
+                manager._refresh_dag_bundles(known_files)
 
         expected = {Path("with_keywords.py")}
         if not safe_mode:
             expected.add(Path("no_keywords.py"))
-        assert set(manager._find_files_in_bundle(bundle)) == expected
+        found_rel_paths = {f.rel_path for f in known_files.get("testing", set())}
+        assert found_rel_paths == expected
 
     @pytest.mark.parametrize(
         "safe_mode",
@@ -3297,7 +3315,7 @@ class TestDagFileProcessorManager:
         with (
             mock_get as patched_get,
             mock_update as patched_update,
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(DagImporterRegistry, "list_dag_files", return_value=[]),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3376,7 +3394,7 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
             ),
             mock.patch.object(manager, "update_bundle_state", side_effect=Exception("DB error")),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]) as mock_find,
+            mock.patch.object(DagImporterRegistry, "list_dag_files", return_value=[]) as mock_list_files,
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3387,7 +3405,7 @@ class TestDagFileProcessorManager:
 
         bundle.refresh.assert_called_once()
         # Short-circuit continues to next bundle — no file scanning
-        mock_find.assert_not_called()
+        mock_list_files.assert_not_called()
         assert "mock_bundle" not in known_files
         # _bundle_versions unchanged
         assert manager._bundle_versions["mock_bundle"] == "v1"
@@ -3445,7 +3463,7 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
             ),
             mock.patch.object(manager, "update_bundle_state"),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(DagImporterRegistry, "list_dag_files", return_value=[]),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -3472,7 +3490,7 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
             ),
             mock.patch.object(manager, "update_bundle_state", side_effect=Exception("API error")),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]),
+            mock.patch.object(DagImporterRegistry, "list_dag_files", return_value=[]),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),

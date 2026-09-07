@@ -55,6 +55,7 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.importers import get_importer_registry
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
@@ -936,10 +937,23 @@ class DagFileProcessorManager(LoggingMixin):
                 self._bundle_versions[bundle.name] = version_after_refresh
                 self._bundle_version_data[bundle.name] = version_data_after_refresh
 
+            self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
+            importer_registry = get_importer_registry(bundle.name)
+            dag_files = importer_registry.list_dag_files(bundle.path, safe_mode=self.dag_discovery_safe_mode)
             found_files = {
-                DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
-                for p in self._find_files_in_bundle(bundle)
+                DagFileInfo(
+                    rel_path=Path(p).relative_to(bundle.path),
+                    bundle_name=bundle.name,
+                    bundle_path=bundle.path,
+                )
+                for p in dag_files
             }
+            self.log.info(
+                "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
+                len(found_files),
+                bundle.name,
+                self.dag_discovery_safe_mode,
+            )
 
             known_files[bundle.name] = found_files
 
@@ -955,21 +969,6 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
-
-    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
-        """Get relative paths for dag files from bundle dir."""
-        self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        importer_registry = bundle.importer_registry
-        dag_files = importer_registry.list_dag_files(bundle.path, safe_mode=self.dag_discovery_safe_mode)
-        rel_paths = [Path(x).relative_to(bundle.path) for x in dag_files]
-        self.log.info(
-            "Found %s files for bundle %s (dag_discovery_safe_mode=%s)",
-            len(rel_paths),
-            bundle.name,
-            self.dag_discovery_safe_mode,
-        )
-
-        return rel_paths
 
     def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
         """
