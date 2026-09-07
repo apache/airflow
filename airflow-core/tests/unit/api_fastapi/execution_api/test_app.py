@@ -29,6 +29,7 @@ from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -449,6 +450,49 @@ class TestInProcessExecutionAPIBundleName:
         not_found = ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
         assert without_bundle == not_found
         assert unknown_bundle == not_found
+
+    def test_bundle_header_scopes_variable_keys(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        prefix = f"keys_{uuid4().hex}_"
+        Variable.set(key=f"{prefix}team", value="team_value", team_name=team_name, session=session)
+        Variable.set(key=f"{prefix}global", value="global_value", session=session)
+        session.commit()
+
+        with_bundle = self._make_client(bundle_name).variables.keys(prefix=prefix)
+        without_bundle = self._make_client().variables.keys(prefix=prefix)
+
+        Variable.delete(key=f"{prefix}team", team_name=team_name, session=session)
+        Variable.delete(key=f"{prefix}global", session=session)
+        session.commit()
+
+        assert with_bundle.keys == [f"{prefix}team"]
+        assert without_bundle.keys == [f"{prefix}global", f"{prefix}team"]
+
+    def test_bundle_header_scopes_variable_write(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        key = f"var_{uuid4().hex}"
+
+        self._make_client(bundle_name).variables.set(key, "team_value")
+        written_team = session.scalar(select(Variable.team_name).where(Variable.key == key))
+
+        Variable.delete(key=key, team_name=team_name, session=session)
+        session.commit()
+
+        assert written_team == team_name
+
+    def test_bundle_header_scopes_variable_delete(self, session, team_bundle):
+        bundle_name, team_name = team_bundle
+        key = f"var_{uuid4().hex}"
+        Variable.set(key=key, value="team_value", team_name=team_name, session=session)
+        session.commit()
+
+        self._make_client().variables.delete(key)
+        after_without_bundle = session.scalar(select(Variable.key).where(Variable.key == key))
+        self._make_client(bundle_name).variables.delete(key)
+        after_with_bundle = session.scalar(select(Variable.key).where(Variable.key == key))
+
+        assert after_without_bundle == key
+        assert after_with_bundle is None
 
     def test_bundle_header_scopes_connection_lookup(self, session, team_bundle):
         bundle_name, team_name = team_bundle
