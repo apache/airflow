@@ -329,5 +329,4 @@ describe("GanttTimeline segment bars", () => {
     // Only the execution bar should be rendered; scheduled and queued are too narrow.
     expect(screen.getAllByRole("link")).toHaveLength(1);
   });
-
 });
