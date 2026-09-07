@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from cadwyn import (
     ResponseInfo,
     VersionChange,
@@ -26,6 +28,7 @@ from cadwyn import (
     schema,
 )
 
+from airflow.api_fastapi.execution_api.datamodels.asset_event import AssetEventsResponse, DagRunAssetReference
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 
 
@@ -52,3 +55,28 @@ class AddCallbackRunEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
     )
+
+
+class MakeCreatedDagRunStartDateNullable(VersionChange):
+    """Make ``DagRunAssetReference.start_date`` nullable and add ``run_after`` for runs that haven't started yet."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRunAssetReference).field("start_date").had(type=datetime),
+        schema(DagRunAssetReference).field("run_after").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(AssetEventsResponse)  # type: ignore[arg-type]
+    def ensure_start_date_in_created_dagruns(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """
+        Give every created Dag run a ``start_date`` and drop ``run_after`` for older clients.
+
+        Older Task SDK clients require ``start_date`` and reject unknown fields, so a queued run
+        borrows ``run_after`` before that field is removed from the payload.
+        """
+        for event in response.body["asset_events"]:
+            for dag_run in event["created_dagruns"]:
+                if dag_run["start_date"] is None:
+                    dag_run["start_date"] = dag_run["run_after"]
+                del dag_run["run_after"]

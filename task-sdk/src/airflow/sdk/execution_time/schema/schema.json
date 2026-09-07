@@ -1146,6 +1146,11 @@
           ],
           "title": "Logical Date"
         },
+        "run_after": {
+          "format": "date-time",
+          "title": "Run After",
+          "type": "string"
+        },
         "start_date": {
           "anyOf": [
             {
@@ -1214,6 +1219,7 @@
         "run_id",
         "dag_id",
         "logical_date",
+        "run_after",
         "start_date",
         "end_date",
         "state",

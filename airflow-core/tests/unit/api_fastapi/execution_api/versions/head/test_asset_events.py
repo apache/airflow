@@ -115,7 +115,9 @@ class TestGetAssetEventByAsset:
         )
 
         assert response.status_code == 200
-        assert response.json()["asset_events"][0]["created_dagruns"][0]["start_date"] is None
+        created = response.json()["asset_events"][0]["created_dagruns"][0]
+        assert created["start_date"] is None
+        assert created["run_after"] == DEFAULT_DATE.isoformat().replace("+00:00", "Z")
 
     @pytest.mark.parametrize(
         ("uri", "name"),

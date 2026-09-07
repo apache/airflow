@@ -1212,6 +1212,7 @@ class TestAssetEventOperations:
                         "dag_id": "created_dag",
                         "run_id": "queued_run",
                         "logical_date": "2023-01-01T00:00:00Z",
+                        "run_after": "2023-01-01T00:00:00Z",
                         "start_date": None,
                         "end_date": None,
                         "state": "queued",

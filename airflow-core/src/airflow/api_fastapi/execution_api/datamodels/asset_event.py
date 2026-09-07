@@ -31,6 +31,7 @@ class DagRunAssetReference(StrictBaseModel):
     run_id: str
     dag_id: str
     logical_date: datetime | None
+    run_after: datetime
     start_date: datetime | None
     end_date: datetime | None
     state: str
