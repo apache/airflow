@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -523,3 +525,49 @@ def test_credentials_rejects_unsafe_env_from_environment_variable(monkeypatch, a
     monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", api_environment)
     with pytest.raises(AirflowCtlException, match="environment"):
         Credentials(client_kind=ClientKind.CLI)
+
+
+class TestRetryConfigurationEnvVars:
+    """The knobs are read at import time, so a bad value used to take down even ``--help``."""
+
+    @staticmethod
+    def _import_with(**env: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, "-c", "import airflowctl.api.client as c; print(c.API_RETRIES)"],
+            env={**os.environ, **env},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+
+    @pytest.mark.parametrize(
+        ("value", "expected", "warns"),
+        [
+            pytest.param("7", "7", False, id="integer-is-used"),
+            pytest.param("", "3", False, id="empty-means-unset"),
+            pytest.param("abc", "3", True, id="typo-falls-back"),
+            pytest.param("-5", "3", True, id="negative-falls-back"),
+            pytest.param("0", "3", True, id="zero-would-disable-retries"),
+        ],
+    )
+    def test_retries_env_var(self, value, expected, warns):
+        result = self._import_with(AIRFLOW_CLI_API_RETRIES=value)
+
+        assert result.returncode == 0, result.stderr
+        # An exact match also pins that the warning never reaches stdout.
+        assert result.stdout.strip() == expected
+        assert ("AIRFLOW_CLI_API_RETRIES" in result.stderr) is warns
+
+    def test_zero_wait_is_allowed(self):
+        """Only the retry count needs a floor of 1; waiting 0 seconds between retries is valid."""
+        result = subprocess.run(
+            [sys.executable, "-c", "import airflowctl.api.client as c; print(c.API_RETRY_WAIT_MIN)"],
+            env={**os.environ, "AIRFLOW_CLI_API_RETRY_WAIT_MIN": "0"},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "0"
+        assert result.stderr == ""
