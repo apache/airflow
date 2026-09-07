@@ -182,15 +182,125 @@ def decode_deadline_reference(reference_data: dict):
     return reference_class.deserialize_reference(reference_data)
 
 
+_TIMEDELTA_CLASSNAME = "datetime.timedelta"
+_VARIABLE_INTERVAL_CLASSNAMES = frozenset(
+    {
+        "airflow.sdk.definitions.deadline.VariableInterval",
+        "airflow.serialization.definitions.deadline.SerializedVariableInterval",
+    }
+)
+
+
+def _normalised_payload(encoded: Any, field: str) -> tuple[str, Any]:
+    """
+    Return ``(classname, data)`` for a serde payload, in either encoding.
+
+    ``serde`` accepts a legacy ``{"__type": ..., "__var": ...}`` shape and rewrites it
+    into the current one *inside* ``deserialize``. Anything inspecting the payload before
+    that call therefore has to normalise it first, or the legacy spelling carries no
+    ``__classname__`` at the moment it is looked at and slips past unexamined.
+    """
+    from airflow.sdk.serde import _convert, CLASSNAME, DATA
+
+    if not isinstance(encoded, dict):
+        raise ValueError(f"Deadline {field} is not a serialized object.")
+    converted = _convert(encoded)
+    if not isinstance(converted, dict) or CLASSNAME not in converted:
+        raise ValueError(f"Deadline {field} names no class.")
+    return converted[CLASSNAME], converted.get(DATA)
+
+
+def _decode_deadline_interval(raw_interval: Any) -> datetime.timedelta | SerializedVariableInterval:
+    """
+    Build the interval from its encoded form without importing what the payload names.
+
+    Only three shapes are legitimate, and each is reconstructed from primitives directly.
+    Nothing here reaches ``serde.deserialize``, so no class named by a Dag author is
+    imported or instantiated in the scheduler or the API server.
+    """
+    # Backward compatibility: previously stored as total_seconds().
+    if isinstance(raw_interval, (int, float)) and not isinstance(raw_interval, bool):
+        return datetime.timedelta(seconds=raw_interval)
+
+    classname, data = _normalised_payload(raw_interval, "interval")
+
+    if classname == _TIMEDELTA_CLASSNAME:
+        if isinstance(data, (int, float)) and not isinstance(data, bool):
+            return datetime.timedelta(seconds=data)
+        raise ValueError("Deadline interval timedelta payload is not a number.")
+
+    if classname in _VARIABLE_INTERVAL_CLASSNAMES:
+        key = data.get("key") if isinstance(data, dict) else None
+        if not isinstance(key, str):
+            raise ValueError("Deadline interval variable payload has no string key.")
+        return SerializedVariableInterval(key=key)
+
+    raise ValueError(
+        f"Refusing to deserialize {classname!r} as a deadline interval. "
+        f"Permitted: {_TIMEDELTA_CLASSNAME}, {', '.join(sorted(_VARIABLE_INTERVAL_CLASSNAMES))}."
+    )
+
+
+def _decode_deadline_callback(raw_callback: Any):
+    """
+    Build the callback from its encoded form without importing what the payload names.
+
+    ``kwargs`` is still passed through generic deserialization, and that is a deliberate,
+    documented limit rather than an oversight. Leaving it encoded would close a real
+    residual -- a legitimate callback can carry an arbitrary allow-listed class under its
+    kwargs, which serde constructs while the outer payload looks entirely valid -- but the
+    kwargs are consumed through two different paths that use two different encodings
+    (``BaseSerialization`` in the triggerer, serde here), and deferring the decode without
+    getting both exactly right silently hands user code an encoded dict in place of its
+    argument. That residual is not specific to deadlines: it is the general property of
+    deserializing Dag-author data, shared with every other serde call site. Closing it
+    belongs with that broader work, not smuggled in here.
+    """
+    from airflow.sdk.definitions.callback import (
+        AsyncCallback,
+        SyncCallback,
+        _SerializedCallbackPath,
+    )
+
+    permitted = {f"{cls.__module__}.{cls.__qualname__}": cls for cls in (AsyncCallback, SyncCallback)}
+    classname, data = _normalised_payload(raw_callback, "callback")
+    callback_cls = permitted.get(classname)
+    if callback_cls is None:
+        raise ValueError(
+            f"Refusing to deserialize {classname!r} as a deadline callback. "
+            f"Permitted: {', '.join(sorted(permitted))}."
+        )
+    if not isinstance(data, dict):
+        raise ValueError("Deadline callback payload is not a mapping.")
+
+    path = data.get("path")
+    if not isinstance(path, str):
+        raise ValueError("Deadline callback payload has no string path.")
+
+    from airflow.sdk.serde import deserialize
+
+    raw_kwargs = data.get("kwargs") or {}
+    fields: dict[str, Any] = {"kwargs": deserialize(raw_kwargs) if raw_kwargs else {}}
+    for optional in ("queue", "executor"):
+        if optional in data:
+            value = data[optional]
+            if value is not None and not isinstance(value, str):
+                raise ValueError(f"Deadline callback {optional} is not a string.")
+            fields[optional] = value
+
+    unexpected = set(data) - {"path", "kwargs", "queue", "executor"}
+    if unexpected:
+        raise ValueError(f"Unexpected deadline callback fields: {', '.join(sorted(unexpected))}.")
+
+    return callback_cls(callback_callable=_SerializedCallbackPath(path), **fields)
+
+
 def decode_deadline_alert(encoded_data: dict):
     """
     Decode a previously serialized deadline alert.
 
     :meta private:
     """
-    from airflow.sdk.definitions.deadline import VariableInterval
-    from airflow.sdk.serde import deserialize
-
     data = encoded_data.get(Encoding.VAR, encoded_data)
 
     reference_data = data[DeadlineAlertFields.REFERENCE]
@@ -204,28 +314,12 @@ def decode_deadline_alert(encoded_data: dict):
             "from a version that supports VariableInterval. Downgrade is not fully reversible."
         )
 
-    interval: datetime.timedelta | SerializedVariableInterval
-
-    # Backward compatibility: previously interval was stored as total_seconds() (float/int).
-    # Handle numeric values by converting to timedelta.
-    if isinstance(raw_interval, (int, float)):
-        interval = datetime.timedelta(seconds=raw_interval)
-    else:
-        deserialized = deserialize(raw_interval)
-
-        if isinstance(deserialized, datetime.timedelta):
-            interval = deserialized
-        elif isinstance(deserialized, SerializedVariableInterval):
-            interval = deserialized
-        elif isinstance(deserialized, VariableInterval):
-            interval = SerializedVariableInterval(key=deserialized.key)
-        else:
-            raise TypeError(f"Invalid interval type: {type(deserialized).__name__}")
+    interval = _decode_deadline_interval(raw_interval)
 
     return SerializedDeadlineAlert(
         reference=reference,
         interval=interval,
-        callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
+        callback=_decode_deadline_callback(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
     )
 
