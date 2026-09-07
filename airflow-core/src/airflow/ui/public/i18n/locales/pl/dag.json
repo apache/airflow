@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Musi zakończyć się w ciągu {{interval}} od momentu: {{reference}}",
+    "completionRuleDynamic": "Musi zakończyć się w zmiennym interwale liczonym od momentu: {{reference}}",
     "count_few": "{{count}} terminy",
     "count_many": "{{count}} terminów",
     "count_one": "{{count}} termin",
