@@ -206,7 +206,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
-  "pause": "Pause",
+  "pause": "Pausieren",
   "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
   "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "presetFilters": {
