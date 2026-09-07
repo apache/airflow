@@ -38,8 +38,21 @@ _INVALID_STAT_NAME_CHARS_RE = re.compile(r"[^a-zA-Z0-9_.-]")
 
 
 def build_dag_metric_tags(tag_names: Iterable[str]) -> dict[str, str]:
-    """Expand DAG tags into key-value pairs."""
-    return expand_dag_tags(tag_names)
+    """
+    Convert Dag tag strings into metric tags.
+
+    Tags with a non-empty value after a ``:`` (e.g. ``env:prod``) split into a
+    ``key: value`` pair. Plain tags (e.g. ``production``) and tags with no value
+    after the colon (e.g. ``env:``) map to an empty string, emitted as a standalone
+    DogStatsd tag or as ``tag=true`` in InfluxDB line protocol.
+    """
+    result: dict[str, str] = {}
+    for name in tag_names:
+        key, _, value = name.partition(":")
+        result[normalize_name_for_stats(key, log_warning=False)] = normalize_name_for_stats(
+            value, log_warning=False
+        )
+    return result
 
 
 # Module-level singleton state.

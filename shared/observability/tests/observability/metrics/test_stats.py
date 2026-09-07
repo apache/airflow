@@ -528,6 +528,10 @@ class TestStatsWithInfluxDBEnabled:
         self.stats.incr(stat, tags=tags)
         self.statsd_client.incr.assert_called_once_with(expected, 1, 1)
 
+    def test_increment_counter_with_dag_tags(self):
+        self.stats.incr("test_stats_run.delay", tags=build_dag_metric_tags(["my tag", "env:pro d"]))
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,my_tag=true,env=pro_d", 1, 1)
+
 
 def always_invalid(stat_name):
     raise InvalidStatsNameException(f"Invalid name: {stat_name}")
@@ -842,8 +846,35 @@ class TestCustomStatsName:
         importlib.reload(airflow_shared.observability.metrics.stats)
 
 
-def test_build_dag_metric_tags_preserves_legacy_expansion() -> None:
-    assert build_dag_metric_tags(["production", "env:prod"]) == {
-        "production": "",
-        "env": "prod",
-    }
+@pytest.mark.parametrize(
+    ("tag_names", "expected"),
+    [
+        pytest.param([], {}, id="empty"),
+        pytest.param(["production"], {"production": ""}, id="standalone"),
+        pytest.param(["env:prod"], {"env": "prod"}, id="key-value"),
+        pytest.param(
+            ["production", "env:prod", "team:data"],
+            {"production": "", "env": "prod", "team": "data"},
+            id="mixed",
+        ),
+        pytest.param(["a:b:c"], {"a": "b_c"}, id="value-with-colon"),
+        pytest.param(["env:"], {"env": ""}, id="trailing-colon-is-standalone"),
+        pytest.param(["my tag"], {"my_tag": ""}, id="space-in-key"),
+        pytest.param(["env:pro d"], {"env": "pro_d"}, id="space-in-value"),
+        pytest.param(["a,b"], {"a_b": ""}, id="comma-in-key"),
+        pytest.param(["env:a=b"], {"env": "a_b"}, id="equals-in-value"),
+        pytest.param(["déjà"], {"d_j_": ""}, id="non-ascii"),
+    ],
+)
+def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -> None:
+    assert build_dag_metric_tags(tag_names) == expected
+
+
+@mock.patch.object(airflow_shared.observability.metrics.stats, "log", autospec=True)
+def test_build_dag_metric_tags_does_not_warn(mock_log) -> None:
+    build_dag_metric_tags(["my tag"])
+    mock_log.warning.assert_not_called()
+
+
+def test_build_dag_metric_tags_accepts_generator() -> None:
+    assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}
