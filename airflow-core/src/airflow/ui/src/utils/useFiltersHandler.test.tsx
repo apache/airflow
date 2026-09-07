@@ -47,6 +47,11 @@ const renderBooleanHandler = (initialEntries?: Array<string>) =>
     wrapper: createWrapper(initialEntries),
   });
 
+const renderCompositeHandler = (initialEntries?: Array<string>) =>
+  renderHook(() => useFiltersHandler([SearchParamsKeys.RUN_STATE]), {
+    wrapper: createWrapper(initialEntries),
+  });
+
 afterEach(() => {
   localStorage.clear();
 });
@@ -112,6 +117,64 @@ describe("useFiltersHandler multiselect writes", () => {
 
     expect(result.current.searchParams.get(SearchParamsKeys.OFFSET)).toBeNull();
     expect(result.current.searchParams.get(SearchParamsKeys.CURSOR)).toBeNull();
+  });
+});
+
+// Composite filters (fromSearchParams/toSearchParams) span several URL params behind one key;
+// the Dags run-state filter is the concrete case exercised here.
+describe("useFiltersHandler composite filters", () => {
+  it("reads its value through fromSearchParams instead of the config key", () => {
+    const { result } = renderCompositeHandler(["/dags?last_dag_run_state=failed"]);
+
+    expect(result.current.initialValues[SearchParamsKeys.RUN_STATE]).toEqual({
+      lookback: "latest",
+      state: "failed",
+    });
+  });
+
+  it("omits the key when no managed param is present", () => {
+    const { result } = renderCompositeHandler();
+
+    expect(result.current.initialValues[SearchParamsKeys.RUN_STATE]).toBeUndefined();
+  });
+
+  it("writes every param toSearchParams returns and never the config key itself", () => {
+    const { result } = renderCompositeHandler();
+
+    act(() =>
+      result.current.handleFiltersChange({
+        [SearchParamsKeys.RUN_STATE]: { lookback: "168", state: "failed" },
+      }),
+    );
+
+    expect(result.current.searchParams.get(SearchParamsKeys.RUN_STATE)).toBeNull();
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_RUN_STATE)).toBe("failed");
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_RUN_STATE_WITHIN_HOURS)).toBe("168");
+    expect(result.current.searchParams.get(SearchParamsKeys.LAST_DAG_RUN_STATE)).toBeNull();
+  });
+
+  it("moves the state between params when the lookback changes", () => {
+    const { result } = renderCompositeHandler(["/dags?dag_run_state=failed&dag_run_state_within_hours=168"]);
+
+    act(() =>
+      result.current.handleFiltersChange({
+        [SearchParamsKeys.RUN_STATE]: { lookback: "latest", state: "failed" },
+      }),
+    );
+
+    expect(result.current.searchParams.get(SearchParamsKeys.LAST_DAG_RUN_STATE)).toBe("failed");
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_RUN_STATE)).toBeNull();
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_RUN_STATE_WITHIN_HOURS)).toBeNull();
+  });
+
+  it("clears every managed param once the filter is removed", () => {
+    const { result } = renderCompositeHandler(["/dags?dag_run_state=failed&dag_run_state_within_hours=168"]);
+
+    act(() => result.current.handleFiltersChange({}));
+
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_RUN_STATE)).toBeNull();
+    expect(result.current.searchParams.get(SearchParamsKeys.DAG_RUN_STATE_WITHIN_HOURS)).toBeNull();
+    expect(result.current.searchParams.get(SearchParamsKeys.LAST_DAG_RUN_STATE)).toBeNull();
   });
 });
 

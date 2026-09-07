@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
-    "anyRunState": "Dowolne wykonanie",
     "favorite": {
       "all": "Wszystkie",
       "favorite": "Ulubione",
       "unfavorite": "Nieulubione"
     },
-    "lastRunState": "Ostatnie wykonanie",
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",

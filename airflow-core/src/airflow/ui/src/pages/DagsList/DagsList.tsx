@@ -216,6 +216,7 @@ const createColumns = (
 
 const {
   DAG_RUN_STATE,
+  DAG_RUN_STATE_WITHIN_HOURS,
   FAVORITE,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
@@ -259,6 +260,9 @@ export const DagsList = () => {
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
+  const withinHoursParam = Number(searchParams.get(DAG_RUN_STATE_WITHIN_HOURS));
+  const withinHours =
+    Number.isFinite(withinHoursParam) && withinHoursParam > 0 ? withinHoursParam : undefined;
   const selectedTags = searchParams.getAll(TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) === "all" ? "all" : "any";
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
@@ -318,6 +322,7 @@ export const DagsList = () => {
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     dagRunState,
+    dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,

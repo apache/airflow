@@ -142,6 +142,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
+    const anyDagRunState = url.searchParams.get("dag_run_state");
     const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
     const timetableTypes = url.searchParams.getAll("timetable_type");
@@ -155,6 +156,15 @@ export const handlers: Array<HttpHandler> = [
       return HttpResponse.json({
         dags: [failedDag],
         total_entries: 1,
+      });
+    }
+
+    // Any-run matching: pretend every Dag has a failed run somewhere in its history, so
+    // widening the pill's lookback from the latest run visibly changes the result set.
+    if (anyDagRunState === "failed") {
+      return HttpResponse.json({
+        dags: [failedDag, successDag],
+        total_entries: 2,
       });
     }
 

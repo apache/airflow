@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "جميع أنواع التشغيلات",
     "allStates": "جميع الحالات",
-    "anyRunState": "أي تشغيل",
     "favorite": {
       "all": "الكل",
       "favorite": "تفضيل",
       "unfavorite": "إلغاء التفضيل"
     },
-    "lastRunState": "آخر تشغيل",
     "noTimetableTypesFound": "لم يتم العثور على أنواع جداول زمنية",
     "paused": {
       "active": "مفعّل",
