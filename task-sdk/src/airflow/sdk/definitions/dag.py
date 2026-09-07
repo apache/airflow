@@ -1317,12 +1317,13 @@ class DAG:
             manager.sync_bundles_to_db(session=session)
             session.commit()
 
-            # Re-sync the bundle that owns ``self`` so sibling DAGs (e.g. targets of
-            # TriggerDagRunOperator) are written to the metadata DB on every call,
-            # not just the first one (apache/airflow#64884). When we can identify
-            # ``self``'s bundle from a prior sync we walk only that bundle; otherwise
-            # we walk every configured bundle until we find it. ``sync_bag_to_db``
-            # is idempotent at the per-DAG hash level.
+            # Re-sync the source file that owns ``self`` so sibling DAGs (e.g. targets
+            # of TriggerDagRunOperator) are written to the metadata DB on every call,
+            # not just the first one (apache/airflow#64884). Parsing the whole bundle
+            # here can needlessly reserialize every DAG when users repeatedly call
+            # ``dag.test()``. When the source is not a regular file, fall back to the
+            # bundle path to preserve support for packaged DAGs. ``sync_bag_to_db`` is
+            # idempotent at the per-DAG hash level.
             #
             # Note: we deliberately do NOT use ``_airflow_parsing_context_manager``
             # here. Setting ``_AIRFLOW_PARSING_CONTEXT_DAG_ID`` to ``self.dag_id``
@@ -1346,8 +1347,10 @@ class DAG:
             for bundle in bundles_to_sync:
                 if not bundle.is_initialized:
                     bundle.initialize()
+                source_file = existing_dm.fileloc if existing_dm is not None else None
+                dag_folder = source_file if source_file and os.path.isfile(source_file) else bundle.path
                 dagbag = BundleDagBag(
-                    dag_folder=bundle.path,
+                    dag_folder=dag_folder,
                     bundle_path=bundle.path,
                     bundle_name=bundle.name,
                 )
