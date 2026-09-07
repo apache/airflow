@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections import defaultdict
 from collections.abc import Generator
 from datetime import timedelta
+from functools import partial
+from threading import Event, Thread
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -42,7 +43,6 @@ from airflow.dag_processing.collection import (
     _get_latest_runs_stmt,
     _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
-    _update_dag_warnings,
     _update_import_errors,
     update_dag_parsing_results_in_db,
 )
@@ -52,7 +52,9 @@ from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
     AssetModel,
+    DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
     DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DagTag
@@ -73,6 +75,8 @@ from airflow.serialization.encoders import encode_trigger, ensure_serialized_ass
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.triggers.base import BaseEventTrigger
+from airflow.utils.retries import run_with_db_retries
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -243,286 +247,155 @@ class TestAssetModelOperation:
         yield
         self.clean_db()
 
-    @pytest.mark.backend("postgres")
-    def test_two_writers_cannot_activate_the_same_assets_at_once(self, session):
-        """
-        Two writers reactivating the same inactive assets in opposite order would otherwise
-        insert one row each and then wait on the other's uncommitted unique conflict. Taking the
-        assets in one order first moves that wait outside the insert.
-        """
-        # Disjoint asset rows that meet on the uri column: locking the exact pairs leaves these
-        # two writers free to reach the insert together, holding one uri each.
-        held = [Asset(name="a_asset", uri="s3://z"), Asset(name="c_asset", uri="s3://y")]
-        waiting = [Asset(name="b_asset", uri="s3://y"), Asset(name="c_asset", uri="s3://z")]
-        seeded = AssetModelOperation.collect(self._build_dags_scheduled_on(held + waiting))
-        seeded.sync_assets(session=session)
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.parametrize("kind", ["asset", "alias"])
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @patch(
+        "airflow.dag_processing.collection.run_with_db_retries",
+        autospec=True,
+        side_effect=partial(run_with_db_retries, max_retries=1),
+    )
+    def test_shared_metadata_is_locked_before_full_parser_writes(self, retries, session, kind):
+        model = AssetModel if kind == "asset" else AssetAliasModel
+        reference = DagScheduleAssetReference if kind == "asset" else DagScheduleAssetAliasReference
+        method_name = "sync_assets" if kind == "asset" else "sync_asset_aliases"
+        table = model.__tablename__
+        for name in ("shared_b", "shared_a"):
+            kwargs = {"uri": f"s3://bucket/{name}"} if kind == "asset" else {}
+            session.add(model(name=name, group="original", **kwargs))
+        session.add_all(DagModel(dag_id=name, bundle_name="testing") for name in ("first", "second"))
         session.commit()
 
-        holder = AssetModelOperation.collect(self._build_dags_scheduled_on(held))
-        orm_held = holder.sync_assets(session=session)
-        session.flush()
-        holder.activate_assets_if_possible(orm_held.values(), session=session)
-
-        other = SqlaSession(bind=settings.engine)
-        try:
-            other.execute(text("SET lock_timeout = '750ms'"))
-            waiter = AssetModelOperation.collect(self._build_dags_scheduled_on(waiting))
-            orm_waiting = waiter.sync_assets(session=other)
-
-            # Where it waits is the whole point: on the assets, before it has inserted anything.
-            # Without the lock it gets as far as the insert and waits on the unique index there,
-            # which is the position two writers deadlock from.
-            attempted: list[str] = []
-
-            def record(conn, cursor, statement, parameters, context, executemany):
-                if "insert into asset_active" in statement.lower():
-                    attempted.append(statement)
-
-            event.listen(settings.engine, "before_cursor_execute", record)
-            try:
-                with pytest.raises(OperationalError, match="lock timeout"):
-                    waiter.activate_assets_if_possible(orm_waiting.values(), session=other)
-            finally:
-                event.remove(settings.engine, "before_cursor_execute", record)
-
-            assert attempted == [], "the second writer reached the insert before waiting"
-        finally:
-            other.rollback()
-            other.close()
-        session.rollback()
-
-    def test_dag_tags_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
-        """``dag_tag`` is keyed on (name, dag_id), and the names arrive as a set."""
-        dm = DagModel(dag_id="tagged_dag", bundle_name="testing")
-        session.add(dm)
-        session.flush()
-
-        _update_dag_tags({"finance", "ops", "daily"}, dm, session=session)
-
-        assert [tag.name for tag in dm.tags] == ["daily", "finance", "ops"]
-
-    def test_dag_warnings_are_merged_in_a_stable_order(self, session):
-        """``dag_warning`` is keyed on (dag_id, warning_type), and the warnings arrive as a set."""
-        warnings = {
-            DagWarning(dag_id="b_dag", warning_type=DagWarningType.NONEXISTENT_POOL, message="b"),
-            DagWarning(dag_id="a_dag", warning_type=DagWarningType.NONEXISTENT_POOL, message="a"),
-        }
-
-        with mock.patch.object(session, "merge", autospec=True) as merge:
-            _update_dag_warnings(
-                ["a_dag", "b_dag"],
-                warnings,
-                (DagWarningType.NONEXISTENT_POOL,),
-                session=session,
-            )
-
-        assert [call.args[0].dag_id for call in merge.call_args_list] == ["a_dag", "b_dag"]
-
-    def test_reference_rows_are_written_dag_by_dag_in_a_stable_order(self, session, testing_dag_bundle):
-        """
-        The reference loops walk ``self.dags``, whose order differs between a per-file Dag
-        processor and a bundle-wide reserialize.
-        """
-        dags = {
-            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=[Asset("shared_ref")]))
-            for dag_id in ("z_dag", "a_dag")
-        }
-        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
-        op = AssetModelOperation.collect(dags)
-        orm_assets = op.sync_assets(session=session)
-        session.flush()
-
-        inserted: list[dict] = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            if "insert into dag_schedule_asset_reference" in statement.lower():
-                inserted.extend(context.compiled_parameters)
-
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            op.add_dag_asset_references(orm_dags, orm_assets, session=session)
-            session.flush()
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
-
-        assert [row["dag_id"] for row in inserted] == ["a_dag", "z_dag"]
-
-    def test_task_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
-        """Inlets arrive as a set, and both task loops walk ``self.dags``."""
-        asset = Asset("task_ref_asset")
-        dags = {}
-        for dag_id in ("z_dag", "a_dag"):
-            with DAG(dag_id=dag_id, schedule=None) as dag:
-                EmptyOperator(task_id="t_b", inlets=[asset], outlets=[asset])
-                EmptyOperator(task_id="t_a", inlets=[asset], outlets=[asset])
-            dags[dag_id] = LazyDeserializedDAG.from_dag(dag)
-
-        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
-        op = AssetModelOperation.collect(dags)
-        orm_assets = op.sync_assets(session=session)
-        session.flush()
-
-        inlets: list[dict] = []
-        outlets: list[dict] = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            lowered = statement.lower()
-            if "insert into task_inlet_asset_reference" in lowered:
-                inlets.extend(context.compiled_parameters)
-            elif "insert into task_outlet_asset_reference" in lowered:
-                outlets.extend(context.compiled_parameters)
-
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            op.add_task_asset_references(orm_dags, orm_assets, session=session)
-            session.flush()
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
-
-        assert [(row["dag_id"], row["task_id"]) for row in inlets] == [
-            ("a_dag", "t_a"),
-            ("a_dag", "t_b"),
-            ("z_dag", "t_a"),
-            ("z_dag", "t_b"),
-        ]
-        assert [row["dag_id"] for row in outlets] == ["a_dag", "a_dag", "z_dag", "z_dag"]
-
-    def test_alias_reference_rows_are_written_in_a_stable_order(self, session, testing_dag_bundle):
-        """The alias loop walks ``self.dags`` just as the asset one does."""
-        # Ids 2 and 9 exactly: as a set those iterate 9 before 2, where consecutive ids come out
-        # ascending either way and would prove nothing. Written rather than seeded, because
-        # clearing rows leaves the sequence where it was and the next ids are anyone's guess.
-        session.add_all([AssetAliasModel(id=2, name="alias_2"), AssetAliasModel(id=9, name="alias_9")])
-        session.flush()
-        chosen = [AssetAlias("alias_2"), AssetAlias("alias_9")]
-        dags = {
-            dag_id: LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=chosen))
-            for dag_id in ("z_dag", "a_dag")
-        }
-        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
-        op = AssetModelOperation.collect(dags)
-        orm_aliases = op.sync_asset_aliases(session=session)
-        session.flush()
-
-        inserted: list[dict] = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            if "insert into dag_schedule_asset_alias_reference" in statement.lower():
-                inserted.extend(context.compiled_parameters)
-
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            op.add_dag_asset_alias_references(orm_dags, orm_aliases, session=session)
-            session.flush()
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
-
-        # Sorted within each Dag as well as across them: the alias ids come out of a set.
-        by_dag = [(row["dag_id"], row["alias_id"]) for row in inserted]
-        assert by_dag == sorted(by_dag), by_dag
-        assert [dag_id for dag_id, _ in by_dag] == ["a_dag"] * 2 + ["z_dag"] * 2
-
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_watcher_rows_are_written_in_trigger_id_order(self, dag_maker, session):
-        """
-        ``asset_watcher`` is keyed on (asset_id, trigger_id).
-
-        The trigger hash cannot order it: it is a builtin hash of a str and bytes, so two
-        processes compute different values for the same trigger. Trigger ids are handed out while
-        iterating the hashes of *every* asset, so one asset's own hashes can iterate the other way
-        -- ``{5, 9}`` alone comes out ``9, 5`` where it comes out ``5, 9`` inside ``{1,2,3,5,9}``,
-        which is what tells ordering by id apart from taking the hashes as they come.
-        """
-        hashes = {"/tmp/w1": 5, "/tmp/w2": 9, "/tmp/o1": 1, "/tmp/o2": 2, "/tmp/o3": 3}
-
-        def watchers_for(*paths):
-            return [
-                AssetWatcher(name=f"w{path[-1]}", trigger=FileDeleteTrigger(filepath=path)) for path in paths
+        def build_dag(dag_id):
+            names = ("shared_b", "shared_a") if dag_id == "first" else ("shared_a", "shared_b")
+            schedules = [
+                Asset(name=name, uri=f"s3://bucket/{name}", group=dag_id)
+                if kind == "asset"
+                else AssetAlias(name, group=dag_id)
+                for name in names
             ]
+            with DAG(dag_id, schedule=schedules, is_paused_upon_creation=False) as dag:
+                EmptyOperator(task_id="task")
+            dag.fileloc = __file__
+            dag.relative_fileloc = "test_collection.py"
+            return LazyDeserializedDAG.from_dag(dag)
 
-        watched = Asset("watched_asset", watchers=watchers_for("/tmp/w1", "/tmp/w2"))
-        other = Asset("other_asset", watchers=watchers_for("/tmp/o1", "/tmp/o2", "/tmp/o3"))
-        with dag_maker(dag_id="watch_dag", schedule=[watched, other]) as dag:
-            EmptyOperator(task_id="mytask")
+        def publish(dag, *, session):
+            errors = {}
+            update_dag_parsing_results_in_db("testing", None, [dag], errors, None, set(), session=session)
+            assert not errors
 
-        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
-        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
-        orm_dags[dag.dag_id].is_stale = False
-        orm_dags[dag.dag_id].is_paused = False
-        op = AssetModelOperation.collect(dags)
-        orm_assets = op.sync_assets(session=session)
-        session.flush()
-        op.add_dag_asset_references(orm_dags, orm_assets, session=session)
-        op.activate_assets_if_possible(orm_assets.values(), session=session)
-        # dag_maker already wrote these; clearing them is what leaves the pass below something to
-        # add, and the ids it hands out are the ones under test.
-        session.execute(delete(Trigger))
-        for asset_model in orm_assets.values():
-            asset_model.watchers = []
-        session.flush()
+        locked, release = Event(), Event()
+        first_errors: list[Exception] = []
+        real_sync = getattr(AssetModelOperation, method_name)
 
-        inserted: list[dict] = []
+        def sync_then_pause(operation, *, session):
+            result = real_sync(operation, session=session)
+            if "first" in operation.schedule_asset_references:
+                locked.set()
+                assert release.wait(15), "first publication was not released"
+            return result
 
-        def record(conn, cursor, statement, parameters, context, executemany):
-            if "insert into asset_watcher" in statement.lower():
-                inserted.extend(context.compiled_parameters)
+        def publish_first():
+            try:
+                with create_session(scoped=False) as first_session:
+                    publish(build_dag("first"), session=first_session)
+            except Exception as error:
+                first_errors.append(error)
 
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            with mock.patch.object(
-                BaseEventTrigger,
-                "hash",
-                staticmethod(lambda classpath, kwargs: hashes[kwargs["filepath"]]),
-            ):
-                op.add_asset_trigger_references(orm_assets, session=session)
-                session.flush()
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
-
-        assert len(inserted) == 5, inserted
-        per_asset: dict[int, list[int]] = defaultdict(list)
-        for row in inserted:
-            per_asset[row["asset_id"]].append(row["trigger_id"])
-        for asset_id, trigger_ids in per_asset.items():
-            assert trigger_ids == sorted(trigger_ids), (asset_id, trigger_ids)
-
-    def test_asset_name_references_are_inserted_in_a_stable_order(self, session, testing_dag_bundle):
-        """``dag_schedule_asset_name_reference`` is keyed on (name, dag_id), and so is its set."""
-        session.add_all(
-            [DagModel(dag_id="a_dag", bundle_name="testing"), DagModel(dag_id="b_dag", bundle_name="testing")]
-        )
-        session.flush()
-        inserted: list[dict] = []
+        statements: list[str] = []
 
         def record(conn, cursor, statement, parameters, context, executemany):
-            # ``parameters`` is dicts on psycopg but positional tuples on MySQL; the compiled ones
-            # are dicts on every backend.
-            if "insert into dag_schedule_asset_name_reference" in statement.lower():
-                inserted.extend(context.compiled_parameters)
+            statements.append(statement.lower())
 
-        bind = session.get_bind()
-        event.listen(bind, "before_cursor_execute", record)
-        try:
-            AssetModelOperation._add_dag_asset_references(
-                {("b_dag", "n2"), ("a_dag", "n1"), ("b_dag", "n1"), ("a_dag", "n2")},
-                DagScheduleAssetNameReference,
-                "name",
-                session=session,
-            )
-            session.flush()
-        finally:
-            event.remove(bind, "before_cursor_execute", record)
+        with patch.object(AssetModelOperation, method_name, autospec=True, side_effect=sync_then_pause):
+            first = Thread(target=publish_first, daemon=True)
+            first.start()
+            try:
+                assert locked.wait(15), first_errors
+                with (
+                    settings.engine.connect() as connection,
+                    SqlaSession(bind=connection, autoflush=False) as second_session,
+                ):
+                    is_postgres = connection.dialect.name == "postgresql"
+                    second_session.execute(
+                        text(
+                            "SET LOCAL lock_timeout = '500ms'"
+                            if is_postgres
+                            else "SET SESSION innodb_lock_wait_timeout = 1"
+                        )
+                    )
+                    event.listen(connection, "before_cursor_execute", record)
+                    try:
+                        with pytest.raises(OperationalError) as failure:
+                            publish(build_dag("second"), session=second_session)
+                    finally:
+                        event.remove(connection, "before_cursor_execute", record)
+                        second_session.rollback()
+                        if not is_postgres:
+                            connection.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
+                    failed_statement = failure.value.statement.lower()
+                    assert failed_statement.startswith("select")
+                    assert f"from {table}" in failed_statement
+                    assert any(clause in failed_statement for clause in ("for update", "for no key update"))
+                    ordering = f"order by {table}.name" + (", asset.uri" if kind == "asset" else "")
+                    assert ordering in failed_statement
+                    assert not any(statement.startswith(f"update {table} ") for statement in statements)
+            finally:
+                release.set()
+                first.join(15)
+            assert not first.is_alive()
+            assert first_errors == []
 
-        assert [(row["dag_id"], row["name"]) for row in inserted] == [
-            ("a_dag", "n1"),
-            ("a_dag", "n2"),
-            ("b_dag", "n1"),
-            ("b_dag", "n2"),
+        with create_session(scoped=False) as observer:
+            assert observer.scalars(select(model.group)).all() == ["first", "first"]
+            assert observer.scalars(select(SerializedDagModel.dag_id)).all() == ["first"]
+        with create_session(scoped=False) as retry_session:
+            publish(build_dag("second"), session=retry_session)
+        with create_session(scoped=False) as observer:
+            assert observer.scalars(select(model.group)).all() == ["second", "second"]
+            assert sorted(observer.scalars(select(SerializedDagModel.dag_id))) == ["first", "second"]
+            assert sorted(observer.scalars(select(reference.dag_id))) == ["first"] * 2 + ["second"] * 2
+
+    @pytest.mark.backend("mysql")
+    @pytest.mark.parametrize("kind", ["asset", "alias"])
+    def test_large_lookup_locks_rows_in_index_order(self, session, kind):
+        model = AssetModel if kind == "asset" else AssetAliasModel
+        for index in range(1000):
+            name = f"asset_{index:04}"
+            kwargs = {"uri": name} if kind == "asset" else {}
+            session.add(model(id=1000 - index, name=name, group="asset", **kwargs))
+        session.commit()
+        schedules = [
+            Asset(f"asset_{index:04}") if kind == "asset" else AssetAlias(f"asset_{index:04}")
+            for index in range(400)
         ]
+        operation = AssetModelOperation.collect(self._build_dags_scheduled_on(schedules))
+        queries = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            if statement.startswith("SELECT") and "FOR UPDATE" in statement:
+                queries.append((statement, parameters))
+
+        connection = session.connection()
+        event.listen(connection, "before_cursor_execute", record)
+        try:
+            if kind == "asset":
+                operation.sync_assets(session=session)
+            else:
+                operation.sync_asset_aliases(session=session)
+        finally:
+            event.remove(connection, "before_cursor_execute", record)
+
+        assert len(queries) == 1
+        statement, parameters = queries[0]
+        plan = connection.exec_driver_sql("EXPLAIN " + statement, parameters).mappings().one()
+        assert plan["key"] == (
+            "idx_asset_name_uri_unique" if kind == "asset" else "idx_asset_alias_name_unique"
+        )
+        extra = (plan["Extra"] or "").lower()
+        assert "filesort" not in extra
+        assert "mrr" not in extra
 
     def test_new_assets_and_aliases_are_inserted_in_a_stable_order(self, session):
         """Two writers reaching the same rows must take them the same way round or they deadlock."""
@@ -580,42 +453,28 @@ class TestAssetModelOperation:
     def _read_active_assets(session) -> list[tuple[str, str]]:
         return sorted((a.name, a.uri) for a in session.scalars(select(AssetActive)))
 
+    @pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
     @pytest.mark.parametrize(
-        "seeded",
-        [
-            pytest.param(False, id="all-new"),
-            pytest.param(True, id="already-in-the-asset-table"),
-        ],
+        "existing_indices", [(), (0, 1), (0,), (1,)], ids=["new", "existing", "existing-first", "new-first"]
     )
-    def test_collection_order_decides_which_asset_is_activated(self, seeded, session):
-        """
-        ``asset_active`` is unique on name and on uri separately, so of two assets sharing a name
-        only one is activated, and the Dags decide which. Neither sorting the rows for insertion nor
-        the order the read-back returns rows already in ``asset`` may move that.
-        """
-
-        def activate(assets: list[Asset]) -> list[tuple[str, str]]:
-            clear_db_assets()
-            if seeded:
-                # Written but not activated, so the pass below reads them back as existing rows.
-                AssetModelOperation.collect(self._build_dags_scheduled_on(assets)).sync_assets(
-                    session=session
-                )
-                session.commit()
-
-            op = AssetModelOperation.collect(self._build_dags_scheduled_on(assets))
-            orm_assets = op.sync_assets(session=session)
-            session.flush()
-            op.activate_assets_if_possible(orm_assets.values(), session=session)
-            session.flush()
-            return self._read_active_assets(session)
-
-        pair = [Asset(name="dup", uri="s3://zzz"), Asset(name="dup", uri="s3://aaa")]
-
-        assert activate(pair) == [("dup", "s3://zzz/")]
-        assert activate(list(reversed(pair))) == [("dup", "s3://aaa/")], (
-            "the winner came from the sort or the read-back, not from the Dags"
+    def test_collection_order_decides_which_asset_is_activated(self, existing_indices, reverse, session):
+        candidates = [Asset(name="dup", uri="s3://zzz/"), Asset(name="dup", uri="s3://aaa/")]
+        if reverse:
+            candidates.reverse()
+        session.add_all(
+            AssetModel(id=-1 - index, name=asset.name, uri=asset.uri, group=asset.group)
+            for index, asset in reversed(list(enumerate(candidates)))
+            if index in existing_indices
         )
+        session.commit()
+
+        operation = AssetModelOperation.collect(self._build_dags_scheduled_on(candidates))
+        orm_assets = operation.sync_assets(session=session)
+        session.flush()
+        operation.activate_assets_if_possible(orm_assets.values(), session=session)
+
+        assert list(orm_assets) == [(asset.name, asset.uri) for asset in candidates]
+        assert self._read_active_assets(session) == [(candidates[0].name, candidates[0].uri)]
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
