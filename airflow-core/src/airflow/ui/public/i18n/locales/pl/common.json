@@ -30,6 +30,7 @@
   "backfill_many": "Wypełnień wstecznych",
   "backfill_one": "Wypełnienie wsteczne",
   "backfill_other": "Wypełnienia wsteczne",
+  "breadcrumb": "Ścieżka nawigacji",
   "browse": {
     "auditLog": "Log audytu",
     "deadlines": "Terminy",
@@ -98,9 +99,8 @@
   "dagRun_one": "Wykonanie",
   "dagRun_other": "Wykonania",
   "dagRunId": "Identyfikator wykonania",
+  "dagRunState": "Stan wykonania Daga",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
-  "defaultToGraphView": "Domyślnie widok grafu",
-  "defaultToGridView": "Domyślnie widok siatki",
   "delete": "Usuń",
   "diff": "Porównaj",
   "diffCompareWith": "Porównaj z",
@@ -134,6 +134,10 @@
       "title": "Dostęp zabroniony"
     }
   },
+  "event_few": "Zdarzenia",
+  "event_many": "Zdarzeń",
+  "event_one": "Zdarzenie",
+  "event_other": "Zdarzenia",
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
@@ -149,21 +153,27 @@
   },
   "filter": "Filtr",
   "filters": {
+    "addFilter": "Dodaj filtr",
+    "date": "Data",
     "durationFrom": "Czas trwania od",
     "durationTo": "Czas trwania do",
     "endTime": "Czas zakończenia",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
+    "removeFilter": "Usuń filtr",
     "runAfterFrom": "Uruchom po (od)",
     "runAfterTo": "Uruchom po (do)",
     "searchAsset": "Szukaj zasobu",
     "selectDateRange": "Wybierz zakres dat",
-    "startTime": "Czas rozpoczęcia"
+    "selectDateTime": "Wybierz datę i godzinę",
+    "startTime": "Czas rozpoczęcia",
+    "time": "Godzina"
   },
   "fullscreen": {
     "tooltip": "Naciśnij {{hotkey}}, aby przejść na pełny ekran"
   },
   "generateToken": "Wygeneruj token",
+  "includedIn": "Zawarte w",
   "key": "Klucz",
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
@@ -184,8 +194,9 @@
     "assets": "Zasoby",
     "browse": "Przegląd",
     "dags": "Dagi",
+    "dashboard": "Pulpit",
     "docs": "Pomoc",
-    "home": "Pulpit",
+    "home": "Strona główna",
     "legacyFabViews": "Widoki Fab z Airflow 2",
     "plugins": "Wtyczki",
     "security": "Dostęp"
@@ -202,6 +213,10 @@
     "write": "Napisz"
   },
   "overallStatus": "Stan ogólny",
+  "partition_few": "Partycje",
+  "partition_many": "Partycji",
+  "partition_one": "Partycja",
+  "partition_other": "Partycje",
   "partitionedDagRun_few": "Partycjonowane wykonania Dagów",
   "partitionedDagRun_many": "Partycjonowanych wykonań Dagów",
   "partitionedDagRun_one": "Partycjonowane wykonanie Daga",
@@ -209,6 +224,7 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Otrzymane zdarzenia zasobów"
   },
+  "pause": "Wstrzymaj",
   "pendingDagRun_few": "{{count}} oczekujące wykonania Dagów",
   "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
   "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
@@ -261,6 +277,57 @@
   },
   "selectLanguage": "Wybierz język",
   "selected": "Wybrano",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Pomijaj aktualnie uruchomione zadania podczas czyszczenia instancji zadań.",
+        "label": "Zapobiegaj czyszczeniu uruchomionych zadań"
+      },
+      "runSelection": {
+        "helper": "Opcje wybrane domyślnie podczas czyszczenia wykonania Daga.",
+        "label": "Domyślny wybór przy czyszczeniu wykonania"
+      },
+      "taskSelection": {
+        "helper": "Opcje wybrane domyślnie podczas czyszczenia instancji zadań.",
+        "label": "Domyślny wybór przy czyszczeniu zadań"
+      },
+      "title": "Czyszczenie"
+    },
+    "description": "Te preferencje są zapisywane tylko w tej przeglądarce i obowiązują w całej aplikacji.",
+    "general": {
+      "landingPage": {
+        "helper": "Strona wyświetlana po otwarciu Airflow.",
+        "label": "Strona startowa",
+        "options": {
+          "dags": "Dagi",
+          "dashboard": "Pulpit"
+        }
+      },
+      "title": "Ogólne"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Kierunek układu grafów Dagów i zasobów, dla których nie ustawiono go indywidualnie.",
+        "label": "Domyślny kierunek grafu"
+      },
+      "title": "Graf"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opcje wybrane domyślnie podczas oznaczania stanu instancji zadania.",
+        "label": "Domyślny wybór przy oznaczaniu"
+      },
+      "title": "Oznaczanie"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Zakładka wyświetlana jako pierwsza po otwarciu instancji zadania. Linki do konkretnej zakładki nadal ją otwierają.",
+        "label": "Domyślna zakładka instancji zadania"
+      },
+      "title": "Instancja zadania"
+    },
+    "title": "Ustawienia"
+  },
   "shortcuts": {
     "categories": {
       "code": "Kod",
@@ -304,6 +371,11 @@
   },
   "showDetailsPanel": "Pokaż panel szczegółów",
   "signedInAs": "Zalogowano jako",
+  "slot": "Slot",
+  "slot_few": "Sloty",
+  "slot_many": "Slotów",
+  "slot_one": "Slot",
+  "slot_other": "Sloty",
   "source": {
     "hide": "Ukryj źródła",
     "hotkey": "s",
@@ -317,7 +389,7 @@
   "state": "Stan",
   "states": {
     "awaiting_input": "Oczekuje na dane wejściowe",
-    "deferred": "Odłożone",
+    "deferred": "Odroczone",
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
@@ -334,6 +406,7 @@
     "up_for_retry": "Do ponownej próby",
     "upstream_failed": "Niepowodzenie poprzednika"
   },
+  "switchDag": "Przełącz $t(dag_one)",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
@@ -345,8 +418,10 @@
     "filterReset_other": "Resetuj filtry",
     "from": "Od",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
+    "noResultsFound": "Nie znaleziono wyników",
     "noTagsFound": "Nie znaleziono etykiet",
     "noTeamsFound": "Nie znaleziono zespołów",
+    "ownerPlaceholder": "Filtruj według właściciela",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"
@@ -408,6 +483,14 @@
   "taskInstance_many": "Instancji Zadań",
   "taskInstance_one": "Instancja Zadania",
   "taskInstance_other": "Instancje Zadań",
+  "teams": {
+    "more_few": "i jeszcze {{count}}",
+    "more_many": "i jeszcze {{count}}",
+    "more_one": "i jeszcze {{count}}",
+    "more_other": "i jeszcze {{count}}",
+    "none": "Brak zespołu",
+    "title": "Zespoły"
+  },
   "timeRange": {
     "last12Hours": "Ostatnie 12 godzin",
     "last24Hours": "Ostatnie 24 godziny",
@@ -492,6 +575,7 @@
   "total": "Wszystkie {{state}}",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
+  "unpause": "Wznów",
   "user": "Profil",
   "validation": {
     "mustBeAtLeast": "Musi wynosić co najmniej {{min}}.",
