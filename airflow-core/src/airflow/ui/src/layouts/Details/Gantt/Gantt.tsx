@@ -47,8 +47,6 @@ const GANTT_STANDALONE_VIRTUALIZER_PADDING_START_PX = GANTT_TOP_PADDING_PX + GAN
 
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
-  /** When true, Task Group rows render with no duration bar (still shown for organization). */
-  readonly hideGroupDurations?: boolean;
   readonly limit: number;
   readonly offset?: number;
   readonly runAfterGte?: string | undefined;
@@ -61,7 +59,6 @@ type Props = {
 
 export const Gantt = ({
   dagRunState,
-  hideGroupDurations = false,
   limit,
   offset,
   runAfterGte,
@@ -168,7 +165,6 @@ export const Gantt = ({
         flatNodes={flatNodes}
         ganttDataItems={ganttDataItems}
         gridSummaries={gridSummaries}
-        hideGroupDurations={hideGroupDurations}
         maxMs={maxMs}
         minMs={minMs}
         onSegmentClick={() => setMode(NavigationModes.TI)}

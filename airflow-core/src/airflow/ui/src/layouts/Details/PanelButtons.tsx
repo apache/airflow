@@ -65,11 +65,9 @@ import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 
 type Props = {
   readonly dagView: DagView;
-  readonly hideGroupDurations: boolean;
   readonly limit: number;
   readonly panelGroupRef: RefObject<ImperativePanelGroupHandle | null>;
   readonly setDagView: (value: DagView) => void;
-  readonly setHideGroupDurations: Dispatch<SetStateAction<boolean>>;
   readonly setLimit: (value: number) => void;
   readonly setShowVersionIndicatorMode: Dispatch<SetStateAction<VersionIndicatorOptions>>;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
@@ -114,11 +112,9 @@ const OptionsTrigger = ({ label }: { readonly label: string }) => (
 
 export const PanelButtons = ({
   dagView,
-  hideGroupDurations,
   limit,
   panelGroupRef,
   setDagView,
-  setHideGroupDurations,
   setLimit,
   setShowVersionIndicatorMode,
   showVersionIndicatorMode,
@@ -287,15 +283,6 @@ export const PanelButtons = ({
                             value={showVersionIndicatorMode}
                           />
                         </VStack>
-                        {dagView === "gantt" ? (
-                          <Switch
-                            checked={hideGroupDurations}
-                            data-testid="hide-group-durations"
-                            onCheckedChange={(details) => setHideGroupDurations(details.checked)}
-                          >
-                            {translate("dag:panel.gantt.hideGroupDurations")}
-                          </Switch>
-                        ) : undefined}
                       </>
                     )}
                   </Popover.Body>

@@ -146,9 +146,6 @@
     "dependencies": {
       "allDagDependencies": "All Dag Dependencies"
     },
-    "gantt": {
-      "hideGroupDurations": "Hide Task Group Durations"
-    },
     "graphDirection": {
       "label": "Graph Direction"
     },

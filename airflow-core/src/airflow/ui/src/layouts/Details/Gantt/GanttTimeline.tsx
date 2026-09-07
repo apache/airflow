@@ -66,8 +66,6 @@ type Props = {
   readonly flatNodes: Array<GridTask>;
   readonly ganttDataItems: Array<GanttDataItem>;
   readonly gridSummaries: Array<LightGridTaskInstanceSummary>;
-  /** When true, Task Group rows keep their place (and sidebar label) but render no duration bar. */
-  readonly hideGroupDurations?: boolean;
   readonly maxMs: number;
   readonly minMs: number;
   readonly onSegmentClick?: () => void;
@@ -109,7 +107,6 @@ export const GanttTimeline = ({
   flatNodes,
   ganttDataItems,
   gridSummaries,
-  hideGroupDurations = false,
   maxMs,
   minMs,
   onSegmentClick,
@@ -282,12 +279,7 @@ export const GanttTimeline = ({
               return undefined;
             }
 
-            // Task Group rows keep their aggregate "envelope" bar even when the toggle is
-            // on - hiding it entirely used to read as missing/lost time. Instead, the bar is
-            // rendered with a hatched overlay below to mark it as an aggregate, not an
-            // individual task's actual runtime.
             const allSegments = rowSegments[vItem.index] ?? [];
-            const isHatchedGroupBar = hideGroupDurations && node.isGroup === true;
             // Hide scheduled/queued bars that are too narrow to see. Re-derive adjacency
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
@@ -407,7 +399,7 @@ export const GanttTimeline = ({
                                 <StateIcon size={GANTT_STATE_ICON_SIZE_PX} state={state} />
                               )}
                             </Badge>
-                            {isHatchedGroupBar ? (
+                            {node.isGroup === true ? (
                               <Box
                                 aria-hidden
                                 borderRadius={`${barRadius}px`}
