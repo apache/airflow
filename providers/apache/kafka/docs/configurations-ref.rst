@@ -38,10 +38,20 @@ Common use-cases
     of multiple Airflow instances without polling their metadata DBs.
   * Based on the state of a DagRun, trigger a downstream external system/pipeline (notifications, alerting,
     cross-team handoffs) without direct interaction with Airflow.
-  * Coordinate Dags across multiple Airflow instances over a shared Kafka service.
+  * Coordinate Dags across **separate, independent Airflow deployments** over a shared Kafka
+    service. Each deployment publishes its own events to the topic and can consume the events another
+    deployment published, so a Dag in one deployment can react to a Dag run or task finishing in another.
 
-    * For example, team_A with Airflow instance_A has a deferred task which is triggered
-      when a task from team_B with Airflow instance_B finishes.
+    * For example, ``deployment_A`` has a deferred task that resumes when a task in ``deployment_B``
+      finishes, with ``deployment_B`` publishing its events to the shared topic and ``deployment_A``
+      consuming them.
+
+.. warning::
+
+    This is coordination between **distinct Airflow deployments**, each with its own metadata
+    database. It should not be confused with Airflow's multi-team feature, which has not been tested
+    with this plugin. Multi-team is a separate, experimental feature still in preview — see
+    :doc:`apache-airflow:core-concepts/multi-team` for what it provides and its current status.
 
 .. _configuration_kafka_event_producer_activation:kafka:
 
