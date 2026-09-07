@@ -88,8 +88,6 @@
   "dagRunId": "Dag 실행 ID",
   "dagRunState": "Dag 실행 상태",
   "dagWarnings": "Dag 경고/오류",
-  "defaultToGraphView": "그래프 뷰 기본 보기",
-  "defaultToGridView": "그리드 뷰 기본 보기",
   "delete": "삭제",
   "diff": "비교",
   "diffCompareWith": "비교 대상",
@@ -123,6 +121,8 @@
       "title": "접근 거부"
     }
   },
+  "event_one": "이벤트",
+  "event_other": "이벤트",
   "expand": {
     "collapse": "접기",
     "expand": "펼치기",
@@ -138,21 +138,27 @@
   },
   "filter": "필터",
   "filters": {
+    "addFilter": "필터 추가",
+    "date": "날짜",
     "durationFrom": "기간 (시작)",
     "durationTo": "기간 (종료)",
     "endTime": "종료 시간",
     "logicalDateFrom": "논리적 날짜 (시작)",
     "logicalDateTo": "논리적 날짜 (종료)",
+    "removeFilter": "필터 제거",
     "runAfterFrom": "실행 이후 (시작)",
     "runAfterTo": "실행 이후 (종료)",
     "searchAsset": "에셋 검색",
     "selectDateRange": "날짜 범위 선택",
-    "startTime": "시작 시간"
+    "selectDateTime": "날짜 및 시간 선택",
+    "startTime": "시작 시간",
+    "time": "시간"
   },
   "fullscreen": {
     "tooltip": "{{hotkey}}를 눌러 전체 화면으로 전환"
   },
   "generateToken": "토큰 생성",
+  "includedIn": "포함됨",
   "key": "키",
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
@@ -246,6 +252,39 @@
   },
   "selectLanguage": "언어 선택",
   "selected": "선택됨",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "태스크 인스턴스를 지울 때 현재 실행 중인 태스크를 건너뜁니다.",
+        "label": "실행 중인 태스크 지우기 방지"
+      },
+      "runSelection": {
+        "helper": "Dag 실행을 지울 때 기본으로 선택되는 옵션입니다.",
+        "label": "Dag 실행 지우기 기본 선택"
+      },
+      "taskSelection": {
+        "helper": "태스크 인스턴스를 지울 때 기본으로 선택되는 옵션입니다.",
+        "label": "태스크 지우기 기본 선택"
+      },
+      "title": "지우기"
+    },
+    "description": "이 환경설정은 이 브라우저에만 저장되며 앱 전체에 적용됩니다.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "개별적으로 설정하지 않은 Dag 및 에셋 그래프의 레이아웃 방향입니다.",
+        "label": "기본 그래프 방향"
+      },
+      "title": "그래프"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "태스크 인스턴스 상태를 표시할 때 기본으로 선택되는 옵션입니다.",
+        "label": "상태 표시 기본 선택"
+      },
+      "title": "상태 표시"
+    },
+    "title": "환경설정"
+  },
   "shortcuts": {
     "categories": {
       "code": "코드",
@@ -329,8 +368,10 @@
     "filterReset_other": "필터 초기화",
     "from": "시작",
     "maxActiveRuns": "최대 활성 실행 수",
+    "noResultsFound": "결과를 찾을 수 없습니다",
     "noTagsFound": "태그를 찾을 수 없습니다.",
     "noTeamsFound": "팀을 찾을 수 없습니다.",
+    "ownerPlaceholder": "소유자로 필터링",
     "tagMode": {
       "all": "모두",
       "any": "하나 이상"
@@ -386,6 +427,12 @@
   },
   "taskInstance_one": "태스크 인스턴스",
   "taskInstance_other": "태스크 인스턴스",
+  "teams": {
+    "more_one": "외 {{count}}개",
+    "more_other": "외 {{count}}개",
+    "none": "팀 없음",
+    "title": "팀"
+  },
   "timeRange": {
     "last12Hours": "지난 12 시간",
     "last24Hours": "지난 24 시간",

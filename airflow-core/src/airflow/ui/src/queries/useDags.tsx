@@ -18,6 +18,7 @@
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
 import type { DagRunState } from "openapi/requests/types.gen";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useDags = ({
@@ -84,6 +85,8 @@ export const useDags = ({
     },
     undefined,
     {
+      // Filter changes swap the query key, which would otherwise drop the list to skeletons
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         refetchInterval === false
           ? false

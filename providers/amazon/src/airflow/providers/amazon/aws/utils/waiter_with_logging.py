@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 import jmespath
 from botocore.exceptions import NoCredentialsError, WaiterError
 
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
@@ -105,7 +106,10 @@ def wait(
 
             if "terminal failure" in error_reason:
                 log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, last_response))
-                raise AirflowException(f"{failure_message}: {error}")
+                raise WaiterTerminalFailure(
+                    f"{failure_message}: {error}",
+                    last_response=last_response,
+                )
 
             if (
                 "An error occurred" in error_reason
@@ -130,7 +134,7 @@ def wait(
             break
         attempt += 1
     else:
-        raise AirflowException("Waiter error: max attempts reached")
+        raise WaiterMaxAttemptsError("Waiter error: max attempts reached")
 
 
 async def async_wait(
@@ -184,8 +188,9 @@ async def async_wait(
             last_response = error.last_response
 
             if "terminal failure" in error_reason:
-                raise AirflowException(
-                    f"{failure_message}: {_LazyStatusFormatter(status_args, last_response)}\n{error}"
+                raise WaiterTerminalFailure(
+                    f"{failure_message}: {_LazyStatusFormatter(status_args, last_response)}\n{error}",
+                    last_response=last_response,
                 )
 
             if (
@@ -211,7 +216,7 @@ async def async_wait(
             break
         attempt += 1
     else:
-        raise AirflowException("Waiter error: max attempts reached")
+        raise WaiterMaxAttemptsError("Waiter error: max attempts reached")
 
 
 class _LazyStatusFormatter:

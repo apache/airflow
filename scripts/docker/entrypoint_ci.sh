@@ -169,15 +169,35 @@ function environment_initialization() {
     ln -s -f /usr/bin/gcloud /usr/lib/google-cloud-sdk/bin/gcloud
 
     if [[ ${SKIP_SSH_SETUP="false"} == "false" ]]; then
-        # Set up ssh keys
-        echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -m PEM -P '' -f ~/.ssh/id_rsa \
-            >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
+        # Set up the ssh-to-localhost plumbing used by the SSH/SFTP provider tests under a
+        # dedicated directory instead of ~/.ssh: `breeze --forward-credentials` bind-mounts
+        # the host's ~/.ssh at /root/.ssh and container startup must never modify it.
+        breeze_ssh_dir="/root/.breeze-ssh"
+        mkdir -p "${breeze_ssh_dir}"
+        chmod 700 "${breeze_ssh_dir}"
+        if [[ ! -f "${breeze_ssh_dir}/id_rsa" ]]; then
+            ssh-keygen -t rsa -C airflow-breeze-internal-key -m PEM -P '' -f "${breeze_ssh_dir}/id_rsa" \
+                >"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
+        fi
+        cp "${breeze_ssh_dir}/id_rsa.pub" "${breeze_ssh_dir}/authorized_keys"
+        chmod 600 "${breeze_ssh_dir}/id_rsa" "${breeze_ssh_dir}/authorized_keys"
+        echo "AuthorizedKeysFile ${breeze_ssh_dir}/authorized_keys .ssh/authorized_keys" \
+            > /etc/ssh/sshd_config.d/airflow-breeze.conf
+        # The heredoc delimiter must not be "EOF": Dockerfile.ci inlines this script inside
+        # a COPY <<"EOF" heredoc and a bare EOF line would terminate it early.
+        cat > /etc/ssh/ssh_config.d/airflow-breeze.conf <<SSH_CONFIG
+Host localhost 127.0.0.1 ::1
+    IdentityFile ${breeze_ssh_dir}/id_rsa
+    UserKnownHostsFile ${breeze_ssh_dir}/known_hosts
+    StrictHostKeyChecking accept-new
+SSH_CONFIG
+        # Paramiko-based hooks do not read /etc/ssh/ssh_config.d but try ssh-agent keys by
+        # default, so expose the key through an agent. The fixed socket path lets shells
+        # entered via entrypoint_exec.sh (breeze exec) pick up the same agent.
+        rm -f "${breeze_ssh_dir}/agent.sock"
+        eval "$(ssh-agent -s -a "${breeze_ssh_dir}/agent.sock")" >/dev/null
+        ssh-add "${breeze_ssh_dir}/id_rsa" >>"${AIRFLOW_HOME}/logs/ssh-keygen.log" 2>&1
 
-        cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-        ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-        chmod 600 ~/.ssh/*
-
-        # SSH Service
         sudo service ssh restart >/dev/null 2>&1
 
         # Sometimes the server is not quick enough to load the keys!
@@ -186,7 +206,7 @@ function environment_initialization() {
             sleep 0.05
         done
 
-        ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
+        ssh-keyscan -H localhost > "${breeze_ssh_dir}/known_hosts" 2>/dev/null
     fi
 
     if [[ ${INTEGRATION_LOCALSTACK:-"false"} == "true" ]]; then

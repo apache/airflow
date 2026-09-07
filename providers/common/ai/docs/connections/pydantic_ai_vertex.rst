@@ -60,14 +60,14 @@ Force Vertex AI Mode
     above already makes ``GoogleCloudProvider`` hard-code ``vertexai=True``
     unconditionally when it builds its client.
 
-    .. important::
-        Leave this field unset. Setting it currently breaks the connection:
-        neither ``GoogleProvider`` nor ``GoogleCloudProvider`` accept a
-        ``vertexai`` constructor argument, so the hook silently discards
-        every other field on this connection (project, location, service
-        account, API key) and falls back to resolving credentials from
-        environment variables only. If auth unexpectedly falls back to env
-        vars, check the task log for a "rejected kwargs" warning.
+    .. note::
+        This field is accepted for backward compatibility but has no effect:
+        it is never forwarded to the provider, and every other field on the
+        connection (project, location, service account, API key) is passed
+        through normally. Setting it logs a warning in the task log noting
+        that the field is ignored and that Vertex AI vs. Generative Language
+        API mode is selected via the model prefix (``google-cloud:`` vs.
+        ``google:``) instead.
 
 API Key
     Google API key for Vertex AI Express Mode. Falls back to the
