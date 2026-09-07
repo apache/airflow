@@ -19,64 +19,122 @@
 
 # 7. Native Dag interface
 
-Date: 2026-08-24
+Date: 2026-09-07
 
 ## Status
 
-Proposed. Documents the interface proposed in #67155 and #70158; neither has merged, and nothing in the example below exists on `main` today.
+Proposed. Supersedes the interfaces proposed in #67155 and #70158, reshaped by the design review
+on #72043. Nothing below exists on `main`.
 
 ## Why
 
-The Go SDK's shipped `Registry.AddDag(dagId string) Dag` only supports the Mixed Lang interface: it matches a Python-owned stub Dag by `dag_id` and offers `AddTask(fn)` / `AddTaskWithName(taskId, fn)`, with no Dag-level schedule, tags, or dependency wiring at all. [ADR 6](0006-mixed-lang-dag-interface.md) proposes renaming it to `AddMixedLangDag`, freeing the `AddDag` name for this ADR, since Go doesn't allow two differently-signed methods sharing one name on the same interface.
-
-Two open PRs, #67155 and #70158, propose a second mode where the graph itself is authored in Go. Task registration needs to express typed data dependencies between Go functions without falling back to string task-ID lookups. For `Task` and `Inputs` alone, a cycle should have no syntax to write at all, not merely a validator that rejects it. This ADR meets that goal for `Task` and `Inputs`, then has to revisit it once `Then` is added below.
+A native Dag is authored entirely in Go: the author owns the schedule, the tasks, and the
+dependencies, and the SDK serializes all of it into the Dag JSON a Python Dag would produce. There is
+one Dag type, as in Python — the Mixed Lang case registers task handlers instead
+([ADR 6](0006-mixed-lang-task-handler-interface.md)), because it defines no Dag. Dependencies between
+Go functions have to be typed rather than looked up by task ID, and a Dag should read like Go rather
+than like transliterated Python.
 
 ## Example
 
-Proposed in #70158, building on #67155.
+Both examples build the same graph. Which form an author writes depends on whether the edge carries a
+value.
+
+### Data dependencies: the TaskFlow equivalent
+
+`airflow.Inputs` passes an upstream's return value in and declares the edge in one call, the way
+calling one TaskFlow function with another's output does in Python.
 
 ```go
-dag := registry.AddDag(v1.DagSpec{DagId: "etl", Schedule: "@daily"})
+dag := airflow.Dag(airflow.DagSpec{DagId: "etl", Schedule: "@daily"})
 
-extracted := dag.Task(nativeExtract)
-transformed := dag.Task(nativeTransform, v1.Inputs(extracted))
-loaded := dag.Task(nativeLoad, v1.Inputs(transformed), v1.TaskSpec{Retries: 2})
-loaded.Then(dag.Task(cleanupTemp))
+extracted := dag.Task(extract)
+transformed := dag.Task(transform, airflow.Inputs(extracted))
+dag.Task(load, airflow.Inputs(transformed), airflow.TaskSpec{Retries: 2})
+
+registry.AddDags(dag)
+```
+
+```python
+# the Python Dag this mirrors
+extracted = extract()
+transformed = transform(extracted)
+load(transformed)
 ```
 
 ```go
-func nativeExtract(log *slog.Logger) (NativeResult, error) {
-    log.Info("extracting native Dag data")
-    return NativeResult{Message: "native Dag data"}, nil
+func extract(ctx context.Context) (Result, error) {
+    return Result{Message: "native Dag data"}, nil
 }
 
-func nativeTransform(log *slog.Logger, extracted NativeResult) (NativeResult, error) {
-    log.Info("transforming native Dag data", "message", extracted.Message)
-    return NativeResult{Message: "transformed " + extracted.Message}, nil
+func transform(ctx context.Context, extracted Result) (Result, error) {
+    return Result{Message: "transformed " + extracted.Message}, nil
 }
 
-func nativeLoad(log *slog.Logger, transformed NativeResult) error {
-    log.Info("loading native Dag data", "message", transformed.Message)
-    return nil
-}
-
-func cleanupTemp(log *slog.Logger) error {
-    log.Info("cleaning up temp files")
-    return nil
-}
+func load(ctx context.Context, transformed Result) error { return nil }
 ```
 
-`Registry.AddDag(spec)` would return a `Dag`, and `Dag.Task(fn, opts...)` would register a task and return a `*TaskRef`. `v1.Inputs(refs...)` would feed an upstream's return value into the next task's data parameters, positionally, after any injectables. For anything that wraps a Go function, wiring the value and declaring the dependency are the same call, matching Python TaskFlow's call-argument graph.
+### Order-only dependencies: the `>>` and `<<` equivalent
 
-PR #70158's own code also exposes a separate `After(refs...)` for order-only edges. This ADR proposes dropping that option, but keeps the need it named: `TaskRef.Then(others ...*TaskRef) *TaskRef` covers order-only edges instead, for cases with no Go function parameter to bind an ignored `Inputs` value into, like [ADR 8](0008-taskgroup-shortcircuit-branch.md)'s `TriggerDagRunOperator`. A bare `v1.TaskSpec{}` value would itself be a `TaskOption`.
+`Before` and `After` draw an edge and pass nothing, for tasks that must be ordered but exchange no
+data; the functions take no parameter for such an edge.
 
-None of this exists in the shipped SDK. `main`'s `Dag` only has `AddTask(fn)` / `AddTaskWithName(taskId, fn)`, built for the Mixed Lang case where a Python stub already owns the graph.
+```go
+loaded := dag.Task(load, airflow.Inputs(transformed))
+notified := dag.Task(notify)
+cleaned := dag.Task(cleanup, airflow.TaskSpec{TriggerRule: airflow.AllDone})
+
+loaded.Before(notified, cleaned) // loaded >> [notified, cleaned]
+cleaned.After(extracted)         // cleanup << extracted
+```
 
 ## How
 
-- `Dag.Task(fn, opts...)` would classify `fn`'s parameters with `reflect`, in the same injectable-then-data order as the Mixed Lang interface. It does this through its own `isInjectable` check (`go-sdk/bundle/bundlev1/task.go` in #70158), which duplicates the same four type checks (`sdk.TIRunContext`, `context.Context`, `*slog.Logger`, `sdk.Client`) that `binding.go`'s `classifyParam` already runs for the shipped Mixed Lang path. The two checks are separate implementations, not a shared one.
-- `v1.Inputs(refs...)` would pair its arguments positionally against `fn`'s data parameters, checking each `TaskRef`'s recorded output type (`TaskRef.out`, a `reflect.Type`) against the parameter it binds. A mismatched count or type panics at Dag-registration time rather than surfacing at task run time.
-- `TaskRef.Then(others ...*TaskRef) *TaskRef` records each of `others` as downstream of the receiver and returns the receiver, not an argument: `choose.Then(a, b)` fans `choose` out to both `a` and `b` in one call, and `choose.Then(a).Then(b)` reaches the same result across two calls. That matches Python's list-broadcast form, `cond >> [task1, task2]`, rather than the sequential chain form `a >> b >> c` (`self.set_downstream(other); return other`, `task-sdk/src/airflow/sdk/definitions/_internal/mixins.py:97-100`): once a single call can fan out to more than one downstream task, there's no single "next" `*TaskRef` left to hand back. Unlike `Inputs`, `Then` never touches the callees' parameters; it exists purely to draw edges.
-- `Then` is edge-only and isn't combined with `Inputs` for the same downstream task: a task wired through `Then` takes no parameter for that edge at all. For now, that lands on [ADR 8](0008-taskgroup-shortcircuit-branch.md)'s `ShortCircuitOperator` and `BranchOperator`, whose downstream candidates wire through `Then` rather than an `Inputs`-bound parameter the function only ignored.
-- A `*TaskRef` only exists once its producing `dag.Task(...)` call has returned, and Go statements evaluate in order, so `Inputs` can only reference an already-registered task: a cycle has no syntax to be written through `Inputs` alone, since an edge can only point backward from a task to one of its own already-registered ancestors-to-be.
-  `Then` doesn't carry that guarantee. It links two `*TaskRef`s that both already exist, in whichever direction the receiver and argument are written, so `b.Then(a)` is exactly as legal as `a.Then(b)`, even after `a` already has an `Inputs`-based edge into `b`. For example, `a := dag.Task(A); b := dag.Task(B, v1.Inputs(a)); b.Then(a)` produces a genuine cycle, a→b→a, entirely in syntax this proposal accepts. Introducing `Then` reopens the cycle question ADR 7's `Inputs`-only design closed; a Dag-registration-time cycle check would be needed once `Then` exists.
+- **One user-facing package.** Everything a Dag author writes comes from `airflow`; the proposed
+  interface spread the same surface across `v1`, `sdk`, and `slog`, leaking package boundaries that
+  exist for the SDK's benefit, not the author's.
+- **Construct, then register.** `airflow.Dag(spec)` returns a `*airflow.DagRef` that is complete
+  before `registry.AddDags(dag)` hands it over, where the proposed `registry.AddDag(spec)` published
+  a half-built Dag and mutated it afterwards. Naming rule: `airflow.X(...)` constructs, `*airflow.XRef`
+  is the handle. Go forbids a package-level func and a type sharing the name `Dag`, so one must
+  differ; the constructor keeps the plain noun because authors read it most.
+- **`airflow.Inputs(refs...)` is data and an edge.** Values bind positionally after the context, and
+  each `*TaskRef` carries its recorded output type, so a count or type mismatch panics at
+  registration rather than at run time.
+- **`Before` / `After` are edges only** — the Go pair for `>>` and `<<`. Both are variadic, so one
+  call fans out (`cond >> [t1, t2]`), and both return the receiver, since a fan-out has no single
+  "next" ref. This replaces #70158's one-directional `After(refs...)` task option, and leaves `Then`
+  to mean only what it means in [ADR-0008](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md).
+- **Trigger rules belong to the task**, as `airflow.TaskSpec{TriggerRule: ...}`. In Python
+  `trigger_rule` is an operator attribute and `>>` carries no rule; an edge verb that took one would
+  let two edges into the same task disagree.
+- **A cycle check is needed.** `Inputs` alone cannot express one, since a `*TaskRef` exists only
+  after its own `dag.Task(...)` returns. `Before`/`After` link two existing refs in either direction,
+  so `b := dag.Task(B, airflow.Inputs(a)); b.Before(a)` is a genuine cycle in accepted syntax.
+- **One signature classifier.** #70158's `isInjectable` (`go-sdk/bundle/bundlev1/task.go`) repeats
+  what `classifyParam` (`go-sdk/pkg/binding/binding.go`) already does for the Mixed Lang path.
+  Context accessors ([ADR 6](0006-mixed-lang-task-handler-interface.md)) leave one rule for both:
+  first parameter is the context, the rest is data.
+- **No Go-native deferral.** A Go task runs to completion in one call. The deferrable constructs
+  authors reach for first are DSL tasks Python executes
+  ([ADR-0009](../../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md)), which
+  defer as they do in a Python Dag, so SDK-level goroutine and channel primitives stay out of scope
+  until a Go-native task itself needs to wait.
+
+## Alternatives
+
+- **Fetching upstream values at run time**, where a task reads an upstream result inside its own body
+  (`result.Get(&out)`) and the graph falls out of the order the Go code executes, with no edge verb at
+  all. Rejected: Airflow materializes the whole graph at Dag-processing time and then invokes a single
+  task instance's callable per run, so an edge that exists only in execution order cannot be parsed
+  without running the program to completion. `Inputs` keeps the typed, statically declared outputs
+  that style is reached for, without the Dag having to execute to be read.
+- **Separate `Dag` and `MixedLangDag` types.** Rejected: Python has one Dag class, and the Mixed Lang
+  case is not a Dag at all ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
+
+## Question
+
+- Should `Before`/`After` also be methods on a task group, so a whole group can be ordered against
+  another the way Python allows `group1 >> group2`? Groups otherwise share the Dag's methods
+  ([ADR-0008](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)), but only tasks can
+  carry an edge here.
