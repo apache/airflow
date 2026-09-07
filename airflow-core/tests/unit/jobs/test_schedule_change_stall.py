@@ -81,8 +81,7 @@ def clean_db():
 
 
 def _make_runner():
-    job = Job()
-    return SchedulerJobRunner(job=job, executors=[MockExecutor()])
+    return SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
 
 
 @time_machine.travel(START_DATE, tick=False)
