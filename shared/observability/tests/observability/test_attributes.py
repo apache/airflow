@@ -45,5 +45,5 @@ def test_expand_dag_tags_accepts_generator() -> None:
     assert expand_dag_tags(name for name in ["env:prod"]) == {"env": "prod"}
 
 
-def test_expand_dag_tags_collision_behavior() -> None:
+def test_expand_dag_tags_last_value_wins() -> None:
     assert expand_dag_tags(["team:data", "team:ml"]) == {"team": "ml"}
