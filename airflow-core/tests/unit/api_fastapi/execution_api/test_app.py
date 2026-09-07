@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
@@ -44,6 +45,7 @@ from airflow.models.connection import Connection
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.models.variable import Variable
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
 from airflow.sdk.exceptions import ErrorType
@@ -466,3 +468,89 @@ class TestInProcessExecutionAPIBundleName:
         assert without_bundle == ErrorResponse(
             error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id}
         )
+
+
+class TestBundleHeaderIgnoredByExecutionAPI:
+    """
+    The API server resolves the caller's team from the signed token, never from the bundle header.
+
+    Only the in-process app reads ``airflow-dag-bundle-name`` (see
+    ``TestInProcessExecutionAPIBundleName``), so a task token keeps its own team even when the
+    request carries another team's bundle name.
+    """
+
+    @pytest.fixture
+    def team_a_task(self, session, dag_maker, exec_app):
+        """
+        Authenticate the app as a task of team A; yield ``(team_a, team_b, team_b_bundle)``.
+
+        Only the JWT validator is stubbed, so the claims still come from ``JWTBearer`` alone and a
+        header the app folded into them would surface here.
+        """
+        bundle_a_name = f"bundle_{uuid4().hex}"
+        with dag_maker(dag_id=f"dag_{uuid4().hex}", bundle_name=bundle_a_name, session=session):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task")
+
+        bundle_a = session.get(DagBundleModel, bundle_a_name)
+        team_a = Team(name=f"team_{uuid4().hex}")
+        bundle_a.teams.append(team_a)
+        bundle_b = DagBundleModel(name=f"bundle_{uuid4().hex}")
+        team_b = Team(name=f"team_{uuid4().hex}")
+        bundle_b.teams.append(team_b)
+        session.add(bundle_b)
+        session.commit()
+
+        validator = mock.MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {"sub": str(ti.id), "scope": "execution"}
+        exec_app.state.svcs_registry.register_value(JWTValidator, validator)
+        exec_app.dependency_overrides.pop(require_auth)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield team_a.name, team_b.name, bundle_b.name
+
+        bundle_a.teams = []
+        bundle_b.teams = []
+        session.delete(bundle_b)
+        session.delete(team_a)
+        session.delete(team_b)
+        session.commit()
+
+    def test_variable_lookup_ignores_bundle_header(self, client, session, team_a_task):
+        team_a, team_b, bundle_b = team_a_task
+        key_a = f"var_{uuid4().hex}"
+        key_b = f"var_{uuid4().hex}"
+        Variable.set(key=key_a, value="a_value", team_name=team_a, session=session)
+        Variable.set(key=key_b, value="b_value", team_name=team_b, session=session)
+        session.commit()
+
+        headers = {InProcessExecutionAPI.bundle_name_header: bundle_b}
+        own_team = client.get(f"/execution/variables/{key_a}", headers=headers)
+        other_team = client.get(f"/execution/variables/{key_b}", headers=headers)
+
+        Variable.delete(key=key_a, team_name=team_a, session=session)
+        Variable.delete(key=key_b, team_name=team_b, session=session)
+        session.commit()
+
+        assert own_team.status_code == 200, own_team.json()
+        assert own_team.json() == {"key": key_a, "value": "a_value"}
+        assert other_team.status_code == 404, other_team.json()
+
+    def test_connection_lookup_ignores_bundle_header(self, client, session, team_a_task):
+        team_a, team_b, bundle_b = team_a_task
+        conn_a = Connection(conn_id=f"conn_{uuid4().hex}", conn_type="http", host="a-host", team_name=team_a)
+        conn_b = Connection(conn_id=f"conn_{uuid4().hex}", conn_type="http", host="b-host", team_name=team_b)
+        session.add_all([conn_a, conn_b])
+        session.commit()
+
+        headers = {InProcessExecutionAPI.bundle_name_header: bundle_b}
+        own_team = client.get(f"/execution/connections/{conn_a.conn_id}", headers=headers)
+        other_team = client.get(f"/execution/connections/{conn_b.conn_id}", headers=headers)
+
+        session.delete(conn_a)
+        session.delete(conn_b)
+        session.commit()
+
+        assert own_team.status_code == 200, own_team.json()
+        assert own_team.json()["host"] == "a-host"
+        assert other_team.status_code == 404, other_team.json()
