@@ -67,6 +67,20 @@ class BaseInfoResponse(BaseModel):
     status: Annotated[str | None, Field(title="Status")] = None
 
 
+class AssetStateStoreWriterKind(str, Enum):
+    """
+    Identifies what kind of writer last updated an asset state store entry.
+
+    ``TASK`` — written by a task via the execution API.
+    ``WATCHER`` — written by a ``BaseEventTrigger`` (no task instance).
+    ``API`` — written directly through the Core API (e.g. manual admin write).
+    """
+
+    TASK = "task"
+    WATCHER = "watcher"
+    API = "api"
+
+
 class BulkActionNotOnExistence(str, Enum):
     """
     Bulk Action to be taken if the entity does not exist.
@@ -1118,6 +1132,40 @@ class AssetResponse(BaseModel):
     last_asset_event: LastAssetEventResponse | None = None
 
 
+class AssetStateStoreBody(BaseModel):
+    """
+    Request body for setting an asset state store value.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    value: JsonValue
+
+
+class AssetStateStoreLastUpdatedBy(BaseModel):
+    """
+    Writer info for the last write to an asset state store entry.
+    """
+
+    kind: AssetStateStoreWriterKind
+    dag_id: Annotated[str | None, Field(title="Dag Id")] = None
+    run_id: Annotated[str | None, Field(title="Run Id")] = None
+    task_id: Annotated[str | None, Field(title="Task Id")] = None
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
+class AssetStateStoreResponse(BaseModel):
+    """
+    A single asset state store key/value pair with metadata.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: JsonValue
+    updated_at: Annotated[datetime, Field(title="Updated At")]
+    last_updated_by: AssetStateStoreLastUpdatedBy | None = None
+
+
 class BackfillPostBody(BaseModel):
     """
     Object used for create backfill request.
@@ -1861,6 +1909,15 @@ class AssetEventCollectionResponse(BaseModel):
     """
 
     asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class AssetStateStoreCollectionResponse(BaseModel):
+    """
+    All asset state store entries for an asset.
+    """
+
+    asset_state_store: Annotated[list[AssetStateStoreResponse], Field(title="Asset State Store")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
