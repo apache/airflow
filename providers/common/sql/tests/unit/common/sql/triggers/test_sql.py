@@ -21,8 +21,7 @@ from unittest import mock
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger, SQLGenericTransferTrigger
-from airflow.triggers.base import TriggerEvent
+from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 
 try:
     import importlib.util
@@ -34,25 +33,6 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from tests_common.test_utils.operators.run_deferrable import run_trigger
-
-
-class TestSQLGenericTransferTrigger:
-    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
-    def test_run(self, mock_get_connection):
-        data = [(1, "Alice"), (2, "Bob")]
-        mock_connection = mock.MagicMock(spec=Connection)
-        mock_hook = mock.MagicMock(spec=DbApiHook)
-        mock_hook.get_records.side_effect = lambda sql: data
-        mock_get_connection.return_value = mock_connection
-        mock_connection.get_hook.side_effect = lambda hook_params: mock_hook
-
-        trigger = SQLGenericTransferTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
-        actual = run_trigger(trigger)
-
-        assert len(actual) == 1
-        assert isinstance(actual[0], TriggerEvent)
-        assert actual[0].payload["status"] == "success"
-        assert actual[0].payload["results"] == data
 
 
 class TestSQLExecuteQueryTrigger:
@@ -67,9 +47,10 @@ class TestSQLExecuteQueryTrigger:
         defaults.update(kwargs)
         return SQLExecuteQueryTrigger(**defaults)
 
-    def _make_mock_hook(self):
+    def _make_mock_hook(self, supports_async_execution: bool = True):
         mock_hook = mock.MagicMock(spec=DbApiHook)
         mock_hook.arun = mock.AsyncMock()
+        mock_hook.supports_async_execution.return_value = supports_async_execution
         return mock_hook
 
     def test_serialize(self):
@@ -79,6 +60,7 @@ class TestSQLExecuteQueryTrigger:
             fetch_results=True,
             split_statements=True,
             return_last=False,
+            hook_params={"foo": "bar"},
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.common.sql.triggers.sql.SQLExecuteQueryTrigger"
@@ -91,6 +73,7 @@ class TestSQLExecuteQueryTrigger:
             "split_statements": True,
             "return_last": False,
             "read_only": False,
+            "hook_params": {"foo": "bar"},
         }
 
     def test_run_fetch_results_returns_rows_and_descriptions(self):
@@ -144,6 +127,25 @@ class TestSQLExecuteQueryTrigger:
         assert events[0].payload["status"] == "error"
         assert "DB error" in events[0].payload["message"]
 
+    def test_run_falls_back_to_sync_execution_for_hooks_without_async_support(self):
+        rows = [("val1",), ("val2",)]
+        descriptions = [(("col1", 23, None, None, None, None, None),)]
+        mock_hook = self._make_mock_hook(supports_async_execution=False)
+        mock_hook.run.return_value = rows
+        mock_hook.descriptions = descriptions
+        trigger = self._make_trigger(fetch_results=True)
+        with mock.patch.object(trigger, "aget_hook", new=mock.AsyncMock(return_value=mock_hook)):
+            events = run_trigger(trigger)
+
+        mock_hook.arun.assert_not_called()
+        assert mock_hook.run.call_args.kwargs["handler"] is fetch_all_handler
+        assert len(events) == 1
+        assert events[0].payload == {
+            "status": "success",
+            "results": rows,
+            "descriptions": [[["col1", 23, None, None, None, None, None]]],
+        }
+
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_get_hook_raises_when_hook_is_not_dbapihook(self, mock_get_connection):
         mock_connection = mock.MagicMock(spec=Connection)
@@ -154,3 +156,27 @@ class TestSQLExecuteQueryTrigger:
 
         assert len(events) == 1
         assert events[0].payload["status"] == "error"
+
+    def test_aget_hook_raises_when_read_only_requested_without_async_support(self):
+        mock_hook = self._make_mock_hook(supports_async_execution=False)
+        trigger = self._make_trigger(read_only=True)
+        with mock.patch(
+            "airflow.providers.common.sql.triggers.sql.get_async_hook",
+            new=mock.AsyncMock(return_value=mock_hook),
+        ):
+            events = run_trigger(trigger)
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "error"
+        assert "does not support read-only execution" in events[0].payload["message"]
+
+    def test_aget_hook_passes_hook_params(self):
+        mock_hook = self._make_mock_hook()
+        trigger = self._make_trigger(hook_params={"foo": "bar"})
+        with mock.patch(
+            "airflow.providers.common.sql.triggers.sql.get_async_hook",
+            new=mock.AsyncMock(return_value=mock_hook),
+        ) as mock_get_async_hook:
+            run_trigger(trigger)
+
+        mock_get_async_hook.assert_awaited_once_with("test_conn", hook_params={"foo": "bar"})
