@@ -137,6 +137,58 @@ def action_cli(func=None, check_db=True):
     return action_logging
 
 
+MASKED_VALUE = "*" * 8
+
+
+def _redact_structure(obj):
+    """Redact values whose key looks sensitive, at any depth."""
+    from airflow._shared.secrets_masker import _secrets_masker
+
+    if isinstance(obj, dict):
+        return {
+            k: MASKED_VALUE if k and _secrets_masker().should_hide_value_for_key(k) else _redact_structure(v)
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_redact_structure(item) for item in obj]
+    return obj
+
+
+def _find_option_value(command: list[str], option: str) -> tuple[int | None, str]:
+    """
+    Locate an option's value in a recorded command, in either accepted spelling.
+
+    argparse accepts both ``--option VALUE`` and ``--option=VALUE``. Returns the index of
+    the element holding the value and the prefix that must be preserved when rewriting it
+    (empty for the separated form, ``--option=`` for the joined one).
+    """
+    for idx, argument in enumerate(command):
+        if argument == option and idx + 1 < len(command):
+            return idx + 1, ""
+        if argument.startswith(f"{option}="):
+            return idx, f"{option}="
+    return None, ""
+
+
+def _redact_json_argument(value: str) -> str:
+    """
+    Redact sensitive entries in a JSON command-line argument.
+
+    Nested structures are walked, because a secret one level down is still a secret:
+    ``--conn-extra '{"nested": {"password": "..."}}'`` records the password otherwise.
+
+    A value that is not JSON we can parse is redacted whole. These options carry
+    connection material, so a value that cannot be inspected is not safe to record.
+    """
+    import json
+
+    try:
+        parsed = json.loads(value)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return MASKED_VALUE
+    return json.dumps(_redact_structure(parsed))
+
+
 def _build_metrics(func_name, namespace):
     """
     Build metrics dict from function args.
@@ -158,46 +210,51 @@ def _build_metrics(func_name, namespace):
     sub_command = full_command[1] if len(full_command) > 1 else None
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
-        key = full_command[-2] if len(full_command) > 3 else None
-        if key and _secrets_masker().should_hide_value_for_key(key):
-            # Mask the sensitive value since key contain sensitive keyword
-            full_command[-1] = "*" * 8
+        # Identify the value from the parsed command rather than from its position in
+        # argv. The key and value are not reliably the last two arguments: any supported
+        # trailing option displaces them (``variables set KEY VALUE --description TEXT``
+        # ends in ``--description TEXT``), which left the value recorded in clear.
+        key = getattr(namespace, "key", None)
+        value = getattr(namespace, "value", None)
+        if key and value and _secrets_masker().should_hide_value_for_key(key):
+            full_command = [MASKED_VALUE if arg == value else arg for arg in full_command]
     elif sub_command in sub_commands_to_check_for_sensitive_fields:
         for idx, command in enumerate(full_command):
             if command in sensitive_fields:
                 # For cases when password is passed as "--password xyz" (with space between key and value)
-                full_command[idx + 1] = "*" * 8
+                full_command[idx + 1] = MASKED_VALUE
             else:
                 # For cases when password is passed as "--password=xyz" (with '=' between key and value)
                 for sensitive_field in sensitive_fields:
                     if command.startswith(f"{sensitive_field}="):
-                        full_command[idx] = f"{sensitive_field}={'*' * 8}"
+                        full_command[idx] = f"{sensitive_field}={MASKED_VALUE}"
 
-    # handle conn-json and conn-uri separately as it requires different handling
-    if "--conn-json" in full_command:
-        import json
+    # handle conn-json, conn-extra and conn-uri separately as they require different handling
+    for json_option in ("--conn-json", "--conn-extra"):
+        for idx, argument in enumerate(full_command):
+            # argparse accepts both "--conn-json VALUE" and "--conn-json=VALUE", so the
+            # value is matched in either spelling rather than by looking one element past
+            # a standalone token.
+            if argument == json_option and idx + 1 < len(full_command):
+                full_command[idx + 1] = _redact_json_argument(full_command[idx + 1])
+            elif argument.startswith(f"{json_option}="):
+                redacted = _redact_json_argument(argument[len(json_option) + 1 :])
+                full_command[idx] = f"{json_option}={redacted}"
 
-        json_index = full_command.index("--conn-json") + 1
-        conn_json = json.loads(full_command[json_index])
-        for k in conn_json:
-            if k and _secrets_masker().should_hide_value_for_key(k):
-                conn_json[k] = "*" * 8
-        full_command[json_index] = json.dumps(conn_json)
-
-    if "--conn-uri" in full_command:
+    uri_index, uri_prefix = _find_option_value(full_command, "--conn-uri")
+    if uri_index is not None:
         from urllib.parse import urlparse, urlunparse
 
-        uri_index = full_command.index("--conn-uri") + 1
-        conn_uri = full_command[uri_index]
+        conn_uri = full_command[uri_index][len(uri_prefix) :]
         parsed_uri = urlparse(conn_uri)
         netloc = parsed_uri.netloc
         if parsed_uri.password:
-            password = "*" * 8
+            password = MASKED_VALUE
             netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
             if parsed_uri.port:
                 netloc += f":{parsed_uri.port}"
 
-        full_command[uri_index] = urlunparse(
+        full_command[uri_index] = uri_prefix + urlunparse(
             (
                 parsed_uri.scheme,
                 netloc,

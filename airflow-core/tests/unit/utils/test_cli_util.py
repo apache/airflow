@@ -161,6 +161,95 @@ class TestCliUtil:
                 True,
             ),
             (
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "tp005-demo",
+                    "--conn-type",
+                    "generic",
+                    "--conn-extra",
+                    '{"nested": {"password": "TP005_CONN_DUMMY"}, "region": "eu-west-1"}',
+                ],
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "tp005-demo",
+                    "--conn-type",
+                    "generic",
+                    "--conn-extra",
+                    '{"nested": {"password": "********"}, "region": "eu-west-1"}',
+                ],
+                True,
+            ),
+            (
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "nested_conn",
+                    "--conn-json",
+                    '{"conn_type": "generic", "extra": {"auth": {"password": "deep-secret"}}}',
+                ],
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "nested_conn",
+                    "--conn-json",
+                    '{"conn_type": "generic", "extra": {"auth": {"password": "********"}}}',
+                ],
+                True,
+            ),
+            # argparse accepts "--option=VALUE" too; the audit masker must cover both
+            # spellings or a supported invocation records the secret in clear.
+            (
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "eq_json_conn",
+                    '--conn-json={"conn_type": "generic", "password": "eq-secret", '
+                    '"extra": {"auth": {"api_key": "deep-eq-secret"}}}',
+                ],
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "eq_json_conn",
+                    '--conn-json={"conn_type": "generic", "password": "********", '
+                    '"extra": {"auth": {"api_key": "********"}}}',
+                ],
+                True,
+            ),
+            (
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "eq_extra_conn",
+                    "--conn-type",
+                    "generic",
+                    '--conn-extra={"nested": {"password": "eq-extra-secret"}}',
+                ],
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "eq_extra_conn",
+                    "--conn-type",
+                    "generic",
+                    '--conn-extra={"nested": {"password": "********"}}',
+                ],
+                True,
+            ),
+            (
+                "airflow connections add eq_uri_conn --conn-uri=postgresql://user:my-password@localhost:5432/db",
+                "airflow connections add eq_uri_conn --conn-uri=postgresql://user:********@localhost:5432/db",
+                False,
+            ),
+            (
                 "airflow scheduler -p",
                 "airflow scheduler -p",
                 False,
@@ -261,27 +350,61 @@ class TestCliUtil:
         assert pid == default_pid_path
 
     @pytest.mark.parametrize(
-        ("given_command", "expected_masked_command"),
+        ("given_command", "expected_masked_command", "var_key", "var_value"),
         [
             (
                 "airflow variables set --description 'needed for dag 4' client_secret_234 7fh4375f5gy353wdf",
                 "airflow variables set --description 'needed for dag 4' client_secret_234 ********",
+                "client_secret_234",
+                "7fh4375f5gy353wdf",
             ),
             (
                 "airflow variables set cust_secret_234 7fh4375f5gy353wdf",
                 "airflow variables set cust_secret_234 ********",
+                "cust_secret_234",
+                "7fh4375f5gy353wdf",
+            ),
+            # A trailing option displaces the value out of the last position. The masker
+            # used to key off argv positions and recorded the value in clear here.
+            (
+                "airflow variables set client_secret_234 7fh4375f5gy353wdf --description validation",
+                "airflow variables set client_secret_234 ******** --description validation",
+                "client_secret_234",
+                "7fh4375f5gy353wdf",
+            ),
+            (
+                "airflow variables set client_secret_234 7fh4375f5gy353wdf --serialize-json",
+                "airflow variables set client_secret_234 ******** --serialize-json",
+                "client_secret_234",
+                "7fh4375f5gy353wdf",
+            ),
+            # A non-sensitive key must still be recorded as given.
+            (
+                "airflow variables set retries 5 --description validation",
+                "airflow variables set retries 5 --description validation",
+                "retries",
+                "5",
             ),
         ],
     )
     def test_cli_set_variable_supplied_sensitive_value_is_masked(
-        self, given_command, expected_masked_command, session
+        self, given_command, expected_masked_command, var_key, var_value, session
     ):
         args = given_command.split()
 
         expected_command = expected_masked_command.split()
 
+        # `variables set` parses the key and value into the namespace; the masker reads
+        # them from there rather than guessing their position in argv.
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(
+            dag_id="foo",
+            task_id="bar",
+            subcommand="test",
+            execution_date=exec_date,
+            key=var_key,
+            value=var_value,
+        )
         with (
             mock.patch.object(sys, "argv", args),
             mock.patch("airflow.utils.session.create_session") as mock_create_session,
