@@ -312,24 +312,23 @@ class GitHook(BaseHook):
             yield
             return
 
-        username = shlex.quote(self.user_name)
-        password = shlex.quote(self.auth_token)
-
         with tempfile.TemporaryDirectory() as askpass_dir:
             askpass_path = os.path.join(askpass_dir, "askpass.sh")
-            # git passes the target as ``<scheme>://[user@]<host>[:port][/path]`` in $1. Matching
-            # it means a submodule hosted elsewhere gets nothing instead of this connection's
-            # token. Quoting the host keeps an IPv6 address's brackets out of glob interpretation.
+            # The credential reaches the script through the environment, so it is never written to
+            # disk. git names the target in $1 as ``<scheme>://[user@]<host>[:port][/path]``, and
+            # matching it means a submodule hosted elsewhere gets nothing rather than this
+            # connection's token. Quoted expansions stay literal in a pattern, so an IPv6 host's
+            # brackets are not read as a glob character class.
             with open(askpass_path, "w") as askpass_script:
                 askpass_script.write(
-                    f"""#!/bin/sh
+                    """#!/bin/sh
 case "$1" in
-    *"://{host}'"*|*"://{host}/"*|*"@{host}'"*|*"@{host}/"*) ;;
+    *"://$AIRFLOW_GIT_HOST'"*|*"://$AIRFLOW_GIT_HOST/"*|*"@$AIRFLOW_GIT_HOST'"*|*"@$AIRFLOW_GIT_HOST/"*) ;;
     *) exit 1 ;;
 esac
 case "$1" in
-    *Username*) echo {username} ;;
-    *Password*) echo {password} ;;
+    *Username*) printf '%s\n' "$AIRFLOW_GIT_USER" ;;
+    *Password*) printf '%s\n' "$AIRFLOW_GIT_TOKEN" ;;
     *) exit 1 ;;
 esac
 """
@@ -338,16 +337,20 @@ esac
             # still open for writing, which git surfaces as "cannot exec: Text file busy".
             os.chmod(askpass_path, stat.S_IRWXU)
 
+            values = {
+                "GIT_ASKPASS": askpass_path,
+                "GIT_TERMINAL_PROMPT": "0",
+                "AIRFLOW_GIT_HOST": host,
+                "AIRFLOW_GIT_USER": self.user_name,
+                "AIRFLOW_GIT_TOKEN": self.auth_token,
+            }
             # ``self.env`` alone is not enough: callers only forward it on the initial clone,
             # so fetches would run without the credential and hang on the terminal prompt.
             envs = (os.environ, self.env)
-            saved = [
-                (env, var, env.get(var)) for env in envs for var in ("GIT_ASKPASS", "GIT_TERMINAL_PROMPT")
-            ]
+            saved = [(env, var, env.get(var)) for env in envs for var in values]
             try:
                 for env in envs:
-                    env["GIT_ASKPASS"] = askpass_path
-                    env["GIT_TERMINAL_PROMPT"] = "0"
+                    env.update(values)
                 yield
             finally:
                 for env, var, old_val in saved:

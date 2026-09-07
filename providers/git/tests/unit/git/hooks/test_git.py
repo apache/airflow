@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import os
-import shlex
+import pathlib
 import subprocess
 import warnings
 from unittest import mock
@@ -538,13 +538,17 @@ class TestGitHook:
                 askpass_path = hook.env["GIT_ASKPASS"]
                 assert os.path.exists(askpass_path)
 
-                with open(askpass_path) as f:
-                    content = f.read()
-                    assert f"echo {shlex.quote(token)}" in content
-                    assert "#!/bin/sh" in content
+                content = pathlib.Path(askpass_path).read_text()
+                assert "#!/bin/sh" in content
+                # The credential is passed in the environment, never written to the script
+                assert token not in content
+                assert os.environ["AIRFLOW_GIT_TOKEN"] == token
+                assert hook.env["AIRFLOW_GIT_TOKEN"] == token
 
             assert os.environ["GIT_ASKPASS"] == "sentinel-askpass"
             assert os.environ["GIT_TERMINAL_PROMPT"] == "1"
+            assert "AIRFLOW_GIT_TOKEN" not in os.environ
+            assert "AIRFLOW_GIT_TOKEN" not in hook.env
 
         # The askpass script should be cleaned up after exiting the context
         assert not os.path.exists(askpass_path)
@@ -563,12 +567,8 @@ class TestGitHook:
         hook = GitHook(git_conn_id="my_git_conn_https_with_login")
 
         with hook.configure_hook_env():
-            askpass_path = hook.env["GIT_ASKPASS"]
-            with open(askpass_path) as file:
-                content = file.read()
-
-        assert f"*Username*) echo {shlex.quote(username)} ;;" in content
-        assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
+            assert hook.env["AIRFLOW_GIT_USER"] == username
+            assert hook.env["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
 
     @pytest.mark.parametrize(
         "extra",
@@ -594,11 +594,8 @@ class TestGitHook:
         hook = GitHook(git_conn_id="git_token_with_ssh_options")
 
         with hook.configure_hook_env():
-            with open(hook.env["GIT_ASKPASS"]) as file:
-                content = file.read()
+            assert hook.env["AIRFLOW_GIT_TOKEN"] == ACCESS_TOKEN
             assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
-
-        assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
 
     @pytest.mark.parametrize(
         ("prompt", "expected"),
