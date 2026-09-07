@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 import anyio
 from fastapi import HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from airflow.api_fastapi.app import (
     AUTH_MANAGER_FASTAPI_APP_PREFIX,
@@ -59,6 +59,57 @@ except ImportError:
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["AWSAuthManagerLogin"])
 
+# Name of the short-lived cookie that ties a SAML response back to the browser that
+# started the flow.
+COOKIE_NAME_LOGIN_STATE = "_awsam_login_state"
+
+# The login flow is a redirect to the IdP and back. Ten minutes is generous for that and
+# keeps a stale request id from lingering.
+LOGIN_STATE_MAX_AGE = 600
+
+
+def _is_secure_request(request: Request) -> bool:
+    return request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+
+
+def _set_login_state(request: Request, response: Any, request_id: str, relay_state: str) -> None:
+    """
+    Remember the AuthnRequest this browser started, so the response can be tied back to it.
+
+    A SAML assertion is signed by the identity provider, which authenticates *the identity in
+    the response* -- it says nothing about *which browser asked*. Without this binding, an
+    assertion obtained by an attacker can be replayed into a victim's browser, logging the
+    victim into the attacker's account. ``RelayState`` only selects the return mode and is
+    attacker-controlled, so it is remembered here too rather than trusted from the form.
+    """
+    response.set_cookie(
+        COOKIE_NAME_LOGIN_STATE,
+        f"{request_id}:{relay_state}",
+        max_age=LOGIN_STATE_MAX_AGE,
+        path=get_cookie_path(),
+        secure=_is_secure_request(request),
+        httponly=True,
+        samesite="lax",
+    )
+
+
+def _pop_login_state(request: Request) -> tuple[str, str]:
+    """Return the ``(request id, relay state)`` this browser started the flow with."""
+    raw = request.cookies.get(COOKIE_NAME_LOGIN_STATE)
+    if not raw or ":" not in raw:
+        log.error("SAML response received without a login state cookie for this browser.")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "No login in progress for this browser. Start the login from Airflow and try again.",
+        )
+    request_id, _, relay_state = raw.partition(":")
+    if not request_id:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "No login in progress for this browser. Start the login from Airflow and try again.",
+        )
+    return request_id, relay_state
+
 
 def _read_form(request: Request) -> FormData:
     """Read the request form from a synchronous context running in a worker thread."""
@@ -74,7 +125,9 @@ def login(request: Request):
     """Initiate the authentication."""
     saml_auth = _init_saml_auth(request)
     callback_url = saml_auth.login("login-redirect")
-    return RedirectResponse(url=callback_url)
+    response = RedirectResponse(url=callback_url)
+    _set_login_state(request, response, saml_auth.get_last_request_id(), "login-redirect")
+    return response
 
 
 @login_router.get("/login/token")
@@ -82,15 +135,20 @@ def login_token(request: Request) -> RedirectResponse:
     """Initiate the authentication to create a token."""
     saml_auth = _init_saml_auth(request)
     callback_url = saml_auth.login("login-token")
-    return RedirectResponse(url=callback_url)
+    response = RedirectResponse(url=callback_url)
+    _set_login_state(request, response, saml_auth.get_last_request_id(), "login-token")
+    return response
 
 
 @login_router.post("/login_callback")
 def login_callback(request: Request):
     """Authenticate the user."""
+    expected_request_id, expected_relay_state = _pop_login_state(request)
     saml_auth = _init_saml_auth(request)
     try:
-        saml_auth.process_response()
+        # Passing the request id makes python3-saml enforce InResponseTo. Without it the
+        # check is skipped entirely and any valid assertion is accepted.
+        saml_auth.process_response(request_id=expected_request_id)
     except OneLogin_Saml2_Error as e:
         log.exception(e)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to authenticate")
@@ -115,6 +173,11 @@ def login_callback(request: Request):
 
     form_data = _read_form(request)
     relay_state = form_data["RelayState"]
+    if relay_state != expected_relay_state:
+        # The return mode is decided when the flow starts. Honouring the form value would
+        # let the response select a different one than the browser asked for.
+        log.error("RelayState %r does not match the login this browser started.", relay_state)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid relay state")
 
     if relay_state == "login-redirect":
         response = RedirectResponse(url=url, status_code=303)
@@ -126,9 +189,15 @@ def login_callback(request: Request):
             response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure, httponly=True)
         else:
             response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure)
+        response.delete_cookie(COOKIE_NAME_LOGIN_STATE, path=cookie_path)
         return response
     if relay_state == "login-token":
-        return LoginResponse(access_token=token)
+        # Returned as a JSONResponse rather than the bare model so the consumed login
+        # state is cleared here too. Leaving it set would keep the request id acceptable
+        # until the cookie expired, so the same assertion could mint further tokens.
+        token_response = JSONResponse(content=LoginResponse(access_token=token).model_dump())
+        token_response.delete_cookie(COOKIE_NAME_LOGIN_STATE, path=get_cookie_path())
+        return token_response
     raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Invalid relay state: {relay_state}")
 
 
