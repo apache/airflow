@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import structlog
@@ -28,6 +29,15 @@ if TYPE_CHECKING:
     from opentelemetry.sdk.trace.export import SpanExporter
 
 log = structlog.getLogger(__name__)
+
+
+def expand_dag_tags(tag_names: Iterable[str]) -> dict[str, str]:
+    """Expand DAG tag attributes into key-value pairs."""
+    result: dict[str, str] = {}
+    for name in tag_names:
+        key, _, value = name.partition(":")
+        result[key] = value
+    return result
 
 
 def _format_url_host(host: str | None) -> str | None:

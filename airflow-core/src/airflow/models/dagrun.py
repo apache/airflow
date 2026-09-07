@@ -70,7 +70,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
-from airflow._shared.observability.attributes import expand_dag_tags
+from airflow._shared.observability.common import expand_dag_tags
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow._shared.observability.traces import (

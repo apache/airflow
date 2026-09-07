@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_shared.observability.attributes import expand_dag_tags
+from airflow_shared.observability.common import expand_dag_tags
 
 
 @pytest.mark.parametrize(
@@ -45,5 +45,5 @@ def test_expand_dag_tags_accepts_generator() -> None:
     assert expand_dag_tags(name for name in ["env:prod"]) == {"env": "prod"}
 
 
-def test_expand_dag_tags_preserves_legacy_collision_behavior() -> None:
+def test_expand_dag_tags_collision_behavior() -> None:
     assert expand_dag_tags(["team:data", "team:ml"]) == {"team": "ml"}

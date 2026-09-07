@@ -6689,6 +6689,31 @@ class TestTaskInstanceStateOperations:
         assert ClearTaskStateStore not in sent_types
 
 
+class TestDagTagsInStatsTags:
+    @staticmethod
+    def _make_dag_tagged_ti(create_runtime_ti, tags):
+        with DAG("tagged_dag", tags=tags):
+            task = BaseOperator(task_id="t")
+        return create_runtime_ti(task=task)
+
+    def test_dag_tags_disabled_by_default(self, create_runtime_ti):
+        ti = self._make_dag_tagged_ti(create_runtime_ti, ["env:prod", "validation"])
+
+        assert ti.stats_tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+
+    @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+    def test_expanded_dag_tags(self, create_runtime_ti):
+        ti = self._make_dag_tagged_ti(create_runtime_ti, ["production", "team:data"])
+
+        assert ti.stats_tags == {
+            "production": "",
+            "team": "data",
+            "dag_id": "tagged_dag",
+            "task_id": "t",
+            "run_type": "manual",
+        }
+
+
 class _WalkerModelA(BaseModel):
     a: int
 

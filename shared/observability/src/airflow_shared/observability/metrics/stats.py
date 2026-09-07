@@ -23,7 +23,7 @@ import socket
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
-from ..attributes import expand_dag_tags
+from ..common import expand_dag_tags
 from .base_stats_logger import NoStatsLogger
 from .metrics_registry import MetricsRegistry
 
