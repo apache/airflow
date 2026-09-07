@@ -285,11 +285,8 @@ def get_partitioned_dag_runs(
 
     if not (rows := session.execute(query).all()):
         if dag_id.value is not None and total_entries == 0:
-            # An unreadable-but-existing Dag must not be distinguishable from a
-            # nonexistent one, otherwise a caller can probe by dag_id and learn which
-            # Dags exist outside their permitted set. Since readable_dag_ids already
-            # comes from DagModel, membership in the set proves existence and skips
-            # the extra query and IN list; only the admin path needs the probe.
+            # An unreadable-but-existing Dag must return 404 too — otherwise the caller
+            # can probe by dag_id and learn which Dags exist outside their permitted set.
             if readable_dag_ids is not None:
                 if dag_id.value not in readable_dag_ids:
                     raise HTTPException(
