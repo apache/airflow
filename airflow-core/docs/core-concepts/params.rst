@@ -251,6 +251,10 @@ The following features are supported in the Trigger UI Form:
               | input field accepting ISO 8601 duration
               | strings (e.g. ``P1D``, ``PT15M``, ``PT2H``)
             * ``format="multiline"``: Generate a multi-line textarea
+            * | ``format="password"``: Generate a masked input
+              | with a show/hide toggle. See
+              | :ref:`Masking Sensitive Param Values <params-masking>`
+              | for what this does and does not protect.
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.
               | If the choices come from an external config file,
@@ -452,6 +456,50 @@ Finally the fourth section shows advanced form elements.
     By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. The previous field named
     ``description_html`` is now super-seeded with the attribute ``description_md``. ``description_html`` is not supported anymore.
     Custom form elements using the attribute ``custom_html_form`` was deprecated in version 2.8.0 and support was removed in 3.0.0.
+
+.. _params-masking:
+
+Masking Sensitive Param Values
+-------------------------------
+
+.. versionadded:: 3.4.0
+
+If a ``string``-typed :class:`~airflow.sdk.definitions.param.Param` is declared with ``format="password"``,
+its value is masked wherever Airflow already masks sensitive values:
+
+.. code-block::
+
+    with DAG(
+        "the_dag",
+        params={
+            "api_token": Param(
+                default="",
+                type="string",
+                format="password",
+            ),
+        },
+    ):
+
+This is masked in:
+
+- The Trigger UI Form, as a password-style input with a show/hide toggle.
+- Task Logs, if the value is referenced in task code (e.g. via ``print()`` or ``logging``).
+- Rendered Templates, if the value is used in a templated field.
+- The DAG Run Details page and the REST API, wherever ``conf`` is returned (this includes
+  fetching, listing, triggering, patching, and clearing DagRuns).
+
+This is **not** masked in:
+
+- XCom: if a task pushes the value to XCom, it will still appear in plain text wherever
+  XComs are displayed.
+- The metadata database: ``conf`` is stored as plain JSON. ``format="password"`` only
+  controls display-time masking, it does not encrypt the value at rest.
+
+.. note::
+    ``format="password"`` is intended for ad-hoc, trigger-time values (for example, a token
+    used to authorize a single manual run). For credentials that are reused across runs or
+    need to be stored securely, use :doc:`../authoring-and-scheduling/connections` or
+    :doc:`variables` instead.
 
 Disabling Runtime Param Modification
 ------------------------------------
