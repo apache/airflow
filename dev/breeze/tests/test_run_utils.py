@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import socket
 import stat
+import subprocess
 from unittest import mock
 
 import pytest
@@ -61,6 +62,17 @@ def test_run_command_dry_run_quiet_does_not_execute(mock_subprocess_run):
     assert result.returncode == 0
     assert result.stdout == ""
     assert result.stderr == ""
+
+
+@pytest.mark.parametrize("verbose", [False, True])
+@mock.patch("airflow_breeze.utils.run_utils.subprocess.run")
+def test_run_command_forwards_timeout(mock_subprocess_run, verbose):
+    mock_subprocess_run.side_effect = subprocess.TimeoutExpired(["echo", "hello"], 30)
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        run_command(["echo", "hello"], timeout=30, verbose_override=verbose)
+
+    assert mock_subprocess_run.call_args.kwargs["timeout"] == 30
 
 
 def test_find_occupied_local_ports():
