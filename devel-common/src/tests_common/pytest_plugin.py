@@ -2148,6 +2148,28 @@ def reset_team_name_cache():
 
 
 @pytest.fixture(autouse=True)
+def reset_dag_bundle_and_importer_config_cache():
+    """Reset the per-process Dag bundle and importer configuration cache between tests."""
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    def _clear() -> None:
+        try:
+            from airflow.dag_processing.importers import reset_importer_registry
+
+            reset_importer_registry()
+        except (ImportError, AttributeError):
+            pass
+
+    _clear()
+    try:
+        yield
+    finally:
+        _clear()
+
+
+@pytest.fixture(autouse=True)
 def refuse_to_run_test_from_wrongly_named_files(request: pytest.FixtureRequest):
     filepath = request.node.path
     is_system_test: bool = "tests/system/" in os.fspath(filepath)

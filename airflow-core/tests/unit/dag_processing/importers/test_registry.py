@@ -18,32 +18,42 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
+
+import pytest
 
 from airflow.dag_processing.importers import (
     DagImporterRegistry,
     PythonDagImporter,
     get_importer_registry,
+    reset_importer_registry,
 )
+from airflow.exceptions import AirflowConfigException
+
+from tests_common.test_utils.config import conf_vars
+
+
+class GlobalDagImporter(PythonDagImporter):
+    pass
+
+
+class BundleDagImporter(PythonDagImporter):
+    pass
+
+
+class LazyTestImporter(PythonDagImporter):
+    instances = 0
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.kwargs = kwargs
+        LazyTestImporter.instances += 1
 
 
 class TestDagImporterRegistry:
     """Test the DagImporterRegistry."""
-
-    def setup_method(self):
-        """Reset the registry before each test."""
-        DagImporterRegistry.reset()
-
-    def teardown_method(self):
-        """Reset the registry after each test."""
-        DagImporterRegistry.reset()
-
-    def test_singleton_pattern(self):
-        """Registry should return the same instance."""
-        registry1 = get_importer_registry()
-        registry2 = get_importer_registry()
-        assert registry1 is registry2
 
     def test_default_importers_registered(self):
         """Registry should have Python importer by default."""
@@ -158,3 +168,128 @@ class TestDagImporterRegistry:
         files = reg.list_dag_files(tmp_path, safe_mode=True)
         assert files == [str(py_file)]
         assert reg.get_importer(py_file) is overriding_importer
+
+    def test_lazy_importer_instantiation(self):
+        """Importer classes are not imported or instantiated until get_importer is called."""
+        LazyTestImporter.instances = 0
+        reg = DagImporterRegistry(register_defaults=False)
+        reg.register_specs(
+            [
+                {
+                    "classpath": f"{__name__}.LazyTestImporter",
+                    "extensions": [".lazy", ".lazy2"],
+                    "kwargs": {"param": "value"},
+                }
+            ],
+            context="test",
+        )
+
+        assert LazyTestImporter.instances == 0
+        assert reg.can_handle("file.lazy")
+        assert reg.can_handle("file.lazy2")
+        assert LazyTestImporter.instances == 0
+        assert set(reg.supported_extensions()) == {".lazy", ".lazy2"}
+        assert LazyTestImporter.instances == 0
+
+        importer1 = reg.get_importer("file.lazy")
+        assert LazyTestImporter.instances == 1
+        assert isinstance(importer1, LazyTestImporter)
+        assert importer1.kwargs == {"param": "value"}
+
+        importer2 = reg.get_importer("file.lazy2")
+        assert importer2 is importer1
+        assert LazyTestImporter.instances == 1
+
+    def test_from_config_three_tier_precedence(self):
+        """Bundle config overrides global config, which overrides defaults."""
+        global_config = [
+            {
+                "classpath": f"{__name__}.GlobalDagImporter",
+                "extensions": [".py", ".custom"],
+            }
+        ]
+        bundle_config_list = [
+            {
+                "name": "test_bundle",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/tmp/test"},
+                "importers": [
+                    {
+                        "classpath": f"{__name__}.BundleDagImporter",
+                        "extensions": [".custom"],
+                    }
+                ],
+            }
+        ]
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_importer_configs"): json.dumps(global_config),
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config_list),
+            }
+        ):
+            global_reg = DagImporterRegistry.from_config()
+            assert isinstance(global_reg.get_importer("dag.py"), GlobalDagImporter)
+            assert isinstance(global_reg.get_importer("dag.custom"), GlobalDagImporter)
+
+            bundle_reg = DagImporterRegistry.from_config("test_bundle")
+            assert isinstance(bundle_reg.get_importer("dag.py"), GlobalDagImporter)
+            assert isinstance(bundle_reg.get_importer("dag.custom"), BundleDagImporter)
+
+    @pytest.mark.parametrize(
+        ("global_cfg", "bundle_cfg", "match"),
+        [
+            (json.dumps({"invalid": "object"}), None, "key `dag_importer_configs` must be a list"),
+            (None, [{"extensions": [".py"]}], "Missing required 'classpath'"),
+            (None, [{"classpath": "invalid.path"}], "Failed to load DAG importer"),
+            (
+                None,
+                [{"classpath": "builtins.dict"}],
+                r"Configured DAG importer builtins\.dict for bundle 'test_bundle' must inherit from AbstractDagImporter\.",
+            ),
+            (
+                json.dumps([{"classpath": "builtins.dict"}]),
+                None,
+                r"Configured DAG importer builtins\.dict for global configuration must inherit from AbstractDagImporter\.",
+            ),
+        ],
+    )
+    def test_from_config_invalid_configs(self, global_cfg, bundle_cfg, match):
+        """Invalid configurations raise AirflowConfigException."""
+        overrides = {}
+        if global_cfg:
+            overrides[("dag_processor", "dag_importer_configs")] = global_cfg
+        if bundle_cfg:
+            overrides[("dag_processor", "dag_bundle_config_list")] = json.dumps(
+                [
+                    {
+                        "name": "test_bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": "/tmp/test"},
+                        "importers": bundle_cfg,
+                    }
+                ]
+            )
+
+        with conf_vars(overrides), pytest.raises(AirflowConfigException, match=match):
+            DagImporterRegistry.from_config("test_bundle" if bundle_cfg else None)
+
+    def test_get_importer_registry_caching_and_isolation(self):
+        """get_importer_registry caches instances per bundle name and clears on reset."""
+        reg1 = get_importer_registry()
+        reg2 = get_importer_registry()
+        assert reg1 is reg2
+
+        bundle_a = get_importer_registry("bundle_a")
+        bundle_a2 = get_importer_registry("bundle_a")
+        bundle_b = get_importer_registry("bundle_b")
+
+        assert bundle_a is bundle_a2
+        assert bundle_a is not bundle_b
+        assert bundle_a is not reg1
+
+        reset_importer_registry()
+        new_reg = get_importer_registry()
+        new_bundle_a = get_importer_registry("bundle_a")
+        assert new_reg is not reg1
+        assert new_bundle_a is not bundle_a

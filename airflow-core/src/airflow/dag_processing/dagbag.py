@@ -223,14 +223,9 @@ class DagBag(LoggingMixin):
         self.bundle_name = bundle_name
 
         if importer_registry is None:
-            if bundle_name:
-                from airflow.dag_processing.bundles.manager import DagBundlesManager
+            from airflow.dag_processing.importers import get_importer_registry
 
-                importer_registry = DagBundlesManager().get_importer_registry(bundle_name)
-            else:
-                from airflow.dag_processing.importers import get_importer_registry
-
-                importer_registry = get_importer_registry()
+            importer_registry = get_importer_registry(bundle_name)
         self.importer_registry = importer_registry
 
         dag_folder = dag_folder or settings.DAGS_FOLDER

@@ -34,9 +34,6 @@ from .dag_file import (
     might_contain_dag as might_contain_dag,
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
-from .dag_importers import (
-    load_dag_importers as load_dag_importers,
-)
 from .file_discovery import (
     find_path_from_directory as find_path_from_directory,
 )
