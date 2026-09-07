@@ -166,6 +166,33 @@ async def get_user(
     return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
 
+def collect_request_tokens(
+    request: Request,
+    oauth_token: str | None,
+    bearer_credentials: HTTPAuthorizationCredentials | None,
+) -> list[str]:
+    """
+    Return every distinct credential presented on this request, in precedence order.
+
+    Logout uses this rather than reproducing the single-credential choice
+    :func:`get_user` makes. Revoking only the precedence-selected credential would leave
+    any other one the caller presented still valid after they asked to be logged out,
+    and which credential "wins" is a question about *authentication* that should not
+    decide what a logout terminates.
+    """
+    candidates: list[str | None] = []
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        candidates.append(bearer_credentials.credentials)
+    candidates.append(oauth_token)
+    candidates.append(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
+
+    tokens: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in tokens:
+            tokens.append(candidate)
+    return tokens
+
+
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
 
