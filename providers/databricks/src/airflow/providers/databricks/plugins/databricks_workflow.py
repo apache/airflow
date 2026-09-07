@@ -384,8 +384,12 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
 
     @property
     def operators(self):
-        # Declared so deserialization keeps this plugin link instead of replacing it with
-        # XComOperatorLink. Lazy import avoids a circular import with the operator module.
+        # On Airflow 3 a plugin extra link that declares no ``operators`` is replaced at
+        # deserialization by an ``XComOperatorLink`` that just returns a URL the task stored in
+        # XCom under ``xcom_key``. This link stores no such URL — it builds the URL at request time
+        # in ``get_link`` from the run's XCom metadata — so it must survive as the real object.
+        # Declaring the operators it applies to keeps it from being swapped out. Lazy import avoids
+        # a circular import with the operator module.
         from airflow.providers.databricks.operators.databricks_workflow import (
             _CreateDatabricksWorkflowOperator,
         )
@@ -501,8 +505,12 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
 
     @property
     def operators(self):
-        # Declared so deserialization keeps this plugin link instead of replacing it with
-        # XComOperatorLink. Lazy import avoids a circular import with the operator module.
+        # On Airflow 3 a plugin extra link that declares no ``operators`` is replaced at
+        # deserialization by an ``XComOperatorLink`` that just returns a URL the task stored in
+        # XCom under ``xcom_key``. This link stores no such URL — it builds the URL at request time
+        # in ``get_link`` from the run's XCom metadata — so it must survive as the real object.
+        # Declaring the operators it applies to keeps it from being swapped out. Lazy import avoids
+        # a circular import with the operator module.
         from airflow.providers.databricks.operators.databricks import (
             DatabricksNotebookOperator,
             DatabricksTaskOperator,
@@ -651,43 +659,25 @@ def _get_launch_task_id_v3(operator: BaseOperator, ti_key: TaskInstanceKey) -> s
 
 
 if AIRFLOW_V_3_1_PLUS:
-    from fastapi import Depends, FastAPI, HTTPException, Request
+    from fastapi import Depends, FastAPI, HTTPException
     from fastapi.responses import HTMLResponse, RedirectResponse
     from markupsafe import escape
 
-    from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
-    from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
-    from airflow.api_fastapi.core_api.security import resolve_user_from_token
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+    from airflow.api_fastapi.core_api.security import requires_access_dag
 
     repair_app = FastAPI(
         title="Databricks Workflow Repair",
         description="Repair failed tasks of a Databricks workflow run from Airflow.",
     )
 
-    async def _resolve_request_user(request: Request):
-        """Authenticate via the bearer header (UI XHR) or the ``_token`` cookie (link navigation)."""
-        token = None
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
-        if not token:
-            token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-        # resolve_user_from_token raises HTTP 401 for a missing/invalid token.
-        return await resolve_user_from_token(token)
-
-    async def _require_dag_run_edit(dag_id: str, request: Request):
-        from airflow.api_fastapi.app import get_auth_manager
-
-        user = await _resolve_request_user(request)
-        authorized = get_auth_manager().is_authorized_dag(
-            method="PUT",
-            access_entity=DagAccessEntity.RUN,
-            details=DagDetails(id=dag_id),
-            user=user,
-        )
-        if not authorized:
-            raise HTTPException(status_code=403, detail="Not authorized to repair runs of this Dag.")
-        return user
+    # Authenticate (bearer header or the UI's ``_token`` cookie) and authorize Dag-run edit access
+    # through the API server's own dependency, rather than parsing the request or assuming how the
+    # auth manager maps requests to users. ``requires_access_dag`` reads the ``dag_id`` path param
+    # and calls the auth manager; ``get_user`` behind it already honours both the bearer header and
+    # the cookie, so a repair link clicked in the browser is authorized. Bound to a module-level
+    # name so tests can override just this dependency.
+    _require_dag_run_edit = requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)
 
     def _task_id_to_key(dag_id: str, task_id: str, task_key_map: dict[str, str]) -> str:
         """
@@ -763,17 +753,15 @@ if AIRFLOW_V_3_1_PLUS:
             "</body></html>"
         )
 
-    @repair_app.get("/{dag_id}/{run_id}")
+    @repair_app.get("/{dag_id}/{run_id}", dependencies=[Depends(_require_dag_run_edit)])
     def repair_databricks_workflow_confirm(
         dag_id: str,
         run_id: str,
         launch_task_id: str,
         task_id: str | None = None,
         repair_all: bool = False,
-        _user=Depends(_require_dag_run_edit),
     ):
         """Render a read-only confirmation page; the repair itself happens on the POST below."""
-        run_id = unquote(run_id)
         summary = (
             "This will repair all failed tasks of the run and resume their downstream tasks."
             if repair_all
@@ -785,18 +773,15 @@ if AIRFLOW_V_3_1_PLUS:
         action = _build_repair_url(dag_id, run_id, launch_task_id, repair_all=repair_all, task_id=task_id)
         return _repair_confirmation_page(dag_id, run_id, action, summary)
 
-    @repair_app.post("/{dag_id}/{run_id}")
+    @repair_app.post("/{dag_id}/{run_id}", dependencies=[Depends(_require_dag_run_edit)])
     def repair_databricks_workflow(
         dag_id: str,
         run_id: str,
         launch_task_id: str,
         task_id: str | None = None,
         repair_all: bool = False,
-        _user=Depends(_require_dag_run_edit),
     ):
         """Repair failed Databricks tasks for a workflow run and resume the Airflow run."""
-        run_id = unquote(run_id)
-
         from sqlalchemy import select
 
         from airflow.models.serialized_dag import SerializedDagModel
@@ -897,9 +882,10 @@ class DatabricksWorkflowPlugin(AirflowPlugin):
     ]
 
     if AIRFLOW_V_3_1_PLUS:
-        # Airflow 3.1+: repair is served by a FastAPI sub-application on the API server. The app
-        # relies on cookie-or-bearer auth resolution (`resolve_user_from_token`) that is only
-        # available from 3.1, so on 3.0.x the repair backend and its links are not registered.
+        # Airflow 3.1+: repair is served by a FastAPI sub-application on the API server. Gated at
+        # 3.1 because a repair link clicked in the browser authenticates via the ``_token`` cookie,
+        # and the API server's ``get_user`` only honours that cookie from 3.1 onward; on 3.0.x the
+        # backend and its links are not registered.
         fastapi_apps = [
             {
                 "app": repair_app,
