@@ -43,13 +43,19 @@ AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
-# Maps a Docker build platform string (as declared in ``provider.yaml`` under
-# ``excluded-platforms``) to the ``platform_machine`` values Python reports on that
-# architecture. ``linux/arm64`` covers both Linux (``aarch64``) and macOS Apple Silicon
-# (``arm64``) so a provider opting out of ARM is never pulled in on any ARM machine where
-# its native dependency cannot be built.
+# Maps a platform string (as declared in ``provider.yaml`` under ``excluded-platforms``)
+# to the ``platform_machine`` values Python reports there. The two ARM spellings are not
+# synonyms: ``platform.machine()`` returns ``aarch64`` on Linux and ``arm64`` on macOS, so
+# each platform excludes exactly one of them. A provider whose native dependency is
+# unavailable on every ARM target lists both platforms; one that only lacks a Linux ARM
+# build lists ``linux/arm64`` alone and stays installable on Apple Silicon.
+#
+# Only the ``linux/*`` entries correspond to CI matrix platforms (see ``CI_PLATFORMS``);
+# ``darwin/arm64`` never matches a CI run and exists purely to drive the install-time
+# marker.
 EXCLUDED_PLATFORM_MACHINES: dict[str, list[str]] = {
-    "linux/arm64": ["aarch64", "arm64"],
+    "linux/arm64": ["aarch64"],
+    "darwin/arm64": ["arm64"],
 }
 
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")

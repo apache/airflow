@@ -3211,7 +3211,7 @@ def _import_timezone():
         try:
             from airflow._shared.timezones import timezone
         except ImportError:
-            from airflow.utils import timezone
+            from airflow.utils import timezone  # noqa: TID251
     return timezone
 
 

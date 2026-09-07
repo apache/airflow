@@ -258,7 +258,7 @@ class Variable(Base, LoggingMixin):
         # check if the secret exists in the custom secrets' backend.
         from airflow.sdk import SecretCache
 
-        Variable.check_for_write_conflict(key=key)
+        Variable.check_for_write_conflict(key=key, team_name=team_name)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -342,7 +342,7 @@ class Variable(Base, LoggingMixin):
                 "Multi-team mode is not configured in the Airflow environment. To assign a team to a variable, multi-mode must be enabled."
             )
 
-        Variable.check_for_write_conflict(key=key)
+        Variable.check_for_write_conflict(key=key, team_name=team_name)
 
         if Variable.get_variable_from_secrets(key=key, team_name=team_name) is None:
             raise KeyError(f"Variable {key} does not exist")
@@ -430,7 +430,7 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
-    def check_for_write_conflict(key: str) -> None:
+    def check_for_write_conflict(key: str, team_name: str | None = None) -> None:
         """
         Log a warning if a variable exists outside the metastore.
 
@@ -439,11 +439,15 @@ class Variable(Base, LoggingMixin):
         subsequent reads will not read the set value.
 
         :param key: Variable Key
+        :param team_name: Team name the variable is being written for, so the check resolves
+            against the same scope the write will use
         """
         for secrets_backend in ensure_secrets_loaded():
             if not isinstance(secrets_backend, MetastoreBackend):
                 try:
-                    var_val = secrets_backend.get_variable(key=key)
+                    var_val = call_secrets_backend_method(
+                        secrets_backend.get_variable, team_name=team_name, key=key
+                    )
                     if var_val is not None:
                         _backend_name = type(secrets_backend).__name__
                         log.warning(

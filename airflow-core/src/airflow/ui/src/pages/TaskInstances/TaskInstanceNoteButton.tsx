@@ -19,7 +19,9 @@
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 
 const TaskInstanceNoteButton = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {

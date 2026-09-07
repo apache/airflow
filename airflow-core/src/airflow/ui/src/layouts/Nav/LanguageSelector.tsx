@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState, useCallback } from "react";
+
 import { Field, VStack, Box, Text } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
-import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { supportedLanguages } from "src/i18n/config";

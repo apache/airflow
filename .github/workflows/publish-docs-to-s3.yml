@@ -121,6 +121,7 @@ jobs:
       "jedcunningham",
       "jscheffl",
       "kaxil",
+      "o-nikolas",
       "pierrejeambrun",
       "shahar1",
       "potiuk",
@@ -151,8 +152,9 @@ jobs:
         # Tracked at #66436.
         run: |
           # Keep the non-provider list in sync with NON_PROVIDER_TOKENS in
-          # dev/registry/derive_wave_providers.py.
-          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "apache-airflow-mypy" "task-sdk" "helm-chart" "docker-stack")
+          # dev/registry/derive_wave_providers.py, which documents why.
+          # dev/registry/tests/test_derive_wave_providers.py pins the two together.
+          NON_PROVIDER_TOKENS=("apache-airflow" "apache-airflow-ctl" "apache-airflow-mypy" "task-sdk" "java-sdk" "ts-sdk" "helm-chart" "docker-stack")
           has_provider=false
           for token in $INCLUDE_DOCS; do
             is_non_provider=false
@@ -524,7 +526,7 @@ jobs:
           if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" ts-sdk "* ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'ts-sdk' — skipping TypeDoc build."
-          elif [[ -f "ts-sdk/docs/typedoc.json" ]]; then
+          elif [[ -f "ts-sdk/docs/typedoc.config.mjs" ]]; then
             echo "exists=true" >> "${GITHUB_OUTPUT}"
           else
             echo "exists=false" >> "${GITHUB_OUTPUT}"

@@ -116,6 +116,20 @@ connection-types:
             - integer
             - 'null'
           default: 0
+      cluster:
+        label: Is cluster
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: false
+      startup_nodes:
+        label: Startup nodes
+        description: "Comma-separated extra bootstrap nodes as host:port. Only for cluster Redis deployments."
+        schema:
+          type:
+            - string
+            - 'null'
       ssl:
         label: Enable SSL
         schema:

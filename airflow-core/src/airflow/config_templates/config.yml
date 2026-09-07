@@ -1322,7 +1322,8 @@ metrics:
       default: "False"
     otel_on:
       description: |
-        Enables sending metrics to OpenTelemetry.
+        Enables sending Airflow metrics to an OpenTelemetry Collector. This option only affects
+        metrics; sending traces is configured separately in the ``[traces]`` section.
       version_added: 2.6.0
       type: boolean
       example: ~
@@ -1330,7 +1331,7 @@ metrics:
     otel_host:
       description: |
         Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
-        metrics and traces.
+        metrics.
       version_added: 2.6.0
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1347,7 +1348,7 @@ metrics:
       default: "localhost"
     otel_port:
       description: |
-        Specifies the port of the OpenTelemetry Collector that is listening to.
+        Specifies the port on which the OpenTelemetry Collector listens for metrics.
       version_added: 2.6.0
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1371,7 +1372,7 @@ metrics:
       default: "airflow"
     otel_interval_milliseconds:
       description: |
-        Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
+        Defines the interval, in milliseconds, at which Airflow sends batches of metrics
         to the configured OpenTelemetry Collector.
       version_added: 2.6.0
       version_deprecated: 3.2.0
@@ -1406,7 +1407,7 @@ metrics:
       default: "False"
     otel_service:
       description: |
-        The default service name of traces.
+        The default service name under which metrics are emitted.
       version_added: 2.10.3
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1423,7 +1424,7 @@ metrics:
       default: "Airflow"
     otel_ssl_active:
       description: |
-        If ``True``, SSL will be enabled. Defaults to ``False``.
+        If ``True``, SSL will be enabled for the connection used to send metrics. Defaults to ``False``.
         To establish an HTTPS connection to the OpenTelemetry collector,
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         ``config.yml`` file.
@@ -1447,7 +1448,8 @@ traces:
   options:
     otel_on:
       description: |
-        Enables sending traces to OpenTelemetry.
+        Enables sending Airflow traces to an OpenTelemetry Collector. This option only affects
+        traces; sending metrics is configured separately in the ``[metrics]`` section.
       version_added: 2.10.0
       type: boolean
       example: ~
@@ -1472,7 +1474,7 @@ traces:
       default: "localhost"
     otel_port:
       description: |
-        Specifies the port of the OpenTelemetry Collector that is listening to.
+        Specifies the port on which the OpenTelemetry Collector listens for traces.
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1489,7 +1491,7 @@ traces:
       default: "8889"
     otel_service:
       description: |
-        The default service name of traces.
+        The default service name under which traces are emitted.
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1506,7 +1508,7 @@ traces:
       default: "Airflow"
     otel_debugging_on:
       description: |
-        If True, all traces are also emitted to the console. Defaults to False.
+        If ``True``, all traces are also emitted to the console. Defaults to ``False``.
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1523,10 +1525,10 @@ traces:
       default: "False"
     otel_ssl_active:
       description: |
-        If True, SSL will be enabled.  Defaults to False.
+        If ``True``, SSL will be enabled for the connection used to send traces. Defaults to ``False``.
         To establish an HTTPS connection to the OpenTelemetry collector,
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
-        config.yml file.
+        ``config.yml`` file.
       version_added: 2.10.0
       version_deprecated: 3.2.0
       deprecation_reason: |
@@ -1543,7 +1545,7 @@ traces:
       default: "False"
     otel_debug_traces_on:
       description: |
-        If True, then traces from Airflow internal methods are exported. Defaults to False.
+        If ``True``, then traces from Airflow internal methods are exported. Defaults to ``False``.
       version_added: 3.1.0
       version_deprecated: 3.2.0
       deprecation_reason: |

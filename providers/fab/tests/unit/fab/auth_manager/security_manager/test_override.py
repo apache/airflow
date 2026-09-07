@@ -76,6 +76,7 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
     # super() not called on purpose to avoid the whole chain of init calls
     def __init__(self):
         self._azure_tenant_guid_cache = {}
+        self._azure_tenant_metadata_cache = {}
 
 
 class TestFabAirflowSecurityManagerOverride:
@@ -825,6 +826,186 @@ class TestFabAirflowSecurityManagerOverride:
             claims = sm._decode_and_validate_azure_jwt(id_token)
 
         assert claims["iss"] == f"https://sts.windows.net/{TENANT_GUID}/"
+
+    @pytest.mark.parametrize(
+        "authority_host",
+        [
+            pytest.param("login.microsoftonline.us", id="us-government"),
+            pytest.param("login.partner.microsoftonline.cn", id="china-21vianet"),
+        ],
+    )
+    def test_decode_and_validate_azure_jwt_national_cloud_uses_tenant_metadata(self, authority_host):
+        """National clouds pin the issuer and key set that their own metadata advertises."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        issuer = f"https://{authority_host}/{TENANT_GUID}/v2.0"
+        jwks_uri = f"https://{authority_host}/{TENANT_GUID}/discovery/v2.0/keys"
+        id_token = _create_azure_jwt(key=key, iss=issuer)
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={},
+                client_id=CLIENT_ID,
+                api_base_url=f"https://{authority_host}/{TENANT_GUID}/oauth2/v2.0/",
+                access_token_url=None,
+                authorize_url=None,
+            )
+        }
+
+        v2 = _create_mock_response(json_data={"issuer": issuer, "jwks_uri": jwks_uri})
+        v1 = _create_mock_response(json_data={"issuer": f"https://sts.{authority_host}/{TENANT_GUID}/"})
+
+        with (
+            mock.patch.object(
+                EmptySecurityManager,
+                "_get_microsoft_jwks",
+                autospec=True,
+                return_value={"keys": [public_key]},
+            ) as mock_jwks,
+            mock.patch("requests.get", autospec=True, side_effect=[v2, v1]),
+        ):
+            claims = sm._decode_and_validate_azure_jwt(id_token)
+
+        assert claims["iss"] == issuer
+        # the key set comes from the tenant's own metadata, not the commercial cloud
+        assert mock_jwks.call_args.args[1] == jwks_uri
+
+    def test_decode_and_validate_azure_jwt_national_cloud_rejects_commercial_issuer(self):
+        """A token minted by the commercial cloud is not accepted for a national cloud tenant."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        authority_host = "login.microsoftonline.us"
+        id_token = _create_azure_jwt(key=key, iss=f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0")
+
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={},
+                client_id=CLIENT_ID,
+                api_base_url=f"https://{authority_host}/{TENANT_GUID}/oauth2/v2.0/",
+                access_token_url=None,
+                authorize_url=None,
+            )
+        }
+
+        v2 = _create_mock_response(
+            json_data={
+                "issuer": f"https://{authority_host}/{TENANT_GUID}/v2.0",
+                "jwks_uri": f"https://{authority_host}/{TENANT_GUID}/discovery/v2.0/keys",
+            }
+        )
+        v1 = _create_mock_response(json_data={"issuer": f"https://sts.{authority_host}/{TENANT_GUID}/"})
+
+        with (
+            mock.patch.object(
+                EmptySecurityManager,
+                "_get_microsoft_jwks",
+                autospec=True,
+                return_value={"keys": [public_key]},
+            ),
+            mock.patch("requests.get", autospec=True, side_effect=[v2, v1]),
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'iss'"):
+                sm._decode_and_validate_azure_jwt(id_token)
+
+    @pytest.mark.parametrize(
+        ("metadata", "expected_message"),
+        [
+            pytest.param(
+                {
+                    "issuer": f"https://evil.example.com/{TENANT_GUID}/v2.0",
+                    "jwks_uri": f"https://login.microsoftonline.us/{TENANT_GUID}/discovery/v2.0/keys",
+                },
+                "outside the configured authority",
+                id="issuer-off-authority",
+            ),
+            pytest.param(
+                {
+                    "issuer": f"https://login.microsoftonline.us/{TENANT_GUID}/v2.0",
+                    "jwks_uri": f"https://evil.example.com/{TENANT_GUID}/discovery/v2.0/keys",
+                },
+                "outside the configured authority",
+                id="jwks-off-authority",
+            ),
+            pytest.param(
+                {"issuer": f"https://login.microsoftonline.us/{TENANT_GUID}/v2.0"},
+                "missing 'issuer' or 'jwks_uri'",
+                id="missing-jwks-uri",
+            ),
+        ],
+    )
+    def test_resolve_azure_tenant_metadata_fails_closed(self, metadata, expected_message):
+        """Metadata that points verification off the configured authority is refused."""
+        sm = EmptySecurityManager()
+        with mock.patch(
+            "requests.get", autospec=True, return_value=_create_mock_response(json_data=metadata)
+        ):
+            with pytest.raises(AzureTenantResolutionError, match=expected_message):
+                sm._resolve_azure_tenant_metadata(TENANT_GUID, "login.microsoftonline.us")
+
+    def test_resolve_azure_tenant_metadata_tolerates_missing_v1_document(self):
+        """A v1.0 document that cannot be read narrows the accepted issuers rather than widening them."""
+        authority_host = "login.microsoftonline.us"
+        issuer = f"https://{authority_host}/{TENANT_GUID}/v2.0"
+        jwks_uri = f"https://{authority_host}/{TENANT_GUID}/discovery/v2.0/keys"
+
+        sm = EmptySecurityManager()
+        v2 = _create_mock_response(json_data={"issuer": issuer, "jwks_uri": jwks_uri})
+        v1 = _create_mock_response(status_code=500)
+
+        with mock.patch("requests.get", autospec=True, side_effect=[v2, v1]):
+            issuers, resolved_jwks = sm._resolve_azure_tenant_metadata(TENANT_GUID, authority_host)
+
+        assert issuers == (issuer,)
+        assert resolved_jwks == jwks_uri
+
+    def test_resolve_azure_tenant_metadata_caches_success(self):
+        """A resolved tenant is not re-fetched on the next login."""
+        authority_host = "login.microsoftonline.us"
+        issuer = f"https://{authority_host}/{TENANT_GUID}/v2.0"
+        jwks_uri = f"https://{authority_host}/{TENANT_GUID}/discovery/v2.0/keys"
+
+        sm = EmptySecurityManager()
+        v2 = _create_mock_response(json_data={"issuer": issuer, "jwks_uri": jwks_uri})
+        v1 = _create_mock_response(json_data={"issuer": f"https://sts.{authority_host}/{TENANT_GUID}/"})
+
+        with mock.patch("requests.get", autospec=True, side_effect=[v2, v1]) as mock_get:
+            first = sm._resolve_azure_tenant_metadata(TENANT_GUID, authority_host)
+            second = sm._resolve_azure_tenant_metadata(TENANT_GUID, authority_host)
+
+        assert first == second
+        assert mock_get.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("api_base_url", "expected"),
+        [
+            pytest.param(None, "login.microsoftonline.com", id="defaults-to-commercial"),
+            pytest.param(
+                f"https://login.microsoftonline.us/{TENANT_GUID}/oauth2/v2.0/",
+                "login.microsoftonline.us",
+                id="us-government",
+            ),
+            pytest.param(
+                f"https://login.microsoftonline.de/{TENANT_GUID}/oauth2/v2.0/",
+                "login.microsoftonline.com",
+                id="unknown-host-falls-back-to-commercial",
+            ),
+        ],
+    )
+    def test_get_azure_authority_host(self, api_base_url, expected):
+        """The authority host is taken from the configured endpoints, defaulting to commercial."""
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "azure": SimpleNamespace(
+                client_kwargs={},
+                client_id=CLIENT_ID,
+                api_base_url=api_base_url,
+                access_token_url=None,
+                authorize_url=None,
+            )
+        }
+        assert sm._get_azure_authority_host() == expected
 
     def test_decode_and_validate_azure_jwt_rejects_issuer_mismatch(self):
         """Tokens issued for a different tenant are rejected with InvalidClaimError."""
