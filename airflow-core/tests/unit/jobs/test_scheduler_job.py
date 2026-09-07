@@ -1466,6 +1466,24 @@ class TestSchedulerJob:
         assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
 
+    def test_missing_serialized_dag_keeps_scheduled_tasks_for_a_later_tick(self, dag_maker, session):
+        """A transient serialization gap must not fail every scheduled task for a DAG."""
+        with dag_maker(dag_id="missing_serialized_dag", max_active_tasks=16):
+            task = EmptyOperator(task_id="task", max_active_tis_per_dag=1)
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        task_instance = dag_run.get_task_instance(task.task_id, session=session)
+        task_instance.state = State.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner.scheduler_dag_bag = mock.MagicMock()
+        self.job_runner.scheduler_dag_bag.get_dag_for_run.return_value = None
+
+        assert self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session) == []
+        session.refresh(task_instance)
+        assert task_instance.state == State.SCHEDULED
+
     def test_executable_task_instances_no_per_ti_queries(self, dag_maker, session):
         """Guard against an N+1 when enqueuing task instances.
 
