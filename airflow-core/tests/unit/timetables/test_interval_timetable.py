@@ -196,7 +196,7 @@ def test_guard_raises_when_one_retry_is_not_enough() -> None:
     step = datetime.timedelta(minutes=2)
 
     timetable = _FixedStepTimetable(align_point=align_point, step=step)
-    with pytest.raises(ValueError, match="did not advance past"):
+    with pytest.raises(ValueError, match="timetable did not advance past"):
         timetable.next_dagrun_info(
             last_automated_data_interval=last,
             restriction=TimeRestriction(earliest=None, latest=None, catchup=True),

@@ -122,7 +122,7 @@ class _DataIntervalTimetable(Timetable):
                 start = self._get_next(start)
                 if start <= last_automated_data_interval.start:
                     raise ValueError(
-                        f"{type(self).__name__}._get_next did not advance past "
+                        f"{type(self).__name__} timetable did not advance past "
                         f"{last_automated_data_interval.start} after one retry"
                     )
         if restriction.latest is not None and start > restriction.latest:
