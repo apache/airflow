@@ -1247,17 +1247,17 @@ class TestTIRunState:
 
     @pytest.mark.parametrize(
         "scenario",
-        ["first_run", "retry"],
+        ["first_run", "retry", "deferral_resume"],
     )
     def test_ti_run_emits_queued_duration_metric(
         self, client, session, create_task_instance, time_machine, scenario
     ):
-        """task.queued_duration is emitted on a real QUEUED -> RUNNING transition.
+        """task.queued_duration is emitted once per queue wait.
 
-        The scheduler refreshes queued_dttm every time it queues a task, so a retry has a
-        fresh queue wait just like a first run and must emit too. A retry still carries the
-        previous attempt's end_date on the row when ti_run is reached, so this asserts the
-        emit does not depend on end_date being unset.
+        The scheduler refreshes queued_dttm every time it queues a task, so a retry and a
+        resume from deferral each waited for a worker slot of their own and must emit too. A
+        retry still carries the previous attempt's end_date on the row when ti_run is reached,
+        so this also asserts the emit does not depend on end_date being unset.
         """
         queued_at = timezone.parse("2024-09-30T12:00:00Z")
         run_at = queued_at.add(seconds=42)
@@ -1276,6 +1276,8 @@ class TestTIRunState:
             # A retried TI still has the previous attempt's end_date set on the row until
             # ti_run clears it; the metric must fire regardless.
             ti.end_date = queued_at.add(seconds=10)
+        elif scenario == "deferral_resume":
+            ti.next_method = "execute_complete"
         session.commit()
 
         # The metric has to stay sliceable the same way as its sibling task.scheduled_duration,
@@ -1305,33 +1307,24 @@ class TestTIRunState:
             tags=expected_tags,
         )
 
-    @pytest.mark.parametrize(
-        "skip_reason",
-        ["deferral_resume", "queued_dttm_missing"],
-    )
-    def test_ti_run_skips_queued_duration_metric(
-        self, client, session, create_task_instance, time_machine, skip_reason
+    def test_ti_run_skips_queued_duration_metric_without_queued_dttm(
+        self, client, session, create_task_instance, time_machine
     ):
-        """task.queued_duration is skipped on a resume from deferral (next_method set, so
-        the queue wait belongs to the same try already counted) and when queued_dttm was
-        not recorded (rare race / test setups)."""
+        """queued_dttm is what the wait is measured from, so a row without one (rare race /
+        test setups) has nothing to report."""
         queued_at = timezone.parse("2024-09-30T12:00:00Z")
         run_at = queued_at.add(seconds=42)
         time_machine.move_to(run_at, tick=False)
 
         ti = create_task_instance(
-            task_id=f"test_ti_run_skips_queued_duration_metric_{skip_reason}",
+            task_id="test_ti_run_skips_queued_duration_metric_without_queued_dttm",
             state=State.QUEUED,
             dagrun_state=DagRunState.RUNNING,
             session=session,
             start_date=queued_at,
             dag_id=str(uuid4()),
         )
-        if skip_reason == "deferral_resume":
-            ti.queued_dttm = queued_at
-            ti.next_method = "execute_complete"
-        else:
-            ti.queued_dttm = None
+        ti.queued_dttm = None
         session.commit()
 
         with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
@@ -1441,11 +1434,52 @@ class TestTIRunState:
         mock_stats.timing.assert_called_once()
         assert mock_stats.timing.call_args.kwargs["tags"]["team_name"] == team_name
 
-    def test_ti_run_emits_no_queued_duration_for_start_from_trigger(
+    def test_ti_run_queued_duration_metric_carries_dag_tags(self, client, session, dag_maker, time_machine):
+        """With dag_tags_in_metrics on, stats_tags would lazy-load dag_model.tags per task start;
+        the select eager-loads them instead, so the tags have to survive that route."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(queued_at, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, tags=["critical", "env:prod"], session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=queued_at, state=DagRunState.RUNNING, start_date=queued_at
+        )
+        ti = dr.get_task_instance(task_id="task")
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=State.QUEUED, queued_dttm=queued_at, queue="default")
+        )
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with conf_vars({("metrics", "dag_tags_in_metrics"): "True"}):
+            with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+                response = client.patch(
+                    f"/execution/task-instances/{ti.id}/run",
+                    json={
+                        "state": "running",
+                        "hostname": "random-hostname",
+                        "unixname": "random-unixname",
+                        "pid": 100,
+                        "start_date": run_at.isoformat(),
+                    },
+                )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once()
+        tags = mock_stats.timing.call_args.kwargs["tags"]
+        assert (tags["critical"], tags["env"]) == ("", "prod")
+
+    def test_ti_run_emits_queued_duration_for_start_from_trigger(
         self, client, session, dag_maker, time_machine
     ):
-        """A start_from_trigger operator is deferred straight from SCHEDULED, so the resume that the
-        next_method guard skips is its only trip through the queue and nothing is ever measured.
+        """A start_from_trigger operator is deferred straight from SCHEDULED and only reaches the
+        queue once the trigger fires, so that resume is the one wait it ever has to report.
         """
         from airflow.sdk import BaseOperator
         from airflow.triggers.base import StartTriggerArgs
@@ -1508,7 +1542,11 @@ class TestTIRunState:
             )
 
         assert response.status_code == 200
-        assert mock_stats.timing.call_args_list == []
+        # Assert off the call rather than the in-memory TI, whose queue is stale after the
+        # raw update above.
+        mock_stats.timing.assert_called_once()
+        assert mock_stats.timing.call_args.args == ("task.queued_duration", run_at - queued_at)
+        assert mock_stats.timing.call_args.kwargs["tags"]["queue"] == "default"
 
 
 class TestTIUpdateState:

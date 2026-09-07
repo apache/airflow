@@ -251,16 +251,11 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
-        # Aims at one sample per try: the scheduler refreshes queued_dttm on every queueing, so a
-        # retry measures its own wait, while a resume from deferral is the same try continuing and
-        # is skipped via next_method (set on the DEFERRED transition, left in place until resume).
-        # Two known gaps in that reading: an operator with start_from_trigger=True is deferred
-        # straight from SCHEDULED without ever being queued, so the resume leg skipped here is its
-        # only real wait and it goes unmeasured; and this disagrees with task.scheduled_duration on
-        # retries, which emit_state_change_metric skips because the previous attempt's end_date is
-        # still on the row when the scheduler queues the TI.
+        # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
+        # queueing, so a retry and a resume from deferral each waited for a slot of their own.
+        # task.scheduled_duration counts per try instead, so the two disagree on retries by design.
         # queued_dttm is None only in rare races and test setups.
-        emit_queued_duration = ti.queued_dttm is not None and ti.next_method is None
+        emit_queued_duration = ti.queued_dttm is not None
 
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
@@ -278,11 +273,23 @@ def ti_run(
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
+        # stats_tags lazy-loads dag_model.tags when dag tags are emitted as metric tags, and ti_run
+        # runs once per task start -- load them up front as the scheduler loop does.
+        dag_tag_options = (
+            (joinedload(DR.dag_model).selectinload(DagModel.tags),)
+            if emit_queued_duration and conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
+            else ()
+        )
+
         dr = (
             session.scalars(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
+                .options(
+                    joinedload(DR.consumed_asset_events),
+                    *eager_load_teams(DR.dag_model),
+                    *dag_tag_options,
+                )
             )
             .unique()
             .one_or_none()
@@ -317,19 +324,12 @@ def ti_run(
             or 0
         )
 
-        team_name = get_team_name_for_ti(task_instance_id, session)
-
         if emit_queued_duration:
-            # Tag via dr.stats_tags so this stays sliceable the same way as its sibling
-            # task.scheduled_duration, which emit_state_change_metric sends as
-            # {**ti.stats_tags, "queue": ti.queue} -- that is dag_run.stats_tags plus task_id.
-            # Team lives on the Bundle rather than the DagRun schema, so stats_tags cannot resolve
-            # it here; add the value looked up above instead. Falsy values are pruned from
-            # stats_tags, so only set it when there is a team. The registry-derived legacy name
-            # dag.<dag_id>.<task_id>.queued_duration is emitted by stats.timing automatically.
+            # Tags mirror the sibling task.scheduled_duration, which emit_state_change_metric sends
+            # as {**ti.stats_tags, "queue": ti.queue}; stats_tags reads the team off the transient
+            # _team_name. stats.timing also emits the legacy dotted name from the metrics registry.
+            dr._team_name = dr.team_name
             tags = {**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue}
-            if team_name:
-                tags["team_name"] = team_name
             stats.timing("task.queued_duration", timezone.utcnow() - ti.queued_dttm, tags=tags)
 
         context = TIRunContext(
