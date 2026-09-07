@@ -587,6 +587,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task_instance: TI,
         concurrency_map: ConcurrencyMap,
         session: Session,
+        starved_dags: set[str],
         starved_tasks: set[tuple[str, str]],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
     ) -> bool:
@@ -600,7 +601,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session=session,
         )
 
-        # If the DAG is missing, fail all scheduled TIs for this DAG.
+        # A transient gap in serialized DAG availability must not destroy every
+        # scheduled task for the DAG. Exclude it from this batch so other DAGs
+        # can still use the available scheduling slots, then retry next tick.
         if not serialized_dag:
             self.log.error(
                 "DAG '%s' for task instance %s not found in serialized_dag table",
@@ -608,13 +611,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task_instance,
             )
 
-            session.execute(
-                update(TI)
-                .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
-                .values(state=TaskInstanceState.FAILED)
-                .execution_options(synchronize_session="fetch")
-            )
-
+            starved_dags.add(dag_id)
             return False
 
         if not serialized_dag.has_task(task_id):
@@ -987,6 +984,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         task_instance=task_instance,
                         concurrency_map=concurrency_map,
                         session=session,
+                        starved_dags=starved_dags,
                         starved_tasks=starved_tasks,
                         starved_tasks_task_dagrun_concurrency=(starved_tasks_task_dagrun_concurrency),
                     )
