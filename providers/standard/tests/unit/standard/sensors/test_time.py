@@ -234,10 +234,17 @@ class TestTimeSensor:
             op_a = TimeSensor(task_id="a", target_time=time(9, 0), start_from_trigger=True)
             op_b = TimeSensor(task_id="b", target_time=time(17, 30), start_from_trigger=True)
 
-        assert TimeSensor.start_trigger_args is None
         assert op_a.start_trigger_args is not op_b.start_trigger_args
+        assert op_a.start_trigger_args is not TimeSensor.start_trigger_args
+        assert op_b.start_trigger_args is not TimeSensor.start_trigger_args
         assert op_a.start_trigger_args.trigger_kwargs["target_time"] == "09:00:00"
         assert op_b.start_trigger_args.trigger_kwargs["target_time"] == "17:30:00"
+        # the class level template must survive untouched for the next task built from it
+        assert TimeSensor.start_trigger_args.trigger_kwargs == {
+            "target_time": "",
+            "tz": "UTC",
+            "end_from_trigger": False,
+        }
 
     @staticmethod
     def _serialized_dag_payload(dag) -> dict:

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import warnings
 from typing import TYPE_CHECKING, Any
@@ -63,7 +64,13 @@ class TimeSensor(BaseSensorOperator):
 
     """
 
-    start_trigger_args = None
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.providers.standard.triggers.temporal.TimeOfDayTrigger",
+        trigger_kwargs={"target_time": "", "tz": "UTC", "end_from_trigger": False},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
     start_from_trigger = False
 
     def __init__(
@@ -95,17 +102,16 @@ class TimeSensor(BaseSensorOperator):
                     "TimeSensor(start_from_trigger=True) requires the sensor to be attached to a Dag "
                     "so the timezone is known."
                 )
-            # Parse-stable kwargs only (no datetime.now()); moment is resolved when the trigger starts.
-            self.start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.providers.standard.triggers.temporal.TimeOfDayTrigger",
+            # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
+            # assigning through it would overwrite the arguments of every other task built
+            # from this operator.
+            self.start_trigger_args = dataclasses.replace(
+                self.start_trigger_args,
                 trigger_kwargs={
                     "target_time": self.target_time.isoformat(),
                     "tz": serializable_timezone(dag.timezone),
                     "end_from_trigger": self.end_from_trigger,
                 },
-                next_method="execute_complete",
-                next_kwargs=None,
-                timeout=None,
             )
 
     def _resolve_target_datetime(self) -> datetime.datetime:
