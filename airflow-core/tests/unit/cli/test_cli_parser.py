@@ -551,6 +551,18 @@ class TestCli:
         )
 
     @pytest.mark.parametrize(
+        "arg",
+        [
+            pytest.param(cli_config.ARG_DAG_LIST_COLUMNS, id="dags-list"),
+            pytest.param(cli_config.ARG_ASSET_LIST_COLUMNS, id="assets-list"),
+        ],
+    )
+    def test_list_columns_help_matches_default(self, arg):
+        default_columns = list(arg.kwargs["default"])
+
+        assert f"(default: {default_columns})" in arg.kwargs["help"]
+
+    @pytest.mark.parametrize(
         ("executor", "expected_args"),
         [
             ("CeleryExecutor", ["celery"]),
