@@ -1286,6 +1286,10 @@ class DbApiHook(BaseHook):
             "Override _aget_cursor in the DB-specific hook."
         )
 
+    def supports_async_execution(self) -> bool:
+        """Whether the DB-specific hook overrides :meth:`aget_conn` for a real async driver."""
+        return type(self).aget_conn is not DbApiHook.aget_conn
+
     def supports_readonly_execution(self) -> bool:
         """Whether the DB-specific hook overrides :meth:`_aenter_read_only`."""
         return type(self)._aenter_read_only is not DbApiHook._aenter_read_only

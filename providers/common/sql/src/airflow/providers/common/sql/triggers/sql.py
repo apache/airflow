@@ -17,19 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.hook import get_async_hook
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
     from typing import Any
 
 from collections.abc import (
@@ -37,80 +36,6 @@ from collections.abc import (
     Mapping,
     Sequence,
 )
-
-
-class SQLGenericTransferTrigger(BaseTrigger):
-    """
-    A SQL trigger that executes SQL to get records in async mode.
-
-    :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-    :param conn_id: the connection ID used to connect to the database
-    :param hook_params: hook parameters
-    """
-
-    def __init__(
-        self,
-        sql: str | list[str],
-        conn_id: str,
-        hook_params: dict | None = None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.sql = sql
-        self.conn_id = conn_id
-        self.hook_params = hook_params
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize the SQLGenericTransferTrigger arguments and classpath."""
-        return (
-            f"{self.__class__.__module__}.{self.__class__.__name__}",
-            {
-                "sql": self.sql,
-                "conn_id": self.conn_id,
-                "hook_params": self.hook_params,
-            },
-        )
-
-    def get_hook(self) -> DbApiHook:
-        """
-        Return DbApiHook.
-
-        :return: DbApiHook for this connection
-        """
-        connection = BaseHook.get_connection(self.conn_id)
-        hook = connection.get_hook(hook_params=self.hook_params)
-        if not isinstance(hook, DbApiHook):
-            raise AirflowException(
-                f"You are trying to use `common-sql` with {hook.__class__.__name__},"
-                " but its provider does not support it. Please upgrade the provider to a version that"
-                " supports `common-sql`. The hook class should be a subclass of"
-                f" `{hook.__class__.__module__}.{hook.__class__.__name__}`."
-                f" Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
-            )
-        return hook
-
-    async def _get_records(self) -> Any:
-        hook = self.get_hook()
-
-        if AIRFLOW_V_3_2_PLUS:
-            # This is only supported from Airflow 3.2 or higher due to added async support in CommsDecoder
-            return await sync_to_async(hook.get_records)(self.sql)
-        return hook.get_records(self.sql)
-
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        try:
-            self.log.info("Extracting data from %s", self.conn_id)
-            self.log.info("Executing: \n %s", self.sql)
-            self.log.info("Reading records from %s", self.conn_id)
-
-            results = await self._get_records()
-
-            self.log.info("Reading records from %s done!", self.conn_id)
-            self.log.debug("results: %s", results)
-            yield TriggerEvent({"status": "success", "results": results})
-        except Exception as e:
-            self.log.exception("An error occurred: %s", e)
-            yield TriggerEvent({"status": "failure", "message": str(e)})
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
@@ -126,6 +51,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
     :param sql: the sql statement to be executed (str) or a list of sql statements to execute
     :param conn_id: the connection ID used to connect to the database
     :param fetch_results: whether the query results should be fetched and returned to the worker
+    :param hook_params: hook parameters
     """
 
     def __init__(
@@ -138,6 +64,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         parameters: Iterable[Any] | Mapping[str, Any] | None = None,
         fetch_results: bool = False,
         read_only: bool = False,
+        hook_params: dict | None = None,
     ):
         super().__init__()
         self.sql = sql
@@ -148,6 +75,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         self.split_statements = split_statements
         self.return_last = return_last
         self.read_only = read_only
+        self.hook_params = hook_params
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the SQLExecuteQueryTrigger arguments and classpath."""
@@ -162,6 +90,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 "split_statements": self.split_statements,
                 "return_last": self.return_last,
                 "read_only": self.read_only,
+                "hook_params": self.hook_params,
             },
         )
 
@@ -198,14 +127,14 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
         :return: DbApiHook for this connection
         """
-        hook = await get_async_hook(self.conn_id)
-        if not isinstance(hook, DbApiHook) or not hasattr(hook, "arun"):
+        hook = await get_async_hook(self.conn_id, hook_params=self.hook_params)
+        if not isinstance(hook, DbApiHook):
             raise TypeError(
                 f"You are trying to use the SqlExecuteQueryOperator in deferrable mode with {hook.__class__.__name__},"
-                f" but its provider does not support this. Please set deferrable=False"
+                " but its provider does not support this. Please set deferrable=False"
                 f" Got {hook.__class__.__name__} with class hierarchy: {hook.__class__.mro()}"
             )
-        if self.read_only and not hook.supports_readonly_execution():
+        if self.read_only and not (hook.supports_async_execution() and hook.supports_readonly_execution()):
             raise NotImplementedError(
                 f"{hook.__class__.__name__} does not support read-only execution, so it cannot run a"
                 " deferred query safely (a triggerer restart could re-run it). Set"
@@ -213,6 +142,73 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 " idempotent, or deferrable=False to run it on the worker."
             )
         return hook
+
+    async def _run_query(self, hook: DbApiHook, fetch_results: bool):
+        """
+        Run the query against ``hook``, using its native async driver if available.
+
+        Hooks without a real async driver (:meth:`DbApiHook.supports_async_execution`) fall back to
+        running the synchronous :meth:`DbApiHook.run` in a worker thread, matching the compatibility the
+        `GenericTransfer` operator has always relied on for arbitrary DB-specific hooks.
+        """
+        if hook.supports_async_execution():
+            if fetch_results:
+                return await hook.arun(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler=fetch_all_handler,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                    read_only=self.read_only,
+                )
+            return await hook.arun(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=None,
+                split_statements=self.split_statements,
+                return_last=self.return_last,
+                read_only=self.read_only,
+            )
+        if AIRFLOW_V_3_2_PLUS:
+            # This is only supported from Airflow 3.2 or higher due to added async support in CommsDecoder
+            # `sync_to_async` erases `run`'s overloads, so it is cast to a plain callable first.
+            arun_in_thread = sync_to_async(cast("Callable[..., Any]", hook.run))
+            if fetch_results:
+                return await arun_in_thread(
+                    sql=self.sql,
+                    autocommit=self.autocommit,
+                    parameters=self.parameters,
+                    handler=fetch_all_handler,
+                    split_statements=self.split_statements,
+                    return_last=self.return_last,
+                )
+            return await arun_in_thread(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=None,
+                split_statements=self.split_statements,
+                return_last=self.return_last,
+            )
+        if fetch_results:
+            return hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=fetch_all_handler,
+                split_statements=self.split_statements,
+                return_last=self.return_last,
+            )
+        return hook.run(
+            sql=self.sql,
+            autocommit=self.autocommit,
+            parameters=self.parameters,
+            handler=None,
+            split_statements=self.split_statements,
+            return_last=self.return_last,
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
@@ -224,15 +220,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             if self.fetch_results:
                 # Fetch the raw rows with the built-in handler and return them with the cursor
                 # descriptions; the operator applies any user handler on the worker.
-                results = await hook.arun(
-                    sql=self.sql,
-                    autocommit=self.autocommit,
-                    parameters=self.parameters,
-                    handler=fetch_all_handler,
-                    split_statements=self.split_statements,
-                    return_last=self.return_last,
-                    read_only=self.read_only,
-                )
+                results = await self._run_query(hook, fetch_results=True)
 
                 self.log.info("Executing query from %s done!", self.conn_id)
                 self.log.debug("results: %s", results)
@@ -245,15 +233,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 )
 
             else:
-                await hook.arun(
-                    sql=self.sql,
-                    autocommit=self.autocommit,
-                    parameters=self.parameters,
-                    handler=None,
-                    split_statements=self.split_statements,
-                    return_last=self.return_last,
-                    read_only=self.read_only,
-                )
+                await self._run_query(hook, fetch_results=False)
 
                 self.log.info("Executing query from %s done!", self.conn_id)
                 yield TriggerEvent({"status": "success"})
