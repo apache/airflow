@@ -124,7 +124,7 @@ def test_coarser_schedule_change_does_not_stall_dagrun_creation(dag_maker, sessi
     session.flush()
     assert hourly_run.state == DagRunState.SUCCESS
 
-    # 3. Change the Dag scheduling (the second Dag): hourly to daily, drop end_date.
+    # 3. Change the same Dag's schedule: hourly to daily, drop end_date.
     with dag_maker(
         dag_id=DAG_ID,
         schedule="0 0 * * *",
