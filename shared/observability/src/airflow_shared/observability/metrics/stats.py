@@ -48,7 +48,9 @@ def build_dag_metric_tags(tag_names: Iterable[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for name in tag_names:
         key, _, value = name.partition(":")
-        result[key] = value
+        result[normalize_name_for_stats(key, log_warning=False)] = normalize_name_for_stats(
+            value, log_warning=False
+        )
     return result
 
 
