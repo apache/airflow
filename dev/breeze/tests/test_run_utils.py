@@ -16,16 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import socket
 import stat
 import subprocess
 from unittest import mock
 
+import psutil
 import pytest
 
 from airflow_breeze.global_constants import SIMPLE_AUTH_MANAGER_VITE_DEV_PORT, VITE_DEV_PORT
 from airflow_breeze.utils.run_utils import (
+    _find_local_port_listeners,
     _find_occupied_local_ports,
+    _format_occupied_ports_error,
     change_directory_permission,
     change_file_permission,
     check_if_buildx_plugin_installed,
@@ -105,10 +109,11 @@ def test_run_compile_ui_assets_checks_both_dev_ports(mock_find_occupied_ports, m
     ],
 )
 @mock.patch("airflow_breeze.utils.run_utils._clean_ui_assets")
+@mock.patch("airflow_breeze.utils.run_utils._find_local_port_listeners", return_value={})
 @mock.patch("airflow_breeze.utils.run_utils._find_occupied_local_ports")
 @mock.patch("airflow_breeze.utils.run_utils.console_print")
 def test_run_compile_ui_assets_exits_before_cleanup_when_dev_port_is_occupied(
-    mock_console_print, mock_find_occupied_ports, mock_clean_ui_assets, occupied_ports
+    mock_console_print, mock_find_occupied_ports, mock_find_listeners, mock_clean_ui_assets, occupied_ports
 ):
     mock_find_occupied_ports.return_value = occupied_ports
 
@@ -116,12 +121,90 @@ def test_run_compile_ui_assets_exits_before_cleanup_when_dev_port_is_occupied(
         run_compile_ui_assets(dev=True, run_in_background=False, force_clean=True, additional_ui_hooks=[])
 
     assert ctx.value.code == 1
+    mock_find_listeners.assert_called_once_with(occupied_ports)
     mock_console_print.assert_called_once_with(
         "[error]Cannot start UI development servers because the following local port(s) "
         f"are already in use: {', '.join(occupied_ports)}.[/]\n"
         "[info]Stop the processes using these ports and try again.[/]"
     )
     mock_clean_ui_assets.assert_not_called()
+
+
+def test_find_local_port_listeners_reports_current_process():
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        occupied_port = str(server.getsockname()[1])
+
+        listeners = _find_local_port_listeners([occupied_port])
+
+    assert list(listeners) == [occupied_port]
+    assert listeners[occupied_port] == (os.getpid(), " ".join(psutil.Process().cmdline()))
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(psutil.AccessDenied(pid=1), id="access-denied"),
+        pytest.param(psutil.NoSuchProcess(pid=1), id="no-such-process"),
+    ],
+)
+@mock.patch("psutil.process_iter")
+def test_find_local_port_listeners_skips_processes_that_cannot_be_inspected(mock_process_iter, error):
+    failing_process = mock.Mock(spec=psutil.Process)
+    failing_process.net_connections.side_effect = error
+    listening_process = mock.Mock(spec=psutil.Process, pid=42)
+    listening_process.net_connections.return_value = [
+        mock.Mock(status=psutil.CONN_LISTEN, laddr=mock.Mock(port=5173)),
+    ]
+    listening_process.cmdline.return_value = ["node", "vite.js"]
+    mock_process_iter.return_value = [failing_process, listening_process]
+
+    assert _find_local_port_listeners(["5173"]) == {"5173": (42, "node vite.js")}
+
+
+@pytest.mark.parametrize(
+    ("listeners", "expected_lines"),
+    [
+        pytest.param(
+            {},
+            ["[info]Stop the processes using these ports and try again.[/]"],
+            id="no-listener-found",
+        ),
+        pytest.param(
+            {"5173": (42, "node vite.js --port 5173 [x]")},
+            [
+                "[info]Port 5173 is used by PID 42: node vite.js --port 5173 \\[x][/]",
+                "[info]Stop the processes using these ports (for example `kill 42`) and try again.[/]",
+            ],
+            id="one-listener",
+        ),
+        pytest.param(
+            {"5173": (42, "node"), "5174": (43, "node")},
+            [
+                "[info]Port 5173 is used by PID 42: node[/]",
+                "[info]Port 5174 is used by PID 43: node[/]",
+                "[info]Stop the processes using these ports (for example `kill 42 43`) and try again.[/]",
+            ],
+            id="two-listeners",
+        ),
+        pytest.param(
+            {"5174": (42, "node"), "5173": (42, "node")},
+            [
+                "[info]Port 5173 is used by PID 42: node[/]",
+                "[info]Port 5174 is used by PID 42: node[/]",
+                "[info]Stop the processes using these ports (for example `kill 42`) and try again.[/]",
+            ],
+            id="same-process-on-both-ports",
+        ),
+    ],
+)
+def test_format_occupied_ports_error(listeners, expected_lines):
+    message = _format_occupied_ports_error(["5173", "5174"], listeners)
+
+    assert message.split("\n") == [
+        "[error]Cannot start UI development servers because the following local port(s) "
+        "are already in use: 5173, 5174.[/]",
+        *expected_lines,
+    ]
 
 
 @mock.patch("airflow_breeze.utils.run_utils._run_compile_internally")

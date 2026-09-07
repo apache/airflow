@@ -81,7 +81,7 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.19.1" },
     { name = "packaging", specifier = ">=25.0" },
     { name = "prek", specifier = ">=0.4.14" },
-    { name = "psutil", specifier = ">=5.9.6" },
+    { name = "psutil", specifier = ">=6.0.0" },
     { name = "pygithub", specifier = ">=2.1.1" },
     { name = "pytest", specifier = ">=9.0.0" },
     { name = "pytest-xdist", specifier = ">=3.3.1" },
