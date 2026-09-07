@@ -118,6 +118,28 @@ class TestSerializers:
         else:
             assert input_obj.timestamp() == deserialized_obj.timestamp()
 
+    def test_naive_datetime_round_trip_preserves_wall_clock(self):
+        input_obj = datetime.datetime(2026, 1, 1, 12, 0, 0)
+
+        serialized_obj = serialize(input_obj)
+        deserialized_obj = deserialize(serialized_obj)
+
+        assert serialized_obj[VERSION] == 3
+        assert serialized_obj[DATA] == "2026-01-01T12:00:00"
+        assert deserialized_obj == input_obj
+        assert deserialized_obj.tzinfo is None
+
+    def test_version_2_datetime_payload_remains_readable(self):
+        serialized_obj = {
+            "__classname__": "datetime.datetime",
+            "__version__": 2,
+            "__data__": {"timestamp": 1767268800.0, "tz": None},
+        }
+
+        deserialized_obj = deserialize(serialized_obj)
+
+        assert deserialized_obj.timestamp() == 1767268800.0
+
     @pytest.mark.parametrize(
         ("tz_input", "expected_tz_name"),
         [
