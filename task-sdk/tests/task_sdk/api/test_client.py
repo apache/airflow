@@ -45,6 +45,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    TaskArgBinding,
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
@@ -371,6 +372,32 @@ class TestTaskInstanceOperations:
             resp = client.task_instances.start(ti_id, 100, start_date)
             assert resp == ti_context
             assert call_count == 3
+
+    def test_task_instance_start_fetches_literal_arg_bindings(self, make_ti_context):
+        ti_id = uuid6.uuid7()
+        ti_context = make_ti_context()
+        ti_context.arg_bindings = [
+            TaskArgBinding.model_validate({"name": "country", "kind": "literal", "value": None}),
+            TaskArgBinding.model_validate({"name": "upstream", "kind": "xcom", "task_id": "extract"}),
+        ]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(status_code=200, json=ti_context.model_dump(mode="json"))
+            if request.url.path == f"/task-instances/{ti_id}/arg-bindings":
+                return httpx.Response(
+                    status_code=200,
+                    json=[
+                        {"name": "country", "kind": "literal", "value": "uk"},
+                        {"name": "upstream", "kind": "xcom", "task_id": "extract"},
+                    ],
+                )
+            raise AssertionError(f"Unexpected request path: {request.url.path}")
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=dt_timezone.utc))
+
+        assert result.arg_bindings[0].root.value == "uk"
 
     def test_task_instance_start_already_running(self):
         """Test that start() raises TaskAlreadyRunningError when TI is already running."""

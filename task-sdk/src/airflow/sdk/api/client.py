@@ -33,7 +33,7 @@ import msgspec
 import structlog
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, JsonValue, TypeAdapter
 from tenacity import (
     before_log,
     retry,
@@ -64,6 +64,7 @@ from airflow.sdk.api.datamodels._generated import (
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
     ResultMessage,
+    TaskArgBinding,
     TaskBreadcrumbsResponse,
     TaskInstanceState,
     TaskStatesResponse,
@@ -269,7 +270,11 @@ class TaskInstanceOperations:
                 ):
                     raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
             raise
-        return TIRunContext.model_validate_json(resp.read())
+        context = TIRunContext.model_validate_json(resp.read())
+        if context.arg_bindings and any(binding.root.kind == "literal" for binding in context.arg_bindings):
+            bindings_response = self.client.get(f"task-instances/{id}/arg-bindings")
+            context.arg_bindings = TypeAdapter(list[TaskArgBinding]).validate_json(bindings_response.read())
+        return context
 
     def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
         """Tell the API server that this TI has reached a terminal state."""

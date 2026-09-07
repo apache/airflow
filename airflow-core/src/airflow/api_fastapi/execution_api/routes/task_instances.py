@@ -49,7 +49,10 @@ from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
+    TaskArgBinding,
+    get_arg_bindings_adapter,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -310,13 +313,17 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
 
-        # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
-        # spec; the route excludes unset fields, keeping regular responses lean.
+        # Keep literal values out of the startup response. The SDK fetches them from the
+        # dedicated endpoint below after the task token has been exchanged.
         if client_supports_arg_bindings() and (
             arg_bindings := get_arg_bindings(dag_bag, ti, session=session)
         ):
             try:
-                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+                validated_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+                context.arg_bindings = [
+                    binding.model_copy(update={"value": None}) if binding.kind == "literal" else binding
+                    for binding in validated_bindings
+                ]
             except ValidationError:
                 log.exception(
                     "Serialized arg_bindings spec failed validation",
@@ -349,6 +356,49 @@ def ti_run(
         issue_execution_token(services, response, sub=str(task_instance_id))
 
     return context
+
+
+@ti_id_router.get(
+    "/{task_instance_id}/arg-bindings",
+    response_model=list[TaskArgBinding],
+    dependencies=[Security(require_auth, scopes=["token:execution", "token:workload"])],
+)
+def get_task_instance_arg_bindings(
+    task_instance_id: UUID,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+) -> list[TaskArgBinding]:
+    """Return the complete TaskFlow argument binding spec for a stub task."""
+    ti = session.get(TI, task_instance_id)
+    if ti is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": "Task Instance not found"},
+        )
+
+    if not client_supports_arg_bindings():
+        return []
+
+    arg_bindings = get_arg_bindings(dag_bag, ti, session=session)
+    if not arg_bindings:
+        return []
+
+    try:
+        return get_arg_bindings_adapter().validate_python(arg_bindings)
+    except ValidationError:
+        log.exception(
+            "Serialized arg_bindings spec failed validation",
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            dag_version_id=ti.dag_version_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "reason": "invalid_arg_bindings",
+                "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+            },
+        )
 
 
 @ti_id_router.patch(

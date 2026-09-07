@@ -36,7 +36,10 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
 
     # A side-effect change, not just a schema one, so ti_run can gate the server-side spec
     # derivation on ``is_applied``: clients older than this version never receive the field.
-    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("arg_bindings").didnt_exist,
+        endpoint("/task-instances/{task_instance_id}/arg-bindings", ["GET"]).didnt_exist,
+    )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
     def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]

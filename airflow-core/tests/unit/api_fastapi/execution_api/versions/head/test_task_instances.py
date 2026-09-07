@@ -381,8 +381,8 @@ class TestTIRunState:
         assert extras["scope"] == "execution"
         assert extras["sub"] == str(ti.id)
 
-    def test_ti_run_returns_arg_bindings_for_stub_task(self, client, dag_maker):
-        """A stub task's TaskFlow arg spec is extracted from the serialized Dag and returned."""
+    def test_ti_run_fetches_arg_bindings_for_stub_task(self, client, dag_maker):
+        """Literal values are fetched separately so the task-start response stays small."""
         with dag_maker("test_arg_bindings_dag", serialized=True):
 
             @task.stub
@@ -402,7 +402,7 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
-            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": None},
             {
                 "name": "extracted",
                 "kind": "xcom",
@@ -413,10 +413,15 @@ class TestTIRunState:
                 "name": "limit",
                 "kind": "literal",
                 "value_schema": {"type": "integer", "format": "int64"},
-                "value": 10,
+                "value": None,
                 "from_default": True,
             },
         ]
+
+        response = client.get(f"/execution/task-instances/{tis['transform'].id}/arg-bindings")
+        assert response.status_code == 200
+        assert response.json()[0]["value"] == "uk"
+        assert response.json()[2]["value"] == 10
 
         # An argless stub has no captured spec, so the field stays unset.
         response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=self.RUN_PAYLOAD)
