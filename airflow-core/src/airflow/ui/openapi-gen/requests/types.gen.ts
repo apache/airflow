@@ -8592,6 +8592,10 @@ export type $OpenApiTs = {
                  */
                 200: PartitionedDagRunCollectionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
