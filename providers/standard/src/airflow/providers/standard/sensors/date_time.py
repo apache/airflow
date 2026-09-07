@@ -114,6 +114,15 @@ class DateTimeSensorAsync(DateTimeSensor):
         super().__init__(**kwargs)
         self.end_from_trigger = end_from_trigger
 
+        # A templated target is rendered after Dag parsing, so it cannot be used to
+        # construct the trigger arguments at task initialization time.
+        if (
+            start_from_trigger
+            and isinstance(self.target_time, str)
+            and any(delimiter in self.target_time for delimiter in ("{{", "{%", "{#"))
+        ):
+            start_from_trigger = False
+
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
             # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
