@@ -1110,14 +1110,9 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, sche
                     if not sep:
                         tbl_schema, name = None, tbl
                 else:
-                    # A mapped class already carries its configured schema (e.g. via
-                    # ``sql_alchemy_schema``) on its table; a bare ``__tablename__`` would
-                    # discard it and fall back to the connection's default schema.
-                    # ``__table__`` isn't declared on ``MappedClassProtocol`` (SQLAlchemy sets
-                    # it dynamically, invisible to mypy's static checks here), so read it via
-                    # ``getattr`` instead of a direct attribute access.
+                    # Preserve the mapped class's own configured schema; see PR #70793.
                     name = tbl.__tablename__
-                    tbl_schema = getattr(tbl, "__table__").schema
+                    tbl_schema = inspect(tbl, raiseerr=True).local_table.schema
                 metadata.reflect(
                     bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
                 )

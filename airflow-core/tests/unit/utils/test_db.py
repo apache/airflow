@@ -32,6 +32,7 @@ from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, String, Table, delete, select
+from sqlalchemy.orm import declarative_base
 
 from airflow import settings
 from airflow.models import Base as airflow_base
@@ -440,11 +441,13 @@ class TestDb:
 class TestReflectTablesSchemaQualified:
     def test_reflect_tables_uses_mapped_class_configured_schema(self, mocker):
         metadata = MetaData()
-        Table("scoped_model", metadata, Column("id", Integer, primary_key=True), schema="custom_schema")
+        table = Table(
+            "scoped_model", metadata, Column("id", Integer, primary_key=True), schema="custom_schema"
+        )
 
-        class _ScopedModel:
+        class _ScopedModel(declarative_base(metadata=metadata)):
             __tablename__ = "scoped_model"
-            __table__ = metadata.tables["custom_schema.scoped_model"]
+            __table__ = table
 
         mock_reflect = mocker.patch.object(MetaData, "reflect")
         session = mocker.MagicMock()
