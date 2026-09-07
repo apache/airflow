@@ -75,6 +75,7 @@
       "preventRunningTasks": "Zapobiegaj ponownemu uruchomieniu, jeśli zadanie jest uruchomione",
       "queueNew": "Kolejkuj nowe zadania",
       "runOnLatestVersion": "Uruchom w najnowszej wersji paczki Dagów",
+      "runOnLatestVersionForced": "Zawsze używa najnowszej — nie ma wcześniejszej wersji, do której można wrócić",
       "upstream": "Taski nadrzędne"
     }
   },
