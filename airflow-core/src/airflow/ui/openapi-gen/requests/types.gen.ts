@@ -1136,9 +1136,6 @@ export type DAGWarningResponse = {
     warning_type: string;
     message: string;
     timestamp: string;
-    context?: {
-        [key: string]: unknown;
-    } | null;
     dag_display_name: string;
 };
 
@@ -1267,14 +1264,6 @@ export type DagVersionResponse = {
     dag_display_name: string;
     bundle_url: string | null;
 };
-
-/**
- * Enum for DAG warning types.
- *
- * This is the set of allowable values for the ``warning_type`` field
- * in the DagWarning model.
- */
-export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -3519,7 +3508,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | null;
+    warningType?: string | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
@@ -4315,7 +4304,7 @@ export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, source_reference, bundle_name, stacktrace, import_error_id, filename`
      */
     orderBy?: Array<(string)>;
 };

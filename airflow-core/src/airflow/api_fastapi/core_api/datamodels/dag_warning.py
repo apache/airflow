@@ -21,6 +21,7 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, Field
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -31,7 +32,6 @@ class DAGWarningResponse(BaseModel):
     warning_type: str
     message: str
     timestamp: datetime
-    context: dict | None = None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
 
 

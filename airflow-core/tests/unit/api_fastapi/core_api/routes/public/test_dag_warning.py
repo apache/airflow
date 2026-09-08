@@ -100,7 +100,6 @@ class TestGetDagWarnings:
 
         for dag_warning in response_json["dag_warnings"]:
             assert "dag_display_name" in dag_warning
-            assert "context" in dag_warning
             dag_id = dag_warning["dag_id"]
             assert dag_warning["dag_display_name"] == expected_display_names[dag_id]
 
