@@ -99,10 +99,7 @@ class Client internal constructor(
    * Stores an Airflow variable, replacing any existing value.
    *
    * The value is stored as-is. Serialize structured data (for example to
-   * JSON) before storing it. Omitting [description] clears any existing
-   * description. A value supplied by a secrets backend (such as an
-   * `AIRFLOW_VAR_*` environment variable) still takes precedence over the
-   * stored value when the variable is read back.
+   * JSON) before storing it.
    *
    * @param key Variable key.
    * @param value Value to store.
@@ -117,8 +114,6 @@ class Client internal constructor(
 
   /**
    * Deletes an Airflow variable.
-   *
-   * Deleting a variable that does not exist is a no-op.
    *
    * @param key Variable key.
    * @throws ApiError if the API call fails.
