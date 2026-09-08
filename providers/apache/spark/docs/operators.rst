@@ -275,7 +275,7 @@ unrelated sidecars.
 
 By default the driver container is identified by name, preferring a container with ``driver`` in
 its name, then one with ``spark`` in its name, falling back to the pod's only container if there
-is just one. If this heuristic doesn't match your setup, set ``k8s_driver_container_name`` to
+is just one. If this heuristic doesn't match your setup, set ``kubernetes_driver_container_name`` to
 the exact container name:
 
 .. code-block:: python
@@ -286,10 +286,10 @@ the exact container name:
        conn_id="spark_k8s",
        deploy_mode="cluster",
        track_driver_via_k8s_api=True,
-       k8s_driver_container_name="spark-kubernetes-driver",
+       kubernetes_driver_container_name="spark-kubernetes-driver",
    )
 
-If ``k8s_driver_container_name`` doesn't match any container on the pod, the task fails
+If ``kubernetes_driver_container_name`` doesn't match any container on the pod, the task fails
 immediately with a ``ValueError`` rather than silently falling back to the heuristic.
 
 If the pod phase reports ``Failed`` but the driver container itself exited 0 (for example, a
