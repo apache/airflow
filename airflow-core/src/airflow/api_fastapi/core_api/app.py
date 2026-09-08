@@ -143,6 +143,7 @@ def init_config(app: FastAPI) -> None:
     allow_origins = conf.getlist("api", "access_control_allow_origins")
     allow_methods = conf.getlist("api", "access_control_allow_methods")
     allow_headers = conf.getlist("api", "access_control_allow_headers")
+    allow_origin_regex = conf.get("api", "access_control_allow_origin_regex", fallback="") or None
 
     if "*" in allow_origins:
         # The CORS spec forbids combining `Access-Control-Allow-Origin: *` with
@@ -158,10 +159,11 @@ def init_config(app: FastAPI) -> None:
             "(e.g. `https://airflow.mycompany.com`) instead."
         )
 
-    if allow_origins or allow_methods or allow_headers:
+    if allow_origins or allow_methods or allow_headers or allow_origin_regex:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=allow_origins,
+            allow_origin_regex=allow_origin_regex,
             allow_credentials=True,
             allow_methods=allow_methods,
             allow_headers=allow_headers,
