@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+15.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph path parameters across paginated pages (#71866)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos across contributor and provider documentation (#71884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 15.0.0
 ......
 

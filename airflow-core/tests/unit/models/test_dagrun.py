@@ -61,6 +61,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.variable import Variable
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -76,8 +77,6 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
@@ -1532,7 +1531,7 @@ class TestDagRun:
         )
         dag_run.dag = scheduler_dag
 
-        # First update resolve interval to "5".
+        # First update resolves interval to "60".
         dag_run.update_state(session=session)
 
         deadline = session.execute(select(Deadline)).scalars().one_or_none()
@@ -1556,7 +1555,7 @@ class TestDagRun:
         with mock.patch.object(
             Variable,
             "get",
-            side_effect=AirflowRuntimeError(mock_err),
+            side_effect=KeyError(mock_err),
         ):
             future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 

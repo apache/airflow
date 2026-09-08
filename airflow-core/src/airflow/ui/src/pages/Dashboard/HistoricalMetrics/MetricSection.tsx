@@ -21,7 +21,9 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const BAR_WIDTH = 100;

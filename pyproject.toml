@@ -678,6 +678,7 @@ extend-select = [
     "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B023", # Function definition does not bind loop variable (late binding of closure over loop var)
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
     "RET505", # Unnecessary {branch} after return statement
@@ -914,8 +915,7 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 # Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
 # all rules in each project https://github.com/astral-sh/ruff/issues/18723
-# Add this once providers are sorted
-# "airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
+"airflow.utils.timezone".msg = "Use airflow.sdk.timezone (or airflow._shared.timezones.timezone from within airflow-core)"
 # "airflow_shared".msg = "Use airflow._shared or airflow.sdk._shared instead"
 
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817

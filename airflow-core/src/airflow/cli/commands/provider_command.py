@@ -44,9 +44,8 @@ def provider_get(args):
         provider_version = providers[args.provider_name].version
         provider_info = providers[args.provider_name].data
         if args.full:
-            provider_info["description"] = _remove_rst_syntax(provider_info["description"])
             AirflowConsole().print_as(
-                data=[provider_info],
+                data=[{**provider_info, "description": _remove_rst_syntax(provider_info["description"])}],
                 output=args.output,
             )
         else:

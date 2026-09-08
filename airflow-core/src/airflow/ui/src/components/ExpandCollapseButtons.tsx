@@ -19,7 +19,7 @@
 import { ButtonGroup } from "@chakra-ui/react";
 import { MdCompress, MdExpand } from "react-icons/md";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
 
 type Props = {
   readonly collapseLabel: string;

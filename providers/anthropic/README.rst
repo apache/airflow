@@ -57,19 +57,19 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``anthropic``                               ``>=0.121.0``
+``anthropic``                               ``>=1.0.0``
 ==========================================  ==================
 
 Optional dependencies
 ----------------------
 
-===========  ===============================
+===========  =============================
 Extra        Dependencies
-===========  ===============================
-``bedrock``  ``anthropic[bedrock]>=0.121.0``
-``vertex``   ``anthropic[vertex]>=0.121.0``
-``aws``      ``anthropic[aws]>=0.121.0``
-===========  ===============================
+===========  =============================
+``bedrock``  ``anthropic[bedrock]>=1.0.0``
+``vertex``   ``anthropic[vertex]>=1.0.0``
+``aws``      ``anthropic[aws]>=1.0.0``
+===========  =============================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.3.0/changelog.html>`_.

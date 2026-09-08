@@ -16,19 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren, ReactNode, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import { Box, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef, useState } from "react";
-import type { PropsWithChildren, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
-import {
-  type ImperativePanelGroupHandle,
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-} from "react-resizable-panels";
+import { Group, Panel, Separator, useDefaultLayout, useGroupRef } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -38,11 +34,14 @@ import {
   useDagWarningServiceListDagWarnings,
 } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+
+import { IconButton, ProgressBar, Toaster } from "src/system-components";
+
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
-import { SearchDagsButton } from "src/components/SearchDags";
+import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
-import { IconButton, ProgressBar, Toaster } from "src/components/ui";
+
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -89,11 +88,11 @@ type Props = {
 } & PropsWithChildren;
 
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
-  const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
+  const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
   // grid and the gantt so their shared row highlight stays in sync, with no
   // React re-render on hover).
@@ -218,25 +217,33 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const panelViewKey = dagView === "gantt" ? "grid" : dagView;
   const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
   const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: `${panelViewKey}-${direction}` });
 
   return (
     <GroupsProvider dagId={dagId}>
       <Box display="flex" flex={1} flexDirection="column" minH={0} minW={{ base: "1280px", md: "auto" }}>
-        <HStack justifyContent="space-between" mb={2}>
-          <Flex alignItems="center" gap={1}>
-            <DagBreadcrumb />
-          </Flex>
-          <Flex gap={1}>
-            <SearchDagsButton />
+        <HStack justifyContent="space-between" mb={3} mx={-3} px={3}>
+          <DagBreadcrumb />
+          <Flex gap={2}>
             {dag === undefined ? undefined : (
-              <TriggerDAGButton
-                allowedRunTypes={dag.allowed_run_types}
-                dagDisplayName={dag.dag_display_name}
-                dagId={dag.dag_id}
-                isPaused={dag.is_paused}
-                variant="outline"
-                withText
-              />
+              <>
+                {dag.is_stale ? undefined : (
+                  <TogglePause
+                    dagDisplayName={dag.dag_display_name}
+                    dagId={dag.dag_id}
+                    isPaused={dag.is_paused}
+                    size="md"
+                  />
+                )}
+                <TriggerDAGButton
+                  allowedRunTypes={dag.allowed_run_types}
+                  dagDisplayName={dag.dag_display_name}
+                  dagId={dag.dag_id}
+                  isPaused={dag.is_paused}
+                  variant="outline"
+                  withText
+                />
+              </>
             )}
           </Flex>
         </HStack>
@@ -260,30 +267,61 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
               {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
             </IconButton>
           ) : undefined}
-          <PanelGroup
-            autoSaveId={`${panelViewKey}-${direction}`}
+          <Group
+            defaultLayout={defaultLayout}
             dir={direction}
-            direction="horizontal"
+            groupRef={panelGroupRef}
             key={`${panelViewKey}-${direction}`}
-            ref={panelGroupRef}
+            onLayoutChanged={(layout, meta) => {
+              onLayoutChanged(layout, meta);
+              // Programmatic setLayout() from PanelButtons handles its own fit-view; only
+              // fit here for user-driven resizes, otherwise the two callers double-fit.
+              if (meta.isUserInteraction) {
+                const zoom = getZoom();
+
+                void fitView({ maxZoom: zoom, minZoom: zoom });
+              }
+            }}
+            orientation="horizontal"
           >
-            <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize} order={1}>
-              <Flex flexDirection="column" height="100%">
-                <PanelButtons
-                  dagView={dagView}
-                  limit={limit}
-                  panelGroupRef={panelGroupRef}
-                  setDagView={setDagView}
-                  setLimit={setLimit}
-                  setShowVersionIndicatorMode={setShowVersionIndicatorMode}
-                  showVersionIndicatorMode={showVersionIndicatorMode}
-                />
+            <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize}>
+              <Flex
+                bg={dagView === "graph" ? undefined : "bg.muted"}
+                borderColor="bg.muted"
+                borderRadius="md"
+                borderWidth="2px"
+                flexDirection="column"
+                height="calc(100% - 12px)" // 12px = 3units of padding
+                overflow="hidden"
+                position="relative"
+              >
+                <Box left={0} p={2} position={dagView === "graph" ? "absolute" : undefined} right={0} top={0}>
+                  <PanelButtons
+                    dagView={dagView}
+                    limit={limit}
+                    panelGroupRef={panelGroupRef}
+                    setDagView={setDagView}
+                    setLimit={setLimit}
+                    setShowVersionIndicatorMode={setShowVersionIndicatorMode}
+                    showVersionIndicatorMode={showVersionIndicatorMode}
+                  />
+                </Box>
                 <Box flex={1} minH={0} overflow="hidden" ref={gridHoverRootRef}>
                   {dagView === "graph" ? (
                     <Graph />
                   ) : dagView === "gantt" && Boolean(runId) ? (
                     <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
-                      <Flex alignItems="flex-start" gap={0} maxW="100%" minW={0} overflow="clip" w="100%">
+                      <Flex
+                        alignItems="flex-start"
+                        bg="bg"
+                        borderTopRadius="md"
+                        gap={0}
+                        maxW="100%"
+                        minH="100%"
+                        minW={0}
+                        overflow="clip"
+                        w="100%"
+                      >
                         <Grid
                           dagRunState={dagRunStateFilter}
                           limit={limit}
@@ -342,28 +380,20 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
             </Panel>
             {!isRightPanelCollapsed && (
               <>
-                <PanelResizeHandle
-                  className="resize-handle"
-                  onDragging={(isDragging) => {
-                    if (!isDragging) {
-                      const zoom = getZoom();
-
-                      void fitView({ maxZoom: zoom, minZoom: zoom });
-                    }
-                  }}
-                >
+                <Separator className="resize-handle">
                   <Box
+                    _hover={{ bg: "info.solid" }}
                     alignItems="center"
-                    bg="border.emphasized"
+                    borderRadius="full"
                     cursor="col-resize"
                     display="flex"
-                    h="100%"
+                    height="calc(100% - 12px)" // 12px = 3units of padding
                     justifyContent="center"
                     position="relative"
-                    w={0.5}
+                    w={1}
                   >
                     <IconButton
-                      bg="fg.subtle"
+                      bg="bg.muted"
                       borderRadius="full"
                       boxShadow="md"
                       cursor="pointer"
@@ -379,14 +409,14 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
                   </Box>
-                </PanelResizeHandle>
+                </Separator>
 
-                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20}>
                   <Box
                     display="flex"
                     flexDirection="column"
                     h="100%"
-                    paddingInlineStart={4}
+                    paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
                     position="relative"
                   >
                     {children}
@@ -414,14 +444,14 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     ) : undefined}
                     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                     <NavTabs tabs={tabs} />
-                    <Box flexGrow={1} overflow="auto" px={2}>
+                    <Box flexGrow={1} overflow="auto" pb={3} px={2}>
                       <Outlet context={outletContext} />
                     </Box>
                   </Box>
                 </Panel>
               </>
             )}
-          </PanelGroup>
+          </Group>
         </Box>
       </Box>
     </GroupsProvider>

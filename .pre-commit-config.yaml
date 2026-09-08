@@ -194,8 +194,7 @@ repos:
           ^(?:.*/)?SKILL\.md$
         exclude:
           (?x)
-          ^scripts/ci/license-templates/|
-          ^\.agents/skills/magpie-setup/
+          ^scripts/ci/license-templates/
       - id: insert-license
         name: Add license for all other files
         args:
@@ -292,6 +291,20 @@ repos:
           ^java-sdk/sdk/module\.md$|
           ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
           ^scripts/ci/prek/update_java_sdk_readme_matrix\.py$
+        additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
+        pass_filenames: false
+        require_serial: true
+      - id: update-ts-sdk-readme-matrix
+        name: Update the TypeScript SDK compatibility matrix in ts-sdk/README.md
+        entry: ./scripts/ci/prek/update_ts_sdk_readme_matrix.py
+        language: python
+        files: >
+          (?x)
+          ^ts-sdk/capabilities\.yaml$|
+          ^ts-sdk/src/generated/supervisor\.ts$|
+          ^ts-sdk/README\.md$|
+          ^scripts/ci/prek/lang_sdk_compat_matrix\.py$|
+          ^scripts/ci/prek/update_ts_sdk_readme_matrix\.py$
         additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
         pass_filenames: false
         require_serial: true
@@ -504,7 +517,6 @@ repos:
           .*/dist/.*|
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.agents/skills/airflow-translations/|
-          ^\.agents/skills/magpie-setup/|
           ^scripts/docker/keys/.*\.asc$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
@@ -548,8 +560,7 @@ repos:
           ^.*/node_modules/|
           ^\.build/|
           ^generated/|
-          ^\.apache-magpie-overrides/|
-          ^\.agents/skills/magpie-setup/
+          ^\.apache-magpie-overrides/
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimize the number of passes that must happen to apply some of the changes
@@ -621,7 +632,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.16.3']
+        additional_dependencies: ['ruff==0.16.4']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -715,6 +726,21 @@ repos:
           ^scripts/ci/prek/extract_permissions\.py$|
           ^airflow-core/docs/security/api_permissions_ref\.rst$
         pass_filenames: false
+      - id: generate-fab-permissions-doc
+        name: Generate FAB auth manager REST API permission table
+        entry: ./scripts/ci/prek/fab_permissions_doc.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/fab_auth_manager\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/override\.py$|
+          ^providers/fab/src/airflow/providers/fab/www/security/permissions\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^scripts/ci/prek/fab_permissions_doc\.py$|
+          ^providers/fab/docs/auth-manager/access-control\.rst$
+        pass_filenames: false
       - id: update-tested-versions
         name: Update tested Python/DB/Kubernetes versions in docs
         entry: ./scripts/ci/prek/update_tested_versions.py
@@ -799,8 +825,8 @@ repos:
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
           ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
+          ^airflow-core/src/airflow/ui/src/i18n/dayjsLocale\.ts$|
           ^\.agents/skills/airflow-translations/|
-          ^\.agents/skills/magpie-setup/|
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
@@ -1118,6 +1144,18 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
+      - id: check-provider-config-fallback-defaults
+        name: Check provider_config_fallback_defaults.cfg is in sync with provider.yaml files
+        language: python
+        entry: ./scripts/ci/prek/check_provider_config_fallback_defaults.py
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/config_templates/provider_config_fallback_defaults\.cfg$|
+          ^providers/.*/provider\.yaml$|
+          ^scripts/ci/prek/check_provider_config_fallback_defaults\.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
       - id: check-dependency-lower-bounds
         name: Check that dependencies in pyproject.toml have lower bounds
         language: python
@@ -1171,8 +1209,7 @@ repos:
         files: \.(md|mdown|markdown)$
         exclude: |
           (?x)
-          ^\.apache-magpie-overrides/|
-          ^\.agents/skills/magpie-setup/
+          ^\.apache-magpie-overrides/
         additional_dependencies: ['markdownlint-cli@0.38.0']
       - id: lint-json-schema
         name: Lint JSON Schema files

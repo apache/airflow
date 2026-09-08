@@ -28,6 +28,7 @@ from airflow_breeze.utils.path_utils import (
     _parse_shim_version,
     detect_legacy_global_breeze_install,
     get_expected_shim_version,
+    has_uv_breeze_tool_dir,
     warn_if_breeze_launcher_outdated,
     warn_if_shim_outdated,
 )
@@ -210,3 +211,125 @@ def test_launcher_check_silent_without_shim_or_legacy(tmp_path, monkeypatch, cap
     with mock.patch("airflow_breeze.utils.path_utils.detect_legacy_global_breeze_install", return_value=None):
         assert warn_if_breeze_launcher_outdated(sources) is False
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("tool_dir_stdout", "returncode", "create_tool_dir", "expected"),
+    [
+        pytest.param("{tool_dir}\n", 0, True, True, id="breeze-tool-dir-present"),
+        pytest.param("{tool_dir}\n", 0, False, False, id="no-breeze-tool-dir"),
+        pytest.param("{tool_dir}\n", 2, True, False, id="uv-tool-dir-failed"),
+        pytest.param("\n", 0, True, False, id="uv-reported-no-tool-dir"),
+    ],
+)
+def test_has_uv_breeze_tool_dir(tmp_path, tool_dir_stdout, returncode, create_tool_dir, expected):
+    if create_tool_dir:
+        (tmp_path / "apache-airflow-breeze").mkdir()
+    with mock.patch("airflow_breeze.utils.path_utils.subprocess.run") as run:
+        run.return_value = _run_result(tool_dir_stdout.format(tool_dir=tmp_path), returncode=returncode)
+        assert has_uv_breeze_tool_dir() is expected
+
+
+def test_has_uv_breeze_tool_dir_without_uv():
+    with mock.patch("airflow_breeze.utils.path_utils.subprocess.run", side_effect=FileNotFoundError):
+        assert has_uv_breeze_tool_dir() is False
+
+
+def test_detect_legacy_global_breeze_install_corrupted_uv_tool(tmp_path):
+    (tmp_path / "apache-airflow-breeze").mkdir()
+
+    def fake_run(cmd, *args, **kwargs):
+        if cmd[:3] == ["uv", "tool", "dir"]:
+            return _run_result(f"{tmp_path}\n")
+        return _run_result("prek v0.3.6\n- prek\n")
+
+    with mock.patch("airflow_breeze.utils.path_utils.subprocess.run", side_effect=fake_run):
+        assert detect_legacy_global_breeze_install() == "uv"
+
+
+SETUP_BREEZE_SCRIPT = ACTUAL_AIRFLOW_SOURCES / "scripts" / "tools" / "setup_breeze"
+
+
+def _write_executable(path: Path, body: str) -> None:
+    path.write_text(body)
+    path.chmod(0o755)
+
+
+def _sandbox_env(
+    tmp_path: Path, *, breeze_tool_installed: bool, entry_point_installed: bool = False
+) -> dict[str, str]:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    tool_dir = tmp_path / "uv-tools"
+    tool_dir.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    breeze_tool = tool_dir / "apache-airflow-breeze"
+    if breeze_tool_installed:
+        (breeze_tool / "bin").mkdir(parents=True)
+        _write_executable(breeze_tool / "bin" / "breeze", "#!/usr/bin/env bash\nexit 0\n")
+    if entry_point_installed:
+        shim_path = home / ".local" / "bin" / "breeze"
+        shim_path.parent.mkdir(parents=True)
+        shim_path.symlink_to(breeze_tool / "bin" / "breeze")
+    # Reproduces uv's handling of a tool whose environment is corrupted: the warning goes to
+    # stderr and the tool is left out of the listing that setup_breeze greps.
+    _write_executable(
+        bin_dir / "uv",
+        "#!/usr/bin/env bash\n"
+        'if [[ "$1 $2" == "tool list" ]]; then\n'
+        '  echo "warning: Ignoring malformed tool apache-airflow-breeze" >&2\n'
+        '  echo "prek v0.3.6"\n'
+        "  exit 0\n"
+        "fi\n"
+        'if [[ "$1 $2" == "tool dir" ]]; then\n'
+        f'  echo "{tool_dir}"\n'
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(bin_dir / "pipx", "#!/usr/bin/env bash\nexit 0\n")
+    return {"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(home), "ANSWER": "y"}
+
+
+def _run_setup_breeze(env: dict[str, str]) -> subprocess.CompletedProcess:
+    return subprocess.run([str(SETUP_BREEZE_SCRIPT)], env=env, text=True, capture_output=True, check=False)
+
+
+@pytest.mark.parametrize("entry_point_installed", [True, False])
+def test_setup_breeze_reports_uv_tool_install_missing_from_listing(tmp_path, entry_point_installed):
+    result = _run_setup_breeze(
+        _sandbox_env(tmp_path, breeze_tool_installed=True, entry_point_installed=entry_point_installed)
+    )
+    assert result.returncode == 1
+    assert "A legacy global breeze install was detected." in result.stdout
+    assert "uv tool uninstall apache-airflow-breeze" in result.stdout
+
+
+def test_setup_breeze_replaces_entry_point_left_by_uv_tool_uninstall(tmp_path):
+    # An entry point with no tool directory under it is the dangling symlink uv leaves behind.
+    env = _sandbox_env(tmp_path, breeze_tool_installed=False, entry_point_installed=True)
+    result = _run_setup_breeze(env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    shim = Path(env["HOME"]) / ".local" / "bin" / "breeze"
+    assert not shim.is_symlink()
+    assert BREEZE_SHIM_MARKER in shim.read_text()
+
+
+def test_setup_breeze_refuses_a_broken_symlink_uv_does_not_own(tmp_path):
+    env = _sandbox_env(tmp_path, breeze_tool_installed=False, entry_point_installed=True)
+    shim = Path(env["HOME"]) / ".local" / "bin" / "breeze"
+    shim.unlink()
+    shim.symlink_to(tmp_path / "elsewhere" / "breeze")
+    result = _run_setup_breeze(env)
+    assert result.returncode == 1
+    assert "is a broken symlink to" in result.stdout
+    assert shim.is_symlink()
+
+
+def test_setup_breeze_installs_shim_when_uv_owns_no_breeze_tool(tmp_path):
+    env = _sandbox_env(tmp_path, breeze_tool_installed=False)
+    result = _run_setup_breeze(env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "A legacy global breeze install was detected." not in result.stdout
+    assert BREEZE_SHIM_MARKER in (Path(env["HOME"]) / ".local" / "bin" / "breeze").read_text()

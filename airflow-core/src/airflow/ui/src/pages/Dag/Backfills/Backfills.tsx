@@ -20,17 +20,44 @@ import { Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
-import type { BackfillResponse } from "openapi/requests/types.gen";
+import type { BackfillResponse, ReprocessBehavior } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getDuration } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
+import { BackfillsFilters } from "./BackfillsFilters";
+
+const {
+  COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
+  COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
+  CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
+  CREATED_AT_LTE: CREATED_AT_LTE_PARAM,
+  FROM_DATE_GTE: FROM_DATE_GTE_PARAM,
+  FROM_DATE_LTE: FROM_DATE_LTE_PARAM,
+  MAX_ACTIVE_RUNS_GTE: MAX_ACTIVE_RUNS_GTE_PARAM,
+  MAX_ACTIVE_RUNS_LTE: MAX_ACTIVE_RUNS_LTE_PARAM,
+  REPROCESS_BEHAVIOR: REPROCESS_BEHAVIOR_PARAM,
+  TO_DATE_GTE: TO_DATE_GTE_PARAM,
+  TO_DATE_LTE: TO_DATE_LTE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
+
+const REPROCESS_BEHAVIOR_VALUES = [
+  "failed",
+  "completed",
+  "none",
+] as const satisfies ReadonlyArray<ReprocessBehavior>;
+
+const isReprocessBehavior = (value: string | null): value is ReprocessBehavior =>
+  (REPROCESS_BEHAVIOR_VALUES as ReadonlyArray<string | null>).includes(value);
 
 const getColumns = (
   onSelectBackfill: (backfillId: number) => void,
@@ -126,10 +153,39 @@ export const Backfills = () => {
   const { backfillId, dagId = "" } = useParams();
   const selectedBackfillId = Number(backfillId);
   const hasSelectedBackfill = Number.isInteger(selectedBackfillId) && selectedBackfillId > 0;
+
+  const [searchParams] = useSearchParams();
+
+  const fromDateGte = searchParams.get(FROM_DATE_GTE_PARAM);
+  const fromDateLte = searchParams.get(FROM_DATE_LTE_PARAM);
+  const toDateGte = searchParams.get(TO_DATE_GTE_PARAM);
+  const toDateLte = searchParams.get(TO_DATE_LTE_PARAM);
+  const createdAtGte = searchParams.get(CREATED_AT_GTE_PARAM);
+  const createdAtLte = searchParams.get(CREATED_AT_LTE_PARAM);
+  const completedAtGte = searchParams.get(COMPLETED_AT_GTE_PARAM);
+  const completedAtLte = searchParams.get(COMPLETED_AT_LTE_PARAM);
+  const maxActiveRunsGte = searchParams.get(MAX_ACTIVE_RUNS_GTE_PARAM);
+  const maxActiveRunsLte = searchParams.get(MAX_ACTIVE_RUNS_LTE_PARAM);
+  const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
+  const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
+
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
+    completedAtGte: completedAtGte ?? undefined,
+    completedAtLte: completedAtLte ?? undefined,
+    createdAtGte: createdAtGte ?? undefined,
+    createdAtLte: createdAtLte ?? undefined,
     dagId,
+    fromDateGte: fromDateGte ?? undefined,
+    fromDateLte: fromDateLte ?? undefined,
     limit: pagination.pageSize,
+    maxActiveRunsGte:
+      maxActiveRunsGte !== null && maxActiveRunsGte !== "" ? Number(maxActiveRunsGte) : undefined,
+    maxActiveRunsLte:
+      maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
     offset: pagination.pageIndex * pagination.pageSize,
+    reprocessBehavior,
+    toDateGte: toDateGte ?? undefined,
+    toDateLte: toDateLte ?? undefined,
   });
 
   const onSelectBackfill = (id: number) => {
@@ -155,6 +211,7 @@ export const Backfills = () => {
 
   return (
     <>
+      <BackfillsFilters />
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}

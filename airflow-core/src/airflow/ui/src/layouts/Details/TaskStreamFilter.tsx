@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, ButtonGroup, HStack, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
 import { useEffect } from "react";
+
+import { Button, ButtonGroup, HStack, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiFilter, FiInfo } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { IconButton, Tooltip } from "src/components/ui";
-import { Menu } from "src/components/ui/Menu";
+import { IconButton, Tooltip, Menu } from "src/system-components";
 
 export const TaskStreamFilter = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -105,7 +105,7 @@ export const TaskStreamFilter = () => {
   return (
     <Menu.Root positioning={{ placement: "bottom-end" }} tooltipLabel={tooltipContent}>
       <Menu.Trigger asChild>
-        <IconButton variant={hasActiveFilter ? "solid" : "ghost"}>
+        <IconButton bg="bg" variant={hasActiveFilter ? "solid" : "outline"}>
           <FiFilter />
         </IconButton>
       </Menu.Trigger>
