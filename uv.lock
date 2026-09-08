@@ -8750,8 +8750,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "grpcio", marker = "python_full_version < '3.14'", specifier = ">=1.70.0" },
-    { name = "grpcio", marker = "python_full_version >= '3.14'", specifier = ">=1.78.0" },
+    { name = "grpcio", specifier = ">=1.78.0" },
     { name = "yandex-query-client", specifier = ">=0.1.4" },
     { name = "yandexcloud", marker = "python_full_version < '3.13'", specifier = ">=0.328.0" },
     { name = "yandexcloud", marker = "python_full_version >= '3.13'", specifier = ">=0.376.0" },
