@@ -97,6 +97,25 @@ class TestTimezone:
         td = 434343600.0
         assert timezone.td_format(td) == "13y:11m:17d:3h"
 
+    def test_td_format_negative(self):
+        td = datetime.timedelta(seconds=-3752)
+        assert timezone.td_format(td) == "-1h:2M:32s"
+        td = datetime.timedelta(days=-5)
+        assert timezone.td_format(td) == "-5d"
+        td = -3752
+        assert timezone.td_format(td) == "-1h:2M:32s"
+        td = -3752.0
+        assert timezone.td_format(td) == "-1h:2M:32s"
+        td = -434343600.0
+        assert timezone.td_format(td) == "-13y:11m:17d:3h"
+        # a magnitude below one second reads the same either way
+        td = datetime.timedelta(seconds=-0.4)
+        assert timezone.td_format(td) == "<1s"
+        td = -0.123
+        assert timezone.td_format(td) == "<1s"
+        # the timedelta and the numeric branch agree for the same duration
+        assert timezone.td_format(datetime.timedelta(seconds=-3752)) == timezone.td_format(-3752)
+
 
 @pytest.mark.parametrize(
     ("input_datetime", "output_datetime"),
