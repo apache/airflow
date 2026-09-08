@@ -300,8 +300,8 @@ def _create_scheduler_dag_bag() -> CachedDBDagBag:
     outright. With both limits disabled, retain loaded Dags without eviction for the process
     lifetime.
     """
-    cache_size = conf.getint("scheduler", "dag_cache_size", fallback=512)
-    cache_ttl = conf.getint("scheduler", "dag_cache_ttl", fallback=0)
+    cache_size = conf.getint("scheduler", "dag_cache_size")
+    cache_ttl = conf.getint("scheduler", "dag_cache_ttl")
     if cache_size < 0:
         raise ValueError("[scheduler] dag_cache_size must be greater than or equal to 0")
     if cache_ttl < 0:
