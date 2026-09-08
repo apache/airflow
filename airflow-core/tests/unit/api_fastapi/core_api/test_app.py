@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
+from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.core_api.app import init_config
@@ -177,3 +178,24 @@ class TestCorsMiddlewareConfig:
             app = FastAPI()
             with pytest.raises(AirflowConfigException, match=r"must not contain `\*`"):
                 init_config(app)
+
+    def test_allow_origin_regex_allows_matching_and_blocks_other_origins(self):
+        """A request whose Origin matches the regex is CORS-approved; a non-matching one is not."""
+        with conf_vars({("api", "access_control_allow_origin_regex"): r"https://.*\.example\.com"}):
+            app = FastAPI()
+            init_config(app)
+
+        @app.get("/ping")
+        def ping():
+            return {"ok": True}
+
+        client = TestClient(app)
+
+        allowed = client.get("/ping", headers={"Origin": "https://app.example.com"})
+        assert allowed.status_code == 200
+        assert allowed.headers["access-control-allow-origin"] == "https://app.example.com"
+        assert allowed.headers["access-control-allow-credentials"] == "true"
+
+        blocked = client.get("/ping", headers={"Origin": "https://evil.com"})
+        assert blocked.status_code == 200
+        assert "access-control-allow-origin" not in blocked.headers

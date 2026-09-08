@@ -125,7 +125,7 @@ providers/amazon/src/airflow/providers/amazon/aws/triggers/sqs.py::1
 providers/amazon/src/airflow/providers/amazon/aws/utils/__init__.py::1
 providers/amazon/src/airflow/providers/amazon/aws/utils/connection_wrapper.py::2
 providers/amazon/src/airflow/providers/amazon/aws/utils/waiter.py::1
-providers/amazon/src/airflow/providers/amazon/aws/utils/waiter_with_logging.py::6
+providers/amazon/src/airflow/providers/amazon/aws/utils/waiter_with_logging.py::2
 providers/amazon/tests/unit/amazon/aws/operators/test_ecs.py::1
 providers/apache/beam/src/airflow/providers/apache/beam/hooks/beam.py::8
 providers/apache/beam/src/airflow/providers/apache/beam/operators/beam.py::4

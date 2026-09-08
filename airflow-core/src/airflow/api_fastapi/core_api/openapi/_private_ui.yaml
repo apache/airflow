@@ -403,6 +403,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
