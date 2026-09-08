@@ -28,6 +28,11 @@ assets:
   delete-queued-events: "Delete all queued events for a given asset"
   delete-dag-queued-events: "Delete all queued asset events for a given Dag"
   delete-queued-event: "Delete a specific queued asset event for a given Dag and asset"
+  list-state-store: "List all state store entries for an asset"
+  get-state-store: "Retrieve a single asset state store entry by its ID and key"
+  set-state-store: "Set an asset state store value. Parsed as JSON if valid, otherwise stored as a string"
+  delete-state-store: "Delete a single asset state store key by its ID and key"
+  clear-state-store: "Delete all state store keys for an asset by its ID"
 
 backfill:
   create: "Create a backfill job for a given Dag ID and date range"
