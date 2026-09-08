@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
@@ -354,6 +354,7 @@ def _guess_debugger() -> _SupportedDebugger:
     raise exc
 
 
+@deprecated_for_airflowctl("airflowctl tasks states-for-dag-run")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -492,6 +493,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         )
 
 
+@deprecated_for_airflowctl("airflowctl tasks clear")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
