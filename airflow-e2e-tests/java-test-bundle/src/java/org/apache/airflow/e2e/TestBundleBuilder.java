@@ -24,7 +24,8 @@ import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Bundle of deliberately broken task classes for the runner-behaviour E2E tests.
+ * Bundle for the runner-behaviour E2E tests: deliberately broken task classes that exercise
+ * instantiation failures, and a task that round-trips Airflow Variables through the supervisor.
  */
 public class TestBundleBuilder implements BundleBuilder {
   public static class MissingNoArgConstructor implements Task {
@@ -46,13 +47,28 @@ public class TestBundleBuilder implements BundleBuilder {
     }
   }
 
+  /**
+   * Stores this run's id where the E2E test can read it back through the REST API, then writes
+   * and deletes a scratch variable to exercise the delete path.
+   */
+  public static class WriteAndDeleteVariable implements Task {
+    public void execute(@NotNull Context context, Client client) {
+      client.setVariable(
+          "java_e2e_variable", context.dagRun.runId, "written by the Java SDK e2e test");
+      client.setVariable("java_e2e_scratch", "scratch");
+      client.deleteVariable("java_e2e_scratch");
+    }
+  }
+
   @NotNull
   @Override
   public Iterable<DagDef> getDags() {
-    var dag = new DagDef("java_uninstantiable");
-    dag.addTask("missing_no_arg_constructor", MissingNoArgConstructor.class);
-    dag.addTask("non_static_inner", NonStaticInner.class);
-    return List.of(dag);
+    var uninstantiable = new DagDef("java_uninstantiable");
+    uninstantiable.addTask("missing_no_arg_constructor", MissingNoArgConstructor.class);
+    uninstantiable.addTask("non_static_inner", NonStaticInner.class);
+    var variableWrite = new DagDef("java_variable_write");
+    variableWrite.addTask("write_and_delete", WriteAndDeleteVariable.class);
+    return List.of(uninstantiable, variableWrite);
   }
 
   public static void main(String[] args) {

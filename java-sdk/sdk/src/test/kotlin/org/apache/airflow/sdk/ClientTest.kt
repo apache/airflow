@@ -34,6 +34,14 @@ private class FakeTransport(
 
   override fun getVariable(key: String): VariableResult = throw NotImplementedError()
 
+  override fun setVariable(
+    key: String,
+    value: String,
+    description: String?,
+  ) = throw NotImplementedError()
+
+  override fun deleteVariable(key: String) = throw NotImplementedError()
+
   override fun getXCom(
     key: String,
     dagId: String,

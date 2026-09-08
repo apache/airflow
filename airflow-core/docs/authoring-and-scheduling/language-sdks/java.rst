@@ -463,6 +463,24 @@ represented as Java objects when read back via ``getXCom``.
    ``null`` and the task fails with ``MissingXComException``.  Declare the parameter with a
    boxed type when the upstream XCom may be absent.
 
+Variables
+---------
+
+``Client`` reads, writes, and deletes Airflow Variables. Values are stored as strings. Serialize
+structured data (for example to JSON) before storing it.
+
+.. code-block:: java
+
+    var threshold = (String) client.getVariable("process_threshold");
+    client.setVariable("process_threshold", "42", "Rows above this count take the slow path");
+    client.deleteVariable("legacy_threshold");
+
+.. note::
+
+   A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still
+   takes precedence over the stored value when the Variable is read back. Calling ``setVariable``
+   without a description clears any existing description.
+
 .. _java-sdk/build:
 
 Building and packaging

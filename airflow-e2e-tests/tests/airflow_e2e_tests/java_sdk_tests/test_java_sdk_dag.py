@@ -61,9 +61,11 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
+import requests
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
@@ -81,6 +83,8 @@ _LOG_FETCH_TIMEOUT = 60
 _ANNOTATION_DAG_ID = "java_annotation_example"
 _XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
 _SCALA_SPARK_DAG_ID = "scala_spark_example"
+_VARIABLE_WRITE_DAG_ID = "java_variable_write"
+_VARIABLE_WRITE_DESCRIPTION = "written by the Java SDK e2e test"
 
 
 @dataclass
@@ -177,6 +181,12 @@ def xcom_casting_example_run() -> _CompletedRun:
 def scala_spark_example_run() -> _CompletedRun:
     """Trigger the Scala Spark example once for all of its assertions."""
     return _trigger_and_wait_for_dag(_SCALA_SPARK_DAG_ID, _SPARK_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def variable_write_run() -> _CompletedRun:
+    """Trigger the variable write Dag once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_VARIABLE_WRITE_DAG_ID, _JAVA_TASK_TIMEOUT)
 
 
 class TestJavaSDKAnnotationExample:
@@ -319,6 +329,51 @@ class TestJavaSDKUninstantiableTask:
         assert record.get("taskClass") == expected_task_class, (
             f"instantiation error should name the offending class {expected_task_class!r}, "
             f"got {record.get('taskClass')!r}; record: {record}"
+        )
+
+
+class TestJavaSDKVariableWrite:
+    """Verify a Java task can write and delete Airflow Variables.
+
+    The task lives in the java-test-bundle fixture project (served on the
+    dedicated "java-test" queue). It stores its own run id in
+    ``java_e2e_variable`` and deletes a scratch Variable it has just written,
+    so both paths go through the supervisor and the Task Execution API.
+    """
+
+    def test_variable_written_by_java_task_is_readable(self, variable_write_run: _CompletedRun):
+        """The value and description set from Java are visible through the REST API."""
+        ti = variable_write_run.get_task_instance("write_and_delete")
+        assert ti.get("state") == "success", (
+            "Java 'write_and_delete' task did not succeed.\n"
+            f"  task state : {ti.get('state')!r}\n"
+            f"  dag state  : {variable_write_run.state!r}\n"
+            f"  all tasks  : {variable_write_run.ti_states}"
+        )
+
+        variable = variable_write_run.client.get_variable("java_e2e_variable")
+        assert variable.get("value") == variable_write_run.run_id, (
+            f"java_e2e_variable should hold this run's id {variable_write_run.run_id!r}, got {variable!r}"
+        )
+        assert variable.get("description") == _VARIABLE_WRITE_DESCRIPTION, (
+            f"java_e2e_variable should carry the description set from Java, got {variable!r}"
+        )
+
+    def test_scratch_variable_deleted_by_java_task_is_gone(self, variable_write_run: _CompletedRun):
+        """A Variable written and then deleted from Java no longer exists."""
+        ti = variable_write_run.get_task_instance("write_and_delete")
+        assert ti.get("state") == "success", (
+            "Java 'write_and_delete' task did not succeed.\n"
+            f"  task state : {ti.get('state')!r}\n"
+            f"  dag state  : {variable_write_run.state!r}\n"
+            f"  all tasks  : {variable_write_run.ti_states}"
+        )
+
+        with pytest.raises(requests.HTTPError) as excinfo:
+            variable_write_run.client.get_variable("java_e2e_scratch")
+        assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+            f"java_e2e_scratch should have been deleted by the Java task, "
+            f"got HTTP {excinfo.value.response.status_code}"
         )
 
 
