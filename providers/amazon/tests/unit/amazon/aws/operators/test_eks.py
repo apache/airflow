@@ -1415,3 +1415,10 @@ class TestEksPodExecOperator:
         )
 
         validate_template_fields(operator)
+        assert "cluster_name" in operator.template_fields
+        assert "pod_name" in operator.template_fields
+        assert "command" in operator.template_fields
+
+        assert "cluster_context" not in operator.template_fields
+        assert "config_file" not in operator.template_fields
+        assert "kubernetes_conn_id" not in operator.template_fields
