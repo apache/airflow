@@ -107,6 +107,85 @@ config:
         type: string
         example: https://airflow.hosting.org/edge_worker/v1/rpcapi
         default: ~
+      trusted_jwks_url:
+        description: |
+          When set, edge worker tokens are verified against this JSON Web Key Set
+          (JWKS) URL of a trusted OpenID Connect provider, using asymmetric
+          signatures, instead of the shared ``[api_auth] jwt_secret``. This lets
+          edge workers authenticate with tokens minted by an external identity
+          provider.
+
+          When empty (the default) the shared-secret (symmetric) verification is
+          used, so existing deployments are unaffected.
+
+          Security note: enabling this disables the per-request ``method`` claim
+          check that the shared-secret path uses to scope a token to a single
+          endpoint (externally issued tokens do not carry it). A valid signature
+          then only proves who signed the token, not that the identity may act as
+          an edge worker. If the issuer serves other workloads, configure
+          ``jwt_issuer`` and a ``jwt_verifier`` to restrict which identities are
+          accepted; otherwise any validly signed token from the issuer is accepted.
+        version_added: 4.4.0
+        type: string
+        example: https://idp.example.com/oauth2/v1/keys
+        default: ~
+      jwt_issuer:
+        description: |
+          Expected ``iss`` claim of edge worker tokens when ``trusted_jwks_url`` is
+          set. Leaving it empty skips issuer verification, so a token from any issuer
+          whose key is in the JWKS is accepted; in that case ``jwt_verifier`` must be
+          configured to decide which identities may act as edge workers (requests are
+          rejected otherwise). Set it to bind tokens to your provider. Ignored when
+          ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: https://idp.example.com
+        default: ~
+      jwt_audience:
+        description: |
+          Expected ``aud`` claim of edge worker tokens when ``trusted_jwks_url`` is
+          set. When set, the token must carry a matching ``aud``. When empty, only
+          tokens that carry no ``aud`` claim are accepted (a token that does carry
+          an ``aud`` is rejected). Ignored when ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: api
+        default: ~
+      jwt_algorithm:
+        description: |
+          Comma-separated list of JWS signing algorithms accepted for edge worker
+          tokens when ``trusted_jwks_url`` is set. Set it to match the algorithm the
+          trusted provider signs with. Ignored when ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: RS256,RS512
+        default: RS256
+      jwt_leeway:
+        description: |
+          Number of seconds of leeway allowed when validating the expiry and issued-at
+          claims of edge worker tokens issued by a trusted OIDC provider, to account for
+          clock skew between the identity provider and the API server. Ignored when
+          ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: integer
+        example: ~
+        default: "30"
+      jwt_verifier:
+        description: |
+          Import path of a callable that authorizes edge worker tokens issued by a
+          trusted OIDC provider, run after signature, issuer and audience checks pass.
+          It receives the validated claims (``dict``) and returns a mapping with an
+          ``authorized`` boolean (e.g. ``{"authorized": True}``); a falsy result or a
+          raised exception rejects the request. Use it to restrict which identities
+          (for example by ``sub``, ``client_id`` or ``scope``) may act as edge workers.
+          Required when ``trusted_jwks_url`` is set but ``jwt_issuer`` is empty, since
+          issuer verification is then skipped. When empty (and ``jwt_issuer`` is set)
+          any token that passes signature, issuer and audience verification is
+          authorized. Ignored when ``trusted_jwks_url`` is empty.
+        version_added: 4.4.0
+        type: string
+        example: my_company.edge_auth.verify_worker_token
+        default: ~
       job_poll_interval:
         description: |
           Edge Worker currently polls for new jobs via HTTP. This parameter defines the number
