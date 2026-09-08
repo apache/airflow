@@ -91,6 +91,28 @@ class TestPluginsManager:
 
         assert [r for r in caplog.record_tuples if not r[0].startswith("opentelemetry.")] == []
 
+    def test_empty_plugins_folder_logs_no_failure(self, caplog, tmp_path):
+        from airflow import plugins_manager
+
+        with (
+            caplog.at_level(logging.DEBUG, logger="airflow.plugins_manager"),
+            conf_vars(
+                {
+                    ("core", "plugins_folder"): os.fspath(tmp_path),
+                    ("core", "load_examples"): "False",
+                }
+            ),
+            mock.patch("airflow.plugins_manager._load_entrypoint_plugins", return_value=([], [])),
+            mock.patch("airflow.plugins_manager._load_providers_plugins", return_value=([], [])),
+        ):
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        assert plugins == []
+        assert import_errors == {}
+        received_logs = caplog.text
+        assert "Failed to load" not in received_logs
+        assert "No plugins loaded" in received_logs
+
     def test_loads_filesystem_plugins_exception(self, caplog, tmp_path):
         from airflow import plugins_manager
 
@@ -108,6 +130,7 @@ class TestPluginsManager:
 
         received_logs = caplog.text
         assert "Failed to load plugin" in received_logs
+        assert "Failed to load 1 plugin file(s)" in received_logs
         assert "testplugin.py" in received_logs
 
     def test_duplicate_plugin_name_does_not_prevent_loading_subsequent_plugins(self):
