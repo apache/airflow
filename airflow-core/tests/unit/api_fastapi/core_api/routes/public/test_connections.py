@@ -368,6 +368,28 @@ class TestPostConnection(TestConnectionEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            [{"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE}],
+            '{"connection_id": "a"}',
+            42,
+        ],
+        ids=["list", "string", "number"],
+    )
+    def test_post_should_respond_422_for_non_dict_json_body(self, test_client, session, body):
+        """The audit-log dependency reads the body before validation, so a non-object body still gets a 422."""
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body"]
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="post_connection",
+            logical_date=None,
+            expected_extra={"method": "POST"},
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         response = test_client.post(
