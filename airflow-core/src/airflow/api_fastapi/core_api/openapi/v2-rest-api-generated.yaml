@@ -3660,7 +3660,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - $ref: '#/components/schemas/DagWarningType'
+          - type: string
           - type: 'null'
           title: Warning Type
       - name: limit
@@ -5065,13 +5065,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, bundle_name, stacktrace, import_error_id`'
+            source_reference, bundle_name, stacktrace, import_error_id, filename`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          bundle_name, stacktrace, import_error_id`'
+          with `-` for descending order. Supported attributes: `id, timestamp, source_reference,
+          bundle_name, stacktrace, import_error_id, filename`'
       - name: filename_pattern
         in: query
         required: false
@@ -13955,6 +13955,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        language:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Language
       type: object
       required:
       - content
@@ -14017,7 +14022,8 @@ components:
           type: string
           title: Dag Id
         warning_type:
-          $ref: '#/components/schemas/DagWarningType'
+          type: string
+          title: Warning Type
         message:
           type: string
           title: Message
@@ -14438,20 +14444,6 @@ components:
       - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
-    DagWarningType:
-      type: string
-      enum:
-      - asset conflict
-      - duplicate dag id
-      - non-existent pool
-      - runtime varying value
-      title: DagWarningType
-      description: 'Enum for DAG warning types.
-
-
-        This is the set of allowable values for the ``warning_type`` field
-
-        in the DagWarning model.'
     DryRunBackfillCollectionResponse:
       properties:
         backfills:

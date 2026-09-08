@@ -161,6 +161,8 @@ export const Code = () => {
       ? translate("code.noCode")
       : (compareCode?.content ?? "");
 
+  const language: string = code?.language ?? "python";
+
   const codeStatus = (
     <>
       <ErrorAlert
@@ -184,7 +186,7 @@ export const Code = () => {
       )}
       <Box flex={1} minH={0}>
         <CodeDiffViewer
-          language={code?.language ?? "python"}
+          language={language}
           modifiedCode={displayedCode}
           originalCode={displayedCompareCode}
         />
@@ -210,7 +212,7 @@ export const Code = () => {
       <Box flex={1} minH={0}>
         <Editor
           beforeMount={beforeMount}
-          language={code?.language ?? "python"}
+          language={language}
           options={editorOptions}
           theme={theme}
           value={displayedCode}
