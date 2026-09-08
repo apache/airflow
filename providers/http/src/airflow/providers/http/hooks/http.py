@@ -39,8 +39,8 @@ from airflow.providers.http.exceptions import HttpErrorException, HttpMethodExce
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from aiohttp.client_middlewares import ClientMiddlewareType
-    from aiohttp.client_reqrep import ClientResponse
+    from aiohttp.client_middlewares import ClientHandlerType, ClientMiddlewareType
+    from aiohttp.client_reqrep import ClientRequest, ClientResponse
     from requests.adapters import HTTPAdapter
 
     from airflow.models import Connection
@@ -128,7 +128,7 @@ def _build_connection_header_middleware(names: set[str]) -> ClientMiddlewareType
     """Pop Connection Extra headers on hops that leave the first-request origin."""
     origin_url: str | None = None
 
-    async def middleware(req, handler):
+    async def middleware(req: ClientRequest, handler: ClientHandlerType) -> ClientResponse:
         nonlocal origin_url
         request_url = str(req.url)
         if origin_url is None:
@@ -622,6 +622,7 @@ class AsyncHttpSession(LoggingMixin):
         extra_options = dict(extra_options)
         connection_header_names = set(self.config.connection_headers)
         if connection_header_names:
+            # Per-request middlewares= replaces session middleware; compose both.
             session_middlewares = ()
             if self._session is not None:
                 session_middlewares = getattr(self._session, "_middlewares", None) or ()

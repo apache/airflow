@@ -30,6 +30,8 @@ import aiohttp
 import pytest
 import requests
 import tenacity
+from aiohttp import web
+from aiohttp.test_utils import TestServer
 from multidict import CIMultiDict
 from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
@@ -1056,6 +1058,65 @@ class TestHttpAsyncHook:
         kwargs = mocked_head.call_args.kwargs
         assert kwargs.get("allow_redirects") is not True
         assert kwargs.get("middlewares")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("same_origin", [True, False])
+    async def test_async_connection_header_is_only_forwarded_on_a_same_origin_redirect(
+        self, same_origin, create_connection_without_db
+    ):
+        seen: dict[str, CIMultiDict] = {}
+
+        async def dest(request: web.Request) -> web.Response:
+            seen["dest"] = CIMultiDict(request.headers)
+            return web.Response(text="ok")
+
+        def start_handler(location: str):
+            async def start(request: web.Request) -> web.StreamResponse:
+                seen["start"] = CIMultiDict(request.headers)
+                raise web.HTTPFound(location)
+
+            return start
+
+        async def run_hook(origin_server: TestServer) -> None:
+            create_connection_without_db(
+                Connection(
+                    conn_id="http_redirect_live",
+                    conn_type="http",
+                    host=origin_server.host,
+                    port=origin_server.port,
+                    schema="http",
+                    extra=json.dumps({"X-API-Key": "secret"}),
+                )
+            )
+            hook = HttpAsyncHook(method="GET", http_conn_id="http_redirect_live")
+            resp = await hook.run(endpoint="start")
+            try:
+                assert resp.status == 200
+                assert await resp.text() == "ok"
+                assert len(resp.history) == 1
+                assert seen["start"]["X-API-Key"] == "secret"
+                if same_origin:
+                    assert seen["dest"]["X-API-Key"] == "secret"
+                else:
+                    assert "X-API-Key" not in seen["dest"]
+            finally:
+                resp.release()
+
+        if same_origin:
+            app = web.Application()
+            app.router.add_get("/dest", dest)
+            app.router.add_get("/start", start_handler("/dest"))
+            async with TestServer(app) as origin_server:
+                await run_hook(origin_server)
+            return
+
+        dest_app = web.Application()
+        dest_app.router.add_get("/dest", dest)
+        async with TestServer(dest_app) as dest_server:
+            origin_app = web.Application()
+            origin_app.router.add_get("/start", start_handler(str(dest_server.make_url("/dest"))))
+            async with TestServer(origin_app) as origin_server:
+                await run_hook(origin_server)
 
 
 class _FakeClientRequest:
