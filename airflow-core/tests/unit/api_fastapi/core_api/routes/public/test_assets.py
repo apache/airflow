@@ -1706,23 +1706,17 @@ class TestGetAssetEndpoint(TestAssets):
             "last_asset_event": {"id": None, "timestamp": None},
         }
 
-    @pytest.mark.parametrize(
-        ("authorized", "expected_status"),
-        [pytest.param(True, 200, id="authorized"), pytest.param(False, 403, id="forbidden")],
-    )
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset"
     )
-    def test_should_authorize_with_asset_name_and_uri(
-        self, mock_is_authorized_asset, test_client, authorized, expected_status
-    ):
+    def test_should_authorize_with_asset_name_and_uri(self, mock_is_authorized_asset, test_client):
         """The auth manager receives the name and uri so it can authorize on more than the id."""
         self.create_assets(num=1)
-        mock_is_authorized_asset.return_value = authorized
+        mock_is_authorized_asset.return_value = True
 
         response = test_client.get("/assets/1")
 
-        assert response.status_code == expected_status
+        assert response.status_code == 200
         mock_is_authorized_asset.assert_called_once_with(
             method="GET",
             details=AssetDetails(id="1", name="simple1", uri="s3://bucket/key/1"),

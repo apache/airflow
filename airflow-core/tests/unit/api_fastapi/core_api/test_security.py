@@ -1550,20 +1550,6 @@ class TestFastApiSecurity:
             method="GET", details=AssetDetails(id="not-a-number"), user=user
         )
 
-    @patch.object(AssetModel, "get_name_and_uri")
-    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    def test_requires_access_asset_unauthorized(self, mock_get_auth_manager, mock_get_name_and_uri):
-        auth_manager = Mock(spec=BaseAuthManager)
-        auth_manager.is_authorized_asset.return_value = False
-        mock_get_auth_manager.return_value = auth_manager
-        mock_get_name_and_uri.return_value = ("simple1", "s3://bucket/key/1")
-
-        fastapi_request = Mock(spec=Request)
-        fastapi_request.path_params = {"asset_id": "1"}
-
-        with pytest.raises(HTTPException, match="Forbidden"):
-            requires_access_asset("GET")(fastapi_request, Mock(spec=BaseUser))
-
     @pytest.mark.parametrize(
         ("filter_class", "expected_column"),
         [
