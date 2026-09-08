@@ -1,0 +1,1 @@
+Task SDK clients older than the API server no longer receive unmigrated Execution API responses. The compat previous-Dag-run route answered with the current response shape, and the asset-events routes failed to serialize when an event had created a Dag run, returning a server error. Both paths now migrate their responses to the client's negotiated API version.

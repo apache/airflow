@@ -59,12 +59,24 @@ class AddPartitionKeyField(VersionChange):
                 if isinstance(event, dict):
                     event.pop("partition_key", None)
 
+    # The compat previous-run route has no response model, so it is addressed by path.
+    @convert_response_to_previous_version_for("/dag-runs/{dag_id}/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_partition_key_from_compat_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the `partition_key` field from the compat previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("partition_key", None)
+
     @convert_response_to_previous_version_for(AssetEventsResponse)  # type: ignore[arg-type]
     def remove_partition_key_from_asset_events(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Remove the `partition_key` field from the dag_run object when converting to the previous version."""
+        """Remove the `partition_key` field from the asset events when converting to the previous version."""
         events = response.body["asset_events"]
         for elem in events:
             elem.pop("partition_key", None)
+            # The nested Dag runs carry the field too, and their previous-version schema forbids
+            # unknown keys, so leaving it here fails response serialization for those clients.
+            for dag_run in elem.get("created_dagruns") or ():
+                if isinstance(dag_run, dict):
+                    dag_run.pop("partition_key", None)
 
 
 class MovePreviousRunEndpoint(VersionChange):
@@ -111,6 +123,13 @@ class MakeDagRunStartDateNullable(VersionChange):
     def ensure_start_date_in_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Ensure start_date is never None in direct DagRun responses for previous API versions."""
         if response.body.get("start_date") is None:
+            response.body["start_date"] = response.body.get("run_after")
+
+    # The compat previous-run route has no response model, so it is addressed by path.
+    @convert_response_to_previous_version_for("/dag-runs/{dag_id}/previous", ["GET"])  # type: ignore[arg-type]
+    def ensure_start_date_in_compat_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Ensure start_date is never None in the compat previous-run response."""
+        if isinstance(response.body, dict) and response.body.get("start_date") is None:
             response.body["start_date"] = response.body.get("run_after")
 
 
@@ -185,6 +204,13 @@ class AddNoteField(VersionChange):
         """Remove note field for older API versions."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("note", None)
+
+    # The compat previous-run route has no response model, so it is addressed by path.
+    @convert_response_to_previous_version_for("/dag-runs/{dag_id}/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_note_from_compat_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the `note` field from the compat previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("note", None)
 
 
 class AddTaskInstanceStartDateField(VersionChange):
