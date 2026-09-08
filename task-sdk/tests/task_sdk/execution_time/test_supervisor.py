@@ -814,7 +814,7 @@ class TestWatchedSubprocess:
                 trigger_kwargs={
                     "moment": {
                         "__classname__": "pendulum.datetime.DateTime",
-                        "__version__": 2,
+                        "__version__": 3,
                         "__data__": {
                             "timestamp": 1730982899.0,
                             "tz": {
