@@ -1350,11 +1350,11 @@ class DAG:
                     bundle.initialize()
                 source_file = existing_dm.fileloc if existing_dm is not None else None
                 bundle_path = os.path.abspath(bundle.path)
-                source_is_in_bundle = (
-                    bool(source_file)
-                    and os.path.isfile(source_file)
-                    and (os.path.commonpath([os.path.abspath(source_file), bundle_path]) == bundle_path)
-                )
+                source_is_in_bundle = False
+                if source_file and os.path.isfile(source_file):
+                    source_is_in_bundle = (
+                        os.path.commonpath([os.path.abspath(source_file), bundle_path]) == bundle_path
+                    )
                 dag_folder = source_file if source_is_in_bundle else bundle.path
                 dagbag = BundleDagBag(
                     dag_folder=dag_folder,
