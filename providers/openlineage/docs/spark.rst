@@ -181,6 +181,9 @@ as Airflow without manual configuration.
 .. caution::
 
     Currently, only HTTP transport is supported for automatic transport injection (with api_key authentication, if configured).
+    If the transport uses :ref:`OAuth 2.0 client credentials authentication <configuration_oauth2:openlineage>`, the current
+    access token is injected as ``api_key`` authentication, because Spark OpenLineage integration cannot refresh it.
+    Spark applications running longer than the token lifetime will fail to emit OpenLineage events.
 
 
 .. note::

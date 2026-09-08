@@ -26,6 +26,11 @@ from openlineage.client.transport.composite import CompositeConfig, CompositeTra
 from openlineage.client.transport.http import HttpConfig, HttpTransport
 from openlineage.client.transport.kafka import KafkaConfig, KafkaTransport
 
+from airflow.providers.openlineage.token_provider import (
+    OAUTH2_CLIENT_CREDENTIALS_AUTH_TYPE,
+    OAuth2ClientCredentialsTokenProvider,
+    OpenLineageOAuth2TokenError,
+)
 from airflow.providers.openlineage.utils.spark import (
     _get_parent_job_information_as_spark_properties,
     _get_transport_information_as_spark_properties,
@@ -62,6 +67,15 @@ EXAMPLE_HTTP_TRANSPORT_CONFIG = {
     "auth": {
         "type": "api_key",
         "apiKey": "secret_123",
+    },
+}
+EXAMPLE_OAUTH2_HTTP_TRANSPORT_CONFIG = {
+    **EXAMPLE_HTTP_TRANSPORT_CONFIG,
+    "auth": {
+        "type": OAUTH2_CLIENT_CREDENTIALS_AUTH_TYPE,
+        "tokenEndpoint": "https://auth.example.com/token",
+        "clientId": "my-client-id",
+        "clientSecret": "my-client-secret",
     },
 }
 EXAMPLE_KAFKA_TRANSPORT_CONFIG = {
@@ -124,6 +138,43 @@ def test_get_transport_information_as_spark_properties(mock_ol_listener):
     )
     result = _get_transport_information_as_spark_properties()
     assert result == EXAMPLE_TRANSPORT_SPARK_PROPERTIES
+
+
+@patch.object(OAuth2ClientCredentialsTokenProvider, "get_bearer", return_value="Bearer access-token")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_get_transport_information_as_spark_properties_oauth2_auth(mock_ol_listener, mock_get_bearer):
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(EXAMPLE_OAUTH2_HTTP_TRANSPORT_CONFIG)
+    )
+    result = _get_transport_information_as_spark_properties()
+    assert result == {
+        **EXAMPLE_TRANSPORT_SPARK_PROPERTIES,
+        "spark.openlineage.transport.auth.apiKey": "Bearer access-token",
+    }
+
+
+@patch.object(
+    OAuth2ClientCredentialsTokenProvider,
+    "get_bearer",
+    side_effect=OpenLineageOAuth2TokenError("token request failed"),
+)
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+def test_get_transport_information_as_spark_properties_oauth2_auth_token_error(
+    mock_ol_listener, mock_get_bearer
+):
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        HttpConfig.from_dict(EXAMPLE_OAUTH2_HTTP_TRANSPORT_CONFIG)
+    )
+    result = _get_transport_information_as_spark_properties()
+    assert result == {
+        key: value
+        for key, value in EXAMPLE_TRANSPORT_SPARK_PROPERTIES.items()
+        if not key.startswith("spark.openlineage.transport.auth.")
+    }
 
 
 @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")

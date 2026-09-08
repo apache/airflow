@@ -28,6 +28,10 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_root_run_id,
     lineage_run_id,
 )
+from airflow.providers.openlineage.token_provider import (
+    OAuth2ClientCredentialsTokenProvider,
+    OpenLineageOAuth2TokenError,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -74,6 +78,22 @@ def _get_transport_information_as_spark_properties() -> dict:
         if hasattr(tp.config.auth, "api_key") and tp.config.auth.get_bearer():
             properties["auth.type"] = "api_key"
             properties["auth.apiKey"] = tp.config.auth.get_bearer()
+        elif isinstance(tp.config.auth, OAuth2ClientCredentialsTokenProvider):
+            try:
+                bearer = tp.config.auth.get_bearer()
+            except OpenLineageOAuth2TokenError as e:
+                log.warning(
+                    "Failed to obtain OpenLineage OAuth2 access token, injecting Spark transport information "
+                    "without authentication: %s",
+                    e,
+                )
+            else:
+                log.info(
+                    "Injecting current OAuth2 access token as `api_key` auth into Spark properties. Spark cannot "
+                    "refresh it, so Spark applications outliving the token will fail to emit OpenLineage events."
+                )
+                properties["auth.type"] = "api_key"
+                properties["auth.apiKey"] = bearer
 
         if hasattr(tp.config, "custom_headers") and tp.config.custom_headers:
             for key, value in tp.config.custom_headers.items():

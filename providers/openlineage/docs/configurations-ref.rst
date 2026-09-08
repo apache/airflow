@@ -100,6 +100,54 @@ reads the API key from the same connection password by default. You can also set
 from another Airflow connection. The provider resolves ``airflow_connection_api_key`` to standard OpenLineage
 ``api_key`` auth before creating the OpenLineage client.
 
+.. _configuration_oauth2:openlineage:
+
+OAuth 2.0 client credentials authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+OpenLineage Python client does not ship OAuth 2.0 client credentials authentication for HTTP transports. If your
+OpenLineage backend issues short-lived access tokens with this grant, set ``auth.type`` to
+``airflow.providers.openlineage.token_provider.OAuth2ClientCredentialsTokenProvider``. The provider requests an access
+token from the token endpoint, caches it and requests a new one before it expires. It can be used with ``http`` and
+``async_http`` transports, including those nested in a ``composite`` transport.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "auth": {"type": "airflow.providers.openlineage.token_provider.OAuth2ClientCredentialsTokenProvider", "tokenEndpoint": "https://auth.example.com/oauth2/token", "clientId": "my-client-id", "clientSecret": "my-client-secret"}}
+
+Supported ``auth`` options:
+
+- ``tokenEndpoint`` (required) - OAuth 2.0 token endpoint URL.
+- ``clientId`` (required) - OAuth 2.0 client ID.
+- ``clientSecret`` (required) - OAuth 2.0 client secret.
+- ``scope`` - space separated scopes to request.
+- ``clientAuthMethod`` - ``client_secret_basic`` (default) sends the client credentials in the ``Authorization`` header,
+  ``client_secret_post`` sends them in the request body.
+- ``tokenRefreshBuffer`` - number of seconds before the token expiry when a new token is requested, defaults to ``120``
+  and is capped at half of the token lifetime. If the token endpoint does not return ``expires_in``, a lifetime of
+  ``300`` seconds is assumed.
+
+The options are also accepted in snake_case (``token_endpoint``, ``client_id``, ``client_secret``, ...), so they can be
+set with OpenLineage client environment variables such as ``OPENLINEAGE__TRANSPORT__AUTH__CLIENT_ID``.
+
+Tokens are cached per process. With the default fork-based task event emission, each task event is emitted from a
+short-lived child process and requests its own token; enable ``execute_in_thread`` to reuse a token across events.
+
+To keep the client secret out of Airflow configuration, set ``auth.type`` to ``airflow_connection_oauth2_client_credentials``
+and store the credentials in an Airflow connection: login is the client ID, password is the client secret and host is the
+token endpoint (unless ``tokenEndpoint`` is set in ``auth``). ``auth.conn_id`` selects the connection; when the config is
+loaded from ``config_conn_id``, that connection is used by default. The other options listed above can be set in ``auth``.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "auth": {"type": "airflow_connection_oauth2_client_credentials", "conn_id": "openlineage_oauth2"}}
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_OPENLINEAGE_OAUTH2='{"conn_type": "generic", "login": "my-client-id", "password": "my-client-secret", "host": "https://auth.example.com/oauth2/token"}'
+
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
   `Python client documentation <https://openlineage.io/docs/client/python/configuration#transports>`_.
