@@ -320,15 +320,13 @@ class EdgeExecutor(BaseExecutor):
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.success(job.key)
-                elif job.state in [
-                    TaskInstanceState.FAILED,
-                    TaskInstanceState.RESTARTING,
-                    TaskInstanceState.UP_FOR_RETRY,
-                ]:
+                elif job.state in [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]:
                     if job.key in self.last_reported_state:
                         del self.last_reported_state[job.key]
                     self.fail(job.key)
                 else:
+                    # RESTARTING is not a failure here: the fetch endpoint parks a claimed job in that
+                    # state until the worker reports RUNNING.
                     self.last_reported_state[job.key] = TaskInstanceState(job.state)
             if (
                 job.state == TaskInstanceState.SUCCESS
@@ -405,17 +403,22 @@ class EdgeExecutor(BaseExecutor):
         )
         self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
-    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+    @provide_session
+    def try_adopt_task_instances(
+        self, tis: Sequence[TaskInstance], *, session: Session = NEW_SESSION
+    ) -> Sequence[TaskInstance]:
         """
-        Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
+        Adopt the task instances whose job is still tracked in the edge_job table.
 
-        Anything that is not adopted will be cleared by the scheduler (and then become eligible for
-        re-scheduling)
+        The ``running`` set is empty after a scheduler restart, so the adopted keys go back into it
+        to keep slot accounting accurate. Task instances without a job row are returned so the
+        scheduler clears and re-schedules them.
 
         :return: any TaskInstances that were unable to be adopted
         """
-        # We handle all running tasks from the DB in sync, no adoption logic needed.
-        return []
+        tracked_keys = self._get_tracked_job_keys(session)
+        self.running.update(ti.key for ti in tis if ti.key in tracked_keys)
+        return [ti for ti in tis if ti.key not in tracked_keys]
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
