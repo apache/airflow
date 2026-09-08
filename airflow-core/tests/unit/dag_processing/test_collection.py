@@ -22,7 +22,6 @@ import logging
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
-from functools import partial
 from threading import Event, Thread
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -75,7 +74,6 @@ from airflow.serialization.encoders import encode_trigger, ensure_serialized_ass
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.triggers.base import BaseEventTrigger
-from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
@@ -215,9 +213,11 @@ class TestDagModelOperation:
         assert locks, statements
         assert all("ORDER BY dag.dag_id" in q for q in locks), f"dag rows are locked in plan order:\n{locks}"
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_new_dag_rows_are_created_in_a_stable_order(self, dag_maker, session):
-        dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
+    def test_new_dag_rows_are_created_in_a_stable_order(self, session):
+        dags = {
+            name: LazyDeserializedDAG.from_dag(DAG(dag_id=name, schedule=None))
+            for name in ("c_dag", "a_dag", "b_dag")
+        }
         created: list[str] = []
 
         def spy(*, bundle_name, bundle_version, dags, session):
@@ -250,12 +250,7 @@ class TestAssetModelOperation:
     @pytest.mark.backend("postgres", "mysql")
     @pytest.mark.parametrize("kind", ["asset", "alias"])
     @pytest.mark.usefixtures("testing_dag_bundle")
-    @patch(
-        "airflow.dag_processing.collection.run_with_db_retries",
-        autospec=True,
-        side_effect=partial(run_with_db_retries, max_retries=1),
-    )
-    def test_shared_metadata_is_locked_before_full_parser_writes(self, retries, session, kind):
+    def test_shared_metadata_lock_timeout_retries_full_parser_writes(self, session, kind):
         model = AssetModel if kind == "asset" else AssetAliasModel
         reference = DagScheduleAssetReference if kind == "asset" else DagScheduleAssetAliasReference
         method_name = "sync_assets" if kind == "asset" else "sync_asset_aliases"
@@ -285,11 +280,15 @@ class TestAssetModelOperation:
             update_dag_parsing_results_in_db("testing", None, [dag], errors, None, set(), session=session)
             assert not errors
 
-        locked, release = Event(), Event()
+        locked, release, first_finished = Event(), Event(), Event()
         first_errors: list[Exception] = []
+        second_sync_attempts = 0
         real_sync = getattr(AssetModelOperation, method_name)
 
         def sync_then_pause(operation, *, session):
+            nonlocal second_sync_attempts
+            if "second" in operation.schedule_asset_references:
+                second_sync_attempts += 1
             result = real_sync(operation, session=session)
             if "first" in operation.schedule_asset_references:
                 locked.set()
@@ -302,8 +301,11 @@ class TestAssetModelOperation:
                     publish(build_dag("first"), session=first_session)
             except Exception as error:
                 first_errors.append(error)
+            finally:
+                first_finished.set()
 
         statements: list[str] = []
+        lock_failures: list[tuple[OperationalError, list[str]]] = []
 
         def record(conn, cursor, statement, parameters, context, executemany):
             statements.append(statement.lower())
@@ -325,33 +327,55 @@ class TestAssetModelOperation:
                             else "SET SESSION innodb_lock_wait_timeout = 1"
                         )
                     )
+
+                    def release_after_lock_timeout(context):
+                        if context.connection is connection and isinstance(
+                            context.sqlalchemy_exception, OperationalError
+                        ):
+                            lock_failures.append((context.sqlalchemy_exception, statements.copy()))
+                            release.set()
+                            assert first_finished.wait(15), ("first publication did not finish", first_errors)
+
                     event.listen(connection, "before_cursor_execute", record)
+                    event.listen(connection.engine, "handle_error", release_after_lock_timeout)
                     try:
-                        with pytest.raises(OperationalError) as failure:
-                            publish(build_dag("second"), session=second_session)
+                        publish(build_dag("second"), session=second_session)
+                        second_session.commit()
                     finally:
+                        event.remove(connection.engine, "handle_error", release_after_lock_timeout)
                         event.remove(connection, "before_cursor_execute", record)
                         second_session.rollback()
                         if not is_postgres:
                             connection.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
-                    failed_statement = failure.value.statement.lower()
+                    assert len(lock_failures) == 1, lock_failures
+                    failure, statements_before_timeout = lock_failures[0]
+                    assert failure.orig is not None
+                    dbapi = connection.dialect.dbapi
+                    assert dbapi is not None
+                    assert isinstance(failure.orig, dbapi.OperationalError), failure
+                    error_code = (
+                        getattr(failure.orig, "sqlstate", None) or getattr(failure.orig, "pgcode", None)
+                        if is_postgres
+                        else failure.orig.args[0]
+                    )
+                    assert error_code == ("55P03" if is_postgres else 1205), failure
+                    assert failure.statement is not None
+                    failed_statement = failure.statement.lower()
                     assert failed_statement.startswith("select")
                     assert f"from {table}" in failed_statement
                     assert any(clause in failed_statement for clause in ("for update", "for no key update"))
                     ordering = f"order by {table}.name" + (", asset.uri" if kind == "asset" else "")
                     assert ordering in failed_statement
-                    assert not any(statement.startswith(f"update {table} ") for statement in statements)
+                    assert not any(
+                        statement.startswith(f"update {table} ") for statement in statements_before_timeout
+                    ), statements_before_timeout
             finally:
                 release.set()
                 first.join(15)
             assert not first.is_alive()
             assert first_errors == []
+            assert second_sync_attempts == 2, (second_sync_attempts, lock_failures)
 
-        with create_session(scoped=False) as observer:
-            assert observer.scalars(select(model.group)).all() == ["first", "first"]
-            assert observer.scalars(select(SerializedDagModel.dag_id)).all() == ["first"]
-        with create_session(scoped=False) as retry_session:
-            publish(build_dag("second"), session=retry_session)
         with create_session(scoped=False) as observer:
             assert observer.scalars(select(model.group)).all() == ["second", "second"]
             assert sorted(observer.scalars(select(SerializedDagModel.dag_id))) == ["first", "second"]
@@ -415,13 +439,17 @@ class TestAssetModelOperation:
                     airflow.dag_processing.collection.asset_manager,
                     "create_assets",
                     autospec=True,
-                    return_value=[],
+                    side_effect=lambda assets, *, session: [
+                        AssetModel.from_serialized(asset) for asset in assets
+                    ],
                 ) as assets,
                 mock.patch.object(
                     airflow.dag_processing.collection.asset_manager,
                     "create_asset_aliases",
                     autospec=True,
-                    return_value=[],
+                    side_effect=lambda aliases, *, session: [
+                        AssetAliasModel.from_serialized(alias) for alias in aliases
+                    ],
                 ) as aliases,
             ):
                 op.sync_assets(session=session)

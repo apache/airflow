@@ -900,7 +900,7 @@ class AssetModelOperation(NamedTuple):
             for model in asset_manager.create_assets(to_create, session=session)
         )
         # Physical write order must not change which conflicting candidate is offered first.
-        return {key: orm_assets[key] for key in self.assets if key in orm_assets}
+        return {key: orm_assets[key] for key in self.assets}
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
