@@ -1511,14 +1511,14 @@ class TestFastApiSecurity:
     def test_requires_access_asset_resolves_name_and_uri(
         self, mock_get_auth_manager, mock_get_name_and_uri, path_params, name_and_uri, expected_details
     ):
-        auth_manager = Mock()
+        auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.is_authorized_asset.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         mock_get_name_and_uri.return_value = name_and_uri
 
-        fastapi_request = Mock()
+        fastapi_request = Mock(spec=Request)
         fastapi_request.path_params = path_params
-        user = Mock()
+        user = Mock(spec=BaseUser)
 
         requires_access_asset("GET")(fastapi_request, user)
 
@@ -1535,13 +1535,13 @@ class TestFastApiSecurity:
     def test_requires_access_asset_skips_lookup_for_non_numeric_id(
         self, mock_get_auth_manager, mock_get_name_and_uri
     ):
-        auth_manager = Mock()
+        auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.is_authorized_asset.return_value = True
         mock_get_auth_manager.return_value = auth_manager
 
-        fastapi_request = Mock()
+        fastapi_request = Mock(spec=Request)
         fastapi_request.path_params = {"asset_id": "not-a-number"}
-        user = Mock()
+        user = Mock(spec=BaseUser)
 
         requires_access_asset("GET")(fastapi_request, user)
 
@@ -1553,16 +1553,16 @@ class TestFastApiSecurity:
     @patch.object(AssetModel, "get_name_and_uri")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     def test_requires_access_asset_unauthorized(self, mock_get_auth_manager, mock_get_name_and_uri):
-        auth_manager = Mock()
+        auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.is_authorized_asset.return_value = False
         mock_get_auth_manager.return_value = auth_manager
         mock_get_name_and_uri.return_value = ("simple1", "s3://bucket/key/1")
 
-        fastapi_request = Mock()
+        fastapi_request = Mock(spec=Request)
         fastapi_request.path_params = {"asset_id": "1"}
 
         with pytest.raises(HTTPException, match="Forbidden"):
-            requires_access_asset("GET")(fastapi_request, Mock())
+            requires_access_asset("GET")(fastapi_request, Mock(spec=BaseUser))
 
     @pytest.mark.parametrize(
         ("filter_class", "expected_column"),
@@ -1588,9 +1588,9 @@ class TestFastApiSecurity:
         ],
     )
     def test_permitted_asset_filter_factory(self, filter_class, expected_type):
-        auth_manager = Mock()
+        auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.get_authorized_assets.return_value = {1, 3}
-        user = Mock()
+        user = Mock(spec=BaseUser)
 
         permitted_filter = permitted_asset_filter_factory("GET", filter_class)(user, auth_manager)
 

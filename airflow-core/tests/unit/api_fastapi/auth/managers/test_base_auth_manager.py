@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
 
 import pytest
 from jwt import InvalidTokenError
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -821,17 +822,21 @@ class TestBaseAuthManager:
                 return False
             return details.uri.startswith(authorized_uri_prefix)
 
-        auth_manager.is_authorized_asset = MagicMock(side_effect=side_effect_func)
-        user = Mock()
-        session = Mock()
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=side_effect_func
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_assets(user=user, session=session)
         assert result == expected
 
     def test_get_authorized_assets_passes_id_name_and_uri_to_filter(self, auth_manager):
-        auth_manager.filter_authorized_assets = MagicMock(return_value={"2"})
-        user = Mock()
-        session = Mock()
+        auth_manager.filter_authorized_assets = create_autospec(
+            auth_manager.filter_authorized_assets, return_value={"2"}
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
         session.execute.return_value.all.return_value = [(1, "a", "s3://a"), (2, "b", "s3://b")]
 
         result = auth_manager.get_authorized_assets(user=user, method="PUT", session=session)
@@ -852,10 +857,10 @@ class TestBaseAuthManager:
             AssetDetails(id="2", name="b", uri="s3://b"),
             AssetDetails(name="no-id", uri="s3://no-id"),
         ]
-        auth_manager.is_authorized_asset = MagicMock(
-            side_effect=lambda *, method, user, details: details.id != "2"
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=lambda *, method, user, details: details.id != "2"
         )
-        user = Mock()
+        user = Mock(spec=BaseAuthManagerUserTest)
 
         result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="DELETE")
 
