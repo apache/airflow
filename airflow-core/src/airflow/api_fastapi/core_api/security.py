@@ -229,6 +229,30 @@ def requires_access_dag(
     return inner
 
 
+def requires_access_dag_bundle(method: ResourceMethod) -> Callable[[str, BaseUser, Session], None]:
+    """Authorize a Dag bundle action against its owning team."""
+
+    def inner(bundle_name: str, user: GetUserDep, session: SessionDep) -> None:
+        bundle = session.scalar(
+            select(DagBundleModel).where(
+                DagBundleModel.name == bundle_name,
+                DagBundleModel.active.is_(True),
+            )
+        )
+        if bundle is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag bundle not found")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
+                method=method,
+                details=DagDetails(id=None, team_name=bundle.team_name),
+                user=user,
+            )
+        )
+
+    return inner
+
+
 def requires_access_dag_from_file_token(
     method: ResourceMethod,
 ) -> Callable[[str, Request, BaseUser, Session], None]:

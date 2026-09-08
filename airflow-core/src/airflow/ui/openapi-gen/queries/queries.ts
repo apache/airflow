@@ -2459,6 +2459,19 @@ export const useDagRunServiceClearDagRunPartitions = <TData = Common.DagRunServi
   requestBody: ClearPartitionsBody;
 }, TContext>({ mutationFn: ({ dagId, requestBody }) => DagRunService.clearDagRunPartitions({ dagId, requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Refresh Dag Bundle
+* Request that every Dag processor refresh a bundle.
+* @param data The data for the request.
+* @param data.bundleName
+* @returns DagBundleRefreshResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceRefreshDagBundle = <TData = Common.DagBundleServiceRefreshDagBundleMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  bundleName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  bundleName: string;
+}, TContext>({ mutationFn: ({ bundleName }) => DagBundleService.refreshDagBundle({ bundleName }) as unknown as Promise<TData>, ...options });
+/**
 * Favorite Dag
 * Mark the Dag as favorite.
 * @param data The data for the request.
