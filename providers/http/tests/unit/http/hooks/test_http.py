@@ -785,6 +785,30 @@ class TestHttpAsyncHook:
                 assert resp.status == 200
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("data", [{"item_id": "42"}, "item_id=42"])
+    @pytest.mark.parametrize("use_external_session", [True, False])
+    @mock.patch(
+        "aiohttp.ClientSession.delete", new_callable=mock.AsyncMock, spec=aiohttp.ClientSession.delete
+    )
+    async def test_async_delete_request_preserves_data(self, mocked_delete, data, use_external_session):
+        hook = HttpAsyncHook(method="DELETE")
+        response = MockAiohttpClientResponse(
+            status=200,
+            method="DELETE",
+            url="http://test:8080/v1/test",
+        )
+        mocked_delete.return_value = response
+
+        if use_external_session:
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="v1/test", data=data)
+        else:
+            await hook.run(endpoint="v1/test", data=data)
+
+        assert mocked_delete.call_args.kwargs["data"] == data
+        assert mocked_delete.call_args.kwargs["params"] is None
+
+    @pytest.mark.asyncio
     async def test_async_post_request_with_error_code(self):
         """Test api call asynchronously for POST request with error."""
         hook = HttpAsyncHook()
