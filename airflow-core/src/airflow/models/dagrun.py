@@ -605,7 +605,12 @@ class DagRun(Base, LoggingMixin):
             # the load raises — swallow it so metric tagging never breaks the caller.
             if not self.dag_model or not self.dag_model.tags:
                 return {}
-            return build_dag_metric_tags(tag.name for tag in self.dag_model.tags)
+            tag_names = (tag.name for tag in self.dag_model.tags)
+            if airflow_conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False) or airflow_conf.getboolean(
+                "metrics", "statsd_on", fallback=False
+            ):
+                return build_dag_metric_tags(tag_names)
+            return expand_dag_tags(tag_names)
         except SQLAlchemyError:
             return {}
 

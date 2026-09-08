@@ -5087,3 +5087,45 @@ class TestApplyPartitionDateWindowSubDay:
             session=session,
         )
         assert cleared == 3
+
+@conf_vars(
+    {
+        ("metrics", "dag_tags_in_metrics"): "True",
+        ("metrics", "statsd_datadog_enabled"): "False",
+        ("metrics", "statsd_on"): "False",
+        ("metrics", "otel_on"): "True",
+    }
+)
+def test_stats_tags_preserve_otel_dag_tag_values(dag_maker, session):
+    with dag_maker("otel_tag_dag", tags=["my tag", "env:pro d", "déjà", "a:b:c"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+
+    tags = dr.stats_tags
+    assert tags["my tag"] == ""
+    assert tags["env"] == "pro d"
+    assert tags["déjà"] == ""
+    assert tags["a"] == "b:c"
+
+
+@conf_vars(
+    {
+        ("metrics", "dag_tags_in_metrics"): "True",
+        ("metrics", "statsd_datadog_enabled"): "False",
+        ("metrics", "statsd_on"): "True",
+        ("metrics", "otel_on"): "False",
+    }
+)
+def test_stats_tags_normalize_statsd_dag_tag_values(dag_maker, session):
+    with dag_maker("statsd_tag_dag", tags=["my tag", "env:pro d", "déjà", "a:b:c"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+
+    tags = dr.stats_tags
+    assert tags["my_tag"] == ""
+    assert tags["env"] == "pro_d"
+    assert tags["d_j_"] == ""
+    assert tags["a"] == "b_c"
+
