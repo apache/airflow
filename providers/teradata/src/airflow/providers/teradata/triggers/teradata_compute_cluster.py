@@ -135,8 +135,6 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
                 yield TriggerEvent({"status": "error", "message": "Invalid operation"})
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-        except asyncio.CancelledError:
-            self.log.error(Constants.CC_OPR_TIMEOUT_ERROR, self.operation_type, self.compute_profile_name)
 
     async def get_status(self) -> str:
         """Return compute cluster SUSPEND/RESUME operation status."""
