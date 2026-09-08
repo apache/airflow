@@ -534,10 +534,26 @@ def requires_access_event_log(
             # than turning an unknown id into a permission error.
             dag_id = row.dag_id if row is not None else None
 
-        requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
-            request,
-            user,
-        )
+        def is_authorized_event_log() -> bool:
+            auth_manager = get_auth_manager()
+            details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id) if dag_id else None)
+            if auth_manager.is_authorized_dag(
+                method=method,
+                access_entity=DagAccessEntity.AUDIT_LOG,
+                details=details,
+                user=user,
+            ):
+                return True
+            if method == "GET" and auth_manager.is_authorized_dag(
+                method="GET",
+                access_entity=None,
+                details=details,
+                user=user,
+            ):
+                return True
+            return False
+
+        _requires_access(is_authorized_callback=is_authorized_event_log)
 
     return inner
 

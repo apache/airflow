@@ -229,12 +229,40 @@ class TestGetEventLog(TestEventLogsEndpoint):
             response = test_client.get(f"/eventLogs/{event_log_id}")
 
         assert response.status_code == 403
-        mock_is_authorized_dag.assert_called_once_with(
-            method="GET",
-            access_entity=DagAccessEntity.AUDIT_LOG,
-            details=DagDetails(id=DAG_ID, team_name=None),
-            user=mock.ANY,
+        mock_is_authorized_dag.assert_has_calls(
+            [
+                mock.call(
+                    method="GET",
+                    access_entity=DagAccessEntity.AUDIT_LOG,
+                    details=DagDetails(id=DAG_ID, team_name=None),
+                    user=mock.ANY,
+                ),
+                mock.call(
+                    method="GET",
+                    access_entity=None,
+                    details=DagDetails(id=DAG_ID, team_name=None),
+                    user=mock.ANY,
+                ),
+            ]
         )
+
+    def test_should_authorize_dag_viewer_for_event_log(self, test_client, setup):
+        """A user with DAG read access (even without explicit AUDIT_LOG access) can view event logs for authorized DAGs."""
+        event_log_id = setup[TASK_INSTANCE_EVENT].id
+
+        def side_effect(method, access_entity, details, user):
+            if access_entity == DagAccessEntity.AUDIT_LOG:
+                return False
+            return True
+
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+            side_effect=side_effect,
+        ) as mock_is_authorized_dag:
+            response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == 200
+        assert mock_is_authorized_dag.call_count == 2
 
     def test_should_authorize_with_event_log_dag_id(self, test_client, setup):
         """When the event log is bound to a DAG, authorization must scope to that DAG id."""

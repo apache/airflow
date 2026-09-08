@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from json import JSONDecodeError
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, call, patch
 
 import pytest
 from fastapi import HTTPException, Request
@@ -569,12 +569,48 @@ class TestFastApiSecurity:
         with pytest.raises(HTTPException, match="Forbidden"):
             await inner(request, user, session)
 
-        auth_manager.is_authorized_dag.assert_called_once_with(
-            method="GET",
-            access_entity=DagAccessEntity.AUDIT_LOG,
-            details=DagDetails(id="unauthorized_dag", team_name=None),
-            user=user,
+        auth_manager.is_authorized_dag.assert_has_calls(
+            [
+                call(
+                    method="GET",
+                    access_entity=DagAccessEntity.AUDIT_LOG,
+                    details=DagDetails(id="unauthorized_dag", team_name=None),
+                    user=user,
+                ),
+                call(
+                    method="GET",
+                    access_entity=None,
+                    details=DagDetails(id="unauthorized_dag", team_name=None),
+                    user=user,
+                ),
+            ]
         )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_event_log_dag_viewer_authorized(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """DAG Viewer (DAG GET access without AUDIT_LOG access) is granted access to event log."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.side_effect = lambda method, access_entity, details, user: (
+            access_entity is None
+        )
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        session = Mock()
+        session.execute.return_value.one_or_none.return_value = Mock(id=42, dag_id="event_log_dag_id")
+
+        request = Mock()
+        request.path_params = {"event_log_id": "42"}
+        user = Mock()
+
+        inner = requires_access_event_log("GET")
+        await inner(request, user, session)
+        assert auth_manager.is_authorized_dag.call_count == 2
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
