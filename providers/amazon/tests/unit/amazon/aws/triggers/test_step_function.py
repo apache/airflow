@@ -74,7 +74,7 @@ class TestStepFunctionsExecutionCompleteTrigger:
     @mock.patch.object(StepFunctionHook, "get_waiter")
     @mock.patch.object(StepFunctionHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
-        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_async_conn.return_value.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
         trigger = StepFunctionsExecutionCompleteTrigger(execution_arn=self.EXECUTION_ARN)
 
