@@ -29,6 +29,7 @@ import time_machine
 from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -696,6 +697,53 @@ class TestQueueWorkload:
         executor.sync()
 
         assert executor.get_event_buffer() == {workload.ti.key: (state, None)}
+
+    def test_sync_keeps_slot_while_worker_claims_job(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+
+        # The fetch endpoint parks a claimed job in RESTARTING until the worker reports RUNNING.
+        with create_session() as session:
+            session.scalar(select(EdgeJobModel)).state = TaskInstanceState.RESTARTING
+            session.commit()
+        executor.sync()
+
+        assert executor.get_event_buffer() == {}
+        assert workload.ti.key in executor.running
+        assert executor.slots_available == executor.parallelism - 1
+
+        with create_session() as session:
+            session.scalar(select(EdgeJobModel)).state = TaskInstanceState.RUNNING
+            session.commit()
+        executor.sync()
+
+        assert executor.get_event_buffer() == {workload.ti.key: (TaskInstanceState.RUNNING, None)}
+
+    def test_try_adopt_task_instances_restores_slots_from_edge_job(self):
+        executor = EdgeExecutor()
+        workload = self._make_execute_task()
+        with create_session() as session:
+            executor.queue_workload(workload, session=session)
+            session.commit()
+
+        restarted_executor = EdgeExecutor()
+        tracked_ti = mock.Mock(spec=TaskInstance, key=workload.ti.key)
+        orphaned_ti = mock.Mock(
+            spec=TaskInstance,
+            key=TaskInstanceKey(
+                dag_id="test_dag", task_id="orphan", run_id="test_run", try_number=1, map_index=-1
+            ),
+        )
+
+        not_adopted = restarted_executor.try_adopt_task_instances([tracked_ti, orphaned_ti])
+
+        assert not_adopted == [orphaned_ti]
+        assert restarted_executor.running == {workload.ti.key}
+        assert restarted_executor.slots_available == restarted_executor.parallelism - 1
 
     def test_queue_workload_execute_task_existing_job(self):
         executor = EdgeExecutor()
