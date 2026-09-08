@@ -146,7 +146,7 @@ with DAG(
         task_id="compute_cluster_decommission_operation",
         compute_profile_name="{{ params.compute_profile_name }}",
         compute_group_name="{{ params.compute_group_name }}",
-        delete_compute_group="{{ params.delete_compute_group }}",
+        delete_compute_group="{{ params.delete_compute_group }}",  # type: ignore[arg-type]
         teradata_conn_id=TERADATA_CONN_ID,
         timeout="{{ params.timeout }}",
     )
