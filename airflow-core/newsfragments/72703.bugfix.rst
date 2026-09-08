@@ -1,0 +1,1 @@
+Fix ``td_format`` rendering negative durations as large positive ones. A negative duration is now formatted by magnitude and prefixed with ``-``, and the ``timedelta`` and numeric inputs agree for the same duration.
