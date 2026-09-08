@@ -1321,9 +1321,10 @@ class DAG:
             # of TriggerDagRunOperator) are written to the metadata DB on every call,
             # not just the first one (apache/airflow#64884). Parsing the whole bundle
             # here can needlessly reserialize every DAG when users repeatedly call
-            # ``dag.test()``. When the source is not a regular file, fall back to the
-            # bundle path to preserve support for packaged DAGs. ``sync_bag_to_db`` is
-            # idempotent at the per-DAG hash level.
+            # ``dag.test()``. When the source is not a regular file in the owning
+            # bundle, fall back to the bundle path to preserve packaged DAGs and DAGs
+            # constructed by tests. ``sync_bag_to_db`` is idempotent at the per-DAG
+            # hash level.
             #
             # Note: we deliberately do NOT use ``_airflow_parsing_context_manager``
             # here. Setting ``_AIRFLOW_PARSING_CONTEXT_DAG_ID`` to ``self.dag_id``
@@ -1348,7 +1349,11 @@ class DAG:
                 if not bundle.is_initialized:
                     bundle.initialize()
                 source_file = existing_dm.fileloc if existing_dm is not None else None
-                dag_folder = source_file if source_file and os.path.isfile(source_file) else bundle.path
+                bundle_path = os.path.abspath(bundle.path)
+                source_is_in_bundle = bool(source_file) and os.path.isfile(source_file) and (
+                    os.path.commonpath([os.path.abspath(source_file), bundle_path]) == bundle_path
+                )
+                dag_folder = source_file if source_is_in_bundle else bundle.path
                 dagbag = BundleDagBag(
                     dag_folder=dag_folder,
                     bundle_path=bundle.path,
