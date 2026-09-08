@@ -67,7 +67,7 @@ from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
-from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -889,6 +889,10 @@ class DagFileProcessorManager(LoggingMixin):
                 previously_seen=previously_seen,
             ):
                 self.log.info("Not time to refresh bundle %s", bundle.name)
+                # Only import errors are reconciled here. There are normally none, so this
+                # costs nothing, whereas checking every Dag would mean a stat() per Dag on
+                # every pass. Deleted Dags are deactivated by the next refresh.
+                self.clear_import_errors_for_missing_files(bundle_name=bundle.name, bundle_path=bundle.path)
                 continue
 
             self.log.info("Refreshing bundle %s", bundle.name)
@@ -1062,6 +1066,39 @@ class DagFileProcessorManager(LoggingMixin):
                     session.delete(error)
         except Exception:
             self.log.exception("Error removing old import errors")
+
+    @provide_session
+    def clear_import_errors_for_missing_files(
+        self, bundle_name: str, bundle_path: Path, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Clear import errors for deleted files, without listing the bundle.
+
+        :meth:`clear_orphaned_import_errors` needs every file in the bundle, so it can only run
+        after a refresh. This checks just the few paths that already have an import error and
+        so can also run while a refresh is being skipped.
+
+        :param bundle_name: bundle whose import errors should be checked
+        :param bundle_path: local path the import error filenames are relative to
+        :param session: session for ORM operations
+        """
+        try:
+            errors = session.scalars(
+                select(ParseImportError)
+                .where(ParseImportError.bundle_name == bundle_name)
+                .options(load_only(ParseImportError.filename))
+            )
+            for error in errors:
+                path = bundle_path / error.filename
+                fileloc = str(path)
+                # An entry inside an archive is left for the next refresh, which can open the
+                # archive and check the member.
+                if path.exists() or correct_maybe_zipped(fileloc) != fileloc:
+                    continue
+                self.log.debug("Removing import error for missing file %s", error.filename)
+                session.delete(error)
+        except Exception:
+            self.log.exception("Error removing import errors for missing files")
 
     def _log_file_processing_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """
