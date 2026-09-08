@@ -52,8 +52,6 @@ def test_dom_and_dow_conflict():
     ],
 )
 def test_question_mark_is_not_a_dom_dow_conflict(expression, equivalent):
-    # croniter expands "?" to "*", so it must describe the same as the "*" form
-    # instead of being reported as a day-of-month/day-of-week conflict.
     desc = CronMixin(expression, SAMPLE_TZ).description
 
     assert "(or)" not in desc
