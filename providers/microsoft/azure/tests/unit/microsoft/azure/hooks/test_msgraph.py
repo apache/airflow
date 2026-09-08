@@ -443,6 +443,44 @@ class TestKiotaRequestAdapterHook:
             assert actual == [users, next_users]
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("query_parameters", "expected_skips"),
+        [
+            pytest.param(
+                {"$top": 12, "$count": True},
+                ["", "&%24skip=12", "&%24skip=24"],
+                id="from_the_start",
+            ),
+            pytest.param(
+                {"$top": 12, "$count": True, "$skip": 100},
+                ["&%24skip=100", "&%24skip=112", "&%24skip=124"],
+                id="from_a_user_supplied_offset",
+            ),
+        ],
+    )
+    async def test_paginated_run_advances_the_skip_offset_by_a_single_page(
+        self, query_parameters, expected_skips
+    ):
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+        second_messages = load_json_from_resources(
+            dirname(__file__), "..", "resources", "second_messages.json"
+        )
+        third_messages = load_json_from_resources(dirname(__file__), "..", "resources", "third_messages.json")
+        response = mock_json_response(200, messages, second_messages, third_messages)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            # paginated_run mutates the query parameters it is given, so hand it a copy rather than
+            # the dict pytest built once at collection time.
+            await hook.paginated_run(url="users/messages", query_parameters=dict(query_parameters))
+
+        urls = [call.args[0].url for call in mock_get_http_response.call_args_list]
+
+        assert urls == [f"users/messages?%24top=12&%24count=true{skip}" for skip in expected_skips]
+
+    @pytest.mark.asyncio
     async def test_paginated_run_refuses_cross_host_next_link(self):
         first_page = {
             "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
