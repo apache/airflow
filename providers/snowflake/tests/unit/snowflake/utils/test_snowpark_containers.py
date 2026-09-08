@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.providers.snowflake.utils.snowpark_containers import (
+    NON_TERMINAL_STATUSES,
+    TERMINAL_STATUSES,
+    SnowparkContainerJobStatus,
+)
 
-def action_event_from_permission(prefix: str, permission: str) -> str:
-    if permission.startswith("can_"):
-        permission = permission[4:]
-    if prefix:
-        return f"{prefix}.{permission}"
-    return permission
+
+def test_each_status_is_terminal_or_non_terminal():
+    assert TERMINAL_STATUSES.isdisjoint(NON_TERMINAL_STATUSES)
+    assert set(SnowparkContainerJobStatus) == TERMINAL_STATUSES | NON_TERMINAL_STATUSES
