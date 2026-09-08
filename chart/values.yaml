@@ -3517,8 +3517,11 @@ dags:
     # SSH example: git@github.com:apache/airflow.git
     # HTTPS example: https://github.com/apache/airflow.git
 
-    branch: v2-2-stable
-    rev: HEAD
+    # git-sync v3 only, deprecated. Leave unset so a default (git-sync v4) deployment is
+    # controlled by `ref` alone: v4 treats `--branch`/`--rev` as overriding `--ref` whenever
+    # they're set, not merely as a fallback, so setting them here would silently take over.
+    branch: ~
+    rev: ~
 
     # The git revision (branch, tag, or hash) to check out, v4 only
     ref: v2-2-stable

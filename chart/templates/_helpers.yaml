@@ -220,12 +220,17 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
+    {{- /* rev/branch are unset by default; see values.yaml for why. */}}
+    {{- if .Values.dags.gitSync.rev }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
+    {{- end }}
     - name: GITSYNC_REF
       value: {{ .Values.dags.gitSync.ref | quote }}
+    {{- if .Values.dags.gitSync.branch }}
     - name: GIT_SYNC_BRANCH
       value: {{ .Values.dags.gitSync.branch | quote }}
+    {{- end }}
     - name: GIT_SYNC_REPO
       value: {{ .Values.dags.gitSync.repo | quote }}
     - name: GITSYNC_REPO

@@ -9783,14 +9783,20 @@
                             "default": "https://github.com/apache/airflow.git"
                         },
                         "branch": {
-                            "description": "Git branch",
-                            "type": "string",
-                            "default": "v2-2-stable"
+                            "description": "Git branch. Deprecated, git-sync v3 only: overrides `ref` whenever set, so leave unset (default) unless pinned to git-sync v3.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
                         },
                         "rev": {
-                            "description": "Git revision.",
-                            "type": "string",
-                            "default": "HEAD"
+                            "description": "Git revision. Deprecated, git-sync v3 only: overrides `ref` whenever set, so leave unset (default) unless pinned to git-sync v3.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
                         },
                         "ref": {
                             "description": "Git revision branch, tag, or hash.",

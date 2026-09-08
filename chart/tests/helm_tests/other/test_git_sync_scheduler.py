@@ -199,6 +199,26 @@ class TestGitSyncSchedulerTest:
             },
         }
 
+    def test_should_not_set_deprecated_v3_vars_with_default_values(self):
+        """git-sync v4 (the chart's default image) treats --branch/--rev as overriding --ref
+        whenever they're set, not merely as a fallback, so a stock deployment relying on the
+        default `ref` must not also emit the deprecated v3 GIT_SYNC_REV/GIT_SYNC_BRANCH vars.
+        """
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",  # needed to have git sync added to the scheduler
+                "dags": {"gitSync": {"enabled": True}},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        env_names = [e["name"] for e in env]
+
+        assert "GIT_SYNC_REV" not in env_names
+        assert "GIT_SYNC_BRANCH" not in env_names
+        assert {"name": "GITSYNC_REF", "value": "v2-2-stable"} in env
+
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
             values={
