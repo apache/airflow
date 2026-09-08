@@ -32,6 +32,7 @@ from airflow.cli.commands import variable_command
 from airflow.models import Variable
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
@@ -340,7 +341,10 @@ class TestCliVariables:
             if key.startswith("AIRFLOW_VAR_"):
                 monkeypatch.delenv(key, raising=False)
         args = self.parser.parse_args(["variables", "list", "--output", "json"])
-        with redirect_stderr(StringIO()) as stderr_io:
+        with (
+            conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}),
+            redirect_stderr(StringIO()) as stderr_io,
+        ):
             variable_command.variables_list(args)
             stderr = stderr_io.getvalue()
         assert stderr == ""

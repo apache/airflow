@@ -35,6 +35,7 @@ from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -149,8 +150,8 @@ class TestCliListConnections:
 
     def test_cli_connections_list_warns_about_env_var_connections(self, monkeypatch):
         """An `AIRFLOW_CONN_*` environment variable should trigger a stderr warning."""
-        # `setup_method`'s `add_default_connections_back=True` also seeds `AIRFLOW_CONN_*`
-        # env vars for every default connection, so isolate this test from that ambient state.
+        # The module-level database cleanup fixture may seed default `AIRFLOW_CONN_*`
+        # variables, so remove that ambient state before testing this specific entry.
         for key in list(os.environ):
             if key.startswith("AIRFLOW_CONN_"):
                 monkeypatch.delenv(key, raising=False)
@@ -168,7 +169,10 @@ class TestCliListConnections:
             if key.startswith("AIRFLOW_CONN_"):
                 monkeypatch.delenv(key, raising=False)
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
-        with redirect_stderr(StringIO()) as stderr_io:
+        with (
+            conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}),
+            redirect_stderr(StringIO()) as stderr_io,
+        ):
             connection_command.connections_list(args)
             stderr = stderr_io.getvalue()
         assert stderr == ""

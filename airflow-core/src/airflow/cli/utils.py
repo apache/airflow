@@ -23,6 +23,7 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
+from airflow._shared.configuration.parser import SECRETS_BACKEND_CONFIG_KEYS
 from airflow.configuration import conf
 
 # Placeholder for masking sensitive values in CLI output
@@ -117,10 +118,10 @@ def get_hidden_entries_warning(entity_name: str, env_prefix: str) -> str | None:
     has_env_vars = any(key.startswith(env_prefix) for key in os.environ)
     # Only check whether custom backends are *configured*, without instantiating them (which could
     # have side effects, e.g. opening a network connection to a Vault/AWS/GCP secrets service).
-    # Workers may override the general backend with their own [workers] secrets_backend.
+    # Reads the same (section, key) pairs _get_custom_secret_backend() uses, so a new backend
+    # source only needs to be added in one place.
     has_secrets_backend = any(
-        conf.get(section, key, fallback=None)
-        for section, key in (("secrets", "backend"), ("workers", "secrets_backend"))
+        conf.get(section, key, fallback=None) for section, key in SECRETS_BACKEND_CONFIG_KEYS.values()
     )
 
     if not has_env_vars and not has_secrets_backend:

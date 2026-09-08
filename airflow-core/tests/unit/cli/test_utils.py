@@ -117,12 +117,12 @@ class TestGetHiddenEntriesWarning:
                 monkeypatch.delenv(key, raising=False)
 
     def test_returns_none_when_nothing_is_hidden(self):
-        with conf_vars({("secrets", "backend"): ""}):
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
             assert get_hidden_entries_warning("connections", "AIRFLOW_CONN_") is None
 
     def test_warns_about_env_var_defined_entries(self, monkeypatch):
         monkeypatch.setenv("AIRFLOW_CONN_MY_DB", "postgresql://u:p@host/db")
-        with conf_vars({("secrets", "backend"): ""}):
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
             warning = get_hidden_entries_warning("connections", "AIRFLOW_CONN_")
 
         assert warning is not None
