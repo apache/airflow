@@ -20,7 +20,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, case, false, func, select
+from sqlalchemy import and_, case, false, func, select, update
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -31,6 +31,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_bundles import (
     DagBundleDetailResponse,
     DagBundleFileCollectionResponse,
     DagBundleFileResponse,
+    DagBundleRefreshResponse,
     DagBundleResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -40,7 +41,9 @@ from airflow.api_fastapi.core_api.security import (
     PermittedDagBundleFilter,
     ReadableDagBundlesFilterDep,
     requires_access_dag,
+    requires_access_dag_bundle,
 )
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -434,4 +437,35 @@ def get_dag_bundle_files(
     return DagBundleFileCollectionResponse(
         dag_bundle_files=[DagBundleFileResponse(**row) for row in ordered[start:end]],
         total_entries=len(ordered),
+    )
+
+
+@dag_bundles_router.post(
+    "/{bundle_name}/refresh",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag_bundle(method="PUT")), Depends(action_logging())],
+)
+def refresh_dag_bundle(bundle_name: str, session: SessionDep) -> DagBundleRefreshResponse:
+    """Request that every Dag processor refresh a bundle."""
+    session.execute(
+        update(DagBundleModel)
+        .where(
+            DagBundleModel.name == bundle_name,
+            DagBundleModel.active.is_(True),
+        )
+        .values(refresh_generation=DagBundleModel.refresh_generation + 1)
+        .execution_options(synchronize_session=False)
+    )
+    refresh_generation = session.scalar(
+        select(DagBundleModel.refresh_generation).where(
+            DagBundleModel.name == bundle_name,
+            DagBundleModel.active.is_(True),
+        )
+    )
+    if refresh_generation is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag bundle not found")
+    return DagBundleRefreshResponse(
+        bundle_name=bundle_name,
+        refresh_generation=refresh_generation,
     )
