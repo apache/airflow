@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+
+log = logging.getLogger(__name__)
 
 # The following constants are taken from the SkipMixin class in the standard provider
 # The key used by SkipMixin to store XCom data.
@@ -89,18 +92,25 @@ class NotPreviouslySkippedDep(BaseTIDep):
                         if dep_context.has_regions(ti, session=session)
                         else ti.region_index
                     )
+                # `full=False`: the payload is a plain mapping of lists of task ids, so
+                # the scheduler only needs primitive values here and reads XCom without
+                # reconstructing objects.
                 prev_result = ti.xcom_pull(
                     task_ids=parent.task_id,
                     key=XCOM_SKIPMIXIN_KEY,
                     session=session,
                     map_indexes=xcom_map_index,
+                    full=False,
                 )
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.
                     continue
 
-                if _should_skip(prev_result, ti.task_id, is_direct_parent=True):
+                if (decision := _skip_decision(prev_result, parent.task_id)) is None:
+                    continue
+
+                if _should_skip(decision, ti.task_id, is_direct_parent=True):
                     yield from self._skip(ti, dep_context, parent.task_id, session=session)
                     return
 
@@ -132,7 +142,11 @@ class NotPreviouslySkippedDep(BaseTIDep):
         # ti does not execute.
         if dep_context.wait_for_past_depends_before_skipping:
             past_depends_met = ti.xcom_pull(
-                task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                task_ids=ti.task_id,
+                key=PAST_DEPENDS_MET,
+                session=session,
+                default=False,
+                full=False,
             )
             if not past_depends_met:
                 yield self._failing_status(reason="Task should be skipped but the past depends are not met")
@@ -141,6 +155,46 @@ class NotPreviouslySkippedDep(BaseTIDep):
         yield self._failing_status(
             reason=f"Skipping because of previous XCom result from parent task {parent_task_id}"
         )
+
+
+# Collection types serde writes as ``{"__classname__": ..., "__version__": ..., "__data__": [...]}``.
+_SERDE_COLLECTION_CLASSNAMES = frozenset(
+    {"builtins.list", "builtins.tuple", "builtins.set", "builtins.frozenset"}
+)
+
+
+def _task_id_list(value: object) -> list[str] | None:
+    # The decision is read as plain JSON, so a set or tuple of task ids arrives as the serde
+    # wrapper dict; take its items without importing or constructing anything.
+    if isinstance(value, dict) and value.get("__classname__") in _SERDE_COLLECTION_CLASSNAMES:
+        value = value.get("__data__")
+    if isinstance(value, (list, tuple)) and all(isinstance(task_id, str) for task_id in value):
+        return list(value)
+    return None
+
+
+def _skip_decision(prev_result: object, parent_task_id: str) -> dict[str, list[str]] | None:
+    """
+    Return the SkipMixin decision with its task id collections as lists, or ``None`` if malformed.
+
+    A task may write anything under this key, so a value of another shape is treated as absent
+    rather than failing the dep.
+    """
+    if not isinstance(prev_result, dict):
+        problem = f"expected a mapping, got {type(prev_result).__name__}"
+    else:
+        decision = {}
+        for field in (XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_SKIPPED):
+            if field not in prev_result:
+                continue
+            if (task_ids := _task_id_list(prev_result[field])) is None:
+                problem = f"{field!r} is not a collection of task ids"
+                break
+            decision[field] = task_ids
+        else:
+            return decision
+    log.warning("Ignoring malformed %s XCom from task %s: %s", XCOM_SKIPMIXIN_KEY, parent_task_id, problem)
+    return None
 
 
 def _should_skip(prev_result: dict, task_id: str, *, is_direct_parent: bool) -> bool:
@@ -190,7 +244,9 @@ def _mapped_group_skip_decisions(
         for row in rows:
             if (state := finished_states.get((row.task_id, row.map_index))) is None:
                 continue
-            if (decision := XComModel.deserialize_value(row)) is not None:
+            # Primitives only, as for a direct parent's decision above.
+            stored = XComModel.deserialize_value_primitives(row)
+            if stored is not None and (decision := _skip_decision(stored, row.task_id)) is not None:
                 decisions.setdefault(row.map_index, []).append(
                     (row.task_id, state == TaskInstanceState.SUCCESS, decision)
                 )
