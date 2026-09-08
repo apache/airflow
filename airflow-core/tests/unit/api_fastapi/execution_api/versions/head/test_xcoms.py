@@ -35,7 +35,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 
@@ -142,38 +142,40 @@ class TestXComsGetEndpoint:
         ("offset", "expected_status", "expected_json"),
         [
             pytest.param(
-                -4,
+                -5,
                 404,
                 {
                     "detail": {
                         "reason": "not_found",
                         "message": (
-                            "XCom with key='xcom_1' offset=-4 not found "
+                            "XCom with key='xcom_1' offset=-5 not found "
                             "for task 'task' in DAG run 'runid' of 'dag'"
                         ),
                     },
                 },
-                id="-4",
+                id="-5",
             ),
-            pytest.param(-3, 200, "f", id="-3"),
+            pytest.param(-4, 200, "f", id="-4"),
+            pytest.param(-3, 200, None, id="-3"),
             pytest.param(-2, 200, "o", id="-2"),
             pytest.param(-1, 200, "b", id="-1"),
             pytest.param(0, 200, "f", id="0"),
-            pytest.param(1, 200, "o", id="1"),
-            pytest.param(2, 200, "b", id="2"),
+            pytest.param(1, 200, None, id="1"),
+            pytest.param(2, 200, "o", id="2"),
+            pytest.param(3, 200, "b", id="3"),
             pytest.param(
-                3,
+                4,
                 404,
                 {
                     "detail": {
                         "reason": "not_found",
                         "message": (
-                            "XCom with key='xcom_1' offset=3 not found "
+                            "XCom with key='xcom_1' offset=4 not found "
                             "for task 'task' in DAG run 'runid' of 'dag'"
                         ),
                     },
                 },
-                id="3",
+                id="4",
             ),
         ],
     )
@@ -217,6 +219,68 @@ class TestXComsGetEndpoint:
         response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/item/{offset}")
         assert response.status_code == expected_status
         assert response.json() == expected_json
+
+    def test_xcom_get_with_offset_unmapped_task_falls_back_to_position(
+        self, client, create_task_instance, session
+    ):
+        """
+        An unmapped task (map_index=-1) has no logical map_index range to key a sparse
+        array off of, so offset access falls back to indexing by position among existing
+        XCom rows, same as before this endpoint gained sparse-index resolution.
+        """
+        ti = create_task_instance()
+        x = XComModel(
+            key="xcom_1",
+            value="f",
+            dag_run_id=ti.dag_run.id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+        )
+        session.add(x)
+        session.commit()
+
+        response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1/item/0")
+        assert response.status_code == 200
+        assert response.json() == "f"
+
+    def test_xcom_get_with_offset_mapped_task_wrong_key_not_found(self, client, dag_maker, session):
+        """
+        A mapped task with no XCom rows at all for the requested key (e.g. the key is
+        wrong, or nothing has been pushed yet) must 404, not be treated as a sparse
+        sequence and resolve every offset to None.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_maker.create_dagrun(run_id="runid")
+
+        response = client.get("/execution/xcoms/dag/runid/task/non_existent_key/item/0")
+        assert response.status_code == 404
+
+    def test_xcom_get_with_slice_mapped_task_wrong_key_not_found(self, client, dag_maker, session):
+        """
+        Same as above, but for the slice endpoint: no XCom rows at all for the key means
+        an empty result, not a full-length list of None.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_maker.create_dagrun(run_id="runid")
+
+        response = client.get("/execution/xcoms/dag/runid/task/non_existent_key/slice")
+        assert response.status_code == 200
+        assert response.json() == []
 
     @pytest.mark.parametrize(
         "key",
@@ -278,7 +342,112 @@ class TestXComsGetEndpoint:
 
         response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/slice?{urllib.parse.urlencode(qs)}")
         assert response.status_code == 200
-        assert response.json() == ["f", "o", "b"][key]
+        assert response.json() == xcom_values[key]
+
+    def test_xcom_get_with_slice_unmapped_task_falls_back_to_compaction(
+        self, client, create_task_instance, session
+    ):
+        """
+        An unmapped task (map_index=-1) has no logical map_index range to key a sparse
+        array off of, so slicing falls back to the existing XCom rows in map_index order,
+        same as before this endpoint gained sparse-index resolution.
+        """
+        ti = create_task_instance()
+        x = XComModel(
+            key="xcom_1",
+            value="f",
+            dag_run_id=ti.dag_run.id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+        )
+        session.add(x)
+        session.commit()
+
+        response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1/slice")
+        assert response.status_code == 200
+        assert response.json() == ["f"]
+
+    def test_xcom_get_with_slice_and_count_unfinished_mapped_task(self, client, dag_maker, session):
+        """
+        Regression test for a mapped task instance that hasn't pushed any XCom yet (e.g.
+        still up_for_reschedule), as opposed to one that pushed a None value.
+
+        Both the slice and count (HEAD) endpoints must reflect the full logical
+        map_index range, not just the map indexes that have an XCom row.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+
+        tis[1].state = TaskInstanceState.UP_FOR_RESCHEDULE
+        for map_index, value in {0: "f", 2: "o", 3: "b"}.items():
+            ti = tis[map_index]
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=value,
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=map_index,
+                )
+            )
+        session.commit()
+
+        head_response = client.head("/execution/xcoms/dag/runid/task/xcom_1")
+        assert head_response.status_code == 200
+        assert head_response.headers["Content-Range"] == "map_indexes 4"
+
+        slice_response = client.get("/execution/xcoms/dag/runid/task/xcom_1/slice")
+        assert slice_response.status_code == 200
+        assert slice_response.json() == ["f", None, "o", "b"]
+
+    def test_xcom_get_with_slice_mapped_task_without_gap_uses_sql_pagination(
+        self, client, dag_maker, session
+    ):
+        """
+        When every mapped instance has already pushed an XCom, the slice endpoint must
+        not fall into the gap-filling branch that loads every row into memory -- it should
+        keep using SQL-side OFFSET/LIMIT/slice() pagination.
+        """
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["f", "o", "o", "b"])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+
+        for map_index, value in enumerate(["f", "o", "o", "b"]):
+            ti = tis[map_index]
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value=value,
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=map_index,
+                )
+            )
+        session.commit()
+
+        response = client.get("/execution/xcoms/dag/runid/task/xcom_1/slice")
+        assert response.status_code == 200
+        assert response.json() == ["f", "o", "o", "b"]
 
     @pytest.mark.parametrize(
         ("include_prior_dates", "expected_xcoms"),
