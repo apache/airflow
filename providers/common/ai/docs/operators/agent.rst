@@ -275,7 +275,8 @@ Parameters
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
-- ``enable_tool_logging``: Wrap each toolset in
+- ``enable_tool_logging``: Wrap the toolsets supplied through ``toolsets=`` and
+  capabilities in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
@@ -332,8 +333,8 @@ Logging
 -------
 
 All AI operators automatically log a post-run summary after ``run_sync()``
-completes. ``AgentOperator`` additionally wraps toolsets for real-time
-per-tool-call logging (controlled by ``enable_tool_logging``).
+completes. ``AgentOperator`` additionally wraps the assembled toolset for
+real-time per-tool-call logging (controlled by ``enable_tool_logging``).
 
 **Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:
