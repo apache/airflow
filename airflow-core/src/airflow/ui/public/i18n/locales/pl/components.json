@@ -129,6 +129,10 @@
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Ukryj wartość",
+    "show": "Pokaż wartość"
+  },
   "reparseDag": "Ponowne przetworznie Daga",
   "sortedAscending": "posortowane rosnąco",
   "sortedDescending": "posortowane malejąco",
