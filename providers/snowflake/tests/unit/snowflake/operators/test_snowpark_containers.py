@@ -173,7 +173,7 @@ class TestSnowparkContainerJobOperator:
         [(True, True), (False, False)],
     )
     @mock.patch("time.sleep")
-    @mock.patch("time.monotonic", side_effect=[0, 0, 20])
+    @mock.patch("time.monotonic", side_effect=itertools.count(0, 20))
     @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     def test_poll_raises_and_logs_on_timeout(
