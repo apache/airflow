@@ -485,31 +485,36 @@ participating in that same PR/issue discussion.
 
 ## apache-magpie framework
 
-This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
-framework via the snapshot mechanism. The framework provides the
-`pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-magpie/` snapshot directory.
+This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
+framework, installed from its plugin marketplace. The framework provides
+the `pr-management-*` skills (triage, code-review, stats, mentor) among
+others. Nothing framework-related is committed here — install it in your
+own agent harness. In Claude Code:
 
-A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/magpie-setup` (or follow
-[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
-it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
-contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+```text
+/plugin marketplace add apache/magpie
+/plugin install magpie-pr-management@apache-magpie
+```
 
-Adopter-specific modifications to framework-skill workflows live in
-[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
-the snapshot directly. Framework changes go via PR to
+`magpie@apache-magpie` installs every family at once; other families
+(`magpie-security`, `magpie-release-management`, …) install individually.
+The contributor-facing summary lives in the [Agent-assisted contribution
+section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+
+Airflow-specific modifications to framework-skill workflows live in
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — the installed
+plugin reads them at run time. Never edit the installed plugin itself;
+framework changes go via PR to
 [`apache/magpie`](https://github.com/apache/magpie).
 
 ### Reviewing pull requests
 
-With apache-magpie installed locally, use the
-`magpie-pr-management-code-review` skill for PR code review. It posts
-findings as **inline review comments** anchored to `file:line`, presented
-**individually for accept/skip** before anything is submitted — prefer it
-over an ad-hoc review pass or a generic review command. A body-only review
-is the explicit opt-out (`inline:off`).
+With the `magpie-pr-management` plugin installed, use the
+`magpie-pr-management:pr-management-code-review` skill for PR code review.
+It posts findings as **inline review comments** anchored to `file:line`,
+presented **individually for accept/skip** before anything is submitted —
+prefer it over an ad-hoc review pass or a generic review command. A
+body-only review is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 
