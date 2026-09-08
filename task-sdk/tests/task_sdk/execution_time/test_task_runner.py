@@ -75,7 +75,9 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
+from airflow.sdk.bases.branch import BaseBranchOperator
 from airflow.sdk.bases.operator import ExecutorSafeguard
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
@@ -172,6 +174,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
+    _axcom_push,
     _defer_task,
     _execute_task,
     _make_task_span,
@@ -3961,6 +3964,91 @@ class TestXComAfterTaskExecution:
             )
             for x in mock_supervisor_comms.send.call_args_list
         )
+
+    def test_skip_mixin_xcom_push_bypasses_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms, monkeypatch
+    ):
+        """
+        Regression test for https://github.com/apache/airflow/issues/50491.
+
+        SkipMixin's branch decision is written under XCOM_SKIPMIXIN_KEY and later read
+        straight from the metadata DB by the scheduler's NotPreviouslySkippedDep, which
+        never consults a configured XCom backend. A backend that externalizes values (e.g.
+        to blob storage) must not be allowed to intercept this key, or the scheduler would
+        see an opaque pointer instead of the real decision and fail to skip downstream
+        tasks when they are mapped or cleared.
+        """
+
+        class PointerXCom(BaseXCom):
+            """Stand-in for a backend that externalizes values needing credentials to read."""
+
+            @staticmethod
+            def serialize_value(value, *, key=None, task_id=None, dag_id=None, run_id=None, map_index=None):
+                return "opaque://pointer"
+
+            @staticmethod
+            def deserialize_value(result):
+                raise RuntimeError("no credentials configured")
+
+        monkeypatch.setattr(task_runner, "XCom", PointerXCom)
+
+        class BranchOperator(BaseBranchOperator):
+            def choose_branch(self, context):
+                return "follow_task"
+
+        with DAG(dag_id="test_dag"):
+            branch_task = BranchOperator(task_id="branch_task")
+            follow_task = BaseOperator(task_id="follow_task")
+            skip_task = BaseOperator(task_id="skip_task")
+            branch_task >> [follow_task, skip_task]
+
+        runtime_ti = create_runtime_ti(task=branch_task)
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        # The real branch decision must reach the DB verbatim, not the backend's pointer.
+        mock_supervisor_comms.send.assert_any_call(
+            SetXCom(
+                key=XCOM_SKIPMIXIN_KEY,
+                value={XCOM_SKIPMIXIN_FOLLOWED: ["follow_task"]},
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="branch_task",
+                map_index=-1,
+            ),
+        )
+
+    @pytest.mark.asyncio
+    async def test_skip_mixin_axcom_push_bypasses_custom_backend(
+        self, create_runtime_ti, mock_supervisor_comms, monkeypatch
+    ):
+        """Async twin of test_skip_mixin_xcom_push_bypasses_custom_backend: _axcom_push must apply the
+        same bypass, and must do so through the async supervisor call (not the blocking sync one, which
+        can deadlock when invoked from the event loop thread).
+        """
+
+        class PointerXCom(BaseXCom):
+            @staticmethod
+            def serialize_value(value, *, key=None, task_id=None, dag_id=None, run_id=None, map_index=None):
+                return "opaque://pointer"
+
+        monkeypatch.setattr(task_runner, "XCom", PointerXCom)
+
+        task = BaseOperator(task_id="branch_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        await _axcom_push(runtime_ti, XCOM_SKIPMIXIN_KEY, {XCOM_SKIPMIXIN_FOLLOWED: ["follow_task"]})
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetXCom(
+                key=XCOM_SKIPMIXIN_KEY,
+                value={XCOM_SKIPMIXIN_FOLLOWED: ["follow_task"]},
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="branch_task",
+                map_index=-1,
+            ),
+        )
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_get_all_uses_custom_deserialize_value(self, mock_supervisor_comms):
         """
