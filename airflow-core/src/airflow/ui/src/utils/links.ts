@@ -18,12 +18,60 @@
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { LATEST_PUBLISHED_AIRFLOW_VERSION } from "src/constants/latestPublishedAirflowVersion";
 import {
   DEFAULT_TASK_INSTANCE_TAB_PATHS,
   type DefaultTaskInstanceTab,
   type TaskInstanceTabValue,
 } from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
+
+const AIRFLOW_DOCS_BASE_URL = "https://airflow.apache.org/docs/apache-airflow/";
+const FINAL_RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u;
+
+const parseReleaseVersion = (version: string): [number, number, number] | undefined => {
+  if (!FINAL_RELEASE_VERSION_PATTERN.test(version)) {
+    return undefined;
+  }
+
+  const [major, minor, patch] = version.split(".").map(Number);
+
+  if (major === undefined || minor === undefined || patch === undefined) {
+    return undefined;
+  }
+
+  return [major, minor, patch];
+};
+
+const compareReleaseVersions = (left: [number, number, number], right: [number, number, number]): number => {
+  for (const [index, part] of left.entries()) {
+    const otherPart = right[index];
+
+    if (otherPart !== undefined && part !== otherPart) {
+      return part - otherPart;
+    }
+  }
+
+  return 0;
+};
+
+const getDocsVersion = (version?: string): string => {
+  if (version === undefined) {
+    return "stable";
+  }
+
+  const releaseVersion = parseReleaseVersion(version);
+  const latestPublishedVersion = parseReleaseVersion(LATEST_PUBLISHED_AIRFLOW_VERSION);
+
+  if (releaseVersion === undefined || latestPublishedVersion === undefined) {
+    return "stable";
+  }
+
+  return compareReleaseVersions(releaseVersion, latestPublishedVersion) > 0 ? "stable" : version;
+};
+
+export const getAirflowDocsUrl = (version?: string, page = ""): string =>
+  new URL(`${getDocsVersion(version)}/${page}`, AIRFLOW_DOCS_BASE_URL).href;
 
 export const getTaskInstanceLink = (
   tiOrParams:

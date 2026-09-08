@@ -22,12 +22,30 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
+  getAirflowDocsUrl,
   getDefaultTaskInstanceTabPath,
   getNextHref,
   getSafeExternalUrl,
   getTaskInstanceAdditionalPath,
   getTaskInstanceLink,
 } from "./links";
+
+describe("getAirflowDocsUrl", () => {
+  it.each([
+    ["3.3.1", "index.html", "https://airflow.apache.org/docs/apache-airflow/3.3.1/index.html"],
+    ["3.2.0", "index.html", "https://airflow.apache.org/docs/apache-airflow/3.2.0/index.html"],
+    ["3.4.0", "index.html", "https://airflow.apache.org/docs/apache-airflow/stable/index.html"],
+    ["3.4.0.dev0", "index.html", "https://airflow.apache.org/docs/apache-airflow/stable/index.html"],
+    ["3.4.0rc1", "index.html", "https://airflow.apache.org/docs/apache-airflow/stable/index.html"],
+    [
+      undefined,
+      "howto/connection.html#visibility-in-ui-and-cli",
+      "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#visibility-in-ui-and-cli",
+    ],
+  ])("builds a valid docs URL for version %s", (version, page, expected) => {
+    expect(getAirflowDocsUrl(version, page)).toBe(expected);
+  });
+});
 
 describe("getTaskInstanceLink", () => {
   const testCases = [
