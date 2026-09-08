@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -30,12 +31,10 @@ from fastapi.testclient import TestClient
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.models import Connection
-from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_db
+from tests_common.test_utils.db import parse_and_sync_to_db
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
@@ -197,43 +196,23 @@ def client(request):
 
 
 @pytest.fixture
-def configure_git_connection_for_dag_bundle(session):
-    clear_db_connections(False)
-    # Git connection is required for the bundles to have a url.
-    connection = Connection(
-        conn_id="git_default",
-        conn_type="git",
-        description="default git connection",
-        host="http://test_host.github.com",
-        port=8081,
-        login="",
-    )
-    session.add(connection)
-    with (
-        conf_vars(
-            {
-                (
-                    "dag_processor",
-                    "dag_bundle_config_list",
-                ): '[{ "name": "dag_maker", "classpath": "airflow.providers.git.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}, { "name": "another_bundle_name", "classpath": "airflow.providers.git.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}]'
-            }
-        ),
-        mock.patch("airflow.providers.git.bundles.git.GitHook") as mock_git_hook,
-        mock.patch.object(GitDagBundle, "get_current_version") as mock_get_current_version,
-    ):
-        mock_get_current_version.return_value = "some_commit_hash"
-        mock_git_hook.return_value.repo_url = connection.host
+def configure_dag_bundles_with_view_url():
+    # Rendering a per-version link only needs the URL template a remote bundle would supply.
+    bundle_config = [
+        {
+            "name": name,
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"view_url_template": "http://test_host.github.com/tree/{version}/dags"},
+        }
+        for name in ("dag_maker", "another_bundle_name")
+    ]
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
         DagBundlesManager().sync_bundles_to_db()
         yield
-    # in case no flush or commit was executed after the "session.add" above, we need to flush the session
-    # manually here to make sure that the added connection will be deleted by query(Connection).delete()
-    # in the`clear_db_connections` function below
-    session.flush()
-    clear_db_connections(False)
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle, session):
+def make_dag_with_multiple_versions(dag_maker, configure_dag_bundles_with_view_url, session):
     """
     Create DAG with multiple versions
 

@@ -2190,7 +2190,7 @@ class TestPostAssetMaterialize(TestAssets):
             EmptyOperator(task_id="task")
         session.commit()
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
         return_value="Jane Doe",
@@ -2200,7 +2200,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 200
         assert response.json()["triggering_user_name"] == "Jane Doe"
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200(self, test_client):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200
@@ -2230,14 +2230,14 @@ class TestPostAssetMaterialize(TestAssets):
             "team_name": None,
         }
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_with_partition_key(self, test_client):
         partition_key = "2026-03-23"
         response = test_client.post("/assets/1/materialize", json={"partition_key": partition_key})
         assert response.status_code == 200
         assert response.json()["partition_key"] == partition_key
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_with_trigger_fields(self, test_client):
         payload = {
             "conf": {"foo": "bar"},
@@ -2260,7 +2260,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.json()["partition_key"] == "2026-03-23"
         assert response.json()["run_type"] == "asset_materialization"
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_with_trigger_fields_without_dag_run_id(self, test_client):
         payload = {
             "conf": {"foo": "bar"},
@@ -2357,7 +2357,7 @@ class TestPostAssetMaterialize(TestAssets):
             == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_403_when_user_cannot_trigger_dag(self, test_client):
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager",
@@ -2429,7 +2429,7 @@ class TestPostAssetMaterialize(TestAssets):
             in response.json()["detail"]
         )
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_400_on_invalid_dag_run_id(self, test_client):
         """A dag_run_id containing '..' triggers ValueError in DagRun.validate_run_id.
 
@@ -2442,7 +2442,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 400
         assert "must not contain '..'" in response.json()["detail"]
 
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.usefixtures("configure_dag_bundles_with_view_url")
     def test_should_respond_200_with_partition_date_for_partitioned_dag(
         self, test_client, dag_maker, session
     ):
