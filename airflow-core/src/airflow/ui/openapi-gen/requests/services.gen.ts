@@ -4608,6 +4608,7 @@ export class PartitionedDagRunService {
                 has_created_dag_run_id: data.hasCreatedDagRunId
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
