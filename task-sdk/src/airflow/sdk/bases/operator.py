@@ -688,14 +688,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retry_exponential_backoff=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
-    :param start_date: The ``start_date`` for the task, determines
-        the ``logical_date`` for the first task instance. The best practice
-        is to have the start_date rounded
-        to your Dag's ``schedule_interval``. Daily jobs have their start_date
-        some day at 00:00:00, hourly jobs have their start_date at 00:00
-        of a specific hour. Note that Airflow simply looks at the latest
-        ``logical_date`` and adds the ``schedule_interval`` to determine
-        the next ``logical_date``. It is also very important
+    :param start_date: The ``start_date`` for the task. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
         start_date are offset in a way that their logical_date don't line
