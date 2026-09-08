@@ -57,7 +57,10 @@ export class XComsPage extends BasePage {
       .locator("div")
       .filter({ hasText: `${filterName}:` })
       .first();
-    const filterInput = filterPill.getByRole("textbox");
+    const filterInput = filterPill
+      .locator("input[class*='chakra-input']")
+      .or(filterPill.locator("textarea"))
+      .first();
 
     await expect(filterInput).toBeVisible({ timeout: 30_000 });
     await filterInput.fill(value);
