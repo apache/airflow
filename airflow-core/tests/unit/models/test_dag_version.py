@@ -16,24 +16,42 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+import datetime
+import json
 from datetime import timedelta
 from typing import Any
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import DagVersionNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
+from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import DAG
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.serialization.encoders import encode_deadline_alert
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
+
+
+async def _handle_deadline(context, **kwargs):
+    pass
 
 
 class TestDagVersion:
@@ -256,10 +274,6 @@ class TestResolveVersionData:
 class TestDagVersionGetDiff:
     @pytest.fixture
     def dag_id(self, dag_maker, session):
-        import datetime
-
-        from tests_common.test_utils.db import clear_db_serialized_dags
-
         clear_db_dags()
         clear_db_serialized_dags()
         dag_id = "version_diff_dag"
@@ -277,6 +291,55 @@ class TestDagVersionGetDiff:
         # serialized payloads carry plain JSON keys rather than in-memory Encoding enums.
         session.expunge_all()
         return dag_id
+
+    @pytest.fixture
+    def create_deadline_versions(self, session):
+        dag_id = "version_diff_deadlines"
+        bundle_name = "version_diff_deadlines"
+
+        def create_versions(*, target_interval=timedelta(minutes=5), target_callback_kwargs=None):
+            definitions = []
+            for version_number in (1, 2):
+                deadline = DeadlineAlert(
+                    name="completion",
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(minutes=5) if version_number == 1 else target_interval,
+                    callback=AsyncCallback(
+                        _handle_deadline,
+                        kwargs=(
+                            target_callback_kwargs
+                            if version_number == 2 and target_callback_kwargs is not None
+                            else {"message": "original"}
+                        ),
+                    ),
+                )
+                definitions.append(encode_deadline_alert(deadline))
+                with DAG(dag_id, deadline=deadline) as dag:
+                    for task_number in range(version_number):
+                        EmptyOperator(task_id=f"task{task_number + 1}")
+                scheduler_dag = sync_dag_to_db(dag, bundle_name=bundle_name, session=session)
+                logical_date = datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc)
+                scheduler_dag.create_dagrun(
+                    run_id=f"run{version_number}",
+                    run_after=logical_date,
+                    state=DagRunState.QUEUED,
+                    logical_date=logical_date,
+                    data_interval=(logical_date, logical_date),
+                    triggered_by=DagRunTriggeredByType.TEST,
+                    run_type=DagRunType.MANUAL,
+                    session=session,
+                )
+                session.commit()
+            session.expunge_all()
+            return dag_id, definitions
+
+        yield create_versions
+
+        session.rollback()
+        session.execute(delete(DagRun).where(DagRun.dag_id == dag_id))
+        session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
+        session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
+        session.commit()
 
     def test_reports_observed_changes_between_versions(self, dag_id, session):
         result = DagVersion.get_diff(dag_id, 1, 2, session=session)
@@ -324,17 +387,128 @@ class TestDagVersionGetDiff:
         )
         assert result["values"] == {"status": "unavailable"}
 
+    @pytest.mark.parametrize("version_number", [1, 2])
+    def test_compares_json_string_serialized_data(self, dag_id, session, version_number):
+        expected = DagVersion.get_diff(dag_id, 1, 2, include_values=True, session=session)
+        serialized_dag = DagVersion.get_version(dag_id, version_number, session=session).serialized_dag
+        session.execute(
+            update(SerializedDagModel)
+            .where(SerializedDagModel.id == serialized_dag.id)
+            .values(_data=json.dumps(serialized_dag.data), _data_compressed=None)
+        )
+        session.commit()
+        session.expunge_all()
+
+        stored_data = DagVersion.get_version(dag_id, version_number, session=session).serialized_dag.data
+        assert isinstance(stored_data, str)
+        assert DagVersion.get_diff(dag_id, 1, 2, include_values=True, session=session) == expected
+
+    def test_marks_diff_unavailable_for_invalid_serialized_json(self, dag_id, session):
+        base = DagVersion.get_version(dag_id, 1, session=session).serialized_dag
+        session.execute(
+            update(SerializedDagModel)
+            .where(SerializedDagModel.id == base.id)
+            .values(_data="invalid JSON", _data_compressed=None)
+        )
+        session.commit()
+        session.expunge_all()
+
+        result = DagVersion.get_diff(dag_id, 1, 2, include_values=True, session=session)
+
+        assert result["mode"] == "unavailable"
+        assert result["unavailable_reason"] == "serialized_dag_canonicalization_failed"
+        assert result["changes"] == []
+        assert result["values"] == {"status": "unavailable"}
+
+    @pytest.mark.parametrize("include_values", [False, True])
+    @pytest.mark.parametrize("changed_field", [None, "interval", "callback"])
+    def test_compares_stored_deadline_definitions(
+        self, create_deadline_versions, session, include_values, changed_field
+    ):
+        dag_id, definitions = create_deadline_versions(
+            target_interval=timedelta(minutes=10 if changed_field == "interval" else 5),
+            target_callback_kwargs={"message": "changed"} if changed_field == "callback" else None,
+        )
+        versions = [DagVersion.get_version(dag_id, number, session=session) for number in (1, 2)]
+        stored_payloads = [copy.deepcopy(version.serialized_dag.data) for version in versions]
+        assert stored_payloads[0]["dag"]["deadline"] != stored_payloads[1]["dag"]["deadline"]
+        assert all(isinstance(payload["dag"]["deadline"][0], str) for payload in stored_payloads)
+
+        with assert_queries_count(2):
+            result = DagVersion.get_diff(dag_id, 1, 2, include_values=include_values, session=session)
+
+        assert result["mode"] == "observed_state"
+        deadline_changes = [change for change in result["changes"] if change["path"] == "/dag/deadline"]
+        if changed_field is None:
+            assert deadline_changes == []
+        else:
+            assert len(deadline_changes) == 1
+            change = deadline_changes[0]
+            assert change["category"] == "deadline"
+            assert change["impact"] == "execution"
+            if include_values:
+                assert change["before_value"] == [definitions[0]]
+                assert change["after_value"] == [definitions[1]]
+        assert [version.serialized_dag.data for version in versions] == stored_payloads
+
+    def test_compares_inline_and_referenced_deadline_definitions(self, create_deadline_versions, session):
+        dag_id, definitions = create_deadline_versions()
+        base = DagVersion.get_version(dag_id, 1, session=session).serialized_dag
+        inline_data = copy.deepcopy(base.data)
+        inline_data["dag"]["deadline"] = [definitions[0]]
+        session.execute(
+            update(SerializedDagModel)
+            .where(SerializedDagModel.id == base.id)
+            .values(_data=inline_data, _data_compressed=None)
+        )
+        session.commit()
+        session.expunge_all()
+
+        result = DagVersion.get_diff(dag_id, 1, 2, include_values=True, session=session)
+
+        assert result["mode"] == "observed_state"
+        assert not any(change["path"] == "/dag/deadline" for change in result["changes"])
+
+    @pytest.mark.parametrize("missing_version", [1, 2])
+    @pytest.mark.parametrize("same_version", [False, True])
+    def test_marks_diff_unavailable_when_deadline_missing(
+        self, create_deadline_versions, session, missing_version, same_version
+    ):
+        dag_id, _ = create_deadline_versions()
+        serialized_dag = DagVersion.get_version(dag_id, missing_version, session=session).serialized_dag
+        session.execute(
+            delete(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag.id)
+        )
+        session.commit()
+        session.expunge_all()
+        version_numbers = (missing_version, missing_version) if same_version else (1, 2)
+
+        result = DagVersion.get_diff(dag_id, *version_numbers, include_values=True, session=session)
+
+        assert result["mode"] == "unavailable"
+        assert result["unavailable_reason"] == "deadline_alert_missing"
+        assert result["serialized_dag_schema_versions"] == {"base": 3, "target": 3}
+        assert result["changes"] == []
+        assert result["truncated"] is False
+        assert result["values"] == {"status": "unavailable"}
+
     @pytest.mark.parametrize("source_status", [None, "current_stored_code"])
-    def test_includes_current_stored_source(self, dag_id, session, source_status):
+    @pytest.mark.parametrize("target_source", ["base source", "changed source"])
+    def test_includes_current_stored_source(self, dag_id, session, source_status, target_source):
+        DagVersion.get_version(dag_id, 1, session=session).dag_code.source_code = "base source"
+        DagVersion.get_version(dag_id, 2, session=session).dag_code.source_code = target_source
+        session.flush()
         result = DagVersion.get_diff(
             dag_id, 1, 2, include_source=True, source_status=source_status, session=session
         )
 
         source = result["source"]
         assert source["status"] == "current_stored_code"
-        assert isinstance(source["changed"], bool)
+        assert source["changed"] is (target_source != "base source")
         assert source["base"]["digest"].startswith("sha256:")
-        assert source["target"]["content"] is not None
+        assert source["base"]["content"] == "base source"
+        assert source["target"]["content"] == target_source
+        assert (source["base"]["digest"] == source["target"]["digest"]) is (target_source == "base source")
 
     @pytest.mark.parametrize("source_status", ["redacted", "unavailable"])
     def test_hides_source_when_status_denied(self, dag_id, session, source_status):
@@ -363,9 +537,7 @@ class TestDagVersionGetDiff:
             )
 
     def test_marks_source_unavailable_when_code_missing(self, dag_id, session):
-        from airflow.models.dagcode import DagCode
-
-        session.execute(delete(DagCode))
+        session.execute(delete(DagCode).where(DagCode.dag_id == dag_id))
         session.commit()
         session.expunge_all()
 

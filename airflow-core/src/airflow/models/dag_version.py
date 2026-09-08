@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, get_args
@@ -38,6 +39,8 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
+
+    from airflow.models.serialized_dag import SerializedDagModel
 
 
 log = logging.getLogger(__name__)
@@ -276,6 +279,7 @@ class DagVersion(Base):
         when the user cannot access Dag code; the structural diff remains available in redacted form.
         """
         # Keep this local to avoid the dag_version -> dag_version_diff -> serialized_objects cycle.
+        from airflow.models.serialized_dag import SerializedDagModel
         from airflow.serialization.dag_version_diff import (
             DEFAULT_MAX_CHANGES,
             build_serialized_dag_diff,
@@ -300,7 +304,7 @@ class DagVersion(Base):
                 cls.dag_id == dag_id,
                 cls.version_number.in_((base_version_number, target_version_number)),
             )
-            .options(joinedload(cls.serialized_dag))
+            .options(joinedload(cls.serialized_dag).selectinload(SerializedDagModel.deadline_alerts))
         )
         if include_source and source_status == "current_stored_code":
             query = query.options(joinedload(cls.dag_code))
@@ -321,15 +325,21 @@ class DagVersion(Base):
 
         base_version = versions[base_version_number]
         target_version = versions[target_version_number]
+        base_data, base_unavailable_reason = _get_serialized_diff_data(base_version.serialized_dag)
+        target_data, target_unavailable_reason = _get_serialized_diff_data(target_version.serialized_dag)
         effective_include_values = include_values and values_status in {None, "available"}
         result = build_serialized_dag_diff(
-            base_data=base_version.serialized_dag.data if base_version.serialized_dag else None,
-            target_data=target_version.serialized_dag.data if target_version.serialized_dag else None,
+            base_data=base_data,
+            target_data=target_data,
             base_provenance=_get_provenance(base_version),
             target_provenance=_get_provenance(target_version),
             include_values=effective_include_values,
             max_changes=max_changes,
         )
+        if unavailable_reason := base_unavailable_reason or target_unavailable_reason:
+            result.update(
+                mode="unavailable", unavailable_reason=unavailable_reason, changes=[], truncated=False
+            )
         if include_values:
             values_available = effective_include_values and result["mode"] == "observed_state"
             result["values"] = {"status": "available" if values_available else "unavailable"}
@@ -340,6 +350,43 @@ class DagVersion(Base):
             source_status=source_status,
         )
         return result
+
+
+def _get_serialized_diff_data(
+    serialized_dag: SerializedDagModel | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if serialized_dag is None:
+        return None, None
+    data = serialized_dag.data
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            return None, "serialized_dag_canonicalization_failed"
+    if not isinstance(data, dict) or not isinstance(dag_data := data.get("dag"), dict):
+        return data, None
+    deadlines = dag_data.get("deadline")
+    if not isinstance(deadlines, list) or not any(isinstance(deadline, str) for deadline in deadlines):
+        return data, None
+
+    alerts = {str(alert.id): alert for alert in serialized_dag.deadline_alerts}
+    definitions = []
+    for deadline in deadlines:
+        if not isinstance(deadline, str):
+            definitions.append(deadline)
+            continue
+        if (alert := alerts.get(deadline)) is None:
+            return data, "deadline_alert_missing"
+        definitions.append(
+            {
+                "name": alert.name,
+                "reference": alert.reference,
+                "interval": alert.interval,
+                "callback": alert.callback_def,
+            }
+        )
+    # Stored UUIDs differ between versions even when the alert definitions are identical.
+    return {**data, "dag": {**dag_data, "deadline": definitions}}, None
 
 
 def _get_provenance(version: DagVersion) -> dict[str, Any]:
