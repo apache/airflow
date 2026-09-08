@@ -120,11 +120,26 @@ class TestSnowparkContainerJobOperator:
             pytest.param(
                 {"query_warehouse": "COMPUTE_WH"}, "QUERY_WAREHOUSE = COMPUTE_WH", id="query_warehouse"
             ),
+            pytest.param(
+                {"external_access_integrations": ["test_eai"]},
+                "EXTERNAL_ACCESS_INTEGRATIONS = (test_eai)",
+                id="external_access_integrations_single",
+            ),
+            pytest.param(
+                {"external_access_integrations": ["test_eai", "test_eai_2"]},
+                "EXTERNAL_ACCESS_INTEGRATIONS = (test_eai, test_eai_2)",
+                id="external_access_integrations_multiple",
+            ),
         ),
     )
     def test_build_sql_optional_params(self, kwargs, expected):
         op = _make_operator(**kwargs)
         assert expected in op._build_sql()
+
+    def test_external_access_integrations_in_template_fields(self):
+        op = _make_operator(external_access_integrations=["test_eai"])
+        assert "external_access_integrations" in op.template_fields
+        assert hasattr(op, "external_access_integrations")
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_submit_job_parses_job_name(self, mock_hook_cls):
