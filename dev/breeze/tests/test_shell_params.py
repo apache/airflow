@@ -25,7 +25,10 @@ from rich.console import Console
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.utils.path_utils import SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH
+from airflow_breeze.utils.path_utils import (
+    SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH,
+)
 
 console = Console(width=400, color_system="standard")
 
@@ -254,3 +257,8 @@ def test_generated_env_files_do_not_change_when_pythonwarnings_is_set(tmp_path, 
 def test_pythonwarnings_is_forwarded_by_the_compose_base_file():
     base_compose_file = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH.read_text())
     assert "PYTHONWARNINGS" in base_compose_file["services"]["airflow"]["environment"]
+
+
+def test_include_mypy_volume_adds_mypy_compose_file():
+    compose_files = ShellParams(include_mypy_volume=True).compose_file.split(":")
+    assert str(SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml") in compose_files
