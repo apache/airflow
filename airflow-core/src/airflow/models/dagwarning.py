@@ -90,7 +90,6 @@ class DagWarning(Base):
             query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_stale == true())
 
         session.execute(query.execution_options(synchronize_session=False))
-        session.commit()
 
 
 class DagWarningType(str, Enum):

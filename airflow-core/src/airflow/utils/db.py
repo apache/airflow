@@ -178,7 +178,6 @@ def merge_conn(conn: Connection, *, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.scalar(select(1).where(conn.__class__.conn_id == conn.conn_id)):
         session.add(conn)
-        session.commit()
 
 
 @provide_session
@@ -194,7 +193,6 @@ def add_default_pool_if_not_exists(*, session: Session = NEW_SESSION):
             include_deferred=False,
         )
         session.add(default_pool)
-        session.commit()
 
 
 @provide_session

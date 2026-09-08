@@ -35,12 +35,14 @@ from sqlalchemy import Column, Integer, MetaData, Table, delete, select
 
 from airflow import settings
 from airflow.models import Base as airflow_base
+from airflow.models.connection import Connection
 from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
+    add_default_pool_if_not_exists,
     check_migrations,
     check_team_names_can_be_lower_cased,
     compare_server_default,
@@ -48,6 +50,7 @@ from airflow.utils.db import (
     create_default_connections,
     downgrade,
     initdb,
+    merge_conn,
     resetdb,
     upgradedb,
 )
@@ -126,6 +129,27 @@ class TestDb:
 
         mock_run_upgradedb.assert_called_once_with(mock_config, None, session, use_migration_files=True)
         mock_initdb.assert_not_called()
+
+    def test_merge_conn_does_not_commit(self, mocker):
+        """merge_conn() must leave committing to the caller (see #12818)."""
+        session = mocker.MagicMock()
+        session.scalar.return_value = None  # no existing connection with this conn_id
+        conn = Connection(conn_id="test_merge_conn_does_not_commit", conn_type="fs")
+
+        merge_conn(conn, session=session)
+
+        session.add.assert_called_once_with(conn)
+        session.commit.assert_not_called()
+
+    def test_add_default_pool_if_not_exists_does_not_commit(self, mocker):
+        """add_default_pool_if_not_exists() must leave committing to the caller (see #12818)."""
+        session = mocker.MagicMock()
+        session.scalar.return_value = None  # default pool doesn't exist yet
+
+        add_default_pool_if_not_exists(session=session)
+
+        session.add.assert_called_once()
+        session.commit.assert_not_called()
 
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self, initialized_db):
         import airflow.models

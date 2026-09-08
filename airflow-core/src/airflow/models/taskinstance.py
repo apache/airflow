@@ -897,7 +897,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.log.error("Recording the task instance as FAILED")
         self.state = TaskInstanceState.FAILED
         session.merge(self)
-        session.commit()
 
     @classmethod
     @provide_session
@@ -1956,6 +1955,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.updated_at = timezone.utcnow()
         session.merge(ti)
         session.flush()
+        # Deliberately committed here (unlike error() above): the only caller, handle_failure(),
+        # is invoked from per-item scheduler batch loops (e.g. process_executor_events,
+        # _purge_task_instances_without_heartbeats) that dispatch non-transactional executor
+        # callbacks right after each item. Deferring to a single end-of-batch commit would let a
+        # later item's failure roll back an earlier item's DB state after its callback was already
+        # sent, leaving the DB and the dispatched callback disagreeing about the outcome.
         session.commit()
 
     @provide_session

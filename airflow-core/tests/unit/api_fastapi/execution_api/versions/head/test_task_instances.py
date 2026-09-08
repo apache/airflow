@@ -2568,6 +2568,68 @@ class TestTIUpdateState:
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
 
+    def test_ti_update_state_fail_fast_sibling_state_is_not_committed_independently(
+        self, client, session, dag_maker
+    ):
+        """
+        Regression test for apache/airflow#12818.
+
+        The fail-fast cascade (``_stop_remaining_tasks`` -> ``TaskInstance.error()``) runs on the
+        *same*, request-scoped session the route uses for the originating task's own state
+        update -- and that update isn't executed and committed until later in this same
+        request. If ``TaskInstance.error()`` commits on its own, a failure anywhere between the
+        cascade and the route's end-of-request commit leaves the sibling durably FAILED while
+        the triggering task's own state update rolls back: an inconsistent, partially-committed
+        result. Fixed by no longer committing inside ``TaskInstance.error()``.
+        """
+        with dag_maker(dag_id="test_dag_fail_fast_atomicity", fail_fast=True, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+        ti1.state = State.RUNNING
+        ti1.start_date = DEFAULT_START_DATE
+
+        # RUNNING (not QUEUED) so the cascade routes ti2 through TaskInstance.error(), the
+        # method this regression covers, rather than the SKIPPED/set_state() path.
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+        ti2.state = State.RUNNING
+        ti2.start_date = DEFAULT_START_DATE
+        session.commit()
+        session.refresh(ti1)
+        session.refresh(ti2)
+
+        # Force the request to fail *after* the fail-fast cascade has marked ti2 FAILED but
+        # *before* the route's own end-of-request commit -- the exact window the bug exploits.
+        # `Log(...)` is constructed right after the route's own UPDATE executes and right
+        # before its final `session.commit()`. The TestClient re-raises unhandled server
+        # exceptions rather than turning them into a response, so assert on the raise itself.
+        with (
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances.Log",
+                side_effect=RuntimeError("simulated failure between cascade and final commit"),
+            ),
+            pytest.raises(RuntimeError, match="simulated failure between cascade and final commit"),
+        ):
+            client.patch(
+                f"/execution/task-instances/{ti1.id}/state",
+                json={
+                    "state": TerminalTIState.FAILED,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+            )
+
+        # The whole request rolled back, including ti1's own update: it never got committed.
+        session.expire_all()
+        ti1 = session.get(TaskInstance, ti1.id)
+        assert ti1.state == State.RUNNING
+
+        # ti2's FAILED state must not have been committed independently of that rollback --
+        # from a separate session, it must look like the cascade never ran.
+        ti2 = session.get(TaskInstance, ti2.id)
+        assert ti2.state == State.RUNNING
+
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
     ):
