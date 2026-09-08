@@ -77,7 +77,6 @@ from airflowctl.api.datamodels.generated import (
     DagVersionResponse,
     DAGWarningCollectionResponse,
     DAGWarningResponse,
-    DagWarningType,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -1192,7 +1191,7 @@ class TestDagOperations:
         dag_warnings=[
             DAGWarningResponse(
                 dag_id=dag_id,
-                warning_type=DagWarningType.NON_EXISTENT_POOL,
+                warning_type="non-existent pool",
                 message="message",
                 timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_display_name,
