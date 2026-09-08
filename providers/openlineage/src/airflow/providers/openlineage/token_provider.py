@@ -119,9 +119,6 @@ class OAuth2ClientCredentialsTokenProvider(TokenProvider):
         else:
             basic_auth = (self.client_id, self.client_secret)
 
-        log.debug(
-            "Requesting OAuth2 access token from `%s` for client `%s`.", self.token_endpoint, self.client_id
-        )
         try:
             response = requests.post(self.token_endpoint, data=data, auth=basic_auth, timeout=10)
             response.raise_for_status()
@@ -140,9 +137,7 @@ class OAuth2ClientCredentialsTokenProvider(TokenProvider):
         # Refresh early, but never so early that every event would trigger a new token request.
         self._refresh_at = time.monotonic() + lifetime - min(self.token_refresh_buffer, lifetime / 2)
         self._access_token = str(access_token)
-        log.debug(
-            "Obtained OAuth2 access token for client `%s`, valid for %s seconds.", self.client_id, lifetime
-        )
+        log.debug("Obtained OAuth2 access token, valid for %s seconds.", lifetime)
 
     def _get_token_lifetime(self, payload: dict[str, Any]) -> float:
         expires_in = payload.get("expires_in", self.DEFAULT_TOKEN_LIFETIME)
