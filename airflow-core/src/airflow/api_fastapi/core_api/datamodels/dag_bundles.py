@@ -102,3 +102,10 @@ class DagBundleFileCollectionResponse(BaseModel):
 
     dag_bundle_files: Iterable[DagBundleFileResponse]
     total_entries: int
+
+
+class DagBundleRefreshResponse(BaseModel):
+    """Response acknowledging a Dag bundle refresh request."""
+
+    bundle_name: str
+    refresh_generation: int
