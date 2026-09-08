@@ -2827,6 +2827,7 @@ class TestDagFileProcessorManager:
             bundle=bundle,
             elapsed_time_since_refresh=elapsed_time_since_refresh,
             current_version_matches_db=current_version_matches_db,
+            current_refresh_generation_matches_db=True,
             previously_seen=previously_seen,
         )
 
@@ -3181,13 +3182,14 @@ class TestDagFileProcessorManager:
         refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
         model = DagBundleModel(name=bundle_name, version="v1")
         model.last_refreshed = refreshed_at
+        model.refresh_generation = 7
         session.add(model)
         session.commit()
 
         manager = DagFileProcessorManager(max_runs=1)
         state = manager.get_bundle_state(bundle_name)
 
-        assert state == BundleState(last_refreshed=refreshed_at, version="v1")
+        assert state == BundleState(last_refreshed=refreshed_at, version="v1", refresh_generation=7)
 
     def test_get_bundle_state_reads_latest_database_values(self, session):
         bundle_name = "test_fresh_state_bundle"
@@ -3225,7 +3227,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         state = manager.get_bundle_state(bundle_name)
 
-        assert state == BundleState(last_refreshed=None, version=None)
+        assert state == BundleState(last_refreshed=None, version=None, refresh_generation=0)
 
     def test_update_bundle_state_sets_last_refreshed(self, session):
         bundle_name = "test_update_bundle"
@@ -3316,6 +3318,26 @@ class TestDagFileProcessorManager:
         mock_get.assert_called_once_with("mock_bundle")
         mock_update.assert_called_once_with("mock_bundle", last_refreshed=mock.ANY, version=None)
         assert manager._bundle_versions["mock_bundle"] is None
+
+    def test_refresh_generation_forces_bundle_refresh(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_versions["mock_bundle"] = None
+        manager._bundle_refresh_generations["mock_bundle"] = 3
+        bundle = self._make_refresh_bundle(supports_versioning=False)
+        bundle.refresh_interval = 300
+
+        self._refresh_with_mocked_state(
+            manager,
+            bundle,
+            BundleState(
+                last_refreshed=timezone.utcnow(),
+                version=None,
+                refresh_generation=4,
+            ),
+        )
+
+        bundle.refresh.assert_called_once()
+        assert manager._bundle_refresh_generations["mock_bundle"] == 4
 
     def test_refresh_dag_bundles_clears_team_name_cache(self):
         manager = DagFileProcessorManager(max_runs=1)

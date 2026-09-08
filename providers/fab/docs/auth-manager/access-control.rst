@@ -298,6 +298,10 @@ Stable API Permissions
      - PATCH
      - Connections.can_edit
      - Op
+   * - ``/api/v2/dagBundles/{bundle_name}/refresh``
+     - POST
+     - DAGs.can_edit
+     - User
    * - ``/api/v2/dagSources/{dag_id}``
      - GET
      - DAGs.can_read, DAG Code.can_read

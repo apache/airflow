@@ -507,6 +507,15 @@ class DAGTagCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DagBundleRefreshResponse(BaseModel):
+    """
+    Response acknowledging a Dag bundle refresh request.
+    """
+
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    refresh_generation: Annotated[int, Field(title="Refresh Generation")]
+
+
 class DagProcessorInstanceInfoResponse(BaseModel):
     """
     Dag processor instance info serializer for responses.

@@ -3327,6 +3327,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dagBundles/{bundle_name}/refresh:
+    post:
+      tags:
+      - Dag Bundle
+      summary: Refresh Dag Bundle
+      description: Request that every Dag processor refresh a bundle.
+      operationId: refresh_dag_bundle
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: bundle_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Bundle Name
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagBundleRefreshResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dagStats:
     get:
       tags:
@@ -13934,6 +13982,20 @@ components:
       - dag_display_name
       title: DAGWarningResponse
       description: Dag Warning serializer for responses.
+    DagBundleRefreshResponse:
+      properties:
+        bundle_name:
+          type: string
+          title: Bundle Name
+        refresh_generation:
+          type: integer
+          title: Refresh Generation
+      type: object
+      required:
+      - bundle_name
+      - refresh_generation
+      title: DagBundleRefreshResponse
+      description: Response acknowledging a Dag bundle refresh request.
     DagProcessorInfoResponse:
       properties:
         status:
