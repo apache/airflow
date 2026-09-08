@@ -31,12 +31,17 @@ or not configured in this process) no spans are emitted.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+import atexit
+import logging
+import threading
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     from pydantic_ai.models.instrumented import InstrumentationSettings
+
+log = logging.getLogger(__name__)
 
 SECTION = "common.ai"
 
@@ -55,6 +60,10 @@ def _otel_export_enabled() -> bool:
 
 def _capture_content() -> bool:
     return conf.getboolean(SECTION, "capture_content", fallback=False)
+
+
+def _trace_store_path() -> str:
+    return conf.get(SECTION, "trace_store_path", fallback="")
 
 
 def _live_tracer_provider():
@@ -78,21 +87,128 @@ def _live_tracer_provider():
     return provider if isinstance(provider, TracerProvider) else None
 
 
+# One store stream/provider per task instance try, shared across every agent
+# built in that task; closed at process exit (task processes are per-task).
+# The lock makes the cache's check-then-create atomic: two agents built
+# concurrently for the same TI must not both open the file with mode "w" (the
+# second would truncate the first's spans) -- exactly one provider/stream is
+# created and cached per key.
+_STORE_PROVIDERS: dict[tuple[Any, ...], Any] = {}
+_STORE_PROVIDERS_LOCK = threading.Lock()
+_ATEXIT_REGISTERED = False
+
+
+def _close_store_providers() -> None:
+    for provider, stream in _STORE_PROVIDERS.values():
+        try:
+            provider.shutdown()
+        except Exception:
+            log.exception("Failed to shut down trace-store provider")
+        try:
+            stream.close()
+        except Exception:
+            log.exception("Failed to close trace-store stream")
+    _STORE_PROVIDERS.clear()
+
+
+def _store_tracer_provider():
+    """
+    Build (or reuse) a private ``TracerProvider`` writing to the trace store.
+
+    Backend-free local-dev mode: when ``[common.ai] trace_store_path`` is set,
+    GenAI spans are written as standard OTLP JSON lines (the small
+    spec-compliant encoder in ``_otlp_json.py`` over an ``ObjectStoragePath``
+    stream) under a task-instance-keyed layout::
+
+        {store} / {dag_id} / {run_id} / {task_id} / {map_index} / {try_number}.jsonl
+
+    The path IS the correlation, so this works with core tracing
+    (``[traces] otel_on``) completely off -- no collector, no backend. When
+    core tracing is on, the ambient task-span context still parents these
+    spans, so trace ids line up with ``context_carrier`` too. Files are plain
+    OTLP JSON: a collector's ``otlpjsonfilereceiver`` can replay them into any
+    real backend later.
+    """
+    store = _trace_store_path()
+    if not store:
+        return None
+    try:
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.sampling import ALWAYS_ON
+
+        from airflow.providers.common.ai._otlp_json import OTLPJsonStreamExporter
+        from airflow.sdk import ObjectStoragePath, get_current_context
+    except ImportError:
+        log.warning(
+            "[common.ai] trace_store_path is set but the OpenTelemetry SDK is not "
+            "installed; install 'opentelemetry-sdk' to enable the trace store."
+        )
+        return None
+    try:
+        ti = get_current_context()["ti"]
+    except Exception:
+        # Not inside a task (e.g. parsing) -- nothing to key the store by.
+        return None
+
+    key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index, ti.try_number)
+    # Lock the whole check-then-create so concurrent agent builds for the same
+    # TI can't both open the file "w" (truncating each other) -- the second
+    # caller sees the first's cached provider and reuses its stream.
+    with _STORE_PROVIDERS_LOCK:
+        cached = _STORE_PROVIDERS.get(key)
+        if cached is not None:
+            return cached[0]
+
+        path = (
+            ObjectStoragePath(store)
+            / ti.dag_id
+            / ti.run_id
+            / ti.task_id
+            / str(ti.map_index)
+            / f"{ti.try_number}.jsonl"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        stream = path.open("w")
+        # ALWAYS_ON, not the default ParentBased: the task runner attaches the
+        # TI's context_carrier traceparent even when core tracing is off, and
+        # that carrier has trace-flags 00 (unsampled). A parent-based sampler
+        # would inherit the "don't sample" decision and record nothing.
+        provider = TracerProvider(sampler=ALWAYS_ON)
+        # Simple (per-span, synchronous) rather than Batch: nothing buffers in
+        # the processor, so a task that dies mid-run has already written every
+        # span that finished.
+        provider.add_span_processor(SimpleSpanProcessor(OTLPJsonStreamExporter(stream)))
+
+        global _ATEXIT_REGISTERED
+        if not _ATEXIT_REGISTERED:
+            atexit.register(_close_store_providers)
+            _ATEXIT_REGISTERED = True
+        _STORE_PROVIDERS[key] = (provider, stream)
+    log.info("common.ai trace store active: writing GenAI spans to %s", path)
+    return provider
+
+
 def genai_instrumentation_settings() -> InstrumentationSettings | None:
     """
     Build pydantic-ai ``InstrumentationSettings`` for an agent run.
 
-    Returns ``None`` (leave the agent un-instrumented, zero overhead) when
-    export is disabled or no live OTLP ``TracerProvider`` is configured in this
-    worker process. ``include_content`` is off by default so prompts,
-    completions, and tool IO are never emitted unless explicitly opted in via
+    Two sources, in order: the ObjectStorage trace store (when
+    ``[common.ai] trace_store_path`` is set -- zero-infra local dev, needs no
+    core tracing), else Airflow's live OTLP ``TracerProvider`` (when
+    ``otel_export_enabled`` and core tracing are on). Returns ``None`` (agent
+    left un-instrumented, zero overhead) when neither applies.
+    ``include_content`` is off by default so prompts, completions, and tool IO
+    are never emitted unless explicitly opted in via
     ``[common.ai] capture_content``.
     """
-    if not _otel_export_enabled():
-        return None
-    provider = _live_tracer_provider()
+    provider = _store_tracer_provider()
     if provider is None:
-        return None
+        if not _otel_export_enabled():
+            return None
+        provider = _live_tracer_provider()
+        if provider is None:
+            return None
 
     # Imported here, not at module top: this module is imported by the hook on
     # every agent build, but the ``instrumented`` submodule is only needed when

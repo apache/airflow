@@ -47,10 +47,12 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         work_dir = Path(self.root)
         log.warning("Cleaning generated files in directory: %s", work_dir)
         ai_package_src = work_dir / "src" / "airflow" / "providers" / "common" / "ai"
-        ai_ui_path = ai_package_src / "plugins" / "www"
-        self.clean_dir(ai_ui_path / ".pnpm-store")
-        self.clean_dir(ai_ui_path / "dist")
-        self.clean_dir(ai_ui_path / "node_modules")
+        # common.ai ships two plugin bundles (HITL Review + AI Trace); clean both.
+        for bundle in ("www", "ai_trace_www"):
+            ai_ui_path = ai_package_src / "plugins" / bundle
+            self.clean_dir(ai_ui_path / ".pnpm-store")
+            self.clean_dir(ai_ui_path / "dist")
+            self.clean_dir(ai_ui_path / "node_modules")
         (work_dir / "www-hash.txt").unlink(missing_ok=True)
 
     def get_version_api(self) -> dict[str, Callable[..., str]]:
