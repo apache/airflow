@@ -744,7 +744,7 @@ class KiotaRequestAdapterHook(BaseHook):
         finally:
             provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
             access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
-            credential = cast("AsyncTokenCredential", access_token_provider._credentials)
+            credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
             await credential._credential.close()
 
     def request_information(
