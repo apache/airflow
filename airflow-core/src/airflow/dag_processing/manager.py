@@ -888,7 +888,7 @@ class DagFileProcessorManager(LoggingMixin):
                 current_version_matches_db=current_version_matches_db,
                 previously_seen=previously_seen,
             ):
-                self.log.info("Not time to refresh bundle %s", bundle.name)
+                self.log.debug("Not time to refresh bundle %s", bundle.name)
                 continue
 
             self.log.info("Refreshing bundle %s", bundle.name)
