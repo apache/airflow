@@ -40,7 +40,7 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
@@ -97,8 +97,6 @@ from tests_common.test_utils.taskinstance import create_task_instance, run_task_
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from airflow.serialization.definitions.dag import SerializedDAG
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -465,7 +463,7 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success")
+            mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success", session=ANY)
         ]
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
@@ -499,7 +497,7 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure")
+            mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure", session=ANY)
         ]
         # Make sure the correct TI is passed on failure
         call_args = execute_dag_callbacks.call_args
@@ -541,7 +539,13 @@ class TestDagRun:
         with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dr.update_state(execute_callbacks=True)
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=serialized_dag, success=False, relevant_ti=ti_middle, reason="all_tasks_deadlocked")
+            mock.call(
+                dag=serialized_dag,
+                success=False,
+                relevant_ti=ti_middle,
+                reason="all_tasks_deadlocked",
+                session=ANY,
+            )
         ]
         # Make sure the correct TI is passed on deadlock
         call_args = execute_dag_callbacks.call_args
@@ -1419,7 +1423,7 @@ class TestDagRun:
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
             _, callback = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
-            mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success")
+            mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success", session=ANY)
         ]
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
@@ -4138,27 +4142,63 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
 
-    def test_produce_dag_callback_drops_last_ti_without_dag_version(self, dag_maker, session):
-        """A historical TI with dag_version_id=None must not crash callback construction."""
+    @pytest.mark.parametrize("run_keeps_version", [True, False])
+    def test_produce_dag_callback_stands_in_version_for_versionless_last_ti(
+        self, dag_maker, session, run_keeps_version
+    ):
+        """A historical TI with dag_version_id=None still reaches the callback, under a stand-in version."""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        run_version_id = dr.created_dag_version_id
+        ti = dr.get_task_instance("test_task")
+        ti.dag_version_id = None
+        if not run_keeps_version:
+            dr.created_dag_version_id = None
+        # Newer than the run's, so the two fallback sources are distinguishable.
+        latest_version = DagVersion.write_dag(dag_id=dr.dag_id, bundle_name="dag_maker", version_number=2)
+        session.flush()
+        assert latest_version.id != run_version_id
+
+        expected_version_id = run_version_id if run_keeps_version else latest_version.id
+
+        callback = dr.produce_dag_callback(
+            dag=dag, success=False, relevant_ti=ti, reason="task_failure", session=session
+        )
+
+        assert callback is not None
+        assert callback.context_from_server is not None
+        last_ti = callback.context_from_server.last_ti
+        assert last_ti is not None
+        assert last_ti.task_id == "test_task"
+        assert last_ti.dag_version_id == expected_version_id
+
+    def test_produce_dag_callback_drops_last_ti_when_dag_has_no_version(self, dag_maker, session):
+        """With no version anywhere to stand in, the callback still fires without last_ti."""
         with dag_maker("test_dag", session=session) as dag:
             BashOperator(task_id="test_task", bash_command="echo 1")
 
         dr = dag_maker.create_dagrun()
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         ti = dr.get_task_instance("test_task")
-        # Simulate a task instance created before the dag_version table existed.
         ti.dag_version_id = None
+        dr.created_dag_version_id = None
         session.flush()
 
-        callback = dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure")
+        # Patched here, not as a decorator: dag_maker's setup needs the real lookup.
+        with mock.patch.object(DagVersion, "get_latest_version", autospec=True, return_value=None):
+            callback = dr.produce_dag_callback(
+                dag=dag, success=False, relevant_ti=ti, reason="task_failure", session=session
+            )
 
         assert callback is not None
-        # last_ti is dropped so the non-null UUID datamodel validation never fires.
         assert callback.context_from_server is not None
         assert callback.context_from_server.last_ti is None
 
     def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
-        """The execute=True path must also tolerate a TI with dag_version_id=None."""
+        """The execute=True path must also carry a TI with dag_version_id=None into the context."""
         context_received = None
 
         def on_failure(context):
@@ -4172,18 +4212,69 @@ class TestDagRunHandleDagCallback:
         dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         ti = dr.get_task_instance("test_task")
         ti.dag_version_id = None
+        dr.created_dag_version_id = None
         session.flush()
 
         dag.on_failure_callback = on_failure
         dag.has_on_failure_callback = True
 
-        dr.produce_dag_callback(dag=dag, success=False, relevant_ti=ti, reason="task_failure", execute=True)
+        dr.produce_dag_callback(
+            dag=dag,
+            success=False,
+            relevant_ti=ti,
+            reason="task_failure",
+            execute=True,
+            session=session,
+        )
 
-        # Callback still fires with the minimal fallback context (no last_ti template vars).
         assert context_received is not None
         assert context_received["reason"] == "task_failure"
-        assert "ti" not in context_received
-        assert context_received["run_id"] == dr.run_id
+        assert context_received["ti"].task_id == "test_task"
+        assert context_received["ti"].run_id == dr.run_id
+        assert (
+            context_received["ti"].dag_version_id
+            == DagVersion.get_latest_version(dag.dag_id, session=session).id
+        )
+
+    @pytest.mark.parametrize("strip_dag_version", [False, True])
+    def test_produce_dag_callback_preserves_callers_transaction(self, dag_maker, session, strip_dag_version):
+        """Executing callbacks must not commit or close the session the caller handed in."""
+
+        def on_failure(context):
+            pass
+
+        with dag_maker("test_dag", session=session, on_failure_callback=on_failure) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+
+        dr = dag_maker.create_dagrun()
+        dr.dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        # get_task_instance would otherwise default the session and close this one.
+        ti = dr.get_task_instance("test_task", session=session)
+        if strip_dag_version:
+            ti.dag_version_id = None
+            dr.created_dag_version_id = None
+        session.flush()
+
+        dag.on_failure_callback = on_failure
+        dag.has_on_failure_callback = True
+
+        with (
+            mock.patch.object(Session, "commit", autospec=True) as mock_commit,
+            mock.patch.object(Session, "close", autospec=True) as mock_close,
+        ):
+            dr.produce_dag_callback(
+                dag=dag,
+                success=False,
+                relevant_ti=ti,
+                reason="task_failure",
+                execute=True,
+                session=session,
+            )
+
+        assert mock_commit.mock_calls == []
+        assert mock_close.mock_calls == []
+        # close() expunges everything, so an attached instance proves the session survived.
+        assert ti in session
 
     @pytest.mark.parametrize(
         ("multi_team", "team_name", "expected_tags"),
