@@ -4675,6 +4675,69 @@ def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session
     assert dr.stats_tags == {"dag_id": "eager_tag_dag", "run_type": dr.run_type, "env": "prod"}
 
 
+def test_get_running_dag_runs_to_examine_does_not_starve_backfill_runs(dag_maker, session, monkeypatch):
+    """A running backfill DagRun with no scheduling decision yet must not be starved out of the
+    per-loop examine batch by ordinary running DagRuns, regardless of how far back in its backfill's
+    own ordering it sits.
+
+    Regression test for the scheduler ordering backfill DagRuns strictly behind every non-backfill
+    DagRun (via `BackfillDagRun.sort_ordinal` nulls-first), which meant a backfill run could sit
+    RUNNING indefinitely without ever having its task instances scheduled once the number of
+    concurrently running non-backfill DagRuns met or exceeded `max_dagruns_per_loop_to_schedule`.
+    """
+    from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior
+
+    # Cap the per-loop examine batch well below the number of ordinary running DagRuns below, so the
+    # old behavior (backfill always sorts last) would exclude the backfill DagRun from every batch.
+    examine_limit = 5
+    monkeypatch.setattr(DagRun, "DEFAULT_DAGRUNS_TO_EXAMINE", examine_limit)
+
+    # Plenty of ordinary running DagRuns, each with a real last_scheduling_decision so none of them
+    # compete on the nulls-first tier with the backfill run below.
+    for i in range(examine_limit * 2):
+        with dag_maker(f"busy_dag_{i}", schedule="@daily", session=session):
+            pass
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        dr.last_scheduling_decision = pendulum.now("UTC")
+    session.commit()
+
+    # One backfill DagRun, freshly promoted to RUNNING: no scheduling decision has happened yet, and
+    # its BackfillDagRun.sort_ordinal is deliberately large (deep in its own backfill's own ordering).
+    with dag_maker("starved_backfill_dag", schedule="@daily", session=session) as dag:
+        pass
+    backfill = Backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-10"),
+        max_active_runs=10,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.NONE,
+    )
+    session.add(backfill)
+    session.flush()
+    backfill_dr = dag_maker.create_dagrun(
+        run_id="backfill__2021-01-10T00:00:00+00:00",
+        run_type=DagRunType.BACKFILL_JOB,
+        state=DagRunState.RUNNING,
+        backfill_id=backfill.id,
+    )
+    backfill_dr.last_scheduling_decision = None
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill.id,
+            dag_run_id=backfill_dr.id,
+            logical_date=backfill_dr.logical_date,
+            sort_ordinal=999,
+        )
+    )
+    session.commit()
+
+    examined_dag_ids = {
+        r.dag_id for r in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=False)
+    }
+    assert "starved_backfill_dag" in examined_dag_ids
+
+
 class TestClearPartitionRuns:
     """Direct unit tests for the clear_partition_runs model-layer function."""
 
