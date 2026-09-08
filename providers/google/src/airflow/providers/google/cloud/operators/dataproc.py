@@ -2010,10 +2010,12 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
             # from this operator.
             self.start_trigger_args = replace(
                 self.start_trigger_args,
-                trigger_kwargs=self.build_direct_submit_trigger_kwargs(),
+                trigger_kwargs=self._build_direct_submit_trigger_kwargs(),
             )
 
-    def build_direct_submit_trigger_kwargs(self) -> dict[str, Any]:
+    def _build_direct_submit_trigger_kwargs(self) -> dict[str, Any]:
+        # Kept out of __init__ for the constructor-logic hook; still invoked at
+        # construct time because start_from_trigger never runs execute().
         return {
             "job": self.job,
             "project_id": self.project_id,
