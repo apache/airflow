@@ -19,12 +19,40 @@
 from __future__ import annotations
 
 import zipfile
+from pathlib import Path
 
+import pytest
+
+from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
+    AbstractDagImporter,
+    DagDefinition,
+    DagImportResult,
+    DagSourceCode,
     FileDagDefinition,
+    PythonDagImporter,
     ZipFileDagDefinition,
     ZipImporter,
 )
+
+
+class CustomInternalNonExtensionImporter(AbstractDagImporter):
+    """An internal importer that routes archive members by filename pattern."""
+
+    def can_handle(self, definition: DagDefinition | str | Path) -> bool:
+        path_str = str(getattr(definition, "file_path", definition))
+        return "workflow" in path_str
+
+    def import_definition(self, definition, **kwargs):
+        from airflow.sdk import DAG
+
+        return DagImportResult(dags=[DAG("workflow_dag")])
+
+    def list_dag_definitions(self, bundle_name, bundle_path, **kwargs):
+        return iter([])
+
+    def get_source_code(self, definition):
+        return DagSourceCode(source_code="", language="text")
 
 
 class TestZipImporter:
@@ -44,13 +72,17 @@ class TestZipImporter:
         assert result.dags[0].bundle_name == "test_bundle"
         assert len(result.errors) == 0
 
-    def test_zipslip_traversal_skipped(self, tmp_path):
+    def test_zipslip_traversal_and_metadata_skipped(self, tmp_path):
         zip_path = tmp_path / "malicious.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("subfolder/", "")
+            z.writestr("__MACOSX/._dag.py", "apple double metadata")
             z.writestr("../evil_dag.py", "from airflow.sdk import DAG\ndag = DAG('evil_dag')\n")
+            z.writestr("valid_dag.py", "from airflow.sdk import DAG\ndag = DAG('valid_dag')\n")
 
         result = ZipImporter().import_definition(FileDagDefinition(path=zip_path))
-        assert len(result.dags) == 0
+        assert len(result.dags) == 1
+        assert result.dags[0].dag_id == "valid_dag"
         assert not (tmp_path.parent / "evil_dag.py").exists()
 
     def test_corrupted_zip_file(self, tmp_path):
@@ -84,3 +116,77 @@ class TestZipImporter:
         member_def = ZipFileDagDefinition(zip_path=zip_path, file_path="dag.py")
         stat = zip_path.stat()
         assert member_def.freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}-dag.py"
+
+    def test_zip_importer_internal_importers_from_list_of_specs(self, tmp_path):
+        importer = ZipImporter(
+            internal_importers=[
+                {
+                    "classpath": "airflow.sdk.importers.python_importer.PythonDagImporter",
+                    "extensions": [".custom_py"],
+                }
+            ]
+        )
+        assert ".custom_py" in importer._internal_extension_importers
+        assert ".py" not in importer._internal_extension_importers
+
+        zip_path = tmp_path / "custom_dags.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("dag.custom_py", "from airflow.sdk import DAG\ndag = DAG('custom_zip_dag')\n")
+
+        res = importer.import_definition(FileDagDefinition(path=zip_path))
+        assert len(res.dags) == 1
+        assert res.dags[0].dag_id == "custom_zip_dag"
+
+    def test_zip_importer_internal_importers_from_dict(self):
+        importer = ZipImporter(
+            internal_importers={
+                ".py": PythonDagImporter(),
+                ".alt": {
+                    "classpath": "airflow.sdk.importers.python_importer.PythonDagImporter",
+                    "extensions": [".alt"],
+                },
+            }
+        )
+        assert ".py" in importer._internal_extension_importers
+        assert ".alt" in importer._internal_extension_importers
+
+    @pytest.mark.parametrize(
+        ("config", "match"),
+        [
+            ("not_list_or_dict", "must be a list or dictionary"),
+            ([{"extensions": [".py"]}], "Missing required 'classpath'"),
+            ([{"classpath": "invalid.path"}], "Failed to load DAG importer"),
+            (
+                [{"classpath": "builtins.dict"}],
+                r"must inherit from AbstractDagImporter",
+            ),
+            ({".py": {"kwargs": {}}}, "Missing required 'classpath'"),
+            ({".py": "invalid"}, "expected AbstractDagImporter or dictionary"),
+        ],
+    )
+    def test_zip_importer_invalid_configurations(self, config, match):
+        with pytest.raises(AirflowConfigException, match=match):
+            ZipImporter(internal_importers=config)
+
+    def test_zip_importer_custom_extensions(self):
+        importer = ZipImporter(extensions=[".bundle", ".zip"])
+        assert importer.can_handle("test.bundle")
+        assert importer.can_handle("test.zip")
+        assert set(importer.supported_extensions) == {".bundle", ".zip"}
+
+    def test_zip_importer_internal_importers_non_extension(self, tmp_path):
+        """ZipImporter can route archive members to non-extension internal importers."""
+        importer = ZipImporter(
+            internal_importers=[
+                {
+                    "classpath": f"{__name__}.CustomInternalNonExtensionImporter",
+                }
+            ]
+        )
+        zip_path = tmp_path / "workflow_archive.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("my_workflow_file", "steps:\n  - run: echo hello\n")
+
+        res = importer.import_definition(FileDagDefinition(path=zip_path))
+        assert len(res.dags) == 1
+        assert res.dags[0].dag_id == "workflow_dag"

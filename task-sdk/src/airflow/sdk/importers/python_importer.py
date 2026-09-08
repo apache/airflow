@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import functools
 import importlib.machinery
 import importlib.util
 import logging
@@ -28,6 +29,8 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.sdk.configuration import conf
+from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.timeout import timeout
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
@@ -36,9 +39,13 @@ from airflow.sdk.importers.base import (
     DagImportResult,
     DagImportWarning,
     DagSourceCode,
+    _normalize_extensions,
+    find_file_dag_definitions,
+    get_file_suffix,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from types import ModuleType
 
     from airflow.sdk import DAG
@@ -55,6 +62,15 @@ class PythonDagImporter(AbstractDagImporter):
     """
 
     supported_extensions = [".py"]
+
+    def __init__(self, extensions: list[str] | None = None) -> None:
+        if extensions is not None:
+            self.supported_extensions = _normalize_extensions(extensions)
+
+    def can_handle(self, definition: DagDefinition | str | Path) -> bool:
+        """Check if this importer can handle the given definition based on file extension."""
+        suffix = get_file_suffix(definition)
+        return suffix in self.supported_extensions if suffix else False
 
     def import_definition(
         self,
@@ -76,11 +92,7 @@ class PythonDagImporter(AbstractDagImporter):
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         result = DagImportResult(definition=definition)
-
-        # Clear any autoregistered dags from previous imports
         DagContext.autoregistered_dags.clear()
-
-        # Capture warnings during import
         captured_warnings: list[warnings.WarningMessage] = []
 
         try:
@@ -94,7 +106,7 @@ class PythonDagImporter(AbstractDagImporter):
                         bundle_path=bundle_path,
                         bundle_name=bundle_name,
                     )
-        except TypeError:
+        except AirflowConfigException:
             # Configuration errors (e.g., invalid timeout type) should propagate
             raise
         except Exception as e:
@@ -108,7 +120,6 @@ class PythonDagImporter(AbstractDagImporter):
             )
             return result
 
-        # Convert captured warnings to DagImportWarning
         for warn_msg in captured_warnings:
             category = warn_msg.category.__name__
             if (module := warn_msg.category.__module__) != "builtins":
@@ -122,7 +133,6 @@ class PythonDagImporter(AbstractDagImporter):
                 )
             )
 
-        # Process imported modules to extract DAGs
         self._process_modules(
             modules,
             result,
@@ -132,14 +142,30 @@ class PythonDagImporter(AbstractDagImporter):
 
         return result
 
+    def list_dag_definitions(
+        self,
+        bundle_name: str,
+        bundle_path: Path,
+        *,
+        safe_mode: bool = True,
+    ) -> Iterator[DagDefinition]:
+        """List Python DAG definitions in a bundle matching supported extensions."""
+        yield from find_file_dag_definitions(bundle_path, self.supported_extensions)
+
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """Retrieve the raw source code for the Python definition."""
-        from airflow.sdk.importers.base import DagSourceCode
-
         return DagSourceCode(
             source_code=definition.read_text(encoding="utf-8"),
             language="python",
         )
+
+    def might_contain_dag(self, file_path: str | Path, safe_mode: bool = True) -> bool:
+        """Check whether a file might contain Airflow DAGs according to safe mode heuristics."""
+        if not safe_mode:
+            return True
+        from airflow.sdk._shared.module_loading.dag_file import might_contain_dag
+
+        return might_contain_dag(str(file_path), safe_mode)
 
     def _load_modules_from_file(
         self,
@@ -154,12 +180,12 @@ class PythonDagImporter(AbstractDagImporter):
             from airflow import settings  # noqa: SDK002
         except ImportError:
             settings = None
-        from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_name, might_contain_dag
+        from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_name
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         definition = result.definition
 
-        if not might_contain_dag(filepath, safe_mode):
+        if not self.might_contain_dag(filepath, safe_mode):
             log.debug("File %s assumed to contain no DAGs. Skipping.", filepath)
             if definition is not None:
                 result.skipped_definitions.append(definition)
@@ -174,8 +200,6 @@ class PythonDagImporter(AbstractDagImporter):
         DagContext.current_autoregister_module_name = mod_name
 
         def parse(mod_name: str, filepath: str) -> list[ModuleType]:
-            from airflow.sdk.configuration import conf
-
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
@@ -190,10 +214,8 @@ class PythonDagImporter(AbstractDagImporter):
                 sys.modules.pop(mod_name, None)
                 DagContext.autoregistered_dags.clear()
                 log.exception("Failed to import: %s", filepath)
-                if conf and conf.getboolean("core", "dagbag_import_error_tracebacks"):
-                    stacktrace = traceback.format_exc(
-                        limit=-conf.getint("core", "dagbag_import_error_traceback_depth")
-                    )
+                if self._dagbag_import_error_tracebacks:
+                    stacktrace = traceback.format_exc(limit=-self._dagbag_import_error_traceback_depth)
                 else:
                     stacktrace = None
                 result.errors.append(
@@ -212,7 +234,7 @@ class PythonDagImporter(AbstractDagImporter):
             dagbag_import_timeout = 30.0
 
         if not isinstance(dagbag_import_timeout, (int, float)):
-            raise TypeError(
+            raise AirflowConfigException(
                 f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
             )
 
@@ -255,3 +277,11 @@ class PythonDagImporter(AbstractDagImporter):
                 dag.relative_fileloc = result.definition.get_relative_loc(bundle_path)
             result.dags.append(dag)
             log.debug("Found DAG %s", dag.dag_id)
+
+    @functools.cached_property
+    def _dagbag_import_error_tracebacks(self) -> bool:
+        return conf.getboolean("core", "dagbag_import_error_tracebacks")
+
+    @functools.cached_property
+    def _dagbag_import_error_traceback_depth(self) -> int:
+        return conf.getint("core", "dagbag_import_error_traceback_depth")
