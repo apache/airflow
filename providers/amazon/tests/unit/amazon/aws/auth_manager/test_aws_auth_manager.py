@@ -32,6 +32,7 @@ if not AIRFLOW_V_3_0_PLUS:
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
@@ -893,6 +894,32 @@ class TestAwsAuthManager:
 
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called()
         assert result == expected_result
+
+    def test_filter_authorized_assets(self, auth_manager, test_user):
+        assets = [
+            AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv"),
+            AssetDetails(id="2", name="salary", uri="s3://team-b/salary.csv"),
+        ]
+        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(return_value=[])
+        auth_manager.avp_facade.get_batch_is_authorized_single_result = Mock(
+            side_effect=lambda *, request, **kw: {
+                "decision": "ALLOW" if request["entity_id"] == "1" else "DENY"
+            }
+        )
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=test_user, method="GET")
+
+        assert result == {"1"}
+        # Every asset goes into one batch request rather than one call each.
+        auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once()
+        sent = auth_manager.avp_facade.get_batch_is_authorized_results.call_args.kwargs["requests"]
+        assert [request["entity_type"] for request in sent] == [AvpEntities.ASSET, AvpEntities.ASSET]
+        assert {request["entity_id"] for request in sent} == {"1", "2"}
+
+    def test_filter_authorized_assets_empty(self, auth_manager, test_user):
+        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(return_value=[])
+
+        assert auth_manager.filter_authorized_assets(assets=[], user=test_user, method="GET") == set()
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()

@@ -1397,6 +1397,56 @@ class TestKeycloakAuthManager:
 
     @patch.object(
         KeycloakAuthManager,
+        "is_authorized_asset",
+        side_effect=lambda *, details, **kw: details.uri.startswith("s3://team-a/"),
+    )
+    def test_filter_authorized_assets(self, mock_is_authorized, auth_manager, user):
+        assets = [
+            AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv"),
+            AssetDetails(id="2", name="salary", uri="s3://team-b/salary.csv"),
+            AssetDetails(id="3", name="logs", uri="s3://team-a/logs.csv"),
+        ]
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+
+        assert result == {"1", "3"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_assets_empty(self, auth_manager, user):
+        assert auth_manager.filter_authorized_assets(assets=[], user=user, method="GET") == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_asset", return_value=True)
+    def test_filter_authorized_assets_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """A second identical call is served from the cache without asking Keycloak again."""
+        assets = [AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv")]
+
+        first = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+        second = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+
+        assert first == second == {"1"}
+        assert mock_is_authorized.call_count == 1
+
+    @patch.object(KeycloakAuthManager, "is_authorized_asset", return_value=True)
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=False)
+    def test_filter_authorized_assets_does_not_share_cache_with_other_resources(
+        self, mock_is_authorized_connection, mock_is_authorized_asset, auth_manager, user
+    ):
+        """Asset ids are short numeric strings, so the cache key must be scoped to assets.
+
+        A connection named after an asset id would otherwise serve its cached decision here.
+        """
+        auth_manager.filter_authorized_connections(conn_ids={"1"}, user=user, method="GET")
+
+        result = auth_manager.filter_authorized_assets(
+            assets=[AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv")],
+            user=user,
+            method="GET",
+        )
+
+        assert result == {"1"}
+
+    @patch.object(
+        KeycloakAuthManager,
         "is_authorized_connection",
         side_effect=lambda *, details, **kw: {"conn_0": True, "conn_1": False, "conn_2": True}[
             details.conn_id

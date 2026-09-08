@@ -613,9 +613,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Filter assets the user has access to, returning the ids of the authorized ones.
 
-        By default, check individually if the user has permissions to access the asset.
-        Can lead to some poor performance. It is recommended to override this method in the auth manager
-        implementation to provide a more efficient implementation.
+        By default, check individually if the user has permissions to access the asset. An auth manager
+        whose ``is_authorized_asset`` performs a remote call must override this method: a deployment can
+        hold far more assets than connections or pools, and the default costs one round trip per asset on
+        every asset listing.
 
         :param assets: the assets to filter. Each item carries the asset id, name and uri, so an auth
             manager can authorize on any of them (e.g. restrict by uri prefix).
