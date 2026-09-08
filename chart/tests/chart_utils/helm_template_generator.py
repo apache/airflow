@@ -63,6 +63,8 @@ crd_lookup = {
     "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml",
     # https://github.com/kubernetes-sigs/gateway-api/blob/v1.2.1/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml
     "gateway.networking.k8s.io/v1::HTTPRoute": f"{MY_DIR.as_posix()}/gateway.networking.k8s.io_httproutes.yaml",
+    # https://github.com/prometheus-operator/prometheus-operator/blob/v0.93.1/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+    "monitoring.coreos.com/v1::ServiceMonitor": f"{MY_DIR.as_posix()}/monitoring.coreos.com_servicemonitors.yaml",
 }
 
 

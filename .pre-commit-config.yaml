@@ -478,6 +478,7 @@ repos:
           ^chart/(?:templates|files)/.*\.yaml$|
           ^chart/tests/chart_utils/keda.sh_scaledobjects\.yaml$|
           ^chart/tests/chart_utils/gateway.networking.k8s.io_httproutes\.yaml$|
+          ^chart/tests/chart_utils/monitoring.coreos.com_servicemonitors\.yaml$|
           .*/v1.*\.yaml$|
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
@@ -519,7 +520,8 @@ repos:
           ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/).+/|
           ^\.agents/skills/airflow-translations/|
           ^\.agents/skills/magpie-setup/|
-          ^scripts/docker/keys/.*\.asc$
+          ^scripts/docker/keys/.*\.asc$|
+          ^chart/tests/chart_utils/monitoring.coreos.com_servicemonitors\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
@@ -842,6 +844,7 @@ repos:
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^chart/values.schema\.json$|
+          ^chart/tests/chart_utils/monitoring.coreos.com_servicemonitors\.yaml$|
           ^.*commits\.(rst|txt)$|
           ^.*/conf_constants\.py$|
           ^.*/conf\.py$|

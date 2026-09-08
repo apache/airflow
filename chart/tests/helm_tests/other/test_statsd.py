@@ -452,6 +452,97 @@ class TestStatsdServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
 
+class TestStatsdServiceMonitor:
+    """Tests statsd ServiceMonitor."""
+
+    TEMPLATE_FILE = "templates/statsd/statsd-servicemonitor.yaml"
+
+    def test_should_not_create_by_default(self):
+        docs = render_chart(
+            values={"statsd": {"enabled": True}},
+            show_only=[self.TEMPLATE_FILE],
+        )
+        assert docs == []
+
+    def test_should_not_create_when_statsd_disabled(self):
+        docs = render_chart(
+            values={"statsd": {"enabled": False, "serviceMonitor": {"enabled": True}}},
+            show_only=[self.TEMPLATE_FILE],
+        )
+        assert docs == []
+
+    def test_should_create_service_monitor(self):
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "serviceMonitor": {"enabled": True}}},
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceMonitor"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
+        assert jmespath.search("metadata.namespace", docs[0]) == "default"
+        assert jmespath.search("metadata.labels", docs[0]) == {
+            "tier": "airflow",
+            "component": "statsd",
+            "release": "release-name",
+            "chart": jmespath.search("metadata.labels.chart", docs[0]),
+            "heritage": "Helm",
+        }
+        assert jmespath.search("spec.selector.matchLabels", docs[0]) == {
+            "tier": "airflow",
+            "component": "statsd",
+            "release": "release-name",
+        }
+        assert jmespath.search("spec.namespaceSelector.matchNames", docs[0]) == ["default"]
+        assert jmespath.search("spec.endpoints[0]", docs[0]) == {
+            "port": "statsd-scrape",
+            "path": "/metrics",
+            "interval": "30s",
+        }
+
+    def test_should_use_custom_namespace_and_interval(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "serviceMonitor": {
+                        "enabled": True,
+                        "namespace": "monitoring",
+                        "interval": "60s",
+                        "scrapeTimeout": "10s",
+                    },
+                }
+            },
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        assert jmespath.search("metadata.namespace", docs[0]) == "monitoring"
+        assert jmespath.search("spec.endpoints[0].interval", docs[0]) == "60s"
+        assert jmespath.search("spec.endpoints[0].scrapeTimeout", docs[0]) == "10s"
+
+    def test_additional_labels_override_reserved_labels_without_duplicating_keys(self):
+        """A user pointing this at kube-prometheus-stack sets `release: <that release>`,
+        which collides with the chart's own `release: {{ .Release.Name }}` label; the
+        override must win outright rather than emitting the key twice."""
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "serviceMonitor": {
+                        "enabled": True,
+                        "additionalLabels": {"release": "kube-prometheus-stack", "team": "data-platform"},
+                    },
+                }
+            },
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        assert jmespath.search("metadata.labels.release", docs[0]) == "kube-prometheus-stack"
+        assert jmespath.search("metadata.labels.team", docs[0]) == "data-platform"
+        # The selector must still key off the chart's own release, unaffected by the override.
+        assert jmespath.search("spec.selector.matchLabels.release", docs[0]) == "release-name"
+
+
 class TestStatsdIngress:
     """Tests Statsd Ingress."""
 

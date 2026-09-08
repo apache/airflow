@@ -2650,6 +2650,28 @@ statsd:
   service:
     extraAnnotations: {}
 
+  ## Configuration for a Prometheus Operator ServiceMonitor to scrape StatsD exporter metrics.
+  ## Requires the Prometheus Operator CRDs (https://github.com/prometheus-operator/prometheus-operator)
+  ## to already be installed in the cluster.
+  ##
+  serviceMonitor:
+    # Whether to create a ServiceMonitor for StatsD.
+    enabled: false
+
+    # Namespace to create the ServiceMonitor in. Defaults to the release namespace.
+    namespace: ~
+
+    # Interval at which metrics should be scraped.
+    interval: "30s"
+
+    # Timeout after which the scrape is ended.
+    scrapeTimeout: ~
+
+    # Additional labels to add to the ServiceMonitor so that it is discovered by the intended
+    # Prometheus instance, e.g. the `release: <prometheus-release-name>` label expected by the
+    # default serviceMonitorSelector of the kube-prometheus-stack chart.
+    additionalLabels: {}
+
   # Select certain nodes for StatsD pods.
   nodeSelector: {}
   affinity: {}
@@ -2876,6 +2898,28 @@ pgbouncer:
   service:
     extraAnnotations: {}
     clusterIp: ~
+
+  ## Configuration for a Prometheus Operator ServiceMonitor to scrape the PgBouncer metrics exporter.
+  ## Requires the Prometheus Operator CRDs (https://github.com/prometheus-operator/prometheus-operator)
+  ## to already be installed in the cluster.
+  ##
+  serviceMonitor:
+    # Whether to create a ServiceMonitor for PgBouncer.
+    enabled: false
+
+    # Namespace to create the ServiceMonitor in. Defaults to the release namespace.
+    namespace: ~
+
+    # Interval at which metrics should be scraped.
+    interval: "30s"
+
+    # Timeout after which the scrape is ended.
+    scrapeTimeout: ~
+
+    # Additional labels to add to the ServiceMonitor so that it is discovered by the intended
+    # Prometheus instance, e.g. the `release: <prometheus-release-name>` label expected by the
+    # default serviceMonitorSelector of the kube-prometheus-stack chart.
+    additionalLabels: {}
 
   # https://www.pgbouncer.org/config.html
   verbose: 0

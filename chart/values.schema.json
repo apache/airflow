@@ -7159,6 +7159,47 @@
                         }
                     }
                 },
+                "serviceMonitor": {
+                    "description": "ServiceMonitor configuration for the StatsD exporter, used by the Prometheus Operator to discover the metrics endpoint. Requires the Prometheus Operator CRDs to be installed in the cluster.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether to create a ServiceMonitor for StatsD.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "namespace": {
+                            "description": "Namespace to create the StatsD ServiceMonitor in. Defaults to the release namespace.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
+                        },
+                        "interval": {
+                            "description": "Interval at which metrics should be scraped.",
+                            "type": "string",
+                            "default": "30s"
+                        },
+                        "scrapeTimeout": {
+                            "description": "Timeout after which the scrape is ended.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
+                        },
+                        "additionalLabels": {
+                            "description": "Additional labels to add to the ServiceMonitor so that it is discovered by the intended Prometheus instance.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for statsd to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
@@ -7944,6 +7985,47 @@
                                 "string"
                             ],
                             "default": null
+                        }
+                    }
+                },
+                "serviceMonitor": {
+                    "description": "ServiceMonitor configuration for the PgBouncer metrics exporter, used by the Prometheus Operator to discover the metrics endpoint. Requires the Prometheus Operator CRDs to be installed in the cluster.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether to create a ServiceMonitor for PgBouncer.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "namespace": {
+                            "description": "Namespace to create the PgBouncer ServiceMonitor in. Defaults to the release namespace.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
+                        },
+                        "interval": {
+                            "description": "Interval at which metrics should be scraped.",
+                            "type": "string",
+                            "default": "30s"
+                        },
+                        "scrapeTimeout": {
+                            "description": "Timeout after which the scrape is ended.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null
+                        },
+                        "additionalLabels": {
+                            "description": "Additional labels to add to the ServiceMonitor so that it is discovered by the intended Prometheus instance.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
