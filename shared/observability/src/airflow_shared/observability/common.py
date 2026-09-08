@@ -40,6 +40,11 @@ def expand_dag_tags(tag_names: Iterable[str]) -> dict[str, str]:
     return result
 
 
+def build_dag_tags(tag_names: Iterable[str]) -> dict[str, str]:
+    """Build observability tags from DAG tags."""
+    return expand_dag_tags(tag_names)
+
+
 def _format_url_host(host: str | None) -> str | None:
     """
     Bracket IPv6 host literals for embedding in a URL authority.

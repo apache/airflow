@@ -44,9 +44,8 @@ from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk._shared.observability.common import expand_dag_tags
+from airflow.sdk._shared.observability.common import build_dag_tags
 from airflow.sdk._shared.observability.metrics import stats
-from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -270,12 +269,7 @@ class RuntimeTaskInstance(TaskInstance):
         """Metric tags for this task instance, including dag tags and team_name when available."""
         tags: dict[str, str] = {}
         if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
-            if conf.getboolean("metrics", "statsd_datadog_enabled", fallback=False) or conf.getboolean(
-                "metrics", "statsd_on", fallback=False
-            ):
-                tags.update(build_dag_metric_tags(self.task.dag.tags))
-            else:
-                tags.update(expand_dag_tags(self.task.dag.tags))
+            tags.update(build_dag_tags(self.task.dag.tags))
         # Built-in keys always win on collision.
         tags.update(dag_id=self.dag_id, task_id=self.task_id)
         if self._ti_context_from_server:

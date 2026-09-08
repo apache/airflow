@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_shared.observability.common import expand_dag_tags
+from airflow_shared.observability.common import build_dag_tags, expand_dag_tags
 
 
 @pytest.mark.parametrize(
@@ -47,3 +47,23 @@ def test_expand_dag_tags_accepts_generator() -> None:
 
 def test_expand_dag_tags_last_value_wins() -> None:
     assert expand_dag_tags(["team:data", "team:ml"]) == {"team": "ml"}
+
+
+@pytest.mark.parametrize(
+    ("tag_names", "expected"),
+    [
+        pytest.param([], {}, id="empty"),
+        pytest.param(["production", "env:prod"], {"production": "", "env": "prod"}, id="mixed"),
+        pytest.param(
+            ["my tag", "env:pro d", "déjà", "a:b:c"],
+            {"my tag": "", "env": "pro d", "déjà": "", "a": "b:c"},
+            id="lossless-values",
+        ),
+    ],
+)
+def test_build_dag_tags(tag_names: list[str], expected: dict[str, str]) -> None:
+    assert build_dag_tags(tag_names) == expected
+
+
+def test_build_dag_tags_accepts_generator() -> None:
+    assert build_dag_tags(name for name in ["env:prod"]) == {"env": "prod"}

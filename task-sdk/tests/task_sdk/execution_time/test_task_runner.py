@@ -6713,48 +6713,6 @@ class TestDagTagsInStatsTags:
             "run_type": "manual",
         }
 
-    @conf_vars(
-        {
-            ("metrics", "dag_tags_in_metrics"): "True",
-            ("metrics", "statsd_datadog_enabled"): "False",
-            ("metrics", "statsd_on"): "False",
-            ("metrics", "otel_on"): "True",
-        }
-    )
-    def test_otel_dag_tags_preserve_values(self, create_runtime_ti):
-        ti = self._make_dag_tagged_ti(create_runtime_ti, ["my tag", "env:pro d", "déjà", "a:b:c"])
-
-        assert ti.stats_tags == {
-            "my tag": "",
-            "env": "pro d",
-            "déjà": "",
-            "a": "b:c",
-            "dag_id": "tagged_dag",
-            "task_id": "t",
-            "run_type": "manual",
-        }
-
-    @conf_vars(
-        {
-            ("metrics", "dag_tags_in_metrics"): "True",
-            ("metrics", "statsd_datadog_enabled"): "False",
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "otel_on"): "False",
-        }
-    )
-    def test_statsd_dag_tags_are_normalized(self, create_runtime_ti):
-        ti = self._make_dag_tagged_ti(create_runtime_ti, ["my tag", "env:pro d", "déjà", "a:b:c"])
-
-        assert ti.stats_tags == {
-            "my_tag": "",
-            "env": "pro_d",
-            "d_j_": "",
-            "a": "b_c",
-            "dag_id": "tagged_dag",
-            "task_id": "t",
-            "run_type": "manual",
-        }
-
 
 class _WalkerModelA(BaseModel):
     a: int
