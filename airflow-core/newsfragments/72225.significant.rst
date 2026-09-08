@@ -16,6 +16,9 @@ explicit credential.
 - A request carrying **both** a ``_token`` cookie and an ``Authorization: Bearer`` header
   is now resolved as the bearer token's principal, where it was previously resolved as the
   cookie's. The same applies to a cookie combined with an OAuth2 token.
+- An **invalid or expired** explicit credential is now rejected with ``401``/``403`` even
+  when a valid ``_token`` cookie accompanies it. Previously the cookie silently took over
+  and the request succeeded as the cookie's principal; the failure is now loud.
 - Requests carrying a single credential are unaffected. Cookie-only browser sessions keep
   the token-refresh behaviour of ``JWTRefreshMiddleware`` unchanged.
 - Clients that relied on the cookie winning -- for example a browser-based tool that sent a
