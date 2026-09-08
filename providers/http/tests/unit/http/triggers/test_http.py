@@ -29,6 +29,7 @@ from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.triggers.http import (
     HttpEventTrigger,
     HttpResponseSerializer,
@@ -207,8 +208,35 @@ class TestHttpSensorTrigger:
             "headers": TEST_HEADERS,
             "data": TEST_DATA,
             "extra_options": TEST_EXTRA_OPTIONS,
+            "response_error_codes_allowlist": ("404",),
             "poke_interval": 5.0,
         }
+
+    def test_serialization_with_response_error_codes_allowlist(self):
+        trigger = HttpSensorTrigger(
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=("404", "503"),
+        )
+
+        _, kwargs = trigger.serialize()
+
+        assert kwargs["response_error_codes_allowlist"] == ("404", "503")
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"))
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_run_retries_allowlisted_errors(self, mock_hook, mock_sleep):
+        trigger = HttpSensorTrigger(
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=["404", "503"],
+        )
+        mock_hook.return_value.run.side_effect = [AirflowException("503:Service Unavailable"), None]
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+
+        assert actual == TriggerEvent(True)
+        mock_sleep.assert_awaited_once_with(5.0)
 
 
 class TestHttpEventTrigger:
