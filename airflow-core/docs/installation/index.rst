@@ -52,24 +52,43 @@ also be kept updated when Airflow is upgraded.
 Local start for development and testing
 '''''''''''''''''''''''''''''''''''''''
 
-You just want to try Apache Airflow without all production complexity? If you have ``pipx`` installed,
-you can install Airflow directly from PyPI with the command below:
+To try Apache Airflow locally without production complexity, follow the :doc:`/start`.
+It covers a one-command start with ``uvx`` or ``pipx``, installing into a virtual environment,
+and opening the UI. Standalone mode is not for production.
+
+.. _starting-components-separately:
+
+Starting components separately
+''''''''''''''''''''''''''''''
+
+After a local install, ``airflow standalone`` starts every component for you. To run them yourself:
 
 .. code-block:: bash
 
-    pipx run apache-airflow standalone
+    airflow db migrate
 
-Alternatively similar with Astral ``uv``:
+    airflow api-server --port 8080
 
-.. code-block:: bash
+    airflow scheduler
 
-    uvx apache-airflow standalone
+    airflow dag-processor
 
-Which starts a minimal system with an auto-generated admin password and SQLite database, so you can
-start using Airflow right away. This is a great way to get familiar with Airflow and try it out
-without the need to set up a complex environment.
+    airflow triggerer
 
-Note that the standalone mode is not for production purposes. But it is a simple start for a local development.
+.. note::
+
+    The default Airflow 3 auth manager is ``SimpleAuthManager``, which generates credentials during
+    standalone startup (see :doc:`/start`). ``airflow users create`` is only available when
+    :doc:`apache-airflow-providers-fab:auth-manager/index` is enabled:
+
+    .. code-block:: bash
+
+        airflow users create \
+            --username admin \
+            --firstname Peter \
+            --lastname Parker \
+            --role Admin \
+            --email spiderman@superhero.org
 
 Using released sources
 ''''''''''''''''''''''
