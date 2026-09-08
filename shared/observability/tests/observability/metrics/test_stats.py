@@ -806,6 +806,14 @@ class TestCustomStatsName:
             assert "host" not in kwargs
             assert "port" not in kwargs
 
+    @skip_if_force_lowest_dependencies_marker
+    def test_dogstatsd_timer_uses_milliseconds(self):
+        with mock.patch("datadog.DogStatsd") as mock_dogstatsd:
+            datadog_logger.get_dogstatsd_logger()
+
+        _, kwargs = mock_dogstatsd.call_args
+        assert kwargs["use_ms"] is True
+
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self):
         with (
             mock.patch.object(statsd.StatsClient, "__init__", return_value=None),
