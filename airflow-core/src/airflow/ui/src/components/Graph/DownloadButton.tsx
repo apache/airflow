@@ -21,7 +21,7 @@ import { toPng } from "html-to-image";
 import { useTranslation } from "react-i18next";
 import { FiDownload } from "react-icons/fi";
 
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 export const DownloadButton = ({ name }: { readonly name: string }) => {
   const { t: translate } = useTranslation("components");

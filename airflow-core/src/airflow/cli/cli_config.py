@@ -1056,11 +1056,12 @@ ARG_TRIGGERER_TEAM_NAME = Arg(
     help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
 )
 
+DEFAULT_DAG_LIST_COLUMNS = ("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version")
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
-    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
+    help=f"List of columns to render. (default: {list(DEFAULT_DAG_LIST_COLUMNS)})",
+    default=DEFAULT_DAG_LIST_COLUMNS,
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -2348,24 +2349,24 @@ core_commands: list[CLICommand] = [
 
 def _remove_dag_id_opt(command: ActionCommand):
     cmd = command._asdict()
-    cmd["args"] = (arg for arg in command.args if arg is not ARG_DAG_ID)
+    cmd["args"] = tuple(arg for arg in command.args if arg is not ARG_DAG_ID)
     return ActionCommand(**cmd)
 
+
+# Subcommands ``DAG.cli()`` exposes, via ``get_parser(dag_parser=True)``.
+DAG_CLI_DAGS_SUBCOMMANDS = ("list-runs", "pause", "unpause", "test")
+DAG_CLI_TASKS_SUBCOMMANDS = ("list", "test")
 
 dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
         help="Manage DAGs",
-        subcommands=[
-            _remove_dag_id_opt(sp)
-            for sp in DAGS_COMMANDS
-            if sp.name in ["backfill", "list-runs", "pause", "unpause", "test"]
-        ],
+        subcommands=[_remove_dag_id_opt(sp) for sp in DAGS_COMMANDS if sp.name in DAG_CLI_DAGS_SUBCOMMANDS],
     ),
     GroupCommand(
         name="tasks",
         help="Manage tasks",
-        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ["list", "test", "run"]],
+        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in DAG_CLI_TASKS_SUBCOMMANDS],
     ),
 ]
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}

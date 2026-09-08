@@ -307,6 +307,13 @@ class WarehouseState:
     def __repr__(self) -> str:
         return str(self.__dict__)
 
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, data: str) -> WarehouseState:
+        return WarehouseState(**json.loads(data))
+
 
 class DatabricksHook(BaseDatabricksHook):
     """
@@ -791,6 +798,14 @@ class DatabricksHook(BaseDatabricksHook):
         """
         return self._do_api_call(("GET", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}"))
 
+    async def a_get_warehouse(self, warehouse_id: str) -> dict[str, Any]:
+        """
+        Async version of `get_warehouse`.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        """
+        return await self._a_do_api_call(("GET", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}"))
+
     def get_warehouse_state(self, warehouse_id: str) -> WarehouseState:
         """
         Retrieve the state of a Databricks SQL warehouse.
@@ -798,6 +813,14 @@ class DatabricksHook(BaseDatabricksHook):
         :param warehouse_id: ID of the SQL warehouse.
         """
         return WarehouseState(self.get_warehouse(warehouse_id)["state"])
+
+    async def a_get_warehouse_state(self, warehouse_id: str) -> WarehouseState:
+        """
+        Async version of `get_warehouse_state`.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        """
+        return WarehouseState((await self.a_get_warehouse(warehouse_id))["state"])
 
     def start_warehouse(self, warehouse_id: str) -> None:
         """

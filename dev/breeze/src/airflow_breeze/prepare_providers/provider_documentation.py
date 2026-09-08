@@ -951,6 +951,10 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             console_print()
+            if type_of_change == TypeOfChange.DOCUMENTATION:
+                # Classification can override the answer given above. Without the marker the next
+                # wave replays these same changes.
+                _mark_latest_changes_as_documentation_only(provider_id, list_of_list_of_changes)
             bump = False
             if type_of_change == TypeOfChange.MIN_AIRFLOW_VERSION_BUMP:
                 bump = True

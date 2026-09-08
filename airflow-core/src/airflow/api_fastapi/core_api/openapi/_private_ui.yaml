@@ -403,6 +403,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -1142,6 +1148,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Last Updated At Lt
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       responses:
         '200':
           description: Successful Response
@@ -3368,6 +3382,11 @@ components:
           - type: string
           - type: 'null'
           title: Alert Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id
@@ -3864,6 +3883,18 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+        bundle_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Bundle Names
         dag_display_name:
           anyOf:
           - type: string
