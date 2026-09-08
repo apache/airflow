@@ -171,6 +171,8 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
+            if status_code == HTTPStatus.UNAUTHORIZED:
+                raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
             raise AirflowException(message)
@@ -720,7 +722,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except (RuntimeError, ValueError) as e:
+        except (PermissionError, RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,

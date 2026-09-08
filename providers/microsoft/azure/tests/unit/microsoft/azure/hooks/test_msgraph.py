@@ -696,6 +696,27 @@ class TestKiotaRequestAdapterHook:
             adapter.send_no_response_content_async.assert_called_once()
             assert hook.conn_id not in hook.cached_request_adapters
 
+    @pytest.mark.asyncio
+    async def test_send_request_invalidates_cache_and_raises_on_unauthorized(self):
+        """send_request evicts the cached adapter and re-raises when Microsoft Graph returns 401."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
+            adapter.send_no_response_content_async = AsyncMock(
+                side_effect=PermissionError("401 Unauthorized")
+            )
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            with pytest.raises(PermissionError, match="401 Unauthorized"):
+                await hook.run(url="users")
+
+            adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
     def test_allowed_hosts_is_empty_list_when_not_configured(self):
         """An unset allowed_hosts/authority must yield []."""
         actual = KiotaRequestAdapterHook.get_allowed_hosts(None, {})
@@ -840,6 +861,12 @@ class TestResponseHandler:
         response = mock_json_response(400, {})
 
         with pytest.raises(AirflowBadRequest):
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    def test_handle_response_async_when_unauthorized(self):
+        response = mock_json_response(401, {})
+
+        with pytest.raises(PermissionError):
             asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
 
     def test_handle_response_async_when_not_found(self):
