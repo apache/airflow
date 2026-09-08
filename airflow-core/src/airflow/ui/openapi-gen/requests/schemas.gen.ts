@@ -4513,6 +4513,17 @@ export const $DAGSourceResponse = {
         dag_display_name: {
             type: 'string',
             title: 'Dag Display Name'
+        },
+        language: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Language'
         }
     },
     type: 'object',
@@ -4588,7 +4599,8 @@ export const $DAGWarningResponse = {
             title: 'Dag Id'
         },
         warning_type: {
-            '$ref': '#/components/schemas/DagWarningType'
+            type: 'string',
+            title: 'Warning Type'
         },
         message: {
             type: 'string',
@@ -5296,16 +5308,6 @@ export const $DagVersionResponse = {
     required: ['id', 'version_number', 'dag_id', 'bundle_name', 'bundle_version', 'created_at', 'dag_display_name', 'bundle_url'],
     title: 'DagVersionResponse',
     description: 'Dag Version serializer for responses.'
-} as const;
-
-export const $DagWarningType = {
-    type: 'string',
-    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
-    title: 'DagWarningType',
-    description: `Enum for DAG warning types.
-
-This is the set of allowable values for the \`\`warning_type\`\` field
-in the DagWarning model.`
 } as const;
 
 export const $DetailedHealthStatus = {
