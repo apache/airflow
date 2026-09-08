@@ -576,6 +576,13 @@ class KiotaRequestAdapterHook(BaseHook):
         query_parameters: dict[str, Any] | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
+        """
+        Resolve the url and query parameters of the page following ``response``.
+
+        The ``$skip`` offset is derived from ``query_parameters`` rather than from ``responses``:
+        callers accumulate whatever their own callbacks produced, so the entries are not guaranteed
+        to be the raw pages this offset would have to be counted from.
+        """
         if isinstance(response, dict):
             odata_count = response.get("@odata.count")
             if odata_count and query_parameters:
@@ -583,9 +590,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
                 if top and odata_count:
                     if len(response.get("value", [])) == top:
-                        results = responses()
-                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
-                        query_parameters["$skip"] = skip
+                        query_parameters["$skip"] = (query_parameters.get("$skip") or 0) + top
                         return url, query_parameters
             return response.get("@odata.nextLink"), query_parameters
         return None, query_parameters
