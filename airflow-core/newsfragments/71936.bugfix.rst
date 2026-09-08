@@ -1,0 +1,1 @@
+Prevent retries during ``airflow dags reserialize`` from discarding previously published bundles, and recover Dag publication after database uniqueness conflicts.

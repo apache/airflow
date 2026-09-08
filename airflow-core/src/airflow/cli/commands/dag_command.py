@@ -870,12 +870,10 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-@provide_session
-def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
+def dag_reserialize(args) -> None:
     """Serialize a DAG instance."""
     manager = DagBundlesManager()
-    manager.sync_bundles_to_db(session=session)
-    session.commit()
+    manager.sync_bundles_to_db()
 
     all_bundles = list(manager.get_all_dag_bundles())
     if args.bundle_name:
@@ -890,6 +888,5 @@ def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
         bundle.initialize()
         dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-        sync_bag_to_db(
-            dag_bag, bundle.name, bundle_version=version, version_data=version_data, session=session
-        )
+        # Each publication owns its transaction so retries cannot roll back earlier bundles.
+        sync_bag_to_db(dag_bag, bundle.name, bundle_version=version, version_data=version_data)
