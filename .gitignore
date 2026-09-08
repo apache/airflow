@@ -141,6 +141,11 @@ ENV/
 !.claude/skills/prepare-providers-documentation
 !.claude/skills/upgrade-fab-provider
 
+# Claude Code write-tracking scratch dirs. Created next to whatever
+# directory a tool call ran in, so they turn up anywhere in the tree —
+# the .claude/* rule above only covers the repo root.
+**/.claude/.cc-writes/
+
 # Kiro
 .kiro/
 
