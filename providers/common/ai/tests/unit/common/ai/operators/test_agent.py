@@ -30,6 +30,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai.capabilities import Toolset
+from pydantic_ai.capabilities import MCP, PrefixTools, Toolset
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
@@ -65,7 +66,7 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
 )
 from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -765,11 +766,8 @@ class TestAgentOperatorExecute:
         op.execute(context=MagicMock())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        passed_toolsets = create_call[1]["toolsets"]
-        assert len(passed_toolsets) == 1
-        assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert isinstance(passed_toolsets[0].wrapped, MaskingToolset)
-        assert passed_toolsets[0].wrapped.wrapped is mock_toolset
+        assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
+        assert isinstance(create_call[1]["capabilities"][0], ToolLoggingCapability)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls, make_mock_run_result):
@@ -792,8 +790,8 @@ class TestAgentOperatorExecute:
         assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_tool_logging_wraps_only_concrete_toolset_capabilities(self, mock_hook_cls, make_mock_run_result):
-        """Capability logging follows the setting and preserves non-concrete capabilities."""
+    def test_tool_logging_wraps_assembled_capability_toolsets(self, mock_hook_cls, make_mock_run_result):
+        """Capability logging applies after pydantic-ai assembles all toolset shapes."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "done", make_mock_run_result
         )
@@ -803,9 +801,12 @@ class TestAgentOperatorExecute:
         def factory(ctx):
             return FunctionToolset()
 
-        factory_capability = Toolset(factory)
-        passthrough = object()
-        capabilities = [Toolset(inner), factory_capability, passthrough]
+        capabilities = [
+            Toolset(inner),
+            Toolset(factory),
+            PrefixTools(wrapped=Toolset(inner), prefix="nested"),
+            MCP(url="https://example.com/mcp"),
+        ]
 
         enabled = AgentOperator(
             task_id="enabled",
@@ -816,11 +817,14 @@ class TestAgentOperatorExecute:
         enabled.execute(context=_make_context())
 
         passed = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["capabilities"]
-        assert isinstance(passed[0].toolset, LoggingToolset)
-        assert passed[0].toolset.wrapped is inner
-        assert passed[0].toolset.logger is enabled.log
-        assert passed[1] is factory_capability
-        assert passed[2] is passthrough
+        assert passed[:-1] == capabilities
+        logging_capability = passed[-1]
+        assert isinstance(logging_capability, ToolLoggingCapability)
+        assembled = FunctionToolset()
+        wrapped = logging_capability.get_wrapper_toolset(assembled)
+        assert isinstance(wrapped, LoggingToolset)
+        assert wrapped.wrapped is assembled
+        assert wrapped.logger is enabled.log
 
         disabled = AgentOperator(
             task_id="disabled",
@@ -832,7 +836,7 @@ class TestAgentOperatorExecute:
         disabled.execute(context=_make_context())
 
         passed = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["capabilities"]
-        assert passed[0] is capabilities[0]
+        assert passed == capabilities
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
@@ -860,7 +864,13 @@ class TestAgentOperatorExecute:
             "ok", make_mock_run_result
         )
 
-        op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()])
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            toolsets=[MagicMock()],
+            enable_tool_logging=False,
+        )
         op.execute(context=MagicMock())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
@@ -875,7 +885,12 @@ class TestAgentOperatorExecute:
         )
 
         op = AgentOperator(
-            task_id="t", prompt="hi", llm_conn_id="my_llm", toolsets=[MagicMock()], code_mode=True
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            toolsets=[MagicMock()],
+            code_mode=True,
+            enable_tool_logging=False,
         )
         op.execute(context=MagicMock())
 
@@ -898,6 +913,7 @@ class TestAgentOperatorExecute:
             prompt="hi",
             llm_conn_id="my_llm",
             code_mode=True,
+            enable_tool_logging=False,
             agent_params={"capabilities": ["existing"]},
         )
         op.execute(context=MagicMock())
@@ -1413,10 +1429,12 @@ class TestAgentOperatorDurable:
 
         op._build_agent()
 
-        capability = hook.create_agent.call_args.kwargs["capabilities"][0]
-        assert isinstance(capability.toolset, LoggingToolset)
-        assert isinstance(capability.toolset.wrapped, CachingToolset)
-        assert capability.toolset.wrapped.wrapped is inner
+        capabilities = hook.create_agent.call_args.kwargs["capabilities"]
+        assert isinstance(capabilities[0].toolset, CachingToolset)
+        assert capabilities[0].toolset.wrapped is inner
+        wrapped = capabilities[1].get_wrapper_toolset(capabilities[0].toolset)
+        assert isinstance(wrapped, LoggingToolset)
+        assert wrapped.wrapped is capabilities[0].toolset
 
     def test_toolset_capability_tool_replayed_on_retry(self):
         """A tool supplied via a ``Toolset`` capability is cached and replayed on a

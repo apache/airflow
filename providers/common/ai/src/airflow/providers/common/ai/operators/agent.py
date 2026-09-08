@@ -49,12 +49,15 @@ from airflow.providers.common.ai.observability import (
     stamp_identity_on_agent_spans,
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
+<<<<<<< HEAD
 from airflow.providers.common.ai.utils.logging import (
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
-    wrap_toolsets_for_logging,
 )
+=======
+from airflow.providers.common.ai.utils.logging import log_run_summary
+>>>>>>> 14728acc92e (use get_wrapper_toolset)
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -236,13 +239,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         Dag file is not modified. Derive the connection ID from values the Dag
         controls rather than ``params`` or ``dag_run.conf``, which whoever triggers
         the Dag controls.
-    :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
-        ``LoggingToolset`` that logs tool calls with timing at INFO level and
-        arguments at DEBUG level. Set to ``False`` to disable.
-        a mapped ``@task.agent``. Each task instance renders its own copy and logs
-        the rendered toolset id; the toolset object in the Dag file is not
-        modified. Derive the connection ID from values the Dag controls rather than
-        ``params`` or ``dag_run.conf``, which whoever triggers the Dag controls.
+    :param enable_tool_logging: When ``True`` (default), wraps the agent's
+        assembled function toolset in a ``LoggingToolset`` that logs tool calls
+        with timing at INFO level and arguments at DEBUG level. This includes
+        tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
+        capabilities, but not output tools or provider-native tools that run
+        server-side. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
     :param usage_limits: Optional pydantic-ai
@@ -663,8 +665,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
             if self.durable and storage is not None and counter is not None:
                 toolsets = self._build_durable_toolsets(toolsets, storage, counter)
-            if self.enable_tool_logging:
-                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
         elif extra_kwargs.get("toolsets"):
             extra_kwargs["toolsets"] = [ensure_masked(ts) for ts in extra_kwargs["toolsets"]]
@@ -679,10 +679,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             # ``toolsets=`` wrapping above, so their results would re-execute on
             # every retry instead of replaying; wrap their inner toolset too.
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
-        if capabilities and self.enable_tool_logging:
-            capabilities = self._build_logging_capabilities(capabilities)
         if self.code_mode:
             capabilities.append(_build_code_mode())
+        if self.enable_tool_logging and (self.toolsets or capabilities):
+            from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
+
+            capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
         return self.llm_hook.create_agent(
@@ -824,21 +826,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
                 "and every step after the first of them",
                 counter.skipped_model,
             )
-    def _build_logging_capabilities(self, capabilities: list[Any]) -> list[Any]:
-        """Wrap concrete toolsets provided via a pydantic-ai ``Toolset`` capability for logging."""
-        # Keep capability imports out of Dag-parse-time code paths; they are only
-        # needed while constructing the runtime agent.
-        from pydantic_ai.capabilities import Toolset
-        from pydantic_ai.toolsets.abstract import AbstractToolset
-
-        rewrapped: list[Any] = []
-        for capability in capabilities:
-            if isinstance(capability, Toolset) and isinstance(capability.toolset, AbstractToolset):
-                logged = wrap_toolsets_for_logging([capability.toolset], self.log)[0]
-                rewrapped.append(replace(capability, toolset=logged))
-                continue
-            rewrapped.append(capability)
-        return rewrapped
 
     def _build_durable_storage(self, context: Context) -> DurableStorageProtocol:
         """
