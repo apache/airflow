@@ -353,7 +353,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "(e.g., {'parquetOptions': {'enableListInference': True}} rather than "
                 "{'enableListInference': True}).",
                 AirflowProviderDeprecationWarning,
-                stacklevel=2,
+                stacklevel=1,
             )
 
     def execute(self, context: Context):
