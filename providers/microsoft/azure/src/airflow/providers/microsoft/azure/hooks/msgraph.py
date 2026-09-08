@@ -728,8 +728,24 @@ class KiotaRequestAdapterHook(BaseHook):
                 self.conn_id,
                 e,
             )
-            self.cached_request_adapters.pop(self.conn_id, None)
+            await self.close()
             raise
+
+    async def close(self) -> None:
+        """Close the request adapter cached for this connection and evict it from the cache."""
+        _, request_adapter = self.cached_request_adapters.pop(self.conn_id, (None, None))
+
+        if not request_adapter:
+            return
+
+        try:
+            adapter = cast("HttpxRequestAdapter", request_adapter)
+            await adapter._http_client.aclose()
+        finally:
+            provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+            access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+            credential = cast("AsyncTokenCredential", access_token_provider._credentials)
+            await credential._credential.close()
 
     def request_information(
         self,
