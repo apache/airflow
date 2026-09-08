@@ -28,7 +28,6 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
-from operator import itemgetter
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
@@ -596,11 +595,11 @@ class DagModelOperation(NamedTuple):
                 select(DagModel)
                 .options(joinedload(DagModel.tags, innerjoin=False))
                 .where(DagModel.dag_id.in_(self.dags))
-                .order_by(DagModel.dag_id)
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
+                .order_by(DagModel.dag_id)
             ),
             of=DagModel,
             session=session,
@@ -614,11 +613,7 @@ class DagModelOperation(NamedTuple):
             for model in _create_orm_dags(
                 bundle_name=self.bundle_name,
                 bundle_version=self.bundle_version,
-                dags=(
-                    dag
-                    for dag_id, dag in sorted(self.dags.items(), key=itemgetter(0))
-                    if dag_id not in orm_dags
-                ),
+                dags=(dag for dag_id, dag in sorted(self.dags.items()) if dag_id not in orm_dags),
                 session=session,
             )
         )
@@ -874,19 +869,11 @@ class AssetModelOperation(NamedTuple):
         # Optimization: skip all database calls if no assets were collected.
         if not self.assets:
             return {}
-        # Acquire the requested rows before metadata updates or reference writes can lock a subset.
-        # MySQL can otherwise lock rows in primary-key order before sorting the result.
+        # Metadata updates acquire locks at flush; unchanged shared assets need no write lock.
         orm_assets: dict[tuple[str, str], AssetModel] = {
             (am.name, am.uri): am
             for am in session.scalars(
-                with_row_locks(
-                    select(AssetModel)
-                    .with_hint(AssetModel, "FORCE INDEX (idx_asset_name_uri_unique)", dialect_name="mysql")
-                    .where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
-                    .order_by(AssetModel.name, AssetModel.uri),
-                    session=session,
-                    of=AssetModel,
-                )
+                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
             )
         }
         for key, model in orm_assets.items():
@@ -901,7 +888,7 @@ class AssetModelOperation(NamedTuple):
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(to_create, session=session)
         )
-        # Physical write order must not change which conflicting candidate is offered first.
+        # Preserve collection order for activation when candidates share a name or URI.
         return {key: orm_assets[key] for key in self.assets}
 
     def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -911,16 +898,7 @@ class AssetModelOperation(NamedTuple):
         orm_aliases: dict[str, AssetAliasModel] = {
             da.name: da
             for da in session.scalars(
-                with_row_locks(
-                    select(AssetAliasModel)
-                    .with_hint(
-                        AssetAliasModel, "FORCE INDEX (idx_asset_alias_name_unique)", dialect_name="mysql"
-                    )
-                    .where(AssetAliasModel.name.in_(self.asset_aliases))
-                    .order_by(AssetAliasModel.name),
-                    session=session,
-                    of=AssetAliasModel,
-                )
+                select(AssetAliasModel).where(AssetAliasModel.name.in_(self.asset_aliases))
             )
         }
         for name, model in orm_aliases.items():

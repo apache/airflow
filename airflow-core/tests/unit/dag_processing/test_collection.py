@@ -22,7 +22,6 @@ import logging
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
-from threading import Event, Thread
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -198,7 +197,7 @@ class TestDagModelOperation:
         return dags
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_existing_dag_rows_are_locked_in_a_stable_order(self, dag_maker, session):
+    def test_existing_dag_lookup_orders_by_dag_id(self, dag_maker, session):
         dags = self._build_dags(dag_maker, ("c_dag", "a_dag", "b_dag"))
         statements: list[str] = []
 
@@ -212,9 +211,9 @@ class TestDagModelOperation:
         finally:
             event.remove(bind, "before_cursor_execute", record)
 
-        locks = [q for q in statements if "dag_id IN" in q]
-        assert locks, statements
-        assert all("ORDER BY dag.dag_id" in q for q in locks), f"dag rows are locked in plan order:\n{locks}"
+        queries = [q for q in statements if "dag_id IN" in q]
+        assert queries, statements
+        assert all("ORDER BY dag.dag_id" in q for q in queries), queries
 
     def test_new_dag_rows_are_created_in_a_stable_order(self, session):
         dags = {
@@ -252,27 +251,21 @@ class TestAssetModelOperation:
 
     @pytest.mark.backend("postgres", "mysql")
     @pytest.mark.parametrize("kind", ["asset", "alias"])
+    @pytest.mark.parametrize("metadata_changed", [False, True], ids=["unchanged", "updated"])
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_shared_metadata_lock_timeout_retries_full_parser_writes(self, session, kind):
+    @conf_vars({("core", "min_serialized_dag_update_interval"): "0"})
+    def test_parser_waits_for_shared_metadata_only_when_updating(self, session, kind, metadata_changed):
         model = AssetModel if kind == "asset" else AssetAliasModel
         reference = DagScheduleAssetReference if kind == "asset" else DagScheduleAssetAliasReference
-        method_name = "sync_assets" if kind == "asset" else "sync_asset_aliases"
-        table = model.__tablename__
-        for name in ("shared_b", "shared_a"):
-            kwargs = {"uri": f"s3://bucket/{name}"} if kind == "asset" else {}
-            session.add(model(name=name, group="original", **kwargs))
-        session.add_all(DagModel(dag_id=name, bundle_name="testing") for name in ("first", "second"))
-        session.commit()
 
-        def build_dag(dag_id):
-            names = ("shared_b", "shared_a") if dag_id == "first" else ("shared_a", "shared_b")
+        def build_dag(group, description):
             schedules = [
-                Asset(name=name, uri=f"s3://bucket/{name}", group=dag_id)
+                Asset(name=name, uri=f"s3://bucket/{name}", group=group)
                 if kind == "asset"
-                else AssetAlias(name, group=dag_id)
-                for name in names
+                else AssetAlias(name, group=group)
+                for name in ("shared_b", "shared_a")
             ]
-            with DAG(dag_id, schedule=schedules, is_paused_upon_creation=False) as dag:
+            with DAG("shared_metadata", schedule=schedules, description=description) as dag:
                 EmptyOperator(task_id="task")
             dag.fileloc = __file__
             dag.relative_fileloc = "test_collection.py"
@@ -283,146 +276,64 @@ class TestAssetModelOperation:
             update_dag_parsing_results_in_db("testing", None, [dag], errors, None, set(), session=session)
             assert not errors
 
-        locked, release, first_finished = Event(), Event(), Event()
-        first_errors: list[Exception] = []
-        second_sync_attempts = 0
-        real_sync = getattr(AssetModelOperation, method_name)
+        publish(build_dag("original", "previous publication"), session=session)
+        session.commit()
+        session.close()
+        group = "updated" if metadata_changed else "original"
+        failures = []
+        with (
+            create_session(scoped=False) as blocker,
+            settings.engine.connect() as connection,
+            SqlaSession(bind=connection, autoflush=False) as writer,
+            mock.patch.object(
+                SerializedDAG, "bulk_write_to_db", autospec=True, side_effect=SerializedDAG.bulk_write_to_db
+            ) as write_dags,
+        ):
+            blocker.scalars(select(model).with_for_update()).all()
+            is_postgres = connection.dialect.name == "postgresql"
+            writer.execute(
+                text(
+                    "SET LOCAL lock_timeout = '200ms'"
+                    if is_postgres
+                    else "SET SESSION innodb_lock_wait_timeout = 1"
+                )
+            )
 
-        def sync_then_pause(operation, *, session):
-            nonlocal second_sync_attempts
-            if "second" in operation.schedule_asset_references:
-                second_sync_attempts += 1
-            result = real_sync(operation, session=session)
-            if "first" in operation.schedule_asset_references:
-                locked.set()
-                assert release.wait(15), "first publication was not released"
-            return result
+            def release_after_error(context):
+                if context.connection is connection:
+                    failures.append(context.sqlalchemy_exception)
+                    blocker.rollback()
 
-        def publish_first():
+            event.listen(connection.engine, "handle_error", release_after_error)
             try:
-                with create_session(scoped=False) as first_session:
-                    publish(build_dag("first"), session=first_session)
-            except Exception as error:
-                first_errors.append(error)
+                publish(build_dag(group, "published during contention"), session=writer)
+                writer.commit()
             finally:
-                first_finished.set()
+                event.remove(connection.engine, "handle_error", release_after_error)
+                writer.rollback()
+                if not is_postgres:
+                    connection.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
 
-        statements: list[str] = []
-        lock_failures: list[tuple[OperationalError, list[str]]] = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            statements.append(statement.lower())
-
-        with patch.object(AssetModelOperation, method_name, autospec=True, side_effect=sync_then_pause):
-            first = Thread(target=publish_first, daemon=True)
-            first.start()
-            try:
-                assert locked.wait(15), first_errors
-                with (
-                    settings.engine.connect() as connection,
-                    SqlaSession(bind=connection, autoflush=False) as second_session,
-                ):
-                    is_postgres = connection.dialect.name == "postgresql"
-                    second_session.execute(
-                        text(
-                            "SET LOCAL lock_timeout = '500ms'"
-                            if is_postgres
-                            else "SET SESSION innodb_lock_wait_timeout = 1"
-                        )
-                    )
-
-                    def release_after_lock_timeout(context):
-                        if context.connection is connection and isinstance(
-                            context.sqlalchemy_exception, OperationalError
-                        ):
-                            lock_failures.append((context.sqlalchemy_exception, statements.copy()))
-                            release.set()
-                            assert first_finished.wait(15), ("first publication did not finish", first_errors)
-
-                    event.listen(connection, "before_cursor_execute", record)
-                    event.listen(connection.engine, "handle_error", release_after_lock_timeout)
-                    try:
-                        publish(build_dag("second"), session=second_session)
-                        second_session.commit()
-                    finally:
-                        event.remove(connection.engine, "handle_error", release_after_lock_timeout)
-                        event.remove(connection, "before_cursor_execute", record)
-                        second_session.rollback()
-                        if not is_postgres:
-                            connection.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
-                    assert len(lock_failures) == 1, lock_failures
-                    failure, statements_before_timeout = lock_failures[0]
-                    assert failure.orig is not None
-                    dbapi = connection.dialect.dbapi
-                    assert dbapi is not None
-                    assert isinstance(failure.orig, dbapi.OperationalError), failure
-                    error_code = (
-                        getattr(failure.orig, "sqlstate", None) or getattr(failure.orig, "pgcode", None)
-                        if is_postgres
-                        else failure.orig.args[0]
-                    )
-                    assert error_code == ("55P03" if is_postgres else 1205), failure
-                    assert failure.statement is not None
-                    failed_statement = failure.statement.lower()
-                    assert failed_statement.startswith("select")
-                    assert f"from {table}" in failed_statement
-                    assert any(clause in failed_statement for clause in ("for update", "for no key update"))
-                    ordering = f"order by {table}.name" + (", asset.uri" if kind == "asset" else "")
-                    assert ordering in failed_statement
-                    assert not any(
-                        statement.startswith(f"update {table} ") for statement in statements_before_timeout
-                    ), statements_before_timeout
-            finally:
-                release.set()
-                first.join(15)
-            assert not first.is_alive()
-            assert first_errors == []
-            assert second_sync_attempts == 2, (second_sync_attempts, lock_failures)
+            assert write_dags.call_count == (2 if metadata_changed else 1)
+            assert len(failures) == (1 if metadata_changed else 0)
+            if metadata_changed:
+                failure = failures[0]
+                assert isinstance(failure, OperationalError)
+                assert failure.statement.lower().startswith(f"update {model.__tablename__} ")
+                error_code = (
+                    getattr(failure.orig, "sqlstate", None) or getattr(failure.orig, "pgcode", None)
+                    if is_postgres
+                    else failure.orig.args[0]
+                )
+                assert error_code == ("55P03" if is_postgres else 1205)
 
         with create_session(scoped=False) as observer:
-            assert observer.scalars(select(model.group)).all() == ["second", "second"]
-            assert sorted(observer.scalars(select(SerializedDagModel.dag_id))) == ["first", "second"]
-            assert sorted(observer.scalars(select(reference.dag_id))) == ["first"] * 2 + ["second"] * 2
-
-    @pytest.mark.backend("mysql")
-    @pytest.mark.parametrize("kind", ["asset", "alias"])
-    def test_large_lookup_locks_rows_in_index_order(self, session, kind):
-        model = AssetModel if kind == "asset" else AssetAliasModel
-        for index in range(1000):
-            name = f"asset_{index:04}"
-            kwargs = {"uri": name} if kind == "asset" else {}
-            session.add(model(id=1000 - index, name=name, group="asset", **kwargs))
-        session.commit()
-        schedules = [
-            Asset(f"asset_{index:04}") if kind == "asset" else AssetAlias(f"asset_{index:04}")
-            for index in range(400)
-        ]
-        operation = AssetModelOperation.collect(self._build_dags_scheduled_on(schedules))
-        queries = []
-
-        def record(conn, cursor, statement, parameters, context, executemany):
-            if statement.startswith("SELECT") and "FOR UPDATE" in statement:
-                queries.append((statement, parameters))
-
-        connection = session.connection()
-        event.listen(connection, "before_cursor_execute", record)
-        try:
-            if kind == "asset":
-                operation.sync_assets(session=session)
-            else:
-                operation.sync_asset_aliases(session=session)
-        finally:
-            event.remove(connection, "before_cursor_execute", record)
-
-        assert len(queries) == 1
-        statement, parameters = queries[0]
-        plan = connection.exec_driver_sql("EXPLAIN " + statement, parameters).mappings().one()
-        assert plan["key"] == (
-            "idx_asset_name_uri_unique" if kind == "asset" else "idx_asset_alias_name_unique"
-        )
-        extra = (plan["Extra"] or "").lower()
-        assert "filesort" not in extra
-        assert "mrr" not in extra
+            assert observer.scalars(select(model.group)).all() == [group, group]
+            assert observer.get(DagModel, "shared_metadata").description == "published during contention"
+            assert observer.scalar(select(SerializedDagModel)).data["dag"]["description"] == (
+                "published during contention"
+            )
+            assert observer.scalars(select(reference.dag_id)).all() == ["shared_metadata"] * 2
 
     def test_new_assets_and_aliases_are_inserted_in_a_stable_order(self, session):
         """Two writers reaching the same rows must take them the same way round or they deadlock."""
