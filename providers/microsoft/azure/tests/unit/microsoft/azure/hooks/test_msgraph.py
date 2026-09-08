@@ -679,7 +679,7 @@ class TestKiotaRequestAdapterHook:
 
     @pytest.mark.asyncio
     async def test_send_request_invalidates_cache_and_raises_on_any_error(self):
-        """send_request evicts the cached adapter and re-raises on any request error."""
+        """send_request evicts the cached adapter, closes it, and re-raises on any request error."""
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
@@ -690,10 +690,71 @@ class TestKiotaRequestAdapterHook:
             adapter.send_no_response_content_async = AsyncMock(side_effect=RuntimeError("some error"))
             hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
 
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credential = access_token_provider._credentials._credential
+
             with pytest.raises(RuntimeError, match="some error"):
                 await hook.run(url="users")
 
             adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+            adapter._http_client.aclose.assert_awaited_once()
+            credential.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_send_request_invalidates_cache_and_raises_on_unauthorized(self):
+        """send_request evicts the cached adapter, closes it, and re-raises when Microsoft Graph returns 401."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
+            adapter.send_no_response_content_async = AsyncMock(
+                side_effect=PermissionError("401 Unauthorized")
+            )
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credential = access_token_provider._credentials._credential
+
+            with pytest.raises(PermissionError, match="401 Unauthorized"):
+                await hook.run(url="users")
+
+            adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+            adapter._http_client.aclose.assert_awaited_once()
+            credential.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_close_closes_http_client_and_credential(self):
+        """close() closes the cached HTTP client and the underlying credential, then evicts the cache."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credential = access_token_provider._credentials._credential
+
+            await hook.close()
+
+            adapter._http_client.aclose.assert_awaited_once()
+            credential.close.assert_awaited_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    async def test_close_is_a_no_op_when_nothing_is_cached(self):
+        """close() does nothing when there is no cached request adapter for the conn_id."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            await hook.close()
+
             assert hook.conn_id not in hook.cached_request_adapters
 
     def test_allowed_hosts_is_empty_list_when_not_configured(self):
@@ -840,6 +901,12 @@ class TestResponseHandler:
         response = mock_json_response(400, {})
 
         with pytest.raises(AirflowBadRequest):
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    def test_handle_response_async_when_unauthorized(self):
+        response = mock_json_response(401, {})
+
+        with pytest.raises(PermissionError):
             asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
 
     def test_handle_response_async_when_not_found(self):
