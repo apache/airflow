@@ -351,8 +351,13 @@ Parameters
 :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
 ``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
 in real time. ``AgentOperator`` applies it automatically (see
-``enable_tool_logging``), but you can also use it directly with any pydantic-ai
-``Agent``:
+``enable_tool_logging``) through
+:class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`.
+Applying the wrapper as a capability means logging covers the complete toolset
+that pydantic-ai assembles, including factory-backed toolsets, nested
+capabilities, and MCP tools.
+
+You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
 
 .. code-block:: python
 
