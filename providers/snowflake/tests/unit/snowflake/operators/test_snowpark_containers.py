@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
@@ -173,7 +174,8 @@ class TestSnowparkContainerJobOperator:
         [(True, True), (False, False)],
     )
     @mock.patch("time.sleep")
-    @mock.patch("time.monotonic", side_effect=itertools.count(0, 20))
+    # 0 sets the deadline at 10, 5 admits one poll that observes RUNNING, 10 then trips the timeout.
+    @mock.patch("time.monotonic", side_effect=itertools.count(0, 5))
     @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     def test_poll_raises_and_logs_on_timeout(
