@@ -23,8 +23,9 @@ import pytest
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets import FunctionToolset
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
 
 
 @pytest.fixture
@@ -127,3 +128,17 @@ class TestLoggingToolset:
             await logging_toolset.call_tool("list_tables", {}, ctx, tool)
 
         assert not any("Tool args:" in r.message for r in caplog.records)
+
+
+class TestToolLoggingCapability:
+    def test_wraps_assembled_toolset(self, logger):
+        toolset = FunctionToolset()
+
+        wrapped = ToolLoggingCapability(logger=logger).get_wrapper_toolset(toolset)
+
+        assert isinstance(wrapped, LoggingToolset)
+        assert wrapped.wrapped is toolset
+        assert wrapped.logger is logger
+
+    def test_is_not_serializable(self):
+        assert ToolLoggingCapability.get_serialization_name() is None
