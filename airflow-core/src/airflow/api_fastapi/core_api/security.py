@@ -147,6 +147,13 @@ async def get_user(
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
+    # An explicitly supplied credential always wins over the ambient session cookie.
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        return await resolve_user_from_token(bearer_credentials.credentials)
+    if oauth_token:
+        return await resolve_user_from_token(oauth_token)
+
+    # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
     # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
     # `request.state.user_authenticated_via` is set to the trust sentinel above.
@@ -156,16 +163,7 @@ async def get_user(
     trust_marker = getattr(request.state, "user_authenticated_via", None)
     if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
         return user
-
-    token_str: str | None
-    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
-        token_str = bearer_credentials.credentials
-    elif oauth_token:
-        token_str = oauth_token
-    else:
-        token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-
-    return await resolve_user_from_token(token_str)
+    return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
