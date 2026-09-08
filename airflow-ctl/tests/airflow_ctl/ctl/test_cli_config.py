@@ -26,10 +26,13 @@ from unittest import mock
 import httpx
 import pytest
 
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
-from airflowctl.api.operations import DagRunOperations, ServerResponseError
+from airflowctl.api.client import Client
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
+from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
+    ARG_OUTPUT,
     ActionCommand,
     Arg,
     CommandFactory,
@@ -39,6 +42,7 @@ from airflowctl.ctl.cli_config import (
     merge_commands,
     safe_call_command,
 )
+from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -463,6 +467,19 @@ class TestCommandFactory:
         limit_arg = next(arg for arg in list_args if arg.flags[0] in ("limit", "--limit"))
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
+
+    def test_every_generated_command_accepts_the_output_flag(self):
+        """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
+        command_factory = CommandFactory()
+
+        missing = [
+            f"{group_command.name} {sub_command.name}"
+            for group_command in command_factory.group_commands
+            for sub_command in group_command.subcommands
+            if ARG_OUTPUT not in sub_command.args
+        ]
+
+        assert missing == []
 
 
 class TestCliConfigMethods:
@@ -907,3 +924,16 @@ class TestCliConfigMethods:
         call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
 
         assert call_kwargs["state"] is None
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "test", autospec=True)
+    def test_connections_test_reaches_the_printer(self, mocked_test, mocked_print_as):
+        """``connections test`` has no CRUD-verb prefix, so argparse used to leave ``args.output`` undefined."""
+        mocked_test.return_value = ConnectionTestResponse(status=True, message="ok")
+        args = cli_parser.get_parser().parse_args(
+            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["output"] == "json"
