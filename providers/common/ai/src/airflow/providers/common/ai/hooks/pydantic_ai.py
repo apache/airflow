@@ -317,7 +317,7 @@ class PydanticAIAzureHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
     """
 
-    conn_type = "pydanticai-azure"
+    conn_type = "pydanticai_azure"
     default_conn_name = "pydanticai_azure_default"
     hook_name = "Pydantic AI (Azure OpenAI)"
 
@@ -385,7 +385,7 @@ class PydanticAIBedrockHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"bedrock:us.anthropic.claude-opus-4-5"``.
     """
 
-    conn_type = "pydanticai-bedrock"
+    conn_type = "pydanticai_bedrock"
     default_conn_name = "pydanticai_bedrock_default"
     hook_name = "Pydantic AI (AWS Bedrock)"
 
@@ -477,7 +477,7 @@ class PydanticAIVertexHook(PydanticAIHook):
     :param model_id: Model identifier, e.g. ``"google-cloud:gemini-2.0-flash"``.
     """
 
-    conn_type = "pydanticai-vertex"
+    conn_type = "pydanticai_vertex"
     default_conn_name = "pydanticai_vertex_default"
     hook_name = "Pydantic AI (Google Vertex AI)"
 
@@ -535,3 +535,21 @@ class PydanticAIVertexHook(PydanticAIHook):
             )
 
         return kwargs
+
+
+class PydanticAIAzureLegacyHook(PydanticAIAzureHook):
+    """Compatibility hook for connections stored with the former Azure connection type."""
+
+    conn_type = "pydanticai-azure"
+
+
+class PydanticAIBedrockLegacyHook(PydanticAIBedrockHook):
+    """Compatibility hook for connections stored with the former Bedrock connection type."""
+
+    conn_type = "pydanticai-bedrock"
+
+
+class PydanticAIVertexLegacyHook(PydanticAIVertexHook):
+    """Compatibility hook for connections stored with the former Vertex AI connection type."""
+
+    conn_type = "pydanticai-vertex"

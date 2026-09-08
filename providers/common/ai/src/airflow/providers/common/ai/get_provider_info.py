@@ -155,7 +155,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook",
                 "hook-name": "Pydantic AI (Azure OpenAI)",
-                "connection-type": "pydanticai-azure",
+                "connection-type": "pydanticai_azure",
                 "external-services": ["Azure OpenAI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -181,7 +181,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook",
                 "hook-name": "Pydantic AI (AWS Bedrock)",
-                "connection-type": "pydanticai-bedrock",
+                "connection-type": "pydanticai_bedrock",
                 "external-services": ["AWS Bedrock"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
@@ -246,7 +246,7 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook",
                 "hook-name": "Pydantic AI (Google Vertex AI)",
-                "connection-type": "pydanticai-vertex",
+                "connection-type": "pydanticai_vertex",
                 "external-services": ["Google Vertex AI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
@@ -292,6 +292,18 @@ def get_provider_info():
                         "schema": {"type": ["string", "null"]},
                     },
                 },
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureLegacyHook",
+                "connection-type": "pydanticai-azure",
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockLegacyHook",
+                "connection-type": "pydanticai-bedrock",
+            },
+            {
+                "hook-class-name": "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexLegacyHook",
+                "connection-type": "pydanticai-vertex",
             },
             {
                 "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",

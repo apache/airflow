@@ -479,7 +479,7 @@ class TestPydanticAIAzureHook:
     """Tests for PydanticAIAzureHook."""
 
     def test_conn_type(self):
-        assert PydanticAIAzureHook.conn_type == "pydanticai-azure"
+        assert PydanticAIAzureHook.conn_type == "pydanticai_azure"
 
     def test_hook_name(self):
         assert "Azure" in PydanticAIAzureHook.hook_name
@@ -540,7 +540,7 @@ class TestPydanticAIAzureHook:
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
         conn = Connection(
             conn_id="azure_test",
-            conn_type="pydanticai-azure",
+            conn_type="pydanticai_azure",
             password="azure-key",
             host="https://myresource.openai.azure.com",
             extra=json.dumps({"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}),
@@ -563,7 +563,7 @@ class TestPydanticAIAzureHook:
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
         conn = Connection(
             conn_id="azure_test",
-            conn_type="pydanticai-azure",
+            conn_type="pydanticai_azure",
             extra=json.dumps({"model": "azure:gpt-4o"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -576,7 +576,7 @@ class TestPydanticAIBedrockHook:
     """Tests for PydanticAIBedrockHook."""
 
     def test_conn_type(self):
-        assert PydanticAIBedrockHook.conn_type == "pydanticai-bedrock"
+        assert PydanticAIBedrockHook.conn_type == "pydanticai_bedrock"
 
     def test_hook_name(self):
         assert "Bedrock" in PydanticAIBedrockHook.hook_name
@@ -616,7 +616,7 @@ class TestPydanticAIBedrockHook:
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
             conn_id="bedrock_test",
-            conn_type="pydanticai-bedrock",
+            conn_type="pydanticai_bedrock",
             extra=json.dumps({"model": "bedrock:us.anthropic.claude-opus-4-5"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -634,7 +634,7 @@ class TestPydanticAIBedrockHook:
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
             conn_id="bedrock_test",
-            conn_type="pydanticai-bedrock",
+            conn_type="pydanticai_bedrock",
             extra=json.dumps(
                 {
                     "model": "bedrock:us.anthropic.claude-opus-4-5",
@@ -706,7 +706,7 @@ class TestPydanticAIVertexHook:
     """Tests for PydanticAIVertexHook."""
 
     def test_conn_type(self):
-        assert PydanticAIVertexHook.conn_type == "pydanticai-vertex"
+        assert PydanticAIVertexHook.conn_type == "pydanticai_vertex"
 
     def test_hook_name(self):
         assert "Vertex" in PydanticAIVertexHook.hook_name
@@ -817,7 +817,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai-vertex",
+            conn_type="pydanticai_vertex",
             extra=json.dumps({"model": "google-cloud:gemini-2.0-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -835,7 +835,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai-vertex",
+            conn_type="pydanticai_vertex",
             extra=json.dumps(
                 {
                     "model": "google-cloud:gemini-2.0-flash",
@@ -893,7 +893,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai-vertex",
+            conn_type="pydanticai_vertex",
             extra=json.dumps(
                 {
                     "model": "google-cloud:gemini-2.0-flash",
@@ -930,3 +930,36 @@ class TestPydanticAIVertexHook:
             # environment; failing past provider-name resolution is enough to
             # prove "google-cloud" is recognized.
             pass
+
+
+@pytest.mark.parametrize(
+    "hook_class",
+    [PydanticAIHook, PydanticAIAzureHook, PydanticAIBedrockHook, PydanticAIVertexHook],
+)
+@pytest.mark.parametrize(
+    "round_trip",
+    [
+        pytest.param(lambda conn: Connection(conn_id=conn.conn_id, uri=conn.get_uri()), id="uri"),
+        pytest.param(lambda conn: Connection.from_json(conn.as_json(), conn_id=conn.conn_id), id="json"),
+    ],
+)
+def test_conn_type_survives_serialization_round_trip(hook_class, round_trip):
+    conn = Connection(conn_id="c", conn_type=hook_class.conn_type, host="example.com")
+    serialized_conn = round_trip(conn)
+
+    assert serialized_conn.conn_type == hook_class.conn_type
+    assert isinstance(serialized_conn.get_hook(), hook_class)
+
+
+@pytest.mark.parametrize(
+    ("hook_class", "legacy_conn_type"),
+    [
+        (PydanticAIAzureHook, "pydanticai-azure"),
+        (PydanticAIBedrockHook, "pydanticai-bedrock"),
+        (PydanticAIVertexHook, "pydanticai-vertex"),
+    ],
+)
+def test_legacy_conn_type_resolves_hook(hook_class, legacy_conn_type):
+    conn = Connection(conn_id="c", conn_type=legacy_conn_type)
+
+    assert isinstance(conn.get_hook(), hook_class)
