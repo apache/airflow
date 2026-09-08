@@ -1326,7 +1326,7 @@ class AsyncPodManager(LoggingMixin):
 
         :meta private:
         """
-        return [container_spec.name for container_spec in pod.spec.init_containers]
+        return [container_spec.name for container_spec in pod.spec.init_containers or []]
 
     async def fetch_requested_init_container_logs(
         self,
