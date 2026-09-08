@@ -20,7 +20,6 @@ import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.utils.constants import Constants
@@ -69,70 +68,32 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Wait for Compute Cluster operation to complete."""
+        if self.operation_type in (Constants.CC_SUSPEND_OPR, Constants.CC_CREATE_SUSPEND_OPR):
+            expected_status = Constants.CC_SUSPEND_DB_STATUS
+        elif self.operation_type in (Constants.CC_RESUME_OPR, Constants.CC_CREATE_OPR):
+            expected_status = Constants.CC_RESUME_DB_STATUS
+        else:
+            yield TriggerEvent({"status": "error", "message": "Invalid operation"})
+            return
         try:
             while True:
                 status = await self.get_status()
                 if status is None or len(status) == 0:
-                    raise AirflowException(Constants.CC_GRP_PRP_NON_EXISTS_MSG % "manage")
-                if (
-                    self.operation_type == Constants.CC_SUSPEND_OPR
-                    or self.operation_type == Constants.CC_CREATE_SUSPEND_OPR
-                ):
-                    if status == Constants.CC_SUSPEND_DB_STATUS:
-                        break
-                elif (
-                    self.operation_type == Constants.CC_RESUME_OPR
-                    or self.operation_type == Constants.CC_CREATE_OPR
-                ):
-                    if status == Constants.CC_RESUME_DB_STATUS:
-                        break
+                    raise ValueError(Constants.CC_GRP_PRP_NON_EXISTS_MSG % "manage")
+                if status == expected_status:
+                    break
                 if self.poll_interval is not None:
                     self.poll_interval = float(self.poll_interval)
                 else:
                     self.poll_interval = float(Constants.CC_POLL_INTERVAL)
                 await asyncio.sleep(self.poll_interval)
-            if (
-                self.operation_type == Constants.CC_SUSPEND_OPR
-                or self.operation_type == Constants.CC_CREATE_SUSPEND_OPR
-            ):
-                if status == Constants.CC_SUSPEND_DB_STATUS:
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": Constants.CC_OPR_SUCCESS_STATUS_MSG
-                            % (self.compute_profile_name, self.operation_type),
-                        }
-                    )
-                else:
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": Constants.CC_OPR_TIMEOUT_ERROR
-                            % (self.operation_type, self.compute_profile_name),
-                        }
-                    )
-            elif (
-                self.operation_type == Constants.CC_RESUME_OPR
-                or self.operation_type == Constants.CC_CREATE_OPR
-            ):
-                if status == Constants.CC_RESUME_DB_STATUS:
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": Constants.CC_OPR_SUCCESS_STATUS_MSG
-                            % (self.compute_profile_name, self.operation_type),
-                        }
-                    )
-                else:
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": Constants.CC_OPR_TIMEOUT_ERROR
-                            % (self.operation_type, self.compute_profile_name),
-                        }
-                    )
-            else:
-                yield TriggerEvent({"status": "error", "message": "Invalid operation"})
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "message": Constants.CC_OPR_SUCCESS_STATUS_MSG
+                    % (self.compute_profile_name, self.operation_type),
+                }
+            )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
         except asyncio.CancelledError:
