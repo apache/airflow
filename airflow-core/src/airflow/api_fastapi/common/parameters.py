@@ -2028,17 +2028,17 @@ QueryHITLDetailRespondedUserNameFilter = Annotated[
 
 # Parse Import Errors
 QueryParseImportErrorFilenamePatternSearch = Annotated[
-    _SearchParam, Depends(search_param_factory(ParseImportError.filename, "filename_pattern"))
+    _SearchParam, Depends(search_param_factory(ParseImportError.source_reference, "filename_pattern"))
 ]
 QueryParseImportErrorFilenamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
-    Depends(prefix_search_param_factory(ParseImportError.filename, "filename_prefix_pattern")),
+    Depends(prefix_search_param_factory(ParseImportError.source_reference, "filename_prefix_pattern")),
 ]
 QueryParseImportErrorFilenameFilter = Annotated[
     FilterParam,
     Depends(
         filter_param_factory(
-            ParseImportError.filename,
+            ParseImportError.source_reference,
             str | None,
             filter_name="filename",
             description="Exact filename match. Returns only the import error for this specific file path.",

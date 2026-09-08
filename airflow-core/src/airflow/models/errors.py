@@ -17,10 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from sqlalchemy import Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
@@ -33,13 +34,20 @@ class ParseImportError(Base):
     __tablename__ = "import_error"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     timestamp: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    source_reference: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    filename = synonym("source_reference")
+
     def full_file_path(self) -> str:
         """Return the full file path of the dag."""
-        if self.bundle_name is None or self.filename is None:
-            raise ValueError("bundle_name and filename must not be None")
+        if self.bundle_name is None or self.source_reference is None:
+            raise ValueError("bundle_name and source_reference must not be None")
         bundle = DagBundlesManager().get_bundle(self.bundle_name)
-        return "/".join([str(bundle.path), self.filename])
+        ref = self.source_reference
+        if ref.startswith(str(bundle.path)):
+            return ref
+        if os.path.isabs(ref.split(":")[0]):
+            return ref
+        return "/".join([str(bundle.path), ref])

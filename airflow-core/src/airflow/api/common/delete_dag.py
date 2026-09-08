@@ -80,9 +80,10 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
 
     # Delete entries in Import Errors table for a deleted Dag
     # This handles the case when the dag_id is changed in the file
+    targets = [ref for ref in (dag.relative_fileloc, dag.fileloc) if ref]
     session.execute(
         delete(ParseImportError).where(
-            ParseImportError.filename == dag.relative_fileloc,
+            ParseImportError.source_reference.in_(targets),
             ParseImportError.bundle_name == dag.bundle_name,
         )
     )
