@@ -75,6 +75,10 @@ from airflowctl.api.datamodels.generated import (
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskStateStoreBody,
+    TaskStateStoreCollectionResponse,
+    TaskStateStorePatchBody,
+    TaskStateStoreResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -755,6 +759,93 @@ class TaskInstancesOperations(BaseOperations):
             path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
             data_model=TaskInstanceCollectionResponse,
         )
+
+    def list_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskStateStoreCollectionResponse | ServerResponseError:
+        """List all state store entries for a task instance."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store",
+            data_model=TaskStateStoreCollectionResponse,
+            params=_build_query_params(map_index=map_index),
+        )
+
+    def get_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> TaskStateStoreResponse | ServerResponseError:
+        """Get a single task state store entry."""
+        self.response = self.client.get(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            params=_build_query_params(map_index=map_index),
+        )
+        return TaskStateStoreResponse.model_validate_json(self.response.content)
+
+    def set_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int | None = None,
+    ) -> str | ServerResponseError:
+        """Set a task state store value. Creates or overwrites the key."""
+        try:
+            parsed_value = json.loads(value)
+        except (ValueError, TypeError):
+            parsed_value = value
+        self.client.put(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            json=TaskStateStoreBody(value=parsed_value).model_dump(mode="json"),
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def update_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int | None = None,
+    ) -> str | ServerResponseError:
+        """Update the value of an existing task state store key."""
+        try:
+            parsed_value = json.loads(value)
+        except (ValueError, TypeError):
+            parsed_value = value
+        self.client.patch(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            json=TaskStateStorePatchBody(value=parsed_value).model_dump(mode="json"),
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def delete_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> str | ServerResponseError:
+        """Delete a single task state store key."""
+        self.client.delete(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}",
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def clear_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        all_map_indices: bool = False,
+    ) -> str | ServerResponseError:
+        """Delete all task state store keys for a task instance."""
+        self.client.delete(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store",
+            params=_build_query_params(map_index=map_index, all_map_indices=all_map_indices or None),
+        )
+        return task_id
 
 
 class TasksOperations(BaseOperations):
