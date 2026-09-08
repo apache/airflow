@@ -32,11 +32,6 @@ from airflow._shared.module_loading import (
     might_contain_dag as might_contain_dag,
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
-from airflow._shared.module_loading import (
-    get_unique_dag_module_name as get_unique_dag_module_name,
-    might_contain_dag as might_contain_dag,
-    might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
-)
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)

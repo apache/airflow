@@ -73,13 +73,20 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile
 
     might_contain_dag_callable: Callable[[str, zipfile.ZipFile | None], bool] | None = None
     try:
-        from airflow.configuration import conf
+        # Use importlib to avoid hard import at module level
+        import importlib
+
+        config_module = importlib.import_module("airflow.configuration")
+        conf = config_module.conf
 
         might_contain_dag_callable = conf.getimport(
             "core",
             "might_contain_dag_callable",
             fallback=None,
         )
+    except ImportError:
+        # airflow package not available in this context
+        pass
     except Exception:
         pass
 

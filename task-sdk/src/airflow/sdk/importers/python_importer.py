@@ -150,7 +150,10 @@ class PythonDagImporter(AbstractDagImporter):
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
     ) -> list[ModuleType]:
-        from airflow import settings
+        try:
+            from airflow import settings  # noqa: SDK002
+        except ImportError:
+            settings = None
         from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_name, might_contain_dag
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
@@ -171,7 +174,7 @@ class PythonDagImporter(AbstractDagImporter):
         DagContext.current_autoregister_module_name = mod_name
 
         def parse(mod_name: str, filepath: str) -> list[ModuleType]:
-            from airflow.configuration import conf
+            from airflow.sdk.configuration import conf
 
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)

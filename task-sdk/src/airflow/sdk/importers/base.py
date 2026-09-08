@@ -204,12 +204,9 @@ class AbstractDagImporter(ABC):
         The default implementation finds files matching supported_extensions
         and respects .airflowignore files.
         """
-        try:
-            from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
-            ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
-        except ImportError:
-            ignore_file_syntax = "glob"
+        ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
 
         supported_exts = [ext.lower() for ext in self.supported_extensions]
 
