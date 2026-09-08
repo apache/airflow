@@ -2063,7 +2063,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     XComModel.dag_id,
                     XComModel.map_index,
                     XComModel.value,
-                )
+                ).limit(1)
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
