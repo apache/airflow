@@ -52,13 +52,18 @@ because the SDK's README already warns its APIs "may change between releases wit
 
 ### Reading SDK values
 
-A handler's only context-shaped parameter is a Go context, and the rest is read off it:
+A handler takes exactly one context, `airflow.Context`, as its first parameter, and reads what the
+SDK offers off it:
 
-- `airflow.Logger(ctx)` — the task logger.
-- `airflow.Client(ctx)` — the coordinator client, embedding `VariableClient`, `ConnectionClient`, and
+- `actx.Logger()` — the task logger.
+- `actx.Client()` — the coordinator client, embedding `VariableClient`, `ConnectionClient`, and
   `XComClient` (`go-sdk/sdk/sdk.go`).
-- `airflow.TIRunContext(ctx)` — the run context (`go-sdk/sdk/context.go`), exposing `TaskInstance()`
-  and `DagRun()`.
+- `actx.TaskInstance()` and `actx.DagRun()` — the identifiers and scheduling timestamps of the
+  running task instance (`go-sdk/sdk/context.go`).
+
+`airflow.Context` is an interface embedding `context.Context`, so it *is* a Go context: it goes
+straight into `http.NewRequestWithContext(actx, ...)`, and `actx.Done()` fires when the supervisor
+asks the task to stop.
 
 Three ways a Go function can receive a stub task's data, all live in `go-sdk/example/bundle/`:
 
@@ -70,16 +75,16 @@ def transform(country: str, extracted: dict): ...
 ```
 
 ```go
-func transform(ctx context.Context, country string, extracted map[string]any) error {
-    ti := airflow.TIRunContext(ctx).TaskInstance()
-    airflow.Logger(ctx).InfoContext(ctx, "transforming",
+func transform(actx airflow.Context, country string, extracted map[string]any) error {
+    ti := actx.TaskInstance()
+    actx.Logger().Info("transforming",
         "country", country, "task_id", ti.TaskID, "try_number", ti.TryNumber)
 
-    threshold, err := airflow.Client(ctx).GetVariable(ctx, "etl_threshold")
+    threshold, err := actx.Client().GetVariable(actx, "etl_threshold")
     if err != nil {
         return fmt.Errorf("etl_threshold: %w", err)
     }
-    return writeRows(ctx, extracted, threshold)
+    return writeRows(actx, extracted, threshold)
 }
 ```
 
@@ -96,7 +101,7 @@ type ViaStructArgTagInput struct {
     Threshold float64 `arg:"threshold"`
 }
 
-func ViaStructArgTag(ctx context.Context, input ViaStructArgTagInput) (any, error) {
+func ViaStructArgTag(actx airflow.Context, input ViaStructArgTagInput) (any, error) {
     return map[string]any{"region": input.Region}, nil
 }
 ```
@@ -115,15 +120,27 @@ Go lowercases `RegionCode` and strips underscores to get `regioncode`, which mat
 
 ## How
 
-- **The Go context comes first, and nothing else in the signature is context-shaped.** The shipped
+- **`airflow.Context` comes first, and it is the only context in the signature.** The shipped
   interface injects `sdk.TIRunContext`, `*slog.Logger`, and client interfaces by type in any
-  position, which lets a handler declare no context at all and advertises the SDK's context type
-  where Go authors expect Go's — even though `sdk.TIRunContext` embeds `context.Context`.
-- **The accessors assert on the value the runtime already binds**, so no second context exists. Go
-  forbids a func and a type sharing a name in one package, so the accessors take the short names and
-  the types stay in `go-sdk/sdk`; a helper should take the narrow interface or the plain
-  `sdk.TaskInstance`/`sdk.DagRun` struct it needs. The same rule forced `Dag`/`DagRef` in
-  [ADR 7](0007-native-dag-interface.md).
+  position, so a handler can declare no context at all and the logger arrives separately from the
+  context it logs against. Requiring one context that carries everything removes both problems, and
+  a plain `context.Context` first parameter would not: reaching the logger through a package-level
+  `airflow.Logger(ctx)` accessor lets `myTask(context.Background(), ...)` compile and then fail at
+  run time on a missing value, where a required `airflow.Context` fails to build.
+- **An interface embedding `context.Context`, not a struct wrapping one.** The
+  [context package advises against storing a Context in a struct](https://pkg.go.dev/context#hdr-Contexts_and_structs),
+  and a struct is copyable with a nil inner context, which panics on `Done()`; an interface cannot
+  hand task code a half-initialised value. This is what `sdk.TIRunContext` already is
+  (`go-sdk/sdk/context.go`), so the change is the accessors becoming methods, not a new mechanism.
+  Tests build one with the existing `sdk.NewTIRunContext` constructor.
+- **Cancellation is the embedded context's,** so graceful termination needs no unwrapping:
+  `pkg/execution/server.go` traps `SIGINT`/`SIGTERM` into the context the runtime binds, and a task
+  that ignores `actx.Done()` is still stopped by the supervisor's follow-up `SIGKILL`. Cleanup that
+  must outlive cancellation uses `context.WithoutCancel(actx)`, which keeps the values and drops the
+  cancellation.
+- **`airflow.FromContext(ctx) (airflow.Context, bool)` recovers the SDK surface** in a helper that
+  only accepts a plain `context.Context`. The runtime already stores the client and run context as
+  context values (`pkg/execution/task_runner.go`), so this is a typed lookup over what is there.
 - **Every remaining parameter is data**, bound positionally in declaration order, or by field for a
   single struct parameter: `arg:"..."` first, else the folded Go field name
   (`strings.ToLower(strings.ReplaceAll(name, "_", ""))`). Both in `go-sdk/pkg/binding/binding.go`.

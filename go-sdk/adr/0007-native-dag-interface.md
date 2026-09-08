@@ -63,15 +63,16 @@ load(transformed)
 ```
 
 ```go
-func extract(ctx context.Context) (Result, error) {
+func extract(actx airflow.Context) (Result, error) {
+    actx.Logger().Info("extracting")
     return Result{Message: "native Dag data"}, nil
 }
 
-func transform(ctx context.Context, extracted Result) (Result, error) {
+func transform(actx airflow.Context, extracted Result) (Result, error) {
     return Result{Message: "transformed " + extracted.Message}, nil
 }
 
-func load(ctx context.Context, transformed Result) error { return nil }
+func load(actx airflow.Context, transformed Result) error { return nil }
 ```
 
 ### Order-only dependencies: the `>>` and `<<` equivalent
@@ -103,23 +104,25 @@ cleaned.After(extracted)         // cleanup << extracted
   registration rather than at run time.
 - **`Before` / `After` are edges only** — the Go pair for `>>` and `<<`. Both are variadic, so one
   call fans out (`cond >> [t1, t2]`), and both return the receiver, since a fan-out has no single
-  "next" ref. This replaces #70158's one-directional `After(refs...)` task option, and leaves `Then`
-  to mean only what it means in [ADR-0008](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md).
+  "next" ref. This replaces #70158's one-directional `After(refs...)` task option.
 - **Trigger rules belong to the task**, as `airflow.TaskSpec{TriggerRule: ...}`. In Python
   `trigger_rule` is an operator attribute and `>>` carries no rule; an edge verb that took one would
   let two edges into the same task disagree.
 - **A cycle check is needed.** `Inputs` alone cannot express one, since a `*TaskRef` exists only
   after its own `dag.Task(...)` returns. `Before`/`After` link two existing refs in either direction,
   so `b := dag.Task(B, airflow.Inputs(a)); b.Before(a)` is a genuine cycle in accepted syntax.
-- **One signature classifier.** #70158's `isInjectable` (`go-sdk/bundle/bundlev1/task.go`) repeats
-  what `classifyParam` (`go-sdk/pkg/binding/binding.go`) already does for the Mixed Lang path.
-  Context accessors ([ADR 6](0006-mixed-lang-task-handler-interface.md)) leave one rule for both:
-  first parameter is the context, the rest is data.
+- **One signature classifier.** `dag.Task(fn any, opts ...airflow.TaskOption)` registers the task;
+  `airflow.Inputs(...)` and a bare `airflow.TaskSpec{}` both satisfy `TaskOption`, which is how one
+  variadic carries both. #70158's `isInjectable` (`go-sdk/bundle/bundlev1/task.go`) repeats what
+  `classifyParam` (`go-sdk/pkg/binding/binding.go`) already does for the Mixed Lang path. A single
+  required `airflow.Context` ([ADR 6](0006-mixed-lang-task-handler-interface.md)) leaves one rule for
+  both interfaces: the first parameter is the context, the rest is data.
 - **No Go-native deferral.** A Go task runs to completion in one call. The deferrable constructs
   authors reach for first are DSL tasks Python executes
   ([ADR-0009](../../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md)), which
   defer as they do in a Python Dag, so SDK-level goroutine and channel primitives stay out of scope
-  until a Go-native task itself needs to wait.
+  until a Go-native task itself needs to wait. Cancellation is a separate matter and works today:
+  `actx.Done()` fires on supervisor shutdown ([ADR 6](0006-mixed-lang-task-handler-interface.md)).
 
 ## Alternatives
 
