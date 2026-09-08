@@ -24,7 +24,11 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
@@ -895,22 +899,41 @@ class TestAwsAuthManager:
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called()
         assert result == expected_result
 
-    def test_filter_authorized_assets(self, auth_manager, test_user):
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
+    def test_filter_authorized_assets(self, auth_manager):
+        user = AwsAuthManagerUser(user_id="test_user_id1", groups=[])
         assets = [
             AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv"),
             AssetDetails(id="2", name="salary", uri="s3://team-b/salary.csv"),
         ]
-        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(return_value=[])
-        auth_manager.avp_facade.get_batch_is_authorized_single_result = Mock(
-            side_effect=lambda *, request, **kw: {
-                "decision": "ALLOW" if request["entity_id"] == "1" else "DENY"
-            }
+        avp_entity = AvpEntities.ASSET.value
+        batch_is_authorized_output = [
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id1"},
+                    "action": {"actionType": "Airflow::Action", "actionId": f"{avp_entity}.GET"},
+                    "resource": {"entityType": f"Airflow::{avp_entity}", "entityId": "1"},
+                },
+                "decision": "ALLOW",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id1"},
+                    "action": {"actionType": "Airflow::Action", "actionId": f"{avp_entity}.GET"},
+                    "resource": {"entityType": f"Airflow::{avp_entity}", "entityId": "2"},
+                },
+                "decision": "DENY",
+            },
+        ]
+        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(
+            return_value=batch_is_authorized_output
         )
 
-        result = auth_manager.filter_authorized_assets(assets=assets, user=test_user, method="GET")
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
 
         assert result == {"1"}
-        # Every asset goes into one batch request rather than one call each.
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once()
         sent = auth_manager.avp_facade.get_batch_is_authorized_results.call_args.kwargs["requests"]
         assert [request["entity_type"] for request in sent] == [AvpEntities.ASSET, AvpEntities.ASSET]

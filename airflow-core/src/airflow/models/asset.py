@@ -398,7 +398,7 @@ class AssetModel(Base):
 
     @staticmethod
     @provide_session
-    def get_name_and_uri(asset_id: int, *, session=NEW_SESSION) -> tuple[str, str] | None:
+    def get_name_and_uri(asset_id: int, *, session: Session = NEW_SESSION) -> tuple[str, str] | None:
         stmt = select(AssetModel.name, AssetModel.uri).where(AssetModel.id == asset_id)
         row = session.execute(stmt).one_or_none()
         return (row.name, row.uri) if row is not None else None

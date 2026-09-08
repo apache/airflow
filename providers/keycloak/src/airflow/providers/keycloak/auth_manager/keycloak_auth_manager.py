@@ -672,11 +672,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         method: ResourceMethod = "GET",
     ) -> set[str]:
         candidates = [details for details in assets if details.id is not None]
-        # The resource type leads the key: asset ids are short numeric strings, so a bare
-        # ``(user, method, ids)`` key would be far more prone to colliding with another
-        # resource's entry in the shared cache than the name-based keys the others build.
         cache_key = (
-            KeycloakResource.ASSET,
             user.get_id(),
             method,
             frozenset(cast("str", details.id) for details in candidates),

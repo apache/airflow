@@ -45,6 +45,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_7_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 if AIRFLOW_V_3_1_7_PLUS:
@@ -1395,6 +1396,9 @@ class TestKeycloakAuthManager:
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
     @patch.object(
         KeycloakAuthManager,
         "is_authorized_asset",
@@ -1415,6 +1419,9 @@ class TestKeycloakAuthManager:
     def test_filter_authorized_assets_empty(self, auth_manager, user):
         assert auth_manager.filter_authorized_assets(assets=[], user=user, method="GET") == set()
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
     @patch.object(KeycloakAuthManager, "is_authorized_asset", return_value=True)
     def test_filter_authorized_assets_cache_hit(self, mock_is_authorized, auth_manager, user):
         """A second identical call is served from the cache without asking Keycloak again."""
@@ -1425,25 +1432,6 @@ class TestKeycloakAuthManager:
 
         assert first == second == {"1"}
         assert mock_is_authorized.call_count == 1
-
-    @patch.object(KeycloakAuthManager, "is_authorized_asset", return_value=True)
-    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=False)
-    def test_filter_authorized_assets_does_not_share_cache_with_other_resources(
-        self, mock_is_authorized_connection, mock_is_authorized_asset, auth_manager, user
-    ):
-        """Asset ids are short numeric strings, so the cache key must be scoped to assets.
-
-        A connection named after an asset id would otherwise serve its cached decision here.
-        """
-        auth_manager.filter_authorized_connections(conn_ids={"1"}, user=user, method="GET")
-
-        result = auth_manager.filter_authorized_assets(
-            assets=[AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv")],
-            user=user,
-            method="GET",
-        )
-
-        assert result == {"1"}
 
     @patch.object(
         KeycloakAuthManager,

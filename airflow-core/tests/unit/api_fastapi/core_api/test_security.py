@@ -1551,14 +1551,15 @@ class TestFastApiSecurity:
         )
 
     @pytest.mark.parametrize(
-        ("filter_class", "expected_column"),
+        ("filter_class", "model", "expected_column"),
         [
-            pytest.param(PermittedAssetFilter, "asset.id IN", id="assets"),
-            pytest.param(PermittedAssetEventByAssetFilter, "asset_event.asset_id IN", id="asset-events"),
+            pytest.param(PermittedAssetFilter, AssetModel, "asset.id IN", id="assets"),
+            pytest.param(
+                PermittedAssetEventByAssetFilter, AssetEvent, "asset_event.asset_id IN", id="asset-events"
+            ),
         ],
     )
-    def test_permitted_asset_filters_scope_on_asset_id(self, filter_class, expected_column):
-        model = AssetModel if filter_class is PermittedAssetFilter else AssetEvent
+    def test_permitted_asset_filters_scope_on_asset_id(self, filter_class, model, expected_column):
         rendered = str(filter_class({1, 2}).to_orm(select(model)))
         assert expected_column in rendered
 
@@ -1567,20 +1568,20 @@ class TestFastApiSecurity:
         assert "asset_event.asset_id NOT IN (SELECT asset.id" in rendered
 
     @pytest.mark.parametrize(
-        ("filter_class", "expected_type"),
+        "filter_class",
         [
-            pytest.param(PermittedAssetFilter, PermittedAssetFilter, id="default"),
-            pytest.param(PermittedAssetEventByAssetFilter, PermittedAssetEventByAssetFilter, id="events"),
+            pytest.param(PermittedAssetFilter, id="default"),
+            pytest.param(PermittedAssetEventByAssetFilter, id="events"),
         ],
     )
-    def test_permitted_asset_filter_factory(self, filter_class, expected_type):
+    def test_permitted_asset_filter_factory(self, filter_class):
         auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.get_authorized_assets.return_value = {1, 3}
         user = Mock(spec=BaseUser)
 
         permitted_filter = permitted_asset_filter_factory("GET", filter_class)(user, auth_manager)
 
-        assert isinstance(permitted_filter, expected_type)
+        assert isinstance(permitted_filter, filter_class)
         assert permitted_filter.value == {1, 3}
         auth_manager.get_authorized_assets.assert_called_once_with(user=user, method="GET")
 
