@@ -187,6 +187,8 @@ class TestSnowparkContainerJobOperator:
         with pytest.raises(TimeoutError, match="did not reach a terminal status"):
             op._poll_for_status()
 
+        describes = [c for c in mock_hook.run.call_args_list if c.args[0].startswith("DESCRIBE SERVICE")]
+        assert len(describes) == 1
         mock_log.assert_called_once_with("RUNNING")
         drop_call = mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}")
         if drops:
