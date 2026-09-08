@@ -167,7 +167,7 @@ def get_data_dependencies(
     asset_id: int, session: Session, readable_dag_ids: set[str] | None = None
 ) -> dict[str, list[dict]]:
     """Get full task dependencies for an asset."""
-    from sqlalchemy import select, union_all
+    from sqlalchemy import select, tuple_, union_all
     from sqlalchemy.orm import selectinload
 
     from airflow.models.asset import (
@@ -227,6 +227,7 @@ def get_data_dependencies(
             nodes_dict[asset_node_id] = {"id": asset_node_id, "label": asset.name, "type": "asset"}
 
         # Process producing tasks (tasks that output this asset)
+        pending_inlet_keys: set[tuple[str, str]] = set()
         for ref in asset.producing_tasks:
             # Filter out tasks from Dags the user doesn't have access to
             if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
@@ -245,20 +246,26 @@ def get_data_dependencies(
             # Add edge: task → asset
             edge_set.add((task_node_id, asset_node_id))
 
-            # Find other assets this task consumes (inlets) to trace upstream
+            # Collect this task's inlet lookup to batch in a single query after the loop
             if task_key not in processed_tasks:
                 processed_tasks.add(task_key)
-                inlet_refs = session.scalars(
-                    select(TaskInletAssetReference).where(
-                        TaskInletAssetReference.dag_id == ref.dag_id,
-                        TaskInletAssetReference.task_id == ref.task_id,
+                pending_inlet_keys.add(task_key)
+
+        # Batch the inlet lookups for all of this asset's producing tasks into one query
+        if pending_inlet_keys:
+            inlet_refs = session.scalars(
+                select(TaskInletAssetReference).where(
+                    tuple_(TaskInletAssetReference.dag_id, TaskInletAssetReference.task_id).in_(
+                        pending_inlet_keys
                     )
-                ).all()
-                for inlet_ref in inlet_refs:
-                    if inlet_ref.asset_id not in processed_assets:
-                        assets_to_process.append(inlet_ref.asset_id)
+                )
+            ).all()
+            for inlet_ref in inlet_refs:
+                if inlet_ref.asset_id not in processed_assets:
+                    assets_to_process.append(inlet_ref.asset_id)
 
         # Process consuming tasks (tasks that input this asset)
+        pending_outlet_keys: set[tuple[str, str]] = set()
         for ref in asset.consuming_tasks:
             # Filter out tasks from Dags the user doesn't have access to
             if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
@@ -277,18 +284,23 @@ def get_data_dependencies(
             # Add edge: asset → task
             edge_set.add((asset_node_id, task_node_id))
 
-            # Find other assets this task produces (outlets) to trace downstream
+            # Collect this task's outlet lookup to batch in a single query after the loop
             if task_key not in processed_tasks:
                 processed_tasks.add(task_key)
-                outlet_refs = session.scalars(
-                    select(TaskOutletAssetReference).where(
-                        TaskOutletAssetReference.dag_id == ref.dag_id,
-                        TaskOutletAssetReference.task_id == ref.task_id,
+                pending_outlet_keys.add(task_key)
+
+        # Batch the outlet lookups for all of this asset's consuming tasks into one query
+        if pending_outlet_keys:
+            outlet_refs = session.scalars(
+                select(TaskOutletAssetReference).where(
+                    tuple_(TaskOutletAssetReference.dag_id, TaskOutletAssetReference.task_id).in_(
+                        pending_outlet_keys
                     )
-                ).all()
-                for outlet_ref in outlet_refs:
-                    if outlet_ref.asset_id not in processed_assets:
-                        assets_to_process.append(outlet_ref.asset_id)
+                )
+            ).all()
+            for outlet_ref in outlet_refs:
+                if outlet_ref.asset_id not in processed_assets:
+                    assets_to_process.append(outlet_ref.asset_id)
 
     all_dag_ids = list({dag_id for dag_id, _ in processed_tasks})
     if all_dag_ids:
