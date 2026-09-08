@@ -171,6 +171,8 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
+            if status_code == HTTPStatus.UNAUTHORIZED:
+                raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
             raise AirflowException(message)
@@ -574,6 +576,13 @@ class KiotaRequestAdapterHook(BaseHook):
         query_parameters: dict[str, Any] | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
+        """
+        Resolve the url and query parameters of the page following ``response``.
+
+        The ``$skip`` offset is derived from ``query_parameters`` rather than from ``responses``:
+        callers accumulate whatever their own callbacks produced, so the entries are not guaranteed
+        to be the raw pages this offset would have to be counted from.
+        """
         if isinstance(response, dict):
             odata_count = response.get("@odata.count")
             if odata_count and query_parameters:
@@ -581,9 +590,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
                 if top and odata_count:
                     if len(response.get("value", [])) == top:
-                        results = responses()
-                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
-                        query_parameters["$skip"] = skip
+                        query_parameters["$skip"] = (query_parameters.get("$skip") or 0) + top
                         return url, query_parameters
             return response.get("@odata.nextLink"), query_parameters
         return None, query_parameters
@@ -720,14 +727,30 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except (RuntimeError, ValueError) as e:
+        except (PermissionError, RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,
                 e,
             )
-            self.cached_request_adapters.pop(self.conn_id, None)
+            await self.close()
             raise
+
+    async def close(self) -> None:
+        """Close the request adapter cached for this connection and evict it from the cache."""
+        _, request_adapter = self.cached_request_adapters.pop(self.conn_id, (None, None))
+
+        if not request_adapter:
+            return
+
+        try:
+            adapter = cast("HttpxRequestAdapter", request_adapter)
+            await adapter._http_client.aclose()
+        finally:
+            provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+            access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+            credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
+            await credential._credential.close()
 
     def request_information(
         self,

@@ -44,6 +44,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "Exécutions actives",
     "catchup": "Rattrapage",
     "dagRunTimeout": "Délai d'exécution du Dag",
     "defaultArgs": "Arguments par défaut",

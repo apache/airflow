@@ -125,16 +125,10 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
     yield from (f"{module_filename}:{lineno}" for lineno in visitor.error_linenos)
 
 
-def _conf_import_module(module_filename: str) -> str:
-    """Provider files must import ``conf`` from the compat SDK; everything else from core."""
-    if f"{os.sep}providers{os.sep}" in os.path.abspath(module_filename):
-        return "airflow.providers.common.compat.sdk"
-    return "airflow.configuration"
-
 
 def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
     context = CodemodContext(filename=module_filename)
-    AddImportsVisitor.add_needed_import(context, _conf_import_module(module_filename), "conf")
+    AddImportsVisitor.add_needed_import(context, "airflow.providers.common.compat.sdk", "conf")
     transformer = DefaultDeferrableTransformer()
 
     source_cst_tree = cst.parse_module(open(module_filename).read())
