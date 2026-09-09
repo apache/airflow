@@ -26,6 +26,16 @@
 Changelog
 ---------
 
+.. warning::
+  ``DatabricksSQLStatementsSensor`` now rejects the combination of ``statement`` and
+  ``statement_id`` when the Dag is parsed rather than when the task runs, and the check is
+  ``is not None``, so an empty string counts as provided. ``statement="SELECT 1"`` together
+  with ``statement_id=""`` — or with a ``statement_id`` template that renders to ``None``
+  under ``render_template_as_native_obj=True`` — ran the statement in 7.19.0 and now raises
+  at Dag parse time. Pass exactly one of the two and omit the other entirely instead of
+  passing an empty value. The argument-validation errors in this sensor are also now
+  ``ValueError`` rather than ``AirflowException``.
+
 7.19.0
 ......
 
