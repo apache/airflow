@@ -904,6 +904,12 @@ class TestFabAuthManager:
         result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
         assert result == expected_result
 
+    def test_get_authorized_assets(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = [1, 2]
+        result = auth_manager.get_authorized_assets(user=Mock(), method="GET", session=session)
+        assert result == {1, 2}
+
     def test_get_authorized_connections(self, auth_manager):
         session = Mock()
         session.execute.return_value.scalars.return_value.all.return_value = ["conn1", "conn2"]

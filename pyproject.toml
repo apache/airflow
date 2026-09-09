@@ -117,6 +117,9 @@ apache-airflow = "airflow.__main__:main"
 "apache.arrow" = [
     "apache-airflow-providers-apache-arrow>=0.1.0"
 ]
+"apache.beam" = [
+    "apache-airflow-providers-apache-beam>=5.8.1"
+]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
 ]
@@ -417,6 +420,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-arrow>=0.1.0",
+    "apache-airflow-providers-apache-beam>=5.8.1",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -1112,6 +1116,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/anthropic/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/arrow/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/beam/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/drill/src",
@@ -1455,6 +1461,7 @@ apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
 apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apache-beam = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1615,6 +1622,7 @@ apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
 apache-airflow-providers-anthropic = false
 apache-airflow-providers-apache-arrow = false
+apache-airflow-providers-apache-beam = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1782,6 +1790,7 @@ apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-anthropic = { workspace = true }
 apache-airflow-providers-apache-arrow = { workspace = true }
+apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
@@ -1925,6 +1934,7 @@ members = [
     "providers/amazon",
     "providers/anthropic",
     "providers/apache/arrow",
+    "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",

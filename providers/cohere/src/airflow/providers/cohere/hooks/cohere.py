@@ -110,6 +110,32 @@ class CohereHook(BaseHook):
             raise ValueError("Embeddings response is missing float_ field")
         return response.embeddings.float_
 
+    def rerank(
+        self,
+        *,
+        query: str,
+        documents: list[str],
+        model: str = "rerank-v3.5",
+        top_n: int | None = None,
+        max_tokens_per_doc: int | None = None,
+    ) -> dict[str, Any]:
+        """Rerank documents by their relevance to a query."""
+        rerank_kwargs: dict[str, Any] = {
+            "query": query,
+            "documents": documents,
+            "model": model,
+            "request_options": self.request_options,
+        }
+        if top_n is not None:
+            rerank_kwargs["top_n"] = top_n
+        if max_tokens_per_doc is not None:
+            rerank_kwargs["max_tokens_per_doc"] = max_tokens_per_doc
+
+        response = self.get_conn().rerank(
+            **rerank_kwargs,
+        )
+        return response.model_dump(mode="json")
+
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
