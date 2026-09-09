@@ -209,6 +209,31 @@ class TestCoerceUsageLimitsInvalidValues:
         with pytest.raises(ValueError, match="count_tokens_before_request"):
             coerce_usage_limits({"count_tokens_before_request": "maybe"})
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("cost_limit", []),
+            ("cost_limit", {}),
+            ("request_limit", {}),
+            ("request_limit", []),
+        ],
+        ids=[
+            "cost_limit-list",
+            "cost_limit-dict",
+            "request_limit-dict",
+            "request_limit-list",
+        ],
+    )
+    def test_non_numeric_container_raises_value_error_not_type_error(self, field, value):
+        """A templated field can render to any type -- a list or dict must be
+        rejected with this module's documented ``ValueError`` naming the field,
+        not an undocumented ``TypeError`` raised deep inside ``math.isfinite``
+        (which converts to ``float`` first and rejects non-numeric input)."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+
 
 class TestCoercersCompleteness:
     def test_every_field_type_has_a_coercer(self):

@@ -176,6 +176,17 @@ def _coerce_value(field: str, value: Any) -> Any:
         value = _coerce_decimal(field, str(value))
 
     if field_type in (Decimal, int):
+        # A value that reached here is neither a rendered string nor a bare
+        # int/float coerced above -- e.g. a Jinja template rendering to a list or
+        # dict. ``_validate_range`` -> ``_is_finite`` only handles Decimal/int/float
+        # and would otherwise raise an undocumented ``TypeError`` deep inside
+        # ``math.isfinite`` instead of this module's documented ``ValueError``.
+        if not isinstance(value, (Decimal, int, float)):
+            raise ValueError(
+                f"usage_limits[{field!r}] must be a number (got "
+                f"{type(value).__name__}: {_truncated_repr(value)}); "
+                "if it is templated, check the rendered value."
+            )
         _validate_range(field, value)
     return value
 
