@@ -10,17 +10,28 @@
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
+    "anyRunState": "Beliebiger Lauf",
+    "anyRunStatePlaceholder": "Beliebigen Laufzustand auswählen…",
     "favorite": {
       "all": "Alle",
       "favorite": "Favorisierte",
       "unfavorite": "Nicht favorisierte"
     },
+    "favoriteState": "Favorisierter Zustand",
+    "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
+    "lastRunState": "Letzter Lauf",
+    "lastRunStatePlaceholder": "Letzten Laufzustand auswählen…",
+    "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
     },
-    "runIdPatternFilter": "Dag Läufe suchen"
+    "pausedPlaceholder": "Pausierten Zustand auswählen…",
+    "pausedState": "Pausierter Zustand",
+    "requiresHitlAction": "Erfordert HITL-Aktion",
+    "runIdPatternFilter": "Dag Läufe suchen",
+    "timetableType": "Zeitplantyp"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -73,8 +84,14 @@
       "preventRunningTasks": "Zurücksetzen von laufenden Tasks verhindern",
       "queueNew": "Neue Tasks einplanen",
       "runOnLatestVersion": "Mit neuester Bündel-Version ausführen",
+      "runOnLatestVersionForced": "Verwendet immer die neueste Version — es gibt keine frühere Version, zu der zurückgekehrt werden kann",
       "upstream": "Vorangegangene"
     }
+  },
+  "runStateCounts": {
+    "label": "Laufstatus",
+    "loading": "Laufstatuszahlen werden geladen",
+    "tooltip": "{{state}}: {{formattedCount}} – klicken, um Läufe zu filtern"
   },
   "search": {
     "advanced": "Erweiterte Suche",
@@ -88,9 +105,9 @@
       "asc": "Sortiert nach Anzeigename (A-Z)",
       "desc": "Sortiert nach Anzeigename (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sortiert nach letztem Startdatum (Erster-Letzter)",
-      "desc": "Sortiert nach letztem Startdatum (Letzter-Erster)"
+    "lastRunAfter": {
+      "asc": "Nach spätestem Gelaufen-nach Zeitstempel sortieren (frühester–spätester)",
+      "desc": "Nach spätestem Gelaufen-nach Zeitstempel sortieren (spätester–frühester)"
     },
     "lastRunState": {
       "asc": "Sortiert nach dem Status des letzten Laufes (A-Z)",

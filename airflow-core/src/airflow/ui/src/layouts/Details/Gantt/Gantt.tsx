@@ -16,22 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex } from "@chakra-ui/react";
 import { useRef } from "react";
 import type { RefObject } from "react";
+
+import { Box, Flex } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
-import { useGroups } from "src/context/groups";
-import { useTimezone } from "src/context/timezone";
-import { NavigationModes, useNavigation } from "src/hooks/navigation";
+
 import {
   GANTT_AXIS_HEIGHT_PX,
   GANTT_ROW_OFFSET_PX,
   GANTT_TOP_PADDING_PX,
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
+
+import { useGroups } from "src/context/groups";
+import { useTimezone } from "src/context/timezone";
+import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries";

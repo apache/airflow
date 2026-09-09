@@ -16,6 +16,8 @@
     "deleteWarning": "The asset will lose this persisted state store entry.",
     "edit": "Edit Asset State Store",
     "emptyState": "Asset state store stores values scoped to an asset identity, shared across all Dag runs. Workers can write asset state store via the Task SDK.",
+    "entry_one": "Entry",
+    "entry_other": "Entries",
     "lastUpdatedBy": "Last Updated By",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",

@@ -56,12 +56,12 @@ def _get_next_available_cidr(vpc_id: str) -> str:
 
 @task
 def get_latest_ami_id():
-    """Returns the AMI ID of the most recently-created Amazon Linux image"""
+    """Returns the AMI ID of the most recently-created released Amazon Linux image"""
 
-    # Amazon is retiring AL2 in 2023 and replacing it with Amazon Linux 2022.
-    # This image prefix should be futureproof, but may need adjusting depending
-    # on how they name the new images.  This page should have AL2022 info when
-    # it comes available: https://aws.amazon.com/linux/amazon-linux-2022/faqs/
+    # Amazon Linux images are published with a description such as
+    # "Amazon Linux 2023 AMI 2023.9.20260819.0 arm64 HVM kernel-6.1", so this prefix matches every
+    # generation without needing an update when a new one is released. It also matches the preview
+    # images of unreleased generations, which are filtered out below.
     image_prefix = "Amazon Linux*"
     root_device_name = "/dev/xvda"
 
@@ -80,8 +80,20 @@ def get_latest_ami_id():
         ],
         Owners=["amazon"],
     )
+
+    # Preview images of an unreleased Amazon Linux generation are always newer than the latest released
+    # one, and they are not supported by every AWS service, so they must not be picked here. describe_images
+    # filters cannot express "does not contain", hence the filtering below.
+    released_images = [
+        image
+        for image in images["Images"]
+        if "preview" not in f"{image.get('Name', '')} {image.get('Description', '')}".lower()
+    ]
+    if not released_images:
+        raise ValueError("No released Amazon Linux AMI matching the requested criteria was found.")
+
     # Sort on CreationDate
-    return max(images["Images"], key=itemgetter("CreationDate"))["ImageId"]
+    return max(released_images, key=itemgetter("CreationDate"))["ImageId"]
 
 
 @task

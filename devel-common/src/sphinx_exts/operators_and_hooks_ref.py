@@ -29,9 +29,10 @@ import yaml
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 from docutils.statemachine import StringList
-from provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
+
+from sphinx_exts.provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 
 if TYPE_CHECKING:
     from docutils.nodes import Element
@@ -106,6 +107,7 @@ def _prepare_operators_data(tags: set[str] | None):
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
     all_hooks_by_integration = _prepare_resource_index(package_data, "hooks")
     all_sensors_by_integration = _prepare_resource_index(package_data, "sensors")
+    all_triggers_by_integration = _prepare_resource_index(package_data, "triggers")
     results = []
 
     for integration in to_display_integration:
@@ -115,6 +117,7 @@ def _prepare_operators_data(tags: set[str] | None):
         operators = all_operators_by_integration.get(integration["integration-name"])
         sensors = all_sensors_by_integration.get(integration["integration-name"])
         hooks = all_hooks_by_integration.get(integration["integration-name"])
+        triggers = all_triggers_by_integration.get(integration["integration-name"])
 
         if "how-to-guide" in item["integration"]:
             item["integration"]["how-to-guide"] = [_docs_path(d) for d in item["integration"]["how-to-guide"]]
@@ -124,7 +127,9 @@ def _prepare_operators_data(tags: set[str] | None):
             item["sensors"] = sensors
         if hooks:
             item["hooks"] = hooks
-        if operators or sensors or hooks:
+        if triggers:
+            item["triggers"] = triggers
+        if operators or sensors or hooks or triggers:
             results.append(item)
 
     return sorted(results, key=lambda d: d["integration"]["integration-name"].lower())
@@ -402,6 +407,19 @@ class LoggingDirective(BaseJinjaReferenceDirective):
         )
 
 
+class EmailBackendsDirective(BaseJinjaReferenceDirective):
+    """Generate list of email backends"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="email-backends",
+            template="email-backends.rst.jinja2",
+        )
+
+
 class AuthConfigurations(BaseJinjaReferenceDirective):
     """Generate list of configurations"""
 
@@ -553,6 +571,7 @@ def setup(app):
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
     app.add_directive("transfers-ref", TransfersReferenceDirective)
     app.add_directive("airflow-logging", LoggingDirective)
+    app.add_directive("airflow-email-backends", EmailBackendsDirective)
     app.add_directive("airflow-configurations", AuthConfigurations)
     app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
     app.add_directive("airflow-connections", ConnectionsDirective)
@@ -621,6 +640,19 @@ def secret_backends(header_separator: str):
             header_separator=header_separator,
             resource_type="secrets-backends",
             template="secret_backend.rst.jinja2",
+        )
+    )
+
+
+@cli.command()
+@option_header_separator
+def email_backends(header_separator: str):
+    """Renders Email Backends content"""
+    print(
+        _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="email-backends",
+            template="email-backends.rst.jinja2",
         )
     )
 

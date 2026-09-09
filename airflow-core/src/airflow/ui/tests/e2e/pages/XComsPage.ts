@@ -17,7 +17,9 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export class XComsPage extends BasePage {
   public static get xcomsUrl(): string {
@@ -36,7 +38,7 @@ export class XComsPage extends BasePage {
     this.collapseAllButton = page.getByTestId("collapse-all-button");
     this.expandAllButton = page.getByTestId("expand-all-button");
     this.xcomsTable = page.getByTestId("table-list");
-    this.tableRows = this.xcomsTable.locator("tbody tr");
+    this.tableRows = this.xcomsTable.locator(DATA_ROWS);
   }
 
   public async applyFilter(filterName: string, value: string): Promise<void> {
@@ -51,11 +53,12 @@ export class XComsPage extends BasePage {
 
     await filterOption.click();
 
-    const filterPill = this.page
-      .locator("div")
-      .filter({ hasText: `${filterName}:` })
-      .first();
-    const filterInput = filterPill.getByRole("textbox");
+    // The newly added pill enters edit mode immediately, and `filter-pill-input` is only
+    // rendered on the pill that is actively being edited — so this resolves to exactly one
+    // element. Previously this scoped through `page.locator("div").filter({ hasText: ... })`,
+    // which matches any ancestor whose descendant text contains "<filterName>:" and broke
+    // (matched 12 elements instead of 1) once #71554 restructured the filter bar's DOM.
+    const filterInput = this.page.getByTestId("filter-pill-input");
 
     await expect(filterInput).toBeVisible({ timeout: 30_000 });
     await filterInput.fill(value);
@@ -82,7 +85,7 @@ export class XComsPage extends BasePage {
       await expect(firstLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    const rows = this.xcomsTable.locator("tbody tr");
+    const rows = this.xcomsTable.locator(DATA_ROWS);
 
     await expect(rows).not.toHaveCount(0);
 
@@ -116,7 +119,7 @@ export class XComsPage extends BasePage {
       await expect(firstKeyCell).toContainText(keyPattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    const rows = this.xcomsTable.locator("tbody tr");
+    const rows = this.xcomsTable.locator(DATA_ROWS);
 
     await expect(rows).not.toHaveCount(0);
 

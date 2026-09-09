@@ -1147,9 +1147,16 @@
           "title": "Logical Date"
         },
         "start_date": {
-          "format": "date-time",
-          "title": "Start Date",
-          "type": "string"
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Date"
         },
         "end_date": {
           "anyOf": [

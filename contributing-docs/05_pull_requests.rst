@@ -171,7 +171,7 @@ tooling, with a comment explaining what needs to be fixed.
    Generic titles such as "Fix bug", "Update code", "Changes", single-word titles, or titles
    that only reference an issue number (e.g. "Fixes #12345") do not meet this bar.
 
-2. ** Golden Rule ** - in text descriptions - always use imperative mode, never use past
+2. **Golden Rule** - in text descriptions - always use imperative mode, never use past
    tense or conventional commits or any prefixes in the title take precious space and do not add any value, so they should be
    avoided. For example, instead of "feat: add new feature" or "Added this new feature"
    use "Add new feature". This is a common convention in many open source projects

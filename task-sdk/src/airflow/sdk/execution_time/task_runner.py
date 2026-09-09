@@ -1478,10 +1478,10 @@ def _defer_task(
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
     queue: str | None = None
-    # Currently, only task-associated BaseTrigger instances may have a non-None queue,
-    # and only when triggerer.queues_enabled conf is True.
+    # Only inherit the deferring task's queue when triggerer.queues_enabled conf is True
+    # and the trigger doesn't already manage its own queue (e.g. BaseEventTrigger, CallbackTrigger).
     if conf.getboolean("triggerer", "queues_enabled", fallback=False) and getattr(
-        defer.trigger, "supports_triggerer_queue", True
+        defer.trigger, "trigger_queue_inherited_from_task", True
     ):
         queue = ti.task.queue
 

@@ -24,7 +24,7 @@ from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
-from sqlalchemy import Index, Integer, String, case, select
+from sqlalchemy import ForeignKey, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
@@ -40,7 +40,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 
 class JobState(str, Enum):
@@ -101,6 +101,10 @@ class Job(Base, LoggingMixin):
     executor_class: Mapped[str | None] = mapped_column(String(500))
     hostname: Mapped[str | None] = mapped_column(String(500))
     unixname: Mapped[str | None] = mapped_column(String(1000))
+    team_name: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True
+    )
+    bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),

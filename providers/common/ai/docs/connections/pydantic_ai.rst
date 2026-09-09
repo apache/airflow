@@ -118,9 +118,15 @@ Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environmen
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-6-v1:0\"}"
     }
 
-**Google Vertex AI**
+This still works — the ``bedrock:`` model prefix and the environment-variable
+credential chain are unchanged. For AWS-specific fields with dedicated UI
+inputs (region, IAM keys, profile, bearer token, timeouts) instead of raw
+``extra`` JSON, use the :doc:`pydantic_ai_bedrock` connection type.
 
-Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the environment:
+**Google Vertex AI / Gemini API**
+
+Leave password empty and configure ``GOOGLE_API_KEY`` (or ``GEMINI_API_KEY``)
+in the environment:
 
 .. code-block:: json
 
@@ -128,6 +134,15 @@ Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the env
         "conn_type": "pydanticai",
         "extra": "{\"model\": \"google:gemini-2.0-flash\"}"
     }
+
+This connects to the Gemini API (Google AI Studio), not Vertex AI — pydantic-ai's
+plain ``google:`` provider only reads an API key
+(``GOOGLE_API_KEY``/``GEMINI_API_KEY``); it does not fall back to
+``GOOGLE_APPLICATION_CREDENTIALS`` or any other Application Default
+Credentials source. For project/location-scoped Vertex AI access — service
+account or Application Default Credentials — use the
+:doc:`pydantic_ai_vertex` connection type with a ``google-cloud:`` model
+prefix instead.
 
 Model Resolution Order
 ----------------------

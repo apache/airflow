@@ -1107,6 +1107,24 @@ def test_serialize_sensitive_kwargs():
     assert "value2" not in trigger_row.encrypted_kwargs
 
 
+def test_from_object_reads_queue_from_trigger():
+    """A ``queue`` attribute on the trigger object is carried onto the persisted row."""
+    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+    trigger_instance.queue = "custom-queue"
+
+    trigger_row: Trigger = Trigger.from_object(trigger_instance)
+
+    assert trigger_row.queue == "custom-queue"
+
+
+def test_from_object_defaults_queue_to_none_when_not_set_on_trigger():
+    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+
+    trigger_row: Trigger = Trigger.from_object(trigger_instance)
+
+    assert trigger_row.queue is None
+
+
 def test_kwargs_not_encrypted():
     """
     Tests that we don't decrypt kwargs if they aren't encrypted.

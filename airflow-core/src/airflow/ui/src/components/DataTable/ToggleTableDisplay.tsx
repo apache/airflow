@@ -19,7 +19,7 @@
 import { useTranslation } from "react-i18next";
 import { FiAlignJustify, FiGrid } from "react-icons/fi";
 
-import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+import { ButtonGroupToggle } from "src/system-components";
 
 type Display = "card" | "table";
 
@@ -39,7 +39,6 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
         { label: <FiGrid />, title: translate("toggleCardView"), value: "card" },
         { label: <FiAlignJustify />, title: translate("toggleTableView"), value: "table" },
       ]}
-      pb={2}
       value={display}
     />
   );

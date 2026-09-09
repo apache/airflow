@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "Bölüm"
-    },
-    "title": "Airflow Yapılandırması"
+    }
   },
   "connections": {
     "add": "Bağlantı Ekle",

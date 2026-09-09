@@ -58,6 +58,9 @@ VERTEX_AI_RAY_CLUSTER_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{location}/ray-clusters/{cluster_id}?project={project_id}"
 )
 VERTEX_AI_RAY_CLUSTER_LIST_LINK = VERTEX_AI_BASE_LINK + "/ray?project={project_id}"
+VERTEX_AI_CUSTOM_JOB_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{region}/training/{custom_job_id}/cpu?project={project_id}"
+)
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -202,3 +205,11 @@ class VertexAIRayClusterListLink(BaseGoogleLink):
     name = "Ray Cluster List"
     key = "ray_cluster_list_conf"
     format_str = VERTEX_AI_RAY_CLUSTER_LIST_LINK
+
+
+class VertexAICustomJobLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI CustomJob link."""
+
+    name = "Vertex AI Custom Job"
+    key = "custom_job_conf"
+    format_str = VERTEX_AI_CUSTOM_JOB_LINK

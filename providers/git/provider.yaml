@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1785633505
+source-date-epoch: 1787011200
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 0.4.3
   - 0.4.2
   - 0.4.1
   - 0.4.0
@@ -80,4 +81,7 @@ connection-types:
         host: Repository URL
         password: Access Token (optional)
       placeholders:
-        extra: '{"key_file": "optional/path/to/keyfile", "private_key": "optional inline private key"}'
+        extra: '{"key_file": "optional/path/to/keyfile", "private_key": "optional inline private key",
+          "private_key_passphrase": "", "strict_host_key_checking": "accept-new", "known_hosts_file": "",
+          "ssh_config_file": "", "host_proxy_cmd": "", "ssh_port": "", "github_app_id": "",
+          "github_installation_id": ""}'

@@ -46,6 +46,7 @@ All other parameters are optional and described in documentation for ``Databrick
 * ``jar_params``
 * ``spark_submit_params``
 * ``idempotency_token``
+* ``performance_target``
 * ``repair_run``
 * ``cancel_previous_runs``
 
@@ -135,6 +136,10 @@ To opt out and always trigger a fresh run on retry, set ``durable=False``:
 Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the Triggerer
 already tracks the run across the wait, so deferrable mode takes precedence and ``durable`` has no
 effect.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always triggers a fresh run on retry, exactly as before this feature existed.
 
 
 DatabricksRunNowDeferrableOperator

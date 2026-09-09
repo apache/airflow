@@ -22,6 +22,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { HITLDetailHistory, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { HITLResponseForm } from "./HITLResponseForm";
@@ -31,6 +32,7 @@ import { HITLResponseForm } from "./HITLResponseForm";
 // ---------------------------------------------------------------------------
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string) => key,
   }),

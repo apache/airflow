@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Doit se terminer dans un délai de {{interval}} après {{reference}}",
+    "completionRuleDynamic": "Doit se terminer dans un intervalle variable mesuré à partir de {{reference}}",
     "count_many": "{{count}} échéances",
     "count_one": "{{count}} échéance",
     "count_other": "{{count}} échéances",
@@ -150,13 +151,7 @@
       "label": "Nombre de Runs du Dag"
     },
     "dependencies": {
-      "label": "Dépendances",
-      "options": {
-        "allDagDependencies": "Toutes les dépendances du Dag",
-        "externalConditions": "Conditions externes",
-        "onlyTasks": "Tâches uniquement"
-      },
-      "placeholder": "Dépendances"
+      "allDagDependencies": "Toutes les dépendances du Dag"
     },
     "graphDirection": {
       "label": "Orientation du graphe"

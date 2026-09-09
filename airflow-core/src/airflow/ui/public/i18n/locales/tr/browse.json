@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Etkinlik Türü"
-    },
-    "title": "Denetim Günlüğü"
+    }
   },
   "deadlines": {
     "columns": {

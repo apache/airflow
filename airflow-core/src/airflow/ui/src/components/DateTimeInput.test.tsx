@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent } from "react";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import type { ChangeEvent } from "react";
 import type { Mock } from "vitest";
 import { describe, it, expect, vi } from "vitest";
 
@@ -34,96 +35,88 @@ dayjs.extend(timezone);
 
 type ChangeHandler = (event: ChangeEvent<HTMLInputElement>) => void;
 
-const renderWithTimezone = (selectedTimezone: string) => {
+// The date + time inputs live inside a popover, so the trigger has to be opened before they exist.
+const openPicker = async (selectedTimezone: string, props?: { endOfDay?: boolean; value?: string }) => {
   const onChange: Mock<ChangeHandler> = vi.fn();
 
   render(
     <TimezoneContext.Provider value={{ selectedTimezone, setSelectedTimezone: vi.fn() }}>
-      <DateTimeInput onChange={onChange} value="" />
+      <DateTimeInput onChange={onChange} value="" {...props} />
     </TimezoneContext.Provider>,
     { wrapper: Wrapper },
   );
 
-  return { input: screen.getByTestId<HTMLInputElement>("datetime-input"), onChange };
-};
+  fireEvent.click(screen.getByTestId("datetime-input"));
 
-const paste = (input: HTMLInputElement, text: string) =>
-  fireEvent.paste(input, { clipboardData: { getData: () => text } });
+  return {
+    dateInput: await screen.findByPlaceholderText<HTMLInputElement>("YYYY/MM/DD"),
+    onChange,
+    timeInput: screen.getByPlaceholderText<HTMLInputElement>("HH:mm"),
+  };
+};
 
 const lastEmittedValue = (onChange: Mock<ChangeHandler>): string | undefined =>
   onChange.mock.calls.at(-1)?.[0].target.value;
 
-describe("DateTimeInput onPaste timezone handling", () => {
-  it("renders pasted UTC instant in the selected UTC timezone", () => {
-    const { input, onChange } = renderWithTimezone("UTC");
+const type = (input: HTMLInputElement, value: string) => fireEvent.change(input, { target: { value } });
 
-    paste(input, "2026-01-15T10:30:00Z");
+describe("DateTimeInput", () => {
+  it("emits the start of the day when only a date is entered", async () => {
+    const { dateInput, onChange } = await openPicker("UTC");
 
-    expect(input.value).toBe("2026-01-15T10:30");
+    type(dateInput, "2026/01/15");
+
+    expect(lastEmittedValue(onChange)).toBe("2026-01-15T00:00:00.000Z");
+  });
+
+  it("emits the end of the day when only a date is entered and endOfDay is set", async () => {
+    const { dateInput, onChange } = await openPicker("UTC", { endOfDay: true });
+
+    type(dateInput, "2026/01/15");
+
+    expect(lastEmittedValue(onChange)).toBe("2026-01-15T23:59:59.999Z");
+  });
+
+  it("combines the entered date and time", async () => {
+    const { dateInput, onChange, timeInput } = await openPicker("UTC");
+
+    type(dateInput, "2026/01/15");
+    type(timeInput, "10:30");
+
     expect(lastEmittedValue(onChange)).toBe("2026-01-15T10:30:00.000Z");
   });
 
-  it("converts pasted UTC instant into a non-UTC selected timezone", () => {
-    const { input, onChange } = renderWithTimezone("Asia/Seoul");
+  it("interprets the entered wall-clock time in the selected timezone", async () => {
+    const { dateInput, onChange, timeInput } = await openPicker("Asia/Seoul");
 
-    paste(input, "2026-01-15T10:30:00Z");
+    type(dateInput, "2026/01/15");
+    type(timeInput, "10:30");
 
-    // 10:30 UTC == 19:30 Asia/Seoul (+09:00)
-    expect(input.value).toBe("2026-01-15T19:30");
-    expect(lastEmittedValue(onChange)).toBe("2026-01-15T10:30:00.000Z");
-  });
-
-  it("converts pasted offset value into the selected timezone", () => {
-    const { input, onChange } = renderWithTimezone("UTC");
-
-    paste(input, "2026-01-15T10:30:00+09:00");
-
-    // 10:30 in +09:00 == 01:30 UTC
-    expect(input.value).toBe("2026-01-15T01:30");
+    // 10:30 in Asia/Seoul (+09:00) == 01:30 UTC
     expect(lastEmittedValue(onChange)).toBe("2026-01-15T01:30:00.000Z");
   });
 
-  it("treats a bare datetime as being in the selected timezone", () => {
-    const { input, onChange } = renderWithTimezone("Asia/Seoul");
+  it("splits an incoming value into the date and time fields in the selected timezone", async () => {
+    const { dateInput, timeInput } = await openPicker("Asia/Seoul", { value: "2026-01-15T10:30:00Z" });
 
-    paste(input, "2026-01-15T10:30");
-
-    // bare 10:30 interpreted as Asia/Seoul (+09:00) == 01:30 UTC
-    expect(input.value).toBe("2026-01-15T10:30");
-    expect(lastEmittedValue(onChange)).toBe("2026-01-15T01:30:00.000Z");
+    // 10:30 UTC == 19:30 Asia/Seoul
+    expect(dateInput.value).toBe("2026/01/15");
+    expect(timeInput.value).toBe("19:30");
   });
 
-  it("ignores invalid pasted strings", () => {
-    const { input, onChange } = renderWithTimezone("UTC");
+  it("emits an empty value when the date is cleared", async () => {
+    const { dateInput, onChange } = await openPicker("UTC", { value: "2026-01-15T10:30:00Z" });
 
-    paste(input, "not a date");
+    type(dateInput, "");
 
-    expect(input.value).toBe("");
+    expect(lastEmittedValue(onChange)).toBe("");
+  });
+
+  it("does not emit while the date is an invalid format", async () => {
+    const { dateInput, onChange } = await openPicker("UTC");
+
+    type(dateInput, "2026/99/99");
+
     expect(onChange).not.toHaveBeenCalled();
-  });
-
-  it("does not fire a pending debounced typing call after a paste", () => {
-    vi.useFakeTimers();
-    try {
-      const { input, onChange } = renderWithTimezone("UTC");
-
-      // 1. User types — schedules debouncedOnDateChange (1s delay).
-      fireEvent.change(input, { target: { value: "2026-01-15T05:00" } });
-      expect(onChange).not.toHaveBeenCalled();
-
-      // 2. Within the debounce window, user pastes — fires onChange immediately.
-      vi.advanceTimersByTime(300);
-      paste(input, "2026-12-31T23:59:00Z");
-      expect(onChange).toHaveBeenCalledTimes(1);
-
-      // 3. Advance past the debounce delay. The pending typed call must NOT fire,
-      // otherwise the parent form gets a redundant onChange (and any side effects
-      // attached to it run twice).
-      vi.advanceTimersByTime(2000);
-      expect(onChange).toHaveBeenCalledTimes(1);
-      expect(lastEmittedValue(onChange)).toBe("2026-12-31T23:59:00.000Z");
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });

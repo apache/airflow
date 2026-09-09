@@ -119,7 +119,7 @@ shared_distributions = [
 ]
 ```
 
-This allows `prek` check to automatically verify if the shared distributio is properly configured in
+This allows `prek` check to automatically verify if the shared distribution is properly configured in
 your source tree and `pyproject.toml`.
 
 You should also have `_shared` folder created in your source tree to be able to symlink the shared
@@ -133,7 +133,7 @@ but you can also do it manually (for each shared distribution used):
    `ln -s ../../shared/timezones/src/airflow_shared/timezones src/airflow/sdk/_shared/timezones`
 
 * adding force-include in your `pyproject.toml` to have hatchling copy the source files instead of
-  symling when `.sdist` distribution is built:
+  symlink when `.sdist` distribution is built:
 
 ```toml
 [tool.hatch.build.targets.sdist.force-include]

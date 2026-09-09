@@ -42,6 +42,36 @@ then add the following lines to your configuration file e.g. ``airflow.cfg``
     statsd_port = 8125
     statsd_prefix = airflow
 
+Sending metrics over a Unix Domain Socket
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Metrics can be sent over a Unix Domain Socket instead of UDP by setting
+``statsd_socket_path``:
+
+.. code-block:: ini
+
+    [metrics]
+    statsd_on = True
+    statsd_socket_path = /var/run/statsd/statsd.sock
+    statsd_prefix = airflow
+
+When ``statsd_socket_path`` is set, ``statsd_host``, ``statsd_port``, and
+``statsd_ipv6`` are ignored.
+
+The standard StatsD backend uses a stream Unix socket. When the Datadog backend
+is enabled, both stream and datagram Unix sockets are supported:
+
+.. code-block:: ini
+
+    [metrics]
+    statsd_datadog_enabled = True
+    statsd_socket_path = /var/run/datadog/dsd.socket
+    statsd_prefix = airflow
+
+For maximum compatibility, configure a plain filesystem path. The Datadog
+backend additionally accepts ``unix://``, ``unixgram://``, and
+``unixstream://`` URLs.
+
 If you want to use a custom StatsD client instead of the default one provided by Airflow,
 the following key must be added to the configuration file alongside the module path of your
 custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`.
@@ -51,7 +81,19 @@ custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`
     [metrics]
     statsd_custom_client_path = x.y.customclient
 
+When ``statsd_socket_path`` is configured, a custom client must inherit from
+``statsd.UnixSocketStatsClient``. Otherwise, it must inherit from
+``statsd.StatsClient``.
+
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
+.. note::
+
+    StatsD has no resource concept, so metrics cannot be attributed to the process that
+    produced them. When several processes run the same component, such as schedulers in high
+    availability, each exports the same series and the server keeps whichever value arrived last.
+    Use OpenTelemetry to tell them apart, as described in
+    :ref:`identifying-components-and-their-instances`.
 
 
 Setup - OpenTelemetry
@@ -96,6 +138,51 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
 
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
+
+
+.. _identifying-components-and-their-instances:
+
+Identifying components and their instances
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+OpenTelemetry labels each metric with the resource that produced it. Two resource attributes
+decide how much of a deployment can be told apart:
+
+``service.name``
+    Which component reported the metric. It defaults to ``airflow`` for every Airflow process, so
+    a scheduler, a triggerer and a worker arrive under one name. Set it per component to attribute
+    a metric to the kind of process that produced it.
+
+``service.instance.id``
+    Which process of that component reported the metric. It is unset by default, so processes
+    running the same component (e.g. 2+ schedulers) are indistinguishable. Set it per process
+    to attribute a metric to one of them.
+
+Airflow reads ``service.name`` from ``OTEL_SERVICE_NAME``, and every other resource attribute from
+``OTEL_RESOURCE_ATTRIBUTES``:
+
+.. code-block:: bash
+
+    # on one of the schedulers
+    export OTEL_SERVICE_NAME="airflow-scheduler"
+    export OTEL_RESOURCE_ATTRIBUTES="service.instance.id=$(hostname)"
+
+Processes that share a resource also share a series, and the backend keeps whichever export
+arrived last. When several processes run the same component, data are lost instead of aggregated:
+each scheduler samples the metadata database on its own loop, so a gauge such as
+``pool.open_slots`` reports an arbitrary scheduler's sample rather than a value derived from all
+of them.
+
+Once each process is identified, its samples form their own series and can be combined
+deliberately — for example, the lowest number of open slots any scheduler observed:
+
+.. code-block:: text
+
+    min by (pool_name) (airflow_pool_open_slots)
+
+How the attributes surface depends on the backend. Those implementing the OpenTelemetry
+`Prometheus compatibility <https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/>`_
+spec expose them as the ``job`` and ``instance`` labels.
 
 
 Enable Https
