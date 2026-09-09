@@ -1220,6 +1220,31 @@ class _ProducingTaskAssetsFilter(BaseParam[str]):
         return select.where(AssetModel.producing_tasks.any(task_id=self.value))
 
 
+class _ConsumingTaskAssetsFilter(BaseParam[str]):
+    """Filter on the basis of consuming task, scoped to the dag that owns it, if available."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.dag_id: str | None = None
+
+    @classmethod
+    def depends(
+        cls,
+        consuming_task_id: str | None = Query(default=None),
+        consuming_task_dag_id: str | None = Query(default=None),
+    ) -> _ConsumingTaskAssetsFilter:
+        instance = cls().set_value(consuming_task_id)
+        instance.dag_id = consuming_task_dag_id
+        return instance
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.dag_id is not None:
+            return select.where(AssetModel.consuming_tasks.any(dag_id=self.dag_id, task_id=self.value))
+        return select.where(AssetModel.consuming_tasks.any(task_id=self.value))
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -1954,6 +1979,9 @@ QueryConsumingDagAssetsFilter = Annotated[
 ]
 QueryProducingTaskAssetsFilter = Annotated[
     _ProducingTaskAssetsFilter, Depends(_ProducingTaskAssetsFilter.depends)
+]
+QueryConsumingTaskAssetsFilter = Annotated[
+    _ConsumingTaskAssetsFilter, Depends(_ConsumingTaskAssetsFilter.depends)
 ]
 QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[

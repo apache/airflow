@@ -34,6 +34,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagbundle import DagBundleModel
@@ -819,9 +820,12 @@ class TestGetAssetsUi:
         session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.now()))
         session.commit()
 
-        response = test_client.get("/assets?has_events=true")
-        assert response.status_code == 200
-        assert [a["name"] for a in response.json()["assets"]] == ["evented"]
+        response_has_events = test_client.get("/assets?has_events=true")
+        response_no_events = test_client.get("/assets?has_events=false")
+        assert response_has_events.status_code == 200
+        assert [a["name"] for a in response_has_events.json()["assets"]] == ["evented"]
+        assert response_no_events.status_code == 200
+        assert [a["name"] for a in response_no_events.json()["assets"]] == ["never"]
 
     def test_filter_by_is_alias(self, test_client, session):
         is_aliased = AssetModel(name="is_aliased", uri="s3://bucket/target", group="asset")
@@ -902,6 +906,53 @@ class TestGetAssetsUi:
         response = test_client.get("/assets?producing_task_id=extract_data&producing_dag_id=target_dag")
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["produced_by_target_dag"]
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filter_by_consuming_task_id(self, test_client, session):
+        consumed = AssetModel(name="consumed", uri="s3://bucket/consumed", group="asset")
+        not_consumed = AssetModel(name="not_consumed", uri="s3://bucket/not_consumed", group="asset")
+        session.add_all([consumed, not_consumed])
+        session.add(AssetActive.for_asset(consumed))
+        session.add(AssetActive.for_asset(not_consumed))
+        session.add(DagModel(dag_id="consumer_task_dag", bundle_name="testing"))
+        session.add(TaskInletAssetReference(dag_id="consumer_task_dag", task_id="read_data", asset=consumed))
+        session.commit()
+
+        response = test_client.get("/assets?consuming_task_id=read_data")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["consumed"]
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filter_by_consuming_task_id_scoped_to_dag_id(self, test_client, session):
+        """A task_id can be reused across Dags; consuming_task_dag_id disambiguates which one is meant."""
+        consumed_by_target_dag = AssetModel(
+            name="consumed_by_target_dag", uri="s3://bucket/ct1", group="asset"
+        )
+        consumed_by_other_dag = AssetModel(name="consumed_by_other_dag", uri="s3://bucket/ct2", group="asset")
+        session.add_all([consumed_by_target_dag, consumed_by_other_dag])
+        session.add(AssetActive.for_asset(consumed_by_target_dag))
+        session.add(AssetActive.for_asset(consumed_by_other_dag))
+        session.add_all(
+            [
+                DagModel(dag_id="target_task_dag", bundle_name="testing"),
+                DagModel(dag_id="other_task_dag", bundle_name="testing"),
+            ]
+        )
+        session.add(
+            TaskInletAssetReference(
+                dag_id="target_task_dag", task_id="read_data", asset=consumed_by_target_dag
+            )
+        )
+        session.add(
+            TaskInletAssetReference(dag_id="other_task_dag", task_id="read_data", asset=consumed_by_other_dag)
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/assets?consuming_task_id=read_data&consuming_task_dag_id=target_task_dag"
+        )
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["consumed_by_target_dag"]
 
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of

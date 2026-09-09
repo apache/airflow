@@ -177,6 +177,8 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
 * @param data.consumingDagId
 * @param data.producingTaskId
 * @param data.producingDagId
+* @param data.consumingTaskId
+* @param data.consumingTaskDagId
 * @param data.onlyActive
 * @param data.lastAssetEventTimestampGte
 * @param data.lastAssetEventTimestampGt
@@ -186,8 +188,10 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, { consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }: {
+export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, { consumingDagId, consumingTaskDagId, consumingTaskId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }: {
   consumingDagId?: string;
+  consumingTaskDagId?: string;
+  consumingTaskId?: string;
   dagIds?: string[];
   groupPattern?: string;
   groupPrefixPattern?: string;
@@ -208,7 +212,7 @@ export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, {
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssetsUi({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ consumingDagId, consumingTaskDagId, consumingTaskId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssetsUi({ consumingDagId, consumingTaskDagId, consumingTaskId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }) });
 /**
 * Next Run Assets
 * @param data The data for the request.

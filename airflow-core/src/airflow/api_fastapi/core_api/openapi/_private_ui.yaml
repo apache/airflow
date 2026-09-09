@@ -249,6 +249,22 @@ paths:
           - type: string
           - type: 'null'
           title: Producing Dag Id
+      - name: consuming_task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Consuming Task Id
+      - name: consuming_task_dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Consuming Task Dag Id
       - name: only_active
         in: query
         required: false

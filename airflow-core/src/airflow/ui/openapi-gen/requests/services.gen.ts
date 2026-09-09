@@ -426,6 +426,8 @@ export class AssetService {
      * @param data.consumingDagId
      * @param data.producingTaskId
      * @param data.producingDagId
+     * @param data.consumingTaskId
+     * @param data.consumingTaskDagId
      * @param data.onlyActive
      * @param data.lastAssetEventTimestampGte
      * @param data.lastAssetEventTimestampGt
@@ -455,6 +457,8 @@ export class AssetService {
                 consuming_dag_id: data.consumingDagId,
                 producing_task_id: data.producingTaskId,
                 producing_dag_id: data.producingDagId,
+                consuming_task_id: data.consumingTaskId,
+                consuming_task_dag_id: data.consumingTaskDagId,
                 only_active: data.onlyActive,
                 last_asset_event_timestamp_gte: data.lastAssetEventTimestampGte,
                 last_asset_event_timestamp_gt: data.lastAssetEventTimestampGt,
