@@ -1185,14 +1185,50 @@ class TestAsyncKubernetesHook:
         assert kube_client is None
 
     @pytest.mark.asyncio
-    async def test_load_config_with_several_params(self, sdk_connection_not_found):
+    @pytest.mark.parametrize(
+        "connection_extras",
+        [
+            pytest.param({}, id="no_connection_extras"),
+            pytest.param({"kube_config_path": ASYNC_CONFIG_PATH}, id="over_conn_kube_config_path"),
+        ],
+    )
+    @mock.patch(f"{HOOK_MODULE}.async_config.load_kube_config")
+    async def test_load_config_with_config_file(self, mock_load_kube_config, connection_extras, tmp_path):
+        kubeconfig_file = tmp_path / "config"
+        kubeconfig_file.write_text(
+            "current-context: ctx1\n"
+            "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+            "users:\n- name: user1\n  user:\n    exec:\n      command: aws eks get-token\n"
+        )
+
+        hook = AsyncKubernetesHook(connection_extras=connection_extras, config_file=str(kubeconfig_file))
+        await hook._load_config()
+        await hook._load_config()
+
+        expected_call = mock.call(
+            config_file=str(kubeconfig_file),
+            client_configuration=hook.client_configuration,
+            context=None,
+        )
+        assert mock_load_kube_config.await_args_list == [expected_call, expected_call]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("competing_kwargs", "connection_extras"),
+        [
+            pytest.param({"in_cluster": True}, {}, id="in_cluster"),
+            pytest.param({"config_dict": {"test": "kube"}}, {}, id="config_dict"),
+            pytest.param({}, {"kube_config": '{"test": "kube"}'}, id="kube_config"),
+        ],
+    )
+    async def test_load_config_with_mutually_exclusive_params(self, competing_kwargs, connection_extras):
         hook = AsyncKubernetesHook(
-            conn_id=CONN_ID,
-            in_cluster=True,
+            connection_extras=connection_extras,
             config_file=ASYNC_CONFIG_PATH,
             cluster_context=None,
+            **competing_kwargs,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match="mutually exclusive"):
             await hook._load_config()
 
     @pytest.mark.parametrize(
