@@ -29,7 +29,16 @@ from airflow_shared.plugins_manager import (
     EntryPointSource,
     PluginsDirectorySource,
     _load_entrypoint_plugins,
+    _load_plugins_from_plugin_directory,
 )
+
+_PLUGIN_SOURCE = """
+from airflow_shared.plugins_manager import AirflowPlugin
+
+
+class Plugin(AirflowPlugin):
+    name = "{name}"
+"""
 
 
 @pytest.fixture
@@ -110,6 +119,32 @@ class TestPluginsManager:
                 "test.plugins.test_plugins_manager",
                 "my_fake_module not found",
             ) in import_errors.items()
+
+
+class TestLoadPluginsFromPluginDirectory:
+    def test_example_plugins_airflowignore_uses_ignore_file_syntax(self, tmp_path, monkeypatch):
+        """The example plugins folder is filtered with the same ignore syntax as the plugins folder."""
+        example_plugins = tmp_path / "example_plugins_for_test"
+        example_plugins.mkdir()
+        (example_plugins / "__init__.py").touch()
+        # ``^`` and ``$`` are literal characters to the glob reader, so only the regexp reader matches.
+        (example_plugins / ".airflowignore").write_text(r"^ignored_.*\.py$")
+        for stem in ("kept_plugin", "ignored_plugin"):
+            (example_plugins / f"{stem}.py").write_text(_PLUGIN_SOURCE.format(name=stem))
+        plugins_folder = tmp_path / "plugins"
+        plugins_folder.mkdir()
+        monkeypatch.syspath_prepend(tmp_path)
+        monkeypatch.delitem(sys.modules, "example_plugins_for_test", raising=False)
+
+        plugins, import_errors = _load_plugins_from_plugin_directory(
+            plugins_folder=str(plugins_folder),
+            load_examples=True,
+            example_plugins_module="example_plugins_for_test",
+            ignore_file_syntax="regexp",
+        )
+
+        assert import_errors == {}
+        assert [plugin.name for plugin in plugins] == ["kept_plugin"]
 
 
 class TestAirflowPluginTeamName:

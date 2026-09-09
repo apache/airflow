@@ -241,7 +241,7 @@ def _load_plugins_from_plugin_directory(
         log.debug("Note: Loading plugins from examples as well: %s", plugins_folder)
         example_plugins = importlib.import_module(example_plugins_module)
         example_plugins_folder = next(iter(example_plugins.__path__))
-        example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")
+        example_files = find_path_from_directory(example_plugins_folder, ".airflowignore", ignore_file_syntax)
         plugin_search_locations.append((example_plugins.__name__, example_files))
 
     plugins: list[AirflowPlugin] = []
