@@ -62,6 +62,13 @@ on the Responses API, so this operator has no cost cap. For a monetary limit, us
 fail the request: the response comes back with ``status="incomplete"`` and truncated
 ``output_text``, so ``return_value`` will be the truncated text, not an error.
 
+A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespace-only -- for
+example ``max_output_tokens="{{ params.tokens or '' }}"`` when ``params.tokens`` is unset -- is
+treated as "no ceiling for this run" rather than raising. This only applies when the same run does
+not also set the corresponding key in ``response_kwargs``: the mutually-exclusive-with-``response_kwargs``
+check happens at task definition (Dag-parse) time and fires regardless of what the template later
+renders to.
+
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
     :start-after: [START howto_operator_openai_response]
