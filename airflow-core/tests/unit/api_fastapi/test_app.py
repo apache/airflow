@@ -90,12 +90,15 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views,
 
 
 @pytest.mark.parametrize("apps", ["all", "core", "execution"])
-def test_access_log_middleware_installed_for_every_apps_selection(apps, client):
+def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps, client):
     """Both server backends disable their own access logger, so a selection that skips this
-    middleware has no access logging at all."""
+    middleware has no access logging at all. It must also stay outermost so it times the full
+    request including inner middlewares (GZip compression in particular — see #60165); the
+    test default config has no CORS so index 0 is HttpAccessLogMiddleware."""
     installed = [m.cls for m in client(apps=apps).app.user_middleware]
 
     assert installed.count(HttpAccessLogMiddleware) == 1
+    assert installed[0] is HttpAccessLogMiddleware
 
 
 def test_catch_all_route_last(client):
