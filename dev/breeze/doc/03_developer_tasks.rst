@@ -51,10 +51,14 @@ as follows:
     protocol not available
     Error 1 returned
 
-Try adding ``--builder=default`` to your command. For example:
+If autodetection picked a stale Docker Desktop context, point Breeze at a working socket
+with ``--docker-host`` (or set ``DOCKER_HOST``), or force a known context / Buildx builder
+with ``--builder``. For example:
 
 .. code-block:: bash
 
+    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.10 --backend mysql --mysql-version 8.0
+    # or:
     breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the

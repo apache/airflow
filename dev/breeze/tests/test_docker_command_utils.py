@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from unittest import mock
 from unittest.mock import call
 
@@ -33,6 +34,8 @@ from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
     bring_all_compose_projects_down,
     check_docker_compose_version,
+    check_docker_is_running,
+    check_docker_permission_denied,
     check_docker_version,
     discover_running_compose_projects,
     enter_shell,
@@ -41,6 +44,61 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     pull_images_with_retries,
 )
+
+
+@pytest.mark.parametrize(
+    ("exception", "expected_message"),
+    [
+        pytest.param(
+            subprocess.TimeoutExpired(["docker", "info"], 30),
+            "[error]Docker did not respond within 30 seconds.[/]\n"
+            "[warning]Please make sure Docker is running and responsive.[/]",
+            id="timeout",
+        ),
+        pytest.param(
+            FileNotFoundError(2, "No such file or directory", "docker"),
+            "[error]Docker executable was not found.[/]\n"
+            "[warning]Please install Docker and ensure `docker` is available on PATH.[/]",
+            id="missing-executable",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_check_docker_is_running_reports_unavailable_docker(
+    mock_run_command, mock_console_print, exception, expected_message
+):
+    mock_run_command.side_effect = exception
+
+    with pytest.raises(SystemExit) as error:
+        check_docker_is_running()
+
+    assert error.value.code == 1
+    mock_run_command.assert_called_once_with(
+        ["docker", "info"],
+        no_output_dump_on_exception=True,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    mock_console_print.assert_called_once_with(expected_message)
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_check_docker_permission_denied_uses_bounded_info_probe(mock_run_command):
+    mock_run_command.return_value.returncode = 0
+
+    assert check_docker_permission_denied() is False
+
+    mock_run_command.assert_called_once_with(
+        ["docker", "info"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
