@@ -143,9 +143,11 @@ Parameters
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
-  skipping the downstream tasks.  Generally discouraged.  Default ``False``.
+  skipping the downstream tasks.  Generally discouraged.  Only takes effect
+  with ``require_approval=True``.  Default ``False``.
 - ``ignore_downstream_trigger_rules``: If ``True``, a rejected review skips every
-  downstream task rather than only the direct ones.  Default ``False``.
+  downstream task rather than only the direct ones.  Only takes effect with
+  ``require_approval=True``.  Default ``False``.
 
 Logging
 -------

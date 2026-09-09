@@ -50,10 +50,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param fail_on_reject: If ``True``, a rejected review fails the task
         instead of skipping the downstream tasks. Generally discouraged,
         as for :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`.
-        Default ``False``.
+        Only takes effect with ``require_approval=True``. Default ``False``.
     :param ignore_downstream_trigger_rules: If ``True``, a rejected review skips
         every downstream task rather than only the direct ones, so a task whose
-        trigger rule would still run it is skipped too. Default ``False``.
+        trigger rule would still run it is skipped too. Only takes effect with
+        ``require_approval=True``. Default ``False``.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
 
