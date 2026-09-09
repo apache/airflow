@@ -376,7 +376,8 @@ Capabilities compose with toolsets -- pydantic-ai merges tools from both.
 
 When ``enable_tool_logging=True`` (the default), ``AgentOperator`` applies
 real-time tool-call logging to the complete toolset assembled from capabilities,
-including factory-backed toolsets, nested capabilities, and MCP tools.
+including factory-backed toolsets, nested capabilities, and MCP tools. Provider-native
+tools that execute server-side are not covered by Airflow's real-time tool-call logging.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
     :language: python

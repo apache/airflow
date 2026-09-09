@@ -355,7 +355,8 @@ in real time. ``AgentOperator`` applies it automatically (see
 :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`.
 Applying the wrapper as a capability means logging covers the complete toolset
 that pydantic-ai assembles, including factory-backed toolsets, nested
-capabilities, and MCP tools.
+capabilities, and MCP tools. Provider-native tools that execute server-side are
+not covered by Airflow's real-time tool-call logging.
 
 You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
 

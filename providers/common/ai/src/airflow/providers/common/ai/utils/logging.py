@@ -23,11 +23,8 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.messages import ToolCallPart
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
-
 if TYPE_CHECKING:
     from pydantic_ai.result import AgentRunResult
-    from pydantic_ai.toolsets.abstract import AbstractToolset
 
     from airflow.sdk.types import Logger
 
@@ -80,11 +77,3 @@ def _extract_tool_sequence(result: AgentRunResult[Any]) -> list[str]:
             if isinstance(part, ToolCallPart):
                 tool_names.append(part.tool_name)
     return tool_names
-
-
-def wrap_toolsets_for_logging(
-    toolsets: list[AbstractToolset[Any]],
-    logger: Logger | logging.Logger,
-) -> list[AbstractToolset[Any]]:
-    """Wrap each toolset in a LoggingToolset."""
-    return [LoggingToolset(wrapped=ts, logger=logger) for ts in toolsets]

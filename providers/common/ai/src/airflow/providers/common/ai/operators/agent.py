@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.compat.sdk import (
@@ -334,9 +335,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
         if self.code_mode:
             capabilities.append(_build_code_mode())
-        if self.enable_tool_logging and (self.toolsets or capabilities):
-            from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
-
+        if self.enable_tool_logging:
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
