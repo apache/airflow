@@ -196,7 +196,7 @@ def build_serialized_dag_diff(
     Raw values, digests, and value-derived path components are returned only when
     ``include_values`` is true.
     """
-    _validate_max_changes(max_changes)
+    validate_max_changes(max_changes)
 
     base_schema_version = _get_schema_version(base_data)
     target_schema_version = _get_schema_version(target_data)
@@ -287,7 +287,7 @@ class _ChangeCollector:
 _MISSING = object()
 
 
-def _validate_max_changes(max_changes: int) -> None:
+def validate_max_changes(max_changes: int) -> None:
     if max_changes < 1:
         raise ValueError("max_changes must be a positive integer")
     if max_changes > MAX_ALLOWED_CHANGES:
