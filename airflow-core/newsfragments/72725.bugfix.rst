@@ -1,1 +1,0 @@
-Clearing a task now deletes its ``task_state_store`` rows, so a re-expanded dynamically mapped task no longer inherits the state of the item that previously occupied the same positional ``map_index``.
