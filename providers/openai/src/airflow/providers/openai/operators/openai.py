@@ -139,8 +139,9 @@ class OpenAIResponseOperator(BaseOperator):
                 response.status,
             )
         self.log.info("Generated response %s", response.id)
-        context["ti"].xcom_push(key="response_id", value=response.id)
-        context["ti"].xcom_push(key="usage", value=self.hook.summarize_response_usage(response))
+        if self.do_xcom_push:
+            context["ti"].xcom_push(key="response_id", value=response.id)
+            context["ti"].xcom_push(key="usage", value=self.hook.summarize_response_usage(response))
         return response.output_text
 
 
