@@ -3339,6 +3339,28 @@ class TestDagFileProcessorManager:
         bundle.refresh.assert_called_once()
         assert manager._bundle_refresh_generations["mock_bundle"] == 4
 
+    def test_refresh_generation_reaches_every_dag_processor(self):
+        bundle_state = BundleState(
+            last_refreshed=timezone.utcnow(),
+            version=None,
+            refresh_generation=4,
+        )
+        managers_and_bundles = []
+
+        for _ in range(2):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._bundle_versions["mock_bundle"] = None
+            manager._bundle_refresh_generations["mock_bundle"] = 3
+            bundle = self._make_refresh_bundle(supports_versioning=False)
+            bundle.refresh_interval = 300
+            managers_and_bundles.append((manager, bundle))
+
+            self._refresh_with_mocked_state(manager, bundle, bundle_state)
+
+        for manager, bundle in managers_and_bundles:
+            bundle.refresh.assert_called_once()
+            assert manager._bundle_refresh_generations["mock_bundle"] == 4
+
     def test_refresh_dag_bundles_clears_team_name_cache(self):
         manager = DagFileProcessorManager(max_runs=1)
         manager._bundle_name_to_team_name = {"stale_bundle": "old_team"}

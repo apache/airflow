@@ -1585,7 +1585,7 @@ export class DagBundleService {
             }
         });
     }
-    
+
 }
 
 export class DagStatsService {

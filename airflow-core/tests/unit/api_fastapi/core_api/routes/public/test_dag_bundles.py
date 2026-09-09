@@ -19,12 +19,15 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.models import Log
 from airflow.models.dagbundle import DagBundleModel
 
 from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_logs
 
 pytestmark = pytest.mark.db_test
@@ -69,6 +72,7 @@ class TestRefreshDagBundle:
         assert session.get(DagBundleModel, "global-bundle").refresh_generation == 2
         _check_last_log(session, dag_id=None, event="refresh_dag_bundle", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "True"})
     def test_team_bundle_refresh_uses_team_permission(self, auth_manager, session, test_client, testing_team):
         bundle = DagBundleModel(name="team-bundle")
         bundle.teams.append(testing_team)
@@ -85,6 +89,9 @@ class TestRefreshDagBundle:
             details=DagDetails(id=None, team_name=testing_team.name),
             user=mock.ANY,
         )
+        log = session.scalar(select(Log).where(Log.event == "refresh_dag_bundle"))
+        assert log is not None
+        assert log.team_name == testing_team.name
 
     def test_team_bundle_refresh_forbidden(self, auth_manager, session, test_client, testing_team):
         bundle = DagBundleModel(name="team-bundle")
