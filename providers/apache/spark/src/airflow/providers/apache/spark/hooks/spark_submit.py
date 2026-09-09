@@ -467,7 +467,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             ):
                 host = conn_data["master"].replace("spark://", "").strip()
                 conn_data["rest_endpoint"] = (
-                    f"{conn_data['rest_scheme']}://{host.split(':')[0]}:{conn_data['rest_port']}"
+                    f"{conn_data['rest_scheme']}://{host.rsplit(':', 1)[0]}:{conn_data['rest_port']}"
                 )
         except AirflowException:
             self.log.info(

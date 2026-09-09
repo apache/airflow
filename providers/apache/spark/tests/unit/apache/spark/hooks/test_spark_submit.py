@@ -174,6 +174,22 @@ class TestSparkSubmitHook:
         )
         create_connection_without_db(
             Connection(
+                conn_id="spark_standalone_cluster_ipv6",
+                conn_type="spark",
+                host="spark://[2001:db8::1]:6066",
+                extra={"deploy-mode": "cluster"},
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id="spark_standalone_cluster_ipv6_ha",
+                conn_type="spark",
+                host="spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
+                extra={"deploy-mode": "cluster"},
+            )
+        )
+        create_connection_without_db(
+            Connection(
                 conn_id="spark_standalone_cluster_client_mode",
                 conn_type="spark",
                 host="spark://spark-standalone-master:6066",
@@ -351,6 +367,10 @@ class TestSparkSubmitHook:
         hook_spark_standalone_cluster_rpc_endpoint._driver_id = "driver-20171128111418-0001"
         hook_spark_standalone_cluster_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ha")
         hook_spark_standalone_cluster_ha._driver_id = "driver-20171128111419-0001"
+        hook_spark_standalone_cluster_ipv6 = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6")
+        hook_spark_standalone_cluster_ipv6._driver_id = "driver-20171128111420-0001"
+        hook_spark_standalone_cluster_ipv6_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6_ha")
+        hook_spark_standalone_cluster_ipv6_ha._driver_id = "driver-20171128111421-0001"
 
         # When
         build_track_driver_status_spark_standalone_cluster = (
@@ -364,6 +384,12 @@ class TestSparkSubmitHook:
         )
         build_track_driver_status_spark_standalone_cluster_ha = (
             hook_spark_standalone_cluster_ha._build_track_driver_status_command()
+        )
+        build_track_driver_status_spark_standalone_cluster_ipv6 = (
+            hook_spark_standalone_cluster_ipv6._build_track_driver_status_command()
+        )
+        build_track_driver_status_spark_standalone_cluster_ipv6_ha = (
+            hook_spark_standalone_cluster_ipv6_ha._build_track_driver_status_command()
         )
 
         # Then
@@ -394,6 +420,19 @@ class TestSparkSubmitHook:
             "--status",
             "driver-20171128111419-0001",
         ]
+        expected_spark_standalone_cluster_ipv6 = [
+            "/usr/bin/curl",
+            "--max-time",
+            "30",
+            "http://[2001:db8::1]:6066/v1/submissions/status/driver-20171128111420-0001",
+        ]
+        expected_spark_standalone_cluster_ipv6_ha = [
+            "spark-submit",
+            "--master",
+            "spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
+            "--status",
+            "driver-20171128111421-0001",
+        ]
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
         assert (
@@ -401,6 +440,13 @@ class TestSparkSubmitHook:
             == build_track_driver_status_spark_standalone_cluster_rpc_endpoint
         )
         assert expected_spark_standalone_cluster_ha == build_track_driver_status_spark_standalone_cluster_ha
+        assert (
+            expected_spark_standalone_cluster_ipv6 == build_track_driver_status_spark_standalone_cluster_ipv6
+        )
+        assert (
+            expected_spark_standalone_cluster_ipv6_ha
+            == build_track_driver_status_spark_standalone_cluster_ipv6_ha
+        )
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1307,11 +1353,17 @@ class TestSparkSubmitHook:
         hook_rpc_endpoint._process_spark_submit_log(log_lines)
         hook_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ha")
         hook_ha._process_spark_submit_log(log_lines)
+        hook_ipv6 = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6")
+        hook_ipv6._process_spark_submit_log(log_lines)
+        hook_ipv6_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6_ha")
+        hook_ipv6_ha._process_spark_submit_log(log_lines)
 
         # When
         kill_cmd = hook._build_spark_driver_kill_command()
         kill_cmd_rpc_endpoint = hook_rpc_endpoint._build_spark_driver_kill_command()
         kill_cmd_ha = hook_ha._build_spark_driver_kill_command()
+        kill_cmd_ipv6 = hook_ipv6._build_spark_driver_kill_command()
+        kill_cmd_ipv6_ha = hook_ipv6_ha._build_spark_driver_kill_command()
 
         # Then
         expected_spark_standalone_cluster = [
@@ -1339,10 +1391,27 @@ class TestSparkSubmitHook:
             "--kill",
             "driver-20171128111415-0001",
         ]
+        expected_spark_standalone_cluster_ipv6 = [
+            "/usr/bin/curl",
+            "--max-time",
+            "30",
+            "-X",
+            "POST",
+            "http://[2001:db8::1]:6066/v1/submissions/kill/driver-20171128111415-0001",
+        ]
+        expected_spark_standalone_cluster_ipv6_ha = [
+            "spark-submit",
+            "--master",
+            "spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
+            "--kill",
+            "driver-20171128111415-0001",
+        ]
 
         assert expected_spark_standalone_cluster == kill_cmd
         assert expected_spark_standalone_cluster_rpc_endpoint == kill_cmd_rpc_endpoint
         assert expected_spark_standalone_cluster_ha == kill_cmd_ha
+        assert expected_spark_standalone_cluster_ipv6 == kill_cmd_ipv6
+        assert expected_spark_standalone_cluster_ipv6_ha == kill_cmd_ipv6_ha
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
