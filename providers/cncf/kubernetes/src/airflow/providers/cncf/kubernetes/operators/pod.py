@@ -803,7 +803,7 @@ class KubernetesPodOperator(BaseOperator):
         if not self.deferrable:
             return self.execute_sync(context)
 
-        self.execute_async(context)
+        return self.execute_async(context)
 
     def execute_sync(self, context: Context):
         result = None
@@ -955,7 +955,7 @@ class KubernetesPodOperator(BaseOperator):
         del self.client
         del self.pod_manager
 
-    def execute_async(self, context: Context) -> None:
+    def execute_async(self, context: Context) -> Any:
         if self.pod_request_obj is None:
             self.pod_request_obj = self.build_pod_request_obj(context)
         for callback in self.callbacks:
@@ -991,9 +991,8 @@ class KubernetesPodOperator(BaseOperator):
         # provider where invoke_defer_method does not accept context parameter
         sig = inspect.signature(self.invoke_defer_method)
         if "context" in sig.parameters:
-            self.invoke_defer_method(context=context)
-        else:
-            self.invoke_defer_method()
+            return self.invoke_defer_method(context=context)
+        return self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
         """Convert passed config_file to dict representation."""
@@ -1006,7 +1005,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def invoke_defer_method(
         self, last_log_time: DateTime | None = None, context: Context | None = None
-    ) -> None:
+    ) -> Any:
         """Redefine triggers which are being used in child classes."""
         self.convert_config_file_to_dict()
 
@@ -1071,7 +1070,7 @@ class KubernetesPodOperator(BaseOperator):
             pod_container_state == ContainerState.TERMINATED or pod_container_state == ContainerState.FAILED
         ):
             self.log.info("Skipping deferral as pod is already in a terminal state")
-            self.trigger_reentry(
+            return self.trigger_reentry(
                 context=context,
                 event={
                     "status": "failed" if pod_container_state == ContainerState.FAILED else "success",
@@ -1084,8 +1083,7 @@ class KubernetesPodOperator(BaseOperator):
                     **(self.trigger_kwargs or {}),
                 },
             )
-        else:
-            self.defer(trigger=trigger, method_name="trigger_reentry", timeout=defer_timeout)
+        self.defer(trigger=trigger, method_name="trigger_reentry", timeout=defer_timeout)
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """

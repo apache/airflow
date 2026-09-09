@@ -3155,6 +3155,73 @@ class TestKubernetesPodOperatorAsync:
         assert trigger.trigger_kwargs["_execution_deadline"] == expected_deadline
         assert exc.value.timeout == datetime.timedelta(seconds=270 + 60)
 
+    @patch(KUB_OP_PATH.format("trigger_reentry"))
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_returns_trigger_reentry_result_when_pod_already_terminal(
+        self, mocked_get_connection, mocked_convert_config, mocked_trigger_reentry
+    ):
+        """
+        When the pod is already terminal, ``invoke_defer_method`` calls
+        ``trigger_reentry`` inline instead of deferring. Its return value carries the
+        XCom sidecar output, so it has to be propagated to the caller -- in the regular
+        deferral path Airflow takes it from the resume method and stores it as
+        ``return_value``.
+
+        Dropping it makes ``do_xcom_push`` silently produce no ``return_value`` while
+        the task still succeeds, and downstream tasks pulling that XCom get ``None``.
+        """
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+        mocked_trigger_reentry.return_value = {"key": "value"}
+
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+            do_xcom_push=True,
+        )
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        context = {"ti": MagicMock()}
+        with patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.TERMINATED):
+            result = k.invoke_defer_method(context=context)
+
+        mocked_trigger_reentry.assert_called_once()
+        assert result == {"key": "value"}
+
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    @patch(KUB_OP_PATH.format("build_pod_request_obj"))
+    @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    def test_execute_returns_deferrable_result(
+        self, mocked_get_or_create_pod, mocked_build_pod_request_obj, mocked_invoke_defer_method
+    ):
+        """
+        ``execute`` has to hand the deferrable result back to Airflow the same way the
+        synchronous branch does, otherwise the value produced by the inline
+        ``trigger_reentry`` call never becomes the task's ``return_value`` XCom.
+        """
+        mocked_invoke_defer_method.return_value = {"key": "value"}
+        mocked_get_or_create_pod.return_value = MagicMock()
+
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            on_finish_action="keep_pod",
+            in_cluster=True,
+            deferrable=True,
+            do_xcom_push=True,
+        )
+
+        assert k.execute(context={"ti": MagicMock()}) == {"key": "value"}
+
     @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
     def test_invoke_defer_method_pads_defer_timeout_for_slow_poll_interval(
