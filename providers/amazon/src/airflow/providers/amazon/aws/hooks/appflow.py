@@ -80,11 +80,21 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
 
         return execution_id
 
-    def _log_execution_description(self, flow_name: str, execution_id: str):
-        response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
-        last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
-        exec_details = last_execs[execution_id]
-        self.log.info("Run complete, execution details: %s", exec_details)
+    def _log_execution_description(self, flow_name: str, execution_id: str) -> None:
+        next_token: str | None = None
+        while True:
+            kwargs: dict[str, str | int] = {"flowName": flow_name, "maxResults": 100}
+            if next_token:
+                kwargs["nextToken"] = next_token
+            response_desc = self.conn.describe_flow_execution_records(**kwargs)
+            for fe in response_desc.get("flowExecutions", []):
+                if fe.get("executionId") == execution_id:
+                    self.log.info("Run complete, execution details: %s", fe)
+                    return
+            next_token = response_desc.get("nextToken")
+            if not next_token:
+                break
+        self.log.warning("Execution details for %s not found in flow execution records", execution_id)
 
     def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
         """
