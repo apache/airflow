@@ -17,54 +17,67 @@
  under the License.
  -->
 
-# 6. Mixed Lang task handler interface
+# 6. Bundle registration and Mixed Lang stub handlers
 
-Date: 2026-09-07
+Date: 2026-09-09
 
 ## Status
 
-Proposed. Keeps the argument binding shipped in #70209, replaces its registration API, and reshapes
-the task signature after the design review on #72043.
+Proposed. Keeps the argument binding shipped in #70209, replaces the provider-and-registry
+registration flow around it, and reshapes the task signature, following the design review on #72043.
 
 ## Decision
 
-1. A Go bundle registers **task handlers, not Dags**:
-   `registry.Register(airflow.TaskHandler(dagId, taskId, fn), ...)`. `Register` is the bundle's
-   single registration verb and takes native Dags in the same call
-   ([ADR 7](0007-native-dag-interface.md)).
-2. **task_id is always written out**; nothing is derived from the Go function name.
-3. **Every handler takes an `airflow.Context` first**, and nothing else is injected — a struct
+1. **A bundle is a value the author builds.** `airflow.Bundle()` returns a `*airflow.BundleRef`;
+   `main` reads build, register, serve, with `bundle.Serve()` as its last statement.
+2. **`bundle.Register(items ...airflow.Registration)`** is the single registration verb, taking
+   native Dags ([ADR 7](0007-native-dag-interface.md)) and stub handlers in any mix.
+3. **A Go bundle registers stub handlers, not Dags**: `airflow.StubHandler(dagId, taskId, fn)`, named
+   for the Python `@task.stub` it implements.
+4. **task_id is always written out**; nothing is derived from the Go function name.
+5. **Every handler takes an `airflow.Context` first**, and nothing else is injected — a struct
    embedding `context.Context`, exposing `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`.
-4. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct:
+6. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct:
    `arg:"..."` when tagged, else the folded Go field name.
-5. This **breaks** `registry.AddDag(dagId).AddTask(fn)`, with no deprecation alias.
+7. This **breaks** `BundleProvider`, `Registry`, and `AddDag(dagId).AddTask(fn)`, with no
+   deprecation alias.
 
 ## Context
 
 Python owns everything but the body of a Mixed Lang task: `@task.stub` declares the task, its
 arguments, and its place in the graph. The Go side has no Dag to define, so Dag vocabulary misleads,
-and it occupies the `AddDag` name that [ADR 7](0007-native-dag-interface.md) needs. The shipped
-signature injects `sdk.TIRunContext`, `*slog.Logger`, and clients by type in any position, so a
-handler can declare no context at all and its logger arrives separately from the context it logs
-against; one required context carrying the rest fixes both.
+and it occupies the `AddDag` name that [ADR 7](0007-native-dag-interface.md) needs.
+
+Registration is inverted today. An author declares a struct with no state, asserts it implements
+`v1.BundleProvider`, fills in `RegisterDags(dagbag v1.Registry) error`, and hands the struct to
+`bundlev1server.Serve` — three concepts and an empty type before a single task is declared. The two
+names are also one object: `Registry` is `Bundle` plus `AddDag`, the write side of the value that
+later answers task lookups at execution time.
+
+The shipped signature then injects `sdk.TIRunContext`, `*slog.Logger`, and clients by type in any
+position, so a handler can declare no context at all and its logger arrives separately from the
+context it logs against. One required context carrying the rest fixes both.
 
 ## Example
 
 ```go
-registry.Register(
-    airflow.TaskHandler("etl", "transform", transform),
-    airflow.TaskHandler("etl", "via_struct_arg_tag", ViaStructArgTag),
-)
+func main() {
+    bundle := airflow.Bundle()
+
+    bundle.Register(
+        nativeEtl, // *airflow.DagRef, from ADR 7
+        airflow.StubHandler("py_etl", "transform", transform),
+        airflow.StubHandler("py_etl", "via_struct_arg_tag", ViaStructArgTag),
+    )
+
+    if err := bundle.Serve(); err != nil {
+        log.Fatal(err)
+    }
+}
 ```
 
-One bundle usually has both kinds, and one call lists everything it provides:
-
-```go
-registry.Register(
-    nativeEtl, // *airflow.DagRef, from ADR 7
-    airflow.TaskHandler("py_etl", "transform", transform),
-)
-```
+Registration can be spread across packages, either by passing the bundle along or by returning
+`[]airflow.Registration` for the caller to splat: `bundle.Register(taskflowbinding.Handlers()...)`.
 
 Three ways a Go function receives a stub task's data, all live in `go-sdk/example/bundle/`.
 
@@ -98,11 +111,15 @@ lowercased with underscores stripped is `regioncode`, which matches `region_code
 
 ## Consequences
 
-- Every existing `registry.AddDag(dagId)` call site changes, acceptable only because the SDK's README
-  already warns its APIs "may change between releases without notice."
-- A class of mistake becomes a compile error: `myTask(context.Background(), ...)` no longer builds,
-  where a package-level `airflow.Logger(ctx)` accessor over a plain context would have compiled and
-  then failed at run time on a missing value.
+- `BundleProvider`, the empty provider struct, and the `bundlev1server` package all disappear from an
+  author's `main`; `Serve` becomes a method on the value they already hold.
+- **Registration closes when `Serve` is called.** Registering afterwards is a programming error and
+  panics, like every other registration-time check in these ADRs.
+- Every existing call site changes, acceptable only because the SDK's README already warns its APIs
+  "may change between releases without notice."
+- Requiring `airflow.Context` turns a class of mistake into a compile error: a test calling
+  `myTask(context.Background(), ...)` no longer builds, where a package-level `airflow.Logger(ctx)`
+  accessor over a plain context would have compiled and then failed at run time on a missing value.
 - Graceful termination needs no unwrapping — `actx.Done()` fires on supervisor shutdown, and
   `http.NewRequestWithContext(actx, ...)` accepts it — while cleanup that must outlive cancellation
   uses `context.WithoutCancel(actx)`.
@@ -111,6 +128,32 @@ lowercased with underscores stripped is `regioncode`, which matches `region_code
 
 ## Appendix: Implementation Notes
 
+- **One verb, over a sealed interface.** `Bundle.Register(items ...airflow.Registration)` accepts
+  both kinds because `*airflow.DagRef` and `airflow.StubHandlerRef` satisfy `Registration`, an
+  exported interface whose only method is unexported. That closes the set to the SDK's own types, and
+  an author never writes the name — the same technique as `airflow.TaskOption` in
+  [ADR 7](0007-native-dag-interface.md). Two verbs would have split what a bundle provides across
+  separate calls for no gain in safety, since the interface already rejects anything else at compile
+  time. Variadic, rather than one handler per call, which repeats the dag_id per task.
+- **`airflow.Bundle()` follows the same rule as `Dag` and `Task`**: the constructor takes the noun,
+  the handle is `*airflow.BundleRef`. Carving out an exception — `NewBundle()` returning
+  `*airflow.Bundle` — would buy a better type name for helper signatures, but the recommended way to
+  spread registration is a package returning `[]airflow.Registration` rather than passing the bundle
+  around, so the type name rarely appears. Keeping the rule mechanical also leaves room for a
+  `BundleSpec` argument later, exactly as `airflow.Dag(spec)` takes one. It takes none today: the
+  bundle's name is Airflow-side configuration, arriving as `bundle_name` on the wire, and the
+  manifest the executable prints carries only the SDK version and the Dag list
+  (`go-sdk/internal/airflowmetadata/airflowmetadata.go`).
+- **`Serve` keeps both modes the executable already has**, selected by flags in
+  `go-sdk/bundle/bundlev1/bundlev1server/server.go`: `--airflow-metadata` prints the manifest JSON
+  ([ADR 2](0002-use-go-tool-directive-for-bundle-packer.md),
+  [ADR 4](0004-self-contained-executable-bundle.md)), and `--comm`/`--logs` runs the
+  msgpack-over-IPC coordinator path ([ADR 3](0003-coordinator-protocol-msgpack-ipc.md)). It returns
+  an error rather than exiting, so `main` reports it.
+- **The value-first shape already half exists**: `bundlev1.New() Registry`
+  (`go-sdk/bundle/bundlev1/registry.go`) builds a registry outside the provider callback, documented
+  as useful for unit-testing a `RegisterDags` implementation. Making it the only shape removes the
+  callback rather than adding a mechanism.
 - **A struct embedding `context.Context`, not an interface.** The context package's advice against
   [storing a Context in a struct](https://pkg.go.dev/context#hdr-Contexts_and_structs) is about
   domain types — a `DagRun` holding a request-scoped context — not about a purpose-built context
@@ -119,31 +162,18 @@ lowercased with underscores stripped is `regioncode`, which matches `region_code
   concrete type to document. The shipped `sdk.TIRunContext` (`go-sdk/sdk/context.go`) is an
   interface, justified in its doc comment by that same misreading, so the comment is corrected along
   with the change.
-- **The constructor is the supported way to build one.** Every field but the embedded context is
-  unexported, so no caller can substitute a logger or client; the constructor takes those parts, and
-  what is worth faking in a task test is already an interface (`sdk.Client`, and the logger through
-  an `slog.Handler`). Embedding does leave `Context` exported as a field name, so
-  `airflow.Context{Context: ctx}` compiles and yields a value whose `Logger()` and `Client()` are
-  nil. Closing that off would mean an unexported field plus four delegating methods (`Deadline`,
-  `Done`, `Err`, `Value`) in place of promotion, which is not worth it for a value the runtime
-  supplies. What a struct gives up either way is a user-authored stand-in for the whole context.
+- **The constructor is the supported way to build a context.** Every field but the embedded context
+  is unexported, so no caller can substitute a logger or client; what is worth faking in a task test
+  is already an interface (`sdk.Client`, and the logger through an `slog.Handler`). Embedding does
+  leave `Context` exported as a field name, so `airflow.Context{Context: ctx}` compiles and yields a
+  value whose `Logger()` and `Client()` are nil; closing that off would mean an unexported field plus
+  four delegating methods in place of promotion.
+- **Binding** lives in `go-sdk/pkg/binding/binding.go`: `classifyParam` for the signature, the field
+  fallback as `strings.ToLower(strings.ReplaceAll(name, "_", ""))`. A struct carrying `arg:` tags
+  cannot be mixed with other data parameters and is rejected at registration; an untagged struct has
+  no such guard and is decoded positionally as one value.
 - **Cancellation and the value lookup already exist.** `pkg/execution/server.go` traps
   `SIGINT`/`SIGTERM` into the context the runtime binds, and `pkg/execution/task_runner.go` stores
   the client and run context as values on it — which is what makes `airflow.FromContext` a typed
   lookup rather than new plumbing. A task ignoring `actx.Done()` is still stopped by the supervisor's
   follow-up `SIGKILL`.
-- **Binding** lives in `go-sdk/pkg/binding/binding.go`: `classifyParam` for the signature, the field
-  fallback as `strings.ToLower(strings.ReplaceAll(name, "_", ""))`. A struct carrying `arg:` tags
-  cannot be mixed with other data parameters and is rejected at registration; an untagged struct has
-  no such guard and is decoded positionally as one value.
-- **One verb, over a sealed interface.** `Registry.Register(items ...airflow.Registration)` accepts
-  both kinds because `*airflow.DagRef` and `airflow.TaskHandlerRef` both satisfy `Registration`, an
-  exported interface whose only method is unexported. That closes the set to the SDK's own types, and
-  a Dag author never writes the name — the same technique as `airflow.TaskOption` in
-  [ADR 7](0007-native-dag-interface.md), one level up. Two verbs would have forced a bundle to split
-  what it provides across separate calls for no gain in safety, since the interface already rejects
-  anything else at compile time.
-- **Why variadic**, rather than a one-handler-per-call `Register(dagId, taskId, fn)`, which repeats
-  the dag_id once per task, or a stateful `handlers.Add(...)` receiver, which adds a variable and a
-  statement per task. A package owning a family of handlers can also return a slice for the caller
-  to splat.

@@ -29,8 +29,8 @@ Nothing below exists on `main`.
 ## Decision
 
 1. **One Dag type, constructed then registered.** `airflow.Dag(spec)` returns a `*airflow.DagRef`
-   that is complete before `registry.Register(dag)` takes it — the same verb that registers Mixed
-   Lang task handlers ([ADR 6](0006-mixed-lang-task-handler-interface.md)). Naming rule:
+   that is complete before `bundle.Register(dag)` takes it — the same verb that registers Mixed Lang
+   stub handlers ([ADR 6](0006-mixed-lang-task-handler-interface.md)). Naming rule:
    `airflow.X(...)` constructs, `*airflow.XRef` is the handle.
 2. **Tasks register through `dag.Task(fn any, opts ...airflow.TaskOption)`**, returning a
    `*airflow.TaskRef`. `airflow.Inputs(...)` and a bare `airflow.TaskSpec{}` both satisfy
@@ -70,7 +70,7 @@ extracted := dag.Task(extract)
 transformed := dag.Task(transform, airflow.Inputs(extracted))
 dag.Task(load, airflow.Inputs(transformed), airflow.TaskSpec{Retries: 2})
 
-registry.Register(dag)
+bundle.Register(dag)
 ```
 
 ```go
@@ -133,8 +133,8 @@ staging.Before(loaded)                   // staging >> load
   (`task-sdk/src/airflow/sdk/definitions/_internal/mixins.py:35`), which is where `set_upstream` and
   `set_downstream` — `>>` and `<<` — live. Go needs the same base for the same reason, sealed with an
   unexported method like `Registration` and `TaskOption`.
-- `*DagRef` satisfies `airflow.Registration` so that one `Registry.Register` covers Dags and task
-  handlers alike; the sealed-interface mechanics are in
+- `*DagRef` satisfies `airflow.Registration` so that one `Bundle.Register` covers Dags and stub
+  handlers alike; the bundle lifecycle and the sealed-interface mechanics are in
   [ADR 6](0006-mixed-lang-task-handler-interface.md).
 - Go forbids a package-level func and a type sharing the name `Dag`, so one of the two has to differ;
   the constructor keeps the plain noun because Dag authors read it most. `Before` and `After` both
