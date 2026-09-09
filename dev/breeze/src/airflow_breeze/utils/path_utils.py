@@ -252,9 +252,9 @@ def warn_if_shim_outdated(airflow_sources: Path, shim_text: str | None = None) -
     setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
     installed_text = installed_version if installed_version is not None else "unknown (pre-versioning)"
     console_print(
-        f"\n[warning]Your breeze shim at {BREEZE_SHIM_PATH} is out of date "
+        f"\n[warning]Your breeze shim at {BREEZE_SHIM_PATH} needs to be upgraded "
         f"(installed: {installed_text}, current: {expected_version}).[/]\n"
-        "[warning]Re-run the setup script to refresh it:[/]\n\n"
+        "[warning]Re-run the setup script to upgrade it:[/]\n\n"
         f"     {setup_script}\n"
     )
     return True
@@ -330,9 +330,9 @@ def warn_if_breeze_launcher_outdated(airflow_sources: Path) -> bool:
     )
     setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
     console_print(
-        f"\n[warning]Breeze is installed as a legacy global '{legacy}' install, which still works "
-        "but is no longer the recommended setup (see ADR 0017).[/]\n"
-        "[warning]Migrate to the per-worktree uvx shim by uninstalling the global install and "
+        f"\n[warning]Breeze is installed as a legacy global '{legacy}' install, which resolves its "
+        "dependencies against the package index rather than dev/breeze/uv.lock (see ADR 0017).[/]\n"
+        "[warning]Migrate to the per-worktree shim by uninstalling the global install and "
         "running the setup script:[/]\n\n"
         f"     {uninstall_cmd}\n"
         f"     {setup_script}\n"
