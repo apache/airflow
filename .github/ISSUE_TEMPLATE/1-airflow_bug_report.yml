@@ -154,6 +154,7 @@ body:
         - dingding
         - discord
         - docker
+        - duckdb
         - edge3
         - elasticsearch
         - exasol
