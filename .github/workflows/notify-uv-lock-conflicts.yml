@@ -29,7 +29,7 @@ permissions:
 jobs:
   notify:
     name: "Notify open PRs that conflict on uv.lock"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     timeout-minutes: 10
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -37,16 +37,9 @@ jobs:
         with:
           persist-credentials: false
       - name: "Install uv"
-        # Extract uv version from uv.lock. The format is stable: the line
-        # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
-        run: |
-          UV_VERSION=$(sed -n '/^name = "uv"$/{n;s/^version = "\(.*\)"$/\1/p;}' uv.lock)
-          if [[ -z "${UV_VERSION}" ]]; then
-            echo "Failed to extract uv version from uv.lock" >&2
-            exit 1
-          fi
-          echo "Installing uv==${UV_VERSION}"
-          pip install "uv==${UV_VERSION}"
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          version-file: uv.lock
       - name: "Notify open PRs"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

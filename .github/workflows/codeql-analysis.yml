@@ -49,7 +49,7 @@ concurrency:
 jobs:
   detect-languages:
     name: Detect languages to scan
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     permissions:
       contents: read
       pull-requests: read

@@ -40,18 +40,21 @@ jobs:
         # Track AMD; ARM is the canary slot and is reported separately by
         # `ci-arm.yml`'s notify-slack job on schedule events.
         workflow-id: ["ci-amd.yml"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
 
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          version-file: uv.lock
+
       - name: "Find workflow run status"
         id: find-workflow-run-status
-        run: |
-          python3 -m pip install uv
-          uv run ./dev/breeze/src/airflow_breeze/utils/workflow_status.py
+        run: uv run ./dev/breeze/src/airflow_breeze/utils/workflow_status.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           workflow_branch: ${{ matrix.branch }}

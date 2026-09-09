@@ -34,7 +34,7 @@ concurrency:
 jobs:
   check-newsfragment-pr-number:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip newsfragment check') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Check newsfragment PR number
