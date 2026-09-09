@@ -19,12 +19,14 @@ from __future__ import annotations
 import asyncio
 from contextlib import aclosing, suppress
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 
 from airflow.providers.apache.iceberg.triggers.iceberg import IcebergTableSnapshotTrigger
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -171,7 +173,7 @@ async def test_resumes_from_the_stored_watermark():
     row was written; only the stored watermark reflects what was actually emitted.
     """
     store = MagicMock()
-    store.aget = AsyncMock(return_value=222)
+    store.get.return_value = 222
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
     trigger.asset_state_store = store
@@ -180,32 +182,31 @@ async def test_resumes_from_the_stored_watermark():
         payloads = await _collect(trigger, 1, timeout=0.2)
 
     assert payloads == []
-    store.aget.assert_awaited_once_with("snapshot_id")
+    store.get.assert_called_once_with("snapshot_id")
 
 
 @pytest.mark.asyncio
 async def test_persists_the_watermark_on_each_event():
     store = MagicMock()
-    store.aget = AsyncMock(return_value=None)
-    store.aset = AsyncMock()
+    store.get.return_value = None
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
 
     with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222)]):
-        # Multiple real thread-pool head lookups can exceed the default 1s budget under CI latency.
+        # Gathering 2 events runs several real asyncio.to_thread calls (head lookup + store
+        # get/set); the default 1s budget is too tight under CI thread-pool scheduling latency.
         payloads = await _collect(trigger, 2, timeout=3.0)
 
     assert [p["snapshot_id"] for p in payloads] == [111, 222]
-    assert [c.args for c in store.aset.await_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
+    assert [c.args for c in store.set.call_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
 
 
 @pytest.mark.asyncio
 async def test_runs_without_a_watermark_when_several_assets_watch_it():
     """More than one watched asset leaves no single cursor, so it degrades instead of raising."""
     store = MagicMock()
-    store.aget = AsyncMock(side_effect=ValueError("Task has 2 concrete inlets and outlets"))
-    store.aset = AsyncMock()
+    store.get.side_effect = ValueError("Task has 2 concrete inlets and outlets")
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
@@ -214,14 +215,14 @@ async def test_runs_without_a_watermark_when_several_assets_watch_it():
         payloads = await _collect(trigger, 1)
 
     assert [p["snapshot_id"] for p in payloads] == [111]
-    store.aset.assert_not_awaited()
+    store.set.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_a_state_store_failure_is_not_mistaken_for_several_assets():
     """A pluggable backend can raise ValueError too, and hiding it would disable the watermark."""
     store = MagicMock()
-    store.aget = AsyncMock(side_effect=ValueError("could not decode the stored reference"))
+    store.get.side_effect = ValueError("could not decode the stored reference")
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
@@ -229,6 +230,34 @@ async def test_a_state_store_failure_is_not_mistaken_for_several_assets():
     with patch(LOAD_TABLE, return_value=_table_at(111)):
         with pytest.raises(ValueError, match="could not decode"):
             await _collect(trigger, 1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="asset_state_store arrived in Airflow 3.3.0")
+async def test_reads_the_watermark_through_the_real_asset_state_store():
+    """A mocked store invents whatever method the trigger reaches for, so it cannot show that
+    the accessor the triggerer really injects offers that method.
+    """
+    from airflow.sdk import Asset
+    from airflow.sdk.execution_time.comms import AssetStateStoreResult
+    from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+
+    # Built the way triggerer_job_runner builds it for a watched asset.
+    store = AssetStateStoreAccessors(inlets=[Asset(name="orders", uri="iceberg://db.tbl")])
+    comms = MagicMock()
+    comms.send.return_value = AssetStateStoreResult(value=222)
+
+    trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
+    trigger.asset_state_store = store
+
+    with (
+        patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", comms, create=True),
+        patch(LOAD_TABLE, return_value=_table_at(222)),
+    ):
+        payloads = await _collect(trigger, 1, timeout=0.5)
+
+    assert payloads == []
+    assert comms.send.call_args.args[0].key == "snapshot_id"
 
 
 @pytest.mark.asyncio

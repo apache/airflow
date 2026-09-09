@@ -27,6 +27,7 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 from airflow.providers.common.compat.sdk import Param, ParamValidationError, TaskDeferred
 from airflow.providers.standard.exceptions import HITLRejectException
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -398,26 +399,45 @@ class TestLLMBranchOperatorApproval:
         assert result == ["task_a", "task_c"]
         mock_do_branch.assert_called_once_with(ctx, ["task_a", "task_c"])
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("ignore_downstream_trigger_rules", "with_teardown", "expected"),
+        [
+            (False, True, {"op2"}),
+            (False, False, {"op2"}),
+            (True, True, {"op2", "op3"}),
+            (True, False, {"op2", "op3", "op4"}),
+        ],
+    )
     @patch.object(LLMBranchOperator, "skip")
     @patch.object(LLMBranchOperator, "do_branch")
-    def test_execute_complete_reject_skips_downstream_except_teardowns(self, mock_do_branch, mock_skip):
-        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c")
-        op.downstream_task_ids = {"task_a", "cleanup"}
+    def test_execute_complete_reject_skips_downstream_except_teardowns(
+        self, mock_do_branch, mock_skip, dag_maker, ignore_downstream_trigger_rules, with_teardown, expected
+    ):
+        with dag_maker(serialized=True):
+            op1 = LLMBranchOperator(
+                task_id="op1",
+                prompt="p",
+                llm_conn_id="c",
+                require_approval=True,
+                ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
+            )
+            op2 = EmptyOperator(task_id="op2")
+            op3 = EmptyOperator(task_id="op3")
+            op4 = EmptyOperator(task_id="op4")
+            if with_teardown:
+                op4.as_teardown()
+            op1 >> op2 >> op3 >> op4
         event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
-        task_a = MagicMock(is_teardown=False)
-        cleanup = MagicMock(is_teardown=True)
-        task = MagicMock()
-        task.get_direct_relatives.return_value = [task_a, cleanup]
         ti = MagicMock()
-        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": ti}[key]})
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": op1, "ti": ti}[key]})
 
-        result = op.execute_complete(ctx, generated_output="task_a", event=event)
+        result = op1.execute_complete(ctx, generated_output="op2", event=event)
 
         assert result is None
-        task.get_direct_relatives.assert_called_once_with(upstream=False)
         mock_skip.assert_called_once()
         assert mock_skip.call_args.kwargs["ti"] is ti
-        assert list(mock_skip.call_args.kwargs["tasks"]) == [task_a]
+        assert {t.task_id for t in mock_skip.call_args.kwargs["tasks"]} == expected
         mock_do_branch.assert_not_called()
 
     @patch.object(LLMBranchOperator, "do_branch")

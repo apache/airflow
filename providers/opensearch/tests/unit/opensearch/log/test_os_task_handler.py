@@ -625,6 +625,29 @@ class TestTaskHandlerHelpers:
             assert "http_compress" in args_from_config
             assert "self" not in args_from_config
 
+    @conf_vars(
+        {
+            ("opensearch_configs", "use_ssl"): "True",
+            ("opensearch_configs", "verify_certs"): "True",
+            ("opensearch_configs", "ca_certs"): "",
+        }
+    )
+    def test_empty_ca_certs_is_not_forwarded_to_client(self):
+        """The provider default for ``ca_certs`` is an empty string, which opensearch-py treats as
+        "no root certificates" rather than "use certifi" once TLS verification is enabled."""
+        from airflow.providers.opensearch.log.os_task_handler import _create_opensearch_client
+
+        os_kwargs = get_os_kwargs_from_config()
+
+        assert "ca_certs" not in os_kwargs
+        # Raises ImproperlyConfigured("Root certificates are missing ...") if ca_certs="" is forwarded.
+        client = _create_opensearch_client("localhost", 9200, "admin", "admin", os_kwargs)
+        assert isinstance(client, opensearchpy.OpenSearch)
+
+    @conf_vars({("opensearch_configs", "ca_certs"): "/etc/ssl/certs/ca.pem"})
+    def test_configured_ca_certs_is_forwarded_to_client(self):
+        assert get_os_kwargs_from_config()["ca_certs"] == "/etc/ssl/certs/ca.pem"
+
 
 class TestOpensearchRemoteLogIO:
     @pytest.fixture(autouse=True)
