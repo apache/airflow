@@ -39,13 +39,19 @@ airflow_version = "3.4.0"
 
 def upgrade():
     """Add the Dag bundle refresh generation."""
-    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("refresh_generation", sa.BigInteger(), nullable=False, server_default="0")
-        )
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+            batch_op.add_column(
+                sa.Column("refresh_generation", sa.BigInteger(), nullable=False, server_default="0")
+            )
 
 
 def downgrade():
     """Remove the Dag bundle refresh generation."""
-    with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
-        batch_op.drop_column("refresh_generation")
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag_bundle", schema=None) as batch_op:
+            batch_op.drop_column("refresh_generation")
