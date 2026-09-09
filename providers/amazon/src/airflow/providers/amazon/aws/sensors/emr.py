@@ -309,7 +309,7 @@ class EmrContainerSensor(AwsBaseSensor[EmrContainerHook]):
 
         if state in self.INTERMEDIATE_STATES:
             return False
-        return True
+        return state in self.SUCCESS_STATES
 
     def execute(self, context: Context):
         if not self.deferrable:

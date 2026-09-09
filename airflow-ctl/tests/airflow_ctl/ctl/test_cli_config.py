@@ -341,6 +341,14 @@ class TestCommandFactory:
 
         assert parsed_conf == {"my-key": "my-value"}
 
+    def test_command_factory_parses_comma_separated_list_fields(self):
+        """List fields should parse comma-separated CLI values as whole items."""
+        command_factory = CommandFactory()
+
+        list_type = command_factory._python_type_from_string("list")
+
+        assert list_type("dag1, dag2") == ["dag1", "dag2"]
+
     def test_json_dict_type_returns_dict_input_unchanged(self):
         """A dict input is returned as-is without re-parsing."""
         value = {"my-key": "my-value"}

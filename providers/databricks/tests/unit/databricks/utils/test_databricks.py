@@ -318,6 +318,76 @@ class TestExtractFailedTaskErrors:
         assert result == expected
         hook.get_run_output.assert_called_once_with(TASK_RUN_ID_2)
 
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
+    def test_extract_failed_task_errors_reports_a_retried_task_once(self, mock_hook_class):
+        """A task that was retried and failed again is reported once, from its last attempt"""
+        hook = mock_hook_class.return_value
+        hook.get_run_output = mock_dict({"error": ERROR_MESSAGE})
+
+        run_state = RunState("TERMINATED", "FAILED", "Job failed")
+        run_info = {
+            "run_id": RUN_ID,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "Job failed",
+            },
+            "tasks": [
+                {
+                    "run_id": TASK_RUN_ID_1,
+                    "task_key": TASK_KEY_1,
+                    "attempt_number": 0,
+                    "state": {"life_cycle_state": "INTERNAL_ERROR", "result_state": "FAILED"},
+                },
+                {
+                    "run_id": TASK_RUN_ID_2,
+                    "task_key": TASK_KEY_1,
+                    "attempt_number": 1,
+                    "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED"},
+                },
+            ],
+        }
+
+        result = extract_failed_task_errors(hook, run_info, run_state)
+
+        assert result == [{"task_key": TASK_KEY_1, "run_id": TASK_RUN_ID_2, "error": ERROR_MESSAGE}]
+        hook.get_run_output.assert_called_once_with(TASK_RUN_ID_2)
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
+    def test_extract_failed_task_errors_skips_task_that_succeeded_on_retry(self, mock_hook_class):
+        """A task whose retry succeeded is not reported, even though its first attempt failed"""
+        hook = mock_hook_class.return_value
+        hook.get_run_output = mock_dict({"error": ERROR_MESSAGE})
+
+        run_state = RunState("TERMINATED", "FAILED", "Job failed")
+        run_info = {
+            "run_id": RUN_ID,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "Job failed",
+            },
+            "tasks": [
+                {
+                    "run_id": TASK_RUN_ID_1,
+                    "task_key": TASK_KEY_1,
+                    "attempt_number": 0,
+                    "state": {"life_cycle_state": "INTERNAL_ERROR", "result_state": "FAILED"},
+                },
+                {
+                    "run_id": TASK_RUN_ID_2,
+                    "task_key": TASK_KEY_1,
+                    "attempt_number": 1,
+                    "state": {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS"},
+                },
+            ],
+        }
+
+        result = extract_failed_task_errors(hook, run_info, run_state)
+
+        assert result == []
+        hook.get_run_output.assert_not_called()
+
 
 class TestExtractFailedTaskErrorsAsync:
     """Test cases for the extract_failed_task_errors_async utility function (asynchronous version)"""
@@ -501,3 +571,39 @@ class TestExtractFailedTaskErrorsAsync:
 
         assert result == []
         hook.a_get_run_output.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
+    @pytest.mark.asyncio
+    async def test_extract_failed_task_errors_async_reports_a_retried_task_once(self, mock_hook_class):
+        """A task that was retried and failed again is reported once, from its last attempt (async)"""
+        hook = mock_hook_class.return_value
+        hook.a_get_run_output = mock.AsyncMock(return_value={"error": ERROR_MESSAGE})
+
+        run_state = RunState("TERMINATED", "FAILED", "Job failed")
+        run_info = {
+            "run_id": RUN_ID,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "Job failed",
+            },
+            "tasks": [
+                {
+                    "run_id": TASK_RUN_ID_1,
+                    "task_key": TASK_KEY_1,
+                    "attempt_number": 0,
+                    "state": {"life_cycle_state": "INTERNAL_ERROR", "result_state": "FAILED"},
+                },
+                {
+                    "run_id": TASK_RUN_ID_2,
+                    "task_key": TASK_KEY_1,
+                    "attempt_number": 1,
+                    "state": {"life_cycle_state": "TERMINATED", "result_state": "FAILED"},
+                },
+            ],
+        }
+
+        result = await extract_failed_task_errors_async(hook, run_info, run_state)
+
+        assert result == [{"task_key": TASK_KEY_1, "run_id": TASK_RUN_ID_2, "error": ERROR_MESSAGE}]
+        hook.a_get_run_output.assert_called_once_with(TASK_RUN_ID_2)

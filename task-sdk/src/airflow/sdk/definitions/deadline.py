@@ -27,7 +27,7 @@ import attrs
 
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
+from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -442,7 +442,7 @@ class VariableInterval:
         warnings.warn(
             "VariableInterval.resolve() is deprecated and will be removed in a future release. "
             "Deadline interval resolution is handled internally during deadline evaluation.",
-            DeprecationWarning,
+            RemovedInAirflow4Warning,
             stacklevel=2,
         )
 
