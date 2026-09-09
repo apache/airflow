@@ -95,6 +95,7 @@ class OpenAIResponseOperator(BaseOperator):
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        Templated, so values (e.g. ``previous_response_id``) may reference upstream XCom.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -109,7 +110,7 @@ class OpenAIResponseOperator(BaseOperator):
     counts by your own per-token rate.
     """
 
-    template_fields: Sequence[str] = ("input_text",)
+    template_fields: Sequence[str] = ("input_text", "response_kwargs")
 
     def __init__(
         self,

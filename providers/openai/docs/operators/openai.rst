@@ -44,14 +44,20 @@ OpenAIResponseOperator
 
 Use the :class:`~airflow.providers.openai.operators.openai.OpenAIResponseOperator` to generate a
 model response with the OpenAI Responses API, OpenAI's recommended interface for text generation and
-tool use. The operator returns the response's aggregated output text.
+tool use. The operator returns the response's aggregated output text. When ``do_xcom_push`` is
+enabled (the default), ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID,
+usable as a downstream task's ``previous_response_id`` for chaining) and ``usage`` (the response's
+token usage, or ``None`` when the API omits it). ``usage`` reports token counts only -- OpenAI's
+response carries no cost field, so pricing a run means multiplying those counts by your own
+per-token rate. Setting ``do_xcom_push=False`` skips both pushes.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^^
 
 The OpenAIResponseOperator requires the ``input_text`` prompt. Use the ``conn_id`` parameter to
 specify the OpenAI connection to use, and ``response_kwargs`` to pass through options such as
-``tools``, ``conversation`` or ``previous_response_id``.
+``tools``, ``conversation`` or ``previous_response_id``. ``response_kwargs`` is templated, so
+``previous_response_id`` can reference a Dag's upstream ``response_id`` XCom directly.
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python

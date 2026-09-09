@@ -101,12 +101,25 @@ def example_openai_dag():
     # [END howto_operator_openai_embedding]
 
     # [START howto_operator_openai_response]
-    OpenAIResponseOperator(
+    openai_response = OpenAIResponseOperator(
         task_id="openai_response",
         conn_id="openai_default",
         input_text="Write a haiku about data pipelines.",
         response_kwargs={"instructions": "You are a helpful assistant."},
     )
+
+    # Chains onto the previous response via its response_id XCom, continuing
+    # the same conversation without resending prior turns.
+    openai_response_follow_up = OpenAIResponseOperator(
+        task_id="openai_response_follow_up",
+        conn_id="openai_default",
+        input_text="Now rewrite it as a limerick.",
+        response_kwargs={
+            "previous_response_id": "{{ ti.xcom_pull(task_ids='openai_response', key='response_id') }}"
+        },
+    )
+
+    openai_response >> openai_response_follow_up
     # [END howto_operator_openai_response]
 
     create_embeddings_using_hook()
