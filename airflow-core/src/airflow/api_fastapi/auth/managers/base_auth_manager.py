@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import logging
 import warnings
@@ -25,14 +26,20 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from functools import cache, cached_property
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from types import UnionType
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, Union, get_args, get_origin, get_type_hints
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
+    AssetAliasDetails,
+    AssetDetails,
+    ConfigurationDetails,
     ConnectionDetails,
+    DagAccessEntity,
     DagDetails,
     PoolDetails,
     TeamDetails,
@@ -68,13 +75,6 @@ if TYPE_CHECKING:
         IsAuthorizedDagRequest,
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
-    )
-    from airflow.api_fastapi.auth.managers.models.resource_details import (
-        AccessView,
-        AssetAliasDetails,
-        AssetDetails,
-        ConfigurationDetails,
-        DagAccessEntity,
     )
     from airflow.cli.cli_config import CLICommand
 
@@ -232,6 +232,69 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         server latency will increase.
         """
         return None
+
+    @classmethod
+    def get_rbac_reference(cls) -> dict[str, dict[str, Any]]:
+        """
+        Return a machine-readable reference of the RBAC resources this auth manager authorizes.
+
+        Provider auth managers (e.g. Keycloak) model Airflow permissions in an external
+        system. This reference lets them do so without hand-maintaining a copy of the
+        RBAC surface: it is introspected from the ``is_authorized_*`` methods, so it
+        stays in sync automatically whenever resources are added or changed.
+
+        Each entry is keyed by resource name (e.g. ``"dag"``) and holds the authorizing
+        method, the allowed actions, the scoping enum when the resource is further
+        scoped (e.g. ``DagAccessEntity``), the details dataclass fields when the
+        request carries details (e.g. ``DagDetails``), and a short description.
+
+        :return: mapping of resource name to its authorization reference entry.
+        """
+        reference: dict[str, dict[str, Any]] = {}
+        for name in dir(cls):
+            if not name.startswith("is_authorized_"):
+                continue
+            method = getattr(cls, name)
+            try:
+                hints = get_type_hints(method)
+            except Exception:
+                log.debug("Skipping %s: type hints could not be resolved", name)
+                continue
+            if "method" not in hints and "access_view" not in hints:
+                # Not a resource permission (e.g. the is_authorized_hitl_task approval check).
+                continue
+            entry: dict[str, Any] = {"method": name}
+            actions_hint = hints.get("method")
+            if isinstance(actions_hint, type) and issubclass(actions_hint, Enum):
+                entry["actions"] = [action.value for action in actions_hint]
+            doc = inspect.getdoc(method)
+            entry["description"] = doc.splitlines()[0] if doc else ""
+            for param_name in inspect.signature(method).parameters:
+                if param_name in {"self", "user", "method"}:
+                    continue
+                hint = hints.get(param_name)
+                if hint is None:
+                    continue
+                if isinstance(hint, UnionType) or get_origin(hint) is Union:
+                    non_none = [arg for arg in get_args(hint) if arg is not type(None)]
+                    hint = non_none[0] if len(non_none) == 1 else hint
+                if isinstance(hint, type) and issubclass(hint, Enum):
+                    entry["scope"] = {
+                        "parameter": param_name,
+                        "enum": hint.__name__,
+                        "values": [value.value for value in hint],
+                    }
+                elif isinstance(hint, type) and dataclasses.is_dataclass(hint):
+                    entry["details"] = {
+                        "parameter": param_name,
+                        "type": hint.__name__,
+                        "fields": [field.name for field in dataclasses.fields(hint)],
+                    }
+                else:
+                    extra = entry.setdefault("extra_params", {})
+                    extra[param_name] = getattr(hint, "__name__", str(hint))
+            reference[name.removeprefix("is_authorized_")] = entry
+        return dict(sorted(reference.items()))
 
     @abstractmethod
     def is_authorized_configuration(

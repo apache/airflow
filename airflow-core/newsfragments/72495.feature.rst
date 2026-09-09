@@ -1,0 +1,1 @@
+Added ``BaseAuthManager.get_rbac_reference()``, a machine-readable reference of the RBAC resources the auth manager authorizes, introspected from the ``is_authorized_*`` methods so provider auth managers can model Airflow permissions externally without hand-maintaining a copy.

@@ -41,6 +41,7 @@ If you want to check which auth manager is currently set, you can use the
     :hidden:
 
     simple/index
+    rbac-reference
 
 Available auth managers to use
 ------------------------------
