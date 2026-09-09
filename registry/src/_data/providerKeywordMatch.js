@@ -22,15 +22,19 @@
 // respectively by the category dropdown on /providers/ and the Explore landing
 // page's per-category provider listing) can't drift apart.
 
-// A value "matches" a keyword if the value contains the keyword,
-// case-insensitively, after collapsing runs of "-_\s" to a single space
-// (so 'pydantic-ai' matches "Pydantic AI"). Collapse, don't strip:
-// stripping would turn "Microsoft Power BI" into "microsoftpowerbi",
-// which contains "ftp" and would falsely match the orchestration category.
+// Kept in sync by hand with normalize() in src/js/search.js and
+// src/js/provider-filters.js (both browser IIFEs; this file runs at build
+// time under CommonJS). Collapse runs of "-_\s" to a space rather than
+// strip: stripping "Microsoft Power BI" would turn it into
+// "microsoftpowerbi", which contains "ftp" and would falsely match
+// the orchestration category.
 function normalize(text) {
   return text.toLowerCase().replace(/[-_\s]+/g, ' ');
 }
 
+// A value "matches" a keyword if the value contains the keyword,
+// case-insensitively, after collapsing runs of "-_\s" to a single
+// space (so 'pydantic-ai' matches "Pydantic AI").
 function fuzzyIncludes(value, keyword) {
   if (!value) {
     return false;
