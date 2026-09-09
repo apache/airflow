@@ -209,11 +209,38 @@ config:
       session_lifetime_minutes:
         description: |
           The UI cookie lifetime in minutes. User will be logged out from UI after
-          ``[fab] session_lifetime_minutes`` of non-activity
+          ``[fab] session_lifetime_minutes`` of inactivity: the deadline slides forward on every
+          request, so it is only reached once the session has been idle for the whole period.
+
+          Note that leaving an Airflow UI tab open counts as activity even when nobody is at the
+          keyboard. The UI polls the API in the background and silently re-authenticates whenever
+          its API token expires, which keeps sliding the deadline, so a session with an open tab is
+          never idle and never expires. Use ``[fab] session_max_lifetime_minutes`` to log users out
+          after a fixed period regardless of activity.
         version_added: 2.0.0
         type: integer
         example: ~
         default: "43200"
+      session_max_lifetime_minutes:
+        description: |
+          Maximum lifetime of a UI session in minutes, counted from the login time and never
+          extended by activity. Unlike ``[fab] session_lifetime_minutes``, this deadline is
+          reached even when the user keeps working in the UI, so it forces periodic
+          re-authentication. Set to ``0`` (the default) to disable it.
+
+          The API tokens the UI receives are capped so that they never outlive the deadline: their
+          expiry is the shorter of ``[api_auth] jwt_expiration_time`` and the time left in the
+          session. Without that cap the deadline would only be noticed the next time the UI came
+          back to the auth manager — which it does when its token expires — and an already-issued
+          token would keep working against the API in the meantime.
+
+          This applies to UI sessions only. Tokens minted for programmatic clients by
+          ``POST /auth/token`` belong to no session and always last ``[api_auth]
+          jwt_expiration_time``.
+        version_added: 3.9.0
+        type: integer
+        example: "480"
+        default: "0"
       enable_proxy_fix:
         description: |
           Enable werkzeug ``ProxyFix`` middleware for reverse proxy
