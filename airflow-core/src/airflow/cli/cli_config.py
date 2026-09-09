@@ -796,6 +796,11 @@ ARG_SSL_CERT_REQS = Arg(
     help="(Optional) Set certificate verification options.",
     choices=("none", "optional", "required"),
 )
+ARG_SSL_CIPHERS = Arg(
+    ("--ssl-ciphers",),
+    default=conf.get("api", "ssl_ciphers", fallback=""),
+    help="(Optional) OpenSSL cipher list to use when SSL is enabled.",
+)
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
@@ -1056,11 +1061,12 @@ ARG_TRIGGERER_TEAM_NAME = Arg(
     help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
 )
 
+DEFAULT_DAG_LIST_COLUMNS = ("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version")
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
-    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
+    help=f"List of columns to render. (default: {list(DEFAULT_DAG_LIST_COLUMNS)})",
+    default=DEFAULT_DAG_LIST_COLUMNS,
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -1387,6 +1393,7 @@ DAGS_COMMANDS = (
             "Execute one single DagRun for a given DAG and logical date.\n"
             "\n"
             "You can test a DAG in three ways:\n"
+            "\n"
             "1. Using default bundle:\n"
             "   airflow dags test <DAG_ID>\n"
             "\n"
@@ -1657,7 +1664,8 @@ TEAMS_COMMANDS = (
         name="create",
         help="Create a team",
         description=(
-            "Create a team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.\n"
+            "Create a team. Team names must be 3-50 characters long and contain only lower case letters, "
+            "digits, hyphens and underscores, with no two consecutive underscores.\n"
         ),
         func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
         args=(ARG_TEAM_NAME, ARG_VERBOSE),
@@ -2211,6 +2219,7 @@ core_commands: list[CLICommand] = [
             ARG_SSL_KEY,
             ARG_SSL_CA_FILE,
             ARG_SSL_CERT_REQS,
+            ARG_SSL_CIPHERS,
             ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
@@ -2346,24 +2355,24 @@ core_commands: list[CLICommand] = [
 
 def _remove_dag_id_opt(command: ActionCommand):
     cmd = command._asdict()
-    cmd["args"] = (arg for arg in command.args if arg is not ARG_DAG_ID)
+    cmd["args"] = tuple(arg for arg in command.args if arg is not ARG_DAG_ID)
     return ActionCommand(**cmd)
 
+
+# Subcommands ``DAG.cli()`` exposes, via ``get_parser(dag_parser=True)``.
+DAG_CLI_DAGS_SUBCOMMANDS = ("list-runs", "pause", "unpause", "test")
+DAG_CLI_TASKS_SUBCOMMANDS = ("list", "test")
 
 dag_cli_commands: list[CLICommand] = [
     GroupCommand(
         name="dags",
         help="Manage DAGs",
-        subcommands=[
-            _remove_dag_id_opt(sp)
-            for sp in DAGS_COMMANDS
-            if sp.name in ["backfill", "list-runs", "pause", "unpause", "test"]
-        ],
+        subcommands=[_remove_dag_id_opt(sp) for sp in DAGS_COMMANDS if sp.name in DAG_CLI_DAGS_SUBCOMMANDS],
     ),
     GroupCommand(
         name="tasks",
         help="Manage tasks",
-        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in ["list", "test", "run"]],
+        subcommands=[_remove_dag_id_opt(sp) for sp in TASKS_COMMANDS if sp.name in DAG_CLI_TASKS_SUBCOMMANDS],
     ),
 ]
 DAG_CLI_DICT: dict[str, CLICommand] = {sp.name: sp for sp in dag_cli_commands}

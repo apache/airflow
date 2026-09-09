@@ -29,7 +29,9 @@ import {
   useTaskInstanceServiceGetHitlDetailsKey,
   useTaskInstanceServiceGetMappedTaskInstanceKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
+
 import { createErrorToaster } from "src/utils";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";

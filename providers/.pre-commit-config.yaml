@@ -221,6 +221,13 @@ repos:
         files: ^.*/provider\.yaml$|^.*/docs/.*/connections.*\.rst$|^.*/docs/connections\.rst$
         require_serial: true
         pass_filenames: false
+      - id: check-common-ai-operators-index
+        name: Check common.ai operators are listed in the docs index
+        entry: ../scripts/ci/prek/check_common_ai_operators_index.py
+        language: python
+        files: ^common/ai/(src/airflow/providers/common/ai/operators/.*\.py|docs/operators/index\.rst)$
+        require_serial: true
+        pass_filenames: false
       - id: mypy-providers
         stages: ['pre-push']
         name: Run mypy for providers

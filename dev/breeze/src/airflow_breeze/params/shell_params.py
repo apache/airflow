@@ -588,7 +588,9 @@ services:
         separately with different test types.
 
         This is the only place where you need to add environment variables if you want to pass them to
-        docker or docker-compose.
+        docker or docker-compose. Variables that only some of the invocations set are the exception -
+        they are listed in the ``environment`` section of ``scripts/ci/docker-compose/base.yml``
+        instead, see _generate_env_for_docker_compose_file_if_needed for why.
 
         :return: dictionary of env variables to use for docker-compose and docker command
         """
@@ -705,7 +707,6 @@ services:
         _set_var(_env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference)
         _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
         _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
-        _set_var(_env, "PYTHONWARNINGS", None, None)
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
@@ -793,6 +794,10 @@ services:
         The list of variables might change over time, and we want to keep the list updated only in
         one place (above env_variables_for_docker_commands method). So we need to regenerate the env
         files automatically when new variable is added to the list or removed.
+
+        The keys must not depend on the ambient environment though. All concurrent breeze invocations
+        share these files, so a key that only some of them contribute is taken away again from the
+        containers of the others as soon as another invocation regenerates the files.
 
         Docker-Compose based tests can start in parallel, so we want to make sure we generate it once
         per invocation of breeze command otherwise there could be nasty race condition that

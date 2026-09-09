@@ -175,15 +175,15 @@ class TestBaseAuthManager:
             access_view=AccessView.DOCS, user=None, team_name="team_a"
         )
 
-    def test_authorize_view_drops_team_name_and_warns_for_legacy_manager(self):
+    def test_authorize_view_drops_team_name_and_warns_for_team_unaware_manager(self):
         # A manager whose is_authorized_view predates team_name (out-of-tree, or a provider
         # released before the argument existed) must keep working: authorize_view falls back
         # to a global check and warns that some views are not team-restricted.
-        class LegacyAuthManager(EmptyAuthManager):
+        class TeamUnawareAuthManager(EmptyAuthManager):
             def is_authorized_view(self, *, access_view, user=None):  # old signature, no team_name
                 return True
 
-        manager = LegacyAuthManager()
+        manager = TeamUnawareAuthManager()
 
         with pytest.warns(RemovedInAirflow4Warning, match="not team-aware"):
             result = manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
