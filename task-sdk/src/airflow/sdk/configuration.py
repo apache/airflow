@@ -32,6 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
     expand_env_var,
 )
+from airflow.sdk._shared.configuration.secrets_backends import Backend, sorted_backends
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
@@ -278,6 +279,9 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
+    # Lazy import to trigger __getattr__ and lazy initialization
+    from airflow.sdk.configuration import conf
+
     backend_list = []
     worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode
@@ -291,7 +295,7 @@ def initialize_secrets_backends(
         from airflow.sdk.definitions.connection import Connection
 
         custom_secret_backend._set_connection_class(Connection)
-        backend_list.append(custom_secret_backend)
+        backend_list.append((Backend.CUSTOM, custom_secret_backend))
 
     for class_name in default_backends:
         from airflow.sdk.definitions.connection import Connection
@@ -299,9 +303,9 @@ def initialize_secrets_backends(
         secrets_backend_cls = import_string(class_name)
         backend = secrets_backend_cls()
         backend._set_connection_class(Connection)
-        backend_list.append(backend)
+        backend_list.append((Backend.from_path(class_name), backend))
 
-    return backend_list
+    return sorted_backends(conf, backend_list, worker_mode)
 
 
 _secrets_backend_cache: dict[tuple[str, ...], list] = {}

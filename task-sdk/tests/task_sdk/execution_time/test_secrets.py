@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.sdk._shared.configuration import secrets_backends
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.sdk.configuration import clear_secrets_backends_cache, ensure_secrets_loaded
 from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied, ErrorType
@@ -310,7 +311,7 @@ class TestContextDetection:
 
 
 class TestSecretsBackendMemoisation:
-    BACKEND = "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
+    BACKEND = secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH
 
     def test_nothing_is_memoised_until_a_custom_backend_is_configured(self):
         first = ensure_secrets_loaded(default_backends=_SERVER_DEFAULT_SECRETS_SEARCH_PATH)

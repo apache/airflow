@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from airflow.sdk._shared.configuration import secrets_backends
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
 __all__ = ["ExecutionAPISecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
@@ -26,11 +27,11 @@ __all__ = ["ExecutionAPISecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
 # Server-side default secrets search path (for comparison/detection only)
 # This matches what airflow-core uses but is defined here to avoid importing from core
 _SERVER_DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-    "airflow.secrets.metastore.MetastoreBackend",
+    secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
+    secrets_backends.METASTORE_BACKEND_PATH,
 ]
 
 DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-    "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
+    secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
+    secrets_backends.EXECUTION_API_BACKEND_PATH,
 ]
