@@ -174,7 +174,6 @@ Next, we'll download a CSV file, save it locally, and load it into ``employees_t
       with open(data_path, "w") as file:
           file.write(response.text)
 
-
       postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
       postgres_hook.copy_expert(
           "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
