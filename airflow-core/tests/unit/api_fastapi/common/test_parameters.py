@@ -29,19 +29,20 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
-    NullableDatetimeRangeFilter,
     RangeFilter,
     SortParam,
-    _AssetDependencyFilter,
-    _ConsumingAssetFilter,
-    _escape_like_pattern,
-    _OwnersFilter,
-    _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
-    _TaskDisplayNamePrefixPatternParam,
     datetime_range_filter_factory,
     filter_param_factory,
+)
+from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
+from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.search import (
+    _escape_like_pattern,
+    _PrefixPatternParam,
+    _TaskDisplayNamePrefixPatternParam,
     regex_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
@@ -554,7 +555,9 @@ class TestRegexParamFactory:
     def test_dependency_applies_timeout_when_pattern_provided(self):
         session = mock.MagicMock()
         with conf_vars({("api", "regexp_query_timeout"): "30"}):
-            with mock.patch("airflow.api_fastapi.common.parameters.apply_regex_query_timeout") as apply_mock:
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
                 gen = self._depends()(session=session, value="^us")
                 param = next(gen)
                 apply_mock.assert_called_once_with(session)
@@ -565,7 +568,9 @@ class TestRegexParamFactory:
     def test_dependency_skips_timeout_without_pattern(self):
         session = mock.MagicMock()
         with conf_vars({("api", "regexp_query_timeout"): "30"}):
-            with mock.patch("airflow.api_fastapi.common.parameters.apply_regex_query_timeout") as apply_mock:
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
                 gen = self._depends()(session=session, value=None)
                 param = next(gen)
                 apply_mock.assert_not_called()
