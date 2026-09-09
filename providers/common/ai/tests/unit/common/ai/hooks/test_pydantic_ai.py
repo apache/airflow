@@ -649,6 +649,44 @@ class TestPydanticAIHookTestConnection:
         assert success is True
         assert message == "Embedding model resolved successfully."
 
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_successful_connection_with_both_models(self, mock_infer_model, mock_infer_embedding_model):
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="pydanticai",
+            extra=('{"model": "openai:gpt-5.6-sol", "embed_model": "openai:text-embedding-3-small"}'),
+        )
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            success, message = hook.test_connection()
+
+        assert success is True
+        assert message == "Model and embedding model resolved successfully."
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_failed_connection_with_valid_model_and_invalid_embedding_model(
+        self, mock_infer_model, mock_infer_embedding_model
+    ):
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        mock_infer_embedding_model.side_effect = ValueError("Unknown provider 'badprovider'")
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="pydanticai",
+            extra='{"model": "openai:gpt-5.6-sol", "embed_model": "badprovider:model"}',
+        )
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            success, message = hook.test_connection()
+
+        assert success is False
+        assert "Unknown provider" in message
+
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_failed_connection(self, mock_infer_model):
         mock_infer_model.side_effect = ValueError("Unknown provider 'badprovider'")
@@ -674,7 +712,10 @@ class TestPydanticAIHookTestConnection:
             success, message = hook.test_connection()
 
         assert success is False
-        assert "No embedding model specified" in message
+        assert message == (
+            "No model or embedding model specified. Set model_id or embed_model_id on the hook, "
+            "or the model or embed_model field on the connection."
+        )
 
 
 # ---------------------------------------------------------------------------

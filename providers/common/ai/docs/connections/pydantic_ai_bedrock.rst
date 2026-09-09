@@ -64,6 +64,9 @@ All fields below are ``extra`` (JSON) fields.
 Model
     Bedrock model identifier (e.g. ``bedrock:us.anthropic.claude-opus-4-5``).
 
+Embedding Model
+    Bedrock embedding model identifier (e.g. ``bedrock:amazon.titan-embed-text-v2:0``).
+
 AWS Region
     AWS region (e.g. ``us-east-1``). Falls back to the ``AWS_DEFAULT_REGION``
     environment variable.
