@@ -121,6 +121,10 @@ class PydanticAIHook(BaseHook):
         Overrides the model stored in the connection's extra field. Whichever of
         the two configures the primary's model is forwarded (only while still
         bare) down the fallback chain -- see :meth:`_resolve_fallback_models`.
+    :param embed_conn_id: Optional separate Airflow connection ID for the embedding provider.
+        Falls back to ``llm_conn_id`` when not provided.
+    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
+        Overrides the embedding model stored in the connection's extra field.
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when the
         primary provider is unavailable.  Overrides the ``fallback_conn_ids``
         list stored in the connection's extra field; pass an empty list to
@@ -130,10 +134,6 @@ class PydanticAIHook(BaseHook):
         ``[]``.  Each entry may point at any ``pydanticai*`` connection type, so
         the chain can span providers (for example OpenAI, then Bedrock).  See
         :meth:`get_conn` for the failover semantics and their cost.
-    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
-        Overrides the embedding model stored in the connection's extra field.
-    :param embed_conn_id: Optional separate Airflow connection ID for the embedding provider.
-        Falls back to ``llm_conn_id`` when not provided.
     """
 
     conn_name_attr = "llm_conn_id"
