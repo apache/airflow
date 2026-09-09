@@ -184,6 +184,6 @@ def init_middlewares(app: FastAPI) -> None:
     # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
     # the full end-to-end duration including compression time. HttpAccessLogMiddleware is
     # installed by ``init_access_logging`` in ``create_app``, which runs after this
-    # function — do not reorder those calls, and do not add another outer middleware here.
+    # function — do not reorder those calls.
     # See https://github.com/apache/airflow/issues/60165
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
