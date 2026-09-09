@@ -54,9 +54,10 @@ specify the OpenAI connection to use, and ``response_kwargs`` to pass through op
 ``tools``, ``conversation`` or ``previous_response_id``.
 
 Use ``max_output_tokens`` and ``max_tool_calls`` to cap generation per run -- both are templated,
-so a ceiling can vary by environment or Dag run without hardcoding it. These are *token*-level
-ceilings enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit on the Responses
-API, so this operator has no cost cap. For a monetary limit, use
+so a ceiling can vary by environment or Dag run without hardcoding it. ``max_output_tokens`` caps
+the number of tokens generated; ``max_tool_calls`` caps the number of built-in tool calls the model
+may make. Both limits are enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit
+on the Responses API, so this operator has no cost cap. For a monetary limit, use
 :doc:`apache-airflow-providers-common-ai:index` instead. Hitting ``max_output_tokens`` does not
 fail the request: the response comes back with ``status="incomplete"`` and truncated
 ``output_text``, so ``return_value`` will be the truncated text, not an error.
