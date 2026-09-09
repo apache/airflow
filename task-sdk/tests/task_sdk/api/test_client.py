@@ -1582,6 +1582,8 @@ class TestDagRunOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
+                # Default whole-run clear must not carry an only_failed body.
+                assert "only_failed" not in json.loads(request.read() or "{}")
                 return httpx.Response(status_code=204)
             return httpx.Response(status_code=422)
 
@@ -1589,6 +1591,86 @@ class TestDagRunOperations:
         result = client.dag_runs.clear(dag_id="test_clear", run_id="test_run_id")
 
         assert result == OKResponse(ok=True)
+
+    def test_clear_only_failed(self):
+        """Test that clear(only_failed=True) scopes the server clear to failed+downstream."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
+                assert json.loads(request.read())["only_failed"] is True
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.clear(dag_id="test_clear", run_id="test_run_id", only_failed=True)
+
+        assert result == OKResponse(ok=True)
+
+    def test_trigger_conflict_reset_dag_run_only_failed(self):
+        """Test that the trigger->clear fallback forwards only_failed to the clear body."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id":
+                return httpx.Response(
+                    status_code=409,
+                    json={
+                        "detail": {
+                            "reason": "already_exists",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict with run id test_run_id",
+                        }
+                    },
+                )
+            if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id/clear":
+                assert json.loads(request.read())["only_failed"] is True
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(
+            dag_id="test_trigger_conflict_reset",
+            run_id="test_run_id",
+            reset_dag_run=True,
+            only_failed=True,
+        )
+
+        assert result == OKResponse(ok=True)
+
+    def test_trigger_conflict_only_failed_without_reset(self):
+        """Regression: only_failed=True must reach the clear even when reset_dag_run=False.
+
+        This is the auto_clear_failed_tasks path (reset_dag_run stays False). A conflict
+        must be resolved by a failed-only clear rather than returning
+        ``DAGRUN_ALREADY_EXISTS`` -- gating the clear on ``reset_dag_run`` alone makes the
+        whole feature a no-op.
+        """
+        clear_body: dict = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_trigger_conflict_only_failed/test_run_id":
+                return httpx.Response(
+                    status_code=409,
+                    json={
+                        "detail": {
+                            "reason": "already_exists",
+                            "message": "A Dag Run already exists for Dag test_trigger_conflict_only_failed",
+                        }
+                    },
+                )
+            if request.url.path == "/dag-runs/test_trigger_conflict_only_failed/test_run_id/clear":
+                clear_body.update(json.loads(request.read()))
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(
+            dag_id="test_trigger_conflict_only_failed",
+            run_id="test_run_id",
+            reset_dag_run=False,
+            only_failed=True,
+        )
+
+        assert result == OKResponse(ok=True)
+        assert clear_body == {"only_failed": True}
 
     def test_get_state(self):
         """Test that the client can get the state of a dag run"""

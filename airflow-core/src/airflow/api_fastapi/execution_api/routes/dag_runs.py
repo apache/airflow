@@ -21,7 +21,7 @@ import logging
 from typing import Annotated
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound
 
@@ -30,7 +30,11 @@ from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, resolv
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
+from airflow.api_fastapi.execution_api.datamodels.dagrun import (
+    ClearDagRunPayload,
+    DagRunStateResponse,
+    TriggerDAGRunPayload,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
@@ -187,6 +191,7 @@ def clear_dag_run(
     run_id: str,
     session: SessionDep,
     dag_bag: DagBagDep,
+    payload: ClearDagRunPayload = Body(default_factory=ClearDagRunPayload),
 ) -> None:
     """Clear a Dag run."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
@@ -216,7 +221,11 @@ def clear_dag_run(
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
     resolved_run_on_latest = resolve_run_on_latest_version(None, dag_id, session)
-    dag.clear(run_id=run_id, run_on_latest_version=resolved_run_on_latest)
+    dag.clear(
+        run_id=run_id,
+        only_failed=payload.only_failed,
+        run_on_latest_version=resolved_run_on_latest,
+    )
 
 
 @router.get(

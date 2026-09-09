@@ -96,6 +96,7 @@ from airflow.sdk.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
+    DagRunTriggerException,
     DownstreamTasksSkipped,
     ErrorType,
     TaskDeferred,
@@ -5326,6 +5327,47 @@ class TestTriggerDagRunOperator:
             ),
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    def test_dag_run_trigger_exception_only_failed_and_downstream_defaults_false(self):
+        exc = DagRunTriggerException(
+            trigger_dag_id="d",
+            dag_run_id="r",
+            conf=None,
+            reset_dag_run=False,
+            skip_when_already_exists=False,
+            wait_for_completion=False,
+            allowed_states=[],
+            failed_states=[],
+            poke_interval=1,
+            deferrable=False,
+        )
+        assert exc.only_failed_and_downstream is False  # @AC-FR002-01
+
+    @pytest.mark.parametrize("only_failed_and_downstream", [True, False])
+    def test_handle_trigger_dag_run_propagates_only_failed_and_downstream(
+        self, only_failed_and_downstream, mock_supervisor_comms
+    ):
+        drte = DagRunTriggerException(
+            trigger_dag_id="test_dag",
+            dag_run_id="test_run_id",
+            conf=None,
+            reset_dag_run=False,
+            skip_when_already_exists=False,
+            wait_for_completion=False,
+            allowed_states=[],
+            failed_states=[],
+            poke_interval=1,
+            deferrable=False,
+            only_failed_and_downstream=only_failed_and_downstream,
+        )
+        ti = mock.MagicMock()
+        ti.rendered_map_index = None
+
+        task_runner._handle_trigger_dag_run(drte, mock.MagicMock(), ti, mock.MagicMock())
+
+        sent = mock_supervisor_comms.send.call_args_list[0].args[0]
+        assert isinstance(sent, TriggerDagRun)
+        assert sent.only_failed_and_downstream is only_failed_and_downstream
 
     @pytest.mark.parametrize(
         ("skip_when_already_exists", "expected_state"),
