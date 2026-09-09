@@ -144,14 +144,12 @@ class TestExtraConfigMapsSecrets:
         expected_labels = {
             "app.kubernetes.io/instance": RELEASE_NAME,
             "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/name": "airflow",
             "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": "3.3.1",
             "helm.sh/chart": mock.ANY,
             "label1": "value1",
             "label2": "value2",
-            "release": RELEASE_NAME,
-            "heritage": "Helm",
-            "chart": mock.ANY,
-            "tier": "airflow",
         }
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["labels"] == expected_labels
@@ -187,12 +185,10 @@ class TestExtraConfigMapsSecrets:
         common_labels = {
             "app.kubernetes.io/instance": RELEASE_NAME,
             "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/name": "airflow",
             "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": "3.3.1",
             "helm.sh/chart": mock.ANY,
-            "release": RELEASE_NAME,
-            "heritage": "Helm",
-            "chart": mock.ANY,
-            "tier": "airflow",
         }
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["labels"] == {**common_labels, **chart_labels, **local_labels}

@@ -43,11 +43,6 @@ kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler
   labels:
-    tier: airflow
-    component: scheduler
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     executor: {{ .Values.executor | replace "," "-" | replace ":" "-" | replace ";" "-" | replace "=" "-" | trunc 63 | trimSuffix "-" | trimSuffix ":" | trimSuffix "_" | trimSuffix "." | quote }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "scheduler") | nindent 4 }}
     {{- with .Values.labels }}
@@ -75,15 +70,12 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
-      component: scheduler
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: scheduler
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
-        component: scheduler
-        release: {{ .Release.Name }}
         {{- include "airflow.standardPodLabels" (dict "root" . "component" "scheduler") | nindent 8 }}
         {{- if or .Values.labels .Values.scheduler.labels }}
           {{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 8 }}
@@ -124,7 +116,7 @@ spec:
           - podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  component: scheduler
+                  app.kubernetes.io/component: scheduler
               topologyKey: kubernetes.io/hostname
             weight: 100
         {{- end }}

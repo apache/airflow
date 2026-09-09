@@ -36,11 +36,6 @@ kind: HTTPRoute
 metadata:
   name: {{ $fullname }}-flower-httproute
   labels:
-    tier: airflow
-    component: flower-httproute
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "flower-httproute") | nindent 4 }}
     {{- if or .Values.labels .Values.flower.labels .Values.flower.httpRoute.labels }}
       {{- mustMerge .Values.flower.httpRoute.labels .Values.flower.labels .Values.labels | toYaml | nindent 4 }}

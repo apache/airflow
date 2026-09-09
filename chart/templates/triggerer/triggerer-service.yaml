@@ -26,11 +26,6 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-triggerer
   labels:
-    tier: airflow
-    component: triggerer
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "triggerer") | nindent 4 }}
     {{- if or .Values.labels .Values.triggerer.labels }}
       {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 4 }}
@@ -38,9 +33,9 @@ metadata:
 spec:
   clusterIP: None
   selector:
-    tier: airflow
-    component: triggerer
-    release: {{ .Release.Name }}
+    app.kubernetes.io/part-of: airflow
+    app.kubernetes.io/component: triggerer
+    app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
     - name: triggerer-logs
       protocol: TCP

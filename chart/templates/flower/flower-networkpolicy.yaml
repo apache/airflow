@@ -27,11 +27,6 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-flower-policy
   labels:
-    tier: airflow
-    component: airflow-flower-policy
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "airflow-flower-policy") | nindent 4 }}
     {{- if or .Values.labels .Values.flower.labels }}
       {{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
@@ -39,9 +34,9 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
-      component: flower
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: flower
+      app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:
     - Ingress
   {{- if $from }}

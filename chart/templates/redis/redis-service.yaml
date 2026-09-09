@@ -26,11 +26,6 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-redis
   labels:
-    tier: airflow
-    component: redis
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "redis") | nindent 4 }}
     {{- if or .Values.labels .Values.redis.labels }}
       {{- mustMerge .Values.redis.labels .Values.labels | toYaml | nindent 4 }}
@@ -45,9 +40,9 @@ spec:
   type: {{ .Values.redis.service.type }}
 {{- end }}
   selector:
-    tier: airflow
-    component: redis
-    release: {{ .Release.Name }}
+    app.kubernetes.io/part-of: airflow
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
     - name: redis-db
       protocol: TCP

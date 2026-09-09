@@ -1,1 +1,0 @@
-Add Kubernetes-recommended labels to chart-managed resources and pods

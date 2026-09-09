@@ -36,11 +36,6 @@ kind: ScaledObject
 metadata:
   name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
   labels:
-    tier: airflow
-    component: worker-horizontalpodautoscaler
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "worker-horizontalpodautoscaler") | nindent 4 }}
     deploymentName: {{ .Release.Name }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
     {{- if or .Values.labels .Values.workers.celery.labels }}

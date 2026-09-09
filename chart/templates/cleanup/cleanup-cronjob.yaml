@@ -33,11 +33,6 @@ kind: CronJob
 metadata:
   name: {{ include "airflow.fullname" . }}-cleanup
   labels:
-    tier: airflow
-    component: airflow-cleanup-pods
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "airflow-cleanup-pods") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
@@ -61,9 +56,6 @@ spec:
       template:
         metadata:
           labels:
-            tier: airflow
-            component: airflow-cleanup-pods
-            release: {{ .Release.Name }}
             {{- include "airflow.standardPodLabels" (dict "root" . "component" "airflow-cleanup-pods") | nindent 12 }}
             {{- if or .Values.labels .Values.cleanup.labels }}
               {{- mustMerge .Values.cleanup.labels .Values.labels | toYaml | nindent 12 }}

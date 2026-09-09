@@ -26,11 +26,6 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-triggerer-policy
   labels:
-    tier: airflow
-    component: airflow-triggerer-policy
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "airflow-triggerer-policy") | nindent 4 }}
     {{- if or .Values.labels .Values.triggerer.labels }}
       {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 4 }}
@@ -38,18 +33,18 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
-      component: triggerer
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: triggerer
+      app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:
   - Ingress
   ingress:
   - from:
     - podSelector:
         matchLabels:
-          tier: airflow
-          release: {{ .Release.Name }}
-          component: api-server
+          app.kubernetes.io/part-of: airflow
+          app.kubernetes.io/instance: {{ .Release.Name }}
+          app.kubernetes.io/component: api-server
     ports:
     - protocol: TCP
       port: {{ .Values.ports.triggererLogs }}

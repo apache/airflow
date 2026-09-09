@@ -353,7 +353,7 @@ class TestAirflowCommon:
         ]
         expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
         for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
+            component = doc["metadata"]["labels"]["app.kubernetes.io/component"]
             variables = expected_vars_in_worker if component == "worker" else expected_vars
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
@@ -388,7 +388,7 @@ class TestAirflowCommon:
             "AIRFLOW__CELERY__BROKER_URL",
         ]
         for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
+            component = doc["metadata"]["labels"]["app.kubernetes.io/component"]
             expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
             expected_in_worker = ["DUMB_INIT_SETSID"] + expected
             variables = expected_in_worker if component == "worker" else expected
@@ -405,7 +405,7 @@ class TestAirflowCommon:
         )
 
         for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
+            component = doc["metadata"]["labels"]["app.kubernetes.io/component"]
             env_names = jmespath.search(
                 f"spec.template.spec.containers[?name=='{component}'].env[].name", doc
             )
@@ -433,7 +433,7 @@ class TestAirflowCommon:
         )
 
         for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
+            component = doc["metadata"]["labels"]["app.kubernetes.io/component"]
             env_names = jmespath.search(
                 "[spec.template.spec.containers, spec.template.spec.initContainers][][].env[].name", doc
             )
@@ -449,7 +449,7 @@ class TestAirflowCommon:
         )
 
         for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
+            component = doc["metadata"]["labels"]["app.kubernetes.io/component"]
             env_names = jmespath.search(
                 f"spec.template.spec.containers[?name=='{component}'].env[].name", doc
             )
@@ -508,7 +508,7 @@ class TestAirflowCommon:
 
         assert len(docs) == 11
         for doc in docs:
-            component = doc["metadata"]["labels"]["component"]
+            component = doc["metadata"]["labels"]["app.kubernetes.io/component"]
             if component in ["airflow-cleanup-pods", "database-cleanup"]:
                 priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
             else:

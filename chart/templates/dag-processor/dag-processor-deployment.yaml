@@ -36,11 +36,6 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-dag-processor
   labels:
-    tier: airflow
-    component: dag-processor
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "dag-processor") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
@@ -55,18 +50,15 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
-      component: dag-processor
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: dag-processor
+      app.kubernetes.io/instance: {{ .Release.Name }}
   {{- if .Values.dagProcessor.strategy }}
   strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
       labels:
-        tier: airflow
-        component: dag-processor
-        release: {{ .Release.Name }}
         {{- include "airflow.standardPodLabels" (dict "root" . "component" "dag-processor") | nindent 8 }}
         {{- if or .Values.labels .Values.dagProcessor.labels }}
           {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
@@ -100,7 +92,7 @@ spec:
           - podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  component: dag-processor
+                  app.kubernetes.io/component: dag-processor
               topologyKey: kubernetes.io/hostname
             weight: 100
       {{- end }}

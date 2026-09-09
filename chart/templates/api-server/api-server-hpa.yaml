@@ -26,11 +26,6 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "airflow.fullname" . }}-api-server
   labels:
-    tier: airflow
-    component: api-server-horizontalpodautoscaler
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "api-server-horizontalpodautoscaler") | nindent 4 }}
     deploymentName: {{ .Release.Name }}-api-server
     {{- if or .Values.labels .Values.apiServer.labels }}

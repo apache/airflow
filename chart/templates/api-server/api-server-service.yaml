@@ -26,11 +26,6 @@ kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-api-server
   labels:
-    tier: airflow
-    component: api-server
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "api-server") | nindent 4 }}
     {{- if or .Values.labels .Values.apiServer.labels }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
@@ -41,9 +36,9 @@ metadata:
 spec:
   type: {{ .Values.apiServer.service.type }}
   selector:
-    tier: airflow
-    component: api-server
-    release: {{ .Release.Name }}
+    app.kubernetes.io/part-of: airflow
+    app.kubernetes.io/component: api-server
+    app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
   {{ range .Values.apiServer.service.ports }}
     -

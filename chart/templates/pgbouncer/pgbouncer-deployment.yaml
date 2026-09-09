@@ -36,11 +36,6 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-pgbouncer
   labels:
-    tier: airflow
-    component: pgbouncer
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "pgbouncer") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
@@ -59,15 +54,12 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      tier: airflow
-      component: pgbouncer
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: pgbouncer
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
-        component: pgbouncer
-        release: {{ .Release.Name }}
         {{- include "airflow.standardPodLabels" (dict "root" . "component" "pgbouncer") | nindent 8 }}
         {{- if or .Values.labels .Values.pgbouncer.labels }}
           {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 8 }}

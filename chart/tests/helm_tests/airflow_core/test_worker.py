@@ -653,7 +653,7 @@ class TestWorker:
             "preferredDuringSchedulingIgnoredDuringExecution[0]."
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
-        ) == {"component": "worker"}
+        ) == {"app.kubernetes.io/component": "worker"}
 
     def test_runtime_class_name_values_are_configurable(self):
         docs = render_chart(
@@ -1842,7 +1842,9 @@ class TestWorkerNetworkPolicy:
         )
 
         assert (
-            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            jmespath.search(
+                'spec.ingress[0].from[0].podSelector.matchLabels."app.kubernetes.io/component"', docs[0]
+            )
             == "api-server"
         )
 

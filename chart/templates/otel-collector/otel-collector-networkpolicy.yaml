@@ -26,11 +26,6 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-otel-collector-policy
   labels:
-    tier: airflow
-    component: otel-collector-policy
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "otel-collector-policy") | nindent 4 }}
     {{- if or .Values.labels .Values.otelCollector.labels }}
       {{- mustMerge .Values.otelCollector.labels .Values.labels | toYaml | nindent 4 }}
@@ -38,17 +33,17 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
-      component: otel-collector
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: otel-collector
+      app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:
   - Ingress
   ingress:
   - from:
     - podSelector:
         matchLabels:
-          tier: airflow
-          release: {{ .Release.Name }}
+          app.kubernetes.io/part-of: airflow
+          app.kubernetes.io/instance: {{ .Release.Name }}
     {{- if .Values.otelCollector.extraNetworkPolicies }}
       {{- toYaml .Values.otelCollector.extraNetworkPolicies | nindent 4 }}
     {{- end }}

@@ -454,7 +454,7 @@ class TestScheduler:
             "preferredDuringSchedulingIgnoredDuringExecution[0]."
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
-        ) == {"component": "scheduler"}
+        ) == {"app.kubernetes.io/component": "scheduler"}
 
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
@@ -936,7 +936,9 @@ class TestSchedulerNetworkPolicy:
         )
 
         assert (
-            jmespath.search("spec.ingress[0].from[0].podSelector.matchLabels.component", docs[0])
+            jmespath.search(
+                'spec.ingress[0].from[0].podSelector.matchLabels."app.kubernetes.io/component"', docs[0]
+            )
             == "api-server"
         )
 

@@ -36,11 +36,6 @@ kind: HTTPRoute
 metadata:
   name: {{ $fullname }}-api-server-httproute
   labels:
-    tier: airflow
-    component: airflow-api-server-httproute
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "airflow-api-server-httproute") | nindent 4 }}
     {{- if or .Values.labels .Values.apiServer.labels .Values.apiServer.httpRoute.labels }}
       {{- mustMerge .Values.apiServer.httpRoute.labels .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}

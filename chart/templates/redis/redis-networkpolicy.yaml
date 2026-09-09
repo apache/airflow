@@ -26,11 +26,6 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-redis-policy
   labels:
-    tier: airflow
-    component: redis-policy
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "redis-policy") | nindent 4 }}
     {{- if or .Values.labels .Values.redis.labels }}
       {{- mustMerge .Values.redis.labels .Values.labels | toYaml | nindent 4 }}
@@ -38,28 +33,28 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      tier: airflow
-      component: redis
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: redis
+      app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:
   - Ingress
   ingress:
   - from:
     - podSelector:
         matchLabels:
-          tier: airflow
-          component: worker
-          release: {{ .Release.Name }}
+          app.kubernetes.io/part-of: airflow
+          app.kubernetes.io/component: worker
+          app.kubernetes.io/instance: {{ .Release.Name }}
     - podSelector:
         matchLabels:
-          tier: airflow
-          component: scheduler
-          release: {{ .Release.Name }}
+          app.kubernetes.io/part-of: airflow
+          app.kubernetes.io/component: scheduler
+          app.kubernetes.io/instance: {{ .Release.Name }}
     - podSelector:
         matchLabels:
-          tier: airflow
-          component: flower
-          release: {{ .Release.Name }}
+          app.kubernetes.io/part-of: airflow
+          app.kubernetes.io/component: flower
+          app.kubernetes.io/instance: {{ .Release.Name }}
     ports:
     - protocol: TCP
       port: {{ .Values.ports.redisDB }}
