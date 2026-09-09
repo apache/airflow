@@ -70,7 +70,7 @@ class NullableAnnotationMismatch:
     annotation: str
 
 
-def _trailing_name(node: ast.expr) -> str | None:
+def _extract_trailing_name(node: ast.expr) -> str | None:
     """Return the last identifier of a ``Name``/``Attribute`` chain (``orm.Mapped`` -> ``Mapped``)."""
     if isinstance(node, ast.Name):
         return node.id
@@ -95,10 +95,10 @@ def admits_none(annotation: ast.expr) -> bool:
         return annotation.value is None
     if isinstance(annotation, ast.BinOp) and isinstance(annotation.op, ast.BitOr):
         return admits_none(annotation.left) or admits_none(annotation.right)
-    if _trailing_name(annotation) in _NONE_ADMITTING_NAMES:
+    if _extract_trailing_name(annotation) in _NONE_ADMITTING_NAMES:
         return True
     if isinstance(annotation, ast.Subscript):
-        outer = _trailing_name(annotation.value)
+        outer = _extract_trailing_name(annotation.value)
         if outer == "Optional":
             return True
         if outer == "Union":
@@ -134,10 +134,12 @@ def iter_mismatches(path: Path) -> Iterator[NullableAnnotationMismatch]:
         if not isinstance(node, ast.AnnAssign) or node.value is None:
             continue
         annotation = _resolve_string_annotation(node.annotation)
-        if not (isinstance(annotation, ast.Subscript) and _trailing_name(annotation.value) == "Mapped"):
+        if not (
+            isinstance(annotation, ast.Subscript) and _extract_trailing_name(annotation.value) == "Mapped"
+        ):
             continue
         call = node.value
-        if not (isinstance(call, ast.Call) and _trailing_name(call.func) == "mapped_column"):
+        if not (isinstance(call, ast.Call) and _extract_trailing_name(call.func) == "mapped_column"):
             continue
         if _explicit_nullable(call) is not True or admits_none(annotation.slice):
             continue
@@ -158,7 +160,7 @@ def iter_python_files(roots: Iterable[Path]) -> Iterator[Path]:
             yield path
 
 
-def _display_path(path: Path) -> str:
+def _format_display_path(path: Path) -> str:
     try:
         return str(path.resolve().relative_to(REPO_ROOT))
     except ValueError:
@@ -176,7 +178,7 @@ def check_files(files: Iterable[Path]) -> int:
     )
     for mismatch in mismatches:
         console.print(
-            f"  {_display_path(mismatch.path)}:{mismatch.lineno}: "
+            f"  {_format_display_path(mismatch.path)}:{mismatch.lineno}: "
             f"[bold]{escape(mismatch.attribute)}[/]: {escape(mismatch.annotation)}",
             highlight=False,
             soft_wrap=True,
