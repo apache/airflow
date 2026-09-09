@@ -145,7 +145,7 @@ Nothing is constructed at registration. Task classes are instantiated per task-i
 run ([ADR-0001](0001-mixed-lang-dag-interface.md)), and the Dag definition itself is read once, at
 registration, without running a task body.
 
-One bundle carries native Dags and mixed-language stub tasks alike
+One bundle carries native Dags and mixed-language task handlers alike
 ([ADR-0001](0001-mixed-lang-dag-interface.md)), so one process serves both.
 
 ## Alternatives
@@ -170,7 +170,7 @@ One bundle carries native Dags and mixed-language stub tasks alike
 - A task method is plain Java with a real signature, so nothing about the authoring surface exists
   only to satisfy the compiler: no twin class, no `In<T>`, no `TaskRef<T>` wrapper.
 - Native tasks keep `@Builder.Task`, while the mixed-language surface moves to
-  `@Builder.StubTask` ([ADR-0001](0001-mixed-lang-dag-interface.md)), so an annotation names
+  `@Builder.TaskHandler` ([ADR-0001](0001-mixed-lang-dag-interface.md)), so an annotation names
   which of the two things a method is.
 - The interface-based surface wires edges through object references (`after(extract)`) rather than
   through compile-time-generated calls, so it needs no tree reading and works under any compiler.
@@ -202,6 +202,6 @@ One bundle carries native Dags and mixed-language stub tasks alike
   Today's shipped `Dag` has only `addTask(id, definition)`, which returns the Dag rather than a ref;
   `.config(...)` is keyed to the Dag serialization schema.
 - **`register` is one overloaded verb**: `register(Class<?>)` for an annotated class, `register(Dag)`
-  for a built one, and `register(dagId, taskId, Class<? extends Task>)` for a stub task
+  for a built one, and `register(dagId, taskId, Class<? extends Task>)` for a task handler
   ([ADR-0001](0001-mixed-lang-dag-interface.md)). It is proposed here; today a bundle is built from an
   `Iterable<Dag>` through `BundleBuilder.getDags()`.
