@@ -40,6 +40,15 @@
     // Fallback: empty objects — badges show raw type name, icons fall back to first letter
   }
 
+  // Kept in sync by hand with normalize() in provider-filters.js and
+  // src/_data/providerKeywordMatch.js (this file and provider-filters.js are
+  // browser IIFEs; providerKeywordMatch runs at build time under CommonJS),
+  // so none of the three can share an implementation. If they drift,
+  // 'mistral-ai' stops matching "Mistral AI".
+  function normalize(text) {
+    return text.toLowerCase().replace(/[-_\s]+/g, ' ');
+  }
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
@@ -118,8 +127,12 @@
       let matchedService = '';
       if (type === 'provider' && currentQuery) {
         const services = (result.meta.externalServices || '').split(',').filter(Boolean);
-        const normalizedQuery = currentQuery.toLowerCase();
-        matchedService = services.find((service) => service.toLowerCase().includes(normalizedQuery)) || '';
+        const normalizedQuery = normalize(currentQuery);
+        matchedService = services.find((service) => {
+          const normalizedService = normalize(service);
+          return normalizedService.startsWith(normalizedQuery) ||
+            normalizedService.includes(' ' + normalizedQuery);
+        }) || '';
       }
 
       return `
