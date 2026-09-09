@@ -335,8 +335,8 @@ class AirflowInfo:
 
     def render_text(self, output: str) -> str:
         """Export the info to string."""
-        # No color_system: the captured text is uploaded as a file, so escape codes are noise.
-        console = AirflowConsole(color_system=None)
+        # The text is uploaded as a file: no escape codes, fixed width regardless of the terminal.
+        console = AirflowConsole(color_system=None, width=200)
         with console.capture() as capture:
             self.show(output=output, console=console)
         return capture.get()
