@@ -1935,6 +1935,72 @@ class TestCloudSqlProxyRunner:
 
         assert "-enable_iam_login" not in runner.command_line_parameters
 
+    def test_cloud_sql_proxy_runner_v2_builds_v2_command_line(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_major_version=2,
+        )
+
+        assert runner.command_line_parameters == [
+            "--unix-socket",
+            "12345678",
+            "project:us-east-1:instance",
+        ]
+
+    def test_cloud_sql_proxy_runner_v2_iam_login_maps_to_auto_iam_authn(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_major_version=2,
+            sql_proxy_enable_iam_login=True,
+        )
+
+        assert "--auto-iam-authn" in runner.command_line_parameters
+        assert "-enable_iam_login" not in runner.command_line_parameters
+
+    def test_cloud_sql_proxy_runner_v2_download_url_targets_github_releases(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_major_version=2,
+            sql_proxy_version="v2.14.0",
+        )
+
+        assert runner._get_sql_proxy_download_url() == (
+            "https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases/download/"
+            f"v2.14.0/cloud-sql-proxy.{platform.system().lower()}.{get_processor()}"
+        )
+
+    def test_cloud_sql_proxy_runner_v2_rejects_v1_style_version(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_major_version=2,
+            sql_proxy_version="v1.23.0",
+        )
+
+        with pytest.raises(ValueError, match="The sql_proxy_version should match"):
+            runner._get_sql_proxy_download_url()
+
+    def test_cloud_sql_proxy_runner_v2_requires_explicit_version(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_major_version=2,
+        )
+
+        with pytest.raises(AirflowException, match="sql_proxy_version is required"):
+            runner._get_sql_proxy_download_url()
+
+    def test_cloud_sql_proxy_runner_rejects_unknown_major_version(self):
+        with pytest.raises(AirflowException, match="sql_proxy_major_version must be 1 or 2"):
+            CloudSqlProxyRunner(
+                path_prefix="12345678",
+                instance_specification="project:us-east-1:instance",
+                sql_proxy_major_version=3,
+            )
+
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
     def test_cloud_sql_proxy_runner_keeps_key_path_credentials_with_iam_login(self, get_connection):
         connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")

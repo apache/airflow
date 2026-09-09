@@ -81,6 +81,7 @@ UNIX_PATH_MAX = 108
 TIME_TO_SLEEP_IN_SECONDS = 20
 
 CLOUD_SQL_PROXY_VERSION_REGEX = re.compile(r"^v?(\d+\.\d+\.\d+)(-\w*.?\d?)?$")
+CLOUD_SQL_PROXY_V2_VERSION_REGEX = re.compile(r"^v2\.\d+\.\d+(-[0-9A-Za-z.-]+)?$")
 
 
 class CloudSqlOperationStatus:
@@ -490,6 +491,9 @@ CLOUD_SQL_PROXY_DOWNLOAD_URL = "https://dl.google.com/cloudsql/cloud_sql_proxy.{
 CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL = (
     "https://storage.googleapis.com/cloudsql-proxy/{}/cloud_sql_proxy.{}.{}"
 )
+CLOUD_SQL_PROXY_V2_DOWNLOAD_URL = (
+    "https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases/download/{}/cloud-sql-proxy.{}.{}"
+)
 
 
 class CloudSQLAsyncHook(GoogleBaseAsyncHook):
@@ -560,6 +564,12 @@ class CloudSqlProxyRunner(LoggingMixin):
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
+    :param sql_proxy_major_version: Major version of the Cloud SQL Auth Proxy to run.
+        ``1`` (default) keeps the legacy v1 binary and its ``-dir``/``-instances``
+        flag set. ``2`` runs the v2 binary, which speaks the new flag syntax and
+        supports ``caching_sha2_password`` full authentication on MySQL 8.4
+        (v1 cannot, so first connections after a server restart fail with
+        ``1045 Access denied``).
     """
 
     def __init__(
@@ -572,11 +582,17 @@ class CloudSqlProxyRunner(LoggingMixin):
         sql_proxy_binary_path: str | None = None,
         *,
         sql_proxy_enable_iam_login: bool = False,
+        sql_proxy_major_version: int = 1,
     ) -> None:
         super().__init__()
         self.path_prefix = path_prefix
         if not self.path_prefix:
             raise AirflowException("The path_prefix must not be empty!")
+        if sql_proxy_major_version not in (1, 2):
+            raise AirflowException(
+                f"sql_proxy_major_version must be 1 or 2, got {sql_proxy_major_version!r}"
+            )
+        self.sql_proxy_major_version = sql_proxy_major_version
         self.sql_proxy_was_downloaded = False
         self.sql_proxy_version = sql_proxy_version
         self.download_sql_proxy_dir = None
@@ -592,6 +608,13 @@ class CloudSqlProxyRunner(LoggingMixin):
         self._build_command_line_parameters()
 
     def _build_command_line_parameters(self) -> None:
+        if self.sql_proxy_major_version == 2:
+            self.command_line_parameters.extend(
+                ["--unix-socket", self.cloud_sql_proxy_socket_directory, self.instance_specification]
+            )
+            if self.sql_proxy_enable_iam_login:
+                self.command_line_parameters.append("--auto-iam-authn")
+            return
         self.command_line_parameters.extend(["-dir", self.cloud_sql_proxy_socket_directory])
         self.command_line_parameters.extend(["-instances", self.instance_specification])
         if self.sql_proxy_enable_iam_login:
@@ -636,6 +659,19 @@ class CloudSqlProxyRunner(LoggingMixin):
             processor = "amd64"
         elif processor == "aarch64":
             processor = "arm64"
+        if self.sql_proxy_major_version == 2:
+            if not self.sql_proxy_version:
+                raise AirflowException(
+                    "sql_proxy_version is required with sql_proxy_major_version=2: "
+                    "the v2 binary is released on GitHub and has no 'latest' alias "
+                    "on the legacy download endpoints."
+                )
+            if not CLOUD_SQL_PROXY_V2_VERSION_REGEX.match(self.sql_proxy_version):
+                raise ValueError(
+                    "The sql_proxy_version should match the regular expression "
+                    f"{CLOUD_SQL_PROXY_V2_VERSION_REGEX.pattern}"
+                )
+            return CLOUD_SQL_PROXY_V2_DOWNLOAD_URL.format(self.sql_proxy_version, system, processor)
         if not self.sql_proxy_version:
             download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
         else:
@@ -721,7 +757,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             if "googleapi: Error" in line or "invalid instance name:" in line:
                 self.stop_proxy()
                 raise AirflowException(f"Error when starting the cloud_sql_proxy {line}!")
-            if "Ready for new connections" in line:
+            if "Ready for new connections" in line or "ready to accept new connections" in line:
                 return
 
     def stop_proxy(self) -> None:
