@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
 
 import { DagDeactivatedBanner } from "./DagDeactivatedBanner";

@@ -1145,6 +1145,18 @@ export type DAGWarningResponse = {
 export type DagProcessorInfoResponse = {
     status: string | null;
     latest_dag_processor_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<DagProcessorInstanceInfoResponse> | null;
+};
+
+/**
+ * Dag processor instance info serializer for responses.
+ */
+export type DagProcessorInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_dag_processor_heartbeat: string | null;
+    bundle_names: Array<(string)> | null;
 };
 
 /**
@@ -1496,6 +1508,8 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
+    team_name?: string | null;
+    bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
 
@@ -1727,6 +1741,17 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  */
 export type SchedulerInfoResponse = {
     status: string | null;
+    latest_scheduler_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<SchedulerInstanceInfoResponse> | null;
+};
+
+/**
+ * Scheduler instance info serializer for responses.
+ */
+export type SchedulerInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
 
@@ -2074,6 +2099,18 @@ export type TriggerResponse = {
 export type TriggererInfoResponse = {
     status: string | null;
     latest_triggerer_heartbeat: string | null;
+    detailed_status: string | null;
+    instances?: Array<TriggererInstanceInfoResponse> | null;
+};
+
+/**
+ * Triggerer instance info serializer for responses.
+ */
+export type TriggererInstanceInfoResponse = {
+    status: string | null;
+    hostname: string | null;
+    latest_triggerer_heartbeat: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -2164,6 +2201,7 @@ export type XComResponse = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2180,6 +2218,7 @@ export type XComResponseNative = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: unknown;
 };
 
@@ -2197,6 +2236,7 @@ export type XComResponseString = {
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: string | null;
 };
 
@@ -2505,6 +2545,7 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -3139,13 +3180,34 @@ export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
 export type ListBackfillsUiData = {
     active?: boolean | null;
+    completedAtGt?: string | null;
+    completedAtGte?: string | null;
+    completedAtLt?: string | null;
+    completedAtLte?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
     dagId?: string | null;
+    fromDateGt?: string | null;
+    fromDateGte?: string | null;
+    fromDateLt?: string | null;
+    fromDateLte?: string | null;
     limit?: number;
+    maxActiveRunsGt?: number | null;
+    maxActiveRunsGte?: number | null;
+    maxActiveRunsLt?: number | null;
+    maxActiveRunsLte?: number | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      */
     orderBy?: Array<(string)>;
+    reprocessBehavior?: ReprocessBehavior | null;
+    toDateGt?: string | null;
+    toDateGte?: string | null;
+    toDateLt?: string | null;
+    toDateLte?: string | null;
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
@@ -4516,6 +4578,7 @@ export type GetXcomEntriesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     xcomKey?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4703,6 +4766,7 @@ export type GetDeadlinesData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
      */
     orderBy?: Array<(string)>;
+    teams?: Array<(string)>;
 };
 
 export type GetDeadlinesResponse = DeadlineCollectionResponse;
@@ -8552,6 +8616,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: PartitionedDagRunCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

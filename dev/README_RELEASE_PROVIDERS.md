@@ -24,6 +24,7 @@
   - [What the provider distributions are](#what-the-provider-distributions-are)
   - [Decide when to release](#decide-when-to-release)
   - [Delegating release duties to a non-PMC committer](#delegating-release-duties-to-a-non-pmc-committer)
+- [Prerequisites (first-time release managers)](#prerequisites-first-time-release-managers)
 - [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Special procedures (done very infrequently)](#special-procedures-done-very-infrequently)
   - [Bump min Airflow version for providers](#bump-min-airflow-version-for-providers)
@@ -128,6 +129,27 @@ remains the party accountable for the release under ASF policy.
 > live — sharing their screen (or pairing) through the build → sign → `dist/dev` → PyPI-RC steps so the
 > Delegate sees exactly how it is done. The aim is simply that these steps are familiar rather than
 > a surprise if and when the Delegate later becomes a PMC member and runs them for real.
+
+# Prerequisites (first-time release managers)
+
+Two steps of the release depend on access that you must request. Request both **before** you start your first
+release. They only need to be done once for new release managers, but may take some time.
+
+* **PyPI: membership of the `apache-airflow` organization.** The
+  [RC upload](#publish-the-regular-distributions-to-pypi-release-candidates) and the
+  [final upload](#publish-the-packages-to-pypi) steps push to the `apache-airflow-providers-*` PyPi projects.
+  Ask a PMC member who is an owner of the Apache Airflow PyPI organization to invite your account. Then
+  accept the invitation. Confirm it worked by opening [your PyPI projects](https://pypi.org/manage/projects/)
+  and you should see many Airflow related projects (170+ at the time of writing).
+
+* **GitHub: the docs-publishing allowlist.** The
+  [`publish-docs-to-s3.yml`](../.github/workflows/publish-docs-to-s3.yml) workflow gates its
+  `build-info` job on `github.event.sender.login`, and every other job depends on `build-info`. If
+  your GitHub handle is not in that list, dispatching the workflow (as
+  [Prepare documentation in Staging](#prepare-documentation-in-staging) does) reports **no error at
+  all**. The run is created and every job is silently skipped, which is easy to mistake for a
+  successful publish. Add your handle with a one-line PR to that file and merge it to main. Example:
+  [#71848](https://github.com/apache/airflow/pull/71848).
 
 # Collect ambiguities during the release (for a follow-up doc PR)
 
@@ -356,6 +378,56 @@ In case you want to also release a pre-installed provider that is in ``not-ready
 you want to release it before you switch their state to ``ready``), pass
 ``--include-not-ready-providers``.
 
+### Dropping a prepared provider back to doc-only (no PyPI artifact)
+
+Two different outcomes are both called "doc-only", and the difference decides whether the provider
+gets a PyPI release at all:
+
+| | What it means | PyPI artifact |
+|---|---|---|
+| A `doc-only` entry in the changelog | The provider *is* released; one of the entries in the release happens to be documentation | **Yes** |
+| The `.latest-doc-only-change.txt` marker | The provider is *not* released at all; only its documentation is republished | **No** |
+
+The second case comes up when a provider was already prepared with, say, a `Misc` entry, and review
+then concludes the change is internal or documentation only, so there is nothing for users to install.
+Changing the changelog entry is not enough — the version bump and the changelog stay prepared, and the
+provider would still be built and uploaded. Drop the provider back to doc-only with:
+
+```shell script
+breeze release-management prepare-provider-documentation --mark-doc-only PROVIDER [MORE PROVIDERS]
+```
+
+This restores the provider's `provider.yaml` and `changelog.rst` to their released state, then writes
+`providers/PROVIDER/docs/.latest-doc-only-change.txt`. No version bump, no changelog section, no
+distribution. It needs an explicit list of providers — it takes them out of the release, so it will
+not default to every provider.
+
+Commit the marker file afterwards. It is the only artifact of the whole sequence, and it must be
+committed or the next release will prepare the provider again:
+
+```shell script
+git add providers/PROVIDER/docs/.latest-doc-only-change.txt
+```
+
+Doing it by hand is the same three steps: restore those two files, re-run
+`prepare-provider-documentation PROVIDER`, and answer **`N`** to
+`Does the provider: PROVIDER have any changes apart from 'doc-only'?`. Note that the interactive
+prompt is not reachable during `--incremental-update`, which answers every question with "yes" —
+that is what `--mark-doc-only` is for.
+
+The marker holds the full commit hash of the latest change that was declared doc-only. On the next
+release, the tooling counts commits since that hash rather than since the last release tag, so:
+
+* if nothing landed since the marker, the provider is skipped with
+  `The provider has doc-only changes since the last release. Skipping`;
+* if something did land, only the commits after the marker are classified, so the changes already
+  declared doc-only are not offered for classification a second time.
+
+> [!NOTE]
+> The same applies when using the `prepare-providers-documentation` skill — it classifies commits,
+> but the decision that a prepared provider should not be released at all is still made by the
+> release manager, and is still recorded by this marker file.
+
 ## Update versions of dependent providers to the next version
 
 Sometimes when contributors want to use next version of a dependent provider, instead of
@@ -435,6 +507,14 @@ following labels to the PR (if they aren't already set from the original PR):
 
 * `skip common compat check`
 * `allow provider dependency bump`
+
+The rebase before merging is also the point to check the wave in the other direction. The incremental
+flow looks for commits that are *missing* from the release; it does not look for providers that are in
+the release but should no longer be there. If review concluded that a prepared provider's only changes
+are internal or documentation, that provider still carries its version bump and changelog section, and
+it would still be built and uploaded. Drop it back with [Dropping a prepared provider back to
+doc-only](#dropping-a-prepared-provider-back-to-doc-only-no-pypi-artifact) before merging, so the
+decision made in review is actually reflected in what gets released.
 
 Once approved, merge it - be careful to do it quickly so that no new PRs are merged for
 providers in the meantime; if they are, you'd miss them in the changelog.
@@ -740,21 +820,26 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
   Publishing is deployed for the Airflow provider distributions on PyPI**,
   the recommended practice is:
 
-  1. Log in to https://pypi.org and create an API token right before the
-     upload step. **Scope caveat:** you would ideally create a
-     project-scoped token, but PyPI only allows project-scoped tokens for
-     projects you already own/maintain on that account. Most Airflow
-     release managers do not have per-project owner rights on every
-     provider being released, so in practice you will need to create an
-     account-wide ("all projects") token. That is acceptable **only if**
-     you treat it as single-use and delete it immediately after the upload
-     (step 4 below). Never keep an all-projects token on disk longer than
-     the upload itself.
-  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
-     `TWINE_PASSWORD=pypi-...`).
-  3. Run the upload (below).
-  4. **Immediately delete the token** from the PyPI web UI after the upload
-     completes. Do not keep long-lived release-manager tokens on disk.
+  1. Create the token immediately before uploading, at
+     [Account settings → API tokens → "Add API token"](https://pypi.org/manage/account/token/). Name
+     it after the wave (e.g. `airflow-providers-2026-08-25-rc`) so you can find it again to delete it.
+  2. **Scope caveat:** a token can only be scoped to a single project and a wave publishes several,
+     so pick "Entire account (all projects)". That is acceptable **only if** you treat it as
+     single-use and delete it immediately after the upload. Never keep an all-projects token on disk
+     longer than the upload itself.
+  3. Copy the `pypi-...` value, PyPI shows it only once. Pass it to twine in the environment rather
+     than in `~/.pypirc`, so that nothing is written to disk and any `.pypirc` you already have for
+     your own projects is left alone:
+
+     ```shell script
+     export TWINE_USERNAME=__token__
+     read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
+     ```
+
+  4. Run the upload (below).
+  5. **Delete the token** at
+     [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
+     `unset TWINE_USERNAME TWINE_PASSWORD`.
 
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.
@@ -924,8 +1009,11 @@ unchecked). If the issue was already created, apply the same local edit and then
 Once you are satisfied with `files/provider_issue.md` (and any checkmarks have been carried over), create the issue from the file:
 
 ```shell script
+# Fill prepared-on date by hand when RELEASE_DATE is unset, since an empty date formats as *today* on GNU date.
+date_cmd=(date -d); [[ "${OSTYPE}" == *darwin* ]] && date_cmd=(date -j -f "%Y-%m-%d")
+PREPARED_ON="<MONTH DD, YYYY>"; [[ -n "${RELEASE_DATE:-}" ]] && PREPARED_ON=$("${date_cmd[@]}" "${RELEASE_DATE%%_*}" +'%B %d, %Y')
 gh issue create --repo apache/airflow \
-    --title "Status of testing Providers that were prepared on <MONTH DD, YYYY>" \
+    --title "Status of testing Providers that were prepared on ${PREPARED_ON}" \
     --body-file files/provider_issue.md --label "testing status,kind:meta"
 ```
 
@@ -1677,21 +1765,26 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
   Publishing is deployed for the Airflow provider distributions on PyPI**,
   the recommended practice is:
 
-  1. Log in to https://pypi.org and create an API token right before the
-     upload step. **Scope caveat:** you would ideally create a
-     project-scoped token, but PyPI only allows project-scoped tokens for
-     projects you already own/maintain on that account. Most Airflow
-     release managers do not have per-project owner rights on every
-     provider being released, so in practice you will need to create an
-     account-wide ("all projects") token. That is acceptable **only if**
-     you treat it as single-use and delete it immediately after the upload
-     (step 4 below). Never keep an all-projects token on disk longer than
-     the upload itself.
-  2. Put it in `~/.pypirc` (or export as `TWINE_USERNAME=__token__`
-     `TWINE_PASSWORD=pypi-...`).
-  3. Run the upload (below).
-  4. **Immediately delete the token** from the PyPI web UI after the upload
-     completes. Do not keep long-lived release-manager tokens on disk.
+  1. Create the token immediately before uploading, at
+     [Account settings → API tokens → "Add API token"](https://pypi.org/manage/account/token/). Name
+     it after the wave (e.g. `airflow-providers-2026-08-25-final`) so you can find it again to delete it.
+  2. **Scope caveat:** a token can only be scoped to a single project and a wave publishes several,
+     so pick "Entire account (all projects)". That is acceptable **only if** you treat it as
+     single-use and delete it immediately after the upload. Never keep an all-projects token on disk
+     longer than the upload itself.
+  3. Copy the `pypi-...` value, PyPI shows it only once. Pass it to twine in the environment rather
+     than in `~/.pypirc`, so that nothing is written to disk and any `.pypirc` you already have for
+     your own projects is left alone:
+
+     ```shell script
+     export TWINE_USERNAME=__token__
+     read -rs TWINE_PASSWORD && export TWINE_PASSWORD  # paste the token, press Enter
+     ```
+
+  4. Run the upload (below).
+  5. **Delete the token** at
+     [Account settings → API tokens](https://pypi.org/manage/account/#api-tokens) and run
+     `unset TWINE_USERNAME TWINE_PASSWORD`.
 
   This is a defence-in-depth practice: the RM machine becomes a one-time
   release vehicle, not a persistent point of compromise.

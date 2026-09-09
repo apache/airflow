@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 
 import pendulum
 
@@ -46,6 +47,7 @@ with DAG(
     - Defining tasks using `BashOperator`
     - Executing simple bash commands
     - Creating task dependencies, including loops and templated commands
+    - Pushing several named XComs from one task with `multiple_outputs`
 
     This example is intended for beginners who want to understand how Airflow
     interacts with system-level commands using bash.
@@ -78,6 +80,31 @@ with DAG(
     )
     # [END howto_operator_bash_template]
     also_run_this >> run_this_last
+
+    # [START howto_operator_bash_multiple_outputs]
+    describe_dag_folder = BashOperator(
+        task_id="describe_dag_folder",
+        # The dict must be the last line the command writes: only that line is captured.
+        bash_command="""
+            set -e
+            dag_folder="$AIRFLOW_HOME/dags"
+            file_count=$(find "$dag_folder" -type f -name '*.py' 2>/dev/null | wc -l)
+            printf '{"dag_folder": "%s", "file_count": %s}\\n' "$dag_folder" "$file_count"
+        """,
+        multiple_outputs=True,
+        output_processor=json.loads,
+    )
+
+    # Each key of the pushed dict is available as its own XCom.
+    show_dag_folder_stats = BashOperator(
+        task_id="show_dag_folder_stats",
+        bash_command=(
+            "echo \"found {{ ti.xcom_pull(task_ids='describe_dag_folder', key='file_count') }}"
+            " Dag file(s) under {{ ti.xcom_pull(task_ids='describe_dag_folder', key='dag_folder') }}\""
+        ),
+    )
+    # [END howto_operator_bash_multiple_outputs]
+    describe_dag_folder >> show_dag_folder_stats >> run_this_last
 
 # [START howto_operator_bash_skip]
 this_will_skip = BashOperator(

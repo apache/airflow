@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Button, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { AssetAliasResponse, AssetWatcherResponse } from "openapi/requests/types.gen";
+
+import { Popover } from "src/system-components";
+
 import Time from "src/components/Time";
-import { Popover } from "src/components/ui";
 
 type ListPopoverProps = {
   readonly items: Array<{ key: string; label: ReactNode }>;

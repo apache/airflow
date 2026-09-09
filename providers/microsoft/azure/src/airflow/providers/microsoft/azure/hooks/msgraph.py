@@ -171,6 +171,8 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
+            if status_code == HTTPStatus.UNAUTHORIZED:
+                raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
             raise AirflowException(message)
@@ -491,12 +493,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
-        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
-        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
-        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
-        # response could redirect the token off-host. Pin follow-up requests to the configured
-        # endpoint's host (CWE-918).
-        self.allowed_netloc = urlparse(request_adapter.base_url).netloc
+        self.allowed_netloc = urlparse(request_adapter.base_url).netloc.lower()
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict | None:
@@ -579,6 +576,13 @@ class KiotaRequestAdapterHook(BaseHook):
         query_parameters: dict[str, Any] | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
+        """
+        Resolve the url and query parameters of the page following ``response``.
+
+        The ``$skip`` offset is derived from ``query_parameters`` rather than from ``responses``:
+        callers accumulate whatever their own callbacks produced, so the entries are not guaranteed
+        to be the raw pages this offset would have to be counted from.
+        """
         if isinstance(response, dict):
             odata_count = response.get("@odata.count")
             if odata_count and query_parameters:
@@ -586,9 +590,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
                 if top and odata_count:
                     if len(response.get("value", [])) == top:
-                        results = responses()
-                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
-                        query_parameters["$skip"] = skip
+                        query_parameters["$skip"] = (query_parameters.get("$skip") or 0) + top
                         return url, query_parameters
             return response.get("@odata.nextLink"), query_parameters
         return None, query_parameters
@@ -619,6 +621,39 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.debug("response: %s", response)
 
         return response
+
+    async def get_allowed_netlocs(self) -> set[str]:
+        """Return the endpoint's host and the connection's allowed hosts, for checking pagination links."""
+        request_adapter = await self.get_async_conn()
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        allowed_hosts = access_token_provider.get_allowed_hosts_validator().get_allowed_hosts()
+        netlocs = {host.lower() for host in allowed_hosts}
+
+        if self.allowed_netloc:
+            netlocs.add(self.allowed_netloc)
+        return netlocs
+
+    async def assert_allowed_host(self, url: str | None) -> None:
+        """
+        Refuse an absolute ``url`` whose host the connection does not allow.
+
+        A pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is re-fetched
+        with the connection's bearer token attached. That token is withheld only from hosts outside
+        ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered response
+        could send it to an arbitrary host (CWE-918).
+        """
+        if not url or not url.startswith("http"):
+            return
+
+        allowed_netlocs = await self.get_allowed_netlocs()
+
+        if urlparse(url).netloc.lower() not in allowed_netlocs:
+            raise ValueError(
+                f"Refusing to follow pagination link {url!r}: its host is not among the allowed "
+                f"Microsoft Graph endpoints {sorted(allowed_netlocs)}."
+            )
 
     async def paginated_run(
         self,
@@ -667,15 +702,7 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
-                        if (
-                            next_url
-                            and next_url.startswith("http")
-                            and urlparse(next_url).netloc != self.allowed_netloc
-                        ):
-                            raise ValueError(
-                                f"Refusing to follow pagination link {next_url!r}: its host differs "
-                                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
-                            )
+                        await self.assert_allowed_host(next_url)
                         url = next_url
                 else:
                     break
@@ -700,14 +727,30 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except (RuntimeError, ValueError) as e:
+        except (PermissionError, RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,
                 e,
             )
-            self.cached_request_adapters.pop(self.conn_id, None)
+            await self.close()
             raise
+
+    async def close(self) -> None:
+        """Close the request adapter cached for this connection and evict it from the cache."""
+        _, request_adapter = self.cached_request_adapters.pop(self.conn_id, (None, None))
+
+        if not request_adapter:
+            return
+
+        try:
+            adapter = cast("HttpxRequestAdapter", request_adapter)
+            await adapter._http_client.aclose()
+        finally:
+            provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+            access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+            credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
+            await credential._credential.close()
 
     def request_information(
         self,

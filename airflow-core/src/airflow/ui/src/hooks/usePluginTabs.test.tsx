@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ExternalViewResponse, PluginAppliesToResponse } from "openapi/requests/types.gen";
+
 import { usePluginAppliesToContext } from "src/hooks/usePluginAppliesToContext";
 
 import { usePluginTabs } from "./usePluginTabs";
