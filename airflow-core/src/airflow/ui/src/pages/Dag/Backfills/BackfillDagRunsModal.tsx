@@ -142,7 +142,7 @@ const getColumns = (
 ];
 
 export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: BackfillDagRunsModalProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "components"]);
   const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
   const [pageIndex, setPageIndex] = useState(0);
   const tableState = {

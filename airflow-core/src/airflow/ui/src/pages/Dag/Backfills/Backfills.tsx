@@ -143,7 +143,8 @@ const getColumns = (
 ];
 
 export const Backfills = () => {
-  const { t: translate } = useTranslation();
+  // `common` is listed explicitly because passing any namespace overrides defaultNS.
+  const { t: translate } = useTranslation(["common", "components"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
   const navigate = useNavigate();
