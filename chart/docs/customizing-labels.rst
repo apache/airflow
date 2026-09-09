@@ -32,15 +32,19 @@ Resources managed directly by the Airflow chart include the following Kubernetes
 .. code-block:: yaml
 
    app.kubernetes.io/part-of: airflow
+   app.kubernetes.io/name: airflow
    app.kubernetes.io/instance: <Helm release name>
+   app.kubernetes.io/version: <Airflow application version>
    helm.sh/chart: <chart name>-<chart version>
    app.kubernetes.io/managed-by: <Helm release service>
 
 Resources with a component label also include ``app.kubernetes.io/component`` with the same value. Pod templates include
-``app.kubernetes.io/part-of``, ``app.kubernetes.io/instance``, and ``app.kubernetes.io/component``.
+``app.kubernetes.io/part-of``, ``app.kubernetes.io/name``, ``app.kubernetes.io/instance``,
+``app.kubernetes.io/version``, and ``app.kubernetes.io/component``.
 
-The chart retains its legacy ``tier``, ``component``, ``release``, ``chart``, and ``heritage`` labels for backwards
-compatibility. Existing workload and service selectors continue to use the legacy labels.
+The chart's workload, service, policy, and autoscaling selectors use ``app.kubernetes.io/part-of``,
+``app.kubernetes.io/instance``, and ``app.kubernetes.io/component`` instead of the legacy ``tier``, ``release``, and
+``component`` labels removed in chart 2.0.
 
 Global Labels
 ~~~~~~~~~~~~~

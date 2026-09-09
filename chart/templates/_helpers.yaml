@@ -52,7 +52,9 @@ Kubernetes recommended labels for chart resources.
   {{- $labels := dict
     "app.kubernetes.io/instance" (include "airflow.labelValue" $root.Release.Name)
     "app.kubernetes.io/managed-by" (include "airflow.labelValue" $root.Release.Service)
+    "app.kubernetes.io/name" (include "airflow.labelValue" $root.Chart.Name)
     "app.kubernetes.io/part-of" "airflow"
+    "app.kubernetes.io/version" (include "airflow.labelValue" $root.Chart.AppVersion)
     "helm.sh/chart" (include "airflow.labelValue" (printf "%s-%s" $root.Chart.Name $root.Chart.Version))
   -}}
   {{- with .component }}
@@ -69,7 +71,9 @@ Kubernetes recommended labels for chart-managed pods.
   {{- $labels := dict
     "app.kubernetes.io/component" (include "airflow.labelValue" (required "component is required for standard pod labels" .component))
     "app.kubernetes.io/instance" (include "airflow.labelValue" $root.Release.Name)
+    "app.kubernetes.io/name" (include "airflow.labelValue" $root.Chart.Name)
     "app.kubernetes.io/part-of" "airflow"
+    "app.kubernetes.io/version" (include "airflow.labelValue" $root.Chart.AppVersion)
   -}}
   {{- toYaml $labels -}}
 {{- end }}

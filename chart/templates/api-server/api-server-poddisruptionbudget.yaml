@@ -26,11 +26,6 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include "airflow.fullname" . }}-api-server-pdb
   labels:
-    tier: airflow
-    component: api-server
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "api-server") | nindent 4 }}
     {{- if or .Values.labels .Values.apiServer.labels }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
@@ -38,8 +33,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      tier: airflow
-      component: api-server
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: api-server
+      app.kubernetes.io/instance: {{ .Release.Name }}
   {{- toYaml .Values.apiServer.podDisruptionBudget.config | nindent 2 }}
 {{- end }}

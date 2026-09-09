@@ -35,11 +35,6 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-api-server
   labels:
-    tier: airflow
-    component: api-server
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "api-server") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
@@ -72,15 +67,12 @@ spec:
     {{- end }}
   selector:
     matchLabels:
-      tier: airflow
-      component: api-server
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: api-server
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
-        component: api-server
-        release: {{ .Release.Name }}
         {{- include "airflow.standardPodLabels" (dict "root" . "component" "api-server") | nindent 8 }}
         {{- if or .Values.labels .Values.apiServer.labels }}
           {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 8 }}
@@ -125,7 +117,7 @@ spec:
           - podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  component: api-server
+                  app.kubernetes.io/component: api-server
               topologyKey: kubernetes.io/hostname
             weight: 100
         {{- end }}

@@ -25,11 +25,6 @@ kind: ConfigMap
 metadata:
   name: {{ template "airflow_config" . }}
   labels:
-    tier: airflow
-    component: config
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "config") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}

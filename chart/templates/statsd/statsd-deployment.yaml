@@ -34,11 +34,6 @@ kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-statsd
   labels:
-    tier: airflow
-    component: statsd
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "statsd") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
@@ -53,15 +48,12 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      tier: airflow
-      component: statsd
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: statsd
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        tier: airflow
-        component: statsd
-        release: {{ .Release.Name }}
         {{- include "airflow.standardPodLabels" (dict "root" . "component" "statsd") | nindent 8 }}
         {{- if or .Values.labels .Values.statsd.labels }}
           {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}

@@ -33,11 +33,6 @@ kind: Job
 metadata:
   name: {{ include "airflow.fullname" . }}-run-airflow-migrations
   labels:
-    tier: airflow
-    component: run-airflow-migrations
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "run-airflow-migrations") | nindent 4 }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
@@ -58,9 +53,6 @@ spec:
   template:
     metadata:
       labels:
-        tier: airflow
-        component: run-airflow-migrations
-        release: {{ .Release.Name }}
         {{- include "airflow.standardPodLabels" (dict "root" . "component" "run-airflow-migrations") | nindent 8 }}
         {{- if or .Values.labels .Values.migrateDatabaseJob.labels }}
           {{- mustMerge .Values.migrateDatabaseJob.labels .Values.labels | toYaml | nindent 8 }}

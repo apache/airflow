@@ -36,11 +36,6 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include "airflow.fullname" . }}-worker-pdb{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
   labels:
-    tier: airflow
-    component: worker
-    release: {{ .Release.Name }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    heritage: {{ .Release.Service }}
     {{- include "airflow.standardLabels" (dict "root" . "component" "worker") | nindent 4 }}
     {{- if or .Values.labels .Values.workers.celery.labels }}
       {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 4 }}
@@ -48,9 +43,9 @@ metadata:
 spec:
   selector:
     matchLabels:
-      tier: airflow
-      component: worker
-      release: {{ .Release.Name }}
+      app.kubernetes.io/part-of: airflow
+      app.kubernetes.io/component: worker
+      app.kubernetes.io/instance: {{ .Release.Name }}
       {{- if ne .Values.workers.celery.name "default" }}
       worker-set: {{ .Values.workers.celery.name }}
       {{- end }}
