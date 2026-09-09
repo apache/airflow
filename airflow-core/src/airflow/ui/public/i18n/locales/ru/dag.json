@@ -108,9 +108,6 @@
     "viewInExternal": "Просмотреть логи в {{name}} (попытка {{attempt}})",
     "warning": "ПРЕДУПРЕЖДЕНИЕ"
   },
-  "navigation": {
-    "openGraphFilters": "Фильтры задач: Ctrl+Shift+F"
-  },
   "notFound": {
     "back": "Назад",
     "backToDags": "Назад к Dag-ам",
