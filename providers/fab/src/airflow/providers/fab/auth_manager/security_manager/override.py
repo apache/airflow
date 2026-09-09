@@ -72,7 +72,7 @@ from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, conf
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -1241,10 +1241,111 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
         self.bulk_sync_roles(self.ROLE_CONFIGS)
 
+        self.create_roles_from_config()
+
         self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
         self.update_admin_permission()
         self.clean_perms()
+
+    def _get_custom_roles_config(self) -> dict[str, list[tuple[str, str]]]:
+        config = conf.getjson("fab", "custom_roles", fallback={})
+        if not isinstance(config, dict):
+            raise AirflowConfigException("[fab] custom_roles must be a JSON object")
+
+        roles: dict[str, list[tuple[str, str]]] = {}
+        for name, items in config.items():
+            if not isinstance(name, str) or not name.strip() or len(name) > 64:
+                raise AirflowConfigException("[fab] custom_roles role names must contain 1 to 64 characters")
+            if not isinstance(items, list):
+                raise AirflowConfigException(f"[fab] custom_roles[{name!r}] must be a list")
+            perms: set[tuple[str, str]] = set()
+            for index, item in enumerate(items):
+                location = f"[fab] custom_roles[{name!r}][{index}]"
+                if not isinstance(item, dict) or item.keys() != {"action", "resource"}:
+                    raise AirflowConfigException(f"{location} must contain only 'action' and 'resource'")
+                for key, limit in (("action", 100), ("resource", 250)):
+                    value = item[key]
+                    if not isinstance(value, str) or not value.strip() or len(value) > limit:
+                        raise AirflowConfigException(
+                            f"{location}.{key} must be a non-empty string of at most {limit} characters"
+                        )
+                perms.add((item["action"], item["resource"]))
+            roles[name] = sorted(perms)
+        return roles
+
+    def create_roles_from_config(self) -> None:
+        """Create missing configured roles, preserving permissions on existing roles."""
+        roles = self._get_custom_roles_config()
+        for name, perms in roles.items():
+            if name in EXISTING_ROLES:
+                log.warning("Skipping built-in role '%s' in [fab] custom_roles", name)
+                continue
+            self._create_role_from_config(name, perms)
+
+    def _create_role_from_config(self, name: str, perms: list[tuple[str, str]]) -> None:
+        # FAB's public creation helpers commit individually; a configured role must
+        # become visible only after all its declared permissions have been attached.
+        for attempt in range(3):
+            conflict: tuple[str, ...] | None = None
+            try:
+                if self.find_role(name) is not None:
+                    return
+                role = self.role_model()
+                role.name = name
+                role.permissions = []
+                self.session.add(role)
+                self.session.flush()
+
+                for action_name, resource_name in perms:
+                    perm = self.get_permission(action_name, resource_name)
+                    if perm is None:
+                        action = self.get_action(action_name)
+                        if action is None:
+                            conflict = ("action", action_name)
+                            action = self.action_model()
+                            action.name = action_name
+                            self.session.add(action)
+                            self.session.flush()
+                            conflict = None
+                        resource = self.get_resource(resource_name)
+                        if resource is None:
+                            conflict = ("resource", resource_name)
+                            resource = self.resource_model()
+                            resource.name = resource_name
+                            self.session.add(resource)
+                            self.session.flush()
+                            conflict = None
+                        conflict = ("permission", action_name, resource_name)
+                        perm = self.permission_model()
+                        perm.action = action
+                        perm.resource = resource
+                        self.session.add(perm)
+                        self.session.flush()
+                    conflict = None
+                    if perm not in role.permissions:
+                        role.permissions.append(perm)
+
+                self.session.commit()
+                return
+            except IntegrityError:
+                self.session.rollback()
+                if self.find_role(name) is not None:
+                    return
+                if conflict is None or attempt == 2:
+                    raise
+                existing: Action | Resource | Permission | None
+                if conflict[0] == "action":
+                    existing = self.get_action(conflict[1])
+                elif conflict[0] == "resource":
+                    existing = self.get_resource(conflict[1])
+                else:
+                    existing = self.get_permission(conflict[1], conflict[2])
+                if existing is None:
+                    raise
+            except Exception:
+                self.session.rollback()
+                raise
 
     def create_perm_vm_for_all_dag(self) -> None:
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
