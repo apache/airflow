@@ -210,6 +210,50 @@ class TestHITLTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(HITLTrigger, "log")
     @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
+    async def test_run_replayed_after_timeout_fallback_has_no_responder(
+        self, mock_update, mock_log, mock_supervisor_comms, default_trigger_args
+    ):
+        fallback_datetime = utcnow()
+        trigger = HITLTrigger(
+            defaults=["1"],
+            timeout_datetime=utcnow() + timedelta(seconds=0.1),
+            poke_interval=5,
+            **default_trigger_args,
+        )
+        mock_supervisor_comms.send.return_value = HITLDetailResponse(
+            response_received=True,
+            responded_by_user=None,
+            responded_at=fallback_datetime,
+            chosen_options=["1"],
+            params_input={},
+        )
+
+        gen = trigger.run()
+        await asyncio.sleep(0.3)
+        event = await asyncio.create_task(gen.__anext__())
+
+        assert event == TriggerEvent(
+            HITLTriggerEventSuccessPayload(
+                chosen_options=["1"],
+                params_input={},
+                responded_at=fallback_datetime,
+                responded_by_user=None,
+                timedout=True,
+            )
+        )
+        mock_update.assert_not_called()
+        assert mock_log.info.call_args == mock.call(
+            "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
+            None,
+            None,
+            ["1"],
+            fallback_datetime,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @mock.patch.object(HITLTrigger, "log")
+    @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
     async def test_run(
         self, mock_update, mock_log, mock_supervisor_comms, time_machine, default_trigger_args
     ):

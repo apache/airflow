@@ -121,14 +121,18 @@ class HITLTrigger(BaseTrigger):
         # Case 1: Response arrived just before timeout
         if resp.response_received and resp.chosen_options:
             if TYPE_CHECKING:
-                assert resp.responded_by_user is not None
                 assert resp.responded_at is not None
 
             chosen_options_list = list(resp.chosen_options or [])
+            responded_by_user = (
+                HITLUser(id=resp.responded_by_user.id, name=resp.responded_by_user.name)
+                if resp.responded_by_user
+                else None
+            )
             self.log.info(
                 "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
-                resp.responded_by_user.name,
-                resp.responded_by_user.id,
+                responded_by_user["name"] if responded_by_user else None,
+                responded_by_user["id"] if responded_by_user else None,
                 chosen_options_list,
                 resp.responded_at,
             )
@@ -137,11 +141,8 @@ class HITLTrigger(BaseTrigger):
                     chosen_options=chosen_options_list,
                     params_input=resp.params_input or {},
                     responded_at=resp.responded_at,
-                    responded_by_user=HITLUser(
-                        id=resp.responded_by_user.id,
-                        name=resp.responded_by_user.name,
-                    ),
-                    timedout=False,
+                    responded_by_user=responded_by_user,
+                    timedout=responded_by_user is None,
                 )
             )
 
