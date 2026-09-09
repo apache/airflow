@@ -513,18 +513,24 @@ See: https://github.com/python/cpython/issues/105912
 
 
 def _should_use_exec() -> bool:
-    """
-    Whether forked children should ``exec`` a fresh interpreter.
+    """Whether forked children should ``exec`` a fresh interpreter on this platform."""
+    return sys.platform in _FORK_EXEC_PLATFORMS
 
-    Always on for platforms where bare fork is unsafe (macOS). Elsewhere it can be
-    opted into with ``[core] execute_tasks_new_python_interpreter``: exec replaces
-    the child's address space, so it cannot inherit a lock a supervisor thread held
-    at fork time (e.g. OpenSSL's, which otherwise deadlocks the task at its first
-    TLS call — see #71707).
+
+def _task_process_uses_exec() -> bool:
     """
-    if sys.platform in _FORK_EXEC_PLATFORMS:
-        return True
-    return conf.getboolean("core", "execute_tasks_new_python_interpreter", fallback=False)
+    Whether the task process should ``exec`` a fresh interpreter after the fork.
+
+    Forced where bare fork is unsafe (macOS); elsewhere a deployment opts in with
+    ``[core] execute_tasks_new_python_interpreter``. exec replaces the child's address
+    space, so it cannot inherit a lock a supervisor thread held at fork time (e.g.
+    OpenSSL's, which otherwise hangs the task at its first TLS call; #71707). Only the
+    task process reads the option: the Dag processor and triggerer fork far more often
+    and keep the platform gate alone.
+    """
+    return _should_use_exec() or conf.getboolean(
+        "core", "execute_tasks_new_python_interpreter", fallback=False
+    )
 
 
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
@@ -1465,10 +1471,10 @@ class ActivitySubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        # Opt in to fork+exec on platforms that need it (currently macOS).
+        # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _should_use_exec()
+        use_exec = target is _subprocess_main and _task_process_uses_exec()
         proc: Self = super().start(
             id=what.id,
             client=client,
