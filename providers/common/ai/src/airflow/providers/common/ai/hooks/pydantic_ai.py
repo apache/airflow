@@ -248,6 +248,17 @@ class PydanticAIHook(BaseHook):
 
         return None
 
+    def _get_embedder_if_model_configured(self) -> Embedder | None:
+        """Return the embedder only when the hook or connection explicitly configures one."""
+        if self.embed_model_id:
+            return self.get_embedder()
+
+        conn = self.get_connection(self.embed_conn_id)
+        if conn.extra_dejson.get("embed_model"):
+            return self.get_embedder()
+
+        return None
+
     @overload
     def create_agent(
         self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
@@ -346,10 +357,18 @@ class PydanticAIHook(BaseHook):
         connectivity (quotas, billing, rate limits).
         """
         try:
-            if self._get_conn_if_model_configured() is not None:
+            model = self._get_conn_if_model_configured()
+            embedder = self._get_embedder_if_model_configured()
+            if model is not None and embedder is not None:
+                return True, "Model and embedding model resolved successfully."
+            if model is not None:
                 return True, "Model resolved successfully."
-            self.get_embedder()
-            return True, "Embedding model resolved successfully."
+            if embedder is not None:
+                return True, "Embedding model resolved successfully."
+            return False, (
+                "No model or embedding model specified. Set model_id or embed_model_id on the hook, "
+                "or the model or embed_model field on the connection."
+            )
         except Exception as e:
             return False, str(e)
 
