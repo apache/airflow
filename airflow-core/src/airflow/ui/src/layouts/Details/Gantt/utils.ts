@@ -26,7 +26,7 @@ import type { GridTask } from "src/layouts/Details/Grid/utils";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending } from "src/utils";
-import { renderDuration } from "src/utils/datetimeUtils";
+import { getDurationTickStep, renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
@@ -352,35 +352,36 @@ export type GanttAxisTick = {
 };
 
 /** Elapsed time from the chart origin (`minMs`), formatted like grid duration labels (no wall-clock). */
-const formatElapsedMsForGanttAxis = (elapsedMs: number): string => {
+const formatElapsedMsForGanttAxis = (elapsedMs: number, locale?: string): string => {
   const seconds = Math.max(0, elapsedMs / 1000);
 
-  if (seconds <= 0.01) {
-    return "00:00:00";
-  }
-
-  return renderDuration(seconds, false) ?? "00:00:00";
+  return renderDuration(seconds, locale) ?? "0s";
 };
 
 export const buildGanttTimeAxisTicks = (
   minMs: number,
   maxMs: number,
-  tickCount: number = GANTT_TIME_AXIS_TICK_COUNT,
+  { locale, tickCount = GANTT_TIME_AXIS_TICK_COUNT }: { locale?: string; tickCount?: number } = {},
 ): Array<GanttAxisTick> => {
   const spanMs = Math.max(1, maxMs - minMs);
   const denominator = Math.max(1, tickCount - 1);
   const lastIndex = tickCount - 1;
   const ticks: Array<GanttAxisTick> = [];
+  // Snap to the units people count in, the way the Chart.js duration axes do. Evenly dividing the
+  // raw span reads fine at truncated whole seconds but not at this precision: a 7s span became
+  // "0s | 1.17s | 2.33s | 3.5s". The last tick keeps the true span so the axis still ends at it.
+  const stepMs = getDurationTickStep(spanMs / 1000, denominator) * 1000;
 
   for (let tickIndex = 0; tickIndex < tickCount; tickIndex += 1) {
-    const elapsedMs = (tickIndex / denominator) * spanMs;
+    const elapsedMs =
+      tickCount > 1 && tickIndex === lastIndex ? spanMs : Math.min(tickIndex * stepMs, spanMs);
     const labelAlign: GanttAxisTickLabelAlign =
       tickCount === 1 ? "left" : tickIndex === 0 ? "left" : tickIndex === lastIndex ? "right" : "center";
 
     ticks.push({
-      label: formatElapsedMsForGanttAxis(elapsedMs),
+      label: formatElapsedMsForGanttAxis(elapsedMs, locale),
       labelAlign,
-      leftPct: (tickIndex / denominator) * 100,
+      leftPct: (elapsedMs / spanMs) * 100,
     });
   }
 

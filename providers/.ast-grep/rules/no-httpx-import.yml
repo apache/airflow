@@ -1,0 +1,43 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+id: no-httpx-import
+language: python
+severity: error
+message: Import 'httpx2' instead of 'httpx' -- see https://github.com/apache/airflow/issues/70522
+note: >-
+  The 'airbyte', 'common/ai', 'weaviate' and 'microsoft/azure' providers are exempt
+  because the third-party SDKs they hand these objects to are themselves built on
+  'httpx', and 'httpx2' classes are distinct from their 'httpx' counterparts.
+files:
+  - "**/*.py"
+ignores:
+  - "airbyte/**"
+  - "common/ai/**"
+  - "weaviate/**"
+  - "microsoft/azure/**"
+rule:
+  all:
+    - kind: dotted_name
+    - regex: ^httpx($|\.)
+    - any:
+        - inside:
+            kind: import_statement
+            stopBy: end
+        - inside:
+            kind: import_from_statement
+            field: module_name
