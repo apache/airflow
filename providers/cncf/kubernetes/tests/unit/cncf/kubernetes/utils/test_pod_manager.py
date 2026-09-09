@@ -1817,6 +1817,12 @@ class TestAsyncPodManager:
 
         assert self.async_pod_manager.get_init_container_names(pod) == ["init-a", "init-b"]
 
+    def test_get_init_container_names_when_pod_has_no_init_containers(self):
+        pod = mock.MagicMock()
+        pod.spec.init_containers = None
+
+        assert self.async_pod_manager.get_init_container_names(pod) == []
+
     @pytest.mark.asyncio
     async def test_fetch_requested_init_container_logs_processes_containers_in_spec_order(self):
         """Init containers run sequentially, so their logs must be streamed one at a time
