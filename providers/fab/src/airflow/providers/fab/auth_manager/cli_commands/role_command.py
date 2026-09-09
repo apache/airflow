@@ -205,28 +205,17 @@ def roles_import(args):
         existing_roles = [role.name for role in appbuilder.sm.get_all_roles()]
         roles_to_import = [role_dict for role_dict in role_list if role_dict["name"] not in existing_roles]
         for role_dict in roles_to_import:
-            if role_dict["name"] not in appbuilder.sm.get_all_roles():
-                if role_dict["action"] == "" or role_dict["resource"] == "":
-                    appbuilder.sm.add_role(role_dict["name"])
-                else:
-                    appbuilder.sm.add_role(role_dict["name"])
-                    role_args = Namespace(
-                        subcommand="add-perms",
-                        role=[role_dict["name"]],
-                        resource=[role_dict["resource"]],
-                        action=role_dict["action"].split(","),
-                    )
-                __roles_add_or_remove_permissions(role_args)
-
-            if role_dict["name"] in appbuilder.sm.get_all_roles():
-                if role_dict["action"] == "" or role_dict["resource"] == "":
-                    pass
-                else:
-                    role_args = Namespace(
-                        subcommand="add-perms",
-                        role=[role_dict["name"]],
-                        resource=[role_dict["resource"]],
-                        action=role_dict["action"].split(","),
-                    )
-                __roles_add_or_remove_permissions(role_args)
+            # ``roles_export`` emits one entry per (role, resource) pair, so a role name
+            # repeats across entries; ``add_role`` returns the existing role after the first.
+            appbuilder.sm.add_role(role_dict["name"])
+            if not role_dict["action"] or not role_dict["resource"]:
+                continue
+            __roles_add_or_remove_permissions(
+                Namespace(
+                    subcommand="add-perms",
+                    role=[role_dict["name"]],
+                    resource=[role_dict["resource"]],
+                    action=role_dict["action"].split(","),
+                )
+            )
         print("roles and permissions successfully imported")
