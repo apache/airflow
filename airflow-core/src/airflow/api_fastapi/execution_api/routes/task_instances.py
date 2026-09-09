@@ -1258,9 +1258,13 @@ def get_task_instance_states(
     """Get the states for Task Instances with the given criteria."""
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
-    query = select(TI).where(TI.dag_id == dag_id)
+    query = select(TI.run_id, TI.task_id, TI.map_index, TI.state).where(TI.dag_id == dag_id)
 
-    if task_ids:
+    if task_group_id:
+        group_task_ids = _get_group_task_ids(dag_id, task_group_id, session, dag_bag)
+        effective_task_ids = set(task_ids) | group_task_ids if task_ids else group_task_ids
+        query = query.where(TI.task_id.in_(effective_task_ids))
+    elif task_ids:
         query = query.where(TI.task_id.in_(task_ids))
 
     if logical_dates:
@@ -1272,23 +1276,9 @@ def get_task_instance_states(
     if map_index is not None:
         query = query.where(TI.map_index == map_index)
 
-    results = session.scalars(query).all()
-
-    if task_group_id:
-        group_tasks = _get_group_tasks(
-            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
-        )
-
-        results = results + group_tasks if task_ids else group_tasks
-
-    [
-        run_id_task_state_map[task.run_id].update(
-            {task.task_id: task.state}
-            if task.map_index < 0
-            else {f"{task.task_id}_{task.map_index}": task.state}
-        )
-        for task in results
-    ]
+    for ti in session.execute(query):
+        key = ti.task_id if ti.map_index < 0 else f"{ti.task_id}_{ti.map_index}"
+        run_id_task_state_map[ti.run_id][key] = ti.state
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 
@@ -1320,16 +1310,7 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(
-    dag_id: str,
-    task_group_id: str,
-    session: SessionDep,
-    dag_bag: DagBagDep,
-    logical_dates=None,
-    run_ids=None,
-    map_index: int | None = None,
-):
-    # Get all tasks in the task group
+def _get_task_group(dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep):
     dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
@@ -1340,6 +1321,29 @@ def _get_group_tasks(
                 "message": f"Task group {task_group_id} not found in DAG {dag_id}",
             },
         )
+    return task_group
+
+
+def _get_group_task_ids(
+    dag_id: str,
+    task_group_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+) -> set[str]:
+    task_group = _get_task_group(dag_id, task_group_id, session, dag_bag)
+    return {task.task_id for task in task_group.iter_tasks()}
+
+
+def _get_group_tasks(
+    dag_id: str,
+    task_group_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    logical_dates=None,
+    run_ids=None,
+    map_index: int | None = None,
+):
+    task_group = _get_task_group(dag_id, task_group_id, session, dag_bag)
 
     # First get all task instances to get the task_id, map_index pairs
     group_tasks = session.scalars(
