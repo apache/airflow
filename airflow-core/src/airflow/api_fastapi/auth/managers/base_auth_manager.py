@@ -32,6 +32,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -48,6 +49,7 @@ from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.models.asset import AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
@@ -72,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetAliasDetails,
-        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
@@ -585,6 +586,52 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
             for request in requests
         )
+
+    @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        rows = session.execute(select(AssetModel.id, AssetModel.name, AssetModel.uri)).all()
+        assets = [AssetDetails(id=str(asset_id), name=name, uri=uri) for asset_id, name, uri in rows]
+        authorized_ids = self.filter_authorized_assets(assets=assets, user=user, method=method)
+        return {asset_id for asset_id, _, _ in rows if str(asset_id) in authorized_ids}
+
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: T,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        """
+        Filter assets the user has access to, returning the ids of the authorized ones.
+
+        By default, check individually if the user has permissions to access the asset. An auth manager
+        whose ``is_authorized_asset`` performs a remote call must override this method: a deployment can
+        hold far more assets than connections or pools, and the default costs one round trip per asset on
+        every asset listing.
+
+        :param assets: the assets to filter. Each item carries the asset id, name and uri, so an auth
+            manager can authorize on any of them (e.g. restrict by uri prefix).
+        :param user: the user
+        :param method: the method to filter on
+        """
+        return {
+            details.id
+            for details in assets
+            if details.id is not None and self.is_authorized_asset(method=method, details=details, user=user)
+        }
 
     @provide_session
     def get_authorized_connections(

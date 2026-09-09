@@ -239,6 +239,7 @@ The following methods aren't required to override to have a functional Airflow a
 * ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it calls ``is_authorized_dag`` for every single item.
 * ``batch_is_authorized_pool``: Batch version of ``is_authorized_pool``. If not overridden, it calls ``is_authorized_pool`` for every single item.
 * ``batch_is_authorized_variable``: Batch version of ``is_authorized_variable``. If not overridden, it calls ``is_authorized_variable`` for every single item.
+* ``filter_authorized_assets``: Given a list of assets (each carrying its id, name and uri), return the ids of the assets the user has access to.  If not overridden, it calls ``is_authorized_asset`` for every single asset passed as parameter.
 * ``filter_authorized_connections``: Given a list of connection IDs (``conn_id``), return the list of connection IDs the user has access to.  If not overridden, it calls ``is_authorized_connection`` for every single connection passed as parameter.
 * ``filter_authorized_dag_ids``: Given a list of Dag IDs, return the list of Dag IDs the user has access to.  If not overridden, it calls ``is_authorized_dag`` for every single Dag passes as parameter.
 * ``filter_authorized_pools``: Given a list of pool names, return the list of pool names the user has access to.  If not overridden, it calls ``is_authorized_pool`` for every single pool passed as parameter.
