@@ -31,7 +31,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
+from airflow.sdk.exceptions import AirflowDagCycleException, TaskAlreadyInTaskGroup
 
 from tests_common.test_utils.compat import BashOperator, EmptyOperator, PythonOperator
 
@@ -1101,6 +1101,36 @@ def test_topological_sort_reverse_declared_order_matches_sweep():
     pass_number_order = [node.node_id for node in group._sort_via_pass_numbering(nodes, projected)]
 
     assert pass_number_order == sweep_order
+
+
+@pytest.mark.parametrize("group_count", [2, 3])
+def test_topological_sort_bidirectional_task_level_cross_group_deps(group_count):
+    """Sibling projection cycles do not imply a cycle in the task-level Dag."""
+    outbound = {}
+    inbound = {}
+    with DAG("test_bidirectional_cross_group_deps", schedule=None, start_date=DEFAULT_DATE) as dag:
+        for group_idx in range(group_count):
+            with TaskGroup(f"group_{group_idx}"):
+                for other_idx in range(group_count):
+                    if group_idx == other_idx:
+                        continue
+                    outbound[group_idx, other_idx] = EmptyOperator(task_id=f"to_{other_idx}")
+                    inbound[group_idx, other_idx] = EmptyOperator(task_id=f"from_{other_idx}")
+
+        for source_idx in range(group_count):
+            for target_idx in range(group_count):
+                if source_idx != target_idx:
+                    outbound[source_idx, target_idx] >> inbound[target_idx, source_idx]
+
+    dag.check_cycle()
+
+    assert [node.node_id for node in dag.task_group.topological_sort()] == [
+        f"group_{idx}" for idx in range(group_count)
+    ]
+
+    inbound[1, 0] >> outbound[0, 1]
+    with pytest.raises(AirflowDagCycleException, match="A cyclic dependency occurred"):
+        dag.task_group.topological_sort()
 
 
 def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):

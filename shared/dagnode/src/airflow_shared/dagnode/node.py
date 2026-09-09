@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import heapq
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import structlog
@@ -65,6 +66,103 @@ class TaskGroupProtocol(Protocol):
 Dag = TypeVar("Dag", bound=DagProtocol)
 Task = TypeVar("Task", bound=TaskProtocol)
 TaskGroup = TypeVar("TaskGroup", bound=TaskGroupProtocol)
+
+
+def has_task_cycle(downstream_ids_by_task: dict[str, set[str]]) -> bool:
+    """Return whether task-level dependencies contain a cycle."""
+    in_degree = {task_id: 0 for task_id in downstream_ids_by_task}
+    for downstream_ids in downstream_ids_by_task.values():
+        for downstream_id in downstream_ids:
+            if downstream_id in in_degree:
+                in_degree[downstream_id] += 1
+
+    ready = [task_id for task_id, degree in in_degree.items() if degree == 0]
+    processed = 0
+    while ready:
+        task_id = ready.pop()
+        processed += 1
+        for downstream_id in downstream_ids_by_task[task_id]:
+            if downstream_id not in in_degree:
+                continue
+            in_degree[downstream_id] -= 1
+            if in_degree[downstream_id] == 0:
+                ready.append(downstream_id)
+    return processed != len(downstream_ids_by_task)
+
+
+def sort_projected_indices(projected: list[tuple[int, ...]]) -> list[int]:
+    """Topologically sort a sibling projection, preserving insertion order within cycles."""
+    n = len(projected)
+    successors: list[list[int]] = [[] for _ in range(n)]
+    for child_idx, dependencies in enumerate(projected):
+        for dependency_idx in dependencies:
+            successors[dependency_idx].append(child_idx)
+
+    visited = bytearray(n)
+    finish_order: list[int] = []
+    for start_idx in range(n):
+        if visited[start_idx]:
+            continue
+        visited[start_idx] = 1
+        stack = [(start_idx, 0)]
+        while stack:
+            node_idx, successor_offset = stack[-1]
+            if successor_offset == len(successors[node_idx]):
+                finish_order.append(node_idx)
+                stack.pop()
+                continue
+            successor_idx = successors[node_idx][successor_offset]
+            stack[-1] = (node_idx, successor_offset + 1)
+            if not visited[successor_idx]:
+                visited[successor_idx] = 1
+                stack.append((successor_idx, 0))
+
+    component_by_node = [-1] * n
+    components: list[list[int]] = []
+    for start_idx in reversed(finish_order):
+        if component_by_node[start_idx] != -1:
+            continue
+        component_idx = len(components)
+        component_by_node[start_idx] = component_idx
+        component: list[int] = []
+        component_stack = [start_idx]
+        while component_stack:
+            node_idx = component_stack.pop()
+            component.append(node_idx)
+            for dependency_idx in projected[node_idx]:
+                if component_by_node[dependency_idx] == -1:
+                    component_by_node[dependency_idx] = component_idx
+                    component_stack.append(dependency_idx)
+        component.sort()
+        components.append(component)
+
+    component_successors: list[set[int]] = [set() for _ in components]
+    component_in_degree = [0] * len(components)
+    for child_idx, dependencies in enumerate(projected):
+        child_component = component_by_node[child_idx]
+        for dependency_idx in dependencies:
+            dependency_component = component_by_node[dependency_idx]
+            if child_component == dependency_component:
+                continue
+            if child_component not in component_successors[dependency_component]:
+                component_successors[dependency_component].add(child_component)
+                component_in_degree[child_component] += 1
+
+    ready = [
+        (component[0], component_idx)
+        for component_idx, component in enumerate(components)
+        if component_in_degree[component_idx] == 0
+    ]
+    heapq.heapify(ready)
+    order: list[int] = []
+    while ready:
+        _, component_idx = heapq.heappop(ready)
+        order.extend(components[component_idx])
+        for successor_component in component_successors[component_idx]:
+            component_in_degree[successor_component] -= 1
+            if component_in_degree[successor_component] == 0:
+                heapq.heappush(ready, (components[successor_component][0], successor_component))
+    return order
 
 
 class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
