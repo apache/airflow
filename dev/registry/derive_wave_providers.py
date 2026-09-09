@@ -53,6 +53,11 @@ PROVIDER_TAG_RE = re.compile(r"^providers-(?P<id>.+?)/(?P<ver>.+)$")
 RC_SUFFIX_RE = re.compile(r"rc[0-9]+$")
 
 META_TOKENS = frozenset({"all", "all-providers", "apache-airflow-providers"})
+# Every doc distribution that is not a provider. Must stay equal to
+# REGULAR_DOC_PACKAGES in dev/breeze/src/airflow_breeze/global_constants.py minus
+# META_TOKENS -- that constant is the source of truth for what `include-docs`
+# accepts, and a token missing here is treated as a provider ID, which fails the
+# registry extraction. tests/test_derive_wave_providers.py pins the two together.
 NON_PROVIDER_TOKENS = frozenset(
     {
         "apache-airflow",
@@ -61,6 +66,8 @@ NON_PROVIDER_TOKENS = frozenset(
         "apache-airflow-ctl",
         "apache-airflow-mypy",
         "task-sdk",
+        "java-sdk",
+        "ts-sdk",
     }
 )
 PROVIDER_PREFIX = "apache-airflow-providers-"

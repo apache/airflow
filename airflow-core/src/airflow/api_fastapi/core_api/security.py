@@ -70,7 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -147,6 +147,13 @@ async def get_user(
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
+    # An explicitly supplied credential always wins over the ambient session cookie.
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        return await resolve_user_from_token(bearer_credentials.credentials)
+    if oauth_token:
+        return await resolve_user_from_token(oauth_token)
+
+    # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
     # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
     # `request.state.user_authenticated_via` is set to the trust sentinel above.
@@ -156,16 +163,7 @@ async def get_user(
     trust_marker = getattr(request.state, "user_authenticated_via", None)
     if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
         return user
-
-    token_str: str | None
-    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
-        token_str = bearer_credentials.credentials
-    elif oauth_token:
-        token_str = oauth_token
-    else:
-        token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-
-    return await resolve_user_from_token(token_str)
+    return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
@@ -417,6 +415,32 @@ ReadableBackfillsFilterDep = Annotated[
 # does; see the comment there for why any divergence is a cross-Dag authorization bypass.
 _BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
 
+# Shared with the backfill routes: for an id named in the path this dependency answers before
+# the handler does, so the two must not describe the same condition differently.
+BACKFILL_NOT_FOUND = "Backfill not found"
+
+
+def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user: BaseUser) -> None:
+    """Authorize a backfill named by the request path against that backfill's Dag alone."""
+    # ``dag_id`` is None when the id matched no row. Answering 404 there while a backfill on a Dag
+    # the caller may not read answers 403 would tell them which backfill ids exist across Dags.
+    if dag_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
+    details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id))
+    auth_manager = get_auth_manager()
+    if auth_manager.is_authorized_dag(
+        method=method, access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        return
+    # A caller who may read the Dag can already list its backfills, so the id is no secret from
+    # them: hiding it would only cost them the reason their request was refused.
+    if method != "GET" and auth_manager.is_authorized_dag(
+        method="GET", access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
 
 def requires_access_backfill(
     method: ResourceMethod,
@@ -428,9 +452,6 @@ def requires_access_backfill(
         user: GetUserDep,
         session: SessionDep,
     ) -> None:
-        dag_id = None
-
-        # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
             # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
@@ -444,26 +465,26 @@ def requires_access_backfill(
             backfill_id = None
 
         if backfill_id is not None:
-            backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
-            dag_id = backfill.dag_id if backfill else None
+            # The path names the backfill, so its row is the only authorization subject: what the
+            # caller supplies alongside must not decide a decision the path already scoped.
+            dag_id = session.scalar(select(Backfill.dag_id).where(Backfill.id == backfill_id))
+            _authorize_backfill_in_path(method, dag_id, user)
+            return
 
-        # Try to retrieve the dag_id from the request body (POST backfill)
-        # TODO: a backfill_id that parses but matches no row also lands here, so an unknown
-        # backfill is authorized against the body's dag_id and answers 404 where an unauthorized
-        # one answers 403 - disclosing which ids exist. Not exploitable for a cross-Dag action;
-        # tracked at https://github.com/apache/airflow/issues/71080
-        if dag_id is None:
-            # Not a json body, ignore
-            with suppress(JSONDecodeError):
-                body = await request.json()
-                if isinstance(body, dict):
-                    dag_id = body.get("dag_id")
-            if dag_id is not None and not isinstance(dag_id, str):
-                # Fail closed: reject non-string dag_id before authz decision.
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="'dag_id' must be a string",
-                )
+        # Left: the routes naming their Dag in the body (create, dry run) or in the query string
+        # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
+        dag_id = None
+        # Not a json body, ignore
+        with suppress(JSONDecodeError):
+            body = await request.json()
+            if isinstance(body, dict):
+                dag_id = body.get("dag_id")
+        if dag_id is not None and not isinstance(dag_id, str):
+            # Fail closed: reject non-string dag_id before authz decision.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'dag_id' must be a string",
+            )
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
             request,
@@ -968,16 +989,83 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
     return inner
 
 
+class PermittedAssetFilter(OrmClause[set[int]]):
+    """A parameter that filters the permitted assets for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(AssetModel.id.in_(self.value or set()))
+
+
+# Uncorrelated on purpose: a correlated EXISTS would bind to the outer AssetModel join some
+# asset event queries add (e.g. for name filters) and produce an invalid statement.
+_existing_asset_ids = select(AssetModel.id)
+
+
+class PermittedAssetEventByAssetFilter(PermittedAssetFilter):
+    """A parameter that filters asset events to those of the assets the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Events outlive their asset by design. Once the asset row is gone there is no name or
+        # uri left to authorize on, so such events stay visible to any caller who may read
+        # assets, the same way events with no source Dag do.
+        return select.where(
+            or_(
+                AssetEvent.asset_id.in_(self.value or set()),
+                AssetEvent.asset_id.not_in(_existing_asset_ids),
+            )
+        )
+
+
+def permitted_asset_filter_factory(
+    method: ResourceMethod,
+    filter_class: type[PermittedAssetFilter] = PermittedAssetFilter,
+) -> Callable[[BaseUser, BaseAuthManager], PermittedAssetFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted assets for the user.
+
+    :param method: whether filter readable or writable.
+    :param filter_class: the filter class to instantiate, defaulting to ``PermittedAssetFilter``.
+    """
+
+    def depends_permitted_assets_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedAssetFilter:
+        authorized_assets: set[int] = auth_manager.get_authorized_assets(user=user, method=method)
+        return filter_class(authorized_assets)
+
+    return depends_permitted_assets_filter
+
+
+ReadableAssetsFilterDep = Annotated[PermittedAssetFilter, Depends(permitted_asset_filter_factory("GET"))]
+ReadableAssetEventsByAssetFilterDep = Annotated[
+    PermittedAssetEventByAssetFilter,
+    Depends(permitted_asset_filter_factory("GET", PermittedAssetEventByAssetFilter)),
+]
+
+
+def _build_asset_details(asset_id: str | None) -> AssetDetails:
+    """Resolve the name and uri of the asset so an auth manager can authorize on more than the id."""
+    if asset_id is None or not asset_id.isdigit():
+        # A non-numeric id fails the route's own path validation; there is nothing to look up.
+        return AssetDetails(id=asset_id)
+    name_and_uri = AssetModel.get_name_and_uri(int(asset_id))
+    if name_and_uri is None:
+        return AssetDetails(id=asset_id)
+    name, uri = name_and_uri
+    return AssetDetails(id=asset_id, name=name, uri=uri)
+
+
 def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
-        asset_id = request.path_params.get("asset_id")
+        details = _build_asset_details(request.path_params.get("asset_id"))
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
-                method=method, details=AssetDetails(id=asset_id), user=user
+                method=method, details=details, user=user
             ),
         )
 

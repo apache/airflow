@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, createListCollection } from "@chakra-ui/react";
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 
-import { Select } from "src/components/ui";
+import { Box, createListCollection } from "@chakra-ui/react";
+
+import { Select } from "src/system-components";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterConfig, FilterPluginProps } from "../types";
 
 type SelectOption = {
-  label: string;
+  label: ReactNode;
   value: string;
 };
 
@@ -58,6 +59,8 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
   const displayValue = config.options.find(
     (option) => option.value === (typeof filter.value === "string" ? filter.value : ""),
   )?.label;
+  // Chakra line-clamps value text by default, which clips padded elements such as state badges.
+  const hasRichDisplayValue = displayValue !== undefined && typeof displayValue !== "string";
 
   return (
     <FilterPill
@@ -117,7 +120,11 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
           >
             <Select.Trigger dataTestId={`${filter.config.key}-filter`} triggerProps={{ border: "none" }}>
-              <Select.ValueText placeholder={filter.config.placeholder} />
+              <Select.ValueText
+                lineClamp={hasRichDisplayValue ? "none" : undefined}
+                overflow={hasRichDisplayValue ? "visible" : undefined}
+                placeholder={filter.config.placeholder}
+              />
             </Select.Trigger>
             <Select.Content>
               {config.options.map((option) => (

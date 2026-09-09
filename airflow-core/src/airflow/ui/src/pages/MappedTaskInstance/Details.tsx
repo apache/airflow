@@ -22,8 +22,10 @@ import { useOutletContext, useParams } from "react-router-dom";
 
 import { useTaskServiceGetTask } from "openapi/queries";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+
 import { getDuration } from "src/utils";
 
 export const Details = () => {

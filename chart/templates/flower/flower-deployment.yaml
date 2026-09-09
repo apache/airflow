@@ -84,13 +84,17 @@ spec:
       priorityClassName: {{ .Values.flower.priorityClassName }}
       {{- end }}
       restartPolicy: Always
+      {{- if $securityContext }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       containers:
         - name: flower
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
+          {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}

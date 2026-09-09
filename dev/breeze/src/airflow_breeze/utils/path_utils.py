@@ -252,12 +252,24 @@ def warn_if_shim_outdated(airflow_sources: Path, shim_text: str | None = None) -
     setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
     installed_text = installed_version if installed_version is not None else "unknown (pre-versioning)"
     console_print(
-        f"\n[warning]Your breeze shim at {BREEZE_SHIM_PATH} is out of date "
+        f"\n[warning]Your breeze shim at {BREEZE_SHIM_PATH} needs to be upgraded "
         f"(installed: {installed_text}, current: {expected_version}).[/]\n"
-        "[warning]Re-run the setup script to refresh it:[/]\n\n"
+        "[warning]Re-run the setup script to upgrade it:[/]\n\n"
         f"     {setup_script}\n"
     )
     return True
+
+
+def has_uv_breeze_tool_dir() -> bool:
+    """Tell whether uv owns a tool directory for breeze."""
+    try:
+        result = subprocess.run(["uv", "tool", "dir"], text=True, capture_output=True, check=False)
+    except FileNotFoundError:
+        return False
+    if result.returncode != 0:
+        return False
+    tool_dir = result.stdout.strip()
+    return bool(tool_dir) and (Path(tool_dir) / "apache-airflow-breeze").is_dir()
 
 
 def detect_legacy_global_breeze_install() -> str | None:
@@ -273,6 +285,10 @@ def detect_legacy_global_breeze_install() -> str | None:
             return "uv"
     except FileNotFoundError:
         pass
+    # `uv tool list` drops a tool whose environment is corrupted, so an install the listing above
+    # cannot see may still be there, owning ~/.local/bin/breeze.
+    if has_uv_breeze_tool_dir():
+        return "uv"
     try:
         result = subprocess.run(["pipx", "list", "--short"], text=True, capture_output=True, check=False)
         if result.returncode == 0 and "apache-airflow-breeze" in result.stdout:
@@ -314,9 +330,9 @@ def warn_if_breeze_launcher_outdated(airflow_sources: Path) -> bool:
     )
     setup_script = airflow_sources / "scripts" / "tools" / "setup_breeze"
     console_print(
-        f"\n[warning]Breeze is installed as a legacy global '{legacy}' install, which still works "
-        "but is no longer the recommended setup (see ADR 0017).[/]\n"
-        "[warning]Migrate to the per-worktree uvx shim by uninstalling the global install and "
+        f"\n[warning]Breeze is installed as a legacy global '{legacy}' install, which resolves its "
+        "dependencies against the package index rather than dev/breeze/uv.lock (see ADR 0017).[/]\n"
+        "[warning]Migrate to the per-worktree shim by uninstalling the global install and "
         "running the setup script:[/]\n\n"
         f"     {uninstall_cmd}\n"
         f"     {setup_script}\n"
@@ -507,7 +523,7 @@ SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH = (
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local-all-sources.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-ui-dist.yml"
-SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH = (
     SCRIPTS_CI_DOCKER_COMPOSE_PATH / "providers-and-tests-sources.yml"
 )

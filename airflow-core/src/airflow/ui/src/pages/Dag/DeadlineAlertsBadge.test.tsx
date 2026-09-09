@@ -22,6 +22,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { DeadlineAlertsBadge } from "./DeadlineAlertsBadge";

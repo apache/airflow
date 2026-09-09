@@ -21,9 +21,11 @@ import { FiDatabase } from "react-icons/fi";
 
 import { usePartitionedDagRunServiceGetPendingPartitionedDagRun } from "openapi/queries";
 import type { NextRunAssetEventResponse, PartitionedDagRunAssetResponse } from "openapi/requests/types.gen";
+
+import { Popover, RouterLink } from "src/system-components";
+
 import { AssetExpression } from "src/components/AssetExpression";
 import { RollupKeyChecklist } from "src/components/RollupKeyChecklist";
-import { Popover, RouterLink } from "src/components/ui";
 
 type Props = {
   readonly dagId: string;

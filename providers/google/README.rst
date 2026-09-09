@@ -122,7 +122,7 @@ PIP package                                 Version required
 ``google-cloud-run``                        ``>=0.10.0``
 ``google-cloud-batch``                      ``>=0.13.0``
 ``grpcio-gcp``                              ``>=0.2.2``
-``httpx``                                   ``>=0.25.0``
+``httpx2``                                  ``>=2.0.0``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
@@ -198,7 +198,7 @@ Extra                 Dependencies
 ``postgres``          ``apache-airflow-providers-postgres``
 ``presto``            ``apache-airflow-providers-presto``
 ``salesforce``        ``apache-airflow-providers-salesforce``
-``sftp``              ``apache-airflow-providers-sftp``
+``sftp``              ``apache-airflow-providers-sftp>=5.3.3``
 ``ssh``               ``apache-airflow-providers-ssh``
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``

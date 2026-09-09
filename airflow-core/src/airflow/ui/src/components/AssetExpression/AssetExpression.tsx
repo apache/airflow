@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Badge } from "@chakra-ui/react";
 import { Fragment } from "react";
+
+import { Box, Badge } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { TbLogicOr } from "react-icons/tb";
 

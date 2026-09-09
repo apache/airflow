@@ -28,6 +28,7 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.models.deadline import classproperty
+from airflow.models.variable import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -37,8 +38,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
-
-    from airflow.sdk.definitions.deadline import VariableInterval
 
 logger = logging.getLogger(__name__)
 
@@ -374,10 +373,36 @@ def _fetch_from_db(column, *, session: Session, dag_id: str, run_id: str) -> dat
     """
     from airflow.models import DagRun
 
-    result = session.execute(select(column).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)).scalar()
-    if result is None:
+    row = session.execute(
+        select(column).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    ).one_or_none()
+    if row is None:
         logger.warning("Could not find DagRun for dag_id=%s, run_id=%s", dag_id, run_id)
-    return result
+        return None
+    return row[0]
+
+
+@attrs.define(frozen=True)
+class SerializedVariableInterval:
+    """Core-side serialized representation of a variable-backed deadline interval."""
+
+    key: str
+
+    def resolve(self) -> timedelta:
+
+        try:
+            value = Variable.get(self.key)
+        except KeyError as e:
+            raise ValueError(f"VariableInterval '{self.key}' not found") from e
+
+        try:
+            seconds = int(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
+            ) from e
+
+        return timedelta(seconds=seconds)
 
 
 @attrs.define
@@ -385,6 +410,6 @@ class SerializedDeadlineAlert:
     """Serialized representation of a deadline alert."""
 
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
-    interval: timedelta | VariableInterval
+    interval: timedelta | SerializedVariableInterval
     callback: Any
     name: str | None = None
