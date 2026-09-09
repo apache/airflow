@@ -473,10 +473,14 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Check if a user is allowed to approve/reject a HITL task.
 
+        Airflow only calls this method for tasks that have assigned users. When a task has none, Airflow
+        skips this method and any user allowed to update the task's HITL detail (``is_authorized_dag``
+        with ``DagAccessEntity.HITL_DETAIL``) can respond.
+
         By default, checks if the user's ID is in the assigned_users set.
         Auth managers can override this method to implement custom logic.
 
-        :param assigned_users: set of user IDs assigned to the task
+        :param assigned_users: set of user IDs assigned to the task, never empty
         :param user: the user to check authorization for
         """
         return user.get_id() in assigned_users

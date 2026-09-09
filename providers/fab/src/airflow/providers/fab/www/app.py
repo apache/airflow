@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from functools import cache
 from os.path import isabs
 
 from flask import Flask
@@ -131,14 +130,3 @@ def create_app(enable_plugins: bool):
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
     return flask_app
-
-
-@cache
-def cached_app():
-    """Return cached instance of Airflow WWW app."""
-    return create_app()
-
-
-def purge_cached_app():
-    """Remove the cached version of the app in global state."""
-    cached_app.cache_clear()
