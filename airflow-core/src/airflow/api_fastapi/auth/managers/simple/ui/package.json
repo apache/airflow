@@ -63,6 +63,7 @@
     "vite-plugin-css-injected-by-js": "^5.0.2",
     "vitest": "^4.1.11"
   },
+  "packageManager": "pnpm@10.25.0",
   "pnpm": {
     "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
