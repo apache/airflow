@@ -1791,10 +1791,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _finalize_draining_dags(self, *, session: Session = NEW_SESSION) -> None:
+        # The backfill row is committed before its Dag runs and associations are created.
+        initializing_backfill_exists = exists(
+            select(Backfill.id).where(
+                Backfill.dag_id == DagModel.dag_id,
+                Backfill.completed_at.is_(None),
+                ~exists(select(BackfillDagRun.id).where(BackfillDagRun.backfill_id == Backfill.id)),
+            )
+        )
         query = (
             select(DagModel)
             .where(
                 DagModel.is_draining == expression.true(),
+                ~initializing_backfill_exists,
                 ~exists(
                     select(DagRun.id).where(
                         DagRun.dag_id == DagModel.dag_id,

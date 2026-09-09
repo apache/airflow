@@ -49,11 +49,17 @@ def upgrade():
                 "dag_pause_state_valid",
                 "NOT (is_paused AND is_draining)",
             )
+        with op.batch_alter_table("backfill", schema=None) as batch_op:
+            batch_op.create_index(
+                "idx_backfill_dag_id_completed_at", ["dag_id", "completed_at"], unique=False
+            )
 
 
 def downgrade():
     """Remove the Dag draining state."""
     with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("backfill", schema=None) as batch_op:
+            batch_op.drop_index("idx_backfill_dag_id_completed_at")
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.drop_constraint("dag_pause_state_valid", type_="check")
             batch_op.drop_index("idx_dag_is_draining")

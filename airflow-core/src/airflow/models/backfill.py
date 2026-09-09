@@ -33,6 +33,7 @@ import structlog
 from sqlalchemy import (
     Boolean,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -187,6 +188,8 @@ class Backfill(Base):
         String(512),
         nullable=True,
     )  # The user that triggered the Backfill, if applicable
+
+    __table_args__ = (Index("idx_backfill_dag_id_completed_at", dag_id, completed_at),)
 
     backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
 

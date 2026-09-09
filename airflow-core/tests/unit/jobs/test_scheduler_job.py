@@ -8846,7 +8846,7 @@ class TestSchedulerJob:
             == 1
         )
 
-    def test_finalize_draining_dag_does_not_wait_for_backfill_metadata(self, dag_maker, session):
+    def test_finalize_draining_dag_waits_for_backfill_initialization(self, dag_maker, session):
         with dag_maker("test_finalize_draining_dag_with_backfill", schedule="@daily") as dag:
             EmptyOperator(task_id="task")
 
@@ -8864,6 +8864,27 @@ class TestSchedulerJob:
         session.flush()
 
         self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
+        dag_run.backfill_id = backfill.id
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill.id,
+                dag_run_id=dag_run.id,
+                logical_date=dag_run.logical_date,
+                sort_ordinal=1,
+            )
+        )
+        session.flush()
+        self.job_runner._finalize_draining_dags(session=session)
+
+        assert dag_model.scheduling_state == DagSchedulingState.DRAINING
+
+        dag_run.state = DagRunState.SUCCESS
+        session.flush()
         self.job_runner._finalize_draining_dags(session=session)
 
         assert dag_model.scheduling_state == DagSchedulingState.PAUSED
