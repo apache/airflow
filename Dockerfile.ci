@@ -82,8 +82,23 @@ else
     exit 1
 fi
 
+function get_debian_version() {
+    # Get debian version without installing lsb_release
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    printf '%s\n' "${VERSION_CODENAME}"
+}
+
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
+        local debian_version
+        local debian_version_apt_deps=""
+        debian_version="$(get_debian_version)"
+        if [[ "${debian_version}" == "bookworm" ]]; then
+            debian_version_apt_deps="\
+lzma-dev \
+"
+        fi
         DEV_APT_DEPS="\
 apt-transport-https \
 apt-utils \
@@ -124,6 +139,7 @@ libzstd-dev \
 locales \
 lsb-release \
 lzma \
+${debian_version_apt_deps}\
 openssh-client \
 openssl \
 pkg-config \
@@ -156,18 +172,28 @@ lcov \
 function get_runtime_apt_deps() {
     local debian_version
     local debian_version_apt_deps
-    # Get debian version without installing lsb_release
-    # shellcheck disable=SC1091
-    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    debian_version="$(get_debian_version)"
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="\
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        debian_version_apt_deps="\
+libffi8 \
+libldap-2.5-0 \
+libssl3 \
+netcat-openbsd\
+"
+    elif [[ "${debian_version}" == "trixie" ]]; then
+        debian_version_apt_deps="\
 libffi8 \
 libldap2 \
 libssl3t64 \
 netcat-openbsd\
 "
+    else
+        echo "ERROR! Unsupported Debian version: ${debian_version}."
+        exit 1
+    fi
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -233,10 +259,7 @@ function install_debian_dev_dependencies() {
     fi
     apt-get update
     local debian_version
-    local debian_version_apt_deps
-    # Get debian version without installing lsb_release
-    # shellcheck disable=SC1091
-    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    debian_version="$(get_debian_version)"
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
@@ -574,7 +597,18 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-readonly MARIADB_LTS_VERSION="11.8"
+get_mariadb_lts_version() {
+    local debian_version
+    debian_version="$(lsb_release -cs)"
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        printf "10.11\n"
+    elif [[ "${debian_version}" == "trixie" ]]; then
+        printf "11.8\n"
+    else
+        echo "${COLOR_RED}Unsupported Debian version: ${debian_version}.${COLOR_RESET}" >&2
+        exit 1
+    fi
+}
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
@@ -637,25 +671,30 @@ install_mariadb_client() {
     # that some of packages might contains `-compat` suffix, Debian repo -> MariaDB repo:
     # `libmariadb-dev` -> `libmariadb-dev-compat`
     # `mariadb-client-core` -> `mariadb-client` or `mariadb-client-compat` (11+)
+    local mariadb_lts_version
+    mariadb_lts_version="$(get_mariadb_lts_version)"
     if [[ "${1}" == "dev" ]]; then
-        packages=("libmariadb-dev-compat" "mariadb-client" "mariadb-client-compat")
+        packages=("libmariadb-dev-compat" "mariadb-client")
     elif [[ "${1}" == "prod" ]]; then
-        packages=("libmariadb3-compat" "mariadb-client" "mariadb-client-compat")
+        packages=("libmariadb3-compat" "mariadb-client")
     else
         echo
         echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
         echo
         exit 1
     fi
+    if [[ "${mariadb_lts_version}" == 11.* ]]; then
+        packages+=("mariadb-client-compat")
+    fi
 
     common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
-    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing MariaDB client version ${mariadb_lts_version}: ${1}${COLOR_RESET}"
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
+    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${mariadb_lts_version}/repo/debian/ $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
     printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb

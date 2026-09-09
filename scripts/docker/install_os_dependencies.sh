@@ -50,8 +50,23 @@ else
     exit 1
 fi
 
+function get_debian_version() {
+    # Get debian version without installing lsb_release
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    printf '%s\n' "${VERSION_CODENAME}"
+}
+
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
+        local debian_version
+        local debian_version_apt_deps=""
+        debian_version="$(get_debian_version)"
+        if [[ "${debian_version}" == "bookworm" ]]; then
+            debian_version_apt_deps="\
+lzma-dev \
+"
+        fi
         DEV_APT_DEPS="\
 apt-transport-https \
 apt-utils \
@@ -92,6 +107,7 @@ libzstd-dev \
 locales \
 lsb-release \
 lzma \
+${debian_version_apt_deps}\
 openssh-client \
 openssl \
 pkg-config \
@@ -124,18 +140,28 @@ lcov \
 function get_runtime_apt_deps() {
     local debian_version
     local debian_version_apt_deps
-    # Get debian version without installing lsb_release
-    # shellcheck disable=SC1091
-    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    debian_version="$(get_debian_version)"
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="\
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        debian_version_apt_deps="\
+libffi8 \
+libldap-2.5-0 \
+libssl3 \
+netcat-openbsd\
+"
+    elif [[ "${debian_version}" == "trixie" ]]; then
+        debian_version_apt_deps="\
 libffi8 \
 libldap2 \
 libssl3t64 \
 netcat-openbsd\
 "
+    else
+        echo "ERROR! Unsupported Debian version: ${debian_version}."
+        exit 1
+    fi
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -201,10 +227,7 @@ function install_debian_dev_dependencies() {
     fi
     apt-get update
     local debian_version
-    local debian_version_apt_deps
-    # Get debian version without installing lsb_release
-    # shellcheck disable=SC1091
-    debian_version=$(. /etc/os-release;   printf '%s\n' "$VERSION_CODENAME";)
+    debian_version="$(get_debian_version)"
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo

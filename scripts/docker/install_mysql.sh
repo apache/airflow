@@ -25,7 +25,18 @@ common::get_colors
 declare -a packages
 
 # https://mariadb.org/about/#maintenance-policy
-readonly MARIADB_LTS_VERSION="11.8"
+get_mariadb_lts_version() {
+    local debian_version
+    debian_version="$(lsb_release -cs)"
+    if [[ "${debian_version}" == "bookworm" ]]; then
+        printf "10.11\n"
+    elif [[ "${debian_version}" == "trixie" ]]; then
+        printf "11.8\n"
+    else
+        echo "${COLOR_RED}Unsupported Debian version: ${debian_version}.${COLOR_RESET}" >&2
+        exit 1
+    fi
+}
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
@@ -88,25 +99,30 @@ install_mariadb_client() {
     # that some of packages might contains `-compat` suffix, Debian repo -> MariaDB repo:
     # `libmariadb-dev` -> `libmariadb-dev-compat`
     # `mariadb-client-core` -> `mariadb-client` or `mariadb-client-compat` (11+)
+    local mariadb_lts_version
+    mariadb_lts_version="$(get_mariadb_lts_version)"
     if [[ "${1}" == "dev" ]]; then
-        packages=("libmariadb-dev-compat" "mariadb-client" "mariadb-client-compat")
+        packages=("libmariadb-dev-compat" "mariadb-client")
     elif [[ "${1}" == "prod" ]]; then
-        packages=("libmariadb3-compat" "mariadb-client" "mariadb-client-compat")
+        packages=("libmariadb3-compat" "mariadb-client")
     else
         echo
         echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
         echo
         exit 1
     fi
+    if [[ "${mariadb_lts_version}" == 11.* ]]; then
+        packages+=("mariadb-client-compat")
+    fi
 
     common::import_trusted_gpg "0xF1656F24C74CD1D8" "mariadb"
 
     echo
-    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing MariaDB client version ${mariadb_lts_version}: ${1}${COLOR_RESET}"
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
+    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${mariadb_lts_version}/repo/debian/ $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
     printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb
