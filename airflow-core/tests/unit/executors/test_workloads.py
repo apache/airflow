@@ -34,6 +34,8 @@ from airflow.executors.workloads.types import state_class_for_key
 from airflow.models.callback import CallbackKey
 from airflow.sdk.api.datamodels._generated import TaskInstance as GeneratedTaskInstance
 
+from tests_common.test_utils.config import conf_vars
+
 
 def test_task_instance_alias_keeps_backwards_compat():
     assert TaskInstance is TaskInstanceDTO
@@ -93,51 +95,26 @@ def test_generate_token_without_generator():
 class TestWorkloadTokenValidFor:
     """Regression tests for https://github.com/apache/airflow/issues/72469."""
 
-    def test_falls_back_to_task_queued_timeout_when_unset(self, monkeypatch):
+    def test_falls_back_to_task_queued_timeout_when_unset(self):
         """With [execution_api] workload_token_expiration_time unset, use task_queued_timeout."""
+        # execution_api.workload_token_expiration_time defaults to unset (None) in config.yml,
+        # so only task_queued_timeout needs to be pinned.
+        with conf_vars({("scheduler", "task_queued_timeout"): "600"}):
+            assert BaseWorkloadSchema._workload_token_valid_for() == 600.0
 
-        def fake_getfloat(section, key, **kwargs):
-            if (section, key) == ("execution_api", "workload_token_expiration_time"):
-                assert kwargs.get("fallback", "unset") is None, "must be queried with fallback=None"
-                return None
-            if (section, key) == ("scheduler", "task_queued_timeout"):
-                return 600.0
-            raise AssertionError(f"unexpected conf.getfloat({section!r}, {key!r})")
-
-        monkeypatch.setattr(workloads_base.conf, "getfloat", fake_getfloat)
-
-        assert BaseWorkloadSchema._workload_token_valid_for() == 600.0
-
-    def test_uses_independent_value_when_set(self, monkeypatch):
+    def test_uses_independent_value_when_set(self):
         """With [execution_api] workload_token_expiration_time set, it wins over task_queued_timeout."""
+        with conf_vars({("execution_api", "workload_token_expiration_time"): "120"}):
+            assert BaseWorkloadSchema._workload_token_valid_for() == 120.0
 
-        def fake_getfloat(section, key, **kwargs):
-            if (section, key) == ("execution_api", "workload_token_expiration_time"):
-                return 120.0
-            raise AssertionError(
-                f"task_queued_timeout should not be consulted when the new option is set, "
-                f"but conf.getfloat({section!r}, {key!r}) was called"
-            )
-
-        monkeypatch.setattr(workloads_base.conf, "getfloat", fake_getfloat)
-
-        assert BaseWorkloadSchema._workload_token_valid_for() == 120.0
-
-    def test_generate_token_uses_independent_expiration_when_set(self, monkeypatch):
+    def test_generate_token_uses_independent_expiration_when_set(self):
         """End-to-end: the minted token's exp reflects the new option, not task_queued_timeout."""
+        with conf_vars({("execution_api", "workload_token_expiration_time"): "120"}):
+            generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
+            token = BaseWorkloadSchema.generate_token("ti-123", generator)
 
-        def fake_getfloat(section, key, **kwargs):
-            if (section, key) == ("execution_api", "workload_token_expiration_time"):
-                return 120.0
-            raise AssertionError(f"unexpected conf.getfloat({section!r}, {key!r})")
-
-        monkeypatch.setattr(workloads_base.conf, "getfloat", fake_getfloat)
-
-        generator = JWTGenerator(secret_key="test-secret", audience="test", valid_for=60)
-        token = BaseWorkloadSchema.generate_token("ti-123", generator)
-
-        claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
-        assert claims["exp"] - claims["iat"] == 120
+            claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+            assert claims["exp"] - claims["iat"] == 120
 
 
 def test_token_scope_is_a_class_level_invariant():

@@ -106,9 +106,9 @@ class BaseWorkloadSchema(BaseModel):
         ``task_queued_timeout`` to preserve the previous coupled behavior. See
         https://github.com/apache/airflow/issues/72469.
         """
-        valid_for = conf.getfloat("execution_api", "workload_token_expiration_time", fallback=None)
-        if valid_for is not None:
-            return valid_for
+        raw = conf.get("execution_api", "workload_token_expiration_time", fallback=None)
+        if raw:
+            return float(raw)
         return conf.getfloat("scheduler", "task_queued_timeout")
 
 
