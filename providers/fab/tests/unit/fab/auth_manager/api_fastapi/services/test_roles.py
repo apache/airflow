@@ -218,7 +218,9 @@ class TestRolesService:
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
-    def test_get_roles_invalid_order_by_bubbles_400(self, create_session, build_ordering, get_fab_auth_manager):
+    def test_get_roles_invalid_order_by_bubbles_400(
+        self, create_session, build_ordering, get_fab_auth_manager
+    ):
         create_session.return_value.__enter__.return_value = MagicMock()
 
         build_ordering.side_effect = HTTPException(status_code=400, detail="disallowed")
