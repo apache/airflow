@@ -324,7 +324,7 @@ The [`adr/`](./adr) directory records the design decisions behind the SDK:
 - [ADR 0005](./adr/0005-retire-go-edge-worker.md): retire the standalone Go Edge Worker and make the
   coordinator the only execution path.
 - [ADR 0006](./adr/0006-mixed-lang-task-handler-interface.md): the Mixed Lang task handler interface —
-  `registry.AddTaskHandlers`, flat positional binding, `arg:` tagged structs, and the untagged
+  `registry.Register`, flat positional binding, `arg:` tagged structs, and the untagged
   folded-name fallback.
 - [ADR 0007](./adr/0007-native-dag-interface.md): the proposed Native Dag interface (`airflow.Dag`/
   `dag.Task`/`airflow.Inputs`/`Before`-`After`), not yet merged.
