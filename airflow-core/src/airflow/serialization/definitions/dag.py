@@ -789,6 +789,15 @@ class SerializedDAG:
                         "deadline_alerts.deadline_created",
                         tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
                     )
+                else:
+                    # A reference returns None when the Dag run attribute it reads is unset (e.g.
+                    # logical_date on a run triggered without one); without this the alert never fires.
+                    log.warning(
+                        "deadline alert skipped, reference produced no deadline time",
+                        dag_id=self.dag_id,
+                        run_id=orm_dagrun.run_id,
+                        reference=type(deserialized_deadline_alert.reference).__name__,
+                    )
 
     @provide_session
     def set_task_instance_state(
