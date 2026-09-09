@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
+import re
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -24,14 +26,54 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai.models import Model
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+
+# Matches the `google...` provider key pydantic-ai expects before the `:model-name`
+# separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
+_GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
+
+
+def _assert_prefix_is_known_provider(prefix: str) -> None:
+    """
+    Assert pydantic-ai's provider registry recognizes ``prefix``.
+
+    ``infer_provider_class`` raises ``ValueError: Unknown provider: ...`` for a
+    name it doesn't recognize, but ``ImportError`` for a recognized name whose
+    optional dependency (``google-genai``) isn't installed in this test env.
+    Only the former indicates the advertised prefix has drifted out of sync
+    with what's actually installed.
+    """
+    try:
+        with contextlib.suppress(ImportError):
+            infer_provider_class(prefix)
+    except ValueError as exc:
+        pytest.fail(f"{prefix!r} is not a recognized pydantic-ai provider: {exc}")
+
+
+def _extract_google_cloud_prefix(text: str) -> str:
+    """
+    Extract the ``google...`` model prefix out of ``text`` and assert it is exactly
+    ``"google-cloud"``.
+
+    ``_GOOGLE_MODEL_PREFIX_RE`` alone would also match the bare ``"google"``
+    provider (the Generative Language API, which pydantic-ai also recognizes),
+    so a documented prefix that silently regressed from ``google-cloud:`` to
+    ``google:`` would still pass a plain "is it a known provider" check. The
+    exact-match assertion here is what actually catches that drift.
+    """
+    match = _GOOGLE_MODEL_PREFIX_RE.search(text)
+    assert match, f"no google model prefix found in: {text!r}"
+    assert match.group() == "google-cloud", f"expected 'google-cloud' prefix, got {match.group()!r}"
+    return match.group()
 
 
 class TestPydanticAIHookInit:
@@ -722,7 +764,7 @@ class TestPydanticAIVertexHook:
             None,
             None,
             {
-                "model": "google-vertex:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.0-flash",
                 "project": "my-project",
                 "location": "us-central1",
             },
@@ -739,7 +781,7 @@ class TestPydanticAIVertexHook:
         result = hook._get_provider_kwargs(
             None,
             None,
-            {"model": "google-gla:gemini-2.0-flash", "api_key": "gla-key"},
+            {"model": "google:gemini-2.0-flash", "api_key": "gla-key"},
         )
         assert result["api_key"] == "gla-key"
 
@@ -758,7 +800,7 @@ class TestPydanticAIVertexHook:
             None,
             None,
             {
-                "model": "google-vertex:gemini-2.0-flash",
+                "model": "google-cloud:gemini-2.0-flash",
                 "project": "my-project",
                 "location": "us-central1",
                 "vertexai": vertexai_value,
@@ -792,7 +834,7 @@ class TestPydanticAIVertexHook:
                 None,
                 None,
                 {
-                    "model": "google-vertex:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.0-flash",
                     "service_account_info": sa_info_dict,
                 },
             )
@@ -807,7 +849,7 @@ class TestPydanticAIVertexHook:
     def test_get_provider_kwargs_returns_empty_for_adc(self):
         """When no keys are in extra, return {} so ADC path is taken."""
         hook = PydanticAIVertexHook.__new__(PydanticAIVertexHook)
-        result = hook._get_provider_kwargs(None, None, {"model": "google-vertex:gemini-2.0-flash"})
+        result = hook._get_provider_kwargs(None, None, {"model": "google-cloud:gemini-2.0-flash"})
         assert result == {}
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -817,12 +859,12 @@ class TestPydanticAIVertexHook:
         conn = Connection(
             conn_id="vertex_test",
             conn_type="pydanticai-vertex",
-            extra=json.dumps({"model": "google-vertex:gemini-2.0-flash"}),
+            extra=json.dumps({"model": "google-cloud:gemini-2.0-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
             hook.get_conn()
 
-        mock_infer_model.assert_called_once_with("google-vertex:gemini-2.0-flash")
+        mock_infer_model.assert_called_once_with("google-cloud:gemini-2.0-flash")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
@@ -837,7 +879,7 @@ class TestPydanticAIVertexHook:
             conn_type="pydanticai-vertex",
             extra=json.dumps(
                 {
-                    "model": "google-vertex:gemini-2.0-flash",
+                    "model": "google-cloud:gemini-2.0-flash",
                     "project": "my-project",
                     "location": "europe-west4",
                 }
@@ -847,7 +889,7 @@ class TestPydanticAIVertexHook:
             hook.get_conn()
 
         factory = mock_infer_model.call_args[1]["provider_factory"]
-        factory("google-vertex")
+        factory("google-cloud")
         mock_provider_cls.assert_called_with(project="my-project", location="europe-west4")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -913,3 +955,59 @@ class TestPydanticAIVertexHook:
         assert provider.kwargs["location"] == "us-central1"
         # The TypeError fallback must never have been reached.
         mock_infer_provider.assert_not_called()
+
+    def test_documented_model_prefix_is_a_valid_pydantic_ai_provider(self):
+        """Regression test: the model-prefix documented in the connection form and
+        docstrings must be a provider id pydantic-ai actually recognizes (see
+        pydantic/pydantic-ai#5336, which renamed the old Vertex provider id shortly
+        before Airflow's docstrings/placeholders were written).
+        """
+        _assert_prefix_is_known_provider("google-cloud")
+
+    def test_conn_fields_model_description_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``provider.yaml`` conn-field, the actual UI source.
+
+        Once a hook's ``provider.yaml`` declares ``conn-fields``, the connection
+        form renders those and ``get_ui_field_behaviour`` placeholders are never
+        shown (``providers_manager.py``'s ``ui_metadata_loaded``, deprecated
+        since 3.2.0) — so this description, not the placeholder below, is what
+        a user actually copies the model prefix from.
+        """
+        connection_types = get_provider_info()["connection-types"]
+        vertex_conn_fields = next(
+            c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai-vertex"
+        )
+        description = vertex_conn_fields["model"]["description"]
+        prefix = _extract_google_cloud_prefix(description)
+        _assert_prefix_is_known_provider(prefix)
+
+    def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``provider.yaml`` ``ui-field-behaviour.placeholders.extra``,
+        a sibling of ``conn-fields`` under the same connection-type block.
+
+        This placeholder is superseded at runtime by the ``conn-fields`` description
+        above (once ``conn-fields`` is declared, the connection form no longer shows
+        ``ui-field-behaviour`` placeholders), but ``provider.yaml`` still carries its
+        own independent copy of the model prefix here, and nothing was covering it.
+        """
+        connection_types = get_provider_info()["connection-types"]
+        vertex_connection_type = next(
+            c for c in connection_types if c["connection-type"] == "pydanticai-vertex"
+        )
+        placeholder = vertex_connection_type["ui-field-behaviour"]["placeholders"]["extra"]
+        prefix = _extract_google_cloud_prefix(placeholder)
+        _assert_prefix_is_known_provider(prefix)
+
+    def test_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``get_ui_field_behaviour`` placeholder.
+
+        Superseded at runtime by the ``provider.yaml`` conn-field above, but
+        still source code a developer can read and copy from directly, so it
+        needs to stay accurate too.
+        """
+        placeholder = PydanticAIVertexHook.get_ui_field_behaviour()["placeholders"]["extra"]
+        prefix = _extract_google_cloud_prefix(placeholder)
+        _assert_prefix_is_known_provider(prefix)

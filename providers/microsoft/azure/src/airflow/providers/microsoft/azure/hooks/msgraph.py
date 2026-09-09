@@ -15,18 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Microsoft Graph API hook and the email backend built on it.
+
+.. spelling:word-list::
+
+    dryrun
+"""
+
 from __future__ import annotations
 
 import asyncio
 import inspect
 import json
+import mimetypes
+import re
 import warnings
 from ast import literal_eval
+from base64 import b64encode
 from collections.abc import Callable
 from contextlib import suppress
+from email.utils import parseaddr
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
+from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
@@ -55,6 +68,8 @@ from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from azure.core.pipeline.transport._requests_basic import RequestsTransport
     from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
     from kiota_abstractions.request_adapter import RequestAdapter
@@ -171,6 +186,8 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
+            if status_code == HTTPStatus.UNAUTHORIZED:
+                raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
             raise AirflowException(message)
@@ -491,12 +508,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
-        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
-        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
-        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
-        # response could redirect the token off-host. Pin follow-up requests to the configured
-        # endpoint's host (CWE-918).
-        self.allowed_netloc = urlparse(request_adapter.base_url).netloc
+        self.allowed_netloc = urlparse(request_adapter.base_url).netloc.lower()
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict | None:
@@ -579,6 +591,13 @@ class KiotaRequestAdapterHook(BaseHook):
         query_parameters: dict[str, Any] | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
+        """
+        Resolve the url and query parameters of the page following ``response``.
+
+        The ``$skip`` offset is derived from ``query_parameters`` rather than from ``responses``:
+        callers accumulate whatever their own callbacks produced, so the entries are not guaranteed
+        to be the raw pages this offset would have to be counted from.
+        """
         if isinstance(response, dict):
             odata_count = response.get("@odata.count")
             if odata_count and query_parameters:
@@ -586,9 +605,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
                 if top and odata_count:
                     if len(response.get("value", [])) == top:
-                        results = responses()
-                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
-                        query_parameters["$skip"] = skip
+                        query_parameters["$skip"] = (query_parameters.get("$skip") or 0) + top
                         return url, query_parameters
             return response.get("@odata.nextLink"), query_parameters
         return None, query_parameters
@@ -619,6 +636,39 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.debug("response: %s", response)
 
         return response
+
+    async def get_allowed_netlocs(self) -> set[str]:
+        """Return the endpoint's host and the connection's allowed hosts, for checking pagination links."""
+        request_adapter = await self.get_async_conn()
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        allowed_hosts = access_token_provider.get_allowed_hosts_validator().get_allowed_hosts()
+        netlocs = {host.lower() for host in allowed_hosts}
+
+        if self.allowed_netloc:
+            netlocs.add(self.allowed_netloc)
+        return netlocs
+
+    async def assert_allowed_host(self, url: str | None) -> None:
+        """
+        Refuse an absolute ``url`` whose host the connection does not allow.
+
+        A pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is re-fetched
+        with the connection's bearer token attached. That token is withheld only from hosts outside
+        ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered response
+        could send it to an arbitrary host (CWE-918).
+        """
+        if not url or not url.startswith("http"):
+            return
+
+        allowed_netlocs = await self.get_allowed_netlocs()
+
+        if urlparse(url).netloc.lower() not in allowed_netlocs:
+            raise ValueError(
+                f"Refusing to follow pagination link {url!r}: its host is not among the allowed "
+                f"Microsoft Graph endpoints {sorted(allowed_netlocs)}."
+            )
 
     async def paginated_run(
         self,
@@ -667,15 +717,7 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
-                        if (
-                            next_url
-                            and next_url.startswith("http")
-                            and urlparse(next_url).netloc != self.allowed_netloc
-                        ):
-                            raise ValueError(
-                                f"Refusing to follow pagination link {next_url!r}: its host differs "
-                                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
-                            )
+                        await self.assert_allowed_host(next_url)
                         url = next_url
                 else:
                     break
@@ -700,14 +742,30 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except (RuntimeError, ValueError) as e:
+        except (PermissionError, RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,
                 e,
             )
-            self.cached_request_adapters.pop(self.conn_id, None)
+            await self.close()
             raise
+
+    async def close(self) -> None:
+        """Close the request adapter cached for this connection and evict it from the cache."""
+        _, request_adapter = self.cached_request_adapters.pop(self.conn_id, (None, None))
+
+        if not request_adapter:
+            return
+
+        try:
+            adapter = cast("HttpxRequestAdapter", request_adapter)
+            await adapter._http_client.aclose()
+        finally:
+            provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+            access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+            credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
+            await credential._credential.close()
 
     def request_information(
         self,
@@ -769,3 +827,262 @@ class KiotaRequestAdapterHook(BaseHook):
             "4XX": APIError,  # type: ignore
             "5XX": APIError,  # type: ignore
         }
+
+
+class MSGraphMailHook(KiotaRequestAdapterHook):
+    """
+    Send mail from an Office 365 mailbox through the Microsoft Graph ``sendMail`` endpoint.
+
+    The application registration behind the connection needs the ``Mail.Send`` permission, and with
+    application permissions an administrator has to grant it access to the sending mailbox.
+
+    https://learn.microsoft.com/en-us/graph/api/user-sendmail
+
+    :param conn_id: The :ref:`Microsoft Graph API connection id <howto/connection:msgraph>`.
+    :param timeout: The HTTP timeout being used by the KiotaRequestAdapter (default is None).
+        When no timeout is specified or set to None then no HTTP timeout is applied on each request.
+    :param proxies: A Dict defining the HTTP proxies to be used (default is None).
+    :param host: The host to be used (default is "https://graph.microsoft.com").
+    :param scopes: The scopes to be used (default is ["https://graph.microsoft.com/.default"]).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+    """
+
+    # Microsoft Graph documents 3 MB as the largest content that can ride inline on a message.
+    # Anything bigger has to go through an upload session on a draft message instead.
+    MAX_ATTACHMENTS_SIZE = 3 * 1024 * 1024
+
+    @staticmethod
+    def extract_email_addresses(addresses: str | Iterable[str] | None) -> list[str]:
+        """Split a comma or semicolon separated string, or an iterable, into a list of addresses."""
+        if not addresses:
+            return []
+        if isinstance(addresses, str):
+            addresses = re.split(r"\s*[,;]\s*", addresses)
+        return [address for address in addresses if address]
+
+    @staticmethod
+    def extract_sender(from_email: str | None) -> str:
+        """Extract the bare address of the mailbox to send from."""
+        # The mailbox is addressed in the request path, so the bare address is needed even though
+        # ``[email] from_email`` is conventionally configured as "Display name <user@example.com>".
+        sender = parseaddr(from_email or "")[1]
+        if not sender:
+            raise ValueError(
+                f"A `from_email` holding the mailbox to send from is required, got {from_email!r}."
+            )
+        return sender
+
+    @classmethod
+    def build_recipients(cls, addresses: str | Iterable[str] | None) -> list[dict[str, Any]]:
+        """Build the Microsoft Graph recipient representation for the given addresses."""
+        return [{"emailAddress": {"address": address}} for address in cls.extract_email_addresses(addresses)]
+
+    @classmethod
+    def build_attachments(cls, files: Iterable[str] | None) -> list[dict[str, Any]]:
+        """Read each file from disk and build its Microsoft Graph ``fileAttachment`` representation."""
+        attachments = []
+        total_size = 0
+        for file in files or []:
+            path = Path(file)
+            content = path.read_bytes()
+            total_size += len(content)
+            if total_size > cls.MAX_ATTACHMENTS_SIZE:
+                raise ValueError(
+                    f"The attachments add up to at least {total_size} bytes, which is more than the "
+                    f"{cls.MAX_ATTACHMENTS_SIZE} bytes Microsoft Graph accepts on a sendMail request. "
+                    f"Upload larger files to a draft message with an upload session instead."
+                )
+            attachments.append(
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": path.name,
+                    "contentType": mimetypes.guess_type(path.name)[0] or "application/octet-stream",
+                    "contentBytes": b64encode(content).decode("ascii"),
+                }
+            )
+        return attachments
+
+    @classmethod
+    def build_message(
+        cls,
+        to: str | Iterable[str],
+        subject: str,
+        html_content: str,
+        files: Iterable[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        custom_headers: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Build the Microsoft Graph message body for the given email fields."""
+        recipients = cls.build_recipients(to)
+        if not recipients:
+            raise ValueError("No recipients were resolved from the `to` argument.")
+
+        message: dict[str, Any] = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": html_content},
+            "toRecipients": recipients,
+        }
+        if cc:
+            message["ccRecipients"] = cls.build_recipients(cc)
+        if bcc:
+            message["bccRecipients"] = cls.build_recipients(bcc)
+        if files:
+            message["attachments"] = cls.build_attachments(files)
+        if custom_headers:
+            # Microsoft Graph rejects custom header names that are not prefixed with "x-".
+            message["internetMessageHeaders"] = [
+                {"name": name, "value": str(value)} for name, value in custom_headers.items()
+            ]
+        return message
+
+    async def asend_email(
+        self,
+        from_email: str,
+        to: str | Iterable[str],
+        subject: str,
+        html_content: str,
+        files: Iterable[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        custom_headers: dict[str, Any] | None = None,
+        save_to_sent_items: bool = True,
+        dryrun: bool = False,
+    ) -> None:
+        """
+        Send an email from the ``from_email`` mailbox (async).
+
+        :param from_email: The mailbox the message is sent from.
+        :param to: Recipient email address or list of addresses.
+        :param subject: Email subject.
+        :param html_content: Email body in HTML format.
+        :param files: List of file paths to attach to the email.
+        :param cc: Carbon copy recipient email address or list of addresses.
+        :param bcc: Blind carbon copy recipient email address or list of addresses.
+        :param custom_headers: Custom internet message headers, whose names have to start with "x-".
+        :param save_to_sent_items: Whether the message is saved in the mailbox's Sent Items folder.
+        :param dryrun: If True, the message is prepared but not sent.
+        """
+        sender = self.extract_sender(from_email)
+
+        message = self.build_message(
+            to=to,
+            subject=subject,
+            html_content=html_content,
+            files=files,
+            cc=cc,
+            bcc=bcc,
+            custom_headers=custom_headers,
+        )
+
+        if dryrun:
+            self.log.info("Dry run, not sending email with subject %r to %s", subject, to)
+            return
+
+        await self.run(
+            url="users/{user_id}/sendMail",
+            path_parameters={"user_id": sender},
+            method="POST",
+            data={"message": message, "saveToSentItems": save_to_sent_items},
+        )
+
+    def send_email(
+        self,
+        from_email: str,
+        to: str | Iterable[str],
+        subject: str,
+        html_content: str,
+        files: Iterable[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        custom_headers: dict[str, Any] | None = None,
+        save_to_sent_items: bool = True,
+        dryrun: bool = False,
+    ) -> None:
+        """
+        Send an email from the ``from_email`` mailbox.
+
+        :param from_email: The mailbox the message is sent from.
+        :param to: Recipient email address or list of addresses.
+        :param subject: Email subject.
+        :param html_content: Email body in HTML format.
+        :param files: List of file paths to attach to the email.
+        :param cc: Carbon copy recipient email address or list of addresses.
+        :param bcc: Blind carbon copy recipient email address or list of addresses.
+        :param custom_headers: Custom internet message headers, whose names have to start with "x-".
+        :param save_to_sent_items: Whether the message is saved in the mailbox's Sent Items folder.
+        :param dryrun: If True, the message is prepared but not sent.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "send_email cannot be called from a running event loop, await asend_email instead."
+            )
+
+        async def send_and_close() -> None:
+            try:
+                await self.asend_email(
+                    from_email=from_email,
+                    to=to,
+                    subject=subject,
+                    html_content=html_content,
+                    files=files,
+                    cc=cc,
+                    bcc=bcc,
+                    custom_headers=custom_headers,
+                    save_to_sent_items=save_to_sent_items,
+                    dryrun=dryrun,
+                )
+            finally:
+                # asyncio.run tears down the event loop that the request adapter is bound to, so the
+                # cached adapter is unusable by the time the next email is sent.  Close it here,
+                # while the loop that owns its sockets is still running.
+                await self.close()
+
+        asyncio.run(send_and_close())
+
+
+def send_email(
+    to: str | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    dryrun: bool = False,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    conn_id: str | None = None,
+    from_email: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
+    **kwargs,
+) -> None:
+    """
+    Email backend for Microsoft Graph.
+
+    .. note::
+        For more information, see :ref:`email-configuration-msgraph`
+    """
+    if not from_email:
+        raise ValueError(
+            "The `from_email` configuration has to be set for the Microsoft Graph emailer, as it "
+            "determines which mailbox the message is sent from."
+        )
+
+    # ``mime_subtype`` and ``mime_charset`` are part of the email backend contract but have no
+    # counterpart here: Microsoft Graph composes the MIME message itself from the JSON payload.
+    hook = MSGraphMailHook(conn_id=conn_id or MSGraphMailHook.default_conn_name)
+    hook.send_email(
+        from_email=from_email,
+        to=to,
+        subject=subject,
+        html_content=html_content,
+        files=files,
+        cc=cc,
+        bcc=bcc,
+        custom_headers=custom_headers,
+        dryrun=dryrun,
+    )

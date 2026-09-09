@@ -510,6 +510,7 @@ class CommandFactory:
             "trigger",
             "add",
             "edit",
+            "set",
             "clear",
         ]
         # Datamodels whose generated bool flags follow the datamodel field defaults instead of
@@ -641,7 +642,7 @@ class CommandFactory:
             "bool": bool,
             "str": str,
             "bytes": bytes,
-            "list": list,
+            "list": string_list_type,
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
@@ -709,8 +710,8 @@ class CommandFactory:
         """Create Arg for non-primitive type Pydantic."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
         commands = []
-        if parameter_type_map not in self.datamodels_extended_map.keys():
-            self.datamodels_extended_map[parameter_type] = []
+        # Rebuilt per visit: datamodels are shared across operations, so appending would duplicate fields.
+        self.datamodels_extended_map[parameter_type] = []
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 from uuid import UUID
 
 import structlog
@@ -76,6 +76,8 @@ class ExecuteCallback(BaseDagBundleWorkload):
     callback: CallbackDTO
 
     type: Literal["ExecuteCallback"] = Field(init=False, default="ExecuteCallback")
+
+    token_scope: ClassVar[str] = "callback"
 
     @property
     def key(self) -> CallbackKey:

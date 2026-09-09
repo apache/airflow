@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
+
 import { Box, Code, VStack } from "@chakra-ui/react";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { Range as VirtualizerRange } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
+
+import { ProgressBar } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ProgressBar } from "src/components/ui";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useTimezone } from "src/context/timezone";
 import { useShortcut } from "src/hooks/useShortcut";
@@ -393,8 +396,8 @@ export const TaskLogContent = ({
                     pl={indent}
                     position="absolute"
                     ref={rowVirtualizer.measureElement}
-                    top={0}
-                    transform={`translateY(${virtualRow.start}px)`}
+                    // Must position with top, translateY breaks text selection across rows on Firefox (#55879, #56238)
+                    top={`${virtualRow.start}px`}
                     width={wrap ? "100%" : "max-content"}
                   >
                     <Box
@@ -432,8 +435,8 @@ export const TaskLogContent = ({
                   pl={indent}
                   position="absolute"
                   ref={rowVirtualizer.measureElement}
-                  top={0}
-                  transform={`translateY(${virtualRow.start}px)`}
+                  // Must position with top, translateY breaks text selection across rows on Firefox (#55879, #56238)
+                  top={`${virtualRow.start}px`}
                   width={wrap ? "100%" : "max-content"}
                 >
                   {visibleSearchMatchIndices?.has(virtualRow.index) ? (
