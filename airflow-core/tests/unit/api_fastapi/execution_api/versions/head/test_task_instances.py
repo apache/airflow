@@ -3904,6 +3904,7 @@ class TestGetPreviousTI:
             )
 
         assert response.status_code == 200
+        assert response.json()["run_id"] == "run4"
         assert statements, "expected the endpoint to query the task_instance table"
         for sql in statements:
             assert re.search(r"\bLIMIT 1\b", sql), f"previous-TI lookup is not bounded to one row: {sql}"
