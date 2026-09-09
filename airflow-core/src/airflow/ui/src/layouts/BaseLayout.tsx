@@ -54,6 +54,9 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
       }
     };
 
+    // On mount too: i18next's initial `languageChanged` fires before this listener attaches, so a
+    // page loaded directly in an RTL language would otherwise stay ltr until the next change.
+    updateHtml(i18n.resolvedLanguage ?? i18n.language);
     i18n.on("languageChanged", updateHtml);
 
     return () => {

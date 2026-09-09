@@ -16,15 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
+import re
 import warnings
+from hashlib import md5
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -34,6 +37,106 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 log = logging.getLogger(__name__)
 
 _AIRFLOW_PATH = Path(__file__).parents[3]
+
+# Language codes ("en", "zh-CN") and namespaces ("common") of the UI translation files. Anchored
+# so a path parameter cannot smuggle in path separators or ``..`` and escape the locales directory.
+_I18N_SEGMENT = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def init_ui_translation_views(app: FastAPI, *, dev_mode: bool, dist_directory: Path) -> None:
+    """
+    Register the routes that serve plugin-contributed UI translations.
+
+    Translations are merged with the bundled files and serialized once here at startup (not per
+    request); only the files a plugin changes get a route, so every other locale file keeps being
+    served from the static mount. A bundled-language override gets a route per overridden namespace;
+    a brand-new language gets one route for all its namespaces (empty object for those it omits, so
+    i18next falls back to English). These stay off the authenticated ``ui_router`` because
+    translations load before login, and are registered ahead of the static mount to take precedence.
+    """
+    from airflow import plugins_manager
+
+    plugin_translations = plugins_manager.get_ui_translations()
+
+    @app.get("/static/i18n/languages.json", include_in_schema=False)
+    def ui_translation_languages():
+        """List the plugin-contributed languages so the UI can offer them for selection."""
+        # No version cache-buster, so revalidate rather than risk hiding a newly added language.
+        return JSONResponse({"languages": sorted(plugin_translations)}, headers={"Cache-Control": "no-cache"})
+
+    if not plugin_translations:
+        return
+
+    locales_directory = (
+        _AIRFLOW_PATH / "airflow/ui/public/i18n/locales" if dev_mode else dist_directory / "i18n/locales"
+    )
+
+    # English is the reference for which keys exist; warn (never fail) about plugin keys missing
+    # from it, since translations are not versioned in lockstep with Airflow.
+    try:
+        plugins_manager.warn_about_unknown_translation_keys(plugin_translations, locales_directory / "en")
+    except Exception:
+        log.exception("Failed to check plugin UI translations against the English reference")
+
+    bundled_languages: set[str] = set()
+    if locales_directory.is_dir():
+        bundled_languages = {entry.name for entry in locales_directory.iterdir() if entry.is_dir()}
+
+    def merged_body(language: str, namespace: str, keys: dict) -> bytes:
+        base: dict = {}
+        base_file = locales_directory / language / f"{namespace}.json"
+        if base_file.is_file():
+            try:
+                base = json.loads(base_file.read_text("utf-8"))
+            except (OSError, ValueError):
+                log.warning("Could not read bundled translation %s/%s.json", language, namespace)
+        return json.dumps(plugins_manager.merge_translations(base, keys)).encode()
+
+    def json_with_etag(request: Request, body: bytes) -> Response:
+        # ETag so the browser revalidates with a conditional GET (304), like the static mount does.
+        etag = f'"{md5(body, usedforsecurity=False).hexdigest()}"'
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return Response(content=body, media_type="application/json", headers={"ETag": etag})
+
+    def serve_body(body: bytes):
+        def route(request: Request) -> Response:
+            return json_with_etag(request, body)
+
+        return route
+
+    def serve_language(language_bodies: dict[str, bytes]):
+        def route(request: Request, namespace: str) -> Response:
+            if not _I18N_SEGMENT.match(namespace):
+                return JSONResponse(status_code=404, content={"error": "Not found"})
+            return json_with_etag(request, language_bodies.get(namespace, b"{}"))
+
+        return route
+
+    for language, namespaces in plugin_translations.items():
+        if not _I18N_SEGMENT.match(language):
+            log.warning("Skipping plugin UI translations for invalid language code %r", language)
+            continue
+
+        bodies = {
+            namespace: merged_body(language, namespace, keys)
+            for namespace, keys in namespaces.items()
+            if _I18N_SEGMENT.match(namespace)
+        }
+
+        if language in bundled_languages:
+            for namespace, body in bodies.items():
+                app.add_api_route(
+                    f"/static/i18n/locales/{language}/{namespace}.json",
+                    serve_body(body),
+                    include_in_schema=False,
+                )
+        else:
+            app.add_api_route(
+                f"/static/i18n/locales/{language}/{{namespace}}.json",
+                serve_language(bodies),
+                include_in_schema=False,
+            )
 
 
 def init_views(app: FastAPI) -> None:
@@ -53,6 +156,9 @@ def init_views(app: FastAPI) -> None:
     Path(directory).mkdir(exist_ok=True)
 
     templates = Jinja2Templates(directory=directory)
+
+    # Ahead of the static mounts below so plugin-overridden locales take precedence.
+    init_ui_translation_views(app, dev_mode=dev_mode, dist_directory=directory)
 
     if dev_mode:
         app.mount(

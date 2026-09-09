@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import json
 import logging
 import os
 import sys
@@ -26,6 +27,7 @@ from unittest import mock
 
 import pytest
 
+import airflow.plugins_manager as plugins_manager
 from airflow._shared.module_loading import qualname
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
@@ -715,3 +717,166 @@ class TestGetFastapiPluginsTeamName:
         for plugin in (global_plugin, team_plugin):
             assert "team_name" not in plugin.fastapi_apps[0]
             assert "team_name" not in plugin.fastapi_root_middlewares[0]
+
+
+class TestMergeTranslations:
+    def test_override_wins_and_preserves_siblings(self):
+        base = {"a": "base", "group": {"x": "bx", "y": "by"}}
+        override = {"a": "override", "group": {"y": "oy", "z": "oz"}, "added": "new"}
+
+        result = plugins_manager.merge_translations(base, override)
+
+        assert result == {"a": "override", "group": {"x": "bx", "y": "oy", "z": "oz"}, "added": "new"}
+
+    def test_overrides_a_deeply_nested_key_without_dropping_siblings(self):
+        base = {"dagRun": {"durationStats": {"mean": "Mean", "mode": "Mode"}}}
+        override = {"dagRun": {"durationStats": {"mean": "Moyenne"}}}
+
+        result = plugins_manager.merge_translations(base, override)
+
+        assert result == {"dagRun": {"durationStats": {"mean": "Moyenne", "mode": "Mode"}}}
+
+    def test_inputs_are_not_mutated(self):
+        base = {"group": {"x": "bx"}}
+        override = {"group": {"y": "oy"}}
+
+        plugins_manager.merge_translations(base, override)
+
+        assert base == {"group": {"x": "bx"}}
+        assert override == {"group": {"y": "oy"}}
+
+
+class TestGetUiTranslations:
+    def test_returns_empty_without_translation_plugins(self):
+        with mock_plugin_manager(plugins=[]):
+            assert plugins_manager.get_ui_translations() == {}
+
+    def test_collects_inline_mapping_source(self):
+        class InlinePlugin(AirflowPlugin):
+            name = "inline"
+            ui_translations = [{"en": {"common": {"greeting": "Hi"}}}]
+
+        with mock_plugin_manager(plugins=[InlinePlugin()]):
+            assert plugins_manager.get_ui_translations() == {"en": {"common": {"greeting": "Hi"}}}
+
+    def test_collects_directory_source_including_new_language(self, tmp_path):
+        locales = tmp_path / "locales"
+        (locales / "eo").mkdir(parents=True)
+        (locales / "eo" / "common.json").write_text(json.dumps({"greeting": "Saluton"}), encoding="utf-8")
+
+        class DirectoryPlugin(AirflowPlugin):
+            name = "directory"
+            ui_translations = [locales]
+
+        with mock_plugin_manager(plugins=[DirectoryPlugin()]):
+            assert plugins_manager.get_ui_translations() == {"eo": {"common": {"greeting": "Saluton"}}}
+
+    def test_deep_merges_across_plugins(self):
+        class PluginA(AirflowPlugin):
+            name = "a"
+            ui_translations = [{"en": {"common": {"a": "1", "shared": {"x": "ax"}}}}]
+
+        class PluginB(AirflowPlugin):
+            name = "b"
+            ui_translations = [{"en": {"common": {"b": "2", "shared": {"y": "by"}}}}]
+
+        with mock_plugin_manager(plugins=[PluginA(), PluginB()]):
+            assert plugins_manager.get_ui_translations() == {
+                "en": {"common": {"a": "1", "b": "2", "shared": {"x": "ax", "y": "by"}}}
+            }
+
+    def test_skips_malformed_inline_source_but_keeps_valid_one(self, caplog):
+        class BadPlugin(AirflowPlugin):
+            name = "bad"
+            ui_translations = [{"en": {"common": "not-a-mapping"}}]
+
+        class GoodPlugin(AirflowPlugin):
+            name = "good"
+            ui_translations = [{"fr": {"common": {"greeting": "Bonjour"}}}]
+
+        with mock_plugin_manager(plugins=[BadPlugin(), GoodPlugin()]), caplog.at_level(logging.WARNING):
+            plugin_translations = plugins_manager.get_ui_translations()
+
+        assert plugin_translations == {"fr": {"common": {"greeting": "Bonjour"}}}
+        assert any("bad" in record.getMessage() for record in caplog.records)
+
+    def test_skips_source_that_is_neither_directory_nor_mapping(self, caplog):
+        class WeirdPlugin(AirflowPlugin):
+            name = "weird"
+            ui_translations = ["/nonexistent/locales/path", 123]
+
+        with mock_plugin_manager(plugins=[WeirdPlugin()]), caplog.at_level(logging.WARNING):
+            assert plugins_manager.get_ui_translations() == {}
+
+        assert any("weird" in record.getMessage() for record in caplog.records)
+
+    def test_skips_unreadable_file_but_keeps_the_rest_of_the_tree(self, tmp_path, caplog):
+        locales = tmp_path / "locales"
+        (locales / "eo").mkdir(parents=True)
+        (locales / "eo" / "common.json").write_text("{ not valid json", encoding="utf-8")
+        (locales / "eo" / "dags.json").write_text(json.dumps({"title": "Fluoj"}), encoding="utf-8")
+
+        class DirectoryPlugin(AirflowPlugin):
+            name = "directory"
+            ui_translations = [locales]
+
+        with mock_plugin_manager(plugins=[DirectoryPlugin()]), caplog.at_level(logging.WARNING):
+            plugin_translations = plugins_manager.get_ui_translations()
+
+        assert plugin_translations == {"eo": {"dags": {"title": "Fluoj"}}}
+        assert any("common.json" in record.getMessage() for record in caplog.records)
+
+    def test_broken_ui_translations_attribute_does_not_break_other_plugins(self, caplog):
+        class BrokenPlugin(AirflowPlugin):
+            name = "broken"
+            ui_translations = 123  # not even iterable
+
+        class GoodPlugin(AirflowPlugin):
+            name = "good"
+            ui_translations = [{"fr": {"common": {"greeting": "Bonjour"}}}]
+
+        with mock_plugin_manager(plugins=[BrokenPlugin(), GoodPlugin()]), caplog.at_level(logging.WARNING):
+            plugin_translations = plugins_manager.get_ui_translations()
+
+        assert plugin_translations == {"fr": {"common": {"greeting": "Bonjour"}}}
+        assert any("broken" in record.getMessage() for record in caplog.records)
+
+
+class TestWarnAboutUnknownTranslationKeys:
+    @staticmethod
+    def _english_reference(tmp_path):
+        reference_dir = tmp_path / "en"
+        reference_dir.mkdir()
+        (reference_dir / "common.json").write_text(
+            json.dumps({"greeting": "Hi", "group": {"known": "K"}}), encoding="utf-8"
+        )
+        return reference_dir
+
+    def test_warns_only_for_keys_absent_from_english(self, tmp_path, caplog):
+        reference_dir = self._english_reference(tmp_path)
+        plugin_translations = {
+            "eo": {
+                "common": {
+                    "greeting": "Saluton",
+                    "group": {"known": "Konata", "unknown": "Nekonata"},
+                    "stale": "Malaktuala",
+                }
+            }
+        }
+
+        with caplog.at_level(logging.WARNING):
+            plugins_manager.warn_about_unknown_translation_keys(plugin_translations, reference_dir)
+
+        messages = [record.getMessage() for record in caplog.records]
+        assert not any("'greeting'" in message for message in messages)
+        assert not any("'group.known'" in message for message in messages)
+        assert any("'group.unknown'" in message for message in messages)
+        assert any("'stale'" in message for message in messages)
+
+    def test_missing_reference_file_warns_without_raising(self, tmp_path, caplog):
+        plugin_translations = {"eo": {"absent_namespace": {"a": "b"}}}
+
+        with caplog.at_level(logging.WARNING):
+            plugins_manager.warn_about_unknown_translation_keys(plugin_translations, tmp_path / "en")
+
+        assert any("'a'" in record.getMessage() for record in caplog.records)

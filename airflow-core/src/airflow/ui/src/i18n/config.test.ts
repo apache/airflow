@@ -17,11 +17,16 @@
  * under the License.
  */
 import { createInstance } from "i18next";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { VersionService } from "openapi/requests/services.gen";
 
-import { convertDetectedLanguage, i18nBaseOptions, resolveI18nVersion } from "./config";
+import {
+  convertDetectedLanguage,
+  i18nBaseOptions,
+  resolveExtraLanguages,
+  resolveI18nVersion,
+} from "./config";
 
 // getBestMatchFromCodes is the resolver i18next runs on the array the
 // LanguageDetector returns. It is not part of i18next's public types
@@ -103,5 +108,34 @@ describe("resolveI18nVersion", () => {
     vi.spyOn(VersionService, "getVersion").mockRejectedValueOnce(new Error("network error"));
 
     await expect(resolveI18nVersion()).resolves.not.toBe("");
+  });
+});
+
+describe("resolveExtraLanguages", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the plugin languages listed by the manifest", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ json: () => Promise.resolve({ languages: ["eo", "tlh"] }), ok: true }),
+    );
+
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual(["eo", "tlh"]);
+  });
+
+  it("degrades to no extra languages when the manifest is missing or malformed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ json: () => Promise.resolve("not-a-manifest"), ok: true }),
+    );
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual([]);
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual([]);
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
+    await expect(resolveExtraLanguages()).resolves.toStrictEqual([]);
   });
 });
