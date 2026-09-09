@@ -1901,6 +1901,16 @@ api:
       type: string
       example: "required"
       default: "none"
+    ssl_ciphers:
+      description: |
+        OpenSSL cipher list used by the api server when SSL is enabled.
+        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format
+        for the format. When left empty, the default cipher list of Python's ``ssl``
+        module is used.
+      version_added: 3.4.0
+      type: string
+      example: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+      default: ""
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -2715,6 +2725,19 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_per_dag_id:
+      description: |
+        If true, the ``scheduler.dagruns.running`` and ``scheduler.dagruns.queued`` metrics are
+        emitted once per ``dag_id`` (tagged by ``dag_id``) instead of as a single aggregate value
+        across all Dags. This gives per-Dag visibility into running/queued backlog, at the cost of
+        emitting one metric series per Dag with an active DagRun on every
+        ``[scheduler] dagrun_metrics_interval``. On deployments with a large number of Dags, enabling
+        this can significantly increase the number of metric series sent to StatsD/OpenTelemetry, so
+        it is disabled by default.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
