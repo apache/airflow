@@ -33,10 +33,10 @@
   let currentSearch = '';
   let debounceTimer;
 
-  // Kept in sync by hand with normalize() in src/_data/providerKeywordMatch.js:
-  // that module runs at build time under CommonJS and this file is a browser
-  // IIFE, so the two can't share it. If the two drift, a query like
-  // 'pydantic-ai' stops finding the integration named "Pydantic AI".
+  // Kept in sync by hand with normalize() in search.js and
+  // src/_data/providerKeywordMatch.js (this file and search.js are browser
+  // IIFEs; providerKeywordMatch runs at build time under CommonJS). If they
+  // drift, 'pydantic-ai' stops finding the integration named "Pydantic AI".
   function normalize(text) {
     return text.toLowerCase().replace(/[-_\s]+/g, ' ');
   }
