@@ -186,7 +186,8 @@ class TestRolesService:
     # GET /roles
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
-    def test_get_roles_happy_path(self, build_ordering, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_roles_happy_path(self, create_session, build_ordering, get_fab_auth_manager):
         role1 = _make_role_obj("viewer", [("can_read", "DAG")])
         role2 = _make_role_obj("admin", [("can_read", "DAG")])
         fake_roles_result = _FakeScalarRoles([role1, role2])
@@ -196,10 +197,7 @@ class TestRolesService:
             _FakeScalarCount(2),
             fake_roles_result,
         ]
-
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         build_ordering.return_value = column("name").desc()
 
@@ -215,19 +213,23 @@ class TestRolesService:
         assert set(kwargs["allowed"].keys()) == {"name", "role_id"}
 
         assert session.scalars.call_count == 2
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
-    def test_get_roles_invalid_order_by_bubbles_400(self, build_ordering, get_fab_auth_manager):
-        session = MagicMock()
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_roles_invalid_order_by_bubbles_400(
+        self, create_session, build_ordering, get_fab_auth_manager
+    ):
+        create_session.return_value.__enter__.return_value = MagicMock()
 
         build_ordering.side_effect = HTTPException(status_code=400, detail="disallowed")
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.get_roles(order_by="nope", limit=10, offset=0)
         assert ex.value.status_code == 400
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once()
 
     # DELETE /roles/{name}
 
