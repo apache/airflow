@@ -263,40 +263,39 @@ class DagVersion(Base):
         base_version_number: int,
         target_version_number: int,
         *,
-        include_values: bool = False,
-        include_source: bool = False,
+        source_status: SourceStatus = "unavailable",
+        values_status: ValuesStatus = "unavailable",
         max_changes: int | None = None,
-        source_status: SourceStatus | None = None,
-        values_status: ValuesStatus | None = None,
         session: Session = NEW_SESSION,
     ) -> dict[str, Any]:
         """
         Compare two versions of a Dag using their currently stored state.
 
-        ``source_status`` is supplied by callers that have an authorization context.  The CLI has
-        operator-level authority and leaves it unset, while API callers calculate it before this
-        method returns any source content. API callers use ``values_status`` to suppress raw values
-        when the user cannot access Dag code; the structural diff remains available in redacted form.
+        Both statuses carry an authorization decision the caller has already made, so they default
+        to withholding: a caller that says nothing gets the structural diff alone. The CLI has
+        operator-level authority and asks for what it needs, while API callers pass what the
+        requesting user is entitled to. ``values_status`` suppresses raw values when the user cannot
+        access Dag code; the structural diff remains available in redacted form.
         """
         # Keep this local to avoid the dag_version -> dag_version_diff -> serialized_objects cycle.
         from airflow.models.serialized_dag import SerializedDagModel
         from airflow.serialization.dag_version_diff import (
             DEFAULT_MAX_CHANGES,
             build_serialized_dag_diff,
+            validate_max_changes,
         )
 
-        if source_status is not None and source_status not in _VALID_SOURCE_STATUSES:
+        if source_status not in _VALID_SOURCE_STATUSES:
             raise ValueError(f"source_status must be one of {_VALID_SOURCE_STATUSES}, not {source_status!r}")
-        if values_status is not None and values_status not in _VALID_VALUES_STATUSES:
+        if values_status not in _VALID_VALUES_STATUSES:
             raise ValueError(f"values_status must be one of {_VALID_VALUES_STATUSES}, not {values_status!r}")
 
         if max_changes is None:
             max_changes = DEFAULT_MAX_CHANGES
+        # Reject a bad bound before it costs the version lookup and both payload loads.
+        validate_max_changes(max_changes)
         if base_version_number < 1 or target_version_number < 1:
             raise ValueError("Dag version numbers must be positive integers")
-
-        if source_status is None:
-            source_status = "current_stored_code" if include_source else "unavailable"
 
         query = (
             select(cls)
@@ -306,7 +305,7 @@ class DagVersion(Base):
             )
             .options(joinedload(cls.serialized_dag).selectinload(SerializedDagModel.deadline_alerts))
         )
-        if include_source and source_status == "current_stored_code":
+        if source_status == "current_stored_code":
             query = query.options(joinedload(cls.dag_code))
 
         versions = {version.version_number: version for version in session.scalars(query).all()}
@@ -327,26 +326,25 @@ class DagVersion(Base):
         target_version = versions[target_version_number]
         base_data, base_unavailable_reason = _get_serialized_diff_data(base_version.serialized_dag)
         target_data, target_unavailable_reason = _get_serialized_diff_data(target_version.serialized_dag)
-        effective_include_values = include_values and values_status in {None, "available"}
+        include_values = values_status == "available"
         result = build_serialized_dag_diff(
             base_data=base_data,
             target_data=target_data,
             base_provenance=_get_provenance(base_version),
             target_provenance=_get_provenance(target_version),
-            include_values=effective_include_values,
+            include_values=include_values,
             max_changes=max_changes,
         )
         if unavailable_reason := base_unavailable_reason or target_unavailable_reason:
             result.update(
                 mode="unavailable", unavailable_reason=unavailable_reason, changes=[], truncated=False
             )
-        if include_values:
-            values_available = effective_include_values and result["mode"] == "observed_state"
-            result["values"] = {"status": "available" if values_available else "unavailable"}
+        # Emitted whatever the outcome so that reading result["values"]["status"] is always safe.
+        values_available = include_values and result["mode"] == "observed_state"
+        result["values"] = {"status": "available" if values_available else "unavailable"}
         result["source"] = _get_source_diff(
             base_version,
             target_version,
-            include_source=include_source,
             source_status=source_status,
         )
         return result
@@ -401,11 +399,8 @@ def _get_source_diff(
     base_version: DagVersion,
     target_version: DagVersion,
     *,
-    include_source: bool,
     source_status: SourceStatus,
 ) -> dict[str, Any]:
-    if not include_source:
-        return {"status": "unavailable", "fidelity": "unavailable"}
     if source_status != "current_stored_code":
         return {"status": source_status, "fidelity": source_status}
 
