@@ -27,6 +27,14 @@ subclass of ``PydanticAIHook`` for Azure's non-standard auth (an endpoint URL
 plus an API version, rather than the plain ``api_key`` + optional ``base_url``
 that the generic :doc:`pydantic_ai` connection assumes).
 
+.. note::
+
+    This connection type was previously named ``pydanticai-azure``. A connection stored
+    with the old hyphenated type will not resolve; update its type to
+    ``pydanticai_azure``. Hyphens are not usable here because a hook is registered
+    under this exact string while ``Connection.from_uri`` and ``from_json`` rewrite
+    ``-`` to ``_``, which left the hook unreachable from every secrets backend.
+
 Default Connection IDs
 ----------------------
 

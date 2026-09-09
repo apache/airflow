@@ -29,6 +29,14 @@ shape that the generic :doc:`pydantic_ai` connection assumes. All fields live
 in ``extra``; the ``password`` and ``host`` fields are hidden in the connection
 form.
 
+.. note::
+
+    This connection type was previously named ``pydanticai-vertex``. A connection stored
+    with the old hyphenated type will not resolve; update its type to
+    ``pydanticai_vertex``. Hyphens are not usable here because a hook is registered
+    under this exact string while ``Connection.from_uri`` and ``from_json`` rewrite
+    ``-`` to ``_``, which left the hook unreachable from every secrets backend.
+
 Default Connection IDs
 ----------------------
 

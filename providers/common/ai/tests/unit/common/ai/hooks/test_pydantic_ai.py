@@ -1014,6 +1014,7 @@ class TestPydanticAIVertexHook:
 
 
 ALL_HOOKS = [PydanticAIHook, PydanticAIAzureHook, PydanticAIBedrockHook, PydanticAIVertexHook]
+DECLARED_CONNECTION_TYPES = [c["connection-type"] for c in get_provider_info()["connection-types"]]
 
 
 class TestConnTypeResolution:
@@ -1026,18 +1027,21 @@ class TestConnTypeResolution:
     metadata DB kept its hyphen and resolved.
     """
 
-    def test_declared_connection_types_survive_a_uri_round_trip(self):
+    def test_provider_declares_connection_types(self):
+        """Keeps the round-trip guard below from passing vacuously."""
+        assert DECLARED_CONNECTION_TYPES
+
+    @pytest.mark.parametrize("conn_type", DECLARED_CONNECTION_TYPES)
+    def test_declared_connection_type_survives_a_uri_round_trip(self, conn_type):
         """Guards every connection-type this provider declares, current and future."""
-        for entry in get_provider_info()["connection-types"]:
-            conn_type = entry["connection-type"]
-            source = Connection(conn_id="c", conn_type=conn_type)
+        source = Connection(conn_id="c", conn_type=conn_type)
 
-            parsed = Connection(conn_id="c", uri=source.get_uri())
+        parsed = Connection(conn_id="c", uri=source.get_uri())
 
-            assert parsed.conn_type == conn_type, (
-                f"connection-type {conn_type!r} does not survive URI serialization, so its hook "
-                "cannot be looked up from any secrets backend; declare it with underscores"
-            )
+        assert parsed.conn_type == conn_type, (
+            f"connection-type {conn_type!r} does not survive URI serialization, so its hook "
+            "cannot be looked up from any secrets backend; declare it with underscores"
+        )
 
     @pytest.mark.parametrize("hook_class", ALL_HOOKS, ids=lambda c: c.__name__)
     def test_hook_resolves_from_uri(self, hook_class):
