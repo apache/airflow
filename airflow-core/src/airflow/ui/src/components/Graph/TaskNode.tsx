@@ -84,6 +84,9 @@ export const TaskNode = ({
   const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
+  const hasTaskInstance = isGroup
+    ? true
+    : taskInstance?.dag_version_number !== null && taskInstance?.dag_version_number !== undefined;
 
   return (
     <NodeWrapper>
@@ -117,6 +120,7 @@ export const TaskNode = ({
               <LinkOverlay asChild>
                 <TaskLink
                   childCount={thisChildCount}
+                  hasTaskInstance={hasTaskInstance}
                   id={id}
                   isGroup={isGroup}
                   isMapped={isMapped}
