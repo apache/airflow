@@ -115,17 +115,24 @@ class CohereHook(BaseHook):
         *,
         query: str,
         documents: list[str],
-        model: str = "Cohere-rerank-v4.0-pro",
+        model: str = "rerank-v3.5",
         top_n: int | None = None,
         max_tokens_per_doc: int | None = None,
     ) -> dict[str, Any]:
+        """Rerank documents by their relevance to a query."""
+        rerank_kwargs: dict[str, Any] = {
+            "query": query,
+            "documents": documents,
+            "model": model,
+            "request_options": self.request_options,
+        }
+        if top_n is not None:
+            rerank_kwargs["top_n"] = top_n
+        if max_tokens_per_doc is not None:
+            rerank_kwargs["max_tokens_per_doc"] = max_tokens_per_doc
+
         response = self.get_conn().rerank(
-            query=query,
-            documents=documents,
-            model=model,
-            top_n=top_n,
-            max_tokens_per_doc=max_tokens_per_doc,
-            request_options=self.request_options,
+            **rerank_kwargs,
         )
         return response.model_dump(mode="json")
 

@@ -34,8 +34,13 @@ class CohereRerankOperator(BaseOperator):
     """
     Rerank documents by their relevance to a query using Cohere's Rerank API.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CohereRerankOperator`
+
     :param query: The search query used to rank the documents.
     :param documents: Text documents to compare with the query.
+    :param model: Model to use for reranking. Uses the hook's default when omitted.
     :param top_n: Maximum number of ranked documents to return. By default, all are returned.
     :param max_tokens_per_doc: Maximum number of tokens retained from each document.
     :param conn_id: Cohere connection id.
@@ -51,6 +56,7 @@ class CohereRerankOperator(BaseOperator):
         *,
         query: str,
         documents: list[str],
+        model: str | None = None,
         top_n: int | None = None,
         max_tokens_per_doc: int | None = None,
         conn_id: str = CohereHook.default_conn_name,
@@ -61,6 +67,7 @@ class CohereRerankOperator(BaseOperator):
         super().__init__(**kwargs)
         self.query = query
         self.documents = documents
+        self.model = model
         self.top_n = top_n
         self.max_tokens_per_doc = max_tokens_per_doc
         self.conn_id = conn_id
@@ -78,9 +85,11 @@ class CohereRerankOperator(BaseOperator):
 
     def execute(self, context: Context) -> dict[str, Any]:
         """Rerank the documents and return an XCom-serializable response."""
-        return self.hook.rerank(
-            query=self.query,
-            documents=self.documents,
-            top_n=self.top_n,
-            max_tokens_per_doc=self.max_tokens_per_doc,
-        )
+        rerank_kwargs: dict[str, Any] = {"query": self.query, "documents": self.documents}
+        if self.model is not None:
+            rerank_kwargs["model"] = self.model
+        if self.top_n is not None:
+            rerank_kwargs["top_n"] = int(self.top_n)
+        if self.max_tokens_per_doc is not None:
+            rerank_kwargs["max_tokens_per_doc"] = int(self.max_tokens_per_doc)
+        return self.hook.rerank(**rerank_kwargs)

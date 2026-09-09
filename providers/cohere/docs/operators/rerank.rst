@@ -35,9 +35,11 @@ The operator requires:
 * ``query``: The search query used to evaluate relevance.
 * ``documents``: A list of text documents to rank.
 
-The model is configured by the hook. Use ``top_n`` to limit the number of results and
+The operator uses ``rerank-v3.5`` by default. Set ``model`` to use another Cohere model or
+an endpoint-specific deployment name. Use ``top_n`` to limit the number of results and
 ``max_tokens_per_doc`` to control how much of each document Cohere processes. The query,
-documents, and both limits are templated fields.
+documents, and both limits are templated fields; rendered limit values are converted to integers
+before they are sent to Cohere.
 
 Using the operator
 ^^^^^^^^^^^^^^^^^^
