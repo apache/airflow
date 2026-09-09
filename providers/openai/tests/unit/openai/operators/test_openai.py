@@ -112,6 +112,28 @@ def test_openai_response_operator_execute():
     mock_hook_instance.summarize_response_usage.assert_called_once_with(mock_response)
 
 
+def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        model="test_model",
+        do_xcom_push=False,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_response = Mock(spec=Response, output_text="haiku text", id="resp_123", status="completed")
+    mock_hook_instance.create_response.return_value = mock_response
+    mock_hook_instance.summarize_response_usage.return_value = {"input_tokens": 5, "output_tokens": 7}
+    operator.hook = mock_hook_instance
+
+    context = Context()
+    context["ti"] = Mock()
+    result = operator.execute(context)
+
+    assert result == "haiku text"
+    context["ti"].xcom_push.assert_not_called()
+
+
 @pytest.mark.parametrize("wait_for_completion", [True, False])
 def test_openai_trigger_batch_operator_not_deferred(mock_batch, wait_for_completion):
     operator = OpenAITriggerBatchOperator(
