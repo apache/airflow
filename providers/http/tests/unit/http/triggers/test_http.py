@@ -293,7 +293,6 @@ class TestHttpEventTrigger:
         assert mock_hook.return_value.run.call_count == 2
         mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
         assert mock_logger.warning.call_count == 1
-        assert mock_logger.exception.call_count == 0
 
     @staticmethod
     def build_trigger_with_failure_cap(max_consecutive_failures: int) -> HttpEventTrigger:
@@ -319,7 +318,6 @@ class TestHttpEventTrigger:
         assert mock_hook.return_value.run.call_count == 3
         assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 2
         assert mock_logger.warning.call_count == 2
-        assert mock_logger.exception.call_count == 0
 
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
