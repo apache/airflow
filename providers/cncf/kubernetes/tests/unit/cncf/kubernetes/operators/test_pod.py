@@ -2126,6 +2126,28 @@ class TestKubernetesPodOperator:
         # check that we wait for the xcom sidecar to start before extracting XCom
         mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
 
+    @pytest.mark.parametrize(
+        ("container_logs", "should_await_base"),
+        [
+            pytest.param("base", False, id="base-as-string"),
+            pytest.param("base2", True, id="base-is-substring-of-other-container"),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
+    def test_string_container_logs_matches_base_container_by_name_not_substring(
+        self, mock_fetch_log, mock_await_container_completion, container_logs, should_await_base
+    ):
+        k = KubernetesPodOperator(task_id="task", get_logs=True, container_logs=container_logs)
+        pod, _ = self.run_pod(k)
+
+        if should_await_base:
+            mock_await_container_completion.assert_called_once_with(
+                pod=pod, container_name="base", polling_time=1
+            )
+        else:
+            mock_await_container_completion.assert_not_called()
+
     @patch(HOOK_CLASS, new=MagicMock)
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_callbacks(self, find_pod_mock):

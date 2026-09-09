@@ -23,6 +23,7 @@ ydb = pytest.importorskip("ydb")
 from unittest.mock import PropertyMock, patch
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.ydb.hooks.ydb import YDBHook
 
 try:
@@ -206,3 +207,31 @@ def test_get_df_by_chunks_hook_lineage(
     assert call_kw["context"] is hook
     assert call_kw["sql"] == sql
     assert call_kw["sql_parameters"] == parameters
+
+
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+@patch("ydb.Driver")
+@patch("ydb.QuerySessionPool")
+def test_sqlalchemy_url_raises_when_sqlalchemy_is_not_installed(
+    mock_session_pool, mock_driver, mock_get_connection
+):
+    mock_get_connection.return_value = Connection(
+        conn_type="ydb",
+        host="grpc://localhost",
+        port=2135,
+        login="my_user",
+        password="my_pwd",
+        extra={"database": "/my_db1"},
+    )
+    driver_instance = FakeDriver()
+    mock_driver.return_value = driver_instance
+    mock_session_pool.return_value = FakeSessionPool(driver_instance)
+
+    hook = YDBHook()
+
+    with patch.dict("sys.modules", {"sqlalchemy.engine": None}):
+        with pytest.raises(
+            AirflowOptionalProviderFeatureException,
+            match=r"apache-airflow-providers-ydb\[sqlalchemy\]",
+        ):
+            hook.sqlalchemy_url

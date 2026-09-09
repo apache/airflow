@@ -41,11 +41,22 @@ Docker Desktop
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
 - **Docker context**: Recent versions of Docker Desktop are by default configured to use ``desktop-linux``
-  docker context that uses docker socket created in user home directory. Older versions (and plain docker)
-  uses ``/var/run/docker.sock`` socket and ``default`` context. Breeze will attempt to detect if you have
-  ``desktop-linux`` context configured and will use it if it is available, but you can force the
-  context by adding ``--builder`` flag to the commands that build image or run the container and forward
-  the socket to inside the image.
+  docker context that uses a docker socket created in the user home directory. Older versions (and plain
+  Docker Engine) use ``/var/run/docker.sock`` and the ``default`` context. Lightweight engines such as
+  Colima create a ``colima`` context. Breeze tries to pick a suitable context automatically, but a leftover
+  ``desktop-linux`` context after quitting Docker Desktop can still win even when Colima is the running
+  engine.
+
+  To point Breeze at a specific Docker socket (for example Colima), set ``DOCKER_HOST`` or pass
+  ``--docker-host``::
+
+      export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+      # or:
+      breeze --docker-host unix://$HOME/.colima/default/docker.sock shell
+
+  The ``--builder`` flag selects the Buildx builder / docker context name used for
+  ``docker buildx build``. Prefer ``--docker-host`` / ``DOCKER_HOST`` when you only need to choose
+  which engine socket to talk to.
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
