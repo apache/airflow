@@ -1443,7 +1443,7 @@ class TestCallbackCleanup:
             ("success", False),
             ("failed", False),
             (None, False),
-            ("scheduled", True),
+            ("scheduled", False),
             ("pending", True),
             ("queued", True),
             ("running", True),
@@ -1452,7 +1452,7 @@ class TestCallbackCleanup:
             "success",
             "failed",
             "dag-processor-null-state",
-            "scheduled",
+            "scheduled-orphan",
             "pending",
             "queued",
             "running",
@@ -1472,6 +1472,39 @@ class TestCallbackCleanup:
             survived = self._count_callbacks(session, callback_id)
 
         assert bool(survived) is should_survive
+
+    def test_unfired_deadline_callback_and_its_deadline_survive(self, dag_maker):
+        from airflow.models.deadline import Deadline
+        from airflow.sdk.definitions.callback import AsyncCallback
+        from airflow.utils.state import CallbackState
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        with dag_maker("test_db_clean_unfired_deadline"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        with create_session() as session:
+            deadline = Deadline(
+                deadline_time=pendulum.now(tz="UTC").add(days=10),
+                callback=AsyncCallback("tests.unit.models.test_deadline.callback_for_deadline"),
+                dagrun_id=dag_run.id,
+                deadline_alert_id=None,
+            )
+            session.add(deadline)
+            session.flush()
+            deadline.callback.created_at = old
+            assert deadline.callback.state == CallbackState.SCHEDULED
+            deadline_id, callback_id = deadline.id, deadline.callback.id
+
+        self._clean_callbacks(cutoff)
+
+        with create_session() as session:
+            assert self._count_callbacks(session, callback_id) == 1
+            assert (
+                session.scalar(select(func.count()).select_from(Deadline).where(Deadline.id == deadline_id))
+                == 1
+            )
 
     def test_recent_finished_callback_is_kept(self):
         recent = pendulum.now(tz="UTC")

@@ -32,7 +32,7 @@ from contextlib import contextmanager, suppress
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, literal, or_, select, table, text
+from sqlalchemy import and_, column, func, inspect, literal, literal_column, or_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -46,6 +46,7 @@ from airflow.models.callback import TERMINAL_STATES
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import CallbackState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -58,6 +59,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
+# Alias _build_query gives the table being cleaned; a correlated extra_filter refers to it by name.
+_BASE_TABLE_ALIAS = "base"
 # Archived tables created by DB migrations
 ARCHIVED_TABLES_FROM_DB_MIGRATIONS = [
     "_xcom_archive"  # Table created by the AF 2 -> 3.0.0 migration when the XComs had pickled values
@@ -222,15 +225,24 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="callback",
         recency_column_name="created_at",
-        extra_columns=["state"],
-        # A callback that can still run owns its deadline row through an ON DELETE CASCADE
-        # foreign key, so purging one would silently drop a deadline that has not fired yet.
-        # Dag-processor callbacks carry no state and are deleted as they are dispatched; any
-        # that outlive the retention window were orphaned and no deadline references them.
+        extra_columns=["id", "state"],
+        # Purging a callback cascades to its deadline row, so only finished callbacks are purged;
+        # a state this code does not know keeps its rows. An unfired deadline's callback sits in
+        # SCHEDULED, which is neither active nor terminal, until the deadline is missed; it is
+        # purged only once no deadline references it, as deleting a Dag run cascades away the
+        # deadline at the database level and leaves the callback behind. Dag-processor callbacks
+        # carry no state and are deleted as they are dispatched.
         extra_filters=[
             or_(
                 column("state").in_(sorted(TERMINAL_STATES)),
                 column("state").is_(None),
+                and_(
+                    column("state") == CallbackState.SCHEDULED,
+                    ~select(literal(1))
+                    .select_from(table("deadline", column("callback_id")))
+                    .where(column("callback_id") == literal_column(f"{_BASE_TABLE_ALIAS}.id"))
+                    .exists(),
+                ),
             )
         ],
         dependent_tables=["deadline"],
@@ -474,7 +486,7 @@ def _build_query(
     referenced_pk_column: str = "id",
     **kwargs,
 ) -> Select:
-    base_table_alias = "base"
+    base_table_alias = _BASE_TABLE_ALIAS
     base_table = aliased(orm_model, name=base_table_alias)
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
