@@ -2306,8 +2306,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
         if not pending_apdrs:
+            # Backlog fully drained: the next tick that re-crosses the cap is a new episode,
+            # not a continuation of whatever was reported before.
+            self._partition_cap_backlog_reported = False
             return set()
 
+        sorted_dag_ids: list[str] = []
         if len(pending_apdrs) >= self._max_partition_dag_runs_per_loop:
             # A full fetch alone can't tell us whether that's the entire backlog or just
             # this tick's slice of a larger one, so we only pay for this query then.

@@ -13461,6 +13461,101 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
+def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker, session: Session, caplog):
+    """
+    Regression test: the backlog-reported flag must reset even when the backlog drains to
+    literally zero pending APDRs, not just when it drops to some smaller-than-cap-but-still
+    -nonzero count.
+
+    ``_partition_cap_backlog_reported`` used to be cleared only in the ``len(pending_apdrs) <
+    cap`` branch; a tick whose query returns *zero* rows short-circuits via an early ``return
+    set()`` before that branch ever runs. If the last pending APDR of an episode gets resolved by
+    something other than this function's own firing (e.g. a concurrent HA scheduler winning the
+    ``skip_locked`` race), the very next tick sees an empty ``pending_apdrs`` and, without the
+    fix, the stale ``True`` flag survives — so a brand new backlog that re-crosses the cap is
+    wrongly logged at ``debug`` and skips writing a second audit row.
+    """
+    asset = Asset(name="asset-cap-drain-empty")
+    apdrs = _make_n_satisfied_apdrs(
+        consumer_dag_id="cap-consumer-drain-empty",
+        asset=asset,
+        partition_keys=["k1", "k2", "k3"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    base = timezone.utcnow()
+    for i, apdr in enumerate(apdrs):
+        apdr.created_at = base + timedelta(seconds=i)
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._max_partition_dag_runs_per_loop = 2
+    caplog.set_level("DEBUG", logger="airflow.jobs.scheduler_job_runner.SchedulerJobRunner")
+
+    def _count_audit_log() -> int:
+        return session.scalar(select(func.count()).where(Log.event == "partition Dag run cap reached")) or 0
+
+    def _cap_reached_levels() -> list[str]:
+        return [
+            e["log_level"]
+            for e in caplog
+            if e.get("event") == "Reached the per-tick cap on pending partitioned Dag runs; the remaining "
+            "backlog will be evaluated over subsequent scheduler ticks"
+        ]
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 1: 3 pending, cap 2 -> over cap
+    assert _cap_reached_levels() == ["warning"]
+    assert _count_audit_log() == 1
+    assert runner._partition_cap_backlog_reported is True
+
+    session.refresh(apdrs[0])
+    session.refresh(apdrs[1])
+    session.refresh(apdrs[2])
+    assert apdrs[0].created_dag_run_id is not None
+    assert apdrs[1].created_dag_run_id is not None
+    assert apdrs[2].created_dag_run_id is None
+    # Simulate the one leftover APDR being resolved by something other than this function's own
+    # firing this tick (e.g. a concurrent HA scheduler winning the `skip_locked` race), so the
+    # *next* tick's query returns zero rows and hits the early-return path directly instead of
+    # the `len(pending_apdrs) < cap` branch.
+    apdrs[2].created_dag_run_id = apdrs[0].created_dag_run_id
+    session.commit()
+
+    result = runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 0 pending
+    assert result == set()
+    assert _count_audit_log() == 1, "the zero-pending tick itself must not write another audit row"
+    assert runner._partition_cap_backlog_reported is False, (
+        "the backlog-reported flag must reset even on the zero-pending early-return path"
+    )
+
+    # A fresh backlog episode for the same consumer Dag: three more satisfied APDRs push the
+    # pending count back above the cap.
+    new_apdrs = [
+        _produce_and_register_asset_event(
+            dag_id=f"asset-event-producer-drain-empty-{i}",
+            asset=asset,
+            partition_key=key,
+            session=session,
+            dag_maker=dag_maker,
+        )
+        for i, key in enumerate(["k4", "k5", "k6"], start=1)
+    ]
+    base2 = timezone.utcnow()
+    for i, apdr in enumerate(new_apdrs):
+        apdr.created_at = base2 + timedelta(seconds=i)
+    session.commit()
+
+    runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: new episode, 3 pending
+    assert _cap_reached_levels() == ["warning", "warning"], (
+        "a new episode after a full drain-to-zero must warn, not silently log at debug"
+    )
+    assert _count_audit_log() == 2, "a new episode after a full drain-to-zero must write a second audit row"
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
 def test_partition_cap_audit_row_survives_outer_rollback(dag_maker: DagMaker, session: Session):
     """
     The audit `Log` row is committed in its own session, independent of the caller's.
