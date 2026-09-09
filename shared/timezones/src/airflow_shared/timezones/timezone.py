@@ -232,7 +232,8 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     For example timedelta(seconds=3752) would become `1h:2M:32s`.
     If the time is less than a second, the return will be `<1s`.
     A negative duration is formatted by magnitude and prefixed with `-`,
-    so timedelta(seconds=-3752) would become `-1h:2M:32s`.
+    so timedelta(seconds=-3752) would become `-1h:2M:32s`. A magnitude below
+    one second is still `<1s`, without a sign.
     """
     if td_object is None:
         return None
@@ -240,10 +241,11 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     # duration directly does not work: the day-to-month division below floors, so
     # e.g. days=-1 becomes months=-1, days=+29, and `_format_part` then drops the
     # negative month and leaves the 29 days behind.
-    is_negative = td_object < dt.timedelta(0) if isinstance(td_object, dt.timedelta) else td_object < 0
     if isinstance(td_object, dt.timedelta):
+        is_negative = td_object < dt.timedelta(0)
         delta = relativedelta() + abs(td_object)
     else:
+        is_negative = td_object < 0
         delta = relativedelta(seconds=int(abs(td_object)))
     # relativedelta for timedelta cannot convert days to months
     # so calculate months by assuming 30 day months and normalize
