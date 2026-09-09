@@ -1053,6 +1053,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.securityContexts.disableDefaults }}
+
+ DEPRECATION WARNING:
+    `securityContexts.disableDefaults` equal `false` is deprecated and will default to `true` in a future release.
+    Please set `securityContexts.disableDefaults: true` explicitly, or provide values via `securityContexts.pod` / `securityContexts.containers` (or per-component overrides), before the default changes.
+
+{{- end }}
+
 {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
