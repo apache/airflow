@@ -525,8 +525,8 @@ def _task_process_uses_exec() -> bool:
     ``[core] execute_tasks_new_python_interpreter``. exec replaces the child's address
     space, so it cannot inherit a lock a supervisor thread held at fork time (e.g.
     OpenSSL's, which otherwise hangs the task at its first TLS call; #71707). Only the
-    task process reads the option: the Dag processor and triggerer fork far more often
-    and keep the platform gate alone.
+    task process reads the option -- it has always described task execution -- so the Dag
+    processor (one child per file per parse loop) and the triggerer keep the platform gate.
     """
     return _should_use_exec() or conf.getboolean(
         "core", "execute_tasks_new_python_interpreter", fallback=False
@@ -547,6 +547,25 @@ def _resolve_child_target(dotted: str) -> Callable[[], None]:
     return pkgutil.resolve_name(dotted)
 
 
+# Runs in the exec'd child before anything else. execve reset PR_SET_DUMPABLE (4 in
+# <linux/prctl.h>); restore it before the Airflow import so the window in which a same-UID
+# sibling can open /proc/<pid>/mem or ptrace-attach is interpreter start only (a descriptor
+# or attach taken in that window survives a later prctl -- the kernel checks once, at open).
+# _child_exec_main() repeats the call as the logged fallback.
+_CHILD_EXEC_PRELUDE = """\
+import sys
+if sys.platform == "linux":
+    import ctypes
+    try:
+        ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)
+    except Exception:
+        pass
+"""
+_CHILD_EXEC_BOOTSTRAP = _CHILD_EXEC_PRELUDE + (
+    "from airflow.sdk.execution_time.supervisor import _child_exec_main\n_child_exec_main()\n"
+)
+
+
 def _child_exec_main():
     """
     Entry point for the child process when using fork+exec.
@@ -556,8 +575,8 @@ def _child_exec_main():
     (``module:qualname``); it is rehydrated and handed to :func:`_fork_main`, which
     sets up the structured log channel from FD 3 exactly as the bare-fork path does.
     """
-    # execve resets PR_SET_DUMPABLE to 1, so re-apply what supervise_task() set before the
-    # fork; otherwise a same-UID sibling could read this child's /proc/<pid>/environ.
+    # The bootstrap already restored PR_SET_DUMPABLE before importing Airflow; this is the
+    # logged fallback (execve had reset what supervise_task() set before the fork).
     _make_process_nondumpable()
     # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
     child_requests = socket(fileno=0)
@@ -709,9 +728,11 @@ class WatchedSubprocess:
         """
         Fork and start a new subprocess with the specified target function.
 
-        :param use_exec: If True, on platforms that need it (currently macOS),
-            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
-            This avoids macOS fork-safety issues with Objective-C frameworks.
+        :param use_exec: If True, immediately ``os.execv`` a fresh Python interpreter
+            after ``os.fork``: forced on platforms that need it (macOS, whose Objective-C
+            frameworks are not fork-safe) and opted into for the task process elsewhere via
+            ``[core] execute_tasks_new_python_interpreter`` (a lock a supervisor thread
+            held at fork time cannot survive into a fresh address space).
             ``target`` is rehydrated in the exec'd child from its ``module:qualname``,
             so any importable entry point (task execution, DAG processor, triggerer)
             is supported.
@@ -761,8 +782,8 @@ class WatchedSubprocess:
 
             try:
                 if use_exec:
-                    # macOS: exec a fresh Python interpreter to drop the inherited
-                    # ObjC/CoreFoundation state that is not fork-safe. Redirect the
+                    # exec a fresh Python interpreter to drop inherited state that is not
+                    # fork-safe (ObjC/CoreFoundation on macOS; a held lock elsewhere). Redirect the
                     # socketpairs onto the fixed FDs the exec'd child reconstructs:
                     # 0 (requests/stdin), 1 (stdout), 2 (stderr), 3 (structured logs).
                     # The source fds are always >= 3 (0/1/2 stay open in every launch
@@ -779,12 +800,7 @@ class WatchedSubprocess:
                         os.set_inheritable(fd, True)
                     os.execv(
                         sys.executable,
-                        [
-                            sys.executable,
-                            "-c",
-                            "from airflow.sdk.execution_time.supervisor import _child_exec_main;"
-                            " _child_exec_main()",
-                        ],
+                        [sys.executable, "-c", _CHILD_EXEC_BOOTSTRAP],
                     )
                     # execv replaces the process -- unreachable on success
                 else:
