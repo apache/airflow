@@ -80,6 +80,17 @@ with DAG(
     )
     # [END howto_operator_sftp_to_gcs_copy_single_file]
 
+    # [START howto_operator_sftp_to_gcs_copy_single_file_stream]
+    copy_file_from_sftp_to_gcs_stream = SFTPToGCSOperator(
+        task_id="file-copy-sftp-to-gcs-stream",
+        source_path=f"{FILE_LOCAL_PATH}/{OBJECT_SRC_1}",
+        destination_bucket=BUCKET_NAME,
+        destination_path="streamed/parent-1.bin",
+        use_stream=True,
+        sftp_prefetch=False,
+    )
+    # [END howto_operator_sftp_to_gcs_copy_single_file_stream]
+
     # [START howto_operator_sftp_to_gcs_move_single_file_destination]
     move_file_from_sftp_to_gcs_destination = SFTPToGCSOperator(
         task_id="file-move-sftp-to-gcs-destination",
@@ -123,6 +134,7 @@ with DAG(
         unzip_file,
         # TEST BODY
         copy_file_from_sftp_to_gcs,
+        copy_file_from_sftp_to_gcs_stream,
         move_file_from_sftp_to_gcs_destination,
         copy_directory_from_sftp_to_gcs,
         move_specific_files_from_sftp_to_gcs,

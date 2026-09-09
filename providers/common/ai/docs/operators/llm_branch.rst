@@ -92,14 +92,20 @@ against the downstream task IDs before branching:
     :start-after: [START howto_operator_llm_branch_approval]
     :end-before: [END howto_operator_llm_branch_approval]
 
-Rejecting the review, or letting ``approval_timeout`` expire, **fails** the
-task (``HITLRejectException`` / ``HITLTimeoutError``), so downstream tasks
-end up ``upstream_failed`` rather than skipped.
+Rejecting the review **skips the direct downstream tasks except teardowns**,
+matching
+:class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`. The
+teardown carve-out applies only to rejection: approving branches as usual,
+so a teardown that is not among the chosen branch(es) is skipped like any
+other unselected downstream task. Set ``fail_on_reject=True`` to fail the
+task on rejection instead (generally discouraged). Letting
+``approval_timeout`` expire fails the task (``HITLTimeoutError``).
 
 ``require_approval=True`` requires a string prompt: a decorated callable
 returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
 call.
 
+Apart from ``fail_on_reject``, which is specific to this operator,
 ``approval_timeout`` and the rest of the approval behaviour are inherited
 from :ref:`LLMOperator <howto/operator:llm>`.
 
@@ -133,6 +139,8 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
+- ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
+  skipping the downstream tasks.  Generally discouraged.  Default ``False``.
 
 Logging
 -------

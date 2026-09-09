@@ -84,7 +84,7 @@ class FileTrigger(BaseTrigger):
                     self.log.info("Found File %s last modified: %s", path, mod_time)
                     yield TriggerEvent(True)
                     return
-                for _, _, files in await anyio.to_thread.run_sync(lambda: list(os.walk(path))):
+                for _, _, files in await anyio.to_thread.run_sync(lambda p: list(os.walk(p)), path):
                     if files:
                         yield TriggerEvent(True)
                         return

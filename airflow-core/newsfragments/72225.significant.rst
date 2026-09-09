@@ -1,0 +1,27 @@
+An explicit credential now takes precedence over the session cookie
+
+``get_user()`` codes the precedence bearer, then OAuth2, then the session cookie, but
+that block was unreachable whenever a cookie was present. ``JWTRefreshMiddleware`` runs
+first, resolves a user from the ``_token`` cookie alone and stamps it on
+``request.state``, and ``get_user()`` returned that cached user before looking at either
+explicit credential. The effective order on every core-API route was cookie over bearer.
+
+A request carrying both a session cookie and an explicit credential therefore executed,
+and was recorded in the audit log, as the cookie's principal rather than the identity the
+client presented. The cached user is now honoured only when the request carries no
+explicit credential.
+
+**Behaviour changes:**
+
+- A request carrying **both** a ``_token`` cookie and an ``Authorization: Bearer`` header
+  is now resolved as the bearer token's principal, where it was previously resolved as the
+  cookie's. The same applies to a cookie combined with an OAuth2 token.
+- An **invalid or expired** explicit credential is now rejected with ``401``/``403`` even
+  when a valid ``_token`` cookie accompanies it. Previously the cookie silently took over
+  and the request succeeded as the cookie's principal; the failure is now loud.
+- Requests carrying a single credential are unaffected. Cookie-only browser sessions keep
+  the token-refresh behaviour of ``JWTRefreshMiddleware`` unchanged.
+- Clients that relied on the cookie winning -- for example a browser-based tool that sent a
+  service account's bearer token while a user session cookie was present, and expected the
+  user's identity to apply -- will now act as the bearer token's principal. Remove the
+  header, or the cookie, to select the intended identity explicitly.

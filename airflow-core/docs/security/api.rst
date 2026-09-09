@@ -104,6 +104,17 @@ clients can send cookies and ``Authorization`` headers across origins. Because o
 ``Access-Control-Allow-Origin: *`` with credentialed responses, and browsers refuse any
 response that does so, so a wildcard origin would simply break every cross-origin request.
 
+Origins can also be matched with a regular expression via ``access_control_allow_origin_regex``,
+which is useful when the allowed origins are dynamic (for example per-branch preview deployments):
+
+.. code-block:: ini
+
+    [api]
+    access_control_allow_origin_regex = https://.*\.mycompany\.com
+
+The regex is matched against the request ``Origin`` and, on a match, that exact origin is echoed
+back (never ``*``), so it stays compatible with the credentialed responses described above.
+
 Page size limit
 ---------------
 

@@ -619,7 +619,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             else:
                 for s in session.scalars(select(user_session_model)).all():
                     session_details = interface.serializer.decode(want_bytes(s.data))
-                    if session_details.get("_user_id") == user.id:
+                    session_user_id = session_details.get("_user_id")
+                    # Flask-Login stores whatever ``User.get_id()`` returns, which is a
+                    # string, while ``user.id`` is the integer column. Compare both sides
+                    # as strings so the two representations match; older sessions written
+                    # before ``get_id()`` returned a string are still handled.
+                    if session_user_id is not None and str(session_user_id) == str(user.id):
                         session.delete(s)
                 session.commit()
         else:

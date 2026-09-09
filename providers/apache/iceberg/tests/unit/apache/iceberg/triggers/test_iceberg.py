@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import aclosing, suppress
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
@@ -171,7 +171,7 @@ async def test_resumes_from_the_stored_watermark():
     row was written; only the stored watermark reflects what was actually emitted.
     """
     store = MagicMock()
-    store.get.return_value = 222
+    store.aget = AsyncMock(return_value=222)
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01, last_seen_snapshot_id=111)
     trigger.asset_state_store = store
@@ -180,31 +180,32 @@ async def test_resumes_from_the_stored_watermark():
         payloads = await _collect(trigger, 1, timeout=0.2)
 
     assert payloads == []
-    store.get.assert_called_once_with("snapshot_id")
+    store.aget.assert_awaited_once_with("snapshot_id")
 
 
 @pytest.mark.asyncio
 async def test_persists_the_watermark_on_each_event():
     store = MagicMock()
-    store.get.return_value = None
+    store.aget = AsyncMock(return_value=None)
+    store.aset = AsyncMock()
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
 
     with patch(LOAD_TABLE, side_effect=[_table_at(111), _table_at(222), _table_at(222)]):
-        # Gathering 2 events runs several real asyncio.to_thread calls (head lookup + store
-        # get/set); the default 1s budget is too tight under CI thread-pool scheduling latency.
+        # Multiple real thread-pool head lookups can exceed the default 1s budget under CI latency.
         payloads = await _collect(trigger, 2, timeout=3.0)
 
     assert [p["snapshot_id"] for p in payloads] == [111, 222]
-    assert [c.args for c in store.set.call_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
+    assert [c.args for c in store.aset.await_args_list] == [("snapshot_id", 111), ("snapshot_id", 222)]
 
 
 @pytest.mark.asyncio
 async def test_runs_without_a_watermark_when_several_assets_watch_it():
     """More than one watched asset leaves no single cursor, so it degrades instead of raising."""
     store = MagicMock()
-    store.get.side_effect = ValueError("Task has 2 concrete inlets and outlets")
+    store.aget = AsyncMock(side_effect=ValueError("Task has 2 concrete inlets and outlets"))
+    store.aset = AsyncMock()
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
@@ -213,14 +214,14 @@ async def test_runs_without_a_watermark_when_several_assets_watch_it():
         payloads = await _collect(trigger, 1)
 
     assert [p["snapshot_id"] for p in payloads] == [111]
-    store.set.assert_not_called()
+    store.aset.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_a_state_store_failure_is_not_mistaken_for_several_assets():
     """A pluggable backend can raise ValueError too, and hiding it would disable the watermark."""
     store = MagicMock()
-    store.get.side_effect = ValueError("could not decode the stored reference")
+    store.aget = AsyncMock(side_effect=ValueError("could not decode the stored reference"))
 
     trigger = IcebergTableSnapshotTrigger(table="db.tbl", poll_interval=0.01)
     trigger.asset_state_store = store
