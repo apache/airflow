@@ -37,7 +37,7 @@ export const PoolBar = ({
   readonly poolsWithSlotType?: Slots;
   readonly totalSlots: number;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const isUnlimited = totalSlots === UNLIMITED_SLOTS;
   const isDashboard = Boolean(poolsWithSlotType);
