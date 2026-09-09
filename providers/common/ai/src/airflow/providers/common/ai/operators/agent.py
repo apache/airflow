@@ -37,6 +37,7 @@ from airflow.providers.common.ai.observability import (
     build_run_identity_attributes,
     stamp_identity_on_agent_spans,
 )
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
@@ -533,9 +534,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
         if self.code_mode:
             capabilities.append(_build_code_mode())
-        if self.enable_tool_logging and (self.toolsets or capabilities):
-            from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
-
+        if self.enable_tool_logging:
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities

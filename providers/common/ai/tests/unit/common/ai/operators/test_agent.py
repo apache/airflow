@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import sys
 from datetime import timedelta
 from decimal import Decimal
@@ -733,6 +734,35 @@ class TestAgentOperatorExecute:
 
         passed = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["capabilities"]
         assert passed == capabilities
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_tool_logging_wraps_agent_param_tools(self, mock_hook_cls, caplog):
+        """Tool logging wraps the complete toolset assembled by pydantic-ai."""
+
+        def my_tool() -> str:
+            return "tool-result"
+
+        def model_fn(messages, info):
+            saw_return = any(isinstance(p, ToolReturnPart) for m in messages for p in getattr(m, "parts", []))
+            if saw_return:
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(parts=[ToolCallPart(tool_name="my_tool", args={}, tool_call_id="c1")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(model_fn), **kw
+        )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Do something",
+            llm_conn_id="my_llm",
+            agent_params={"tools": [my_tool]},
+        )
+
+        with caplog.at_level(logging.INFO):
+            result = op.execute(context=_make_context())
+
+        assert result == "done"
+        assert any(record.message == "::group::Tool call: my_tool" for record in caplog.records)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
