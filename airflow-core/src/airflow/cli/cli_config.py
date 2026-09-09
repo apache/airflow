@@ -796,6 +796,11 @@ ARG_SSL_CERT_REQS = Arg(
     help="(Optional) Set certificate verification options.",
     choices=("none", "optional", "required"),
 )
+ARG_SSL_CIPHERS = Arg(
+    ("--ssl-ciphers",),
+    default=conf.get("api", "ssl_ciphers", fallback=""),
+    help="(Optional) OpenSSL cipher list to use when SSL is enabled.",
+)
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
@@ -1056,11 +1061,12 @@ ARG_TRIGGERER_TEAM_NAME = Arg(
     help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
 )
 
+DEFAULT_DAG_LIST_COLUMNS = ("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version")
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
-    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
+    help=f"List of columns to render. (default: {list(DEFAULT_DAG_LIST_COLUMNS)})",
+    default=DEFAULT_DAG_LIST_COLUMNS,
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -2213,6 +2219,7 @@ core_commands: list[CLICommand] = [
             ARG_SSL_KEY,
             ARG_SSL_CA_FILE,
             ARG_SSL_CERT_REQS,
+            ARG_SSL_CIPHERS,
             ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),

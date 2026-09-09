@@ -45,6 +45,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_7_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 if AIRFLOW_V_3_1_7_PLUS:
@@ -1394,6 +1395,43 @@ class TestKeycloakAuthManager:
         assert result2 == dag_ids
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_asset",
+        side_effect=lambda *, details, **kw: details.uri.startswith("s3://team-a/"),
+    )
+    def test_filter_authorized_assets(self, mock_is_authorized, auth_manager, user):
+        assets = [
+            AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv"),
+            AssetDetails(id="2", name="salary", uri="s3://team-b/salary.csv"),
+            AssetDetails(id="3", name="logs", uri="s3://team-a/logs.csv"),
+        ]
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+
+        assert result == {"1", "3"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_assets_empty(self, auth_manager, user):
+        assert auth_manager.filter_authorized_assets(assets=[], user=user, method="GET") == set()
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
+    @patch.object(KeycloakAuthManager, "is_authorized_asset", return_value=True)
+    def test_filter_authorized_assets_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """A second identical call is served from the cache without asking Keycloak again."""
+        assets = [AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv")]
+
+        first = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+        second = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+
+        assert first == second == {"1"}
+        assert mock_is_authorized.call_count == 1
 
     @patch.object(
         KeycloakAuthManager,
