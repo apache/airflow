@@ -50,6 +50,7 @@ from airflow.providers.common.ai.observability import (
     make_task_instance_run_key,
     stamp_identity_on_agent_spans,
 )
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
     format_usage_for_xcom,
@@ -725,8 +726,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if self.cache_prompt:
             capabilities.append(PromptCaching())
         if self.enable_tool_logging:
-            from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
-
             capabilities.append(ToolLoggingCapability(logger=self.log))
         if capabilities:
             extra_kwargs["capabilities"] = capabilities
