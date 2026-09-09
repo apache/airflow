@@ -358,12 +358,12 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook",
                 "hook-name": "LlamaIndex",
                 "connection-type": "llamaindex",
-                "external-services": ["OpenAI", "Ollama", "vLLM"],
+                "external-services": ["OpenAI"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
-                        "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
+                        "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
                         "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}',
                     },
                 },
