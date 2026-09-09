@@ -109,6 +109,7 @@ class OpenAIResponseOperator(BaseOperator):
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
         method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        Templated, so values (e.g. ``previous_response_id``) may reference upstream XCom.
         Do not set ``background`` or ``stream`` here: ``background=True`` returns before the response
         completes, so this operator logs a warning and the returned output text may be empty, while
         ``stream=True`` returns an object without ``status`` or ``output_text``, so the task raises
@@ -146,7 +147,7 @@ class OpenAIResponseOperator(BaseOperator):
     counts by your own per-token rate.
     """
 
-    template_fields: Sequence[str] = ("input_text", "max_output_tokens", "max_tool_calls")
+    template_fields: Sequence[str] = ("input_text", "response_kwargs", "max_output_tokens", "max_tool_calls")
 
     _TOKEN_CEILING_PARAM_NAMES: ClassVar[tuple[str, ...]] = ("max_output_tokens", "max_tool_calls")
 

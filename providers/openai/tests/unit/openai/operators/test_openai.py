@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from fractions import Fraction
 from unittest import mock
@@ -158,6 +159,20 @@ def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
 
     assert result == "haiku text"
     context["ti"].xcom_push.assert_not_called()
+
+
+def test_openai_response_operator_templates_response_kwargs():
+    with DAG(dag_id="test_openai_response_kwargs_template", schedule=None, start_date=datetime(2021, 1, 1)):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={"previous_response_id": "{{ params.previous_response_id }}"},
+        )
+
+    operator.render_template_fields({"params": {"previous_response_id": "resp_prev_123"}})
+
+    assert operator.response_kwargs == {"previous_response_id": "resp_prev_123"}
 
 
 def _build_completed_response(**overrides):
