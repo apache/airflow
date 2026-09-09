@@ -182,16 +182,25 @@ class OpenAIResponseOperator(BaseOperator):
         )
         if response.status == "incomplete":
             reason = response.incomplete_details.reason if response.incomplete_details else None
-            if reason:
+            if reason == "max_output_tokens":
                 self.log.warning(
                     "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
                     "text is truncated, not empty.",
                     response.id,
                     reason,
                 )
+            elif reason:
+                # Other reasons (e.g. content_filter) can fire before any output text is
+                # produced, so unlike max_output_tokens we cannot promise truncated content exists.
+                self.log.warning(
+                    "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
+                    "text may be empty.",
+                    response.id,
+                    reason,
+                )
             else:
                 self.log.warning(
-                    "Response %s is incomplete; the returned output text may be truncated.",
+                    "Response %s is incomplete; the returned output text may be truncated or empty.",
                     response.id,
                 )
         elif response.status != "completed":

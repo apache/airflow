@@ -218,26 +218,62 @@ class TestOpenAIResponseOperatorTokenCeilings:
             assert isinstance(call_kwargs[key], int)
             assert not isinstance(call_kwargs[key], bool)
 
-    def test_incomplete_details_reason_is_logged(self, caplog):
+    @pytest.mark.parametrize(
+        ("reason", "output_text", "expected_fragment"),
+        [
+            pytest.param(
+                "max_output_tokens",
+                "Truncated hai",
+                "the returned output text is truncated, not empty.",
+                id="max_output_tokens",
+            ),
+            pytest.param(
+                "content_filter",
+                "",
+                "the returned output text may be empty.",
+                id="content_filter",
+            ),
+        ],
+    )
+    def test_incomplete_details_reason_is_logged(self, caplog, reason, output_text, expected_fragment):
         operator = OpenAIResponseOperator(
             task_id=TASK_ID, conn_id=CONN_ID, input_text="Write a haiku.", max_output_tokens=10
         )
         mock_hook_instance = Mock(spec=OpenAIHook)
         mock_hook_instance.create_response.return_value = _build_completed_response(
             status="incomplete",
-            incomplete_details=IncompleteDetails(reason="max_output_tokens"),
-            output_text="Truncated hai",
+            incomplete_details=IncompleteDetails(reason=reason),
+            output_text=output_text,
         )
         operator.hook = mock_hook_instance
 
         with caplog.at_level("WARNING"):
             result = operator.execute(Context())
 
-        assert result == "Truncated hai"
+        assert result == output_text
         assert any(
-            "incomplete_details.reason=max_output_tokens" in message and "truncated, not empty" in message
+            f"incomplete_details.reason={reason}" in message and expected_fragment in message
             for message in caplog.messages
         )
+        if reason == "max_output_tokens":
+            assert not any("may be empty" in message for message in caplog.messages)
+        else:
+            assert not any("truncated, not empty" in message for message in caplog.messages)
+
+    def test_incomplete_without_details_uses_truncated_or_empty_message(self, caplog):
+        operator = OpenAIResponseOperator(task_id=TASK_ID, conn_id=CONN_ID, input_text="Write a haiku.")
+        mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response(
+            status="incomplete", incomplete_details=None, output_text=""
+        )
+        operator.hook = mock_hook_instance
+
+        with caplog.at_level("WARNING"):
+            result = operator.execute(Context())
+
+        assert result == ""
+        assert any("may be truncated or empty" in message for message in caplog.messages)
+        assert not any("truncated, not empty" in message for message in caplog.messages)
         assert not any("may be empty" in message for message in caplog.messages)
 
     def test_non_completed_without_incomplete_details_keeps_may_be_empty_message(self, caplog):
