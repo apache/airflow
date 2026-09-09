@@ -40,7 +40,7 @@ Proposed. Revised after the review on #72047.
    such as retries. Python owns both in the mixed-language case
    ([ADR-0001](0001-mixed-lang-dag-interface.md)), which is the difference between the two modes.
 6. **A handler is a plain function of its own data**; `getContext()` and `getClient()` supply the rest.
-7. **One registration verb**: `bundle.register(dag)`, the same call that takes stub handlers, with
+7. **One registration verb**: `bundle.register(dag)`, the same call that takes stub tasks, with
    `await bundle.serve()` starting the runtime ([ADR-0001](0001-mixed-lang-dag-interface.md)).
 
 ## Context
@@ -49,7 +49,7 @@ A Dag authored with no Python stub file has no `@task.stub` call site to declare
 TypeScript itself must express everything Python would otherwise own: the schedule and the rest of
 the Dag-level configuration, each task's own options, the graph, and the task bodies. This ADR covers only what that
 call site looks like for a user. `Dag` here is exclusively the native case; the mixed-language case
-registers stub handlers instead ([ADR-0001](0001-mixed-lang-dag-interface.md)). Both share the
+registers stub tasks instead ([ADR-0001](0001-mixed-lang-dag-interface.md)). Both share the
 protocol substrate recorded in
 [`airflow-core/adr/lang-sdk/0007`](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md).
 
@@ -156,6 +156,6 @@ convention.
 - **`withArgNames` and the name folding behind it** ([ADR-0001](0001-mixed-lang-dag-interface.md))
   exist for the mixed-language case and are never needed here: both ends of every name are
   TypeScript, so `tsc` checks the wiring end to end and there is no foreign name to reconcile.
-- **`bundle.register(...)` takes any number of Dags and stub handlers**, since each carries its own
+- **`bundle.register(...)` takes any number of Dags and stub tasks**, since each carries its own
   ids; the earlier `registerDag`/`registerTaskHandler` split is recorded as a rejected alternative in
   [ADR-0001](0001-mixed-lang-dag-interface.md).

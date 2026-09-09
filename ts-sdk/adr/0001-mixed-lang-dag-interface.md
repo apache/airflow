@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# ADR-0001: Mixed-Lang Dag — TypeScript Stub Handler Interface
+# ADR-0001: Mixed-Lang Dag — TypeScript Stub Task Interface
 
 ## Status
 
@@ -25,11 +25,11 @@ Proposed. Revised after the review on #72047.
 
 ## Decision
 
-1. TypeScript registers **stub handlers, not Dags**. `new StubHandler(dagId, taskId, handler)` binds a
+1. TypeScript registers **stub tasks, not Dags**. `new StubTask(dagId, taskId, handler)` binds a
    handler to the Python-owned task it implements; `Dag` is exclusively the native case
    ([ADR-0002](0002-native-dag-interface.md)).
 2. **A bundle has one registration verb and serves itself.** `bundle.register(...)` takes Dags and
-   stub handlers alike, in any mixture, and `await bundle.serve()` starts the runtime over them.
+   stub tasks alike, in any mixture, and `await bundle.serve()` starts the runtime over them.
    `Bundle` replaces `DagRegistry`, and the free `serveDags(registry)` function goes with it.
 3. **task_id is always written out**; nothing is derived from the handler's function name.
 4. **A handler is a plain function of its own data**, destructured by name. `getContext()` and
@@ -55,7 +55,7 @@ in [`airflow-core/adr/lang-sdk/0007`](../../airflow-core/adr/lang-sdk/0007-taskf
 ## Example
 
 ```ts
-import { Bundle, StubHandler, getClient, getContext } from "apache-airflow-ts-sdk";
+import { Bundle, StubTask, getClient, getContext } from "apache-airflow-ts-sdk";
 
 interface TransformArgs {
   regionCode: string;
@@ -72,7 +72,7 @@ async function transform({ regionCode, threshold }: TransformArgs) {
 }
 
 const bundle = new Bundle();
-bundle.register(new StubHandler("etl", "transform", transform));
+bundle.register(new StubTask("etl", "transform", transform));
 await bundle.serve();
 ```
 
@@ -81,7 +81,7 @@ A bundle usually provides both kinds, and one call lists everything it exposes:
 ```ts
 bundle.register(
   nativeEtl, // a Dag, from ADR-0002
-  new StubHandler("py_etl", "transform", transform),
+  new StubTask("py_etl", "transform", transform),
 );
 ```
 
@@ -113,7 +113,7 @@ const report = withArgNames(
   },
 );
 
-bundle.register(new StubHandler("etl", "report", report));
+bundle.register(new StubTask("etl", "report", report));
 ```
 
 The map's keys are checked against the handler's own parameter type, so `{ labl: "run_label" }` is a
@@ -150,7 +150,7 @@ check.
   (`async (a: ReportArgs) => a.runLabel`) exposes no names at all, so the check would disappear
   silently for ordinary code.
 - **Two registration verbs**, `registerDag(...dags)` beside `registerTaskHandler(dagId, taskId, fn)`.
-  Rejected once a stub handler became a value carrying its own ids: the asymmetry that justified the
+  Rejected once a stub task became a value carrying its own ids: the asymmetry that justified the
   split — a Dag knows its id, a bare handler does not — disappears, and a bundle that provides both
   kinds had to say so in two calls.
 
@@ -159,13 +159,13 @@ check.
 - **`register` widens rather than splits.** The shipped `DagRegistry.register(...dags: Dag[])`
   (`ts-sdk/src/sdk/registry.ts`) already narrows each argument with `instanceof Dag` and rejects a
   foreign copy by brand. `Bundle.register(...items: Registerable[])`, over
-  `type Registerable = Dag | StubHandler`, follows the same path with one more arm — a discriminated
+  `type Registerable = Dag | StubTask`, follows the same path with one more arm — a discriminated
   union being TypeScript's equivalent of the sealed interface the Go SDK uses for the same purpose.
 - **`serve` is a method so the coordinator stays unnamed.** `startCoordinator` is deliberately not
   exported — "Dag authors reach the runtime through `serveDags()`, and never name the coordinator
   itself" (`ts-sdk/src/coordinator/index.ts`) — and a method on the object that already holds the
   Dags and handlers keeps that intent while dropping the free function.
-- **A stub handler has no factory to call**, so wiring one the way a native task is wired
+- **A stub task has no factory to call**, so wiring one the way a native task is wired
   (`transform()`) is a compile error rather than a runtime throw. That is the guarantee an earlier
   draft's separate `MixedLangDag` class existed to provide.
 - **`getClient()` and `getContext()` read from an `AsyncLocalStorage` store** the runtime wraps around
