@@ -87,7 +87,7 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = ({ assetId, before, da
 export type AssetServiceGetAssetsUiDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetsUi>>;
 export type AssetServiceGetAssetsUiQueryResult<TData = AssetServiceGetAssetsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsUiKey = "AssetServiceGetAssetsUi";
-export const UseAssetServiceGetAssetsUiKeyFn = ({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const UseAssetServiceGetAssetsUiKeyFn = ({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }: {
   consumingDagId?: string;
   dagIds?: string[];
   groupPattern?: string;
@@ -104,10 +104,12 @@ export const UseAssetServiceGetAssetsUiKeyFn = ({ consumingDagId, dagIds, groupP
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  producingDagId?: string;
+  producingTaskId?: string;
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsUiKey, ...(queryKey ?? [{ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsUiKey, ...(queryKey ?? [{ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, producingDagId, producingTaskId, uri, uriPattern, uriPrefixPattern }])];
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.nextRunAssets>>;
 export type AssetServiceNextRunAssetsQueryResult<TData = AssetServiceNextRunAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";

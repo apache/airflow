@@ -858,6 +858,51 @@ class TestGetAssetsUi:
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["referenced"]
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filter_by_producing_task_id(self, test_client, session):
+        produced = AssetModel(name="produced", uri="s3://bucket/produced", group="asset")
+        not_produced = AssetModel(name="not_produced", uri="s3://bucket/not_produced", group="asset")
+        session.add_all([produced, not_produced])
+        session.add(AssetActive.for_asset(produced))
+        session.add(AssetActive.for_asset(not_produced))
+        session.add(DagModel(dag_id="producer_dag", bundle_name="testing"))
+        session.add(TaskOutletAssetReference(dag_id="producer_dag", task_id="extract_data", asset=produced))
+        session.commit()
+
+        response = test_client.get("/assets?producing_task_id=extract_data")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["produced"]
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filter_by_producing_task_id_scoped_to_dag_id(self, test_client, session):
+        """A task_id can be reused across Dags; producing_dag_id disambiguates which one is meant."""
+        produced_by_target_dag = AssetModel(
+            name="produced_by_target_dag", uri="s3://bucket/pt1", group="asset"
+        )
+        produced_by_other_dag = AssetModel(name="produced_by_other_dag", uri="s3://bucket/pt2", group="asset")
+        session.add_all([produced_by_target_dag, produced_by_other_dag])
+        session.add(AssetActive.for_asset(produced_by_target_dag))
+        session.add(AssetActive.for_asset(produced_by_other_dag))
+        session.add_all(
+            [
+                DagModel(dag_id="target_dag", bundle_name="testing"),
+                DagModel(dag_id="other_dag", bundle_name="testing"),
+            ]
+        )
+        session.add(
+            TaskOutletAssetReference(
+                dag_id="target_dag", task_id="extract_data", asset=produced_by_target_dag
+            )
+        )
+        session.add(
+            TaskOutletAssetReference(dag_id="other_dag", task_id="extract_data", asset=produced_by_other_dag)
+        )
+        session.commit()
+
+        response = test_client.get("/assets?producing_task_id=extract_data&producing_dag_id=target_dag")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["produced_by_target_dag"]
+
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of
         how many assets are returned (a lazy-loading regression would issue queries per asset).

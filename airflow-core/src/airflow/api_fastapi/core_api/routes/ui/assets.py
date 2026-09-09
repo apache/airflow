@@ -35,6 +35,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryConsumingDagAssetsFilter,
     QueryLimit,
     QueryOffset,
+    QueryProducingTaskAssetsFilter,
     QueryUriExactMatch,
     QueryUriPatternSearch,
     QueryUriPrefixPatternSearch,
@@ -96,6 +97,7 @@ def get_assets(
     has_events: QueryAssetHasEventsFilter,
     is_alias: QueryAssetIsAliasFilter,
     consuming_dag: QueryConsumingDagAssetsFilter,
+    producing_task: QueryProducingTaskAssetsFilter,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     last_asset_event_timestamp_range: Annotated[
         RangeFilter,
@@ -133,6 +135,7 @@ def get_assets(
             has_events,
             is_alias,
             consuming_dag,
+            producing_task,
             last_asset_event_timestamp_range,
         ],
         order_by=order_by,

@@ -3095,6 +3095,8 @@ export type GetAssetsUiData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, group, created_at, updated_at, last_asset_event_timestamp`
      */
     orderBy?: Array<(string)>;
+    producingDagId?: string | null;
+    producingTaskId?: string | null;
     /**
      * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      */
