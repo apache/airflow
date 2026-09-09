@@ -17,7 +17,7 @@
  under the License.
  -->
 
-# 6. Bundle registration and Mixed Lang stub handlers
+# 6. Bundle registration and Mixed Lang stub tasks
 
 Date: 2026-09-09
 
@@ -31,11 +31,11 @@ registration flow around it, and reshapes the task signature, following the desi
 1. **A bundle is a value the author builds.** `airflow.Bundle()` returns a `*airflow.BundleRef`;
    `main` reads build, register, serve, with `bundle.Serve()` as its last statement.
 2. **`bundle.Register(items ...airflow.Registration)`** is the single registration verb, taking
-   native Dags ([ADR 7](0007-native-dag-interface.md)) and stub handlers in any mix.
-3. **A Go bundle registers stub handlers, not Dags**: `airflow.StubHandler(dagId, taskId, fn)`, named
+   native Dags ([ADR 7](0007-native-dag-interface.md)) and stub tasks in any mix.
+3. **A Go bundle registers stub tasks, not Dags**: `airflow.StubTask(dagId, taskId, fn)`, named
    for the Python `@task.stub` it implements.
 4. **task_id is always written out**; nothing is derived from the Go function name.
-5. **Every handler takes an `airflow.Context` first**, and nothing else is injected — a struct
+5. **Every task function takes an `airflow.Context` first**, and nothing else is injected — a struct
    embedding `context.Context`, exposing `Logger()`, `Client()`, `TaskInstance()`, and `DagRun()`.
 6. **Every remaining parameter is data**, bound positionally, or by field when it is a single struct:
    `arg:"..."` when tagged, else the folded Go field name.
@@ -55,7 +55,7 @@ names are also one object: `Registry` is `Bundle` plus `AddDag`, the write side 
 later answers task lookups at execution time.
 
 The shipped signature then injects `sdk.TIRunContext`, `*slog.Logger`, and clients by type in any
-position, so a handler can declare no context at all and its logger arrives separately from the
+position, so a task function can declare no context at all and its logger arrives separately from the
 context it logs against. One required context carrying the rest fixes both.
 
 ## Example
@@ -66,8 +66,8 @@ func main() {
 
     bundle.Register(
         nativeEtl, // *airflow.DagRef, from ADR 7
-        airflow.StubHandler("py_etl", "transform", transform),
-        airflow.StubHandler("py_etl", "via_struct_arg_tag", ViaStructArgTag),
+        airflow.StubTask("py_etl", "transform", transform),
+        airflow.StubTask("py_etl", "via_struct_arg_tag", ViaStructArgTag),
     )
 
     if err := bundle.Serve(); err != nil {
@@ -77,7 +77,7 @@ func main() {
 ```
 
 Registration can be spread across packages, either by passing the bundle along or by returning
-`[]airflow.Registration` for the caller to splat: `bundle.Register(taskflowbinding.Handlers()...)`.
+`[]airflow.Registration` for the caller to splat: `bundle.Register(taskflowbinding.StubTasks()...)`.
 
 Three ways a Go function receives a stub task's data, all live in `go-sdk/example/bundle/`.
 
@@ -129,12 +129,12 @@ lowercased with underscores stripped is `regioncode`, which matches `region_code
 ## Appendix: Implementation Notes
 
 - **One verb, over a sealed interface.** `Bundle.Register(items ...airflow.Registration)` accepts
-  both kinds because `*airflow.DagRef` and `airflow.StubHandlerRef` satisfy `Registration`, an
+  both kinds because `*airflow.DagRef` and `airflow.StubTaskRef` satisfy `Registration`, an
   exported interface whose only method is unexported. That closes the set to the SDK's own types, and
   an author never writes the name — the same technique as `airflow.TaskOption` in
   [ADR 7](0007-native-dag-interface.md). Two verbs would have split what a bundle provides across
   separate calls for no gain in safety, since the interface already rejects anything else at compile
-  time. Variadic, rather than one handler per call, which repeats the dag_id per task.
+  time. Variadic, rather than one stub task per call, which repeats the dag_id per task.
 - **`airflow.Bundle()` follows the same rule as `Dag` and `Task`**: the constructor takes the noun,
   the handle is `*airflow.BundleRef`. Carving out an exception — `NewBundle()` returning
   `*airflow.Bundle` — would buy a better type name for helper signatures, but the recommended way to
