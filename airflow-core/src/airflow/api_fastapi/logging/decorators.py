@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.configuration import conf
 from airflow.models import Connection, Log, Pool, Variable
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import find_invalid_team_names
 
 if TYPE_CHECKING:
@@ -175,6 +176,8 @@ def _resolve_team_name(params: dict, *, session: Session) -> str | None:
         return None
     if not conf.getboolean("core", "multi_team"):
         return None
+    if (bundle_name := params.get("bundle_name")) is not None:
+        return DagBundleModel.get_team_name(bundle_name, session=session)
     for param, (team_column, resource_column) in _TEAM_SCOPED_RESOURCES.items():
         if (resource_id := params.get(param)) is not None:
             return session.scalar(select(team_column).where(resource_column == resource_id))
