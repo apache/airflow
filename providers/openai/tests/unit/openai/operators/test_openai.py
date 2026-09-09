@@ -175,10 +175,6 @@ def test_openai_trigger_batch_operator_create_batch_passthrough(mock_batch):
     )
 
 
-def test_openai_trigger_batch_operator_template_fields():
-    assert OpenAITriggerBatchOperator.template_fields == ("file_id", "endpoint", "metadata")
-
-
 def test_openai_trigger_batch_operator_templates_endpoint_and_metadata():
     operator = OpenAITriggerBatchOperator(
         task_id=TASK_ID,

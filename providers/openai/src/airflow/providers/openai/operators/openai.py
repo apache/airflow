@@ -147,7 +147,8 @@ class OpenAITriggerBatchOperator(BaseOperator):
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
-        Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+        Applies in both deferrable and non-deferrable mode. Defaults to 24 hours, which is the SLA for
+        OpenAI Batch API.
     :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
         will return immediately after triggering the batch. Defaults to True.
     :param metadata: Optional. A set of key-value pairs that can be attached to the batch. (templated)
