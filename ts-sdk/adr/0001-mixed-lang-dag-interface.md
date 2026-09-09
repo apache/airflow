@@ -17,26 +17,45 @@
  under the License.
  -->
 
-# ADR-0001: Mixed-Lang Dag — TypeScript Task Handler Interface
+# ADR-0001: Mixed-Lang Dag — TypeScript Stub Handler Interface
 
 ## Status
 
 Proposed. Revised after the review on #72047.
 
-## Context
-
-The Python `@task.stub` call site already defines task data flow. TypeScript tasks should consume those bindings directly as named arguments, instead of re-fetching each value with `client.getXCom(...)`.
-
-This ADR covers only the TypeScript call-site interface. The argument-binding spec itself (its shape, how it's materialized, how it travels over the wire) is a separate, protocol-level decision recorded in [`airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md`](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md). Given that spec, this ADR only answers what TypeScript code a user writes.
-
-A mixed-language Dag declares its structure in Python, and TypeScript supplies task bodies and nothing else. So TypeScript registers **task handlers**, not a Dag: it owns no dag_id, no schedule, no task order. `Dag` is exclusively the native case, covered in [ADR-0002](0002-native-dag-interface.md).
-
 ## Decision
 
-A handler is a plain function of its own data. The SDK's context and client come from getters, and each handler is registered against the dag_id/task_id pair Python already owns.
+1. TypeScript registers **stub handlers, not Dags**. `new StubHandler(dagId, taskId, handler)` binds a
+   handler to the Python-owned task it implements; `Dag` is exclusively the native case
+   ([ADR-0002](0002-native-dag-interface.md)).
+2. **A bundle has one registration verb and serves itself.** `bundle.register(...)` takes Dags and
+   stub handlers alike, in any mixture, and `await bundle.serve()` starts the runtime over them.
+   `Bundle` replaces `DagRegistry`, and the free `serveDags(registry)` function goes with it.
+3. **task_id is always written out**; nothing is derived from the handler's function name.
+4. **A handler is a plain function of its own data**, destructured by name. `getContext()` and
+   `getClient()` supply the rest, so nothing the SDK injects shares a namespace with an author's
+   arguments.
+5. **Names bind by folding on both sides** — lowercased, separators removed — so Python's
+   `region_code` reaches a handler's `regionCode` with nothing declared. `withArgNames` is for a
+   genuine rename, never for a spelling difference.
+6. **An upstream's return value is not a bound argument.** Read it with
+   `client.getXCom({ key: "return_value", taskId })`.
+
+## Context
+
+The Python `@task.stub` call site already defines task data flow. TypeScript tasks should consume
+those bindings directly as named arguments instead of re-fetching each value with
+`client.getXCom(...)`. A mixed-language Dag declares its structure in Python, and TypeScript supplies
+task bodies and nothing else: it owns no dag_id, no schedule, no task order.
+
+This ADR covers only the TypeScript call-site interface. The argument-binding spec itself — its
+shape, how it is materialized, how it travels over the wire — is a protocol-level decision recorded
+in [`airflow-core/adr/lang-sdk/0007`](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md).
+
+## Example
 
 ```ts
-import { DagRegistry, getClient, getContext, serveDags } from "apache-airflow-ts-sdk";
+import { Bundle, StubHandler, getClient, getContext } from "apache-airflow-ts-sdk";
 
 interface TransformArgs {
   regionCode: string;
@@ -52,14 +71,26 @@ async function transform({ regionCode, threshold }: TransformArgs) {
   return { regionCode, passed: rows >= threshold };
 }
 
-const registry = new DagRegistry();
-registry.registerTaskHandler("etl", "transform", transform);
-await serveDags(registry);
+const bundle = new Bundle();
+bundle.register(new StubHandler("etl", "transform", transform));
+await bundle.serve();
+```
+
+A bundle usually provides both kinds, and one call lists everything it exposes:
+
+```ts
+bundle.register(
+  nativeEtl, // a Dag, from ADR-0002
+  new StubHandler("py_etl", "transform", transform),
+);
 ```
 
 ### Wire names
 
-By default, arguments are transformed automatically: the SDK normalizes the names on **both** sides — lowercased, separators removed — and matches those. Python's `region_code` binds to a handler's `regionCode`, `Name` binds to `name`, and `s3_uri` binds to `s3Uri`, with nothing declared on either side. The Go SDK normalizes the same way (`strings.ToLower(strings.ReplaceAll(name, "_", ""))`), so one Python signature binds identically in either SDK.
+Arguments bind by folding both sides, so `region_code` reaches `regionCode`, `Name` reaches `name`,
+and `s3_uri` reaches `s3Uri` with nothing declared on either side. The Go SDK folds the same way
+(`strings.ToLower(strings.ReplaceAll(name, "_", ""))`), so one Python signature binds identically in
+either SDK.
 
 ```ts
 // Python: def transform(region_code: str, s3_uri: str, threshold: float)
@@ -68,7 +99,9 @@ async function transform({ regionCode, s3Uri, threshold }: TransformArgs) {
 }
 ```
 
-A user can also specify the binding explicitly, with `withArgNames`: its first argument is the argument mapping, and its second is the handler itself. Normalization only absorbs spelling differences, so this is what to reach for when a handler wants a name the Python side never used — a clearer word, or a TypeScript reserved word like `enum`:
+`withArgNames` states a binding explicitly — its first argument is the mapping, its second the
+handler. Folding absorbs spelling differences, so this is for a name the Python side never used: a
+clearer word, or a TypeScript reserved word like `enum`.
 
 ```ts
 const report = withArgNames(
@@ -80,31 +113,70 @@ const report = withArgNames(
   },
 );
 
-registry.registerTaskHandler("etl", "report", report);
+bundle.register(new StubHandler("etl", "report", report));
 ```
 
-The map's keys are checked against the handler's own parameter type, so `{ labl: "run_label" }` is a compile error naming the right key. Its values are Python names, which `tsc` cannot see and does not check.
-
-### How
-
-- `registry.registerTaskHandler(dagId, taskId, handler)` is the second registration verb, beside `registry.registerDag(...dags)` for the native case ([ADR-0002](0002-native-dag-interface.md)). It takes one handler at a time because each needs its own dag_id/task_id pair, where a Dag carries its own id and several can be registered in one call. task_id must match the `@task.stub` id exactly and is always written out: deriving it from the handler's function name would silently rebind the handler when the function is renamed.
-- A handler registered this way has no factory to call, so wiring a mixed-language task the way a native one is wired (`transform()`) is a compile error rather than a runtime throw. That is the guarantee an earlier draft's separate `MixedLangDag` class existed to provide.
-- `getClient()` and `getContext()` read from an `AsyncLocalStorage` store the runtime wraps around the handler call, and throw outside a handler. TypeScript keeps type and value namespaces separate, so `getContext()` coexists with the `TaskContext` type without either being renamed.
-- The bound argument object is a `Proxy`. Destructuring a name triggers a lookup that folds that name on demand and matches it against the folded wire names, so binding needs nothing declared anywhere, and an entry in `withArgNames` takes precedence over folding.
-- An unmatched name is logged with both the requested name and the names actually delivered. It cannot throw: a destructuring default (`{ runId = "manual" }`) is a legitimate miss, and the runtime cannot tell one from a typo.
-- `in` folds like a read. `Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names, since the SDK has no TypeScript-side names to enumerate.
-- Two Python names that fold to the same token fail the task at dispatch, naming both.
-- An upstream's return value is not delivered as a bound argument. Read it explicitly via `client.getXCom({ key: "return_value", taskId: "..." })`.
-
-## Alternatives
-
-- **Annotating the Python name on the field with a phantom type** (`type Arg<T, N extends string> = T & { readonly __arg?: N }`), the way Java's `@ArgName` annotates a `TaskInput` field. Rejected: an `interface` is erased, so the annotation cannot reach dispatch and needs a runtime companion regardless. It also has two silent failure modes — `Arg<string | undefined, N>` collapses to a required `string`, because `undefined & object` is `never`, and the phantom key appears in `keyof` for an object-valued argument.
-- **Reading the expected names from `handler.toString()`** and parsing the destructuring pattern. Property names do survive bundling, but a handler whose parameter is not destructured (`async (a: ReportArgs) => a.runLabel`) exposes no names at all, so the check would disappear silently for ordinary code.
+The map's keys are checked against the handler's own parameter type, so `{ labl: "run_label" }` is a
+compile error naming the right key. Its values are Python names, which `tsc` cannot see and does not
+check.
 
 ## Consequences
 
-- One binding mechanism serves every mixed-language handler, and the Python call site stays the single source of data-flow wiring.
-- Folding matches the Go SDK's rule, so the same Python signature binds the same way in either SDK, and neither one needs a rename declared for ordinary snake_case parameters.
-- `TaskHandlerArgs` is removed, `Dag` no longer serves the mixed-language case, and the registry's `register(...dags)` becomes `registerDag(...dags)` so the two verbs name what they take. All are shipped API (`src/index.ts`, and the `new Dag(...)` + `dag.task(...)` pattern in `README.md`, `docs/index.md`, and `example/src/main.ts`), so this breaks 0.1.0-beta1 authors and those call sites change with the implementation. The package's own status line already reads "API may change".
-- A handler is directly unit-testable with a plain data argument: no `TaskHandlerArgs` fixture, and no intersection to remember.
-- `withArgNames` is needed only for a genuine rename, never for a spelling difference, so most handlers never mention it.
+- One binding mechanism serves every mixed-language handler, and the Python call site stays the
+  single source of data-flow wiring.
+- Folding matches the Go SDK's rule, so the same Python signature binds the same way in either SDK,
+  and neither needs a rename declared for ordinary snake_case parameters.
+- A handler is directly unit-testable as a plain function of its data: no fixture to construct and no
+  intersection type to remember.
+- This breaks 0.1.0-beta1 authors. `DagRegistry` becomes `Bundle`, and `TaskHandlerArgs` and the
+  `TaskHandler` type that takes it (`src/sdk/task.ts`) no longer describe a handler and are removed.
+  The shipped call sites change with the implementation — `src/index.ts`, and the `new Dag(...)` +
+  `dag.task(...)` pattern in `README.md`, `docs/index.md`, and `example/src/main.ts`. The package's
+  status line already reads "API may change".
+- `serveDags(registry)` is removed in favour of `bundle.serve()`, since a bundle no longer holds
+  only Dags. Its name is also quoted in a user-facing error string
+  (`ts-sdk/src/cli/pack.ts:237`), which changes with it.
+
+## Alternatives
+
+- **Annotating the Python name on the field with a phantom type**
+  (`type Arg<T, N extends string> = T & { readonly __arg?: N }`), the way Java's `@ArgName` annotates
+  a `TaskInput` field. Rejected: an `interface` is erased, so the annotation cannot reach dispatch and
+  needs a runtime companion regardless. It also has two silent failure modes —
+  `Arg<string | undefined, N>` collapses to a required `string`, because `undefined & object` is
+  `never`, and the phantom key appears in `keyof` for an object-valued argument.
+- **Reading the expected names from `handler.toString()`** and parsing the destructuring pattern.
+  Property names do survive bundling, but a handler whose parameter is not destructured
+  (`async (a: ReportArgs) => a.runLabel`) exposes no names at all, so the check would disappear
+  silently for ordinary code.
+- **Two registration verbs**, `registerDag(...dags)` beside `registerTaskHandler(dagId, taskId, fn)`.
+  Rejected once a stub handler became a value carrying its own ids: the asymmetry that justified the
+  split — a Dag knows its id, a bare handler does not — disappears, and a bundle that provides both
+  kinds had to say so in two calls.
+
+## Appendix: Implementation Notes
+
+- **`register` widens rather than splits.** The shipped `DagRegistry.register(...dags: Dag[])`
+  (`ts-sdk/src/sdk/registry.ts`) already narrows each argument with `instanceof Dag` and rejects a
+  foreign copy by brand. `Bundle.register(...items: Registerable[])`, over
+  `type Registerable = Dag | StubHandler`, follows the same path with one more arm — a discriminated
+  union being TypeScript's equivalent of the sealed interface the Go SDK uses for the same purpose.
+- **`serve` is a method so the coordinator stays unnamed.** `startCoordinator` is deliberately not
+  exported — "Dag authors reach the runtime through `serveDags()`, and never name the coordinator
+  itself" (`ts-sdk/src/coordinator/index.ts`) — and a method on the object that already holds the
+  Dags and handlers keeps that intent while dropping the free function.
+- **A stub handler has no factory to call**, so wiring one the way a native task is wired
+  (`transform()`) is a compile error rather than a runtime throw. That is the guarantee an earlier
+  draft's separate `MixedLangDag` class existed to provide.
+- **`getClient()` and `getContext()` read from an `AsyncLocalStorage` store** the runtime wraps around
+  the handler call, and throw outside a handler. TypeScript keeps type and value namespaces separate,
+  so `getContext()` coexists with the `TaskContext` type without either being renamed.
+- **The bound argument object is a `Proxy`.** Destructuring a name triggers a lookup that folds that
+  name on demand and matches it against the folded wire names, so binding needs nothing declared
+  anywhere, and an entry in `withArgNames` takes precedence over folding.
+- **An unmatched name is logged**, with both the requested name and the names actually delivered. It
+  cannot throw: a destructuring default (`{ runId = "manual" }`) is a legitimate miss, and the runtime
+  cannot tell one from a typo.
+- `in` folds like a read. `Object.keys` and rest destructuring (`{ ...rest }`) yield Python's names,
+  since the SDK has no TypeScript-side names to enumerate. Two Python names that fold to the same
+  token fail the task at dispatch, naming both.
