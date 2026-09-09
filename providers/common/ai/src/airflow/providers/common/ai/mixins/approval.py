@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -42,7 +42,7 @@ class DeferForApprovalProtocol(Protocol):
 
     approval_timeout: timedelta | None
     allow_modifications: bool
-    on_approval_timeout: str
+    on_approval_timeout: Literal["fail", "approve", "reject"]
     prompt: str
     task_id: str
     defer: Any
@@ -230,9 +230,13 @@ class LLMApprovalMixin:
         chosen = event["chosen_options"]
         if self.APPROVE not in chosen:
             if event.get("timedout"):
-                raise HITLRejectException("Output was rejected by the approval timeout default.")
+                raise HITLRejectException(
+                    "Output was rejected automatically: approval_timeout expired with "
+                    "on_approval_timeout='reject'."
+                )
             raise HITLRejectException(f"Output was rejected by the reviewer {responded_by_user}.")
 
+        log.info("Output approved by %s.", responded_by_user or "the approval timeout default")
         output = generated_output
         params_input: dict[str, Any] = {} if event.get("timedout") else event.get("params_input") or {}
 

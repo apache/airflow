@@ -201,8 +201,11 @@ approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
 When ``approval_timeout`` expires without a review, the task fails by default.
-Set ``on_approval_timeout="approve"`` or ``"reject"`` to answer the review with
-that option instead, so an unattended pipeline keeps moving:
+Set ``on_approval_timeout="approve"`` to return the generated output instead, so
+an unattended pipeline keeps moving.  ``"reject"`` answers the review with a
+rejection, which still fails this operator; only
+:class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
+turns a rejection into a downstream skip:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python

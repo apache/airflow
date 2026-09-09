@@ -440,6 +440,25 @@ class TestLLMBranchOperatorApproval:
         assert {t.task_id for t in mock_skip.call_args.kwargs["tasks"]} == expected
         mock_do_branch.assert_not_called()
 
+    @patch.object(LLMBranchOperator, "log")
+    @patch.object(LLMBranchOperator, "skip")
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_execute_complete_timed_out_reject_names_the_timeout_default(
+        self, mock_do_branch, mock_skip, mock_log
+    ):
+        op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c")
+        op.downstream_task_ids = {"task_a"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": None, "timedout": True}
+        task = MagicMock()
+        task.get_direct_relatives.return_value = []
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": MagicMock()}[key]})
+
+        op.execute_complete(ctx, generated_output="task_a", event=event)
+
+        mock_log.info.assert_called_once_with(
+            "Rejected by %s. Skipping downstream tasks...", "the approval timeout default"
+        )
+
     @patch.object(LLMBranchOperator, "do_branch")
     def test_execute_complete_reject_fails_with_fail_on_reject(self, mock_do_branch):
         op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", fail_on_reject=True)

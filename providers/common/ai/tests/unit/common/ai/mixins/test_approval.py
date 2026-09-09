@@ -438,8 +438,28 @@ class TestDeferForApproval:
     def test_timed_out_rejection_names_the_timeout_default(self, approval_op):
         event = {"chosen_options": ["Reject"], "responded_by_user": None, "timedout": True}
 
-        with pytest.raises(HITLRejectException, match="Output was rejected by the approval timeout default."):
+        with pytest.raises(
+            HITLRejectException,
+            match="Output was rejected automatically: approval_timeout expired with on_approval_timeout='reject'.",
+        ):
             approval_op.execute_complete({}, generated_output="output", event=event)
+
+    @pytest.mark.parametrize(
+        ("event", "expected_approver"),
+        [
+            ({"chosen_options": ["Approve"], "responded_by_user": "admin"}, "admin"),
+            (
+                {"chosen_options": ["Approve"], "responded_by_user": None, "timedout": True},
+                "the approval timeout default",
+            ),
+        ],
+        ids=["reviewer", "timeout_default"],
+    )
+    @patch("airflow.providers.common.ai.mixins.approval.log", autospec=True)
+    def test_approval_logs_who_approved(self, mock_log, approval_op, event, expected_approver):
+        approval_op.execute_complete({}, generated_output="output", event=event)
+
+        mock_log.info.assert_called_once_with("Output approved by %s.", expected_approver)
 
     def test_timed_out_approval_ignores_stale_params_input(self, approval_op_with_modifications):
         event = {

@@ -157,7 +157,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         except HITLRejectException:
             if self.fail_on_reject:
                 raise
-            self.log.info("Rejected by %s. Skipping downstream tasks...", event.get("responded_by_user"))
+            self.log.info(
+                "Rejected by %s. Skipping downstream tasks...",
+                event.get("responded_by_user") or "the approval timeout default",
+            )
             task = context["task"]
             tasks = (
                 task.get_flat_relatives(upstream=False)
