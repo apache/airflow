@@ -60,10 +60,10 @@ class PydanticAIHook(BaseHook):
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.6-sol"``).
         Overrides the model stored in the connection's extra field.
-    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
-        Overrides the embedding model stored in the connection's extra field.
     :param embed_conn_id: Optional separate Airflow connection ID for the embedding provider.
         Falls back to ``llm_conn_id`` when not provided.
+    :param embed_model_id: Embedding model identifier in ``provider:model`` format.
+            Overrides the embedding model stored in the connection's extra field.
     """
 
     conn_name_attr = "llm_conn_id"
