@@ -69,7 +69,11 @@ def sync_dags_to_db(
     def _write_dag(dag: DAG) -> SerializedDAG:
         data = DagSerialization.to_dict(dag)
         SerializedDagModel.write_dag(LazyDeserializedDAG(data=data), bundle_name, session=session)
-        return DagSerialization.from_dict(data)
+        session.flush()
+        serialized_dag = SerializedDagModel.get_dag(dag.dag_id, session=session)
+        if serialized_dag is None:
+            raise RuntimeError(f"Serialized DAG {dag.dag_id!r} was not found after writing to the database")
+        return serialized_dag
 
     SerializedDAG.bulk_write_to_db(bundle_name, None, dags, session=session)
     scheduler_dags = [_write_dag(dag) for dag in dags]

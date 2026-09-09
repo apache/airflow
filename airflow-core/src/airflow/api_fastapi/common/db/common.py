@@ -26,6 +26,7 @@ from collections.abc import AsyncGenerator, Generator, Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, overload
 
 from fastapi import Depends
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -36,6 +37,11 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.core_api.base import OrmClause
+
+# Rows a single scan reads. Result sets that fit are counted exactly; wider ones report a floor.
+# Shared by the dashboard's historical metrics and by cursor-paginated listings, which surface an
+# item count without counting every matching row — the point of cursor pagination on large tables.
+EXACT_COUNT_LIMIT = 50_000
 
 
 def _get_session() -> Generator[Session, None, None]:
@@ -57,6 +63,30 @@ def apply_filters_to_select(
         statement = f.to_orm(statement)
 
     return statement
+
+
+def bounded_total_entries(
+    *,
+    statement: Select,
+    filters: Sequence[OrmClause | None] | None = None,
+    session: Session,
+) -> tuple[int, int]:
+    """
+    Count the rows a cursor-paginated listing matches, reading at most ``EXACT_COUNT_LIMIT``.
+
+    Returns ``(total, limit)`` where ``total`` is ``min(actual_count, EXACT_COUNT_LIMIT)`` — a
+    ``total`` equal to ``limit`` means only that at least that many rows match — and ``limit`` is
+    the cap that was applied, for the caller to surface as ``total_entries_limit``.
+
+    The ``LIMIT`` sits inside the counted subquery so the database stops scanning once the cap is
+    reached, keeping the count cheap on tables that cursor pagination exists to handle. ORDER BY is
+    stripped for the same reason :func:`~airflow.utils.db.get_query_count` strips it: it cannot
+    change a count and only constrains the planner.
+    """
+    statement = apply_filters_to_select(statement=statement, filters=filters)
+    bounded = statement.order_by(None).limit(EXACT_COUNT_LIMIT).subquery()
+    total = session.scalar(select(func.count()).select_from(bounded)) or 0
+    return total, EXACT_COUNT_LIMIT
 
 
 async def _get_async_session() -> AsyncGenerator[AsyncSession, None]:
