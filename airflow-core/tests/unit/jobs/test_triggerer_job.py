@@ -1652,6 +1652,44 @@ class TestTriggerRunner:
         assert isinstance(err, TypeError)
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+    @pytest.mark.asyncio
+    async def test_create_triggers_fails_only_the_trigger_whose_init_raises(
+        self, mock_get_trigger_by_classpath, mock_decrypt_kwargs, cap_structlog
+    ) -> None:
+        class ValidatingTrigger(BaseTrigger):
+            def __init__(self, value):
+                super().__init__()
+                if value is None:
+                    raise ValueError("value must not be None")
+
+            def serialize(self):
+                return ("abc", {"value": None})
+
+            async def run(self):
+                yield TriggerEvent(True)
+
+        mock_get_trigger_by_classpath.return_value = ValidatingTrigger
+        mock_decrypt_kwargs.side_effect = [{"value": None}, {"value": 1}]
+        trigger_runner = TriggerRunner()
+        trigger_runner.to_create.extend(
+            workloads.RunTrigger.model_construct(id=trigger_id, classpath="abc", encrypted_kwargs="fake")
+            for trigger_id in (1, 2)
+        )
+
+        await trigger_runner.create_triggers()
+
+        [(trigger_id, err)] = trigger_runner.failed_triggers
+        assert trigger_id == 1
+        assert isinstance(err, ValueError)
+        assert {"event": "Trigger failed to inflate", "error": err} in cap_structlog
+        assert 1 not in trigger_runner.triggers
+        assert 2 in trigger_runner.triggers
+
+        trigger_runner.triggers[2]["task"].cancel()
+        await trigger_runner.cleanup_finished_triggers()
+
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     async def test_invalid_trigger(self, supervisor_builder):
