@@ -146,8 +146,7 @@ class Variable(Base, LoggingMixin):
         :param description: Default value to set Description of the Variable
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
-        :param session: Existing session to reuse for the metadata database read and write.
-            Callers holding an open transaction must pass it.
+        :param session: Existing SQLAlchemy Session. Callers holding an open transaction must pass it.
         :return: Mixed
         """
         obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json, session=session)
@@ -181,8 +180,7 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         :param team_name: Team name associated to the task trying to access the variable (if any)
-        :param session: Existing session to reuse for the metadata database lookup. Callers holding an
-            open transaction (the scheduler under ``prohibit_commit``, for example) must pass it.
+        :param session: Existing SQLAlchemy Session. Callers holding an open transaction must pass it.
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
