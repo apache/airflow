@@ -108,6 +108,18 @@ def get_provider_info():
             }
         ],
         "config": {
+            "apache_kafka": {
+                "description": "Common settings for the Apache Kafka Provider.\n",
+                "options": {
+                    "callback_allowlist": {
+                        "description": "Comma-separated list of callbacks that may be resolved from a Kafka\nconnection extra into confluent-kafka callback options (``error_cb``,\n``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``).\nEach entry is the full importable path of the callback itself — module\nplus attribute, e.g. ``my_company.kafka.auth.oauth_cb`` — matched exactly\nagainst the dotted-path string on the connection extra (a bare module such\nas ``my_company.kafka.auth`` won't lead to authorization of the callables\ninside it). This is enforced for security reasons, to prevent malicious\ncallbacks from being executed: only paths listed here are resolved, and any\nother string-valued callback is refused. Empty (default) disables\nstring-valued callbacks entirely. Managed authentication (Amazon MSK IAM,\nGoogle Managed Kafka) does not rely on this and is unaffected.\n",
+                        "version_added": "1.16.0",
+                        "type": "string",
+                        "example": "my_company.kafka.auth.oauth_cb",
+                        "default": "",
+                    }
+                },
+            },
             "kafka_event_producer": {
                 "description": "Settings for the Kafka event producer plugin that publishes Airflow\nDagRun and TaskInstance state-change events to a Kafka topic.\n",
                 "options": {
@@ -203,6 +215,6 @@ def get_provider_info():
                         "default": "60",
                     },
                 },
-            }
+            },
         },
     }

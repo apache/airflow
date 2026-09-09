@@ -27,7 +27,7 @@ import { RouterLink } from "src/system-components";
 
 import Time from "src/components/Time.tsx";
 
-import { getRelativeTime } from "src/utils/datetimeUtils.ts";
+import { useDurationFormat } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links.ts";
 
 const HITLReviewRow = ({ label, value }: { readonly label: string; readonly value: ReactNode }) => (
@@ -45,6 +45,7 @@ export const HITLReviewDetailSummary = ({
   readonly onOpenTask: () => void;
 }) => {
   const { t: translate } = useTranslation(["hitl", "common"]);
+  const { formatRelative } = useDurationFormat();
   const ti = detail.task_instance;
   const mappedIndex = ti.rendered_map_index ?? (ti.map_index >= 0 ? ti.map_index : undefined);
 
@@ -67,7 +68,7 @@ export const HITLReviewDetailSummary = ({
           value={
             <Text>
               <Time datetime={detail.created_at} />
-              {` (${getRelativeTime(detail.created_at)})`}
+              {` (${formatRelative(detail.created_at)})`}
             </Text>
           }
         />
