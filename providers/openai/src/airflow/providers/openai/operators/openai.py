@@ -104,10 +104,14 @@ class OpenAIResponseOperator(BaseOperator):
     :param max_output_tokens: Optional upper bound on the number of tokens generated for the
         response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
         Must be a positive integer -- an invalid value raises instead of silently disabling the
-        ceiling. Mutually exclusive with ``max_output_tokens`` in ``response_kwargs``.
+        ceiling. A blank or whitespace-only rendered value (for example ``{{ params.tokens or '' }}``
+        rendering to ``''``) is treated as unset, disabling the ceiling; the literal strings
+        ``"None"``, ``"none"`` and ``"null"`` are **not** treated as blank and still raise. Mutually
+        exclusive with ``max_output_tokens`` in ``response_kwargs`` -- this is checked at task
+        definition (Dag-parse) time, regardless of what the templated value later renders to.
     :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
-        make while generating the response. Same templating, type, and validation rules as
-        ``max_output_tokens``. Mutually exclusive with ``max_tool_calls`` in ``response_kwargs``.
+        make while generating the response. Same templating, type, validation, blank-as-unset, and
+        mutual-exclusion rules as ``max_output_tokens``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -136,6 +140,19 @@ class OpenAIResponseOperator(BaseOperator):
         self.response_kwargs = response_kwargs or {}
         self.max_output_tokens = max_output_tokens
         self.max_tool_calls = max_tool_calls
+        self._validate_no_response_kwargs_conflict()
+
+    def _validate_no_response_kwargs_conflict(self) -> None:
+        """Reject a ceiling set both as an operator argument and in ``response_kwargs``."""
+        for param_name, value in (
+            ("max_output_tokens", self.max_output_tokens),
+            ("max_tool_calls", self.max_tool_calls),
+        ):
+            if value is not None and param_name in self.response_kwargs:
+                raise ValueError(
+                    f"Task {self.task_id!r}: {param_name!r} was set both as an operator argument "
+                    "and in 'response_kwargs'; set it in only one place."
+                )
 
     @cached_property
     def hook(self) -> OpenAIHook:
@@ -160,19 +177,17 @@ class OpenAIResponseOperator(BaseOperator):
         return coerced
 
     def _build_response_kwargs(self) -> dict[str, Any]:
-        """Merge the token-ceiling arguments into ``response_kwargs``, rejecting duplicates."""
+        """Merge the token-ceiling arguments into ``response_kwargs``, skipping unset ceilings."""
         response_kwargs = dict(self.response_kwargs)
         for param_name, value in (
             ("max_output_tokens", self.max_output_tokens),
             ("max_tool_calls", self.max_tool_calls),
         ):
-            if value is None:
+            # A blank or whitespace-only rendered template means "no ceiling this run"
+            # (e.g. `{{ params.tokens or '' }}`); the conflict with response_kwargs was already
+            # rejected in __init__ regardless of what this renders to.
+            if value is None or (isinstance(value, str) and value.strip() == ""):
                 continue
-            if param_name in response_kwargs:
-                raise ValueError(
-                    f"{param_name!r} was set both as an operator argument and in 'response_kwargs'; "
-                    "set it in only one place."
-                )
             response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
         return response_kwargs
 

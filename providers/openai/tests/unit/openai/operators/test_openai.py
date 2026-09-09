@@ -154,6 +154,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
             pytest.param(10.5, id="float"),
             pytest.param(True, id="bool-true"),
             pytest.param(False, id="bool-false"),
+            pytest.param("None", id="literal-none-string"),
         ],
     )
     @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
@@ -169,22 +170,44 @@ class TestOpenAIResponseOperatorTokenCeilings:
 
         mock_hook_instance.create_response.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "operator_value",
+        [
+            pytest.param(100, id="int"),
+            pytest.param("", id="blank"),
+        ],
+    )
     @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
-    def test_ceiling_conflicting_with_response_kwargs_raises(self, param_name):
+    def test_ceiling_conflicting_with_response_kwargs_raises(self, param_name, operator_value):
+        # The conflict is a construction-time (Dag-parse) failure now: a blank operator_value
+        # (design decision C2's "unset" case) must not exempt the pair from the C3 check. If
+        # construction did not raise, pytest.raises itself fails the test with "DID NOT RAISE" --
+        # there is no operator instance afterwards to assert anything further against.
+        with pytest.raises(ValueError, match=param_name):
+            OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                response_kwargs={param_name: 50},
+                **{param_name: operator_value},
+            )
+
+    @pytest.mark.parametrize(
+        "blank_value", [pytest.param("", id="empty"), pytest.param("   ", id="whitespace")]
+    )
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_blank_ceiling_is_treated_as_unset(self, param_name, blank_value):
         operator = OpenAIResponseOperator(
-            task_id=TASK_ID,
-            conn_id=CONN_ID,
-            input_text="Write a haiku.",
-            response_kwargs={param_name: 50},
-            **{param_name: 100},
+            task_id=TASK_ID, conn_id=CONN_ID, input_text="Write a haiku.", **{param_name: blank_value}
         )
         mock_hook_instance = Mock(spec=OpenAIHook)
+        mock_hook_instance.create_response.return_value = _build_completed_response()
         operator.hook = mock_hook_instance
 
-        with pytest.raises(ValueError, match=param_name):
-            operator.execute(Context())
+        operator.execute(Context())
 
-        mock_hook_instance.create_response.assert_not_called()
+        call_kwargs = mock_hook_instance.create_response.call_args.kwargs
+        assert param_name not in call_kwargs
 
     def test_max_output_tokens_and_max_tool_calls_are_templated(self):
         operator = OpenAIResponseOperator(
