@@ -62,7 +62,7 @@ export const BrowseButton = ({
   readonly authorizedMenuItems: Array<MenuItem>;
   readonly externalViews: Array<NavItemResponse>;
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const authorizedLinks = links.filter(({ title }) => authorizedMenuItems.includes(title as MenuItem));
   const menuItems = authorizedLinks.map((link) => (
     <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>

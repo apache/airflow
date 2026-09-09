@@ -171,7 +171,7 @@ export const routerConfig = [
       },
       {
         element: <Security />,
-        path: "security/:page",
+        path: "security/:page/*",
       },
       {
         element: <Connections />,

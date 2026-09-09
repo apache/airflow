@@ -29,7 +29,7 @@ type LogoutModalProps = {
 };
 
 const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <ConfirmationModal

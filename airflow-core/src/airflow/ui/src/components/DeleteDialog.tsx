@@ -44,7 +44,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
   title,
   warningText,
 }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Dialog.Root data-testid="delete-dialog" lazyMount onOpenChange={onClose} open={open} unmountOnExit>

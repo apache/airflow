@@ -52,7 +52,7 @@ const buildGroups = (shortcuts: ReadonlyArray<ShortcutEntry>) =>
   }).filter((group) => group.items.length > 0);
 
 export const KeyboardShortcutsModal = () => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { shortcuts } = useShortcutRegistry();
   const [open, setOpen] = useState(false);
   const metaKey = getMetaKey();
