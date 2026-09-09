@@ -21,11 +21,23 @@ from typing import Any
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE = "airflow_connection_api_key"
+AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE = "airflow_connection_oauth2_client_credentials"
 _DEFAULT_EXTRA_KEYS = ("apiKey", "api_key", "apikey", "token", "access_token")
+# Supplied by the connection, so they are not passed through from the auth config
+_OAUTH2_CONNECTION_PROVIDED_KEYS = (
+    "type",
+    "conn_id",
+    "tokenEndpoint",
+    "token_endpoint",
+    "clientId",
+    "client_id",
+    "clientSecret",
+    "client_secret",
+)
 
 
 class OpenLineageAirflowConnectionAuthError(AirflowException):
-    """Raised when OpenLineage API key auth cannot be resolved from an Airflow connection."""
+    """Raised when OpenLineage auth cannot be resolved from an Airflow connection."""
 
 
 class OpenLineageAirflowConnectionConfigError(AirflowException):
@@ -104,28 +116,78 @@ class AirflowConnectionTokenProvider:
         return None
 
 
+class AirflowConnectionOAuth2ClientCredentialsProvider:
+    """
+    Resolve OAuth2 client credentials for OpenLineage HTTP transport from an Airflow connection.
+
+    The client ID is read from the connection login and the client secret from the connection password.
+    The token endpoint is read from ``tokenEndpoint`` in the auth config if set, otherwise from the
+    connection host. Any other auth options are passed through to the OpenLineage client's
+    ``oauth2_client_credentials`` token provider unchanged.
+    """
+
+    def __init__(self, config: dict[str, Any], default_conn_id: str | None = None) -> None:
+        self.config = config
+        self.conn_id = config.get("conn_id") or default_conn_id or ""
+        if not self.conn_id:
+            raise OpenLineageAirflowConnectionAuthError(
+                f"OpenLineage `{AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE}` auth requires a non-empty `conn_id`."
+            )
+
+    def get_auth_config(self) -> dict[str, Any]:
+        connection = BaseHook.get_connection(self.conn_id)
+        token_endpoint = (
+            self.config.get("tokenEndpoint") or self.config.get("token_endpoint") or connection.host
+        )
+        if not (connection.login and connection.password and token_endpoint):
+            raise OpenLineageAirflowConnectionAuthError(
+                f"OpenLineage `{AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE}` auth requires connection `{self.conn_id}` "
+                "to have login (client ID), password (client secret) and host (token endpoint, unless "
+                "`tokenEndpoint` is set in auth config)."
+            )
+        if not str(token_endpoint).startswith(("http://", "https://")):
+            raise OpenLineageAirflowConnectionAuthError(
+                f"OpenLineage `{AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE}` auth token endpoint "
+                f"`{token_endpoint}` must be a full URL. Define connection `{self.conn_id}` in JSON "
+                "format, as the URI format drops the scheme from the host."
+            )
+        options = {
+            key: value for key, value in self.config.items() if key not in _OAUTH2_CONNECTION_PROVIDED_KEYS
+        }
+        return {
+            "type": "oauth2_client_credentials",
+            **options,
+            "tokenEndpoint": token_endpoint,
+            "clientId": connection.login,
+            "clientSecret": connection.password,
+        }
+
+
 def resolve_airflow_connection_auth(config: dict[str, Any] | None, config_conn_id: str | None = None) -> None:
     """
-    Read the API key from an Airflow connection and put it into the OpenLineage config.
+    Read auth secrets from Airflow connections and put them into the OpenLineage config.
 
     OpenLineage config can contain one transport, a composite transport, or composite transports
     nested inside each other. This function walks through that structure and updates every matching
     ``auth`` block in place.
 
     This only makes sense for HTTP transports: ``airflow_connection_api_key`` is replaced with
-    ``{"type": "api_key", "apiKey": ...}``.
+    ``{"type": "api_key", "apiKey": ...}`` and ``airflow_connection_oauth2_client_credentials`` with
+    ``{"type": "oauth2_client_credentials", "clientId": ..., "clientSecret": ..., ...}``.
     """
     if not isinstance(config, dict):
         return
 
     for key, value in config.items():
-        if (
-            key == "auth"
-            and isinstance(value, dict)
-            and value.get("type") == AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE
-        ):
-            provider = AirflowConnectionTokenProvider(value, default_conn_id=config_conn_id)
-            config[key] = {"type": "api_key", "apiKey": provider.get_api_key()}
+        if key == "auth" and isinstance(value, dict):
+            if value.get("type") == AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE:
+                api_key_provider = AirflowConnectionTokenProvider(value, default_conn_id=config_conn_id)
+                config[key] = {"type": "api_key", "apiKey": api_key_provider.get_api_key()}
+            elif value.get("type") == AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE:
+                oauth2_provider = AirflowConnectionOAuth2ClientCredentialsProvider(
+                    value, default_conn_id=config_conn_id
+                )
+                config[key] = oauth2_provider.get_auth_config()
         elif key == "transports" and isinstance(value, list):
             for item in value:
                 resolve_airflow_connection_auth(item, config_conn_id=config_conn_id)

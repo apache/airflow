@@ -100,6 +100,45 @@ reads the API key from the same connection password by default. You can also set
 from another Airflow connection. The provider resolves ``airflow_connection_api_key`` to standard OpenLineage
 ``api_key`` auth before creating the OpenLineage client.
 
+.. _configuration_oauth2:openlineage:
+
+OAuth 2.0 client credentials authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If your OpenLineage backend issues short-lived access tokens with the OAuth 2.0 client credentials grant, use the
+``oauth2_client_credentials`` auth type of the OpenLineage Python client, described in the
+`Python client documentation <https://openlineage.io/docs/client/python/configuration#oauth2-client-credentials-token-provider>`_.
+It requests an access token from the token endpoint, caches it and requests a new one before it expires, and works with
+``http`` and ``async_http`` transports, including those nested in a ``composite`` transport.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "auth": {"type": "oauth2_client_credentials", "tokenEndpoint": "https://auth.example.com/oauth2/token", "clientId": "my-client-id", "clientSecret": "my-client-secret"}}
+
+Tokens are cached per process. With the default fork-based task event emission, each task event is emitted from a
+short-lived child process and requests its own token; enable :ref:`Execute In Thread <config:openlineage__execute_in_thread>`
+to reuse a token across events.
+
+To keep the client secret out of Airflow configuration, set ``auth.type`` to ``airflow_connection_oauth2_client_credentials``
+and store the credentials in an Airflow connection: login is the client ID, password is the client secret and host is the
+token endpoint. The client ID and secret always come from the connection, so setting them in ``auth`` has no effect, while
+every other option of the ``oauth2_client_credentials`` auth can be set there. The provider resolves the auth block before
+creating the OpenLineage client.
+
+``auth.conn_id`` selects the connection. When it is omitted, the connection given by ``config_conn_id`` is used, so set
+``tokenEndpoint`` in ``auth`` if that connection's host is not the token endpoint. Define the connection in JSON format:
+the URI format drops the scheme and path from the host, which cannot be used as a token endpoint.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "auth": {"type": "airflow_connection_oauth2_client_credentials", "conn_id": "openlineage_oauth2"}}
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_OPENLINEAGE_OAUTH2='{"conn_type": "generic", "login": "my-client-id", "password": "my-client-secret", "host": "https://auth.example.com/oauth2/token"}'
+
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
   `Python client documentation <https://openlineage.io/docs/client/python/configuration#transports>`_.
