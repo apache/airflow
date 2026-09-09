@@ -43,6 +43,7 @@ const HOURLY_KEY_FORMAT = `${DATE_FORMAT}THH`;
 
 // Calendar color constants
 export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
+export const BACKFILL_COLOR = { _dark: "purple.400", _light: "purple.500" };
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
 const RUNNING_COLOR = { _dark: "cyan.700", _light: "cyan.400" };
 
@@ -128,6 +129,7 @@ export const buildDeadlineDateMap = (
 
 export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunCounts => {
   const counts: { [K in keyof RunCounts]: number } = {
+    backfill: 0,
     failed: 0,
     planned: 0,
     queued: 0,
@@ -141,6 +143,9 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 
     if (state in counts) {
       counts[state] += count;
+    }
+    if (run.is_backfill === true) {
+      counts.backfill += count;
     }
     counts.total += count;
   });

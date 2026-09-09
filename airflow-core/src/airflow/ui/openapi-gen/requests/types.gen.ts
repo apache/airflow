@@ -2277,6 +2277,7 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';

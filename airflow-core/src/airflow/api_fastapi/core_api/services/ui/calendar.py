@@ -42,6 +42,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.types import DagRunType
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -103,10 +104,16 @@ class CalendarService:
         effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
         time_expression = self._get_time_truncation_expression(effective_date, granularity, dialect)
 
+        is_backfill_expression = sa.case(
+            (DagRun.run_type == DagRunType.BACKFILL_JOB, sa.literal(True)),
+            else_=sa.literal(False),
+        )
+
         select_stmt = (
             sa.select(
                 time_expression.label("datetime"),
                 DagRun.state,
+                is_backfill_expression.label("is_backfill"),
                 sa.func.max(DagRun.data_interval_start).label("data_interval_start"),
                 sa.func.max(DagRun.data_interval_end).label("data_interval_end"),
                 sa.func.max(DagRun.run_after).label("run_after"),
@@ -114,7 +121,7 @@ class CalendarService:
                 sa.func.count("*").label("count"),
             )
             .where(DagRun.dag_id == dag_id)
-            .group_by(time_expression, DagRun.state)
+            .group_by(time_expression, DagRun.state, is_backfill_expression)
             .order_by(time_expression.asc())
         )
 
@@ -127,6 +134,7 @@ class CalendarService:
                 date=ds.datetime,
                 state=ds.state,
                 count=int(ds._mapping["count"]),
+                is_backfill=bool(ds._mapping["is_backfill"]),
             )
             for ds in dag_states
         ]

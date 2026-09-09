@@ -35,6 +35,7 @@ const DEFAULT_FAILED_COLOR = { _dark: "red.700", _light: "red.400" };
 const DEFAULT_RUNNING_COLOR = { _dark: "cyan.700", _light: "cyan.400" };
 
 const EMPTY_COUNTS: RunCounts = {
+  backfill: 0,
   failed: 0,
   planned: 0,
   queued: 0,
@@ -50,8 +51,14 @@ const run = (
 ): CalendarTimeRangeResponse => ({
   count,
   date,
+  is_backfill: false,
   state,
 });
+
+const backfillRun = (
+  state: CalendarTimeRangeResponse["state"],
+  count: number,
+): CalendarTimeRangeResponse => ({ ...run(state, count), is_backfill: true });
 
 describe("calculateRunCounts", () => {
   it("counts each calendar state and includes all states in total", () => {
@@ -64,12 +71,27 @@ describe("calculateRunCounts", () => {
         run("planned", 5),
       ]),
     ).toEqual({
+      backfill: 0,
       failed: 1,
       planned: 5,
       queued: 4,
       running: 3,
       success: 2,
       total: 15,
+    });
+  });
+
+  it("counts backfill runs separately from their state", () => {
+    expect(
+      calculateRunCounts([backfillRun("success", 1), backfillRun("failed", 2), run("success", 3)]),
+    ).toEqual({
+      backfill: 3,
+      failed: 2,
+      planned: 0,
+      queued: 0,
+      running: 0,
+      success: 4,
+      total: 6,
     });
   });
 });

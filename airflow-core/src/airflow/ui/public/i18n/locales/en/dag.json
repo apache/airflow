@@ -6,6 +6,7 @@
     "title": "Dependencies Blocking Task From Getting Scheduled"
   },
   "calendar": {
+    "backfill": "Backfill",
     "daily": "Daily",
     "hourly": "Hourly",
     "legend": {

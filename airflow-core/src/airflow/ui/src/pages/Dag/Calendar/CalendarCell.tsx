@@ -22,6 +22,7 @@ import { FiAlertTriangle, FiClock } from "react-icons/fi";
 import { BasicTooltip } from "src/components/BasicTooltip";
 
 import { CalendarTooltip } from "./CalendarTooltip";
+import { BACKFILL_COLOR } from "./calendarUtils";
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
 type Props = {
@@ -59,7 +60,11 @@ export const CalendarCell = ({
   const runStates = cellData
     ? Object.entries(cellData.counts)
         .filter(
-          ([key, value]) => key !== "total" && value > 0 && (viewMode === "failed" ? key === "failed" : true),
+          ([key, value]) =>
+            key !== "total" &&
+            key !== "backfill" &&
+            value > 0 &&
+            (viewMode === "failed" ? key === "failed" : true),
         )
         .map(([key]) => key)
     : [];
@@ -89,6 +94,20 @@ export const CalendarCell = ({
     >
       <DeadlineIcon />
     </Box>
+  ) : undefined;
+
+  const hasBackfill = (cellData?.counts.backfill ?? 0) > 0;
+  const backfillIndicator = hasBackfill ? (
+    <Box
+      bg={BACKFILL_COLOR}
+      borderRadius="full"
+      data-testid="backfill-indicator"
+      height="7px"
+      position="absolute"
+      right="1px"
+      top="1px"
+      width="7px"
+    />
   ) : undefined;
 
   const cellBox = isMixedState ? (
@@ -121,6 +140,7 @@ export const CalendarCell = ({
         width="100%"
       />
       {deadlineIndicator}
+      {backfillIndicator}
     </Box>
   ) : (
     <Box
@@ -138,6 +158,7 @@ export const CalendarCell = ({
       width="14px"
     >
       {deadlineIndicator}
+      {backfillIndicator}
     </Box>
   );
 

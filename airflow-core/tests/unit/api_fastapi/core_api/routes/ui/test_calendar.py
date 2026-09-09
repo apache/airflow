@@ -81,11 +81,31 @@ class TestCalendar:
                 {
                     "total_entries": 5,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1},
-                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
-                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
-                        {"date": "2025-01-02T00:00:00Z", "state": "planned", "count": 1},
-                        {"date": "2025-01-03T00:00:00Z", "state": "planned", "count": 2},
+                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
+                        {
+                            "date": "2025-01-01T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-03T00:00:00Z",
+                            "state": "planned",
+                            "count": 2,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -94,8 +114,13 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1},
-                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
+                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
+                        {
+                            "date": "2025-01-01T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -104,8 +129,18 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
-                        {"date": "2025-01-02T00:00:00Z", "state": "planned", "count": 1},
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -128,12 +163,37 @@ class TestCalendar:
                 {
                     "total_entries": 6,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1},
-                        {"date": "2025-01-01T01:00:00Z", "state": "success", "count": 1},
-                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
-                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
-                        {"date": "2025-01-03T00:00:00Z", "state": "planned", "count": 1},
-                        {"date": "2025-01-03T01:00:00Z", "state": "planned", "count": 1},
+                        {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
+                        {
+                            "date": "2025-01-01T01:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T01:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-03T00:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-03T01:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -146,8 +206,18 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
-                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T01:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -175,8 +245,18 @@ class TestCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
-                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
+                        {
+                            "date": "2025-01-02T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-02T01:00:00Z",
+                            "state": "planned",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -254,10 +334,25 @@ class TestPartitionedCalendar:
                 {
                     "total_entries": 4,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
-                        {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1},
-                        {"date": "2025-01-03T00:00:00Z", "state": "success", "count": 1},
-                        {"date": "2025-01-04T00:00:00Z", "state": "running", "count": 1},
+                        {
+                            "date": "2025-01-01T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
+                        {
+                            "date": "2025-01-03T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-04T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -266,8 +361,13 @@ class TestPartitionedCalendar:
                 {
                     "total_entries": 2,
                     "dag_runs": [
-                        {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1},
-                        {"date": "2025-01-03T00:00:00Z", "state": "success", "count": 1},
+                        {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
+                        {
+                            "date": "2025-01-03T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -276,7 +376,12 @@ class TestPartitionedCalendar:
                 {
                     "total_entries": 1,
                     "dag_runs": [
-                        {"date": "2025-01-04T00:00:00Z", "state": "running", "count": 1},
+                        {
+                            "date": "2025-01-04T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -297,10 +402,25 @@ class TestPartitionedCalendar:
                 {
                     "total_entries": 4,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
-                        {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1},
-                        {"date": "2025-01-03T00:00:00Z", "state": "success", "count": 1},
-                        {"date": "2025-01-04T00:00:00Z", "state": "running", "count": 1},
+                        {
+                            "date": "2025-01-01T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
+                        {
+                            "date": "2025-01-03T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
+                        {
+                            "date": "2025-01-04T00:00:00Z",
+                            "state": "running",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -313,7 +433,12 @@ class TestPartitionedCalendar:
                 {
                     "total_entries": 1,
                     "dag_runs": [
-                        {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1},
+                        {
+                            "date": "2025-01-01T00:00:00Z",
+                            "state": "success",
+                            "count": 1,
+                            "is_backfill": False,
+                        },
                     ],
                 },
             ),
@@ -363,6 +488,58 @@ class TestCalendarPlannedRunsCap:
         assert response.status_code == 200
         planned = [r for r in response.json()["dag_runs"] if r["state"] == "planned"]
         assert sum(r["count"] for r in planned) == CalendarService.MAX_PLANNED_RUNS
+
+
+class TestCalendarBackfill:
+    """Historical runs must expose whether they came from a backfill."""
+
+    DAG_NAME = "test_backfill_calendar_dag"
+
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule="0 0,1 * * *",
+            start_date=datetime(2025, 1, 1),
+            end_date=datetime(2025, 1, 1, 1),
+            catchup=True,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        dag_maker.create_dagrun(
+            run_id="scheduled_run",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.SCHEDULED,
+            logical_date=datetime(2025, 1, 1),
+        )
+        dag_maker.create_dagrun(
+            run_id="backfill_run",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.BACKFILL_JOB,
+            logical_date=datetime(2025, 1, 1, 1),
+        )
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_backfill_and_scheduled_runs_split_by_is_backfill(self, test_client):
+        response = test_client.get(f"/calendar/{self.DAG_NAME}")
+        assert response.status_code == 200
+        historical = sorted(
+            (r for r in response.json()["dag_runs"] if r["state"] != "planned"),
+            key=lambda r: r["is_backfill"],
+        )
+        assert historical == [
+            {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1, "is_backfill": False},
+            {"date": "2025-01-01T00:00:00Z", "state": "success", "count": 1, "is_backfill": True},
+        ]
 
 
 _CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.ui.test_calendar._noop_callback"
