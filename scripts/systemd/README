@@ -9,3 +9,25 @@ By default the environment configuration points to /etc/sysconfig/airflow . You 
 directory and adjust it to your liking.
 
 With some minor changes they probably work on other systemd systems.
+
+Required services
+-----------------
+
+Since Airflow 3.0 the airflow processes that handle the different components are split into separate services. At a
+minimum you need to run the following services:
+
+* airflow-scheduler.service
+* airflow-dag-processor.service
+* airflow-webserver.service or airflow-api.service
+
+Additionally the following services are available and can be enabled as needed:
+
+* airflow-triggerer.service for deferrable task triggering (required only if you use deferrable tasks or event
+  scheduling)
+* airflow-worker.service for a Celery worker
+* airflow-flower.service for a Flower monitoring interface
+* airflow-kerberos.service for the Kerberos renewal daemon
+
+The ``/api/v2/monitor/health`` endpoint reports ``dag_processor`` and ``triggerer`` as ``unhealthy`` when no
+corresponding service is running, so make sure the services you depend on are started. See the "Checking Airflow
+Health Status" documentation for details.
