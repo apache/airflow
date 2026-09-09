@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import anyio
+import anyio.to_thread
 from pagefind.index import IndexConfig, PagefindIndex
 from sphinx.util.fileutil import copy_asset
 

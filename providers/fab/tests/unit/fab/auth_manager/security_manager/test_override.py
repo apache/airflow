@@ -63,6 +63,24 @@ def _create_azure_jwt(
     return token.decode("utf-8") if isinstance(token, bytes) else token
 
 
+AUTHENTIK_ISSUER = "https://authentik.example.com/application/o/airflow/"
+
+
+def _create_authentik_jwt(
+    key,
+    iss=AUTHENTIK_ISSUER,
+    aud=CLIENT_ID,
+    sub="user-sub",
+    kid="test-kid",
+) -> str:
+    token = authlib_jwt.encode(
+        {"alg": "RS256", "kid": kid},
+        {"iss": iss, "aud": aud, "sub": sub},
+        key,
+    )
+    return token.decode("utf-8") if isinstance(token, bytes) else token
+
+
 def _create_mock_response(*, status_code=200, json_data=None, json_side_effect=None) -> Mock:
     response = Mock(spec=requests.Response)
     response.status_code = status_code
@@ -1059,6 +1077,137 @@ class TestFabAirflowSecurityManagerOverride:
         ):
             with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'aud'"):
                 sm._decode_and_validate_azure_jwt(id_token)
+
+    def _authentik_security_manager(self):
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "authentik": SimpleNamespace(
+                client_kwargs={},
+                client_id=CLIENT_ID,
+                server_metadata={
+                    "jwks_uri": "https://authentik.example.com/application/o/airflow/jwks/",
+                    "issuer": AUTHENTIK_ISSUER,
+                },
+            )
+        }
+        return sm
+
+    def test_get_authentik_token_info_accepts_a_token_for_this_application(self):
+        """A correctly-addressed token still authenticates."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key)
+
+        sm = self._authentik_security_manager()
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            claims = sm._get_authentik_token_info(id_token)
+
+        assert claims["aud"] == CLIENT_ID
+        assert claims["iss"] == AUTHENTIK_ISSUER
+
+    def test_get_authentik_token_info_rejects_audience_mismatch(self):
+        """A token the same provider minted for another application is rejected.
+
+        The provider signs every application's tokens with one key set, so a valid
+        signature does not establish that the token was addressed to Airflow.
+        """
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, aud="some-other-application")
+
+        sm = self._authentik_security_manager()
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'aud'"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_rejects_issuer_mismatch(self):
+        """A token from a different provider is rejected even if its signature verifies."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, iss="https://evil.example.com/application/o/x/")
+
+        sm = self._authentik_security_manager()
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'iss'"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_fails_closed_without_an_issuer(self):
+        """No discoverable issuer is refused outright rather than downgraded.
+
+        Falling back to an audience-only check would still accept a token minted by an
+        untrusted issuer whenever the configured key set signs for more than one, so the
+        token this asserts on carries the *correct* audience and a *wrong* issuer -- the
+        exact shape an audience-only fallback would let through.
+        """
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, iss="https://evil.example.com/application/o/x/")
+
+        sm = self._authentik_security_manager()
+        sm.oauth_remotes["authentik"].server_metadata.pop("issuer")
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(FabException, match="no issuer is available"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_accepts_a_configured_issuer_override(self):
+        """A manually configured issuer restores verification when metadata lacks one."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key)
+
+        sm = self._authentik_security_manager()
+        sm.oauth_remotes["authentik"].server_metadata.pop("issuer")
+        sm.oauth_remotes["authentik"].client_kwargs["issuer"] = AUTHENTIK_ISSUER
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            claims = sm._get_authentik_token_info(id_token)
+
+        assert claims["iss"] == AUTHENTIK_ISSUER
+
+    def test_get_authentik_token_info_override_still_rejects_a_foreign_issuer(self):
+        """The override pins the issuer; it does not merely satisfy the presence check."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, iss="https://evil.example.com/application/o/x/")
+
+        sm = self._authentik_security_manager()
+        sm.oauth_remotes["authentik"].server_metadata.pop("issuer")
+        sm.oauth_remotes["authentik"].client_kwargs["issuer"] = AUTHENTIK_ISSUER
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'iss'"):
+                sm._get_authentik_token_info(id_token)
 
     @pytest.mark.parametrize(
         ("response_kwargs", "request_side_effect", "error_match"),
