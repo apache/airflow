@@ -173,6 +173,10 @@ To check if any scheduler is running when you are using high availability, run:
 
     airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
 
+``--limit`` caps how many jobs are inspected, starting with the ones that reported a heartbeat most
+recently. Set it to ``0`` to inspect all of them, so that no scheduler is missed regardless of how
+many are running.
+
 CLI Check for Database
 ----------------------
 

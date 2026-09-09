@@ -1225,7 +1225,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         NOTE:  The way batch inference jobs work, your jobs are added to a queue and done "eventually"
         so using deferrable mode is much more practical than using wait_for_completion.
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
-    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)

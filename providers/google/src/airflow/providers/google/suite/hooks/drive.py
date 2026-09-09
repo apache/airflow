@@ -225,7 +225,7 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         query = f"name = '{file_name}'"
         if folder_id:
-            query += f" and parents in '{folder_id}'"
+            query += f" and '{folder_id}' in parents"
 
         if not include_trashed:
             query += " and trashed=false"
