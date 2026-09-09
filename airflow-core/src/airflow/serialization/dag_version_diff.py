@@ -360,7 +360,9 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
             partial_kwargs = task_data.get("partial_kwargs", {})
             if not isinstance(partial_kwargs, Mapping):
                 raise ValueError("partial_kwargs is not an object")
-            effective_partial_kwargs = dict(task_defaults)
+            # populate_operator only folds client defaults into partial_kwargs when the payload
+            # carries the key, so an absent one leaves the top-level value as the effective value.
+            effective_partial_kwargs = dict(task_defaults) if "partial_kwargs" in task_data else {}
             effective_partial_kwargs.update(partial_kwargs)
             # Match populate_operator: partial values take precedence over outer task defaults.
             for field in partial_fields & task_data.keys():
