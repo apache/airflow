@@ -35,14 +35,19 @@ Proposed. Revised after the review on #72047.
    silently left out of the graph.
 4. **`before` and `after` draw order-only edges** — the TypeScript pair for `>>` and `<<`, both
    variadic so one call fans out.
-5. **A handler is a plain function of its own data**; `getContext()` and `getClient()` supply the rest.
-6. **One registration verb**: `bundle.register(dag)`, the same call that takes stub handlers, with
+5. **The Dag file owns Dag-level and task-level configuration.** `new Dag(dagId, spec)` carries the
+   schedule and the rest of `DagSpec`; `dag.task(taskId, handler, spec)` carries per-task options
+   such as retries. Python owns both in the mixed-language case
+   ([ADR-0001](0001-mixed-lang-dag-interface.md)), which is the difference between the two modes.
+6. **A handler is a plain function of its own data**; `getContext()` and `getClient()` supply the rest.
+7. **One registration verb**: `bundle.register(dag)`, the same call that takes stub handlers, with
    `await bundle.serve()` starting the runtime ([ADR-0001](0001-mixed-lang-dag-interface.md)).
 
 ## Context
 
 A Dag authored with no Python stub file has no `@task.stub` call site to declare its graph, so
-TypeScript itself must express both the graph and the task bodies. This ADR covers only what that
+TypeScript itself must express everything Python would otherwise own: the schedule and the rest of
+the Dag-level configuration, each task's own options, the graph, and the task bodies. This ADR covers only what that
 call site looks like for a user. `Dag` here is exclusively the native case; the mixed-language case
 registers stub handlers instead ([ADR-0001](0001-mixed-lang-dag-interface.md)). Both share the
 protocol substrate recorded in
@@ -53,15 +58,19 @@ protocol substrate recorded in
 ```ts
 import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
 
-const dag = new Dag("ts_etl");
+const dag = new Dag("ts_etl", { schedule: "@daily", catchup: false, tags: ["etl"] });
 
 const extract = dag.task("extract", async (): Promise<number> => 42);
 
 const transform = dag.task("transform", async ({ extracted }: { extracted: number }) => extracted * 2);
 
-const load = dag.task("load", async ({ transformed }: { transformed: number }) => {
-  await getClient().setXCom({ key: "loaded", value: transformed });
-});
+const load = dag.task(
+  "load",
+  async ({ transformed }: { transformed: number }) => {
+    await getClient().setXCom({ key: "loaded", value: transformed });
+  },
+  { retries: 2 },
+);
 
 const extracted = extract();
 const transformed = transform({ extracted });
@@ -71,6 +80,10 @@ const bundle = new Bundle();
 bundle.register(dag);
 await bundle.serve();
 ```
+
+The schedule on the `Dag` and the retries on `load` are the point of a native Dag: nothing outside
+this file declares them. A mixed-language handler cannot carry either, because the Python Dag it
+belongs to already does.
 
 One statement per task, with each ref named, is the form to write. Nesting the calls
 (`load({ transformed: transform({ extracted: extract() }) })`) is legal and equivalent, but it is
@@ -100,8 +113,14 @@ convention.
 - One authoring surface (`dag.task()` plus its factory) covers the graph and each task's arguments,
   and `before`/`after` cover edges that carry nothing.
 - Handlers are unit-testable as plain functions of their data, with no SDK fixture to construct.
-- `DagSpec`/`TaskSpec` are unaffected. They are the language-neutral Dag configuration surface, not
-  the argument-binding one.
+- `DagSpec` and `TaskSpec` are empty placeholders today — `Record<string, never>`
+  (`ts-sdk/src/sdk/dag.ts`), so `new Dag("d", { schedule: "@daily" })` is currently a compile error
+  by design. Native declaration is what fills them, generated from the serialized-Dag JSON schema the
+  way `src/generated/supervisor.ts` is. This ADR does not choose those fields; it fixes where an
+  author writes them.
+- `TaskOptions` collapses into `TaskSpec`. The shipped third argument to `dag.task` is
+  `{ inputs, spec }`; with wiring moved to the factory call, `inputs` is no longer an option and the
+  third argument is the spec itself.
 - `TaskHandlerArgs` is removed from the public API, `DagRegistry` becomes `Bundle`, and
   `serveDags(registry)` becomes `bundle.serve()`, which breaks
   0.1.0-beta1 authors; see [ADR-0001](0001-mixed-lang-dag-interface.md) for the shipped call sites
@@ -129,6 +148,9 @@ convention.
   the same object, which forced every typed handler to declare `TArgs & TaskHandlerArgs` and left the
   top-level argument namespace open to collisions with an author's own parameter names. Getters close
   both.
+- **The spec argument already has its slot.** `dag.task(taskId, handler, options)` reads
+  `{ inputs = {}, spec = {} }` and runs `validateEmptySpec` on the spec today
+  (`ts-sdk/src/sdk/dag.ts`), so task fields land on a path that exists rather than a new one.
 - **A `TaskRef` is inert** — a handle for wiring, not a promise. Nothing in a Dag file executes a task
   body.
 - **`withArgNames` and the name folding behind it** ([ADR-0001](0001-mixed-lang-dag-interface.md))
