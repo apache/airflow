@@ -234,6 +234,21 @@ class TestConnections:
         connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
         assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
 
+    def test_password_is_masked(self):
+        """Test that the password is masked, whether set via kwargs or a URI."""
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+        masker = _secrets_masker()
+        masker.reset_masker()
+
+        Connection(conn_id="test_conn", conn_type="azure", login="client_id", password="sp-secret")
+        assert masker.redact("sp-secret") == "***"
+
+        masker.reset_masker()
+
+        Connection.from_uri("azure://client_id:sp-secret@?tenantId=tenant", conn_id="test_conn")
+        assert masker.redact("sp-secret") == "***"
+
 
 class TestConnectionsFromSecrets:
     def test_get_connection_secrets_backend(self, mock_supervisor_comms, tmp_path):

@@ -153,6 +153,12 @@ class Connection:
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
+        if self.password:
+            from airflow.sdk.log import mask_secret
+
+            mask_secret(self.password)
+            mask_secret(quote(self.password))
+
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
         from urllib.parse import parse_qsl
