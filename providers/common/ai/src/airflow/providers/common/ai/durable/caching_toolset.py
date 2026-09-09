@@ -47,7 +47,9 @@ class CachingToolset(WrapperToolset[Any]):
     If so, returns the cached result without executing the tool. Otherwise,
     executes the tool and caches the result. A fingerprint mismatch means the
     conversation diverged from the previous attempt; the stale entry is
-    discarded and the tool runs live.
+    discarded and the tool runs live. A call that cannot be fingerprinted is
+    neither replayed nor cached: an entry stored without a fingerprint could
+    never be verified on a later attempt.
 
     The step index is grabbed before the first ``await``, so parallel tool
     calls via ``asyncio.gather`` get deterministic indices (tasks start
@@ -89,6 +91,15 @@ class CachingToolset(WrapperToolset[Any]):
             )
 
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
+        if fingerprint is None:
+            # Storing this would write an entry the guard above can never accept,
+            # once per step, each write rewriting the whole cache blob.
+            log.debug(
+                "Durable: not caching tool result that cannot be verified on replay",
+                step=step,
+                tool=name,
+            )
+            return result
         self.storage.save_tool_result(key, result, fingerprint=fingerprint)
         self.counter.cached_tool += 1
         log.debug("Durable: cached tool result", step=step, tool=name)
