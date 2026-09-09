@@ -1577,7 +1577,7 @@ class TestDagRun:
             "required_dagrun_column": "logical_date",
             "log_level": "warning",
         } in caplog
-        assert "Could not find DagRun" not in caplog.text
+        assert not any("Could not find DagRun" in record.message for record in caplog.records)
 
     def test_dagrun_deadline_does_not_warn_for_average_runtime_without_history(
         self, session, deadline_test_dag, caplog
