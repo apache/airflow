@@ -841,6 +841,23 @@ class TestGetAssetsUi:
         assert response_not_alias.status_code == 200
         assert [a["name"] for a in response_not_alias.json()["assets"]] == ["not_aliased"]
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filter_by_consuming_dag_id(self, test_client, session):
+        referenced = AssetModel(name="referenced", uri="s3://bucket/consuming_dag_referenced", group="asset")
+        unreferenced = AssetModel(
+            name="unreferenced", uri="s3://bucket/consuming_dag_unreferenced", group="asset"
+        )
+        session.add_all([referenced, unreferenced])
+        session.add(AssetActive.for_asset(referenced))
+        session.add(AssetActive.for_asset(unreferenced))
+        session.add(DagModel(dag_id="consumer_dag", bundle_name="testing"))
+        session.add(DagScheduleAssetReference(dag_id="consumer_dag", asset=referenced))
+        session.commit()
+
+        response = test_client.get("/assets?consuming_dag_id=consumer_dag")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["referenced"]
+
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of
         how many assets are returned (a lazy-loading regression would issue queries per asset).

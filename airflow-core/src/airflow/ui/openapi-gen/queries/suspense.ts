@@ -174,6 +174,7 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <TData = Common.Ass
 * @param data.dagIds
 * @param data.hasEvents
 * @param data.isAlias
+* @param data.consumingDagId
 * @param data.onlyActive
 * @param data.lastAssetEventTimestampGte
 * @param data.lastAssetEventTimestampGt
@@ -183,7 +184,8 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <TData = Common.Ass
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+  consumingDagId?: string;
   dagIds?: string[];
   groupPattern?: string;
   groupPrefixPattern?: string;
@@ -202,7 +204,7 @@ export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGe
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ consumingDagId, dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
 /**
 * Next Run Assets
 * @param data The data for the request.

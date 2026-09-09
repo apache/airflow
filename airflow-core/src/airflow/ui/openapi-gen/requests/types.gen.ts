@@ -3064,6 +3064,7 @@ export type DeleteDagAssetQueuedEventData = {
 export type DeleteDagAssetQueuedEventResponse = void;
 
 export type GetAssetsUiData = {
+    consumingDagId?: string | null;
     dagIds?: Array<(string)>;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".

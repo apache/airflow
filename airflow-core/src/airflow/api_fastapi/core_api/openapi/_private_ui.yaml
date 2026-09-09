@@ -225,6 +225,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Is Alias
+      - name: consuming_dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Consuming Dag Id
       - name: only_active
         in: query
         required: false

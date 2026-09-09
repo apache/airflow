@@ -423,6 +423,7 @@ export class AssetService {
      * @param data.dagIds
      * @param data.hasEvents
      * @param data.isAlias
+     * @param data.consumingDagId
      * @param data.onlyActive
      * @param data.lastAssetEventTimestampGte
      * @param data.lastAssetEventTimestampGt
@@ -449,6 +450,7 @@ export class AssetService {
                 dag_ids: data.dagIds,
                 has_events: data.hasEvents,
                 is_alias: data.isAlias,
+                consuming_dag_id: data.consumingDagId,
                 only_active: data.onlyActive,
                 last_asset_event_timestamp_gte: data.lastAssetEventTimestampGte,
                 last_asset_event_timestamp_gt: data.lastAssetEventTimestampGt,

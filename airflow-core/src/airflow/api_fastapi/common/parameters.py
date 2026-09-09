@@ -1179,6 +1179,22 @@ class _AssetIsAlias(BaseParam[bool]):
         return select
 
 
+class _ConsumingDagAssetsFilter(BaseParam[str]):
+    """Filter on the basis of consuming dag."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+
+    @classmethod
+    def depends(cls, consuming_dag_id: str | None = Query(default=None)) -> _ConsumingDagAssetsFilter:
+        return cls().set_value(consuming_dag_id)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(AssetModel.scheduled_dags.any(dag_id=self.value))
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -1907,6 +1923,10 @@ QueryAssetDagIdPatternSearch = Annotated[
 QueryAssetHasEventsFilter = Annotated[_AssetHasEvent, Depends(_AssetHasEvent.depends)]
 
 QueryAssetIsAliasFilter = Annotated[_AssetIsAlias, Depends(_AssetIsAlias.depends)]
+
+QueryConsumingDagAssetsFilter = Annotated[
+    _ConsumingDagAssetsFilter, Depends(_ConsumingDagAssetsFilter.depends)
+]
 QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
     FilterParam[bool | None],
