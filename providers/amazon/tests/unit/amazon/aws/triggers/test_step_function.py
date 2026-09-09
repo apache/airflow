@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
 from airflow.triggers.base import TriggerEvent
@@ -87,3 +88,43 @@ class TestStepFunctionsExecutionCompleteTrigger:
             self.EXPECTED_WAITER_NAME, deferrable=True, client=mock.ANY, config_overrides=None
         )
         assert mock_get_waiter().wait.call_args.kwargs["executionArn"] == self.EXECUTION_ARN
+
+    def test_serialization_with_verify_and_botocore_config(self):
+        trigger = StepFunctionsExecutionCompleteTrigger(
+            execution_arn=self.EXECUTION_ARN,
+            aws_conn_id="aws_step_function_conn",
+            region_name="eu-central-1",
+            verify=False,
+            botocore_config={"connect_timeout": 30},
+        )
+
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == BASE_TRIGGER_CLASSPATH + "StepFunctionsExecutionCompleteTrigger"
+        assert kwargs["verify"] is False
+        assert kwargs["botocore_config"] == {"connect_timeout": 30}
+
+    def test_serialization_omits_unset_hook_params(self):
+        trigger = StepFunctionsExecutionCompleteTrigger(execution_arn=self.EXECUTION_ARN)
+
+        _, kwargs = trigger.serialize()
+
+        assert "region_name" not in kwargs
+        assert "verify" not in kwargs
+        assert "botocore_config" not in kwargs
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.base.async_wait")
+    @mock.patch.object(StepFunctionHook, "get_waiter")
+    @mock.patch.object(StepFunctionHook, "get_async_conn")
+    async def test_run_failure(self, mock_async_conn, mock_get_waiter, mock_async_wait):
+        mock_async_conn.return_value.__aenter__.return_value = mock.MagicMock()
+        mock_async_wait.side_effect = AirflowException("Step function failed")
+        trigger = StepFunctionsExecutionCompleteTrigger(execution_arn=self.EXECUTION_ARN)
+
+        generator = trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent(
+            {"status": "error", "message": "Step function failed", "execution_arn": self.EXECUTION_ARN}
+        )
