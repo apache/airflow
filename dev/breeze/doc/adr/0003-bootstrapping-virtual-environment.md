@@ -88,7 +88,7 @@ of the CI is stored in the same repository as the source code of the
 application it tests and part of the Breeze functions are shared with CI.
 
 In the future when breeze stabilizes and its update cadence will be
-much slower (which is likele as it happened with the Breeze predecessor)
+much slower (which is likely as it happened with the Breeze predecessor)
 there could be an option that Breeze is installed as separate package and
 same released Breeze version could be ued to manage multiple Airflow
 versions, for that we might want to release Breeze as a separate package
@@ -173,7 +173,7 @@ The alternatives considered were:
   additional tool that needs to be installed and it lacks
   the automation of checking and recreation of the virtualenv
   when needed (you need to manually run nox to update environment)
-  Alsoi it is targeted for building multiple virtualenv
+  Also it is targeted for building multiple virtualenv
   for tests - it has nice pytest integration for example, but it
   lacks support for managing editable installs for a long time.
 
@@ -203,5 +203,5 @@ having to install any prerequisites. The virtualenv used by
 breeze will be hidden from the user, and used behind the
 scenes - and the dependencies used will be automatically
 installed when needed. This will allow to seamlessly
-integrate Breeze tool in the develiopment experience without
+integrate Breeze tool in the development experience without
 having to worry about extra maintenance needed.

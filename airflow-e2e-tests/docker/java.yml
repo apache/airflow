@@ -19,10 +19,11 @@
 #
 # Replaces the stock airflow-worker image with one that has a JRE installed
 # (built by conftest._setup_java_sdk_integration via Dockerfile.java), mounts
-# the pre-built bundle JARs (the Java example under /opt/airflow/java-jars and
-# the Scala Spark example under /opt/airflow/scala-jars), and configures the
-# worker to consume the "java" and "scala" Celery queues where @task.stub tasks
-# are routed.
+# the pre-built bundle JARs (the Java example under /opt/airflow/java-jars, the
+# Scala Spark example under /opt/airflow/scala-jars, and the runner-behaviour
+# test fixtures under /opt/airflow/java-test-jars), and configures the worker to
+# consume the "java", "scala", and "java-test" Celery queues where @task.stub
+# tasks are routed.
 ---
 services:
   airflow-worker:
@@ -30,4 +31,5 @@ services:
     volumes:
       - ./java-jars:/opt/airflow/java-jars:ro
       - ./scala-jars:/opt/airflow/scala-jars:ro
-    command: celery worker -q java,scala,default
+      - ./java-test-jars:/opt/airflow/java-test-jars:ro
+    command: celery worker -q java,scala,java-test,default

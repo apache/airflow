@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.3.1
+.....
+
+Misc
+~~~~
+
+* ``UI: Stop using React.FC and the React type namespace (#71563)``
+* ``Bump eslint-plugin-react-refresh to 0.5.4 (#71631)``
+* ``Bump @testing-library/jest-dom to 7.0.1, @types/node to 26.2.0, eslint to 10.8.1 and happy-dom to 20.11.2 (#71601)``
+* ``Bump axios to 1.19.0, react-router-dom to 7.18.2, vite to 8.2.1, typescript-eslint to 8.66.0 and 10 other UI dependencies (#71420)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+
+
 4.3.0
 .....
 

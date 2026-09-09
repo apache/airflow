@@ -18,124 +18,139 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { TaskRegistry } from "../../src/sdk/registry.js";
+import { Dag } from "../../src/sdk/dag.js";
+import { DagRegistry, listRegistryDags, listRegistryTasks } from "../../src/sdk/registry.js";
 
-describe("registry", () => {
-  it("registers and retrieves a handler", async () => {
-    const registry = new TaskRegistry();
+describe("DagRegistry", () => {
+  it("registers a Dag and retrieves its handlers", () => {
     const handler = async () => "hello";
-    registry.register({ dagId: "example_dag", taskId: "my_task" }, handler);
-    const got = registry.get("example_dag", "my_task");
-    expect(got).toBe(handler);
+    const dag = new Dag("example_dag");
+    dag.task("my_task", handler);
+    const registry = new DagRegistry();
+    registry.register(dag);
+    expect(registry.getTaskHandler("example_dag", "my_task")).toBe(handler);
   });
 
-  it("returns undefined for unknown taskIds", () => {
-    const registry = new TaskRegistry();
-    expect(registry.get("example_dag", "nope")).toBeUndefined();
-    expect(registry.get("unknown_dag", "my_task")).toBeUndefined();
+  it("registers the Dags passed to its constructor", () => {
+    const handler = async () => "hello";
+    const dagA = new Dag("dag_a");
+    dagA.task("a", handler);
+    const registry = new DagRegistry(dagA, new Dag("dag_b"));
+    expect(registry.getTaskHandler("dag_a", "a")).toBe(handler);
+    expect(listRegistryDags(registry)).toEqual([
+      { dagId: "dag_a", tasks: ["a"] },
+      { dagId: "dag_b", tasks: [] },
+    ]);
   });
 
-  it("returns an empty list when no tasks are registered", () => {
-    const registry = new TaskRegistry();
-    expect(registry.list()).toEqual([]);
+  it("rejects duplicate dagIds passed to the constructor", () => {
+    expect(() => new DagRegistry(new Dag("example_dag"), new Dag("example_dag"))).toThrowError(
+      /already registered/,
+    );
   });
 
-  it("lists registered tasks", () => {
-    const registry = new TaskRegistry();
-    registry.register({ dagId: "dag_a", taskId: "a" }, async () => undefined);
-    registry.register({ dagId: "dag_b", taskId: "b" }, async () => undefined);
-    const registered = registry.list();
+  it("rejects constructor values that are not Dag instances", () => {
+    expect(() => new DagRegistry({ dagId: "example_dag" } as unknown as Dag)).toThrowError(
+      /only Dag instances can be registered/,
+    );
+  });
+
+  it("returns undefined for unknown taskIds and dagIds", () => {
+    const registry = new DagRegistry();
+    const dag = new Dag("example_dag");
+    dag.task("my_task", async () => undefined);
+    registry.register(dag);
+    expect(registry.getTaskHandler("example_dag", "nope")).toBeUndefined();
+    expect(registry.getTaskHandler("unknown_dag", "my_task")).toBeUndefined();
+  });
+
+  it("returns an empty list when no Dags are registered", () => {
+    const registry = new DagRegistry();
+    expect(listRegistryTasks(registry)).toEqual([]);
+  });
+
+  it("lists tasks across registered Dags", () => {
+    const dagA = new Dag("dag_a");
+    dagA.task("a", async () => undefined);
+    const dagB = new Dag("dag_b");
+    dagB.task("b", async () => undefined);
+    const registry = new DagRegistry();
+    registry.register(dagA, dagB);
+    const registered = listRegistryTasks(registry);
     expect(registered).toHaveLength(2);
     expect(registered).toContainEqual({ dagId: "dag_a", taskId: "a" });
     expect(registered).toContainEqual({ dagId: "dag_b", taskId: "b" });
   });
 
-  it("rejects duplicate registration within a Dag", () => {
-    const registry = new TaskRegistry();
-    registry.register({ dagId: "example_dag", taskId: "dup" }, async () => undefined);
-    expect(() =>
-      registry.register({ dagId: "example_dag", taskId: "dup" }, async () => undefined),
-    ).toThrowError(/already registered/);
+  it("rejects registering the same dagId in separate calls", () => {
+    const registry = new DagRegistry();
+    registry.register(new Dag("example_dag"));
+    expect(() => registry.register(new Dag("example_dag"))).toThrowError(/already registered/);
   });
 
-  it("allows the same taskId in different Dags", () => {
-    const registry = new TaskRegistry();
-    const first = async () => "first";
-    const second = async () => "second";
-    registry.register({ dagId: "first_dag", taskId: "extract" }, first);
-    registry.register({ dagId: "second_dag", taskId: "extract" }, second);
-
-    expect(registry.get("first_dag", "extract")).toBe(first);
-    expect(registry.get("second_dag", "extract")).toBe(second);
-  });
-
-  it("rejects an empty dagId", () => {
-    const registry = new TaskRegistry();
-    expect(() =>
-      registry.register({ dagId: "", taskId: "my_task" }, async () => undefined),
-    ).toThrowError(/dagId must be made of alphanumeric/);
-  });
-
-  it("rejects an empty taskId", () => {
-    const registry = new TaskRegistry();
-    expect(() =>
-      registry.register({ dagId: "example_dag", taskId: "" }, async () => undefined),
-    ).toThrowError(/taskId must be made of alphanumeric/);
-  });
-
-  it.each(["   ", "\t", "my dag", "a/b", "task@1"])(
-    "rejects a dagId with characters no Python dag_id allows: %j",
-    (dagId) => {
-      const registry = new TaskRegistry();
-      expect(() =>
-        registry.register({ dagId, taskId: "my_task" }, async () => undefined),
-      ).toThrowError(/dagId must be made of alphanumeric/);
-    },
-  );
-
-  it.each(["   ", "\t", "my task", "a/b", "task@1"])(
-    "rejects a taskId with characters no Python task_id allows: %j",
-    (taskId) => {
-      const registry = new TaskRegistry();
-      expect(() =>
-        registry.register({ dagId: "example_dag", taskId }, async () => undefined),
-      ).toThrowError(/taskId must be made of alphanumeric/);
-    },
-  );
-
-  it.each([
-    ["dagId", { dagId: "d".repeat(251), taskId: "my_task" }],
-    ["taskId", { dagId: "example_dag", taskId: "t".repeat(251) }],
-  ])("rejects a %s longer than 250 characters", (name, registration) => {
-    const registry = new TaskRegistry();
-    expect(() => registry.register(registration, async () => undefined)).toThrowError(
-      new RegExp(`${name} must be less than 250 characters, not 251`),
+  it("rejects duplicate dagIds within a single call", () => {
+    const registry = new DagRegistry();
+    expect(() => registry.register(new Dag("example_dag"), new Dag("example_dag"))).toThrowError(
+      /already registered/,
     );
   });
 
-  it("accepts a Unicode dagId that Python's word-character rule allows", () => {
-    const registry = new TaskRegistry();
-    const handler = async () => undefined;
-    registry.register({ dagId: "café_dag", taskId: "任務" }, handler);
-    expect(registry.get("café_dag", "任務")).toBe(handler);
+  it("rejects registering the same Dag instance twice", () => {
+    const registry = new DagRegistry();
+    const dag = new Dag("example_dag");
+    registry.register(dag);
+    expect(() => registry.register(dag)).toThrowError(/already registered/);
   });
 
-  it("rejects non-function handlers", () => {
-    const registry = new TaskRegistry();
-    expect(() =>
-      registry.register(
-        { dagId: "example_dag", taskId: "x" },
-        "not a function" as unknown as () => Promise<unknown>,
-      ),
-    ).toThrowError(/must be a function/);
+  it("registers none of the Dags when a call throws", () => {
+    const registry = new DagRegistry();
+    const dag = new Dag("dag_a");
+    dag.task("a", async () => undefined);
+    expect(() => registry.register(dag, new Dag("dag_a"))).toThrowError(/already registered/);
+    expect(registry.getTaskHandler("dag_a", "a")).toBeUndefined();
+    expect(listRegistryTasks(registry)).toEqual([]);
   });
 
-  it("treats a dotted TaskGroup taskId as a single taskId (group.task)", () => {
-    const registry = new TaskRegistry();
-    registry.register({ dagId: "example_dag", taskId: "transforms.normalize" }, async () => "ok");
-    expect(registry.get("example_dag", "transforms.normalize")).toBeDefined();
-    // Should NOT accidentally match the prefix alone
-    expect(registry.get("example_dag", "transforms")).toBeUndefined();
-    expect(registry.get("example_dag", "normalize")).toBeUndefined();
+  it("rejects values that are not Dag instances", () => {
+    const registry = new DagRegistry();
+    expect(() => registry.register({ dagId: "example_dag" } as unknown as Dag)).toThrowError(
+      /only Dag instances can be registered/,
+    );
+  });
+
+  it("names the duplicate-copy cause when a Dag carries the brand but not this class", () => {
+    // Stands in for a Dag from a second resolved copy: same brand, other class.
+    const foreign = { dagId: "foreign_dag" };
+    Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Dag"), { value: true });
+    expect(() => new DagRegistry(foreign as unknown as Dag)).toThrowError(
+      /different copy of apache-airflow-ts-sdk/,
+    );
+  });
+
+  it("lists every registered Dag with its tasks, empty Dags included", () => {
+    const dagA = new Dag("dag_a");
+    dagA.task("a1", async () => undefined);
+    dagA.task("a2", async () => undefined);
+    const registry = new DagRegistry();
+    registry.register(dagA, new Dag("empty_dag"));
+    expect(listRegistryDags(registry)).toEqual([
+      { dagId: "dag_a", tasks: ["a1", "a2"] },
+      { dagId: "empty_dag", tasks: [] },
+    ]);
+  });
+
+  it("sees tasks added to a Dag after registration", () => {
+    const registry = new DagRegistry();
+    const dag = new Dag("example_dag");
+    registry.register(dag);
+    expect(listRegistryTasks(registry)).toEqual([]);
+
+    const handler = async () => "late";
+    dag.task("late_task", handler);
+    expect(registry.getTaskHandler("example_dag", "late_task")).toBe(handler);
+    expect(listRegistryTasks(registry)).toContainEqual({
+      dagId: "example_dag",
+      taskId: "late_task",
+    });
   });
 });

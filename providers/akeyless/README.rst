@@ -56,18 +56,18 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``akeyless``                                ``>=5.0.0``
 ==========================================  ==================
 
 Optional dependencies
 ----------------------
 
-============  =====================
+============  ============================
 Extra         Dependencies
-============  =====================
-``cloud_id``  ``akeyless_cloud_id``
-============  =====================
+============  ============================
+``cloud_id``  ``akeyless-cloud-id>=0.3.0``
+============  ============================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-akeyless/0.3.0/changelog.html>`_.

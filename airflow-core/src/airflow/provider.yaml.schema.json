@@ -59,7 +59,7 @@
             }
         },
         "excluded-platforms": {
-            "description": "List of platforms (e.g. linux/arm64) excluded for that provider. Used to skip providers whose native dependencies are unavailable on a given architecture.",
+            "description": "List of platforms (e.g. linux/arm64, darwin/arm64) excluded for that provider. Used to skip providers whose native dependencies are unavailable on a given architecture: linux/* values also drop the provider from that CI test matrix, while every value contributes a platform_machine install marker.",
             "type": "array",
             "items": {
                 "type": "string"
@@ -586,6 +586,13 @@
         "secrets-backends": {
             "type": "array",
             "description": "Secrets Backend class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "email-backends": {
+            "type": "array",
+            "description": "Email backend function names",
             "items": {
                 "type": "string"
             }

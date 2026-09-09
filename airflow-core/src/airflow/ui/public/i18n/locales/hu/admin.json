@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "Szakasz"
-    },
-    "title": "Airflow konfiguráció"
+    }
   },
   "connections": {
     "add": "Kapcsolat hozzáadása",

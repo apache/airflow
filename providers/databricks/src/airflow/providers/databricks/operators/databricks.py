@@ -24,6 +24,7 @@ import copy
 import hashlib
 import json as json_utils
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
@@ -68,6 +69,20 @@ if TYPE_CHECKING:
     from airflow.sdk import TaskGroup
     from airflow.sdk.types import Context, Logger
 
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
+
 try:
     from airflow.sdk import ResumableJobMixin
 except ImportError:
@@ -77,9 +92,9 @@ except ImportError:
 
         external_id_key: str = "databricks_run_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -437,6 +452,15 @@ class DatabricksCreateJobsOperator(BaseOperator):
         .. seealso::
             This will only be used on create. In order to reset ACL consider using the Databricks
             UI.
+    :param performance_target: Optional performance mode for runs of this job on serverless compute.
+        Either ``PERFORMANCE_OPTIMIZED`` (prioritizes fast startup and execution) or
+        ``STANDARD`` (enables cost-efficient execution of serverless workloads). The API drops any
+        other value instead of rejecting it, so a mistyped ``STANDARD`` raises no error and the run
+        falls back to the more expensive default, ``PERFORMANCE_OPTIMIZED``. This field will be
+        templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/create
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`. (templated)
     :param polling_period_seconds: Controls the rate which we poll for the result of
@@ -473,6 +497,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         "max_concurrent_runs",
         "git_source",
         "access_control_list",
+        "performance_target",
         "databricks_conn_id",
     )
     # Databricks brand color (blue) under white text
@@ -496,6 +521,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         max_concurrent_runs: int | None = None,
         git_source: dict | None = None,
         access_control_list: list[dict] | None = None,
+        performance_target: str | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -519,6 +545,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.max_concurrent_runs = max_concurrent_runs
         self.git_source = git_source
         self.access_control_list = access_control_list
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -540,6 +567,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
             "max_concurrent_runs": self.max_concurrent_runs,
             "git_source": self.git_source,
             "access_control_list": self.access_control_list,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:
@@ -689,6 +717,15 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param git_source: Optional specification of a remote git repository from which
         supported task types are retrieved.
+    :param performance_target: Optional performance mode for the run on serverless compute.
+        Either ``PERFORMANCE_OPTIMIZED`` (prioritizes fast startup and execution) or
+        ``STANDARD`` (enables cost-efficient execution of serverless workloads). The API drops any
+        other value instead of rejecting it, so a mistyped ``STANDARD`` raises no error and the run
+        falls back to the more expensive default, ``PERFORMANCE_OPTIMIZED``. This field will be
+        templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/submit
     :param deferrable: Run operator in the deferrable mode.
 
         .. seealso::
@@ -735,6 +772,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         "idempotency_token",
         "access_control_list",
         "git_source",
+        "performance_target",
         "databricks_conn_id",
     )
     template_ext: Sequence[str] = (".json-tpl",)
@@ -769,6 +807,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
+        performance_target: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
@@ -776,9 +815,14 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksSubmitRunOperator``."""
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.json = json
         self.tasks = tasks
@@ -796,6 +840,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.idempotency_token = idempotency_token
         self.access_control_list = access_control_list
         self.git_source = git_source
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -827,6 +872,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
             "idempotency_token": self.idempotency_token,
             "access_control_list": self.access_control_list,
             "git_source": self.git_source,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:
@@ -1056,6 +1102,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         - ``jar_params``
         - ``spark_submit_params``
         - ``idempotency_token``
+        - ``performance_target``
         - ``repair_run``
         - ``databricks_repair_reason_new_settings``
         - ``cancel_previous_runs``
@@ -1155,6 +1202,15 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
     :param idempotency_token: an optional token that can be used to guarantee the idempotency of job run
         requests. If a run with the provided token already exists, the request does not create a new run but
         returns the ID of the existing run instead.  This token must have at most 64 characters.
+    :param performance_target: Optional performance mode for this run on serverless compute, overriding
+        the performance target defined at the job level. Either ``PERFORMANCE_OPTIMIZED`` (prioritizes
+        fast startup and execution) or ``STANDARD`` (enables cost-efficient execution of serverless
+        workloads). The API drops any other value instead of rejecting it, so a mistyped ``STANDARD``
+        raises no error and the run falls back to the more expensive default, ``PERFORMANCE_OPTIMIZED``.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/workspace/jobs/runnow
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
@@ -1212,6 +1268,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         "jar_params",
         "spark_submit_params",
         "idempotency_token",
+        "performance_target",
         "databricks_conn_id",
     )
     template_ext: Sequence[str] = (".json-tpl",)
@@ -1234,6 +1291,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         spark_submit_params: list[str] | None = None,
         python_named_params: dict[str, str] | None = None,
         idempotency_token: str | None = None,
+        performance_target: str | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -1246,9 +1304,14 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
         forward_dag_params: bool = True,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.json = json
         self.job_id = job_id
@@ -1261,6 +1324,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.jar_params = jar_params
         self.spark_submit_params = spark_submit_params
         self.idempotency_token = idempotency_token
+        self.performance_target = performance_target
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -1289,6 +1353,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             "jar_params": self.jar_params,
             "spark_submit_params": self.spark_submit_params,
             "idempotency_token": self.idempotency_token,
+            "performance_target": self.performance_target,
         }
 
     def _get_merged_json(self) -> dict[str, Any]:

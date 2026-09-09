@@ -306,6 +306,40 @@ def _attach_default_role_permissions(
         )
 
 
+def _update_read_only_permission_resources(
+    client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
+) -> None:
+    if _dry_run:
+        print("Would update permission 'ReadOnly' with unscoped readable resources.")
+        return
+
+    permissions = client.get_client_authz_permissions(client_uuid)
+    match = next((perm for perm in permissions if perm.get("name") == "ReadOnly"), None)
+    if not match:
+        return
+
+    permission_id = match["id"]
+    scopes = client.get_client_authz_scopes(client_uuid)
+    resources = client.get_client_authz_resources(client_uuid)
+    scope_ids = [s["id"] for s in scopes if s["name"] in ["GET", "MENU", "LIST"]]
+    resource_names = TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
+    resource_ids = [r["_id"] for r in resources if r["name"] in resource_names]
+    policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
+    payload = {
+        "id": permission_id,
+        "name": "ReadOnly",
+        "type": "scope",
+        "logic": "POSITIVE",
+        "decisionStrategy": "AFFIRMATIVE",
+        "scopes": scope_ids,
+        "resources": resource_ids,
+        "policies": policy_ids,
+    }
+    client.update_client_authz_scope_permission(
+        payload=payload, client_id=client_uuid, scope_id=permission_id
+    )
+
+
 def _preview_scopes(*args, **kwargs):
     """Preview scopes that would be created."""
     scopes = _get_scopes_to_create()
@@ -481,6 +515,7 @@ def _get_permissions_to_create(
                         "type": "resource-based",
                         "resources": [
                             f"{KeycloakResource.CONNECTION.value}:{team}",
+                            f"{KeycloakResource.DAG.value}:{team}",
                             f"{KeycloakResource.POOL.value}:{team}",
                             f"{KeycloakResource.VARIABLE.value}:{team}",
                         ],
@@ -622,8 +657,9 @@ def _create_scope_based_permission(
     except KeycloakError as e:
         if e.response_body:
             error = json.loads(e.response_body.decode("utf-8"))
-            if error.get("error_description") == "Conflicting policy":
-                print(f"Policy creation skipped. {error.get('error')}")
+            if "Conflicting policy" in error.get("error_description", ""):
+                return
+        raise
 
 
 def _create_resource_based_permission(
@@ -700,7 +736,11 @@ def _update_admin_permission_resources(
         or r["name"] in GLOBAL_SCOPED_RESOURCE_NAMES
     ]
 
-    policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
+    existing_policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
+    super_admin_policy_id = _get_policy_id(client, client_uuid, _role_policy_name(SUPER_ADMIN_ROLE_NAME))
+    policy_ids = [policy_id for policy_id in existing_policy_ids if policy_id == super_admin_policy_id]
+    if super_admin_policy_id and super_admin_policy_id not in policy_ids:
+        policy_ids.append(super_admin_policy_id)
     payload = {
         "id": permission_id,
         "name": "Admin",
@@ -734,6 +774,7 @@ def create_team_command(args):
     _attach_team_permissions(client, client_uuid, team, _dry_run=args.dry_run)
     _attach_team_menu_permissions(client, client_uuid, team, _dry_run=args.dry_run)
     _attach_superadmin_permissions(client, client_uuid, team, _dry_run=args.dry_run)
+    _update_read_only_permission_resources(client, client_uuid, _dry_run=args.dry_run)
     _update_admin_permission_resources(client, client_uuid, _dry_run=args.dry_run)
 
 
@@ -831,6 +872,7 @@ def _attach_team_permissions(
         policy_name=_team_role_policy_name(team, "Op"),
         resource_names=[
             f"{KeycloakResource.CONNECTION.value}:{team}",
+            f"{KeycloakResource.DAG.value}:{team}",
             f"{KeycloakResource.POOL.value}:{team}",
             f"{KeycloakResource.VARIABLE.value}:{team}",
         ],

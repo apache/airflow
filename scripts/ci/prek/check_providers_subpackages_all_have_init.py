@@ -30,8 +30,8 @@ from pathlib import Path
 from common_prek_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
-    KNOWN_SECOND_LEVEL_PATHS,
     console,
+    get_provider_namespace_from_path,
 )
 
 ACCEPTED_NON_INIT_DIRS = [
@@ -66,7 +66,9 @@ missing_init_dirs: list[Path] = []
 missing_path_extension_dirs: list[Path] = []
 
 
-def _what_kind_of_test_init_py_needed(base_path: Path, folder: Path) -> tuple[bool, bool]:
+def _what_kind_of_test_init_py_needed(
+    base_path: Path, folder: Path, namespace: str | None
+) -> tuple[bool, bool]:
     """Returns a tuple of two booleans indicating need and type of __init__.py file.
 
     The first boolean is True if __init__.py is needed, False otherwise.
@@ -86,10 +88,22 @@ def _what_kind_of_test_init_py_needed(base_path: Path, folder: Path) -> tuple[bo
             _ErrorSignals.fatal_error = True
         return True, True
     if depth == 2:
-        # For known sub-packages that can occur in several packages we need to add __path__ extension
-        return True, folder.name in KNOWN_SECOND_LEVEL_PATHS
+        # For sub-packages that can occur in several packages we need to add __path__ extension
+        return True, folder.name == namespace
     # all other sub-packages should have plain __init__.py
     return True, False
+
+
+def _needs_path_extension_in_src(relative_root_path: Path, namespace: str | None) -> bool:
+    """Whether a folder under ``src/airflow`` is also shipped by other distributions.
+
+    ``airflow`` and ``airflow/providers`` are shared by every distribution, and the namespace
+    package below them by every distribution of that namespace.
+    """
+    parts = relative_root_path.parts
+    if len(parts) < 2:
+        return True
+    return len(parts) == 2 and parts[0] == "providers" and parts[1] == namespace
 
 
 def _determine_init_py_action(need_path_extension: bool, root_path: Path):
@@ -112,12 +126,15 @@ def check_dir_init_test_folders(folders: list[Path]) -> None:
     for root_distribution_path in folders:
         # We need init folders for all folders and for the common ones we need path extension
         tests_folder = root_distribution_path / "tests"
+        namespace = get_provider_namespace_from_path(root_distribution_path / "provider.yaml")
         print("Checking for __init__.py files in distribution for tests: ", tests_folder)
         for root, dirs, _ in os.walk(tests_folder):
             # Edit it in place, so we don't recurse to folders we don't care about
             dirs[:] = [d for d in dirs if d not in ACCEPTED_NON_INIT_DIRS]
             root_path = Path(root)
-            need_init_py, need_path_extension = _what_kind_of_test_init_py_needed(tests_folder, root_path)
+            need_init_py, need_path_extension = _what_kind_of_test_init_py_needed(
+                tests_folder, root_path, namespace
+            )
             if need_init_py:
                 _determine_init_py_action(need_path_extension, root_path)
 
@@ -127,6 +144,7 @@ def check_dir_init_src_folders(folders: list[Path]) -> None:
     for root_distribution_path in folders:
         # We need init folders for all folders and for the common ones we need path extension
         providers_base_folder = root_distribution_path / "src" / "airflow"
+        namespace = get_provider_namespace_from_path(root_distribution_path / "provider.yaml")
         print("Checking for __init__.py files in distribution for src: ", providers_base_folder)
         for root, dirs, _ in os.walk(providers_base_folder):
             print("Checking: ", root)
@@ -139,13 +157,7 @@ def check_dir_init_src_folders(folders: list[Path]) -> None:
                 and not any(pattern in root for pattern in IGNORE_DIR_PATTERNS)
             ]
             relative_root_path = root_path.relative_to(providers_base_folder)
-            need_path_extension = (
-                root_path == providers_base_folder
-                or len(relative_root_path.parts) == 1
-                or len(relative_root_path.parts) == 2
-                and relative_root_path.parts[1] in KNOWN_SECOND_LEVEL_PATHS
-                and relative_root_path.parts[0] == "providers"
-            )
+            need_path_extension = _needs_path_extension_in_src(relative_root_path, namespace)
             print("Needs path extension: ", need_path_extension)
             _determine_init_py_action(need_path_extension, root_path)
 

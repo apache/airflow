@@ -22,6 +22,7 @@ import logging
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
@@ -189,6 +190,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
             self.serialize_user(user)
         )
+
+    def generate_api_jwt(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
+    ) -> str:
+        """
+        Return the JWT token for a client that authenticates with the ``Authorization`` header.
+
+        Such a client sends no cookies, so an auth manager that keeps part of its state in
+        cookies has to put that state in the token's claims instead for the request to be
+        authorized. Auth managers whose tokens are already self-contained need not override
+        this.
+
+        :param user: the user to generate the token for
+        :param expiration_time_in_seconds: expiration time in seconds of the token
+        """
+        return self.generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -692,7 +709,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                 method=method, details=DagDetails(id=dag_id, team_name=team_name), user=user
             )
 
-        return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(dag_id)}
+        if not dag_ids:
+            return set()
+
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(_is_authorized_dag_id, dag_ids)
+
+        return {dag_id for dag_id, authorized in zip(dag_ids, results) if authorized}
 
     @provide_session
     def get_authorized_pools(

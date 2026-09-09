@@ -24,6 +24,9 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, ActionBar } from "src/system-components";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
@@ -38,10 +41,10 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
@@ -181,12 +184,7 @@ const taskInstanceColumns = ({
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${encodeURIComponent(original.team_name)}`}>
-                {original.team_name}
-              </RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: TaskInstanceRow) => <TeamName teamName={original.team_name} />,
           enableSorting: false,
           header: translate("dagDetails.team"),
         },
@@ -420,17 +418,19 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <TaskInstancesFilter />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<TaskInstancesFilter />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
+        total={data?.total_entries ?? 0}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>

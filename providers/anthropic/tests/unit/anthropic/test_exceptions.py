@@ -24,6 +24,7 @@ from airflow.providers.anthropic.exceptions import (
     AnthropicBatchJobError,
     AnthropicBatchTimeout,
     AnthropicError,
+    AnthropicSessionBudgetExceeded,
 )
 
 
@@ -35,6 +36,7 @@ from airflow.providers.anthropic.exceptions import (
         AnthropicBatchTimeout,
         AnthropicAgentSessionError,
         AnthropicAgentSessionTimeout,
+        AnthropicSessionBudgetExceeded,
     ],
 )
 def test_provider_errors_share_base_and_are_not_airflow_exceptions(exc):

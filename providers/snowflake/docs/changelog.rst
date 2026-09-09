@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+.. warning::
+  ``SnowparkContainerJobOperator`` now applies a default ``timeout`` of 24 hours where it
+  previously polled indefinitely, so a task running longer than a day now fails. Increase
+  ``timeout`` to allow more time.
+
+6.16.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 6.16.0
 ......
 

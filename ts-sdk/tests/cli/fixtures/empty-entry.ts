@@ -17,6 +17,6 @@
  * under the License.
  */
 
-import { startCoordinator } from "../../../src/index.js";
+import { DagRegistry, serveDags } from "../../../src/index.js";
 
-await startCoordinator();
+await serveDags(new DagRegistry());

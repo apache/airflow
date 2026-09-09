@@ -91,6 +91,28 @@ class TestPluginsManager:
 
         assert [r for r in caplog.record_tuples if not r[0].startswith("opentelemetry.")] == []
 
+    def test_empty_plugins_folder_logs_no_failure(self, caplog, tmp_path):
+        from airflow import plugins_manager
+
+        with (
+            caplog.at_level(logging.DEBUG, logger="airflow.plugins_manager"),
+            conf_vars(
+                {
+                    ("core", "plugins_folder"): os.fspath(tmp_path),
+                    ("core", "load_examples"): "False",
+                }
+            ),
+            mock.patch("airflow.plugins_manager._load_entrypoint_plugins", return_value=([], [])),
+            mock.patch("airflow.plugins_manager._load_providers_plugins", return_value=([], [])),
+        ):
+            plugins, import_errors = plugins_manager._get_plugins()
+
+        assert plugins == []
+        assert import_errors == {}
+        received_logs = caplog.text
+        assert "Failed to load" not in received_logs
+        assert "No plugins loaded" in received_logs
+
     def test_loads_filesystem_plugins_exception(self, caplog, tmp_path):
         from airflow import plugins_manager
 
@@ -108,6 +130,7 @@ class TestPluginsManager:
 
         received_logs = caplog.text
         assert "Failed to load plugin" in received_logs
+        assert "Failed to load 1 plugin file(s)" in received_logs
         assert "testplugin.py" in received_logs
 
     def test_duplicate_plugin_name_does_not_prevent_loading_subsequent_plugins(self):
@@ -275,6 +298,138 @@ class TestPluginsManager:
                 "The React App will not be loaded.",
             ),
         ]
+
+    @pytest.mark.parametrize(
+        ("applies_to", "error"),
+        [
+            pytest.param(
+                ["ml"],
+                "expected a dictionary, got list",
+                id="not-a-dict",
+            ),
+            pytest.param(
+                {"dag_tag": ["ml"]},
+                "unknown criteria ['dag_tag'], expected any of "
+                "['dag_ids', 'dag_tags', 'operator_names', 'operators', 'task_ids']",
+                id="unknown-key",
+            ),
+            pytest.param(
+                {1: ["ml"], "dag_tag": ["ml"]},
+                "criterion names must be strings, got [1]",
+                id="non-string-and-unknown-keys",
+            ),
+            pytest.param(
+                {"dag_ids": "my_dag"},
+                "'dag_ids' must be a list of strings, got 'my_dag'",
+                id="scalar-instead-of-list",
+            ),
+            pytest.param(
+                {"dag_ids": ["my_dag", 3]},
+                "'dag_ids' must be a list of strings, got ['my_dag', 3]",
+                id="list-with-non-string",
+            ),
+        ],
+    )
+    def test_strips_and_warns_about_malformed_applies_to(self, applies_to, error, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                f"Plugin 'test_plugin' has an external view 'Scoped' with an invalid 'applies_to': {error}. "
+                "The scoping will be ignored.",
+            ),
+        ]
+
+    def test_warns_about_criteria_a_destination_cannot_evaluate(self, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            react_apps = [
+                {
+                    "name": "Scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag_run",
+                    "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            _, react_apps = plugins_manager._get_ui_plugins()
+
+            # The block is only warned about, never stripped: task criteria are ignored on a
+            # Dag-level page by design so one block can be shared across destinations.
+            assert react_apps == [
+                {
+                    "name": "Scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag_run",
+                    "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
+                }
+            ]
+
+        assert caplog.record_tuples == [
+            (
+                "airflow.plugins_manager",
+                logging.WARNING,
+                "Plugin 'test_plugin' has a React App 'Scoped' with destination 'dag_run', which cannot "
+                "evaluate ['operators', 'task_ids']. Those criteria will be ignored.",
+            ),
+        ]
+
+    def test_does_not_warn_about_valid_applies_to(self, caplog):
+        class TestPlugin(AirflowPlugin):
+            name = "test_plugin"
+
+            external_views = [
+                {
+                    "name": "Scoped",
+                    "url_route": "/scoped",
+                    "destination": "task",
+                    "applies_to": {
+                        "dag_tags": ["ml"],
+                        "task_ids": ["train"],
+                        "operator_names": ["@task.bash"],
+                    },
+                }
+            ]
+
+        with (
+            mock_plugin_manager(plugins=[TestPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
+            from airflow import plugins_manager
+
+            external_views, _ = plugins_manager._get_ui_plugins()
+
+            assert external_views[0]["applies_to"] == {
+                "dag_tags": ["ml"],
+                "task_ids": ["train"],
+                "operator_names": ["@task.bash"],
+            }
+
+        assert caplog.record_tuples == []
 
     def test_should_not_warning_about_fab_plugins(self, caplog):
         class AirflowAdminViewsPlugin(AirflowPlugin):
@@ -508,3 +663,55 @@ class TestValidatePluginTeams:
         assert "unknown_team" in recorded["team_plugin"]
         warnings = [msg for _, level, msg in caplog.record_tuples if level == logging.WARNING]
         assert any("team_plugin" in msg and "unknown_team" in msg for msg in warnings)
+
+
+class TestGetFastapiPluginsTeamName:
+    """``get_fastapi_plugins`` must tell the API server which team each app belongs to,
+    since that is what lets ``init_plugins`` authorize a team-scoped plugin's app."""
+
+    @staticmethod
+    def _plugins():
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_plugin"
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+
+        global_plugin = GlobalPlugin()
+        team_plugin = TeamPlugin()
+        # Per-instance dicts so a mutation would be visible to the assertions below.
+        global_plugin.fastapi_apps = [{"name": "global_app", "app": object(), "url_prefix": "/global"}]
+        global_plugin.fastapi_root_middlewares = [{"name": "global_mw", "middleware": object()}]
+        team_plugin.fastapi_apps = [{"name": "team_app", "app": object(), "url_prefix": "/team"}]
+        team_plugin.fastapi_root_middlewares = [{"name": "team_mw", "middleware": object()}]
+        return global_plugin, team_plugin
+
+    def test_team_name_is_added_to_apps_and_middlewares(self):
+        from airflow import plugins_manager
+
+        global_plugin, team_plugin = self._plugins()
+        with mock_plugin_manager(plugins=[global_plugin, team_plugin]):
+            apps, middlewares = plugins_manager.get_fastapi_plugins()
+
+        assert {app["name"]: app["team_name"] for app in apps} == {
+            "global_app": None,
+            "team_app": "team_a",
+        }
+        assert {mw["name"]: mw["team_name"] for mw in middlewares} == {
+            "global_mw": None,
+            "team_mw": "team_a",
+        }
+
+    def test_plugin_dicts_are_not_mutated(self):
+        """The plugin's own dicts must stay clean so ``get_plugin_info`` (and therefore
+        the public API response) does not gain an unexpected ``team_name`` key."""
+        from airflow import plugins_manager
+
+        global_plugin, team_plugin = self._plugins()
+        with mock_plugin_manager(plugins=[global_plugin, team_plugin]):
+            plugins_manager.get_fastapi_plugins()
+
+        for plugin in (global_plugin, team_plugin):
+            assert "team_name" not in plugin.fastapi_apps[0]
+            assert "team_name" not in plugin.fastapi_root_middlewares[0]

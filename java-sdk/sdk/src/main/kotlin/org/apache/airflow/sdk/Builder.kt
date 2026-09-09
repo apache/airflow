@@ -24,7 +24,7 @@ package org.apache.airflow.sdk
  *
  * This class is not instantiated directly. Its nested annotations drive the
  * `BuilderProcessor` annotation processor in the :processor project,
- * which generates a `*Builder` class for each class annotated with [Dag].
+ * which generates a `*Builder` class for each class annotated with [Builder.Dag].
  *
  * Example:
  *
@@ -41,7 +41,7 @@ package org.apache.airflow.sdk
  * ```
  *
  * The processor generates `MyPipelineBuilder.build()`, which returns a
- * fully wired-up [Dag] ready to add to a [Bundle].
+ * fully wired-up [DagDef] ready to add to a [Bundle].
  */
 class Builder internal constructor() {
   /**

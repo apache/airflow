@@ -27,7 +27,7 @@ internal class BundleTest {
   @Test
   @DisplayName("Should index dags by dagId")
   fun shouldIndexDagsByDagId() {
-    val dag = Dag("dag")
+    val dag = DagDef("dag")
 
     val bundle = Bundle(listOf(dag))
 
@@ -39,7 +39,7 @@ internal class BundleTest {
   fun shouldRejectDuplicateDagIds() {
     val error =
       Assertions.assertThrows(IllegalArgumentException::class.java) {
-        Bundle(listOf(Dag("dag"), Dag("dag")))
+        Bundle(listOf(DagDef("dag"), DagDef("dag")))
       }
 
     Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)

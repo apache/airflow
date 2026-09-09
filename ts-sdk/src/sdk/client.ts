@@ -43,7 +43,7 @@ export interface TaskClient {
    * This matches Python `Variable.get` behavior when no default value is
    * supplied.
    *
-   * @throws {@link VariableNotFoundError} when the key is missing.
+   * @throws {@link Exceptions!VariableNotFoundError | VariableNotFoundError} when the key is missing.
    */
   getVariableOrThrow(key: string): Promise<string>;
 
@@ -75,8 +75,20 @@ export interface TaskClient {
    *
    * Returns `null` when the connection does not exist. Throws on any other
    * error.
+   *
+   * This is intentionally JS-friendly behavior. Use
+   * {@link getConnectionOrThrow} when missing connections should raise.
    */
   getConnection(connId: string): Promise<ConnectionResult | null>;
+
+  /**
+   * Look up an Airflow Connection by ID and raise when it is missing.
+   *
+   * This matches Python `BaseHook.get_connection` behavior.
+   *
+   * @throws {@link Exceptions!ConnectionNotFoundError | ConnectionNotFoundError} when the connection does not exist.
+   */
+  getConnectionOrThrow(connId: string): Promise<ConnectionResult>;
 }
 
 /** Error thrown by {@link TaskClient.getVariableOrThrow}. */
@@ -84,5 +96,13 @@ export class VariableNotFoundError extends Error {
   constructor(public readonly key: string) {
     super(`Variable not found: ${key}`);
     this.name = "VariableNotFoundError";
+  }
+}
+
+/** Error thrown by {@link TaskClient.getConnectionOrThrow}. */
+export class ConnectionNotFoundError extends Error {
+  constructor(public readonly connId: string) {
+    super(`Connection not found: ${connId}`);
+    this.name = "ConnectionNotFoundError";
   }
 }

@@ -822,6 +822,8 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
     * check if the local repo is shallow, mark it to un-shallow in this case
     * fetch from the remote including all tags and overriding local tags in case
       they are set differently
+    * fetch branch refs so that remote-tracking refs like
+      apache-https-for-providers/main are available for git log range queries
 
     """
     try:
@@ -850,7 +852,14 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
         text=True,
     )
     is_shallow_repo = result.stdout.strip() == "true"
-    fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
+    fetch_command = [
+        "git",
+        "fetch",
+        "--tags",
+        "--force",
+        HTTPS_REMOTE,
+        "+refs/heads/*:refs/remotes/apache-https-for-providers/*",
+    ]
     if is_shallow_repo:
         fetch_command.append("--unshallow")
     try:

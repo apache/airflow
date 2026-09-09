@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -41,14 +41,81 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state.metastore import _get_db_backend
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 task_state_store_router = AirflowRouter(
     tags=["Task State Store"],
     prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store",
 )
 
 
-def _get_scope(dag_id: str, dag_run_id: str, task_id: str, map_index: int) -> TaskScope:
+def _require_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int | None,
+    session: Session,
+) -> None:
+    """Raise 404 unless the task instance exists. ``map_index=None`` matches any map index."""
+    statement = select(TI.task_id).where(
+        TI.dag_id == dag_id,
+        TI.run_id == dag_run_id,
+        TI.task_id == task_id,
+    )
+    if map_index is not None:
+        statement = statement.where(TI.map_index == map_index)
+    if session.scalar(statement.limit(1)) is None:
+        addressed_by = "all_map_indices=True" if map_index is None else f"map_index={map_index}"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"Task instance not found for dag_id={dag_id!r}, run_id={dag_run_id!r}, "
+                f"task_id={task_id!r}, {addressed_by}"
+            ),
+        )
+
+
+def _resolve_scope(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: Annotated[int, Query(ge=-1)] = -1,
+) -> TaskScope:
+    """Map the path and query parameters onto the task instance they address."""
     return TaskScope(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
+
+
+TaskScopeDep = Annotated[TaskScope, Depends(_resolve_scope)]
+
+
+def _validate_scope(scope: TaskScopeDep, session: SessionDep) -> TaskScope:
+    """Resolve the scope, 404ing when the task instance it addresses does not exist."""
+    _require_task_instance(scope.dag_id, scope.run_id, scope.task_id, scope.map_index, session)
+    return scope
+
+
+ValidatedTaskScopeDep = Annotated[TaskScope, Depends(_validate_scope)]
+
+
+def _validate_clear_scope(
+    scope: TaskScopeDep,
+    session: SessionDep,
+    all_map_indices: Annotated[bool, Query()] = False,
+) -> TaskScope:
+    """
+    Resolve the scope for a clear request, 404ing when the task instance does not exist.
+
+    ``all_map_indices`` addresses the task across every index, so it is validated against any
+    instance -- an expanded mapped task has no ``map_index=-1`` instance to check.
+    """
+    _require_task_instance(
+        scope.dag_id, scope.run_id, scope.task_id, None if all_map_indices else scope.map_index, session
+    )
+    return scope
+
+
+ValidatedClearTaskScopeDep = Annotated[TaskScope, Depends(_validate_clear_scope)]
 
 
 def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> datetime | None:
@@ -72,35 +139,15 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
     return expires_at
 
 
-def _require_ti(dag_id: str, dag_run_id: str, task_id: str, map_index: int, session: SessionDep) -> None:
-    ti_exists = session.scalar(
-        select(TI.task_id).where(
-            TI.dag_id == dag_id,
-            TI.run_id == dag_run_id,
-            TI.task_id == task_id,
-            TI.map_index == map_index,
-        )
-    )
-    if ti_exists is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task instance not found for dag_id={dag_id!r}, run_id={dag_run_id!r}, task_id={task_id!r}, map_index={map_index}",
-        )
-
-
 @task_state_store_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def list_task_state_store(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+    scope: TaskScopeDep,
     limit: QueryLimit,
     offset: QueryOffset,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
 ) -> TaskStateStoreCollectionResponse:
     """List all task state store entries for a task instance."""
     base = (
@@ -111,10 +158,10 @@ def list_task_state_store(
             TaskStateStoreModel.expires_at,
         )
         .where(
-            TaskStateStoreModel.dag_id == dag_id,
-            TaskStateStoreModel.run_id == dag_run_id,
-            TaskStateStoreModel.task_id == task_id,
-            TaskStateStoreModel.map_index == map_index,
+            TaskStateStoreModel.dag_id == scope.dag_id,
+            TaskStateStoreModel.run_id == scope.run_id,
+            TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.map_index == scope.map_index,
         )
         .order_by(TaskStateStoreModel.key.asc())
     )
@@ -142,12 +189,9 @@ def list_task_state_store(
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_task_state_store(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+    scope: TaskScopeDep,
     key: str,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
 ) -> TaskStateStoreResponse:
     """Get a single task state store entry."""
     row = session.execute(
@@ -157,10 +201,10 @@ def get_task_state_store(
             TaskStateStoreModel.updated_at,
             TaskStateStoreModel.expires_at,
         ).where(
-            TaskStateStoreModel.dag_id == dag_id,
-            TaskStateStoreModel.run_id == dag_run_id,
-            TaskStateStoreModel.task_id == task_id,
-            TaskStateStoreModel.map_index == map_index,
+            TaskStateStoreModel.dag_id == scope.dag_id,
+            TaskStateStoreModel.run_id == scope.run_id,
+            TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.map_index == scope.map_index,
             TaskStateStoreModel.key == key,
         )
     ).one_or_none()
@@ -181,18 +225,13 @@ def get_task_state_store(
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def set_task_state_store(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+    scope: ValidatedTaskScopeDep,
     key: str,
     body: TaskStateStoreBody,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
 ) -> None:
     """Set a task state store value. Creates or overwrites the key."""
-    _require_ti(dag_id, dag_run_id, task_id, map_index, session)
     expires_at = _resolve_expires_at(body.expires_at)
-    scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     try:
         _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
     except ValueError as e:
@@ -206,23 +245,18 @@ def set_task_state_store(
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def patch_task_state_store(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+    scope: ValidatedTaskScopeDep,
     key: str,
     body: TaskStateStorePatchBody,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
 ) -> None:
     """Update the value of an existing task state store key."""
-    _require_ti(dag_id, dag_run_id, task_id, map_index, session)
-
     existing = session.execute(
         select(TaskStateStoreModel.expires_at).where(
-            TaskStateStoreModel.dag_id == dag_id,
-            TaskStateStoreModel.run_id == dag_run_id,
-            TaskStateStoreModel.task_id == task_id,
-            TaskStateStoreModel.map_index == map_index,
+            TaskStateStoreModel.dag_id == scope.dag_id,
+            TaskStateStoreModel.run_id == scope.run_id,
+            TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.map_index == scope.map_index,
             TaskStateStoreModel.key == key,
         )
     ).one_or_none()
@@ -233,7 +267,6 @@ def patch_task_state_store(
             detail=f"Task state store key {key!r} not found",
         )
 
-    scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session)
 
 
@@ -244,15 +277,11 @@ def patch_task_state_store(
     dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def delete_task_state_store(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+    scope: ValidatedTaskScopeDep,
     key: str,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
 ) -> None:
     """Delete a single task state store key. No-op if the key does not exist."""
-    scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     _get_db_backend().delete(scope, key, session=session)
 
 
@@ -263,11 +292,8 @@ def delete_task_state_store(
     dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def clear_task_state_store(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
+    scope: ValidatedClearTaskScopeDep,
     session: SessionDep,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
     all_map_indices: Annotated[bool, Query()] = False,
 ) -> None:
     """
@@ -276,5 +302,4 @@ def clear_task_state_store(
     When ``all_map_indices=true``, state store is cleared for every map index of the task and
     the ``map_index`` parameter is ignored.
     """
-    scope = _get_scope(dag_id, dag_run_id, task_id, map_index)
     _get_db_backend().clear(scope, all_map_indices=all_map_indices, session=session)

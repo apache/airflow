@@ -39,6 +39,7 @@ const dagParams = vi.hoisted(() => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (translationKey: string) =>
       ({

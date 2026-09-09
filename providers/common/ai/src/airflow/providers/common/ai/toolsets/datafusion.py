@@ -228,7 +228,10 @@ class DataFusionToolset(AbstractToolset[Any]):
             )
         except SQLSafetyError as ex:
             log.warning("query failed SQL safety validation: %s", ex)
-            raise
+            raise ModelRetry(
+                f"error: {ex!s}. Only read-only SELECT-family queries are allowed unless "
+                "allow_writes is enabled; check the SQL syntax and statement type, then try again."
+            ) from ex
         except QueryExecutionException as ex:
             if self._is_retryable_query_error(ex):
                 raise ModelRetry(

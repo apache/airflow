@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Type d'événement"
-    },
-    "title": "Journal d'Audit"
+    }
   },
   "deadlines": {
     "columns": {

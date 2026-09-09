@@ -896,6 +896,67 @@ class TestGCSHook:
             project=test_project, location=test_location
         )
 
+    @pytest.mark.parametrize(
+        ("bindings", "expected_bindings"),
+        [
+            (
+                [],
+                [{"role": "roles/storage.objectViewer", "members": {"serviceAccount:test@example.com"}}],
+            ),
+            (
+                [{"role": "roles/storage.objectViewer", "members": {"user:existing@example.com"}}],
+                [
+                    {
+                        "role": "roles/storage.objectViewer",
+                        "members": {
+                            "serviceAccount:test@example.com",
+                            "user:existing@example.com",
+                        },
+                    }
+                ],
+            ),
+            (
+                [
+                    {
+                        "role": "roles/storage.objectViewer",
+                        "members": {"user:conditional@example.com"},
+                        "condition": {"title": "conditional-binding"},
+                    }
+                ],
+                [
+                    {
+                        "role": "roles/storage.objectViewer",
+                        "members": {"user:conditional@example.com"},
+                        "condition": {"title": "conditional-binding"},
+                    },
+                    {
+                        "role": "roles/storage.objectViewer",
+                        "members": {"serviceAccount:test@example.com"},
+                    },
+                ],
+            ),
+        ],
+    )
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_add_bucket_iam_binding(self, mock_service, bindings, expected_bindings):
+        bucket = mock_service.return_value.bucket.return_value
+        policy = mock.MagicMock(bindings=copy.deepcopy(bindings))
+        bucket.get_iam_policy.return_value = policy
+
+        self.gcs_hook.add_bucket_iam_binding(
+            bucket_name="test-bucket",
+            role="roles/storage.objectViewer",
+            member="serviceAccount:test@example.com",
+            user_project="test-user-project",
+        )
+
+        mock_service.return_value.bucket.assert_called_once_with(
+            bucket_name="test-bucket", user_project="test-user-project"
+        )
+        bucket.get_iam_policy.assert_called_once_with(requested_policy_version=3)
+        assert policy.bindings == expected_bindings
+        bucket.set_iam_policy.assert_called_once_with(policy)
+
     @mock.patch("google.cloud.storage.Bucket.blob")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose(self, mock_service, mock_blob):

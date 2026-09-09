@@ -22,7 +22,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   EMBEDDED_METADATA_PREFIX,
@@ -95,10 +95,26 @@ describe("renderMetadataYaml", () => {
   });
 });
 
+function readEmbeddedMetadata(bundlePath: string): string {
+  const firstLine = readFileSync(bundlePath, "utf-8").split("\n")[0]!;
+  return Buffer.from(firstLine.slice(EMBEDDED_METADATA_PREFIX.length), "base64").toString("utf-8");
+}
+
+/** Collect what runPack writes to stderr; returns a reader for the text so far. */
+function captureStderr(): () => string {
+  const chunks: string[] = [];
+  vi.spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => {
+    chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8"));
+    return true;
+  });
+  return () => chunks.join("");
+}
+
 describe("runPack", () => {
   let outdir: string;
 
   afterEach(() => {
+    vi.restoreAllMocks();
     if (outdir) rmSync(outdir, { recursive: true, force: true });
   });
 
@@ -167,9 +183,10 @@ describe("runPack", () => {
     writeFileSync(
       entry,
       [
-        `import { registerTask, startCoordinator } from ${JSON.stringify(SDK_INDEX)};`,
-        'for (let i = 0; i < 4000; i += 1) registerTask({ dagId: "big_dag", taskId: String(i).padStart(240, "t") }, async () => undefined);',
-        "await startCoordinator();",
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        'const bigDag = new Dag("big_dag");',
+        'for (let i = 0; i < 4000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined);',
+        "await serveDags(new DagRegistry(bigDag));",
       ].join("\n"),
     );
 
@@ -180,11 +197,137 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("leaves no bundle behind when the entry registers no tasks", async () => {
+  it("leaves no bundle behind when the entry serves no Dags", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
 
-    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no tasks");
+    await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("served no Dags");
     expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  it.each([
+    {
+      label: "Dag",
+      dagId: "bad id!",
+      taskId: "valid_task",
+      expected:
+        'warning: dag id "bad id!" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it\n',
+    },
+    {
+      label: "task",
+      dagId: "valid_dag",
+      taskId: "bad id!",
+      expected:
+        'warning: task id "bad id!" in dag "valid_dag" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it\n',
+    },
+  ])("warns on a suspicious $label ID but still packs", async ({ dagId, taskId, expected }) => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "suspicious-id-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        `const suspiciousDag = new Dag(${JSON.stringify(dagId)});`,
+        `suspiciousDag.task(${JSON.stringify(taskId)}, async () => undefined);`,
+        "await serveDags(new DagRegistry(suspiciousDag));",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(stderr()).toContain(expected);
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(true);
+  });
+
+  it("reports the last error from a failed bundle", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "multiple-errors-entry.ts");
+    writeFileSync(
+      entry,
+      ['console.error("Error: earlier failure");', 'throw new Error("final failure");'].join("\n"),
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toHaveProperty(
+      "message",
+      "Error: final failure",
+    );
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  // A bundle can print the sentinel itself, so nothing on that line is trusted.
+  it.each([
+    ['{ supervisor_schema_version: "1", dags: { broken_dag: {} } }', "malformed entry"],
+    [
+      '{ supervisor_schema_version: "1", dags: { broken_dag: { tasks: ["ok", 7] } } }',
+      "malformed entry",
+    ],
+    [
+      '{ supervisor_schema_version: "1", dags: { broken_dag: { tasks: [""] } } }',
+      "malformed entry",
+    ],
+    ['{ supervisor_schema_version: "1", dags: [{ tasks: ["a"] }] }', "incomplete"],
+    // Was read off before the document itself was checked, so it surfaced as a
+    // raw TypeError.
+    ["null", "incomplete"],
+    // Truthy, but not the non-empty string the schema requires.
+    ['{ supervisor_schema_version: true, dags: { d: { tasks: ["a"] } } }', "incomplete"],
+    ['{ supervisor_schema_version: 20260616, dags: { d: { tasks: ["a"] } } }', "incomplete"],
+  ])("rejects the metadata line %s", async (manifest, message) => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "malformed-entry.ts");
+    writeFileSync(
+      entry,
+      `console.log(${JSON.stringify(AIRFLOW_METADATA_SENTINEL)} + JSON.stringify(${manifest}));`,
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(message);
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
+    expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  it("warns but still packs a registered Dag with no tasks, as airflow-go-pack does", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "mixed-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        'salesDag.task("extract", async () => undefined);',
+        'await serveDags(new DagRegistry(salesDag, new Dag("empty_dag")));',
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(stderr()).toContain('warning: dag "empty_dag" has no tasks\n');
+    expect(readEmbeddedMetadata(path.join(outdir, "bundle.mjs"))).toContain(
+      '  "empty_dag":\n    tasks: []',
+    );
+  });
+
+  it("packs only the Dags the served registry holds", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "forgotten-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Dag, DagRegistry, serveDags } from ${JSON.stringify(SDK_INDEX)};`,
+        'const salesDag = new Dag("sales_dag");',
+        'salesDag.task("extract", async () => undefined);',
+        'const billingDag = new Dag("billing_dag");',
+        'billingDag.task("charge", async () => undefined);',
+        "await serveDags(new DagRegistry(salesDag));",
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", outdir]);
+
+    const metadata = readEmbeddedMetadata(path.join(outdir, "bundle.mjs"));
+    expect(metadata).toContain('  "sales_dag":');
+    expect(metadata).not.toContain("billing_dag");
   });
 });

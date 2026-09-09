@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 import oracledb
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage

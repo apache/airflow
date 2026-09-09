@@ -75,6 +75,11 @@ CREATE_TUNING_PARAMS: dict = {
 }
 
 
+REGION_NAME = "eu-west-2"
+VERIFY = False
+BOTOCORE_CONFIG = {"read_timeout": 42}
+
+
 class TestSageMakerTuningOperator:
     def setup_method(self):
         self.sagemaker = SageMakerTuningOperator(
@@ -122,6 +127,21 @@ class TestSageMakerTuningOperator:
         assert isinstance(defer.value.trigger, SageMakerTrigger)
         assert defer.value.trigger.job_name == "job_name"
         assert defer.value.trigger.job_type == "tuning"
+
+    @mock.patch.object(SageMakerHook, "create_tuning_job")
+    def test_deferred_trigger_receives_hook_configuration(self, create_mock):
+        create_mock.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        self.sagemaker.deferrable = True
+        self.sagemaker.region_name = REGION_NAME
+        self.sagemaker.verify = VERIFY
+        self.sagemaker.botocore_config = BOTOCORE_CONFIG
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.sagemaker.execute(None)
+
+        assert exc.value.trigger.region_name == REGION_NAME
+        assert exc.value.trigger.verify == VERIFY
+        assert exc.value.trigger.botocore_config == BOTOCORE_CONFIG
 
     def test_template_fields(self):
         validate_template_fields(self.sagemaker)

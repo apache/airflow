@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
@@ -28,6 +29,20 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_transport_information_into_spark_properties,
 )
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
+
+_DURABLE_UNSET = object()
+
+
+def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
+    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
+    if durable is not _DURABLE_UNSET:
+        warnings.warn(
+            "`durable` has no effect on Airflow versions below 3.3.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return False
+
 
 # ResumableJobMixin ships in airflow.sdk, which only exists on Airflow 3, while this provider
 # still targets apache-airflow>=2.11. Guard the import and fall back to a stub on Airflow 2;
@@ -41,10 +56,10 @@ except ImportError:
 
         external_id_key: str = "livy_batch_id"
 
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
             # Swallow ``durable`` so it doesn't reach BaseOperator; crash recovery is a no-op here.
             super().__init__(**kwargs)
-            self.durable = durable
+            self.durable = _warn_and_disable_durable_pre_3_3(durable)
 
         def execute_resumable(self, context):
             external_id = self.submit_job(context)
@@ -130,8 +145,13 @@ class LivyOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
 
         if conf is None:

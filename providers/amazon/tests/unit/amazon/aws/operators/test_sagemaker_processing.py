@@ -95,6 +95,11 @@ EXPECTED_INTEGER_FIELDS: list[list[str]] = [
 EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS: list[list[str]] = [["StoppingCondition", "MaxRuntimeInSeconds"]]
 
 
+REGION_NAME = "eu-west-2"
+VERIFY = False
+BOTOCORE_CONFIG = {"read_timeout": 42}
+
+
 class TestSageMakerProcessingOperator:
     def setup_method(self):
         self.processing_config_kwargs = dict(
@@ -270,6 +275,36 @@ class TestSageMakerProcessingOperator:
         with pytest.raises(TaskDeferred) as exc:
             sagemaker_operator.execute(context=None)
         assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+
+    @mock.patch.object(
+        SageMakerHook, "describe_processing_job", return_value={"ProcessingJobStatus": "InProgress"}
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_deferred_trigger_receives_hook_configuration(
+        self, mock_job_exists, mock_processing, mock_describe
+    ):
+        sagemaker_operator = SageMakerProcessingOperator(
+            **self.defer_processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sagemaker_operator.execute(context=None)
+
+        assert exc.value.trigger.region_name == REGION_NAME
+        assert exc.value.trigger.verify == VERIFY
+        assert exc.value.trigger.botocore_config == BOTOCORE_CONFIG
 
     @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer")
     @mock.patch.object(

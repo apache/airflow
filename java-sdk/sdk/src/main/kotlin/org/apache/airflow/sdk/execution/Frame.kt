@@ -26,7 +26,10 @@ import com.fasterxml.jackson.databind.util.StdDateFormat
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.msgpack.core.MessagePack
-import java.io.ByteArrayOutputStream
+import org.msgpack.core.MessageUnpacker
+import org.msgpack.core.buffer.ArrayBufferInput
+import org.msgpack.core.buffer.MessageBuffer
+import org.msgpack.core.buffer.MessageBufferInput
 
 data class RawFrame(
   val id: Int,
@@ -35,6 +38,8 @@ data class RawFrame(
 )
 
 object Frame {
+  internal const val MAX_FRAME_LENGTH = 0xFFFF_FFFFL
+
   private val mapper =
     ObjectMapper().apply {
       configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -47,29 +52,35 @@ object Frame {
   fun encodeRequest(
     id: Int,
     body: Any,
-  ): ByteArray = encodeFrame(id, body)
+  ): List<MessageBuffer> = encodeFrame(id, body)
 
-  fun decodeRaw(bytes: ByteArray): RawFrame {
-    val unpacker = MessagePack.newDefaultUnpacker(bytes)
+  /**
+   * Decode the structural envelope of a frame, streaming the payload from
+   * [input] so a large frame never has to be held in one contiguous array.
+   */
+  fun decodeRaw(input: MessageBufferInput): RawFrame = MessagePack.newDefaultUnpacker(input).use { decodeRawFrom(it) }
+
+  private fun decodeRawFrom(unpacker: MessageUnpacker): RawFrame {
     val headerSize = unpacker.unpackArrayHeader()
     check(headerSize >= 1) { "Unexpected Task SDK frame arity $headerSize" }
 
     val id = unpacker.unpackInt()
     val rawBody = if (headerSize >= 2) unpacker.unpackAny() else null
     val rawError = if (headerSize >= 3) unpacker.unpackAny() else null
-    unpacker.close()
 
     return RawFrame(id, rawBody, rawError)
   }
 
   fun decodeBody(raw: RawFrame): Any? = decodeMessage(raw.rawError) ?: decodeMessage(raw.rawBody)
 
-  fun decode(bytes: ByteArray): IncomingFrame {
-    val raw = decodeRaw(bytes)
+  fun decode(input: MessageBufferInput): IncomingFrame {
+    val raw = decodeRaw(input)
     return IncomingFrame(raw.id, decodeBody(raw))
   }
 
-  fun lengthPrefix(length: Int) =
+  fun decode(bytes: ByteArray): IncomingFrame = decode(ArrayBufferInput(bytes))
+
+  fun lengthPrefix(length: UInt) =
     byteArrayOf(
       (length shr 24).toByte(),
       (length shr 16).toByte(),
@@ -77,22 +88,29 @@ object Frame {
       length.toByte(),
     )
 
-  fun parseLengthPrefix(prefix: ByteArray): Int {
+  fun payloadLength(buffers: List<MessageBuffer>): UInt {
+    val total = buffers.sumOf { it.size().toLong() }
+    require(total <= MAX_FRAME_LENGTH) {
+      "Frame payload $total bytes exceeds protocol maximum $MAX_FRAME_LENGTH"
+    }
+    return total.toUInt()
+  }
+
+  fun parseLengthPrefix(prefix: ByteArray): UInt {
     check(prefix.size == 4) { "Need 4 prefix bytes" }
-    return prefix.fold(0) { acc, byte -> (acc shl 8) or (byte.toInt() and 0xff) }
+    return prefix.fold(0u) { acc, byte -> (acc shl 8) or (byte.toUInt() and 0xffu) }
   }
 
   private fun encodeFrame(
     id: Int,
     body: Any?,
-  ): ByteArray {
-    val payload = ByteArrayOutputStream()
-    val packer = MessagePack.newDefaultPacker(payload)
+  ): List<MessageBuffer> {
+    val packer = MessagePack.newDefaultBufferPacker()
     packer.packArrayHeader(2)
     packer.packInt(id)
     packer.packAny(body?.let(::toBody))
     packer.close()
-    return payload.toByteArray()
+    return packer.toBufferList()
   }
 
   private fun decodeMessage(raw: Any?): Any? {

@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+10.21.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make KubernetesPodOperator durable execution inert below Airflow 3.3 (#71492)``
+* ``Coerce explicit None _request_timeout in async/sync k8s API clients (#69611)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing argument docs for pod methods (#71217)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 10.21.0
 .......
 

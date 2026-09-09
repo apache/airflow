@@ -33,6 +33,10 @@ For parameter definitions take a look at :class:`~airflow.providers.apache.kafka
     If you set the ``commit_cadence`` parameter, ensure that the ``enable.auto.commit`` option in the Kafka connection configuration is explicitly set to ``false``.
     By default, ``enable.auto.commit`` is ``true``, which causes the consumer to auto-commit offsets every 5 seconds, potentially overriding the behavior defined by ``commit_cadence``.
 
+Set ``return_apply_function_results=True`` to return a list containing each non-``None`` value returned by the per-message ``apply_function`` in consume order.
+This option does not apply to ``apply_function_batch``.
+Returned values use normal task return handling and may be stored in XCom, so avoid returning large payloads.
+
 Using the operator
 """"""""""""""""""
 

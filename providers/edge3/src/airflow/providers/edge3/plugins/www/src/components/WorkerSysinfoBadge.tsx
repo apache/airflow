@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Badge, type BadgeProps, HoverCard, List, Text } from "@chakra-ui/react";
-import * as React from "react";
+import { forwardRef } from "react";
 import TimeAgo from "react-timeago";
 
 import { LuCheck } from "react-icons/lu";
@@ -97,7 +97,7 @@ export type Props = {
   readonly last_heartbeat: string | null | undefined;
 } & BadgeProps;
 
-export const WorkerSysinfoBadge = React.forwardRef<HTMLDivElement, Props>(
+export const WorkerSysinfoBadge = forwardRef<HTMLDivElement, Props>(
   ({ children, sysinfo, first_online, last_heartbeat, ...rest }, ref) => (
     <HoverCard.Root size={"lg"}>
       <HoverCard.Trigger>
