@@ -30,7 +30,7 @@ There are two authoring features, and they differ in one thing: who owns the gra
 .. code-block:: text
 
      FEATURE 1                                   FEATURE 2
-     Mixed Language Stub Task                    Native Dag
+     Mixed Language Task Handler                 Native Dag
      Python owns the graph                       the SDK owns the graph
 
      Python @task.stub                           Dag(spec)
@@ -39,10 +39,10 @@ There are two authoring features, and they differ in one thing: who owns the gra
            |                                           dag  <-- owns the schedule,
            | binds by dag_id + task_id                  |        the tasks, the edges
            v                                            v
-     fn --> StubTask(dagId, taskId, fn)          fn --> dag.Task(fn, options)
+     fn --> TaskHandler(dagId, taskId, fn)       fn --> dag.Task(fn, options)
                     |                                           |
                     v                                           v
-              StubTaskRef                                    TaskRef
+             TaskHandlerRef                                  TaskRef
                     |                                           |
                     |                                           |  Inputs(ref)      data edge, carries a value
                     |                                           |  before / after   order edge, carries nothing
@@ -52,16 +52,16 @@ There are two authoring features, and they differ in one thing: who owns the gra
                     +---------------------+---------------------+
                                           |
                                           v
-                          bundle.register(Dag | StubTask)
+                         bundle.register(Dag | TaskHandler)
                                           |
                                           v
                                    bundle.serve()  <-- the task subprocess entrypoint
 
-A ``StubTask`` supplies a body for a task Python already declared, so it names the
+A ``TaskHandler`` supplies a body for a task Python already declared, so it names the
 ``dagId``/``taskId`` pair it binds to and nothing else. A native ``Dag`` owns the schedule, the
 tasks, and the edges, so ``dag.Task`` returns a ``TaskRef`` that edges attach to. Both features
 land in the same ``bundle``, and one ``bundle.serve()`` call serves both, so a single process can carry
-native Dags and mixed-language stub tasks at once.
+native Dags and mixed-language task handlers at once.
 
 Terms
 -----
@@ -74,8 +74,8 @@ Terms
      - Definition
    * - ``fn``
      - The function callable itself: the task body a user writes.
-   * - ``StubTask``
-     - Callable interface factory over ``(dagId, taskId, fn)``; returns a ``StubTaskRef``.
+   * - ``TaskHandler``
+     - Callable interface factory over ``(dagId, taskId, fn)``; returns a ``TaskHandlerRef``.
    * - ``Dag``
      - Callable interface factory over a Dag spec; returns a ``DagRef``.
    * - ``dag``
@@ -83,7 +83,7 @@ Terms
    * - ``dag.Task``
      - Callable interface factory over ``(fn, options)``; returns a ``TaskRef``.
    * - ``bundle``
-     - Holds every ``Dag`` and ``StubTask``. One ``register`` takes either kind, in any
+     - Holds every ``Dag`` and ``TaskHandler``. One ``register`` takes either kind, in any
        mixture, and the bundle serves them.
    * - ``serve``
      - A method on the ``bundle``: the task subprocess's entrypoint calls ``bundle.serve()``,
@@ -105,10 +105,10 @@ Per-SDK spelling
      - a ``func``
      - an annotated method, or an ``InputTask``
      - an ``async`` function
-   * - ``StubTask``
-     - ``airflow.StubTask(dagId, taskId, fn)``
-     - ``@Builder.StubTask(dagId, taskId)``
-     - ``new StubTask(dagId, taskId, fn)``
+   * - ``TaskHandler``
+     - ``airflow.TaskHandler(dagId, taskId, fn)``
+     - ``@Builder.TaskHandler(dagId, taskId)``
+     - ``new TaskHandler(dagId, taskId, fn)``
    * - ``Dag``
      - ``airflow.Dag(spec)``
      - ``@Builder.Dag(id, ...)``, or ``new Dag(id)``
