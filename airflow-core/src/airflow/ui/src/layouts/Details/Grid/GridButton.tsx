@@ -21,10 +21,12 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
-import { Tooltip } from "src/system-components";
-import { useDurationFormat } from "src/utils";
 
+import { Tooltip } from "src/system-components";
+
+import Time from "src/components/Time";
+
+import { useDurationFormat } from "src/utils";
 
 type Props = {
   readonly dagId: string;
