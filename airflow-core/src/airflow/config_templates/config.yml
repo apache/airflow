@@ -224,12 +224,13 @@ core:
         * ``True``: Spawning a new python process, slower than fork, but means plugin changes picked
           up by tasks straight away
 
-        On Airflow 3 this applies to the task process only. When ``True`` the supervisor ``exec``s
-        a fresh interpreter right after forking it, so the task cannot inherit a lock a supervisor
-        thread held at fork time (which can otherwise hang it at its first TLS call). The Dag
-        processor and triggerer are not affected. Each task pays an interpreter start plus
-        re-import; Edge workers already start a fresh interpreter for the supervisor when this is
-        ``True`` and will now start a second one for the task.
+        On Airflow 3 this applies to the task process only. When ``True`` the supervisor starts
+        the task in a fresh interpreter with ``exec`` right after forking it, so the task cannot
+        inherit a lock a supervisor thread held at fork time (which can otherwise hang it at its
+        first TLS call). The Dag processor, the triggerer and task callbacks are not affected and
+        keep bare fork. Each task pays an interpreter start plus re-import; Edge workers already
+        start a fresh interpreter for the supervisor when this is ``True`` and start a second one
+        for the task.
       default: "False"
       example: ~
       version_added: 2.0.0
