@@ -48,7 +48,7 @@ When to use this provider
 (OpenAI, Anthropic, Google, Bedrock, …) is picked by the connection ``llm_conn_id`` points
 at — switching providers later is a connection change, not a Dag rewrite. Most connections
 use the generic ``pydanticai`` type, but Azure OpenAI, Bedrock, and Vertex AI also have their
-own connection types (``pydanticai-azure``, ``pydanticai-bedrock``, ``pydanticai-vertex``) for
+own connection types (``pydanticai_azure``, ``pydanticai_bedrock``, ``pydanticai_vertex``) for
 provider-specific authentication. Existing LangChain
 tools aren't locked out either: pydantic-ai ships ``pydantic_ai.ext.langchain.LangChainToolset``
 upstream, which wraps LangChain tools for a common.ai agent, and the provider's own

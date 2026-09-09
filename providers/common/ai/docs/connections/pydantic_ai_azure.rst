@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydanticai-azure:
+.. _howto/connection:pydanticai_azure:
 
 Pydantic AI (Azure OpenAI) Connection
 ======================================
 
-The ``pydanticai-azure`` connection type configures access to
+The ``pydanticai_azure`` connection type configures access to
 `Azure OpenAI <https://azure.microsoft.com/en-us/products/ai-services/openai-service>`__
 via the pydantic-ai framework. It backs ``PydanticAIAzureHook``, the dedicated
 subclass of ``PydanticAIHook`` for Azure's non-standard auth (an endpoint URL
@@ -60,7 +60,7 @@ Examples
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-azure",
+        "conn_type": "pydanticai_azure",
         "password": "<azure-api-key>",
         "host": "https://<resource>.openai.azure.com",
         "extra": "{\"model\": \"azure:gpt-4o\", \"api_version\": \"2024-07-01-preview\"}"

@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydanticai-bedrock:
+.. _howto/connection:pydanticai_bedrock:
 
 Pydantic AI (AWS Bedrock) Connection
 =======================================
 
-The ``pydanticai-bedrock`` connection type configures access to
+The ``pydanticai_bedrock`` connection type configures access to
 `AWS Bedrock <https://aws.amazon.com/bedrock/>`__ via the pydantic-ai framework.
 It backs ``PydanticAIBedrockHook``, the dedicated subclass of ``PydanticAIHook``
 for Bedrock's AWS-style credentials — IAM keys, a bearer token, or the default
@@ -95,7 +95,7 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"region_name\": \"us-east-1\"}"
     }
 
@@ -104,7 +104,7 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"region_name\": \"us-east-1\", \"aws_access_key_id\": \"AKIA...\", \"aws_secret_access_key\": \"...\"}"
     }
 
@@ -113,6 +113,6 @@ the instance role or environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-bedrock",
+        "conn_type": "pydanticai_bedrock",
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-5\", \"api_key\": \"<bearer-token>\"}"
     }

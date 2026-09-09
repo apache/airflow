@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydanticai-vertex:
+.. _howto/connection:pydanticai_vertex:
 
 Pydantic AI (Google Vertex AI) Connection
 ============================================
 
-The ``pydanticai-vertex`` connection type configures access to
+The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai
 framework. It backs ``PydanticAIVertexHook``, the dedicated subclass of
 ``PydanticAIHook`` for Google Cloud's project/location/service-account
@@ -114,7 +114,7 @@ environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-vertex",
+        "conn_type": "pydanticai_vertex",
         "extra": "{\"model\": \"google-cloud:gemini-2.0-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\"}"
     }
 
@@ -123,6 +123,6 @@ environment:
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-vertex",
+        "conn_type": "pydanticai_vertex",
         "extra": "{\"model\": \"google-cloud:gemini-2.0-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\", \"service_account_info\": {\"type\": \"service_account\", \"project_id\": \"my-gcp-project\", \"private_key\": \"<contents of the service account JSON key's private_key field>\", \"client_email\": \"sa@my-gcp-project.iam.gserviceaccount.com\"}}"
     }
