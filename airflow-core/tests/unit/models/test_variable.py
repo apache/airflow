@@ -65,6 +65,8 @@ class _TeamAwareVariableBackend(BaseSecretsBackend):
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         self.received_team_name = team_name
         return "secret_val"
+
+
 class _SessionUnawareMetastoreBackend(MetastoreBackend):
     """A custom backend whose ``get_variable`` override predates the ``session`` keyword."""
 
@@ -275,6 +277,7 @@ class TestVariable:
         Variable.update(key="key", value="new-value", team_name=testing_team.name, session=session)
 
         assert mock_check.call_args.kwargs["team_name"] == testing_team.name
+
     @mock.patch.object(MetastoreBackend, "get_variable", autospec=True)
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
     def test_get_forwards_session_to_metastore_backend(self, mock_ensure_secrets, mock_get_variable, session):
