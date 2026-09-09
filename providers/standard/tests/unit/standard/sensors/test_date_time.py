@@ -246,10 +246,29 @@ class TestDateTimeSensor:
         A genuinely invalid (non-template, non-parseable) target_time must still raise eagerly at
         Dag-parse time, not be silently treated as an unrendered template and deferred.
         """
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid date string"):
             DateTimeSensorAsync(
                 task_id="async_invalid",
                 target_time="not-a-date",
                 start_from_trigger=True,
                 dag=self.dag,
             )
+
+    def test_async_start_from_trigger_target_time_with_only_closing_delimiter_is_templated(self):
+        """
+        A target_time containing only a closing Jinja delimiter (no "{{" or "{%") isn't
+        parseable as a date either, but it's still template-shaped and must be deferred like any
+        other unrendered template, not treated as genuinely invalid input.
+        """
+        op = DateTimeSensorAsync(
+            task_id="async_only_closing_delimiter",
+            target_time="data_interval_end.tomorrow() }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_from_trigger is True
+        assert op.start_trigger_args.trigger_kwargs == {
+            "target_time": "data_interval_end.tomorrow() }}",
+            "end_from_trigger": False,
+        }
+        assert "moment" not in op.start_trigger_args.trigger_kwargs

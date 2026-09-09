@@ -122,7 +122,6 @@ class DateTimeSensorAsync(DateTimeSensor):
                 moment = self._moment
             except ValueError:
                 if not self._looks_like_template(self.target_time):
-                    # genuinely invalid input (e.g. "not-a-date"), not a template: fail fast
                     raise
                 moment = None
 
@@ -160,7 +159,9 @@ class DateTimeSensorAsync(DateTimeSensor):
     @staticmethod
     def _looks_like_template(target_time: Any) -> bool:
         """Whether ``target_time`` contains unrendered Jinja delimiters."""
-        return isinstance(target_time, str) and ("{{" in target_time or "{%" in target_time)
+        if not isinstance(target_time, str):
+            return False
+        return any(delimiter in target_time for delimiter in ("{{", "}}", "{%", "%}"))
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
