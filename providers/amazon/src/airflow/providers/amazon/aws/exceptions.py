@@ -34,7 +34,7 @@ class EcsTaskFailToStart(Exception):
 
     def __reduce__(self):
         """Return ECSTask state and its message."""
-        return EcsTaskFailToStart, (self.message)
+        return EcsTaskFailToStart, (self.message,)
 
 
 class EcsOperatorError(Exception):
