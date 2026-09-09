@@ -26,7 +26,7 @@ import { Tooltip } from "src/system-components";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 type Props = {
   readonly endDate?: string | null;

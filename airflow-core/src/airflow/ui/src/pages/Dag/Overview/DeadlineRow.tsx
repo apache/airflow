@@ -26,8 +26,8 @@ import { RouterLink } from "src/system-components";
 
 import Time from "src/components/Time";
 
+import { useDurationFormat } from "src/utils";
 import { translateCompletionRule } from "src/utils/deadlines";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 type DeadlineRowProps = {
   readonly alert?: DeadlineAlertResponse;

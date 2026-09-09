@@ -27,8 +27,8 @@ import { RouterLink } from "src/system-components";
 
 import Time from "src/components/Time.tsx";
 
+import { useDurationFormat } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links.ts";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 const HITLReviewRow = ({ label, value }: { readonly label: string; readonly value: ReactNode }) => (
   <Table.Row>

@@ -27,7 +27,7 @@ import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
 import { Dialog } from "src/system-components";
 
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 type Props = {
   readonly dagDetails?: {

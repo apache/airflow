@@ -25,7 +25,7 @@ import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen"
 import { BasicTooltip } from "src/components/BasicTooltip";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 type Props = {
   readonly dagId: string;

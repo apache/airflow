@@ -26,7 +26,7 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", taskId = "" } = useParams();

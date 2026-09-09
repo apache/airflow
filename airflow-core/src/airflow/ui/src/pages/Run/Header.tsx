@@ -41,7 +41,7 @@ import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useDagRunNote } from "src/queries/useDagRunNote";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 

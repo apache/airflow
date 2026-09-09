@@ -32,8 +32,7 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { isStatePending, useAutoRefresh } from "src/utils";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "components"]);

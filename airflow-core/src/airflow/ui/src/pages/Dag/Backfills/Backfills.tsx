@@ -31,7 +31,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { type DurationFormat, useDurationFormat } from "src/utils/useDurationFormat";
+import { type DurationFormat, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";

@@ -25,8 +25,8 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
+import { useDurationFormat } from "src/utils";
 import { formatDate, getDurationTickStep } from "src/utils/datetimeUtils";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 

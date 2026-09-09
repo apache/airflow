@@ -44,7 +44,7 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
 import { FileLocation } from "./FileLocation";

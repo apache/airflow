@@ -25,8 +25,8 @@ import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import { Popover } from "src/system-components";
 
+import { useDurationFormat } from "src/utils";
 import { translateCompletionRule } from "src/utils/deadlines";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   const { t: translate } = useTranslation("dag");

@@ -31,8 +31,8 @@ import { Modal, Pagination } from "src/system-components";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
+import { useDurationFormat } from "src/utils";
 import { translateCompletionRule } from "src/utils/deadlines";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 const PAGE_LIMIT = 10;
 

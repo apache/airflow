@@ -29,8 +29,7 @@ import { Tooltip, type TooltipProps } from "src/system-components";
 
 import Time from "src/components/Time";
 
-import { sortStateEntries } from "src/utils";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { sortStateEntries, useDurationFormat } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {

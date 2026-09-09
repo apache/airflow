@@ -28,7 +28,7 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { t: translate } = useTranslation();

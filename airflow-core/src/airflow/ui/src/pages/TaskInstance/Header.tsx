@@ -35,7 +35,7 @@ import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();

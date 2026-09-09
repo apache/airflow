@@ -18,7 +18,7 @@
  */
 import { Text, type TextProps } from "@chakra-ui/react";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 type Props = {
   readonly duration: number;

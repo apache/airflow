@@ -38,8 +38,7 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { useAutoRefresh, isStatePending } from "src/utils";
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";

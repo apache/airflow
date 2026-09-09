@@ -37,7 +37,7 @@ import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 import {
   type GanttDataItem,

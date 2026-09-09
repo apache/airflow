@@ -29,7 +29,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { dagId = "", runId = "" } = useParams();

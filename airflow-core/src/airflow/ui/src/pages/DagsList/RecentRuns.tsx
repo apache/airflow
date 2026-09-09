@@ -27,7 +27,7 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 
-import { useDurationFormat } from "src/utils/useDurationFormat";
+import { useDurationFormat } from "src/utils";
 
 dayjs.extend(duration);
 

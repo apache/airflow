@@ -38,10 +38,10 @@ import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/ty
 
 import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
+import { useDurationFormat } from "src/utils";
 import { formatDate, getDurationTickStep, getElapsedSeconds } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 import { median } from "src/utils/median";
-import { useDurationFormat } from "src/utils/useDurationFormat";
 
 ChartJS.register(
   CategoryScale,
