@@ -28,13 +28,13 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class TeradataComputeClusterSyncTrigger(BaseTrigger):
     """
-    Fetch the status of the suspend or resume operation for the specified compute cluster.
+    Fetch the status of the requested operation for the specified compute cluster.
 
     :param teradata_conn_id:  The :ref:`Teradata connection id <howto/connection:teradata>`
         reference to a specific Teradata database.
     :param compute_profile_name:  Name of the Compute Profile to manage.
     :param compute_group_name: Name of compute group to which compute profile belongs.
-    :param opr_type: Compute cluster operation - SUSPEND/RESUME
+    :param operation_type: Compute cluster operation - CREATE/CREATE_SUSPEND/RESUME/SUSPEND
     :param poll_interval: polling period in minutes to check for the status
     """
 
@@ -73,7 +73,7 @@ class TeradataComputeClusterSyncTrigger(BaseTrigger):
         elif self.operation_type in (Constants.CC_RESUME_OPR, Constants.CC_CREATE_OPR):
             expected_status = Constants.CC_RESUME_DB_STATUS
         else:
-            yield TriggerEvent({"status": "error", "message": "Invalid operation"})
+            yield TriggerEvent({"status": "error", "message": f"Invalid operation: {self.operation_type}"})
             return
         try:
             while True:

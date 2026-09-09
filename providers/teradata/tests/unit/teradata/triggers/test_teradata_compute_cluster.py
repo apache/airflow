@@ -135,7 +135,7 @@ async def test_run_invalid_operation():
     )
     with patch.object(trigger, "get_status", autospec=True) as mock_get_status:
         events = [event async for event in trigger.run()]
-        assert events == [TriggerEvent({"status": "error", "message": "Invalid operation"})]
+        assert events == [TriggerEvent({"status": "error", "message": "Invalid operation: INVALID"})]
         mock_get_status.assert_not_called()
 
 
