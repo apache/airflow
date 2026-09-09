@@ -750,6 +750,31 @@ class TestSFTPTransferTrigger:
         assert kwargs["concurrency"] == 1
         assert kwargs["prefetch"] is True
 
+    @mock.patch("airflow.providers.sftp.triggers.sftp.SFTPHookAsync", autospec=True)
+    def test_get_async_hook_forwards_remote_host(self, mock_hook_async):
+        """Test that an explicit remote_host override reaches SFTPHookAsync, not just the conn_id."""
+        trigger = SFTPTransferTrigger(
+            sftp_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation="put",
+            remote_host="explicit-host.example.com",
+        )
+        trigger._get_async_hook()
+        mock_hook_async.assert_called_once_with(sftp_conn_id="ssh_default", host="explicit-host.example.com")
+
+    @mock.patch("airflow.providers.sftp.triggers.sftp.SFTPHookAsync", autospec=True)
+    def test_get_async_hook_defaults_remote_host_to_none(self, mock_hook_async):
+        """Test that omitting remote_host does not force an unexpected host onto the hook."""
+        trigger = SFTPTransferTrigger(
+            sftp_conn_id="ssh_default",
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation="put",
+        )
+        trigger._get_async_hook()
+        mock_hook_async.assert_called_once_with(sftp_conn_id="ssh_default", host=None)
+
     def test_run_success(self):
         """Test run() yields TriggerEvent with status success."""
         import asyncio

@@ -33,12 +33,13 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 class BaseSFTPTrigger(BaseTrigger):
     """Base class for SFTP triggers, providing shared async hook construction."""
 
-    def __init__(self, sftp_conn_id: str = "sftp_default") -> None:
+    def __init__(self, sftp_conn_id: str = "sftp_default", remote_host: str | None = None) -> None:
         super().__init__()
         self.sftp_conn_id = sftp_conn_id
+        self.remote_host = remote_host
 
     def _get_async_hook(self) -> SFTPHookAsync:
-        return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
+        return SFTPHookAsync(sftp_conn_id=self.sftp_conn_id, host=self.remote_host)
 
 
 class SFTPTrigger(BaseSFTPTrigger):
@@ -163,13 +164,12 @@ class SFTPTransferTrigger(BaseSFTPTrigger):
         concurrency: int = 1,
         prefetch: bool = True,
     ) -> None:
-        super().__init__(sftp_conn_id=sftp_conn_id)
+        super().__init__(sftp_conn_id=sftp_conn_id, remote_host=remote_host)
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.operation = operation
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
-        self.remote_host = remote_host
         self.concurrency = concurrency
         self.prefetch = prefetch
 
