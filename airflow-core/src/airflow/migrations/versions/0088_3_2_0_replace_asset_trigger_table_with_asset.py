@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import get_asset_name_collation
+
 # revision identifiers, used by Alembic.
 revision = "15d84ca19038"
 down_revision = "509b94a1042d"
@@ -38,7 +40,7 @@ depends_on = None
 airflow_version = "3.2.0"
 
 _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
-    sa.String(length=1500, collation="latin1_general_cs"),
+    sa.String(length=1500, collation=get_asset_name_collation()),
     "mysql",
 )
 

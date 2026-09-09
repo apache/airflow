@@ -19,6 +19,8 @@ from __future__ import annotations
 import contextlib
 from contextlib import contextmanager
 
+from airflow.configuration import conf
+
 
 @contextmanager
 def disable_sqlite_fkeys(op):
@@ -61,3 +63,8 @@ def ignore_sqlite_value_error():
     if op.get_bind().dialect.name == "sqlite":
         return contextlib.suppress(ValueError)
     return contextlib.nullcontext()
+
+
+def get_asset_name_collation() -> str:
+    """Return the MySQL collation used by asset identifier columns."""
+    return conf.get("database", "sql_engine_collation_for_asset_names", fallback="latin1_general_cs")
