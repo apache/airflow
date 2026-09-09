@@ -30,7 +30,7 @@ Nothing below exists on `main`.
 
 1. **One Dag type, constructed then registered.** `airflow.Dag(spec)` returns a `*airflow.DagRef`
    that is complete before `bundle.Register(dag)` takes it — the same verb that registers Mixed Lang
-   stub tasks ([ADR 6](0006-mixed-lang-task-handler-interface.md)). Naming rule:
+   task handlers ([ADR 6](0006-mixed-lang-task-handler-interface.md)). Naming rule:
    `airflow.X(...)` constructs, `*airflow.XRef` is the handle.
 2. **Tasks register through `dag.Task(fn any, opts ...airflow.TaskOption)`**, returning a
    `*airflow.TaskRef`. `airflow.Inputs(...)` and a bare `airflow.TaskSpec{}` both satisfy
@@ -48,7 +48,7 @@ Nothing below exists on `main`.
 
 A native Dag is authored entirely in Go — schedule, tasks, and dependencies — and serializes into the
 Dag JSON a Python Dag would produce. There is one Dag type, as in Python; the Mixed Lang case
-registers stub tasks instead ([ADR 6](0006-mixed-lang-task-handler-interface.md)) because it
+registers task handlers instead ([ADR 6](0006-mixed-lang-task-handler-interface.md)) because it
 defines no Dag. Dependencies between Go functions have to be typed rather than looked up by task ID,
 and a Dag should read like Go rather than transliterated Python. The proposed interface spread its
 surface across `v1`, `sdk`, and `slog`, published a half-built Dag to the registry and mutated it
@@ -133,8 +133,8 @@ staging.Before(loaded)                   // staging >> load
   (`task-sdk/src/airflow/sdk/definitions/_internal/mixins.py:35`), which is where `set_upstream` and
   `set_downstream` — `>>` and `<<` — live. Go needs the same base for the same reason, sealed with an
   unexported method like `Registration` and `TaskOption`.
-- `*DagRef` satisfies `airflow.Registration` so that one `Bundle.Register` covers Dags and stub
-  tasks alike; the bundle lifecycle and the sealed-interface mechanics are in
+- `*DagRef` satisfies `airflow.Registration` so that one `Bundle.Register` covers Dags and task
+  handlers alike; the bundle lifecycle and the sealed-interface mechanics are in
   [ADR 6](0006-mixed-lang-task-handler-interface.md).
 - Go forbids a package-level func and a type sharing the name `Dag`, so one of the two has to differ;
   the constructor keeps the plain noun because Dag authors read it most. `Before` and `After` both
