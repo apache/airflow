@@ -1896,29 +1896,23 @@ class TestAssetStateStoreAccessor:
                 assert "max_value_storage_bytes" in mock_log.warning.call_args[0][0]
         mock_supervisor_comms.send.assert_called_once()
 
+    @pytest.mark.parametrize("lookup_by", ["name", "uri"])
     @pytest.mark.asyncio
-    async def test_aget_returns_value(self, mock_supervisor_comms):
+    async def test_aget_returns_value(self, mock_supervisor_comms, lookup_by):
         """aget awaits asend and returns the stored value, without touching sync send."""
         mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value="2026-04-30T00:00:00Z")
+        if lookup_by == "name":
+            accessor = AssetStateStoreAccessor(name=self.ASSET_NAME)
+            expected_message = GetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
+        else:
+            accessor = AssetStateStoreAccessor(uri=self.ASSET_URI)
+            expected_message = GetAssetStateStoreByUri(uri=self.ASSET_URI, key="watermark")
 
-        result = await AssetStateStoreAccessor(name=self.ASSET_NAME).aget("watermark")
+        result = await accessor.aget("watermark")
 
         assert result == "2026-04-30T00:00:00Z"
-        mock_supervisor_comms.asend.assert_called_once_with(
-            GetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
-        )
+        mock_supervisor_comms.asend.assert_called_once_with(expected_message)
         mock_supervisor_comms.send.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_aget_by_uri(self, mock_supervisor_comms):
-        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value="2026-04-30T00:00:00Z")
-
-        result = await AssetStateStoreAccessor(uri=self.ASSET_URI).aget("watermark")
-
-        assert result == "2026-04-30T00:00:00Z"
-        mock_supervisor_comms.asend.assert_called_once_with(
-            GetAssetStateStoreByUri(uri=self.ASSET_URI, key="watermark")
-        )
 
     @pytest.mark.asyncio
     async def test_aget_returns_default_when_key_missing(self, mock_supervisor_comms):
@@ -1961,26 +1955,25 @@ class TestAssetStateStoreAccessor:
             "s3://bucket/assets/orders/watermark"
         )
 
+    @pytest.mark.parametrize("lookup_by", ["name", "uri"])
     @pytest.mark.asyncio
-    async def test_aset_operation(self, mock_supervisor_comms):
+    async def test_aset_operation(self, mock_supervisor_comms, lookup_by):
         mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        if lookup_by == "name":
+            accessor = AssetStateStoreAccessor(name=self.ASSET_NAME)
+            expected_message = SetAssetStateStoreByName(
+                name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z"
+            )
+        else:
+            accessor = AssetStateStoreAccessor(uri=self.ASSET_URI)
+            expected_message = SetAssetStateStoreByUri(
+                uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z"
+            )
 
-        await AssetStateStoreAccessor(name=self.ASSET_NAME).aset("watermark", "2026-04-30T00:00:00Z")
+        await accessor.aset("watermark", "2026-04-30T00:00:00Z")
 
-        mock_supervisor_comms.asend.assert_called_once_with(
-            SetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-04-30T00:00:00Z")
-        )
+        mock_supervisor_comms.asend.assert_called_once_with(expected_message)
         mock_supervisor_comms.send.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_aset_by_uri(self, mock_supervisor_comms):
-        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
-
-        await AssetStateStoreAccessor(uri=self.ASSET_URI).aset("watermark", "2026-04-30T00:00:00Z")
-
-        mock_supervisor_comms.asend.assert_called_once_with(
-            SetAssetStateStoreByUri(uri=self.ASSET_URI, key="watermark", value="2026-04-30T00:00:00Z")
-        )
 
     @pytest.mark.asyncio
     async def test_aset_none_raises(self, mock_supervisor_comms):
@@ -2223,48 +2216,34 @@ class TestAssetStateStoreAccessors:
         assert accessors._total == 0
         mock_supervisor_comms.send.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("method_name", "expected_message"),
+        [
+            ("aget", GetAssetStateStoreByName(name=ASSET_NAME, key="watermark")),
+            ("aset", SetAssetStateStoreByName(name=ASSET_NAME, key="watermark", value="2026-05-01")),
+            ("adelete", DeleteAssetStateStoreByName(name=ASSET_NAME, key="watermark")),
+            ("aclear", ClearAssetStateStoreByName(name=ASSET_NAME)),
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_aget_single_inlet_simplified(self, mock_supervisor_comms):
+    async def test_single_inlet_async_shorthand(self, mock_supervisor_comms, method_name, expected_message):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
-        mock_supervisor_comms.asend.return_value = AssetStateStoreResult(value="v5")
-
-        result = await AssetStateStoreAccessors([asset]).aget("watermark")
-
-        assert result == "v5"
-        mock_supervisor_comms.asend.assert_called_once_with(
-            GetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
+        mock_supervisor_comms.asend.return_value = (
+            AssetStateStoreResult(value="v5") if method_name == "aget" else OKResponse(ok=True)
         )
+        accessors = AssetStateStoreAccessors([asset])
 
-    @pytest.mark.asyncio
-    async def test_aset_single_inlet_simplified(self, mock_supervisor_comms):
-        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
-        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        if method_name == "aget":
+            result = await accessors.aget("watermark")
+            assert result == "v5"
+        elif method_name == "aset":
+            await accessors.aset("watermark", "2026-05-01")
+        elif method_name == "adelete":
+            await accessors.adelete("watermark")
+        else:
+            await accessors.aclear()
 
-        await AssetStateStoreAccessors([asset]).aset("watermark", "2026-05-01")
-
-        mock_supervisor_comms.asend.assert_called_once_with(
-            SetAssetStateStoreByName(name=self.ASSET_NAME, key="watermark", value="2026-05-01")
-        )
-
-    @pytest.mark.asyncio
-    async def test_adelete_single_inlet_simplified(self, mock_supervisor_comms):
-        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
-        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
-
-        await AssetStateStoreAccessors([asset]).adelete("watermark")
-
-        mock_supervisor_comms.asend.assert_called_once_with(
-            DeleteAssetStateStoreByName(name=self.ASSET_NAME, key="watermark")
-        )
-
-    @pytest.mark.asyncio
-    async def test_aclear_single_inlet_simplified(self, mock_supervisor_comms):
-        asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
-        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
-
-        await AssetStateStoreAccessors([asset]).aclear()
-
-        mock_supervisor_comms.asend.assert_called_once_with(ClearAssetStateStoreByName(name=self.ASSET_NAME))
+        mock_supervisor_comms.asend.assert_called_once_with(expected_message)
 
     @pytest.mark.asyncio
     async def test_double_reference_raises_for_async_accessor(self):
