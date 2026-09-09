@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import threading
+from unittest import mock
+
 import pytest
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -272,3 +275,84 @@ class TestStateStoreObjectStorageBackend:
             backend._get_threshold.cache_clear()
             with pytest.raises(ValueError, match="must be non-negative"):
                 backend._get_threshold()
+
+    @pytest.mark.asyncio
+    async def test_aset_and_aget_task(self, store, task_scope):
+        await store.aset(task_scope, "k", "hello")
+        assert await store.aget(task_scope, "k") == "hello"
+        # the async round-trip is visible to the sync API and vice versa
+        assert store.get(task_scope, "k") == "hello"
+
+    @pytest.mark.asyncio
+    async def test_aget_missing_returns_none(self, store, task_scope):
+        assert await store.aget(task_scope, "missing") is None
+
+    @pytest.mark.asyncio
+    async def test_adelete_task(self, store, task_scope):
+        store.set(task_scope, "k", "v")
+        await store.adelete(task_scope, "k")
+        assert store.get(task_scope, "k") is None
+
+    @pytest.mark.asyncio
+    async def test_adelete_missing_is_noop(self, store, task_scope):
+        await store.adelete(task_scope, "does_not_exist")
+
+    @pytest.mark.asyncio
+    async def test_aclear_task_single_map_index(self, store, task_scope):
+        store.set(task_scope, "k1", "v1")
+        store.set(task_scope, "k2", "v2")
+        await store.aclear(task_scope)
+        assert store.get(task_scope, "k1") is None
+        assert store.get(task_scope, "k2") is None
+
+    @pytest.mark.asyncio
+    async def test_aclear_task_all_map_indices(self, store):
+        scope0 = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        scope1 = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=1)
+        store.set(scope0, "k", "v0")
+        store.set(scope1, "k", "v1")
+        await store.aclear(scope0, all_map_indices=True)
+        assert store.get(scope0, "k") is None
+        assert store.get(scope1, "k") is None
+
+    @pytest.mark.asyncio
+    async def test_adelete_asset(self, store, asset_scope):
+        store.set(asset_scope, "watermark", "2026-05-01")
+        await store.adelete(asset_scope, "watermark")
+        assert store.get(asset_scope, "watermark") is None
+
+    @pytest.mark.asyncio
+    async def test_aclear_asset(self, store, asset_scope):
+        store.set(asset_scope, "k1", "v1")
+        store.set(asset_scope, "k2", "v2")
+        await store.aclear(asset_scope)
+        assert store.get(asset_scope, "k1") is None
+        assert store.get(asset_scope, "k2") is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("async_call", "sync_method"),
+        [
+            (lambda store, scope: store.aget(scope, "k"), "get"),
+            (lambda store, scope: store.aset(scope, "k", "v"), "set"),
+            (lambda store, scope: store.adelete(scope, "k"), "delete"),
+            (lambda store, scope: store.aclear(scope), "clear"),
+        ],
+        ids=["aget", "aset", "adelete", "aclear"],
+    )
+    async def test_async_methods_run_blocking_work_off_the_loop_thread(
+        self, store, task_scope, async_call, sync_method
+    ):
+        loop_thread = threading.get_ident()
+        call_threads = []
+        original = getattr(store, sync_method)
+
+        def record_thread(*args, **kwargs):
+            call_threads.append(threading.get_ident())
+            return original(*args, **kwargs)
+
+        with mock.patch.object(store, sync_method, record_thread):
+            await async_call(store, task_scope)
+
+        assert call_threads
+        assert loop_thread not in call_threads

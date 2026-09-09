@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -58,6 +59,7 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -3884,6 +3886,29 @@ class TestGetPreviousTI:
         assert data["run_id"] == "target_run_1"
         assert data["state"] == State.SUCCESS
 
+    def test_get_previous_ti_query_is_bounded(self, client, session, create_task_instance):
+        """The single-row previous-TI lookup must ask the DB for one row."""
+        for i in range(5):
+            create_task_instance(
+                task_id="test_task",
+                state=State.SUCCESS,
+                logical_date=timezone.datetime(2025, 1, i + 1),
+                run_id=f"run{i + 1}",
+            )
+        session.commit()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = client.get(
+                "/execution/task-instances/previous/dag/test_task",
+                params={"logical_date": "2025-01-05T00:00:00Z"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["run_id"] == "run4"
+        assert statements, "expected the endpoint to query the task_instance table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"previous-TI lookup is not bounded to one row: {sql}"
+
 
 class TestGetTaskStates:
     def setup_method(self):
@@ -3942,6 +3967,7 @@ class TestGetTaskStates:
             params={
                 "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
                 "task_group_id": "group1",
+                "task_ids": ["task2"],
             },
         )
         assert response.status_code == 200
@@ -3949,6 +3975,7 @@ class TestGetTaskStates:
             "task_states": {
                 "test": {
                     "group1.task1": "success",
+                    "task2": "failed",
                 },
             },
         }

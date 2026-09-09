@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job imp
 )
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
+    CreateCustomJobOperator,
     CreateCustomPythonPackageTrainingJobOperator,
     CreateCustomTrainingJobOperator,
     DeleteCustomTrainingJobOperator,
@@ -232,6 +233,27 @@ TEST_PYTHON_VERSION: str = "3.10"
 TEST_RAY_VERSION: str = "2.33"
 TEST_CLUSTER_NAME: str = "test-cluster-name"
 TEST_CLUSTER_ID: str = "test-cluster-id"
+
+TEST_CUSTOM_JOB = {
+    "display_name": DISPLAY_NAME,
+    "job_spec": {
+        "scheduling": {"disable_retries": True},
+        "worker_pool_specs": [
+            {
+                "machine_spec": {
+                    "machine_type": MACHINE_TYPE,
+                    "accelerator_type": ACCELERATOR_TYPE,
+                    "accelerator_count": ACCELERATOR_COUNT,
+                },
+                "replica_count": REPLICA_COUNT,
+                "container_spec": {
+                    "image_uri": "test_image_uri",
+                    "command": ["python3", "-c", "test_python_code"],
+                },
+            }
+        ],
+    },
+}
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -2859,9 +2881,10 @@ class TestVertexAIDeleteModelVersionOperator:
 
 
 class TestVertexAIRunPipelineJobOperator:
+    @pytest.mark.parametrize("reserved_ip_ranges", [None, [], ["range-1", "range-2"]])
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
     @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
-    def test_execute(self, to_dict_mock, mock_hook):
+    def test_execute(self, to_dict_mock, mock_hook, reserved_ip_ranges):
         op = RunPipelineJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -2880,6 +2903,7 @@ class TestVertexAIRunPipelineJobOperator:
             failure_policy="",
             service_account="",
             network="",
+            reserved_ip_ranges=reserved_ip_ranges,
             create_request_timeout=None,
             experiment=None,
         )
@@ -2900,6 +2924,7 @@ class TestVertexAIRunPipelineJobOperator:
             failure_policy="",
             service_account="",
             network="",
+            reserved_ip_ranges=reserved_ip_ranges,
             create_request_timeout=None,
             experiment=None,
         )
@@ -3171,4 +3196,31 @@ class TestVertexAIDeleteRayClusterOperator:
             location=GCP_LOCATION,
             project_id=GCP_PROJECT,
             cluster_id=TEST_CLUSTER_ID,
+        )
+
+
+class TestVertexAICreateCustomJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = CreateCustomJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            custom_job=TEST_CUSTOM_JOB,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_custom_job.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            custom_job=TEST_CUSTOM_JOB,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
         )
