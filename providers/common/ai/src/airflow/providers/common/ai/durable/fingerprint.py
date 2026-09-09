@@ -127,7 +127,7 @@ def fingerprint_model_request(
 
     Returns ``None`` when the request cannot be serialized, which prevents the
     step from being replayed or cached. Because model settings and message
-    history are carried into every later request, an unserializable value in
+    history are carried into every later request, a non-serializable value in
     either usually degrades every subsequent model step of the run the same way.
     """
     try:
