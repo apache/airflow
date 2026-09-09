@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
+    "anyRunState": "Beliebiger Lauf",
     "favorite": {
       "all": "Alle",
       "favorite": "Favorisierte",
       "unfavorite": "Nicht favorisierte"
     },
+    "lastRunState": "Letzter Lauf",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
@@ -73,6 +75,7 @@
       "preventRunningTasks": "Zurücksetzen von laufenden Tasks verhindern",
       "queueNew": "Neue Tasks einplanen",
       "runOnLatestVersion": "Mit neuester Bündel-Version ausführen",
+      "runOnLatestVersionForced": "Verwendet immer die neueste Version — es gibt keine frühere Version, zu der zurückgekehrt werden kann",
       "upstream": "Vorangegangene"
     }
   },
@@ -89,8 +92,8 @@
       "desc": "Sortiert nach Anzeigename (Z-A)"
     },
     "lastRunStartDate": {
-      "asc": "Sortiert nach letztem Startdatum (Erster-Letzter)",
-      "desc": "Sortiert nach letztem Startdatum (Letzter-Erster)"
+      "asc": "Sortiert nach Startdatum des letzten Laufes (Früheste-Späteste)",
+      "desc": "Sortiert nach Startdatum des letzten Laufes (Späteste-Früheste)"
     },
     "lastRunState": {
       "asc": "Sortiert nach dem Status des letzten Laufes (A-Z)",
