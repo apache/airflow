@@ -20,7 +20,7 @@ from unittest.mock import Mock
 
 import pytest
 from openai.types.batch import Batch
-from openai.types.responses import Response
+from openai.types.responses import Response, ResponseUsage
 
 from airflow.providers.common.compat.sdk import Context, TaskDeferred
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
@@ -89,9 +89,12 @@ def test_openai_response_operator_execute():
         response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
-    mock_response = Mock(spec=Response, output_text="haiku text", id="resp_123", status="completed")
+    mock_usage = Mock(spec=ResponseUsage)
+    mock_usage.model_dump.return_value = {"input_tokens": 5, "output_tokens": 7}
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=mock_usage
+    )
     mock_hook_instance.create_response.return_value = mock_response
-    mock_hook_instance.summarize_response_usage.return_value = {"input_tokens": 5, "output_tokens": 7}
     operator.hook = mock_hook_instance
 
     context = Context()
@@ -109,7 +112,26 @@ def test_openai_response_operator_execute():
     )
     context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
     context["ti"].xcom_push.assert_any_call(key="usage", value={"input_tokens": 5, "output_tokens": 7})
-    mock_hook_instance.summarize_response_usage.assert_called_once_with(mock_response)
+    mock_usage.model_dump.assert_called_once_with(mode="json")
+
+
+def test_openai_response_operator_execute_without_usage():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID, conn_id=CONN_ID, input_text="Write a haiku.", model="test_model"
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=None
+    )
+    mock_hook_instance.create_response.return_value = mock_response
+    operator.hook = mock_hook_instance
+
+    context = Context()
+    context["ti"] = Mock()
+    result = operator.execute(context)
+
+    assert result == "haiku text"
+    context["ti"].xcom_push.assert_any_call(key="usage", value=None)
 
 
 def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
@@ -123,7 +145,6 @@ def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
     mock_hook_instance = Mock(spec=OpenAIHook)
     mock_response = Mock(spec=Response, output_text="haiku text", id="resp_123", status="completed")
     mock_hook_instance.create_response.return_value = mock_response
-    mock_hook_instance.summarize_response_usage.return_value = {"input_tokens": 5, "output_tokens": 7}
     operator.hook = mock_hook_instance
 
     context = Context()
