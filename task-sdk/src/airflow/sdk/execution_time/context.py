@@ -755,7 +755,7 @@ class AssetStateStoreAccessor:
         return self._extract_get_response(resp, key, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
-        """Async version of :meth:`get` that awaits instead of blocking the event loop."""
+        """Async version of `get` that awaits instead of blocking the event loop."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = await SUPERVISOR_COMMS.asend(self._build_get_message(key))
@@ -796,7 +796,7 @@ class AssetStateStoreAccessor:
         SUPERVISOR_COMMS.send(self._build_set_message(key, value))
 
     async def aset(self, key: str, value: JsonValue) -> None:
-        """Async version of :meth:`set` that awaits instead of blocking the event loop."""
+        """Async version of `set` that awaits instead of blocking the event loop."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         await SUPERVISOR_COMMS.asend(self._build_set_message(key, value))
@@ -844,7 +844,7 @@ class AssetStateStoreAccessor:
             backend.delete(AssetScope(name=self._name, uri=self._uri), key)
 
     async def adelete(self, key: str) -> None:
-        """Async version of :meth:`delete` that awaits instead of blocking the event loop."""
+        """Async version of `delete` that awaits instead of blocking the event loop."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         await SUPERVISOR_COMMS.asend(self._build_delete_message(key))
@@ -871,7 +871,7 @@ class AssetStateStoreAccessor:
             backend.clear(AssetScope(name=self._name, uri=self._uri))
 
     async def aclear(self) -> None:
-        """Async version of :meth:`clear` that awaits instead of blocking the event loop."""
+        """Async version of `clear` that awaits instead of blocking the event loop."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         await SUPERVISOR_COMMS.asend(self._build_clear_message())
@@ -950,7 +950,7 @@ class AssetStateStoreAccessors:
         return self._single_accessor().get(key, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
-        """Async version of :meth:`get` that awaits instead of blocking the event loop."""
+        """Async version of `get` that awaits instead of blocking the event loop."""
         return await self._single_accessor().aget(key, default)
 
     def set(self, key: str, value: JsonValue) -> None:
@@ -958,7 +958,7 @@ class AssetStateStoreAccessors:
         self._single_accessor().set(key, value)
 
     async def aset(self, key: str, value: JsonValue) -> None:
-        """Async version of :meth:`set` that awaits instead of blocking the event loop."""
+        """Async version of `set` that awaits instead of blocking the event loop."""
         await self._single_accessor().aset(key, value)
 
     def delete(self, key: str) -> None:
@@ -966,7 +966,7 @@ class AssetStateStoreAccessors:
         self._single_accessor().delete(key)
 
     async def adelete(self, key: str) -> None:
-        """Async version of :meth:`delete` that awaits instead of blocking the event loop."""
+        """Async version of `delete` that awaits instead of blocking the event loop."""
         await self._single_accessor().adelete(key)
 
     def clear(self) -> None:
@@ -974,7 +974,7 @@ class AssetStateStoreAccessors:
         self._single_accessor().clear()
 
     async def aclear(self) -> None:
-        """Async version of :meth:`clear` that awaits instead of blocking the event loop."""
+        """Async version of `clear` that awaits instead of blocking the event loop."""
         await self._single_accessor().aclear()
 
     def __repr__(self) -> str:
