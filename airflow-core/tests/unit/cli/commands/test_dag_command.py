@@ -945,6 +945,7 @@ class TestCliDags:
     @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag, stdout_capture):
         mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
+        mock_get_dag.return_value.dag_id = "example_bash_operator"
 
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
@@ -968,6 +969,23 @@ class TestCliDags:
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
+
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", autospec=True)
+    @mock.patch.object(DAG, "test", autospec=True)
+    def test_dag_test_show_dag_from_dag_cli(self, mock_test, mock_render_dag, dag_maker):
+        """``DAG.cli()`` passes the Dag positionally and its parser drops ``dag_id``."""
+        with dag_maker("dag_cli_show_dagrun", schedule=None) as dag:
+            EmptyOperator(task_id="only_task")
+        mock_test.return_value = dag_maker.create_dagrun(run_id="dag_cli_run")
+
+        parser = cli_parser.get_parser(dag_parser=True)
+        dag_command.dag_test(parser.parse_args(["dags", "test", "--show-dagrun"]), dag)
+
+        mock_render_dag.assert_called_once()
+        assert mock_render_dag.call_args.args[0] is dag
+        assert [(ti.dag_id, ti.task_id, ti.run_id) for ti in mock_render_dag.call_args.kwargs["tis"]] == [
+            ("dag_cli_show_dagrun", "only_task", "dag_cli_run")
+        ]
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
