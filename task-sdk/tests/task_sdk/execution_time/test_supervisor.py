@@ -4480,6 +4480,32 @@ def _drop_root_if_needed():
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
+def test_exec_child_reapplies_nondumpable():
+    """execve resets PR_SET_DUMPABLE to 1; the exec'd child must set it to 0 again."""
+    probe = (
+        "import ctypes\n"
+        "from airflow.sdk.execution_time.supervisor import _PR_GET_DUMPABLE, _make_process_nondumpable\n"
+        "libc = ctypes.CDLL(None, use_errno=True)\n"
+        "after_exec = libc.prctl(_PR_GET_DUMPABLE, 0, 0, 0, 0)\n"
+        "_make_process_nondumpable()\n"
+        "print(after_exec, libc.prctl(_PR_GET_DUMPABLE, 0, 0, 0, 0))\n"
+    )
+    read_fd, write_fd = os.pipe()
+    pid = os.fork()
+    if pid == 0:  # pragma: no cover - child
+        os.close(read_fd)
+        os.dup2(write_fd, 1)
+        _make_process_nondumpable()  # what supervise_task() does before the fork
+        os.execv(sys.executable, [sys.executable, "-c", probe])
+    os.close(write_fd)
+    with os.fdopen(read_fd) as out:
+        report = out.read().split()[-2:]  # anything the exec'd interpreter logs first is noise
+    _, status = os.waitpid(pid, 0)
+    assert status == 0, f"exec'd child exited with {status}"
+    assert report == ["1", "0"], f"dumpable flag after exec, then after re-apply: {report}"
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_DUMPABLE is Linux-only")
 def test_nondumpable_blocks_sibling_proc_read():
     """A sibling process (same non-root UID) cannot read /proc/<pid>/environ or /proc/<pid>/mem of a nondumpable process."""
     import multiprocessing
