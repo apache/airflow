@@ -231,13 +231,21 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
 
     For example timedelta(seconds=3752) would become `1h:2M:32s`.
     If the time is less than a second, the return will be `<1s`.
+    Negative durations are prefixed with a `-` sign, e.g. `-1h:2M:32s`.
     """
     if td_object is None:
         return None
     if isinstance(td_object, dt.timedelta):
-        delta = relativedelta() + td_object
+        total_seconds = td_object.total_seconds()
     else:
-        delta = relativedelta(seconds=int(td_object))
+        total_seconds = td_object
+
+    is_negative = total_seconds < 0
+
+    if isinstance(td_object, dt.timedelta):
+        delta = relativedelta() + (abs(td_object) if is_negative else td_object)
+    else:
+        delta = relativedelta(seconds=abs(int(td_object)))
     # relativedelta for timedelta cannot convert days to months
     # so calculate months by assuming 30 day months and normalize
     months, delta.days = divmod(delta.days, 30)
@@ -258,8 +266,7 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     joined = ":".join(part for part in parts if part)
     if not joined:
         return "<1s"
-    return joined
-
+    return f"-{joined}" if is_negative else joined
 
 def parse_timezone(name: str | int) -> FixedTimezone | Timezone:
     """
