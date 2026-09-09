@@ -1414,6 +1414,68 @@ class TestConnection(TestConnectionEndpoint):
         assert tested_connection.password == expected_password
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_stored_extra_when_host_and_port_are_blank(self, test_client, session):
+        """Hidden unused host/port (None vs "") must not skip restoring masked extra."""
+        stored_path = "/real.pem"
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="snowflake",
+                host=None,
+                port=None,
+                extra=json.dumps({"private_key_file": stored_path, "account": "acct"}),
+            )
+        )
+        session.commit()
+
+        captured = {}
+
+        def mock_test_connection(self):
+            captured["extra"] = self.extra
+            return True, "mocked"
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "snowflake",
+            "host": "",
+            "password": "***",
+            "extra": json.dumps({"private_key_file": "***", "account": "acct"}),
+        }
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(captured["extra"])["private_key_file"] == stored_path
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reject_overridden_target_when_password_is_masked(self, test_client, session):
+        """A masked password is not caller-supplied credentials for a new destination."""
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="sqlite",
+                host="stored_host",
+                port=1234,
+                password="existing_password",
+            )
+        )
+        session.commit()
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "host": "other_host",
+            "password": "***",
+        }
+        with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
+            mock_test.return_value = (True, "mocked")
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 400
+        mock_test.assert_not_called()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_test_new_connection_without_existing(self, test_client):
         body = {
             "connection_id": "non_existent_conn",

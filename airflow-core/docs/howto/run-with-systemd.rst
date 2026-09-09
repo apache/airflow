@@ -67,5 +67,24 @@ New Airflow 3.0 Services
 
 Since Apache Airflow 3.0, additional components have been split out into separate services. The following new unit files are available:
 
+- ``airflow-dag-processor.service`` for Dag file parsing
 - ``airflow-triggerer.service`` for deferrable task triggering
 - ``airflow-api.service`` for the standalone REST API server
+
+Required services
+'''''''''''''''''
+
+At a minimum, you must run the ``scheduler``, the ``dag-processor`` and either the ``webserver`` or the ``api-server``:
+
+- ``airflow-scheduler.service``
+- ``airflow-dag-processor.service``
+- ``airflow-webserver.service`` or ``airflow-api.service``
+
+Without a running Dag processor, Dag files are never parsed and the ``dag_processor`` entry of the
+``/api/v2/monitor/health`` endpoint reports its status as ``unhealthy``.
+
+The ``airflow-triggerer.service`` is optional: start it only if you use deferrable tasks or
+event-driven :doc:`triggers <../authoring-and-scheduling/event-scheduling>`. If it is not running, the
+``triggerer`` entry of the health endpoint reports ``unhealthy``, which is expected and safe to ignore.
+
+See :ref:`Checking Airflow Health Status <check-health/http-endpoint>` for details on how each component reports its health.

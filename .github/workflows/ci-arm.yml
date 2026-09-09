@@ -376,7 +376,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
       - name: "MyPy checks for providers"
@@ -418,7 +417,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
       - name: "Migration round-trip check"
