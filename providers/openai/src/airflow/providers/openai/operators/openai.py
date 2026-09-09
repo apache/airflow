@@ -87,12 +87,13 @@ class OpenAIResponseOperator(BaseOperator):
     ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
     structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
-    ``max_output_tokens`` and ``max_tool_calls`` are *token*-level ceilings enforced by the OpenAI
-    API itself -- OpenAI exposes no monetary cost limit on the Responses API, so this operator has
-    no cost cap. For a monetary limit, use :doc:`apache-airflow-providers-common-ai:index` instead.
-    When ``max_output_tokens`` is hit, the request does not fail: the response comes back with
-    ``status="incomplete"`` and truncated ``output_text`` -- the ceiling is not a guarantee that no
-    partial output is returned.
+    ``max_output_tokens`` caps the number of tokens generated for the response; ``max_tool_calls``
+    caps the number of built-in tool calls the model may make. Both limits are enforced by the
+    OpenAI API itself -- OpenAI exposes no monetary cost limit on the Responses API, so this
+    operator has no cost cap. For a monetary limit, use
+    :doc:`apache-airflow-providers-common-ai:index` instead. When ``max_output_tokens`` is hit, the
+    request does not fail: the response comes back with ``status="incomplete"`` and truncated
+    ``output_text`` -- the ceiling is not a guarantee that no partial output is returned.
 
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
