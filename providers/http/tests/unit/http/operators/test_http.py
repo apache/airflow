@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import base64
-import contextlib
 import json
 import logging
 import pickle
@@ -412,9 +411,11 @@ class TestHttpOperator:
         returns a dictionary that override previous' call parameters.
         """
 
+        values = iter([5, 10])
+
         def make_response_object() -> Response:
             response = Response()
-            response._content = b'{"value": 5}'
+            response._content = json.dumps({"value": next(values)}).encode()
             return response
 
         def create_resume_response_parameters() -> dict:
@@ -443,15 +444,81 @@ class TestHttpOperator:
             deferrable=True,
         )
 
-        # Do two calls: On the first one, the pagination_function creates a new
-        # deferrable trigger. On the second one, the pagination_function returns
-        # None, which ends the execution of the Operator
-        with contextlib.suppress(TaskDeferred):
+        with pytest.raises(TaskDeferred) as exc_info:
             operator.execute_complete(**create_resume_response_parameters())
-            result = operator.execute_complete(
-                **create_resume_response_parameters(), paginated_responses=[make_response_object()]
+
+        paginated_responses = exc_info.value.kwargs["paginated_responses"]
+        assert [r.text for r in paginated_responses] == ['{"value": 5}']
+
+        result = operator.execute_complete(
+            **create_resume_response_parameters(), paginated_responses=paginated_responses
+        )
+        assert result == ['{"value": 5}', '{"value": 10}']
+
+    def test_async_pagination_with_response_filter(self, requests_mock):
+        """The response_filter must receive every accumulated page on the final resume."""
+        values = iter([1, 2, 3])
+
+        def make_response_object() -> Response:
+            response = Response()
+            response._content = json.dumps({"value": next(values)}).encode()
+            return response
+
+        def create_resume_response_parameters() -> dict:
+            return dict(
+                context={},
+                event={
+                    "status": "success",
+                    "response": HttpResponseSerializer.serialize(make_response_object()),
+                },
             )
-            assert result == ['{"value": 5}', '{"value": 5}']
+
+        remaining_pages = {"count": 2}
+
+        def pagination_function(response: Response) -> dict | None:
+            if remaining_pages["count"] > 0:
+                remaining_pages["count"] -= 1
+                return dict(endpoint="/")
+            return None
+
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            pagination_function=pagination_function,
+            deferrable=True,
+            response_filter=lambda resp: [entry.json()["value"] for entry in resp],
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute_complete(**create_resume_response_parameters())
+        paginated_responses = exc_info.value.kwargs["paginated_responses"]
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute_complete(
+                **create_resume_response_parameters(), paginated_responses=paginated_responses
+            )
+        paginated_responses = exc_info.value.kwargs["paginated_responses"]
+
+        result = operator.execute_complete(
+            **create_resume_response_parameters(), paginated_responses=paginated_responses
+        )
+        assert result == [1, 2, 3]
+
+    def test_async_execute_complete_without_pagination_returns_single_response(self, requests_mock):
+        """Without a pagination_function, the resume call must return the lone response as before."""
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            deferrable=True,
+        )
+        response = Response()
+        response._content = b'{"value": 1}'
+        result = operator.execute_complete(
+            context={},
+            event={
+                "status": "success",
+                "response": HttpResponseSerializer.serialize(response),
+            },
+        )
+        assert result == '{"value": 1}'
 
     @patch.object(HttpHook, "run_with_advanced_retry")
     def test_retry_args(self, mock_run_with_advanced_retry, requests_mock):
