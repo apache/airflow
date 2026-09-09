@@ -22,13 +22,13 @@ from unittest import mock
 
 import pytest
 from itsdangerous import URLSafeSerializer
-from sqlalchemy import insert, update
+from sqlalchemy import insert, select, update
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
-from airflow.models import DagModel
+from airflow.models import DagModel, Log
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.team import Team, dag_bundle_team_association_table
@@ -988,6 +988,7 @@ class TestRefreshDagBundle:
         assert session.get(DagBundleModel, "global-bundle").refresh_generation == 2
         _check_last_log(session, dag_id=None, event="refresh_dag_bundle", logical_date=None)
 
+    @conf_vars({("core", "multi_team"): "True"})
     def test_team_bundle_refresh_uses_team_permission(self, auth_manager, session, test_client, testing_team):
         bundle = DagBundleModel(name="team-bundle")
         bundle.teams.append(testing_team)
@@ -1004,6 +1005,9 @@ class TestRefreshDagBundle:
             details=DagDetails(id=None, team_name=testing_team.name),
             user=mock.ANY,
         )
+        log = session.scalar(select(Log).where(Log.event == "refresh_dag_bundle"))
+        assert log is not None
+        assert log.team_name == testing_team.name
 
     def test_team_bundle_refresh_forbidden(self, auth_manager, session, test_client, testing_team):
         bundle = DagBundleModel(name="team-bundle")
