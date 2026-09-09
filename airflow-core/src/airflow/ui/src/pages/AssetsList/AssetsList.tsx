@@ -46,6 +46,11 @@ import { DependencyPopover } from "./DependencyPopover";
 const assetsFilterKeys: Array<FilterableSearchParamsKeys> = [
   SearchParamsKeys.GROUP_PATTERN,
   SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE,
+  SearchParamsKeys.HAS_EVENTS,
+  SearchParamsKeys.IS_ALIAS,
+  SearchParamsKeys.CONSUMING_DAG_ID,
+  SearchParamsKeys.PRODUCING_TASK_ID,
+  SearchParamsKeys.CONSUMING_TASK_ID,
 ];
 
 type AssetRow = { row: { original: AssetResponse } };
@@ -149,6 +154,18 @@ export const AssetsList = () => {
 
   const lastAssetEventTimestampGte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE);
   const lastAssetEventTimestampLte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE);
+
+  // No param means no filtering either way; only "true"/"false" narrow the results.
+  const hasEventsParam = searchParams.get(SearchParamsKeys.HAS_EVENTS);
+  const hasEvents =
+    hasEventsParam === "true" ? true : hasEventsParam === "false" ? false : undefined;
+  const isAliasParam = searchParams.get(SearchParamsKeys.IS_ALIAS);
+  const isAlias = isAliasParam === "true" ? true : isAliasParam === "false" ? false : undefined;
+
+  const consumingDagId = searchParams.get(SearchParamsKeys.CONSUMING_DAG_ID) ?? undefined;
+  const producingTaskId = searchParams.get(SearchParamsKeys.PRODUCING_TASK_ID) ?? undefined;
+  const consumingTaskId = searchParams.get(SearchParamsKeys.CONSUMING_TASK_ID) ?? undefined;
+
   const groupArg = useAdvancedSearchArg({
     patternApiKey: "groupPattern",
     prefixApiKey: "groupPrefixPattern",
@@ -159,9 +176,14 @@ export const AssetsList = () => {
   const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
     {
       ...groupArg,
+      consumingDagId,
+      consumingTaskId,
+      hasEvents,
+      isAlias,
       lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
       lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
       limit: pagination.pageSize,
+      producingTaskId,
       ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,

@@ -51,4 +51,10 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   i18nextRules,
   i18nRules,
   jsoncRules,
+  // filterConfigs.tsx is one big shared lookup table of per-key filter definitions; growth is
+  // expected as filters are added across pages, not a sign the file needs splitting.
+  {
+    files: ["src/constants/filterConfigs.tsx"],
+    rules: { "max-lines": ["error", { max: 600, skipBlankLines: true, skipComments: true }] },
+  },
 ]);
