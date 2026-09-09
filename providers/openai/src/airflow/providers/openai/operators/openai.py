@@ -141,7 +141,11 @@ class OpenAIResponseOperator(BaseOperator):
         self.log.info("Generated response %s", response.id)
         if self.do_xcom_push:
             context["ti"].xcom_push(key="response_id", value=response.id)
-            context["ti"].xcom_push(key="usage", value=self.hook.summarize_response_usage(response))
+            # model_dump (not a hand-picked field list) keeps a token-usage dimension
+            # the API adds later from being silently dropped; mode="json" keeps the
+            # value XCom-serializable.
+            usage = response.usage.model_dump(mode="json") if response.usage is not None else None
+            context["ti"].xcom_push(key="usage", value=usage)
         return response.output_text
 
 
