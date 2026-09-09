@@ -51,7 +51,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import contains_eager, joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -2007,10 +2007,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
           By "next oldest", we mean hasn't been examined/scheduled in the most time.
 
-          We don't select all dagruns at once, because the rows are selected with row locks, meaning
-          that only one scheduler can "process them", even it is waiting behind other dags. Increasing this
-          limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
-          (>500 tasks.) DAGs
+          Each candidate is locked and scheduled in its own transaction, so an expensive Dag run
+          does not retain locks acquired while scheduling other runs.
 
         - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
           to the executor.
@@ -2027,27 +2025,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._start_queued_dagruns(session)
             guard.commit()
 
-            # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun.
-            # Materialize into a list because the multi-team block below iterates
-            # the result and ScalarResult is a one-pass iterator.
+            # Team stamping and scheduling both consume the candidates, so materialize the iterator.
             dag_runs = list(
                 DagRun.get_running_dag_runs_to_examine(
-                    session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics
+                    session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics, lock_rows=False
                 )
             )
 
             # Team name should be added before listeners are called in _schedule_all_dag_runs()
             self._stamp_team_names(dag_runs, session)
 
-            callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
-
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
-        for dag_run, callback_to_run in callback_tuples:
+        for dag_run, callback_to_run in self._schedule_all_dag_runs(dag_runs, session=session):
             dag = cached_get_dag(dag_run)
             if dag:
                 # Sending callbacks to the database, so it must be done outside of prohibit_commit.
@@ -2910,25 +2903,67 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed(msg="started")
 
-    @retry_db_transaction
     def _schedule_all_dag_runs(
         self,
-        guard: CommitProhibitorGuard,
         dag_runs: Iterable[DagRun],
+        *,
         session: Session,
-    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
+    ) -> Iterator[tuple[DagRun, DagCallbackRequest | None]]:
         """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = []
-        for run in dag_runs:
+        candidates = [(run.id, run.dag_id, run.run_id, run.last_scheduling_decision) for run in dag_runs]
+        for dag_run_id, dag_id, run_id, last_scheduling_decision in candidates:
             try:
-                callback = self._schedule_dag_run(run, session=session)
-                callback_tuples.append((run, callback))
+                result = self._schedule_dag_run_with_lock(
+                    dag_run_id, last_scheduling_decision, session=session
+                )
             except DBAPIError:
-                raise  # let @retry_db_transaction handle DB errors
+                raise  # Earlier runs have committed and must not be retried.
             except Exception:
-                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
-        guard.commit()
-        return callback_tuples
+                session.rollback()
+                self.log.exception("Error scheduling Dag run %s of %s", run_id, dag_id)
+            else:
+                if result is not None:
+                    # Deliver a committed run's callback before a later run can exhaust its retries.
+                    yield result
+
+    @retry_db_transaction
+    def _schedule_dag_run_with_lock(
+        self,
+        dag_run_id: int,
+        last_scheduling_decision: datetime | None,
+        *,
+        session: Session,
+    ) -> tuple[DagRun, DagCallbackRequest | None] | None:
+        """Claim and schedule one unchanged candidate, releasing its locks before returning."""
+        with prohibit_commit(session) as guard:
+            query = (
+                select(DagRun)
+                .join(DM, DM.dag_id == DagRun.dag_id)
+                .where(
+                    DagRun.id == dag_run_id,
+                    DagRun.state == DagRunState.RUNNING,
+                    DagRun.last_scheduling_decision.is_not_distinct_from(last_scheduling_decision),
+                    DagRun.run_after <= func.now(),
+                    DM.is_paused == expression.false(),
+                    DM.is_stale == expression.false(),
+                )
+                .execution_options(populate_existing=True)
+            )
+            dag_model_loader = contains_eager(DagRun.dag_model)
+            if self._dag_tags_in_metrics:
+                dag_model_loader = dag_model_loader.selectinload(DM.tags)
+            query = query.options(dag_model_loader)
+            run = (
+                session.scalars(with_row_locks(query, of=DagRun, session=session, skip_locked=True))
+                .unique()
+                .one_or_none()
+            )
+            if run is None:
+                guard.commit()
+                return None
+            callback = self._schedule_dag_run(run, session=session)
+            guard.commit()
+            return run, callback
 
     def _schedule_dag_run(
         self,
