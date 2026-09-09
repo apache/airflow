@@ -275,8 +275,7 @@ def _get_operator_defaults(operator_class: type[BaseOperator]) -> dict[str, Any]
     operator_defaults = OPERATOR_DEFAULTS.copy()
     operator_classes = operator_class.mro()
     for operator_base in reversed(operator_classes[: operator_classes.index(BaseOperator)]):
-        init = operator_base.__dict__.get("__init__")
-        if init is None:
+        if (init := operator_base.__dict__.get("__init__")) is None:
             continue
         operator_defaults.update(
             (name, parameter.default)
