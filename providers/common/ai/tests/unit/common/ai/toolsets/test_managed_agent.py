@@ -54,6 +54,14 @@ class FakeManagedAgentToolset(BaseManagedAgentToolset):
         return self._result
 
 
+class BrokenAgentRefManagedAgentToolset(FakeManagedAgentToolset):
+    """agent_ref raises, to prove resolving it never blocks invoke()."""
+
+    @property
+    def agent_ref(self) -> dict[str, str]:
+        raise RuntimeError("connection 'azure_standby' not found")
+
+
 class TestBaseManagedAgentToolsetConstruction:
     def test_is_abstract(self):
         with pytest.raises(TypeError, match="abstract"):
@@ -89,6 +97,12 @@ class TestBaseManagedAgentToolsetConstruction:
                 super().__init__(**kwargs)
 
         assert WithPlatformDefault()._timeout == 600.0
+
+    def test_timeout_property_exposes_the_configured_value(self):
+        assert FakeManagedAgentToolset(timeout=45.0).timeout == 45.0
+
+    def test_timeout_property_defaults_to_none(self):
+        assert FakeManagedAgentToolset().timeout is None
 
     def test_id_is_derived_from_tool_name(self):
         assert FakeManagedAgentToolset(tool_name="ask_bookings").id == "managed-agent-ask_bookings"
@@ -361,6 +375,13 @@ class TestFailoverManagedAgentToolset:
         assert ref["platform"] == "failover"
         assert ref["name"] == "specialist-1 -> specialist-1"
 
+    def test_agent_ref_property_survives_a_broken_member(self):
+        # Accessed directly, not via call_tool()/invoke(): those wrap every
+        # member access in their own _safe_agent_ref(), which would mask a bug
+        # in the group's own agent_ref property -- see _safe_agent_ref().
+        ref = self._group(FakeManagedAgentToolset(), BrokenAgentRefManagedAgentToolset()).agent_ref
+        assert ref == {"platform": "failover", "name": "specialist-1 -> ?"}
+
 
 class TestFailoverMetrics:
     """A failover is a success-shaped event, so the counters are the only signal
@@ -435,3 +456,84 @@ class TestFailoverMetrics:
         with pytest.raises(ModelRetry):
             await group.invoke("q")
         mock_stats.incr.assert_not_called()
+
+
+class TestSafeAgentRef:
+    """agent_ref only labels a call; resolving it must never block the call itself."""
+
+    async def _call(self, toolset, prompt="what is the number?"):
+        tools = await toolset.get_tools(ctx=None)
+        tool = tools[toolset._tool_name]
+        return await toolset.call_tool(toolset._tool_name, {"prompt": prompt}, None, tool)
+
+    @staticmethod
+    def _group(*members, **kwargs):
+        kwargs.setdefault("tool_name", "ask_resilient")
+        kwargs.setdefault("description", "Answers questions, on whichever cloud is up.")
+        return FailoverManagedAgentToolset(members=list(members), **kwargs)
+
+    @pytest.mark.asyncio
+    async def test_call_tool_survives_a_broken_agent_ref_on_a_lone_toolset(self):
+        toolset = BrokenAgentRefManagedAgentToolset(result="ok")
+        assert await self._call(toolset) == "ok"
+
+    @pytest.mark.asyncio
+    async def test_call_tool_survives_a_broken_standby_agent_ref(self):
+        # Kaxil's original repro: a group whose agent_ref join fails must still
+        # try its healthy primary through call_tool.
+        primary = FakeManagedAgentToolset(result="from primary")
+        standby = BrokenAgentRefManagedAgentToolset(result="from standby")
+        group = self._group(primary, standby)
+        assert await self._call(group) == "from primary"
+
+    @pytest.mark.asyncio
+    async def test_failover_survives_a_broken_primary_agent_ref(self):
+        primary = BrokenAgentRefManagedAgentToolset(result="from primary")
+        standby = FakeManagedAgentToolset(result="from standby")
+        group = self._group(primary, standby)
+        assert await group.invoke("q") == "from primary"
+
+    @pytest.mark.asyncio
+    async def test_failover_survives_a_broken_standby_agent_ref(self):
+        primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
+        standby = BrokenAgentRefManagedAgentToolset(result="from standby")
+        group = self._group(primary, standby)
+        assert await group.invoke("q") == "from standby"
+
+
+class TestInvokedMetric:
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
+    async def test_call_tool_emits_invoked_on_success(self, mock_stats):
+        toolset = FakeManagedAgentToolset()
+        tools = await toolset.get_tools(ctx=None)
+        await toolset.call_tool("ask_specialist", {"prompt": "q"}, None, tools["ask_specialist"])
+        mock_stats.incr.assert_called_once_with(
+            "managed_agent.invoked",
+            tags={"tool": "ask_specialist", "platform": "fake.cloud"},
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
+    async def test_call_tool_does_not_emit_invoked_on_failure(self, mock_stats):
+        toolset = FakeManagedAgentToolset(raises=RuntimeError("503"))
+        tools = await toolset.get_tools(ctx=None)
+        with pytest.raises(RuntimeError):
+            await toolset.call_tool("ask_specialist", {"prompt": "q"}, None, tools["ask_specialist"])
+        mock_stats.incr.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
+    async def test_group_call_tool_emits_invoked_once_regardless_of_failover(self, mock_stats):
+        primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
+        standby = FakeManagedAgentToolset(result="from standby")
+        group = FailoverManagedAgentToolset(
+            members=[primary, standby],
+            tool_name="ask_resilient",
+            description="Answers questions, on whichever cloud is up.",
+        )
+        tools = await group.get_tools(ctx=None)
+        await group.call_tool("ask_resilient", {"prompt": "q"}, None, tools["ask_resilient"])
+
+        kinds = [c.args[0] for c in mock_stats.incr.call_args_list]
+        assert kinds == ["managed_agent.failover", "managed_agent.served", "managed_agent.invoked"]
