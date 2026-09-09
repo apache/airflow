@@ -125,18 +125,18 @@ class SFTPOperator(BaseOperator):
         # ------------------------------------------------------------------ #
         # Input validation                                                     #
         # ------------------------------------------------------------------ #
-        if self.operation in (SFTPOperation.GET, SFTPOperation.PUT) and len(local_filepath_array) != len(
-            remote_filepath_array
-        ):
+        if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT) and len(
+            local_filepath_array
+        ) != len(remote_filepath_array):
             raise ValueError(
                 f"{len(local_filepath_array)} paths in local_filepath "
                 f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
-        if self.operation == SFTPOperation.DELETE and local_filepath_array:
+        if self.operation.lower() == SFTPOperation.DELETE and local_filepath_array:
             raise ValueError("local_filepath should not be provided for delete operation")
 
-        if self.operation not in (SFTPOperation.GET, SFTPOperation.PUT, SFTPOperation.DELETE):
+        if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT, SFTPOperation.DELETE):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
                 f"expected {SFTPOperation.GET!r}, {SFTPOperation.PUT!r}, "
@@ -279,7 +279,7 @@ class SFTPOperator(BaseOperator):
             for path in remote_filepath
         ]
 
-        if self.operation == SFTPOperation.GET:
+        if self.operation.lower() == SFTPOperation.GET:
             inputs = remote_datasets
             outputs = local_datasets
         else:

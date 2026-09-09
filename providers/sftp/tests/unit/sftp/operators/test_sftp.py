@@ -384,6 +384,23 @@ class TestSFTPOperator:
                 remote_filepath=["/tmp/test1", "/tmp/test2"],
             ).execute(None)
 
+    @pytest.mark.parametrize(
+        "operation", ["GET", "Get", "get", "PUT", "Put", "put", "DELETE", "Delete", "delete"]
+    )
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.transfer", autospec=True)
+    def test_operation_is_case_insensitive(self, mock_transfer, operation):
+        """Mixed-case operation values must not raise, matching the pre-refactor behavior."""
+        local_filepath = None if operation.lower() == SFTPOperation.DELETE else "/tmp/test"
+        SFTPOperator(
+            task_id="test_sftp_case_insensitive_operation",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_filepath,
+            remote_filepath="/tmp/remotetest",
+            operation=operation,
+        ).execute(None)
+        assert mock_transfer.call_count == 1
+        assert mock_transfer.call_args.kwargs["operation"] == operation
+
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
     def test_str_filepaths_get(self, mock_get):
         local_filepath = "/tmp/test"
