@@ -318,4 +318,6 @@ def __getattr__(name: str):
         DeprecationWarning,
         stacklevel=2,
     )
-    return getattr(__import__(modpath), name)
+    import importlib
+
+    return getattr(importlib.import_module(modpath), name)
