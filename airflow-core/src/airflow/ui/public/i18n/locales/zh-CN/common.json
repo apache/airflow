@@ -38,6 +38,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "活跃执行数",
     "catchup": "自动回填",
     "dagRunTimeout": "Dag 执行超时",
     "defaultArgs": "默认参数",
