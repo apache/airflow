@@ -22,9 +22,9 @@ metadata:
 spec:
   type: NodePort
   selector:
-    component: api-server
-    release: airflow
-    tier: airflow
+    app.kubernetes.io/component: api-server
+    app.kubernetes.io/instance: airflow
+    app.kubernetes.io/part-of: airflow
   ports:
     - port: 8080
       targetPort: 8080
