@@ -672,6 +672,24 @@ There are two limits that you can place on a task:
 
       BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(bash_command=commands)
 
+Scheduling large maps
+=====================
+
+During runtime expansion, the scheduler creates mapped task instances in batches
+within the Dag run's transaction. Custom ``task_instance_mutation_hook`` policies continue to apply
+to every instance, including policies that use the attached scheduler session.
+
+The :ref:`config:scheduler__max_tis_per_query` setting limits how many mapped
+instances become ready per Dag run in a scheduling pass. Remaining instances
+are considered in subsequent passes. A value of zero uses
+:ref:`config:core__parallelism`; if both settings are zero, this limit is disabled.
+Ordinary task instances are not subject to this per-run limit.
+
+All mapped instances are still created before expansion completes. Batching
+reduces insertion overhead but does not distribute creation across scheduler
+heartbeats, and dependency checks for blocked instances are not capped by this
+readiness limit.
+
 Automatically skipping zero-length maps
 =======================================
 

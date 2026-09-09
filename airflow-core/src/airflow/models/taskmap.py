@@ -28,7 +28,6 @@ from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
@@ -141,7 +140,7 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.taskinstance import TaskInstance, _add_and_prime_mapped_ti
+        from airflow.models.taskinstance import TaskInstance, _create_mapped_task_instances
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.serialization.definitions.mappedoperator import (
             SerializedMappedOperator,
@@ -241,6 +240,7 @@ class TaskMap(TaskInstanceDependencies):
 
         if unmapped_ti:
             dag_version_id = unmapped_ti.dag_version_id
+            dr = unmapped_ti.dag_run
         elif dag_version := DagVersion.get_latest_version(task.dag_id, session=session):
             dag_version_id = dag_version.id
         else:
@@ -256,22 +256,14 @@ class TaskMap(TaskInstanceDependencies):
                 )
             )
 
-        new_tis: list[TaskInstance] = []
-        for index in indexes_to_map:
-            ti = TaskInstance(
-                task,
-                run_id=run_id,
-                map_index=index,
-                state=state,
-                dag_version_id=dag_version_id,
-            )
-            task.log.debug("Expanding TIs upserted %s", ti)
-            _add_and_prime_mapped_ti(
-                ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
-            )
-            new_tis.append(ti)
-        if new_tis:
-            session.flush()
+        new_tis = _create_mapped_task_instances(
+            task,
+            dr,
+            indexes_to_map,
+            dag_version_id=dag_version_id,
+            state=state,
+            session=session,
+        )
         all_expanded_tis.extend(new_tis)
 
         # Coerce the None case to 0 -- these two are almost treated identically,

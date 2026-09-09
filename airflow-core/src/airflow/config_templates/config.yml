@@ -2822,7 +2822,11 @@ scheduler:
       description: |
         This determines the number of task instances to be evaluated for scheduling
         during each scheduler loop.
-        Set this to 0 to use the value of ``[core] parallelism``
+        It also limits the number of mapped task instances made ready per Dag run
+        in one scheduling pass. Remaining mapped instances are considered in later
+        passes; ordinary task instances are unaffected by this per-run limit.
+        Set this to 0 to use the value of ``[core] parallelism``. If both values
+        are 0, this limit is disabled.
       version_added: ~
       type: integer
       example: ~

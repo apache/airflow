@@ -2193,6 +2193,180 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     ]
 
 
+@pytest.mark.parametrize(
+    ("query_limit", "parallelism", "batch_size"),
+    [("2", "32", 2), ("0", "1", 1), ("-1", "1", 1), ("0", "0", 4)],
+)
+def test_mapped_expansion_defers_some_tis_to_later_scheduler_pass(
+    dag_maker, session, query_limit, parallelism, batch_size
+):
+    dag, mapped, dr = _make_mapped_dag_for_expansion(dag_maker, session, dag_id="mapped_budget")
+    upstream = dr.get_task_instance(task_id="op1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(upstream, list(range(4))))
+    session.flush()
+
+    with conf_vars({("scheduler", "max_tis_per_query"): query_limit, ("core", "parallelism"): parallelism}):
+        for start in range(0, 4, batch_size):
+            decision = dr.task_instance_scheduling_decisions(session=session)
+            assert [ti.map_index for ti in decision.schedulable_tis] == list(range(start, start + batch_size))
+            assert dr.state == DagRunState.RUNNING
+            for ti in decision.schedulable_tis:
+                ti.state = TaskInstanceState.SCHEDULED
+            session.flush()
+        assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+
+
+@conf_vars({("scheduler", "max_tis_per_query"): "2"})
+def test_mapped_budget_does_not_defer_unmapped_tasks(dag_maker, session):
+    with dag_maker(session=session, serialized=True):
+        MockOperator.partial(task_id="mapped").expand(arg2=[1, 2, 3])
+        EmptyOperator(task_id="ordinary")
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances(session=session)
+    for ti in tis:
+        ti.task = dr.dag.get_task(ti.task_id)
+    tis.sort(key=lambda ti: (ti.map_index < 0, ti.map_index))
+    ready, _, _ = dr._get_ready_tis(tis, [], session=session)
+    assert [(ti.task_id, ti.map_index) for ti in ready] == [("mapped", 0), ("mapped", 1), ("ordinary", -1)]
+
+
+@conf_vars({("scheduler", "max_tis_per_query"): "2"})
+def test_revise_map_indexes_defers_some_tis_to_later_scheduler_pass(dag_maker, session):
+    dag, mapped, dr = _make_mapped_dag_for_expansion(dag_maker, session, dag_id="revision_budget")
+    upstream = dr.get_task_instance(task_id="op1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(upstream, [1]))
+    session.flush()
+    dr.task_instance_scheduling_decisions(session=session)
+    session.merge(TaskMap.from_task_instance_xcom(upstream, list(range(5))))
+    session.flush()
+
+    for indexes in ([0, 1], [2, 3], [4]):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert [ti.map_index for ti in decision.schedulable_tis] == indexes
+        for ti in decision.schedulable_tis:
+            ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+    assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
+
+
+@mock.patch.object(TI, "are_dependencies_met", autospec=True)
+def test_revised_mapped_instances_have_dependencies_checked(check_dependencies, dag_maker, session):
+    dag, mapped, dr = _make_mapped_dag_for_expansion(dag_maker, session, dag_id="revision_dependencies")
+    upstream = dr.get_task_instance(task_id="op1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, "op1", length=1, session=session)
+    session.merge(TaskMap.from_task_instance_xcom(upstream, [1, 2, 3]))
+    session.flush()
+    check_dependencies.side_effect = lambda ti, **kwargs: ti.map_index != 1
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert [ti.map_index for ti in decision.schedulable_tis] == [0, 2]
+    assert [call.args[0].map_index for call in check_dependencies.call_args_list] == [0, 1, 2]
+
+
+def test_revise_map_indexes_if_mapped_uses_bulk_insert_when_mutation_hook_is_noop(dag_maker, session) -> None:
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_revise_map_indexes_bulk"
+    )
+
+    expand_mapped_task(
+        dag.task_dict[mapped.task_id],
+        dr.run_id,
+        "op1",
+        length=2,
+        session=session,
+    )
+
+    upstream_ti = dr.get_task_instance(task_id="op1", session=session)
+    assert upstream_ti
+    session.merge(TaskMap.from_task_instance_xcom(upstream_ti, [1, 2, 3, 4]))
+    session.flush()
+
+    dag_version_id_row = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session)
+    assert dag_version_id_row is not None
+    dag_version_id = dag_version_id_row.id
+
+    class NoopHook:
+        is_noop = True
+
+        def __call__(self, *_, **__):
+            return None
+
+    with (
+        mock.patch("airflow.settings.task_instance_mutation_hook", NoopHook()),
+        mock.patch.object(
+            session,
+            "bulk_insert_mappings",
+            wraps=session.bulk_insert_mappings,
+            spec=session.bulk_insert_mappings,
+        ) as bulk_insert,
+    ):
+        created_tis = dr._revise_map_indexes_if_mapped(mapped, dag_version_id=dag_version_id, session=session)
+
+    assert bulk_insert.called
+    assert [ti.map_index for ti in created_tis] == [2, 3]
+
+
+def test_revise_map_indexes_if_mapped_calls_mutation_hook_for_new_tis(dag_maker, session) -> None:
+    dag, mapped, dr = _make_mapped_dag_for_expansion(
+        dag_maker, session, dag_id="test_revise_map_indexes_hooked"
+    )
+
+    expand_mapped_task(
+        dag.task_dict[mapped.task_id],
+        dr.run_id,
+        "op1",
+        length=2,
+        session=session,
+    )
+
+    upstream_ti = dr.get_task_instance(task_id="op1", session=session)
+    assert upstream_ti
+    session.merge(TaskMap.from_task_instance_xcom(upstream_ti, [1, 2, 3, 4]))
+    session.flush()
+
+    dag_version_id_row = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session)
+    assert dag_version_id_row is not None
+    dag_version_id = dag_version_id_row.id
+
+    existing_indexes = session.scalars(
+        select(TI.map_index)
+        .where(TI.dag_id == dr.dag_id, TI.task_id == mapped.task_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert existing_indexes == [0, 1]
+    called_indexes: list[int] = []
+
+    class MutationHook:
+        is_noop = False
+
+        def __call__(self, task_instance, dag_run=None):
+            called_indexes.append(task_instance.map_index)
+            task_instance.queue = f"q_{task_instance.map_index}"
+
+    mutation_hook = MutationHook()
+
+    with (
+        mock.patch("airflow.settings.task_instance_mutation_hook", mutation_hook),
+        mock.patch("airflow.models.taskinstance.task_instance_mutation_hook", autospec=True) as hook,
+        mock.patch.object(
+            session,
+            "bulk_insert_mappings",
+            wraps=session.bulk_insert_mappings,
+            spec=session.bulk_insert_mappings,
+        ) as bulk_insert,
+    ):
+        hook.side_effect = mutation_hook
+        created_tis = dr._revise_map_indexes_if_mapped(mapped, dag_version_id=dag_version_id, session=session)
+
+    assert set(called_indexes) == {2, 3}
+    assert len(created_tis) == 2
+    assert not bulk_insert.called
+    assert [ti.queue for ti in sorted(created_tis, key=lambda ti: ti.map_index)] == ["q_2", "q_3"]
+
+
 def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker, session):
     """
     Test that when the length of mapped literal reduces at runtime, the missing task instances

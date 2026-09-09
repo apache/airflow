@@ -35,12 +35,13 @@ import uuid6
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from sqlalchemy import delete, func, inspect as sa_inspect, select, update
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import load_only
+from sqlalchemy.orm import Session, load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
-from airflow import settings
+from airflow import policies, settings
+from airflow._shared.observability import traces
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
@@ -67,6 +68,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _create_mapped_task_instances,
     clear_task_instances,
     find_relevant_relatives,
 )
@@ -101,6 +103,7 @@ from airflow.serialization.definitions.baseoperator import SerializedBaseOperato
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
+from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
@@ -109,6 +112,7 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.sqlalchemy import prohibit_commit
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -124,8 +128,6 @@ from tests_common.test_utils.taskinstance import (
 from unit.models import DEFAULT_DATE
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
@@ -4531,4 +4533,140 @@ class TestTaskInstanceStatsTagsTeamName:
             "task.scheduled_duration",
             mock.ANY,
             tags=expected_tags,
+        )
+
+
+@pytest.mark.parametrize("with_hook", [False, True])
+@pytest.mark.parametrize("state", [None, TaskInstanceState.UP_FOR_RETRY])
+def test_create_mapped_task_instances_batches_preserve_mutations(
+    dag_maker, session, monkeypatch, with_hook, state
+):
+    monkeypatch.setattr(traces, "tracer", TracerProvider().get_tracer(__name__))
+    with dag_maker(session=session, serialized=True):
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="mapped").expand(arg2=upstream.output)
+    dr = dag_maker.create_dagrun(conf={"queue": "policy_queue"})
+    task = dr.dag.get_task("mapped")
+    indexes = [0, 1, 3, 5, 6]
+    flush_sizes = []
+    hook_indexes = []
+    monkeypatch.setattr(session, "autoflush", True)
+
+    class Policy:
+        @policies.hookimpl
+        def task_instance_mutation_hook(self, task_instance, dag_run):
+            hook_indexes.append(task_instance.map_index)
+            attached_session = sa_inspect(task_instance).session
+            if attached_session is None:
+                return
+            assert (
+                attached_session.scalar(
+                    select(DagRun.id).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+                )
+                == dr.id
+            )
+            task_instance.queue = dag_run.conf["queue"]
+            task_instance.pool_slots = task_instance.map_index + 1
+            task_instance.priority_weight = 100 + task_instance.map_index
+            task_instance.note = f"policy-{task_instance.map_index}"
+            if task_instance.map_index == 3:
+                task_instance.state = TaskInstanceState.SKIPPED
+
+    def record_flush(session, flush_context, instances):
+        flush_sizes.append(
+            sum(isinstance(ti, TaskInstance) and ti.task_id == task.task_id for ti in session.new)
+        )
+
+    manager = settings.get_policy_plugin_manager()
+    plugin = Policy()
+    if with_hook:
+        manager.register(plugin)
+    monkeypatch.setattr(settings.task_instance_mutation_hook, "is_noop", True)
+    event.listen(session, "before_flush", record_flush)
+    try:
+        with (
+            prohibit_commit(session),
+            mock.patch.object(
+                session,
+                "bulk_insert_mappings",
+                wraps=session.bulk_insert_mappings,
+                spec=session.bulk_insert_mappings,
+            ) as bulk_insert,
+            mock.patch.object(
+                TaskInstance,
+                "insert_mapping",
+                wraps=TaskInstance.insert_mapping,
+                spec=TaskInstance.insert_mapping,
+            ) as build_mapping,
+        ):
+            tis = _create_mapped_task_instances(
+                task,
+                dr,
+                iter(indexes),
+                dag_version_id=dr.created_dag_version_id,
+                state=state,
+                session=session,
+                batch_size=2,
+            )
+        assert [ti.map_index for ti in tis] == indexes
+        assert all(sa_inspect(ti).persistent and ti.task is task and ti.dag_run is dr for ti in tis)
+        assert len({ti.id for ti in tis}) == len(indexes)
+        assert len({ti.context_carrier["traceparent"] for ti in tis}) == len(indexes)
+        if with_hook:
+            bulk_insert.assert_not_called()
+            assert flush_sizes == [2, 2, 1]
+            assert hook_indexes == [index for index in indexes for _ in range(2)]
+        else:
+            assert [len(call.args[1]) for call in bulk_insert.call_args_list] == [2, 2, 1]
+            build_mapping.assert_called_once()
+        session.expire_all()
+        for ti in tis:
+            assert ti.dag_version_id == dr.created_dag_version_id
+            if with_hook:
+                assert ti.queue == "policy_queue"
+                assert ti.pool_slots == ti.map_index + 1
+                assert ti.priority_weight == 100 + ti.map_index
+                assert ti.note == f"policy-{ti.map_index}"
+                assert ti.state == (TaskInstanceState.SKIPPED if ti.map_index == 3 else state)
+            else:
+                assert ti.queue == task.queue
+                assert ti.state == state
+    finally:
+        event.remove(session, "before_flush", record_flush)
+        if with_hook:
+            manager.unregister(plugin)
+
+
+def test_create_mapped_task_instances_preserves_custom_priority_strategy(dag_maker, session, monkeypatch):
+    class IndexWeight(_AbsolutePriorityWeightStrategy):
+        def get_weight(self, ti):
+            return 10 + ti.map_index
+
+    with dag_maker(session=session, serialized=True):
+        upstream = BaseOperator(task_id="upstream")
+        MockOperator.partial(task_id="mapped").expand(arg2=upstream.output)
+    dr = dag_maker.create_dagrun()
+    task = dr.dag.get_task("mapped")
+    monkeypatch.setattr(type(task), "weight_rule", property(lambda self: IndexWeight()))
+    tis = _create_mapped_task_instances(
+        task,
+        dr,
+        range(3),
+        dag_version_id=dr.created_dag_version_id,
+        session=session,
+        batch_size=2,
+    )
+    assert [ti.priority_weight for ti in tis] == [10, 11, 12]
+
+
+@pytest.mark.parametrize("batch_size", [0, -1])
+def test_create_mapped_task_instances_rejects_invalid_batch_size(batch_size):
+    with pytest.raises(ValueError, match="batch_size must be positive"):
+        _create_mapped_task_instances(
+            mock.Mock(spec=BaseOperator),
+            mock.Mock(spec=DagRun),
+            (),
+            dag_version_id=None,
+            session=mock.Mock(spec=Session),
+            batch_size=batch_size,
         )

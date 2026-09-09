@@ -88,7 +88,11 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
+from airflow.models.taskinstance import (
+    TaskInstance as TI,
+    _create_mapped_task_instances,
+    clear_task_instances,
+)
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -1685,7 +1689,14 @@ class DagRun(Base, LoggingMixin):
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
         revised_map_index_task_ids: set[str] = set()
+        max_tis_per_query = airflow_conf.getint("scheduler", "max_tis_per_query")
+        if max_tis_per_query <= 0:
+            max_tis_per_query = airflow_conf.getint("core", "parallelism")
+        mapped_ready_count = 0
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
+            if schedulable.map_index >= 0 and 0 < max_tis_per_query <= mapped_ready_count:
+                continue
+
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, Operator)
             old_state = schedulable.state
@@ -1715,9 +1726,10 @@ class DagRun(Base, LoggingMixin):
                     revised_tis = self._revise_map_indexes_if_mapped(
                         schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
                     )
-                    ready_tis.extend(revised_tis)
-                    revised_map_index_task_ids.add(schedulable.task.task_id)
+                    additional_tis.extend(revised_tis)
+                    revised_map_index_task_ids.add(schedulable.task_id)
                     if revised_tis:
+                        expansion_happened = True
                         # Revising a mapped task can add new instances, growing its instance count
                         # the same way expansion does. Drop the upstream-count memo so a downstream
                         # evaluated later in this pass recomputes it instead of reading a stale value.
@@ -1728,6 +1740,8 @@ class DagRun(Base, LoggingMixin):
                 # the task state to ensure it's still schedulable
                 if schedulable.state in SCHEDULEABLE_STATES:
                     ready_tis.append(schedulable)
+                    if schedulable.map_index >= 0:
+                        mapped_ready_count += 1
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
@@ -2145,17 +2159,13 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
-        new_tis: list[TI] = []
-        for index in range(total_length):
-            if index in existing_indexes:
-                continue
-            ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
-            self.log.debug("Expanding TIs upserted %s", ti)
-            _add_and_prime_mapped_ti(ti, task, self, session=session)
-            new_tis.append(ti)
-        if new_tis:
-            session.flush()
-        return new_tis
+        return _create_mapped_task_instances(
+            task,
+            self,
+            (index for index in range(total_length) if index not in existing_indexes),
+            dag_version_id=dag_version_id,
+            session=session,
+        )
 
     @classmethod
     @provide_session

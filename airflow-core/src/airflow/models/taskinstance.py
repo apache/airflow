@@ -96,7 +96,12 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
-from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
+from airflow.task.priority_strategy import (
+    _AbsolutePriorityWeightStrategy,
+    _DownstreamPriorityWeightStrategy,
+    _UpstreamPriorityWeightStrategy,
+    validate_and_load_priority_weight_strategy,
+)
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -214,12 +219,97 @@ def _add_and_prime_mapped_ti(
 
     :meta private:
     """
-    task_instance_mutation_hook(ti, dag_run=dag_run)
     session.add(ti)
     if context_carrier is not None:
         ti.context_carrier = context_carrier
     ti.refresh_from_task(task, dag_run=dag_run)
     set_committed_value(ti, "dag_run", dag_run)
+
+
+def _create_mapped_task_instances(
+    task: Operator,
+    dag_run: DagRun,
+    indexes: Iterable[int],
+    *,
+    dag_version_id: UUID | None,
+    session: Session,
+    state: str | None = None,
+    batch_size: int = 1000,
+) -> list[TaskInstance]:
+    """Create mapped instances in bounded batches, preserving attached-session mutation hooks."""
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    hook_is_noop = (
+        getattr(settings.task_instance_mutation_hook, "is_noop", False) is True
+        and not settings.get_policy_plugin_manager().hook.task_instance_mutation_hook.get_hookimpls()
+    )
+    created_tis: list[TaskInstance] = []
+    mapping_template: dict[str, Any] | None = None
+    weight_rule = task.weight_rule
+    if not hasattr(weight_rule, "get_weight"):
+        weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+    reuse_mapping = hook_is_noop and type(weight_rule) in (
+        _AbsolutePriorityWeightStrategy,
+        _DownstreamPriorityWeightStrategy,
+        _UpstreamPriorityWeightStrategy,
+    )
+    index_iterator = iter(indexes)
+    while batch := list(itertools.islice(index_iterator, batch_size)):
+        if hook_is_noop:
+            mappings = []
+            for index in batch:
+                if mapping_template is None:
+                    mapping = TaskInstance.insert_mapping(
+                        dag_run.run_id, task, index, dag_version_id=dag_version_id, dag_run=dag_run
+                    )
+                    if reuse_mapping:
+                        # Built-in weights depend only on the task; custom strategies may depend on the index.
+                        mapping_template = mapping
+                else:
+                    mapping = {
+                        **mapping_template,
+                        "map_index": index,
+                        "context_carrier": new_task_run_carrier(dag_run.context_carrier),
+                    }
+                mapping["state"] = state
+                mappings.append(mapping)
+            session.bulk_insert_mappings(TaskInstance.__mapper__, mappings)
+            tis = session.scalars(
+                select(TaskInstance)
+                .options(lazyload(TaskInstance.dag_run))
+                .where(
+                    TaskInstance.dag_id == dag_run.dag_id,
+                    TaskInstance.run_id == dag_run.run_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.map_index.in_(batch),
+                )
+                .order_by(TaskInstance.map_index)
+            ).all()
+            for ti in tis:
+                ti.task = task
+                set_committed_value(ti, "dag_run", dag_run)
+                created_tis.append(ti)
+        else:
+            # A hook may query the attached session. Do not flush every pending instance for each query.
+            with session.no_autoflush:
+                for index in batch:
+                    ti = TaskInstance(
+                        task,
+                        run_id=dag_run.run_id,
+                        map_index=index,
+                        state=state,
+                        dag_version_id=dag_version_id,
+                    )
+                    _add_and_prime_mapped_ti(
+                        ti,
+                        task,
+                        dag_run,
+                        session=session,
+                        context_carrier=new_task_run_carrier(dag_run.context_carrier),
+                    )
+                    created_tis.append(ti)
+        session.flush()
+    return created_tis
 
 
 def _recalculate_dagrun_queued_at_deadlines(
