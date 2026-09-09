@@ -211,6 +211,22 @@ class TestGetCookiePath:
             assert app_module.get_cookie_path() == "/org/team-a/airflow/"
 
 
+@pytest.mark.parametrize(
+    ("scheme", "ssl_cert", "exp"),
+    [
+        ("http", "", False),
+        ("https", "", True),
+        ("http", "/foo/bar/cert.crt", True),
+        ("https", "/foo/bar/cert/crt", True),
+    ],
+)
+def test_request_cookie_is_secure(scheme, ssl_cert, exp):
+    request = mock.Mock()
+    request.base_url.scheme = scheme
+    with conf_vars({("api", "ssl_cert"): ssl_cert}):
+        assert app_module.request_cookie_is_secure(request) == exp
+
+
 def test_create_auth_manager_thread_safety():
     """Concurrent calls to create_auth_manager must return the same singleton instance."""
     call_count = 0
