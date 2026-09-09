@@ -1158,6 +1158,27 @@ class _AssetHasEvent(BaseParam[bool]):
         return select
 
 
+class _AssetIsAlias(BaseParam[bool]):
+    """Filter on whether an asset is an alias."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+
+    @classmethod
+    def depends(cls, is_alias: bool | None = Query(default=None)) -> _AssetIsAlias:
+        return cls().set_value(is_alias)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.value is True:
+            return select.where(AssetModel.aliases.any())
+        if self.value is False:
+            return select.where(~AssetModel.aliases.any())
+
+        return select
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -1884,6 +1905,8 @@ QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
 ]
 QueryAssetHasEventsFilter = Annotated[_AssetHasEvent, Depends(_AssetHasEvent.depends)]
+
+QueryAssetIsAliasFilter = Annotated[_AssetIsAlias, Depends(_AssetIsAlias.depends)]
 QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
     FilterParam[bool | None],

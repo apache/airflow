@@ -3074,6 +3074,7 @@ export type GetAssetsUiData = {
      */
     groupPrefixPattern?: string | null;
     hasEvents?: boolean | null;
+    isAlias?: boolean | null;
     lastAssetEventTimestampGt?: string | null;
     lastAssetEventTimestampGte?: string | null;
     lastAssetEventTimestampLt?: string | null;

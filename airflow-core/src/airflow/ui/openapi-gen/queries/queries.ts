@@ -173,6 +173,7 @@ export const useAssetServiceGetDagAssetQueuedEvent = <TData = Common.AssetServic
 * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
 * @param data.hasEvents
+* @param data.isAlias
 * @param data.onlyActive
 * @param data.lastAssetEventTimestampGte
 * @param data.lastAssetEventTimestampGt
@@ -182,11 +183,12 @@ export const useAssetServiceGetDagAssetQueuedEvent = <TData = Common.AssetServic
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetsUi = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const useAssetServiceGetAssetsUi = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   groupPattern?: string;
   groupPrefixPattern?: string;
   hasEvents?: boolean;
+  isAlias?: boolean;
   lastAssetEventTimestampGt?: string;
   lastAssetEventTimestampGte?: string;
   lastAssetEventTimestampLt?: string;
@@ -200,7 +202,7 @@ export const useAssetServiceGetAssetsUi = <TData = Common.AssetServiceGetAssetsU
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
 /**
 * Next Run Assets
 * @param data The data for the request.

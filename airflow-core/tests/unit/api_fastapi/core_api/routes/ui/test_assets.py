@@ -823,6 +823,24 @@ class TestGetAssetsUi:
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["evented"]
 
+    def test_filter_by_is_alias(self, test_client, session):
+        is_aliased = AssetModel(name="is_aliased", uri="s3://bucket/target", group="asset")
+        is_not_aliased = AssetModel(name="not_aliased", uri="s3://bucket/not_target", group="asset")
+        alias = AssetAliasModel(name="alias", group="")
+        session.add_all([is_aliased, is_not_aliased, alias])
+        session.add(AssetActive.for_asset(is_aliased))
+        session.add(AssetActive.for_asset(is_not_aliased))
+
+        is_aliased.aliases.append(alias)
+        session.commit()
+
+        response_is_alias = test_client.get("/assets?is_alias=true")
+        response_not_alias = test_client.get("/assets?is_alias=false")
+        assert response_is_alias.status_code == 200
+        assert [a["name"] for a in response_is_alias.json()["assets"]] == ["is_aliased"]
+        assert response_not_alias.status_code == 200
+        assert [a["name"] for a in response_not_alias.json()["assets"]] == ["not_aliased"]
+
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of
         how many assets are returned (a lazy-loading regression would issue queries per asset).

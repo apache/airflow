@@ -173,6 +173,7 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
 * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
 * @param data.hasEvents
+* @param data.isAlias
 * @param data.onlyActive
 * @param data.lastAssetEventTimestampGte
 * @param data.lastAssetEventTimestampGt
@@ -182,11 +183,12 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, { dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, { dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   groupPattern?: string;
   groupPrefixPattern?: string;
   hasEvents?: boolean;
+  isAlias?: boolean;
   lastAssetEventTimestampGt?: string;
   lastAssetEventTimestampGte?: string;
   lastAssetEventTimestampLt?: string;
@@ -200,7 +202,7 @@ export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, {
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, hasEvents, isAlias, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) });
 /**
 * Next Run Assets
 * @param data The data for the request.

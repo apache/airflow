@@ -217,6 +217,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Has Events
+      - name: is_alias
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Alias
       - name: only_active
         in: query
         required: false
