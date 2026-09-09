@@ -268,12 +268,8 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
 **Sidecar containers and driver container identification**
 
 Completion is detected from the driver container's own exit code rather than from
-``pod.status.phase`` alone. This matters if your driver pods have sidecar containers: the pod
-phase may not advance to ``Succeeded`` until every container exits, but the operator identifies
-the driver container specifically and finishes as soon as it exits 0, without waiting on
-unrelated sidecars.
-
-By default the driver container is identified by name, preferring a container with ``driver`` in
+``pod.status.phase`` alone as long as the driver container can be identified. By default
+the driver container is identified by name, preferring a container with ``driver`` in
 its name, then one with ``spark`` in its name, falling back to the pod's only container if there
 is just one. If this heuristic doesn't match your setup, set ``kubernetes_driver_container_name`` to
 the exact container name:
@@ -295,6 +291,11 @@ immediately with a ``ValueError`` rather than silently falling back to the heuri
 If the pod phase reports ``Failed`` but the driver container itself exited 0 (for example, a
 sidecar crashed after the driver finished), the operator logs a warning and still treats the task
 as succeeded.
+
+If the driver container could not be identified, ``pod.status.phase`` will be used to track
+completion. This matters if your driver pods have sidecar containers: the pod
+phase may not advance to ``Succeeded`` until every container exits. To avoid indefinite
+waits, set ``execution_timeout`` as a hard bound.
 
 YARN ResourceManager API tracking
 """""""""""""""""""""""""""""""""
