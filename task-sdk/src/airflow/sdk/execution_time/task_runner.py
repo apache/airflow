@@ -241,9 +241,6 @@ class RuntimeTaskInstance(TaskInstance):
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
-    _failure_metrics_emitted: bool = False
-    """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
-
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -1716,6 +1713,11 @@ def run(
         # skipping the retry decision and every callback in ``finalize()``.
         msg, state, error = _handle_handler_failure(ti, e, log, context)
     finally:
+        # Count the final outcome once, including failures that bypass the retry handler.
+        if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+            stats.incr("operator_failures", tags={**stats_tags, "operator_name": ti.task.__class__.__name__})
+            stats.incr("ti_failures", tags=stats_tags)
+
         # `state` may still be unset if an exception handler above raised before
         # binding it
         if state is not None:
@@ -1903,7 +1905,7 @@ def _finalize_task_failure(
     retry_reason: str | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     """
-    Record failure metrics and build the standard retry-or-fail outcome.
+    Build the standard retry-or-fail outcome.
 
     Returns an ``UP_FOR_RETRY`` ``RetryTask`` when the server marked the task
     retry-eligible (optionally carrying a policy-supplied delay/reason), else a
@@ -1912,17 +1914,6 @@ def _finalize_task_failure(
     """
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
-
-    # Record operator and task instance failed metrics. One failure is one increment even
-    # if this runs twice, which happens when a first pass raised after counting -- see
-    # `_handle_handler_failure`.
-    if not ti._failure_metrics_emitted:
-        operator = ti.task.__class__.__name__
-        stats_tags = ti.stats_tags
-
-        stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
-        stats.incr("ti_failures", tags=stats_tags)
-        ti._failure_metrics_emitted = True
 
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         retry_kwargs: dict[str, Any] = {"end_date": end_date}
