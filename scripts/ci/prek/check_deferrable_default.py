@@ -125,7 +125,6 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
     yield from (f"{module_filename}:{lineno}" for lineno in visitor.error_linenos)
 
 
-
 def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
     context = CodemodContext(filename=module_filename)
     AddImportsVisitor.add_needed_import(context, "airflow.providers.common.compat.sdk", "conf")
