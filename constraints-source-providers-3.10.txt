@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-08T22:05:13.562638
+# This constraints file was automatically generated on 2026-09-09T13:47:46.693120
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -78,6 +78,7 @@ annotated-doc==0.0.5
 annotated-types==0.8.0
 anthropic==1.0.0
 anyio==4.14.2
+apache-beam==2.76.0
 apispec==6.10.0
 apprise==1.13.0
 argcomplete==3.7.2
@@ -173,7 +174,7 @@ coverage==7.15.4
 crcmod-plus==2.3.1
 cron_descriptor==2.1.0
 croniter==6.2.4
-cryptography==50.0.0
+cryptography==48.0.1
 curlify==3.0.0
 darabonba-core==1.0.8
 databricks-sql-connector==4.4.0
@@ -214,6 +215,7 @@ fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
 fastcore==2.2.14
+fasteners==0.20
 fastjsonschema==2.22.2
 fastmcp-slim==3.4.7
 fastuuid==0.14.0
@@ -239,7 +241,7 @@ google-ads==31.4.0
 google-analytics-admin==0.30.1
 google-api-core==2.34.0
 google-api-python-client==2.199.0
-google-auth-httplib2==0.4.1
+google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.4.0
 google-auth==2.56.3
 google-cloud-aiplatform==1.164.0
@@ -257,7 +259,7 @@ google-cloud-compute==1.50.0
 google-cloud-container==2.65.0
 google-cloud-core==2.6.1
 google-cloud-datacatalog==3.31.0
-google-cloud-dataflow-client==0.14.0
+google-cloud-dataflow-client==0.13.0
 google-cloud-dataform==0.11.2
 google-cloud-dataplex==2.20.0
 google-cloud-dataproc-metastore==1.23.0
@@ -369,6 +371,7 @@ joserfc==1.7.4
 jpype1==1.7.1
 jsonpatch==1.33
 jsonpath-ng==1.8.0
+jsonpickle==4.1.2
 jsonpointer==3.1.1
 jsonschema-path==0.5.0
 jsonschema-specifications==2025.9.1
@@ -464,6 +467,7 @@ nltk==3.10.3
 nodeenv==1.10.0
 numpy==2.2.6
 oauthlib==3.3.1
+objsize==0.7.1
 openai==2.54.0
 openapi-schema-validator==0.9.0
 openapi-spec-validator==0.9.0
@@ -540,7 +544,7 @@ py-key-value-aio==0.4.5
 py-partiql-parser==0.6.3
 py-spy==0.4.2
 py4j==0.10.9.9
-pyOpenSSL==26.4.0
+pyOpenSSL==26.2.0
 pyarrow==25.0.1
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
