@@ -45,7 +45,11 @@ export type FilterConfig = {
   readonly matchModeKey?: string;
   readonly max?: number;
   readonly min?: number;
-  readonly options?: Array<{ label: ReactNode | string; value: string }>;
+  // ``label`` is the plain-text form shown in the pill and the select trigger; it must
+  // stay a string because both are fixed-height, and a rich node there gets clipped.
+  // ``menuItem`` optionally restyles the option inside the dropdown menu only, e.g. a
+  // ``StateBadge`` for run states.
+  readonly options?: Array<{ label: string; menuItem?: ReactNode; value: string }>;
   readonly placeholder?: string;
   readonly startKey?: string;
   // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)

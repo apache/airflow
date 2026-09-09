@@ -165,6 +165,22 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(await screen.findByTestId("add-filter-teams")).toBeInTheDocument();
   });
 
+  it("renders the last run state as plain text in the pill, keeping badges in the menu", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    await addFilter("last_dag_run_state");
+    fireEvent.click(await screen.findByTestId("last_dag_run_state-filter-failed"));
+
+    const pill = await screen.findByTestId("last_dag_run_state-pill");
+
+    // The pill is fixed-height, so a badge rendered as the value gets clipped; the
+    // plain state label is shown instead and badges stay inside the dropdown menu.
+    expect(within(pill).queryByTestId("state-badge")).not.toBeInTheDocument();
+    expect(pill).toHaveTextContent("states.failed");
+  });
+
   it("renders the preset filters menu", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 

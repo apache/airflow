@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { Box, createListCollection } from "@chakra-ui/react";
 
@@ -27,6 +27,10 @@ import type { FilterConfig, FilterPluginProps } from "../types";
 
 type SelectOption = {
   label: string;
+  // Richer rendering (e.g. a ``StateBadge``) used inside the dropdown menu only. The
+  // pill and the select trigger always show ``label`` — both are fixed-height, and a
+  // badge there overflows and gets clipped (see issue #72283).
+  menuItem?: ReactNode;
   value: string;
 };
 
@@ -127,7 +131,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
                   item={option}
                   key={option.value}
                 >
-                  {option.label}
+                  {option.menuItem ?? option.label}
                 </Select.Item>
               ))}
             </Select.Content>
