@@ -3887,7 +3887,8 @@ class TestGetPreviousTI:
         assert data["state"] == State.SUCCESS
 
     def test_get_previous_ti_query_is_bounded(self, client, session, create_task_instance):
-        """The single-row previous-TI lookup must ask the DB for one row."""
+        """The single-row previous-TI lookup must ask the DB for one row, join ``dag_run`` once,
+        and surface the eager-loaded ``logical_date`` in the response."""
         for i in range(5):
             create_task_instance(
                 task_id="test_task",
@@ -3904,10 +3905,16 @@ class TestGetPreviousTI:
             )
 
         assert response.status_code == 200
-        assert response.json()["run_id"] == "run4"
+        data = response.json()
+        assert data["run_id"] == "run4"
+        assert data["logical_date"] == "2025-01-04T00:00:00Z"
         assert statements, "expected the endpoint to query the task_instance table"
         for sql in statements:
             assert re.search(r"\bLIMIT 1\b", sql), f"previous-TI lookup is not bounded to one row: {sql}"
+            dag_run_join_count = len(re.findall(r"JOIN dag_run(\s|$)", sql))
+            assert dag_run_join_count == 1, (
+                f"previous-TI query joins dag_run {dag_run_join_count} times, expected once: {sql}"
+            )
 
 
 class TestGetTaskStates:
