@@ -173,9 +173,24 @@ class TestCachingModelReplayVerification:
         assert result is sample_response
         mock_model.request.assert_called_once()
         assert counter.replayed_model == 0
-        mock_storage.save_model_response.assert_called_once_with(
-            f"{P}model_step_0", sample_response, fingerprint=None
-        )
+        mock_storage.save_model_response.assert_not_called()
+        assert counter.cached_model == 0
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_request_is_not_cached(
+        self, mock_model, mock_storage, counter, sample_response
+    ):
+        """An entry stored without a fingerprint can never satisfy the replay guard, so none is written."""
+        mock_model.request = AsyncMock(return_value=sample_response)
+        mock_model.prepare_request = lambda settings, params: ({"extra_body": object()}, params)
+        caching = CachingModel(mock_model, storage=mock_storage, counter=counter)
+
+        result = await caching.request([], None, ModelRequestParameters())
+
+        assert result is sample_response
+        mock_model.request.assert_called_once()
+        mock_storage.save_model_response.assert_not_called()
+        assert counter.cached_model == 0
 
     @pytest.mark.asyncio
     async def test_fingerprint_uses_prepared_request_not_raw_arguments(
