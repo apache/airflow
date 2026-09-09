@@ -543,13 +543,16 @@ def _resolve_child_target(dotted: str) -> Callable[[], None]:
 
 def _child_exec_main():
     """
-    Entry point for the child process when using fork+exec (macOS).
+    Entry point for the child process when using fork+exec.
 
     After exec, FDs 0/1/2/3 are the requests/stdout/stderr/log sockets the parent
     placed there via dup2.  The target to run is named in ``_AIRFLOW_CHILD_TARGET``
     (``module:qualname``); it is rehydrated and handed to :func:`_fork_main`, which
     sets up the structured log channel from FD 3 exactly as the bare-fork path does.
     """
+    # execve resets PR_SET_DUMPABLE to 1, so re-apply what supervise_task() set before the
+    # fork; otherwise a same-UID sibling could read this child's /proc/<pid>/environ.
+    _make_process_nondumpable()
     # FDs 0, 1, 2 were dup2'd onto the socketpairs before exec.
     child_requests = socket(fileno=0)
     child_stdout = socket(fileno=1)
