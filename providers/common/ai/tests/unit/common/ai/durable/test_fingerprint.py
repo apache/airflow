@@ -153,7 +153,8 @@ class TestModelRequestFingerprint:
 
     def test_httpx_timeout_does_not_disable_fingerprint(self):
         """``timeout`` may be an ``httpx.Timeout`` (a supported, non-JSON shape).
-        It must not force the fingerprint to None and silently disable verification."""
+        It must not force the fingerprint to None, which would stop every model step
+        of the run from being cached or replayed."""
         fp = fingerprint_model_request(
             "m", make_messages(), {"timeout": httpx.Timeout(30.0)}, ModelRequestParameters()
         )
