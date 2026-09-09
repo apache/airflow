@@ -139,7 +139,9 @@ class OpenAITriggerBatchOperator(BaseOperator):
     Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
 
     :param file_id: Required. The ID of the batch file to trigger. (templated)
-    :param endpoint: Required. The OpenAI Batch API endpoint to trigger. (templated)
+    :param endpoint: Required. The OpenAI Batch API endpoint to trigger. (templated) Allowed values
+        are determined by the OpenAI Batch API; see
+        :meth:`~airflow.providers.openai.hooks.openai.OpenAIHook.create_batch`.
     :param conn_id: Optional. The OpenAI connection ID to use. Defaults to 'openai_default'.
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
@@ -164,7 +166,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
     def __init__(
         self,
         file_id: str,
-        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        endpoint: str,
         conn_id: str = OpenAIHook.default_conn_name,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         wait_seconds: float = 3,

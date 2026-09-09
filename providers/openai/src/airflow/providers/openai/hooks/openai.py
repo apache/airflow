@@ -619,7 +619,7 @@ class OpenAIHook(BaseHook):
     def create_batch(
         self,
         file_id: str,
-        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        endpoint: str,
         metadata: dict[str, str] | None = None,
         completion_window: Literal["24h"] = "24h",
     ) -> Batch:
@@ -627,13 +627,18 @@ class OpenAIHook(BaseHook):
         Create a batch for a given model and files.
 
         :param file_id: The ID of the file to be used for this batch.
-        :param endpoint: The endpoint to use for this batch. Allowed values include:
-            '/v1/chat/completions', '/v1/embeddings', '/v1/completions'.
+        :param endpoint: The endpoint to use for this batch. Allowed values are determined by the
+            OpenAI Batch API; see the OpenAI documentation for the current list.
         :param metadata: A set of key-value pairs that can be attached to an object.
         :param completion_window: The time window for the batch to complete. Default is 24 hours.
         """
         batch = self.conn.batches.create(
-            input_file_id=file_id, endpoint=endpoint, metadata=metadata, completion_window=completion_window
+            input_file_id=file_id,
+            # endpoint is intentionally str (not the SDK's Literal) so templated values type-check;
+            # the OpenAI service validates the actual value.
+            endpoint=endpoint,  # type: ignore[arg-type]
+            metadata=metadata,
+            completion_window=completion_window,
         )
         return batch
 
