@@ -75,6 +75,7 @@
       "preventRunningTasks": "防止重复执行执行中的任务",
       "queueNew": "加入新任务到队列",
       "runOnLatestVersion": "执行最新套件包版本",
+      "runOnLatestVersionForced": "始终使用最新套件包版本，因为没有可回退的旧版本",
       "upstream": "上游"
     }
   },
