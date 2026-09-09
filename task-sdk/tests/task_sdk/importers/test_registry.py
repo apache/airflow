@@ -57,11 +57,11 @@ class CustomBundleNonExtensionImporter(AbstractDagImporter):
     def can_handle(self, definition: DagDefinition | str | Path) -> bool:
         return isinstance(definition, str) and definition.startswith("custom://")
 
-    def import_definition(self, definition, **kwargs):
-        return DagImportResult()
-
-    def list_dag_definitions(self, bundle_name, bundle_path, **kwargs):
+    def list_dag_definitions(self, bundle, **kwargs):
         return iter([])
+
+    def import_definition(self, definition, bundle=None, **kwargs):
+        return DagImportResult()
 
     def get_source_code(self, definition):
         return DagSourceCode(source_code="", language="text")
@@ -79,12 +79,11 @@ class LazyTestImporter(PythonDagImporter):
 class TestDagImporterRegistry:
     """Test the DagImporterRegistry."""
 
-    def setup_method(self):
-        """Reset the registry before each test."""
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self):
+        """Reset the registry before and after each test."""
         reset_importer_registry()
-
-    def teardown_method(self):
-        """Reset the registry after each test."""
+        yield
         reset_importer_registry()
 
     def test_singleton_pattern(self):
@@ -196,7 +195,10 @@ class TestDagImporterRegistry:
             registry.register(custom_importer, extensions=[".py"])
 
         assert registry.get_importer("test.py") is custom_importer
-        assert any(record.levelno == logging.WARNING for record in caplog.records)
+        assert any(
+            record.levelno == logging.WARNING and "already registered" in record.message
+            for record in caplog.records
+        )
 
     def test_lazy_importer_instantiation(self):
         """Importer classes are not imported or instantiated until get_importer is called."""

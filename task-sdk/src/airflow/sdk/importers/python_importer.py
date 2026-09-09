@@ -29,7 +29,10 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_name, might_contain_dag
 from airflow.sdk.configuration import conf
+from airflow.sdk.definitions._internal.contextmanager import DagContext
+from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.timeout import timeout
 from airflow.sdk.importers.base import (
@@ -48,7 +51,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from types import ModuleType
 
-    from airflow.sdk import DAG
+    from airflow.dag_processing.bundles.base import BaseDagBundle
 
 log = logging.getLogger(__name__)
 
@@ -72,25 +75,30 @@ class PythonDagImporter(AbstractDagImporter):
         suffix = get_file_suffix(definition)
         return suffix in self.supported_extensions if suffix else False
 
+    def list_dag_definitions(
+        self,
+        bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
+    ) -> Iterator[DagDefinition]:
+        """List Python DAG definitions in a bundle matching supported extensions."""
+        yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
+
     def import_definition(
         self,
         definition: DagDefinition,
+        bundle: BaseDagBundle,
         *,
-        bundle_path: Path | None = None,
-        bundle_name: str | None = None,
         safe_mode: bool = True,
     ) -> DagImportResult:
         """
         Import DAGs from a Python DAG definition.
 
         :param definition: The definition to import from.
-        :param bundle_path: Root path of the DAG bundle.
-        :param bundle_name: Name of the DAG bundle.
+        :param bundle: The DAG bundle containing the definition.
         :param safe_mode: If True, skip files that don't appear to contain DAGs.
         :return: DagImportResult with imported DAGs and any errors.
         """
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
         result = DagImportResult(definition=definition)
         DagContext.autoregistered_dags.clear()
         captured_warnings: list[warnings.WarningMessage] = []
@@ -103,8 +111,7 @@ class PythonDagImporter(AbstractDagImporter):
                         filepath,
                         safe_mode,
                         result,
-                        bundle_path=bundle_path,
-                        bundle_name=bundle_name,
+                        bundle=bundle,
                     )
         except AirflowConfigException:
             # Configuration errors (e.g., invalid timeout type) should propagate
@@ -136,21 +143,10 @@ class PythonDagImporter(AbstractDagImporter):
         self._process_modules(
             modules,
             result,
-            bundle_path=bundle_path,
-            bundle_name=bundle_name,
+            bundle=bundle,
         )
 
         return result
-
-    def list_dag_definitions(
-        self,
-        bundle_name: str,
-        bundle_path: Path,
-        *,
-        safe_mode: bool = True,
-    ) -> Iterator[DagDefinition]:
-        """List Python DAG definitions in a bundle matching supported extensions."""
-        yield from find_file_dag_definitions(bundle_path, self.supported_extensions)
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """Retrieve the raw source code for the Python definition."""
@@ -163,8 +159,6 @@ class PythonDagImporter(AbstractDagImporter):
         """Check whether a file might contain Airflow DAGs according to safe mode heuristics."""
         if not safe_mode:
             return True
-        from airflow.sdk._shared.module_loading.dag_file import might_contain_dag
-
         return might_contain_dag(str(file_path), safe_mode)
 
     def _load_modules_from_file(
@@ -172,17 +166,8 @@ class PythonDagImporter(AbstractDagImporter):
         filepath: str,
         safe_mode: bool,
         result: DagImportResult,
-        *,
-        bundle_path: Path | None = None,
-        bundle_name: str | None = None,
+        bundle: BaseDagBundle,
     ) -> list[ModuleType]:
-        try:
-            from airflow import settings  # noqa: SDK002
-        except ImportError:
-            settings = None
-        from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_name
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
         definition = result.definition
 
         if not self.might_contain_dag(filepath, safe_mode):
@@ -191,7 +176,7 @@ class PythonDagImporter(AbstractDagImporter):
                 result.skipped_definitions.append(definition)
             return []
 
-        log.debug("Importing %s (bundle: %s)", filepath, bundle_name)
+        log.debug("Importing %s (bundle: %s)", filepath, bundle.name)
         mod_name = get_unique_dag_module_name(filepath)
 
         if mod_name in sys.modules:
@@ -228,9 +213,12 @@ class PythonDagImporter(AbstractDagImporter):
                 )
                 return []
 
-        if settings is not None:
+        dagbag_import_timeout: float
+        try:
+            from airflow import settings  # noqa: SDK002
+
             dagbag_import_timeout = settings.get_dagbag_import_timeout(filepath)
-        else:
+        except (ImportError, AttributeError):
             dagbag_import_timeout = 30.0
 
         if not isinstance(dagbag_import_timeout, (int, float)):
@@ -254,14 +242,9 @@ class PythonDagImporter(AbstractDagImporter):
         self,
         mods: list[Any],
         result: DagImportResult,
-        *,
-        bundle_path: Path | None = None,
-        bundle_name: str | None = None,
+        bundle: BaseDagBundle,
     ) -> None:
         """Extract DAG objects from modules. Validation happens in bag_dag()."""
-        from airflow.sdk import DAG
-        from airflow.sdk.definitions._internal.contextmanager import DagContext
-
         top_level_dags: set[tuple[DAG, Any]] = {
             (o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)
         }
@@ -271,10 +254,10 @@ class PythonDagImporter(AbstractDagImporter):
         DagContext.autoregistered_dags.clear()
 
         for dag, _mod in top_level_dags:
-            dag.bundle_name = bundle_name
+            dag.bundle_name = bundle.name
             dag.fileloc = repr(result.definition)
             if result.definition is not None:
-                dag.relative_fileloc = result.definition.get_relative_loc(bundle_path)
+                dag.relative_fileloc = result.definition.get_relative_loc(bundle.path)
             result.dags.append(dag)
             log.debug("Found DAG %s", dag.dag_id)
 

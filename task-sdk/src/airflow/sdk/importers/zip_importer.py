@@ -27,7 +27,10 @@ import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from airflow.dag_processing.bundles.base import BaseDagBundle
 
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers.base import (
@@ -170,12 +173,20 @@ class ZipImporter(AbstractDagImporter):
         suffix = get_file_suffix(definition)
         return suffix in self.supported_extensions if suffix else False
 
+    def list_dag_definitions(
+        self,
+        bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
+    ) -> Iterator[DagDefinition]:
+        """List zip archive DAG definitions in a bundle matching supported extensions."""
+        yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
+
     def import_definition(
         self,
         definition: DagDefinition,
+        bundle: BaseDagBundle,
         *,
-        bundle_path: Path | None = None,
-        bundle_name: str | None = None,
         safe_mode: bool = True,
     ) -> DagImportResult:
         """Import DAGs from a ZIP archive DAG definition by routing internal files."""
@@ -207,7 +218,7 @@ class ZipImporter(AbstractDagImporter):
                 except Exception as e:
                     result.errors.append(
                         DagImportError(
-                            source_reference=definition.get_relative_loc(bundle_path),
+                            source_reference=definition.get_relative_loc(bundle.path),
                             message=f"Failed to read ZIP archive: {e}",
                             error_type="zip_read_error",
                         )
@@ -226,8 +237,7 @@ class ZipImporter(AbstractDagImporter):
 
                         member_result = importer.import_definition(
                             definition=nested_def,
-                            bundle_path=bundle_path,
-                            bundle_name=bundle_name,
+                            bundle=bundle,
                             safe_mode=safe_mode,
                         )
 
@@ -238,16 +248,6 @@ class ZipImporter(AbstractDagImporter):
                         result.dependencies.extend(member_result.dependencies)
 
         return result
-
-    def list_dag_definitions(
-        self,
-        bundle_name: str,
-        bundle_path: Path,
-        *,
-        safe_mode: bool = True,
-    ) -> Iterator[DagDefinition]:
-        """List zip archive DAG definitions in a bundle matching supported extensions."""
-        yield from find_file_dag_definitions(bundle_path, self.supported_extensions)
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         if isinstance(definition, ZipFileDagDefinition):

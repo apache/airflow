@@ -34,6 +34,7 @@ from airflow.sdk.exceptions import AirflowConfigException
 if TYPE_CHECKING:
     from typing_extensions import Self
 
+    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk import DAG
 
 log = logging.getLogger(__name__)
@@ -194,25 +195,23 @@ class AbstractDagImporter(ABC):
         """Check if this importer can handle the given definition."""
 
     @abstractmethod
-    def import_definition(
-        self,
-        definition: DagDefinition,
-        *,
-        bundle_path: Path | None = None,
-        bundle_name: str | None = None,
-        safe_mode: bool = True,
-    ) -> DagImportResult:
-        """Import DAGs from a DAG definition."""
-
-    @abstractmethod
     def list_dag_definitions(
         self,
-        bundle_name: str,
-        bundle_path: Path,
+        bundle: BaseDagBundle,
         *,
         safe_mode: bool = True,
     ) -> Iterator[DagDefinition]:
         """List DAG definitions in a bundle that this importer can handle."""
+
+    @abstractmethod
+    def import_definition(
+        self,
+        definition: DagDefinition,
+        bundle: BaseDagBundle,
+        *,
+        safe_mode: bool = True,
+    ) -> DagImportResult:
+        """Import DAGs from a DAG definition."""
 
     @abstractmethod
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
@@ -260,8 +259,6 @@ class _ImporterSpec:
 
 
 def _parse_importer_specs(configs: Any, context: str) -> list[_ImporterSpec]:
-    from airflow.sdk.exceptions import AirflowConfigException
-
     if not isinstance(configs, list):
         raise AirflowConfigException(
             f"Invalid importer configuration for {context}: expected a list of dictionaries."
@@ -376,7 +373,7 @@ class DagImporterRegistry:
 
     def get_importer(self, definition: DagDefinition | str | Path) -> AbstractDagImporter | None:
         """Get the appropriate importer for a definition or file, or None if unsupported."""
-        suffix = self._get_suffix(definition)
+        suffix = get_file_suffix(definition)
         if suffix:
             if suffix in self._extension_importers:
                 return self._extension_importers[suffix]
@@ -399,7 +396,7 @@ class DagImporterRegistry:
 
     def can_handle(self, definition: DagDefinition | str | Path) -> bool:
         """Check if any registered importer can handle this definition/file."""
-        suffix = self._get_suffix(definition)
+        suffix = get_file_suffix(definition)
         if suffix and (suffix in self._extension_importers or suffix in self._extension_specs):
             return True
         return any(importer.can_handle(definition) for importer in reversed(self._ordered_importers))
@@ -423,7 +420,6 @@ class DagImporterRegistry:
     @staticmethod
     def _instantiate_spec(spec: _ImporterSpec) -> AbstractDagImporter:
         from airflow.sdk._shared.module_loading import import_string
-        from airflow.sdk.exceptions import AirflowConfigException
 
         try:
             importer_class = import_string(spec.classpath)
@@ -467,9 +463,6 @@ class DagImporterRegistry:
                 if isinstance(item, dict) and item.get("name") == bundle_name:
                     return item.get("importers")
         return None
-
-    def _get_suffix(self, definition: DagDefinition | str | Path) -> str | None:
-        return get_file_suffix(definition)
 
 
 @functools.cache

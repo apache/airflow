@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -31,16 +31,23 @@ from airflow.sdk.importers import (
 )
 
 
+@pytest.fixture
+def mock_bundle(tmp_path):
+    bundle_dir = tmp_path / "bundle"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    return SimpleNamespace(name="test_bundle", path=bundle_dir)
+
+
 class TestPythonDagImporter:
     """Test the PythonDagImporter implementation."""
 
-    def test_import_successful_dag(self, tmp_path):
-        dag_file = tmp_path / "sample_dag.py"
+    def test_import_successful_dag(self, mock_bundle):
+        dag_file = mock_bundle.path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
 
         importer = PythonDagImporter()
         definition = FileDagDefinition(path=dag_file)
-        result = importer.import_definition(definition, bundle_name="test_bundle", bundle_path=tmp_path)
+        result = importer.import_definition(definition, bundle=mock_bundle)
 
         assert len(result.dags) == 1
         assert result.dags[0].dag_id == "test_dag_1"
@@ -48,36 +55,36 @@ class TestPythonDagImporter:
         assert result.dags[0].relative_fileloc == "sample_dag.py"
         assert len(result.errors) == 0
 
-    def test_import_syntax_error_cleans_sys_modules(self, tmp_path):
-        dag_file = tmp_path / "bad_dag.py"
+    def test_import_syntax_error_cleans_sys_modules(self, mock_bundle):
+        dag_file = mock_bundle.path / "bad_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
 
         importer = PythonDagImporter()
-        result = importer.import_definition(FileDagDefinition(path=dag_file))
+        result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
 
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
         assert not any("bad_dag" in m for m in sys.modules)
 
-    def test_skip_non_dag_file_in_safe_mode(self, tmp_path):
-        helper_file = tmp_path / "helper.py"
+    def test_skip_non_dag_file_in_safe_mode(self, mock_bundle):
+        helper_file = mock_bundle.path / "helper.py"
         helper_file.write_text("def util(): return 42\n")
 
         importer = PythonDagImporter()
         definition = FileDagDefinition(path=helper_file)
-        result = importer.import_definition(definition, safe_mode=True)
+        result = importer.import_definition(definition, bundle=mock_bundle, safe_mode=True)
 
         assert len(result.dags) == 0
         assert len(result.errors) == 0
         assert result.skipped_definitions == [definition]
 
-    def test_list_dag_definitions(self, tmp_path):
-        dag_file = tmp_path / "sample_dag.py"
+    def test_list_dag_definitions(self, mock_bundle):
+        dag_file = mock_bundle.path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
-        (tmp_path / "notes.txt").write_text("hello")
+        (mock_bundle.path / "notes.txt").write_text("hello")
 
         importer = PythonDagImporter()
-        defs = list(importer.list_dag_definitions("test_bundle", tmp_path))
+        defs = list(importer.list_dag_definitions(mock_bundle))
         assert len(defs) == 1
         assert defs[0].path == dag_file
 
@@ -96,15 +103,15 @@ class TestPythonDagImporter:
         stat = dag_file.stat()
         assert FileDagDefinition(path=dag_file).freshness_token == f"{stat.st_mtime_ns}-{stat.st_size}"
 
-    def test_python_importer_custom_extensions(self, tmp_path):
+    def test_python_importer_custom_extensions(self, mock_bundle):
         importer = PythonDagImporter(extensions=[".custom_py"])
         assert importer.can_handle("dag.custom_py")
         assert not importer.can_handle("dag.py")
         assert importer.supported_extensions == [".custom_py"]
 
-        dag_file = tmp_path / "sample_dag.custom_py"
+        dag_file = mock_bundle.path / "sample_dag.custom_py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('custom_py_dag')\n")
-        defs = list(importer.list_dag_definitions("test_bundle", tmp_path))
+        defs = list(importer.list_dag_definitions(mock_bundle))
         assert len(defs) == 1
         assert defs[0].path == dag_file
 
@@ -117,21 +124,21 @@ class TestPythonDagImporter:
     )
     @mock.patch("airflow.sdk.importers.python_importer.conf")
     def test_import_error_traceback_configuration(
-        self, mock_conf, enable_traceback, expect_traceback, tmp_path
+        self, mock_conf, enable_traceback, expect_traceback, mock_bundle
     ):
         mock_conf.getboolean.return_value = enable_traceback
         mock_conf.getint.return_value = 2
 
-        dag_file = tmp_path / "bad.py"
+        dag_file = mock_bundle.path / "bad.py"
         dag_file.write_text("from airflow.sdk import DAG\ndef broken(\n")
 
         importer = PythonDagImporter()
-        result = importer.import_definition(FileDagDefinition(path=dag_file))
+        result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
 
         assert len(result.errors) == 1
         assert (result.errors[0].stacktrace is not None) == expect_traceback
 
-    def test_invalid_dagbag_import_timeout_raises_custom_exception(self):
+    def test_invalid_dagbag_import_timeout_raises_custom_exception(self, mock_bundle):
         mock_settings = mock.MagicMock()
         mock_settings.get_dagbag_import_timeout.return_value = "invalid_timeout_str"
 
@@ -143,12 +150,19 @@ class TestPythonDagImporter:
                 match=r"Value \(invalid_timeout_str\) from get_dagbag_import_timeout must be int or float",
             ),
         ):
-            importer.import_definition(FileDagDefinition(path=Path("dag.py")), safe_mode=False)
+            importer.import_definition(
+                FileDagDefinition(path=mock_bundle.path / "dag.py"),
+                bundle=mock_bundle,
+                safe_mode=False,
+            )
 
-    def test_unexpected_type_error_captured_in_result_errors(self):
+    @mock.patch.object(PythonDagImporter, "_load_modules_from_file", side_effect=TypeError("unexpected None"))
+    def test_unexpected_type_error_captured_in_result_errors(self, mock_load, mock_bundle):
         importer = PythonDagImporter()
-        with mock.patch.object(importer, "_load_modules_from_file", side_effect=TypeError("unexpected None")):
-            result = importer.import_definition(FileDagDefinition(path=Path("dag.py")))
+        result = importer.import_definition(
+            FileDagDefinition(path=mock_bundle.path / "dag.py"),
+            bundle=mock_bundle,
+        )
 
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
