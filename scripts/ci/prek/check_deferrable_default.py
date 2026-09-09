@@ -99,7 +99,7 @@ def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
 
 def _fix_invalid_deferrable_default_value(module_filename: str) -> None:
     context = CodemodContext(filename=module_filename)
-    AddImportsVisitor.add_needed_import(context, "airflow.configuration", "conf")
+    AddImportsVisitor.add_needed_import(context, "airflow.providers.common.compat.sdk", "conf")
     transformer = DefaultDeferrableTransformer()
 
     source_cst_tree = cst.parse_module(open(module_filename).read())

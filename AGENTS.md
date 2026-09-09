@@ -172,7 +172,9 @@ Write commit messages focused on user impact, not implementation details.
 
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
 - **Good:** `UI: Fix Grid view not refreshing after task actions`
+- **Good:** `Update foo function`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
+- **Bad:** `Update foo function (#12345)`
 - **Bad:** `fix(cli): dags test failure` — Airflow does not use Conventional Commits
   (`feat:`, `fix:`, `chore:` …). Write the subject as plain prose. A `commit-msg`
   prek hook (`check-no-conventional-commit-message`) rejects these, and CI checks
@@ -187,6 +189,14 @@ Use the **imperative mood** and a plain message — do **not** use Conventional 
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
 convention. (Area tags the project already uses, like `UI:` / `API:` / `Helm:`, are fine;
 Conventional-Commit `type:` tokens are not.) The same rule applies to PR titles.
+
+Do not include an issue or PR number in the PR title. GitHub already appends
+the actual PR number automatically when a PR is squash-merged (this is why
+Airflow's git history is full of titles like `... (#71609)`). Manually
+adding a number in the title duplicates that auto-added number, and readers
+cannot tell whether the number in the title refers to an issue or a PR —
+which is misleading in the commit history and changelog. Reference the
+issue only in the PR description, not the title
 
 The commit message **body** should describe **why** the change is made — the motivation and
 context — and **never what** the change is. The diff already shows what changed; restating it in
@@ -475,31 +485,36 @@ participating in that same PR/issue discussion.
 
 ## apache-magpie framework
 
-This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
-framework via the snapshot mechanism. The framework provides the
-`pr-management-*` skills (triage, code-review, stats, mentor); they are
-gitignored symlinks into the `.apache-magpie/` snapshot directory.
+This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
+framework, installed from its plugin marketplace. The framework provides
+the `pr-management-*` skills (triage, code-review, stats, mentor) among
+others. Nothing framework-related is committed here — install it in your
+own agent harness. In Claude Code:
 
-A fresh clone needs the snapshot populated before any framework skill is
-invocable. Run `/magpie-setup` (or follow
-[`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/)) to fetch
-it per the committed [`.apache-magpie.lock`](.apache-magpie.lock). The
-contributor-facing summary of the adoption + setup flow lives in the
-[Agent-assisted contribution section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+```text
+/plugin marketplace add apache/magpie
+/plugin install magpie-pr-management@apache-magpie
+```
 
-Adopter-specific modifications to framework-skill workflows live in
-[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — never edit
-the snapshot directly. Framework changes go via PR to
+`magpie@apache-magpie` installs every family at once; other families
+(`magpie-security`, `magpie-release-management`, …) install individually.
+The contributor-facing summary lives in the [Agent-assisted contribution
+section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+
+Airflow-specific modifications to framework-skill workflows live in
+[`.apache-magpie-overrides/`](.apache-magpie-overrides/) — the installed
+plugin reads them at run time. Never edit the installed plugin itself;
+framework changes go via PR to
 [`apache/magpie`](https://github.com/apache/magpie).
 
 ### Reviewing pull requests
 
-With apache-magpie installed locally, use the
-`magpie-pr-management-code-review` skill for PR code review. It posts
-findings as **inline review comments** anchored to `file:line`, presented
-**individually for accept/skip** before anything is submitted — prefer it
-over an ad-hoc review pass or a generic review command. A body-only review
-is the explicit opt-out (`inline:off`).
+With the `magpie-pr-management` plugin installed, use the
+`magpie-pr-management:pr-management-code-review` skill for PR code review.
+It posts findings as **inline review comments** anchored to `file:line`,
+presented **individually for accept/skip** before anything is submitted —
+prefer it over an ad-hoc review pass or a generic review command. A
+body-only review is the explicit opt-out (`inline:off`).
 
 ## Boundaries
 
