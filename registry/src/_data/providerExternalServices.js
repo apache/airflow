@@ -17,9 +17,11 @@
  * under the License.
  */
 
-// Shared by the pagefind index builder and the `externalServices` Eleventy
-// filter (used for the /providers/ filter box), so the two search paths read
-// the same field off the same shape and can't drift apart.
+// Shared by the pagefind index builder, the `externalServices` Eleventy
+// filter (used for the /providers/ filter box), and providerKeywordMatch.js
+// (used by the `ai-ml` explore category's opt-in keyword matching), so all
+// three search paths read the same field off the same shape and can't drift
+// apart.
 
 // The services a provider's connection types reach -- for Common AI these are
 // the LLM providers behind each `pydanticai` / `langchain` connection, which are
