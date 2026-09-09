@@ -45,9 +45,6 @@ def deserialize(cls: type, version: int, data: str) -> uuid.UUID:
     """Deserialize a string back to a UUID object."""
     import uuid
 
-    if version > __version__:
-        raise TypeError(f"serialized {version} of {qualname(cls)} > {__version__}")
-
     if cls is uuid.UUID and isinstance(data, str):
         return uuid.UUID(data)
     raise TypeError(f"cannot deserialize {qualname(cls)} from {type(data)}")

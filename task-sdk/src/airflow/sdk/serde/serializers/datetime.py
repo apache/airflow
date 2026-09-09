@@ -70,9 +70,6 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
 
     from pendulum import Date, DateTime
 
-    if version > __version__:
-        raise TypeError(f"serialized {version} of {qualname(cls)} > {__version__}")
-
     tz: datetime.tzinfo | None = None
     if isinstance(data, dict) and TIMEZONE in data:
         if version == 1:

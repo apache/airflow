@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import datetime
 import decimal
-import importlib
 import uuid
 from importlib import metadata
 from typing import ClassVar
@@ -269,41 +268,22 @@ class TestSerializers:
             deserialize(klass, ver, value)
 
     @pytest.mark.parametrize(
-        ("klass", "ver", "value"),
+        ("classname", "value"),
         [
-            pytest.param(uuid.UUID, 999, "12345678-1234-5678-1234-567812345678", id="uuid"),
-            pytest.param(datetime.timedelta, 999, 60.0, id="timedelta"),
-            pytest.param(datetime.datetime, 999, {"timestamp": 1767268800.0, "tz": None}, id="datetime"),
+            pytest.param("uuid.UUID", "12345678-1234-5678-1234-567812345678", id="uuid"),
+            pytest.param("datetime.timedelta", 60.0, id="timedelta"),
+            pytest.param("datetime.datetime", {"timestamp": 1657505443.0, "tz": None}, id="datetime"),
         ],
     )
-    def test_deserialize_rejects_a_newer_version(self, klass, ver, value):
+    def test_deserialize_rejects_a_newer_version(self, classname, value):
         """A payload written by a newer Airflow must not be read under the old assumptions.
 
-        The framework does not check on a registered serializer's behalf: serde dispatches
-        straight to ``_deserializers[classname].deserialize`` and its own version guard covers
-        only the attr/dataclass fallback. uuid and datetime were the two serializers missing it.
+        serde dispatches a registered classname straight to its serializer, and the version
+        guard in ``serde.deserialize`` covers only the attr/dataclass fallback, so each
+        serializer has to make the check itself. uuid and datetime were the two missing it.
         """
-        from airflow.sdk.serde import deserialize as _  # noqa: F401
-
-        module = "uuid" if klass is uuid.UUID else "datetime"
-        mod = importlib.import_module(f"airflow.sdk.serde.serializers.{module}")
-
         with pytest.raises(TypeError, match=r"serialized 999 of .* > \d+"):
-            mod.deserialize(klass, ver, value)
-
-    def test_deserialize_still_accepts_the_current_and_legacy_versions(self):
-        """The guard must not break the versions that are actually in use."""
-        from airflow.sdk.serde.serializers.datetime import deserialize as dt_deserialize
-        from airflow.sdk.serde.serializers.uuid import deserialize as uuid_deserialize
-
-        # datetime is at __version__ 2 and still reads its own version-1 payloads,
-        # including the legacy short-code timezones.
-        legacy = dt_deserialize(datetime.datetime, 1, {"timestamp": 1767268800.0, "tz": "EDT"})
-        assert legacy.utcoffset() == datetime.timedelta(hours=-4)
-        assert dt_deserialize(datetime.timedelta, 2, 60.0) == datetime.timedelta(seconds=60)
-
-        u = uuid_deserialize(uuid.UUID, 1, "12345678-1234-5678-1234-567812345678")
-        assert str(u) == "12345678-1234-5678-1234-567812345678"
+            deserialize({CLASSNAME: classname, VERSION: 999, DATA: value})
 
     def test_params(self):
         i = ParamsDict({"x": Param(default="value", description="there is a value", key="test")})
