@@ -96,6 +96,17 @@ class TestTimezone:
         assert timezone.td_format(td) == "3d:11h:32M:32s"
         td = 434343600.0
         assert timezone.td_format(td) == "13y:11m:17d:3h"
+        # Negative durations
+        td = datetime.timedelta(seconds=-3752)
+        assert timezone.td_format(td) == "-1h:2M:32s"
+        td = -3752
+        assert timezone.td_format(td) == "-1h:2M:32s"
+        td = datetime.timedelta(days=-5)
+        assert timezone.td_format(td) == "-5d"
+        td = datetime.timedelta(seconds=-0.4)
+        assert timezone.td_format(td) == "<1s"
+        td = -0.4
+        assert timezone.td_format(td) == "<1s"
 
 
 @pytest.mark.parametrize(
