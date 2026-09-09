@@ -150,10 +150,10 @@ For more details and a working example, see :class:`~airflow.sdk.ResumableJobMix
 A retry keeps the task's ``task_state_store`` entries, which is what makes crash recovery work: the
 next attempt reads the checkpoint or the external job id written by the attempt before it.
 
-Clearing discards them. Clearing means "run this again", and a checkpoint records how far a task
-got, not what it got there with. If you fixed the code or the upstream data and cleared the task,
-resuming would leave the work done before the fix in place and silently mix it with the corrected
-work. So by default a cleared task starts from the beginning.
+Clearing a task discards them. Clearing means "run this again", and a checkpoint records how far a
+task got, not what it got there with. If you fixed the code or the upstream data and cleared the
+task, resuming would leave the work done before the fix in place and silently mix it with the
+corrected work. So by default a cleared task starts from the beginning.
 
 To resume from the checkpoint instead, set ``keep_task_state`` when clearing, or tick the
 corresponding box in the clear dialog. That is the right choice when nothing about the inputs or the

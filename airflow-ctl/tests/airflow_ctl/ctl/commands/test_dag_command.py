@@ -438,6 +438,39 @@ class TestDagCommands:
                 only_failed=False,
                 only_running=False,
                 reset_dag_runs=True,
+                keep_task_state=False,
+            ),
+        )
+
+    def test_clear_by_run_id_keeps_task_state(self):
+        api_client = self._api_client_mock()
+        api_client.dag_runs.get.return_value = self._dag_run("scheduled__2025-01-01")
+        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=2)
+
+        dag_command.clear(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "clear",
+                    self.dag_id,
+                    "--run-id",
+                    "scheduled__2025-01-01",
+                    "--keep-task-state",
+                    "--yes",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.tasks.clear.assert_called_once_with(
+            dag_id=self.dag_id,
+            clear_task_instances=ClearTaskInstancesBody(
+                dag_run_id="scheduled__2025-01-01",
+                dry_run=False,
+                only_failed=False,
+                only_running=False,
+                reset_dag_runs=True,
+                keep_task_state=True,
             ),
         )
 

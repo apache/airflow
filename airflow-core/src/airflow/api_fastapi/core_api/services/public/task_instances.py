@@ -63,9 +63,17 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
     """
     Discard the task state store entries of each task instance.
 
-    A failure to discard one task instance is logged and skipped rather than raised: the caller has
-    already performed the operation this accompanies, and failing it afterwards would leave that
-    operation half-applied.
+    A failure to discard one task instance is logged and skipped rather than raised, so one bad
+    entry does not stop the discard of the rest. Note this does not fully isolate the caller's
+    operation: the backend shares the caller's uncommitted session, so a discard failure can still
+    roll back that operation at commit time depending on the database backend.
+
+    This only drops the metadata DB reference row via ``_get_db_backend()``. If ``[workers]
+    state_store_backend`` points at a custom backend, this runs with no worker in the loop to purge
+    the payload there (unlike the ``clear_on_success`` path, where the worker calls
+    ``_clear_backend_only`` before the server drops the DB row), so the object is left orphaned in
+    the custom backend with no reclaim path. Rely on the backend's own lifecycle/TTL policy to
+    reclaim it until this is addressed.
 
     :param event: what prompted the discard, used as the log event name.
     """
@@ -89,7 +97,7 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
         except Exception:
             log.warning(
                 "Failed to discard task state",
-                event=event,
+                discard_event=event,
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 task_id=ti.task_id,
