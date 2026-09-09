@@ -47,7 +47,7 @@ type PartitionScheduleProps = {
 };
 
 const PartitionSchedule = ({ dagId, hasInactiveAsset, isLoading, pendingCount }: PartitionScheduleProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
