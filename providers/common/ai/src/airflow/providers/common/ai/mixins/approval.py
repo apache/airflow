@@ -196,7 +196,6 @@ class LLMApprovalMixin:
             ),
             method_name="execute_complete",
             kwargs={"generated_output": output},
-            timeout=self.approval_timeout,
         )
 
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
@@ -235,7 +234,7 @@ class LLMApprovalMixin:
             raise HITLRejectException(f"Output was rejected by the reviewer {responded_by_user}.")
 
         output = generated_output
-        params_input: dict[str, Any] = event.get("params_input") or {}
+        params_input: dict[str, Any] = {} if event.get("timedout") else event.get("params_input") or {}
 
         # Only accept modified output when the operator explicitly allows modifications.
         # Without this guard a reviewer could craft a request with params_input even

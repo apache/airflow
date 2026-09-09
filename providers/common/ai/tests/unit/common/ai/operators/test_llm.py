@@ -205,9 +205,19 @@ class TestLLMOperatorApproval:
                 on_approval_timeout="skip",
             )
 
-    def test_on_approval_timeout_without_approval_timeout_raises(self):
-        with pytest.raises(ValueError, match="has no effect without approval_timeout"):
-            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve")
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"require_approval": True},
+            {"approval_timeout": timedelta(hours=1)},
+        ],
+        ids=["no_approval_timeout", "no_require_approval"],
+    )
+    def test_on_approval_timeout_without_prerequisites_raises(self, kwargs):
+        with pytest.raises(
+            ValueError, match="has no effect without require_approval=True and approval_timeout"
+        ):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve", **kwargs)
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
@@ -304,7 +314,10 @@ class TestLLMOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")

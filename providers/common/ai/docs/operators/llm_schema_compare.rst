@@ -194,7 +194,7 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
   review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
-  ``approval_timeout``.
+  ``require_approval=True`` and ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can edit the result JSON
   before approving.  Default ``False``.
 

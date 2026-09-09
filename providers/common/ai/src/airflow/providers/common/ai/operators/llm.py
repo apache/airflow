@@ -89,7 +89,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         without a review.  ``"fail"`` (default) fails the task with
         ``HITLTimeoutError``; ``"approve"`` and ``"reject"`` answer the review
         with that option, so the task resumes as if a reviewer had chosen it.
-        Requires ``approval_timeout`` to be set.
+        Requires ``require_approval=True`` and ``approval_timeout``.
     :param allow_modifications: If ``True``, the reviewer can edit the output
         before approving.  The modified value is returned as the task result.
         Default ``False``.
@@ -145,10 +145,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
             raise ValueError(
                 f"on_approval_timeout must be 'fail', 'approve', or 'reject', got {on_approval_timeout!r}."
             )
-        if on_approval_timeout != "fail" and approval_timeout is None:
+        if on_approval_timeout != "fail" and not (require_approval and approval_timeout):
             raise ValueError(
-                f"on_approval_timeout={on_approval_timeout!r} has no effect without approval_timeout. "
-                "Set approval_timeout, or leave on_approval_timeout as 'fail'."
+                f"on_approval_timeout={on_approval_timeout!r} has no effect without "
+                "require_approval=True and approval_timeout. Set both, or leave on_approval_timeout as 'fail'."
             )
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout

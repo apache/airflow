@@ -345,4 +345,7 @@ class TestLLMFileAnalysisOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=_make_context())
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None

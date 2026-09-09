@@ -205,8 +205,7 @@ class TestDeferForApproval:
         trigger_call_kwargs = mock_trigger_cls.call_args[1]
         assert trigger_call_kwargs["timeout_datetime"] == fake_now + timeout
 
-        defer_kwargs = op.defer.call_args[1]
-        assert defer_kwargs["timeout"] == timeout
+        assert "timeout" not in op.defer.call_args[1]
 
     @pytest.mark.parametrize(
         ("on_approval_timeout", "expected_defaults"),
@@ -231,9 +230,7 @@ class TestDeferForApproval:
 
         trigger_call_kwargs = mock_trigger_cls.call_args[1]
         assert trigger_call_kwargs["timeout_datetime"] is None
-
-        defer_kwargs = approval_op.defer.call_args[1]
-        assert defer_kwargs["timeout"] is None
+        assert "timeout" not in approval_op.defer.call_args[1]
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -443,6 +440,18 @@ class TestDeferForApproval:
 
         with pytest.raises(HITLRejectException, match="Output was rejected by the approval timeout default."):
             approval_op.execute_complete({}, generated_output="output", event=event)
+
+    def test_timed_out_approval_ignores_stale_params_input(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "params_input": {"output": "stale output"},
+            "responded_by_user": None,
+            "timedout": True,
+        }
+
+        result = approval_op_with_modifications.execute_complete({}, generated_output="output", event=event)
+
+        assert result == "output"
 
     def test_rejection_message_includes_username(self, approval_op):
         event = {"chosen_options": ["Reject"], "responded_by_user": "alice"}

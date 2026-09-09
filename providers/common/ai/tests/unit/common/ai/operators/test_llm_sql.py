@@ -663,7 +663,10 @@ class TestLLMSQLQueryOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_without_approval_returns_sql(self, mock_hook_cls):

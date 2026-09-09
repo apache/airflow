@@ -144,7 +144,7 @@ Parameters
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
   review: ``"fail"`` (default), ``"approve"``, or ``"reject"``.  Requires
-  ``approval_timeout``.
+  ``require_approval=True`` and ``approval_timeout``.
 - ``allow_modifications``: If ``True``, the reviewer can change the chosen
   branch(es) before approving.  Default ``False``.
 - ``fail_on_reject``: If ``True``, a rejected review fails the task instead of
