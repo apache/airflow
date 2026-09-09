@@ -35,4 +35,4 @@ _RENAME_MAP: dict[str, tuple[str, str, str]] = {
 
 __getattr__ = create_module_getattr(import_map={}, rename_map=_RENAME_MAP)
 
-__all__ = sorted(_RENAME_MAP.keys())
+__all__ = list(_RENAME_MAP.keys())

@@ -22,6 +22,8 @@ import pytest
 import airflow.triggers.base
 from airflow.providers.common.compat import triggers
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 
 class TestBaseEventTrigger:
     def test_falls_back_to_base_trigger_without_base_event_trigger(self, monkeypatch):
@@ -30,6 +32,10 @@ class TestBaseEventTrigger:
         monkeypatch.delattr(airflow.triggers.base, "BaseEventTrigger", raising=False)
 
         assert triggers.BaseEventTrigger is airflow.triggers.base.BaseTrigger
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="BaseEventTrigger only exists on Airflow 3+")
+    def test_resolves_to_base_event_trigger_on_airflow_3(self):
+        assert triggers.BaseEventTrigger is airflow.triggers.base.BaseEventTrigger
 
     def test_unknown_attribute_raises(self):
         with pytest.raises(AttributeError, match="module has no attribute 'NotATrigger'"):
