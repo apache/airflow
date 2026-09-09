@@ -145,18 +145,23 @@ existing job on retry instead of submitting a new one.
 
 For more details and a working example, see :class:`~airflow.sdk.ResumableJobMixin`.
 
-**Clearing a task is treated the same as a retry**
+**Clearing a task is a controlled reset**
 
-Clearing a task instance does not delete its ``task_state_store`` rows -- they are only removed
-when the ``dag_run`` itself is deleted, or by :ref:`airflow state-store clean
-<task-and-asset-state-store-cleanup>`. For a checkpointed task this is usually what you want:
-clearing resumes from the last checkpoint rather than starting over.
+Clearing a task instance deletes its ``task_state_store`` rows -- an operator-initiated clear
+(through the UI, CLI, API, or ``dag.clear()``) always starts the next attempt from scratch, so it
+never resumes from state that belonged to a previous run of the same task. The state store is keyed
+by positional ``map_index``, so this is what keeps a dynamically mapped task that is re-expanded
+after a clear from silently inheriting the previous item's checkpoint when the mapped list has
+changed.
 
-For an operator with durable execution, it means clearing a task whose external job already
-succeeded reads that stored result back and returns immediately, without resubmitting the job. If
-you want clearing to always resubmit regardless of a prior success, set
-``[state_store] clear_on_success = True``, which deletes a task's state store rows automatically
-when it moves to ``SUCCESS`` (see :doc:`/administration-and-deployment/task-and-asset-state-store`).
+Rows are also removed when the ``dag_run`` itself is deleted, or by :ref:`airflow state-store clean
+<task-and-asset-state-store-cleanup>`. Automatic retries are *not* clears: they keep the task's
+rows, so durable execution can resume a failed attempt from its last checkpoint. Only a deliberate
+clear starts over.
+
+For an operator with durable execution, clearing a task always resubmits the external job rather
+than reconnecting to a prior one. Wrap such logic in an ``if task_state_store.get("job_id")`` check
+only when you expect automatic retries, not clears, to resume the job.
 
 This does not guarantee the external job is still there to reconnect to, though. Clearing a task
 that is actively running (``deferrable=False``) stops the worker process, which runs the
