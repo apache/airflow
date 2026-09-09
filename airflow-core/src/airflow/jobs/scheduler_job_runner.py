@@ -52,6 +52,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -3508,7 +3509,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Issue SQL/finish "Unit of Work", but let @provide_session
                     # commit (or if passed a session, let caller decide when to commit
                     session.flush()
-                except OperationalError:
+                except (DBAPIError, StaleDataError):
                     session.rollback()
                     raise
 
@@ -3553,93 +3554,97 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         for attempt in run_with_db_retries(max_retries, logger=self.log):
             with attempt:
-                now = timezone.utcnow()
-                query = (
-                    select(TI)
-                    .where(
-                        TI.state == TaskInstanceState.AWAITING_INPUT,
-                        TI.trigger_timeout < now,
+                try:
+                    now = timezone.utcnow()
+                    query = (
+                        select(TI)
+                        .where(TI.state == TaskInstanceState.AWAITING_INPUT, TI.trigger_timeout < now)
+                        .options(joinedload(TI.hitl_detail))
+                        # Bound the batch so a single scheduler tick cannot lock/process an unbounded
+                        # backlog of timed-out tasks (which would block concurrent responses/clears);
+                        # any remaining rows are handled on subsequent ticks.
+                        .limit(100)
                     )
-                    .options(joinedload(TI.hitl_detail))
-                    # Bound the batch so a single scheduler tick cannot lock/process an unbounded
-                    # backlog of timed-out tasks (which would block concurrent responses/clears);
-                    # any remaining rows are handled on subsequent ticks.
-                    .limit(100)
-                )
-                # Lock only the TI rows (of=TI) so HA schedulers don't double-resolve, and so the
-                # FOR UPDATE is not applied to the nullable side of the hitl_detail outer join.
-                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                timed_out_tis = session.scalars(query).all()
-                if not timed_out_tis:
-                    return
+                    # Lock only the TI rows (of=TI) so HA schedulers don't double-resolve, and so the
+                    # FOR UPDATE is not applied to the nullable side of the hitl_detail outer join.
+                    query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                    timed_out_tis = session.scalars(query).all()
+                    if not timed_out_tis:
+                        return
 
-                num_resolved = 0
-                num_failed = 0
-                num_unresumable = 0
-                for ti in timed_out_tis:
-                    hitl_detail = ti.hitl_detail
-                    resuming = True
-                    if hitl_detail is not None and hitl_detail.responded_at is not None:
-                        # A response landed just before the deadline; resume with it.
-                        handle_event_submit(
-                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
-                            task_instance=ti,
-                            session=session,
-                        )
-                    elif hitl_detail is not None and hitl_detail.defaults is not None:
-                        # Apply the configured defaults as the response, then resume to success.
-                        hitl_detail.chosen_options = list(hitl_detail.defaults)
-                        hitl_detail.params_input = {
-                            key: value["value"] if isinstance(value, dict) and "value" in value else value
-                            for key, value in (hitl_detail.params or {}).items()
-                        }
-                        hitl_detail.responded_by = None
-                        hitl_detail.responded_at = now
-                        session.add(hitl_detail)
-                        handle_event_submit(
-                            TriggerEvent(hitl_detail.as_resume_event_payload(timedout=True)),
-                            task_instance=ti,
-                            session=session,
-                        )
-                    else:
-                        # No defaults and no response: resume into execute_complete with a timeout
-                        # failure event so the operator raises HITLTimeoutError (matching the old
-                        # trigger path), rather than a generic deferral-timeout failure.
-                        handle_event_submit(
-                            TriggerEvent(
-                                {
-                                    "error": "The Human-in-the-loop response timeout has passed "
-                                    "without a response.",
-                                    "error_type": "timeout",
-                                }
-                            ),
-                            task_instance=ti,
-                            session=session,
-                        )
-                        resuming = False
+                    num_resolved = 0
+                    num_failed = 0
+                    num_unresumable = 0
+                    for ti in timed_out_tis:
+                        hitl_detail = ti.hitl_detail
+                        resuming = True
+                        if hitl_detail is not None and hitl_detail.responded_at is not None:
+                            # A response landed just before the deadline; resume with it.
+                            handle_event_submit(
+                                TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
+                                task_instance=ti,
+                                session=session,
+                            )
+                        elif hitl_detail is not None and hitl_detail.defaults is not None:
+                            # Apply the configured defaults as the response, then resume to success.
+                            hitl_detail.chosen_options = list(hitl_detail.defaults)
+                            hitl_detail.params_input = {
+                                key: value["value"] if isinstance(value, dict) and "value" in value else value
+                                for key, value in (hitl_detail.params or {}).items()
+                            }
+                            hitl_detail.responded_by = None
+                            hitl_detail.responded_at = now
+                            session.add(hitl_detail)
+                            handle_event_submit(
+                                TriggerEvent(hitl_detail.as_resume_event_payload(timedout=True)),
+                                task_instance=ti,
+                                session=session,
+                            )
+                        else:
+                            # No defaults and no response: resume into execute_complete with a timeout
+                            # failure event so the operator raises HITLTimeoutError (matching the old
+                            # trigger path), rather than a generic deferral-timeout failure.
+                            handle_event_submit(
+                                TriggerEvent(
+                                    {
+                                        "error": "The Human-in-the-loop response timeout has passed "
+                                        "without a response.",
+                                        "error_type": "timeout",
+                                    }
+                                ),
+                                task_instance=ti,
+                                session=session,
+                            )
+                            resuming = False
 
-                    # ``handle_event_submit`` routes a task instance it could not process to
-                    # ``__fail__`` instead of resuming it. That is neither of the outcomes the
-                    # branches above intended, so it is counted on its own rather than being
-                    # reported as resolved.
-                    if ti.next_method == TRIGGER_FAIL_REPR:
-                        num_unresumable += 1
-                    elif resuming:
-                        num_resolved += 1
-                    else:
-                        num_failed += 1
+                        # ``handle_event_submit`` routes a task instance it could not process to
+                        # ``__fail__`` instead of resuming it. That is neither of the outcomes the
+                        # branches above intended, so it is counted on its own rather than being
+                        # reported as resolved.
+                        if ti.next_method == TRIGGER_FAIL_REPR:
+                            num_unresumable += 1
+                        elif resuming:
+                            num_resolved += 1
+                        else:
+                            num_failed += 1
 
-                # Flush within the retry block so both branches persist consistently (the defaults
-                # branch already flushes via handle_event_submit; the fail branch relies on this).
-                session.flush()
-                if num_resolved or num_failed or num_unresumable:
-                    self.log.info(
-                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed, "
-                        "%i could not be resumed",
-                        num_resolved,
-                        num_failed,
-                        num_unresumable,
-                    )
+                    # Flush within the retry block so both branches persist consistently (the defaults
+                    # branch already flushes via handle_event_submit; the fail branch relies on this).
+                    session.flush()
+                    if num_resolved or num_failed or num_unresumable:
+                        self.log.info(
+                            "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed, "
+                            "%i could not be resumed",
+                            num_resolved,
+                            num_failed,
+                            num_unresumable,
+                        )
+                except (DBAPIError, StaleDataError):
+                    # A failed flush deactivates the transaction: without this rollback the next
+                    # attempt's first query raises PendingRollbackError, which is not retryable and
+                    # so escapes the loop and stops the scheduler.
+                    session.rollback()
+                    raise
 
     # [START find_and_purge_task_instances_without_heartbeats]
     def _find_and_purge_task_instances_without_heartbeats(self) -> None:

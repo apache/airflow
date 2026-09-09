@@ -40,7 +40,9 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import IntegrityError, OperationalError, PendingRollbackError
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -318,6 +320,41 @@ def _clean_db():
     clear_db_deadline()
     clear_db_callbacks()
     clear_db_triggers()
+
+
+def _build_deactivating_session(session, error):
+    """Wrap ``session`` so its first flush raises ``error`` and deactivates the transaction."""
+    # Callers must commit their fixture rows first: the rollback this models discards whatever
+    # the failed attempt was holding.
+    flushed = False
+    deactivated = False
+
+    def flush(*args, **kwargs):
+        nonlocal flushed, deactivated
+        if not flushed:
+            flushed = deactivated = True
+            raise error
+        return session.flush(*args, **kwargs)
+
+    def guard(method):
+        def call(*args, **kwargs):
+            if deactivated:
+                raise PendingRollbackError("This Session's transaction has been rolled back")
+            return method(*args, **kwargs)
+
+        return call
+
+    def rollback(*args, **kwargs):
+        nonlocal deactivated
+        deactivated = False
+        return session.rollback(*args, **kwargs)
+
+    wrapped = MagicMock(spec=session, wraps=session)
+    wrapped.flush.side_effect = flush
+    wrapped.execute.side_effect = guard(session.execute)
+    wrapped.scalars.side_effect = guard(session.scalars)
+    wrapped.rollback.side_effect = rollback
+    return wrapped
 
 
 @patch.dict(
@@ -3634,6 +3671,38 @@ class TestSchedulerJob:
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         assert ti2.state == State.NONE, "Tasks run by Backfill Jobs should be treated the same"
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(
+                IntegrityError("any_statement", "any_params", Exception("any_orig")),
+                id="non-operational-dbapi-error",
+            ),
+            pytest.param(StaleDataError(), id="stale-data-error"),
+        ],
+    )
+    def test_adopt_or_reset_orphaned_tasks_rolls_back_before_retrying(self, error, dag_maker, session):
+        """Every error the retry loop retries is rolled back, not only ``OperationalError``."""
+        with dag_maker("test_adopt_or_reset_rolls_back", session=session):
+            op1 = EmptyOperator(task_id="op1")
+
+        dead_job = Job()
+        session.add(dead_job)
+        session.flush()
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = dead_job.id
+        session.commit()
+
+        might_fail_session = _build_deactivating_session(session, error)
+        self.job_runner = SchedulerJobRunner(job=Job(), num_runs=0)
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=might_fail_session)
+
+        session.refresh(ti)
+        assert ti.state == State.NONE
 
     def test_adopt_or_reset_orphaned_tasks_loads_state_for_reset_logging(
         self, dag_maker, session, mock_executor
@@ -8285,6 +8354,40 @@ class TestSchedulerJob:
         assert ti_good.next_kwargs["event"]["chosen_options"] == ["Approve"]
         # The one it could not resume is reported as such rather than counted as resolved.
         assert mock_log.info.call_args.args[1:] == (1, 0, 1)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(
+                OperationalError("any_statement", "any_params", Exception("any_orig")), id="dbapi-error"
+            ),
+            pytest.param(StaleDataError(), id="stale-data-error"),
+        ],
+    )
+    def test_awaiting_input_timeout_sweep_rolls_back_before_retrying(self, error, dag_maker, session):
+        """A failed sweep rolls back, so the retry runs against a usable transaction."""
+        with dag_maker(
+            dag_id="test_awaiting_input_retry_rollback",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy1", session=session)
+        ti.state = State.AWAITING_INPUT
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.commit()
+
+        might_fail_session = _build_deactivating_session(session, error)
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_awaiting_input_timeouts(max_retries=2, session=might_fail_session)
+
+        session.refresh(ti)
+        assert ti.state == State.SCHEDULED
+        assert ti.next_kwargs["event"]["error_type"] == "timeout"
 
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """
