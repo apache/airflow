@@ -87,9 +87,9 @@ Worker process memory protection (Linux)
 On Linux, the supervisor process calls ``prctl(PR_SET_DUMPABLE, 0)`` at the start of
 ``supervise_task()`` before forking the task process. A bare-forked child inherits the flag;
 a child started through ``exec`` (macOS, or ``[core] execute_tasks_new_python_interpreter``)
-restores it in its bootstrap, before importing Airflow, because ``execve`` resets it; the remaining
-window is interpreter start, which ``kernel.yama.ptrace_scope >= 1`` covers. Marking processes as
-non-dumpable prevents same-UID sibling processes from reading
+restores it in its bootstrap, before importing Airflow, because ``execve`` resets it; for the remaining
+interpreter-start window, ``kernel.yama.ptrace_scope >= 1`` covers ``/proc/<pid>/mem`` and ``ptrace``
+attach. Marking processes as non-dumpable prevents same-UID sibling processes from reading
 ``/proc/<pid>/mem``, ``/proc/<pid>/environ``, or ``/proc/<pid>/maps``, and blocks
 ``ptrace(PTRACE_ATTACH)``. This is critical because each supervisor holds a distinct JWT
 token in memory — without this protection, a malicious task process running as the same

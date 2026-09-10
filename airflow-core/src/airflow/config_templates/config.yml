@@ -228,9 +228,9 @@ core:
         the task in a fresh interpreter with ``exec`` right after forking it, so the task cannot
         inherit a lock a supervisor thread held at fork time (which can otherwise hang it at its
         first TLS call). The Dag processor, the triggerer and task callbacks are not affected and
-        keep bare fork. Each task pays an interpreter start plus re-import; Edge workers already
-        start a fresh interpreter for the supervisor when this is ``True`` and start a second one
-        for the task.
+        keep bare fork. Each task pays an interpreter start plus re-import. The task process reads
+        the global value; Edge workers, which resolve it per team, already start a fresh interpreter
+        for the supervisor when it is ``True`` and start a second one for the task.
       default: "False"
       example: ~
       version_added: 2.0.0
