@@ -3248,10 +3248,11 @@ dag_processor:
       default: "2"
     max_dags_per_persistence_group:
       description: |
-        How many Dags the Dag processor may write in one database call before the next
-        file starts a new one. A file is never split, so one defining more than this is
-        still written in one go. Lower it if holding that many rows at once causes lock
-        waits; 1 writes a file at a time.
+        How many Dags the Dag processor may persist together before the next file starts
+        a new group. A file is never split, so one defining more than this limit is still
+        written in one group. Lower the limit to reduce the number of Dags locked in one
+        transaction. Setting it to 1 prevents multiple files containing Dags from sharing
+        a group; compatible files containing no Dags can still join a group.
       version_added: 3.4.0
       type: integer
       example: ~

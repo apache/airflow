@@ -1,8 +1,10 @@
 Persist Dag parse results a group at a time
 
-The Dag processor now writes the files that finished parsing together in a single pass, rather
-than one call per file. Everything a write does besides the Dags themselves is paid once per
-group instead of once per file.
+The Dag processor now groups compatible files that finished parsing together and persists each
+group in one transaction. This shares the fixed persistence work across the files in a group.
+Groups preserve collection order. A change in bundle name, version, or version data, overlapping
+Dag identifiers or file paths, or the Dag count limit starts a new group. A file reporting import
+errors ends its group so later files see the resulting database state.
 
 **What changed:**
 
@@ -11,27 +13,55 @@ group instead of once per file.
   A file that parsed and defined no Dags is in the group like any other, since its import errors
   still have to be cleared.
 - ``DagFileProcessorManager.persist_parsing_result``, which took one file at a time, is
-  deprecated and will be removed in Airflow 4.0. Overriding it still works until then, but parse
-  results are persisted one file at a time and batching is skipped for the whole Dag processor.
+  deprecated and will be removed in Airflow 4.0. An active override still receives one file at
+  a time and disables batching. A subclass implementing ``persist_parsing_results`` can keep
+  the old method for compatibility; the batch hook takes precedence and preserves batching.
 - Overriding ``handle_parsing_result`` is still supported and also skips batching. It remains the
   only hook that sees every completion, including callback-only runs and failed parses.
 
 - ``[dag_processor] max_dags_per_persistence_group`` bounds how many Dags one write may carry,
   defaulting to 32. A file is never split, so a single file defining more is still written in one
-  go. Lower it if the Dag processor holding many rows in one transaction causes lock waits; set
-  it to 1 to write one file at a time while keeping the new seam.
+  group. Lower it if holding many rows in one transaction causes lock waits. Setting it to 1
+  prevents multiple files containing Dags from sharing a group; compatible files containing no
+  Dags can still join a group.
 
 **Behaviour changes:**
 
+- Switching a Dag schedule between an asset and an asset alias clears the obsolete schedule
+  references, including when no other file in the group uses the old reference type.
+- Removing all task inlets or outlets clears their obsolete asset references, including when
+  no Dag in the write declares any task assets.
+- Persistence overrides are not automatically replayed by default, including after serialization
+  errors. A subclass can set ``allow_persistence_replay = True`` only when both retrying the whole
+  transaction and replaying its files individually are safe for every external effect. Otherwise,
+  a failed group may leave its healthy files unwritten until the override recovers.
+- Calls to the built-in ``handle_parsing_result`` or ``persist_parsing_results`` with a supplied
+  session execute once and pass raised persistence exceptions to the caller for recovery.
+  The caller owns commit and rollback, including around the handler's team lookup.
+  Without a supplied session, the handler persists a file in an owned transaction and records
+  persistence success after commit. It contains write or
+  commit failures after any allowed retries are exhausted. Result handling itself is not repeated.
+- The manager retries owned transactions on retryable database errors when replay is allowed.
+  A batch wrapper delegating to ``super().persist_parsing_results`` without a session can retry
+  the base database write without repeating the wrapper. An active legacy per-file persistence
+  override still requires ``allow_persistence_replay = True`` to permit retries.
 - ``on_asset_created`` now reports the definition that is written. Where two files in one group
   define the same asset differently, writing a file at a time announced the first file's
   definition and then silently overwrote it, so the announcement disagreed with the row; a group
   coalesces the definitions before creating the row and announces what it wrote.
 
+Existing rollback limitations remain: the FAB auth manager can commit permissions during a write,
+and listeners run before commit. Listener notifications do not guarantee that the transaction
+eventually commits. These limitations are tracked in `issue 71911
+<https://github.com/apache/airflow/issues/71911>`_.
+
 **Migration:**
 
 - Move a ``persist_parsing_result`` override to ``persist_parsing_results``, which receives a
   sequence of results and a session instead of one file's arguments.
+- Wrappers that safely delegate persistence can set ``allow_persistence_replay = True`` to retain
+  automatic retries and recovery of healthy files beside a file that fails to serialize. Leave
+  it disabled if retrying or splitting the call could repeat external effects unsafely.
 
 * Types of change
 

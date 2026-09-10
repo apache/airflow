@@ -35,7 +35,20 @@ The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a stand
 3. Queue file paths: Add files discovered to the file path queue
 4. Process files:  Start a new ``DagFileProcessorProcess`` for each file, up to a maximum of :ref:`config:dag_processor__parsing_processes`
 5. Collect results: Collect the result from any finished Dag processors
-6. Log statistics:  Print statistics and emit ``dag_processing.total_parse_time``
+6. Persist results: Group compatible completed parse results and write each group in its own transaction
+7. Log statistics:  Print statistics and emit ``dag_processing.total_parse_time``
+
+Persistence groups contain consecutive results in collection order. A result starts a new group
+when its bundle name, bundle version, or version data differs, or when adding its Dags would exceed
+:ref:`config:dag_processor__max_dags_per_persistence_group`. A file is never split across groups,
+even when it defines more Dags than this limit.
+
+The manager also starts a new group when a result defines a ``dag_id`` already present in the group,
+when Dags from different results are recorded under the same file path, or when a parsed or
+import-error file path overlaps a path under which another result's Dags are recorded. A result
+reporting import errors ends its group. These boundaries preserve the order in which duplicate
+definitions and file errors affect the database; the manager never moves a later result into an
+earlier group to fill spare capacity.
 
 ``DagFileProcessorProcess`` has the following steps:
 
@@ -43,6 +56,50 @@ The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a stand
 2. The Dag files are loaded as Python module: Must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
 3. Process modules:  Find Dag objects within Python module
 4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
+
+Persistence overrides
+---------------------
+
+Subclasses can override ``DagFileProcessorManager.persist_parsing_results`` to customize persistence.
+The manager passes one group of ``FileParseResult`` objects and a session to this method. Overrides
+are not automatically replayed by default: rolling back the metadata database cannot undo external
+effects. If an override fails, the entire group may remain unwritten, including healthy files beside
+a Dag that fails to serialize. This can recur if the same failing group forms on later passes.
+
+A subclass can set ``allow_persistence_replay = True`` when both retrying the complete transaction
+and splitting its files into individual calls are safe for all of its external effects. This permits
+automatic recovery, including writing healthy files beside a file that fails. The built-in persistence
+implementation allows replay; custom batch and legacy per-file overrides must opt in explicitly.
+
+The manager owns a fresh transaction for each group and retries the whole write on retryable
+database errors when replay is allowed. Calling the base ``persist_parsing_results`` without a
+session also opens an owned transaction. A batch wrapper delegating this way through ``super()``
+can retry the base database write without repeating the wrapper's external effects. An active
+legacy per-file persistence override is invoked within that write and still requires the opt-in.
+
+The base ``handle_parsing_result`` called without a session builds a file's result once and delegates
+to owned per-file persistence. It records persistence success only after commit. A write or commit
+failure that exhausts the allowed retries retains the file's previous Dag and error counts and
+throttles its next attempt, allowing other completed files to proceed. Neither the handler nor result handling is
+repeated to recover a persistence failure.
+
+A supplied session is always used for a single attempt by either base method, even if the batch
+contains only one group. Persistence exceptions reaching these entry points propagate to the caller,
+who owns commit, rollback, and recovery. These entry points do not commit, roll back, or retry the
+session themselves. The handler's team lookup also uses the supplied session. These rules do not
+change direct calls to the deprecated
+singular ``persist_parsing_result`` method.
+
+These rules do not change how parsing and serialization errors are recorded as import errors.
+Existing rollback limitations also remain: the FAB auth manager can commit permissions during a
+write, and listeners run before commit. Their notifications do not guarantee that the transaction
+eventually commits. These limitations are tracked in `issue 71911
+<https://github.com/apache/airflow/issues/71911>`_.
+
+Overriding ``handle_parsing_result`` or only the legacy ``persist_parsing_result`` keeps processing
+one file at a time. When both persistence hooks are overridden, ``persist_parsing_results`` takes
+precedence; the legacy method can remain for compatibility without disabling batching or triggering
+its deprecation warning.
 
 
 Fine-tuning your Dag processor performance
@@ -73,6 +130,7 @@ In order to fine-tune your Dag processor, you need to include a number of factor
 * The Dag processor configuration
    * How many Dag processors you have
    * How many parsing processes you have in your Dag processor
+   * How many Dags can share a persistence transaction
    * How much time Dag processor waits between re-parsing of the same Dag (it happens continuously)
    * How many callbacks you run per Dag processor loop
 
@@ -196,3 +254,12 @@ However, you can also look at other non-performance-related Dag processor config
 - :ref:`config:dag_processor__parsing_processes`
   The Dag processor can run multiple processes in parallel to parse Dag files. This defines
   how many processes will run.
+
+- :ref:`config:dag_processor__max_dags_per_persistence_group`
+  The maximum number of Dags normally persisted in one group, defaulting to 32. Larger groups
+  share fixed database work across more files, but can hold more rows locked in one transaction.
+  Lower this limit if persistence causes lock waits. A file is never split, so a file defining more
+  Dags than the limit is still written in one group. Setting the limit to 1 prevents multiple files
+  containing Dags from sharing a group; compatible files containing no Dags can still join it.
+  The benefit depends on how many compatible files finish in the same collection pass. Measure
+  database statements, persistence time, and lock waits on your workload when changing this setting.

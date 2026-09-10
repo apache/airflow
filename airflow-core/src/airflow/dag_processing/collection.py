@@ -29,12 +29,13 @@ from __future__ import annotations
 
 import traceback
 from collections.abc import Mapping
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, false, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -82,6 +83,23 @@ if TYPE_CHECKING:
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
+
+_DISABLE_DAG_PARSING_RETRIES = "_airflow_disable_dag_parsing_retries"
+
+
+@contextmanager
+def _disable_dag_parsing_retries(*, session: Session) -> Iterator[None]:
+    """Leave retries to the transaction owner across legacy hooks and nested writes."""
+    missing = object()
+    previous = session.info.get(_DISABLE_DAG_PARSING_RETRIES, missing)
+    session.info[_DISABLE_DAG_PARSING_RETRIES] = True
+    try:
+        yield
+    finally:
+        if previous is missing:
+            session.info.pop(_DISABLE_DAG_PARSING_RETRIES, None)
+        else:
+            session.info[_DISABLE_DAG_PARSING_RETRIES] = previous
 
 
 def _create_orm_dags(
@@ -207,12 +225,7 @@ class _RunInfo(NamedTuple):
 def _resolve_parse_duration(
     parse_duration: float | Mapping[str, float | None] | None, dag_id: str
 ) -> float | None:
-    """
-    Pick the parse duration for one Dag.
-
-    Persisting several files in one call means the duration differs per Dag, so callers doing that
-    pass a mapping. A single file still passes one value that applies to every Dag it defines.
-    """
+    """Resolve a Dag's duration from a scalar or per-Dag mapping."""
     if isinstance(parse_duration, Mapping):
         return parse_duration.get(dag_id)
     return parse_duration
@@ -536,13 +549,15 @@ def update_dag_parsing_results_in_db(
     else:
         warnings = set(warnings) | duplicate_warnings
 
-    for attempt in run_with_db_retries(logger=log):
+    retry_on_db_error = session.info.get(_DISABLE_DAG_PARSING_RETRIES) is not True
+    max_retries = MAX_DB_RETRIES if retry_on_db_error else 1
+    for attempt in run_with_db_retries(logger=log, max_retries=max_retries):
         with attempt:
             serialize_errors = []
             log.debug(
                 "Running dagbag.bulk_write_to_db with retries. Try %d of %d",
                 attempt.retry_state.attempt_number,
-                MAX_DB_RETRIES,
+                max_retries,
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
@@ -569,7 +584,8 @@ def update_dag_parsing_results_in_db(
                         )
                     )
             except OperationalError:
-                session.rollback()
+                if retry_on_db_error:
+                    session.rollback()
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
@@ -600,7 +616,7 @@ class DagModelOperation(NamedTuple):
     bundle_name: str
     bundle_version: str | None
 
-    def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
+    def find_orm_dags(self, *, session: Session, load_inlet_references: bool = True) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
         stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
             (
@@ -609,7 +625,6 @@ class DagModelOperation(NamedTuple):
                 .where(DagModel.dag_id.in_(self.dags))
                 .options(joinedload(DagModel.schedule_asset_references))
                 .options(joinedload(DagModel.schedule_asset_alias_references))
-                .options(joinedload(DagModel.task_inlet_asset_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
                 # ``FOR NO KEY UPDATE`` conflicts with itself, and a group holds far more rows
@@ -619,10 +634,12 @@ class DagModelOperation(NamedTuple):
             of=DagModel,
             session=session,
         )
+        if load_inlet_references:
+            stmt = stmt.options(selectinload(DagModel.task_inlet_asset_references))
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
-        orm_dags = self.find_orm_dags(session=session)
+        orm_dags = self.find_orm_dags(load_inlet_references=False, session=session)
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(
@@ -966,13 +983,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No assets means there are no references to update.
-        if not assets:
-            return
         for dag_id, references in self.schedule_asset_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].schedule_asset_references = []
+                if dags[dag_id].schedule_asset_references:
+                    dags[dag_id].schedule_asset_references = []
                 continue
             referenced_assets = {
                 assets[r.name, r.uri]: (
@@ -1008,13 +1023,11 @@ class AssetModelOperation(NamedTuple):
         *,
         session: Session,
     ) -> None:
-        # Optimization: No aliases means there are no references to update.
-        if not aliases:
-            return
         for dag_id, references in self.schedule_asset_alias_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].schedule_asset_alias_references = []
+                if dags[dag_id].schedule_asset_alias_references:
+                    dags[dag_id].schedule_asset_alias_references = []
                 continue
             referenced_alias_ids = {alias.id for alias in (aliases[r.name] for r in references)}
             orm_refs = {a.alias_id: a for a in dags[dag_id].schedule_asset_alias_references}
