@@ -25,9 +25,12 @@ The DuckDB connection describes which in-process database
 
 .. note::
 
-    This connection is optional. With no connection configured the hook opens an in-memory database.
-    Configure a connection when you need a persistent database file, a MotherDuck database, or shared
-    engine settings.
+    This connection is optional. With no ``duckdb_default`` connection configured the hook opens an
+    in-memory database. Configure a connection when you need a persistent database file, a MotherDuck
+    database, or shared engine settings.
+
+    Only the default connection id is optional. Passing any other id asserts that the connection
+    exists, a missing connection raises rather than silently opening an in-memory database.
 
 Default Connection ID
 ---------------------

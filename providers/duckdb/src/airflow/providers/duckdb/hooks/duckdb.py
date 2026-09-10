@@ -49,8 +49,10 @@ class DuckDBHook(DbApiHook):
     The hook opens a DuckDB database — in memory, backed by a local file, or hosted by MotherDuck —
     applies resource limits, and loads the requested extensions, so a Dag author only supplies SQL.
 
-    The Airflow connection is optional. With no connection configured the hook opens an in-memory
-    database, which is the right default for a stateless, task-scoped analytical query.
+    The Airflow connection is optional. With no ``duckdb_default`` connection configured the hook opens
+    an in-memory database, which is the right default for a stateless, task-scoped analytical query.
+    Supplying a connection id other than the default asserts that it exists, a missing connection raises
+    rather than quietly falling back to an in-memory database.
 
     Extensions are loaded with ``LOAD`` first and only installed when that fails. DuckDB downloads
     extensions from its extension repository on first use, so deployments without outbound internet
@@ -58,7 +60,8 @@ class DuckDBHook(DbApiHook):
     ``autoinstall_extensions=False`` to turn the network access off entirely.
 
     :param duckdb_conn_id: reference to a :ref:`DuckDB connection <howto/connection:duckdb>`. The
-        connection need not exist; when it is missing an in-memory database is used.
+        default connection need not exist; when it is missing an in-memory database is used. Any other
+        id must exist, and raises if it does not.
     :param database: database to open. Overrides the connection. ``:memory:`` (the default) opens a
         transient database that is discarded when the task finishes.
     :param extensions: extensions to load on connect, for example ``["httpfs", "iceberg"]``.
@@ -188,14 +191,21 @@ class DuckDBHook(DbApiHook):
 
     @cached_property
     def airflow_connection(self) -> Connection | None:
-        """Return the configured Airflow connection, or ``None`` when it does not exist."""
+        """
+        Return the configured Airflow connection, or ``None`` when the default one does not exist.
+
+        A missing connection is only tolerated for the default connection id, which is what makes the
+        hook usable with no configuration at all. An explicitly supplied id asserts that a particular
+        connection exists, so its absence is a misconfiguration: falling back there would let a task
+        that meant to write to a real database silently write to one that is discarded when it ends.
+        """
+        conn_id = self.get_conn_id()
         try:
-            return self.get_connection(self.get_conn_id())
+            return self.get_connection(conn_id)
         except AirflowNotFoundException:
-            self.log.debug(
-                "No Airflow connection %r; falling back to an in-memory DuckDB database.",
-                self.get_conn_id(),
-            )
+            if conn_id != self.default_conn_name:
+                raise
+            self.log.info("No Airflow connection %r; using an in-memory DuckDB database.", conn_id)
             return None
 
     @cached_property

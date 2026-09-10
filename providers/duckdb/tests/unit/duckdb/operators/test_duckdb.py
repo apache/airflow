@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.duckdb.hooks.duckdb import DuckDBHook
 from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
 from airflow.providers.duckdb.version_compat import AirflowNotFoundException
@@ -38,7 +40,9 @@ class TestDuckDBExecuteQueryOperator:
 
     def test_get_db_hook_bypasses_the_connection_lookup(self):
         """The whole point of the override: no Airflow connection row is required."""
-        operator = DuckDBExecuteQueryOperator(task_id="t", sql="SELECT 1", conn_id="does_not_exist")
+        operator = DuckDBExecuteQueryOperator(
+            task_id="t", sql="SELECT 1", conn_id=DuckDBHook.default_conn_name
+        )
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
             hook = operator.get_db_hook()
             assert hook.get_database() == ":memory:"
@@ -55,6 +59,13 @@ class TestDuckDBExecuteQueryOperator:
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
             assert hook.get_extensions() == ["json"]
 
+    def test_explicit_missing_connection_raises(self):
+        """An explicitly configured conn_id must exist; only the default falls back to in-memory."""
+        operator = DuckDBExecuteQueryOperator(task_id="t", sql="SELECT 1", conn_id="analytics_prod")
+        with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
+            with pytest.raises(AirflowNotFoundException):
+                operator.get_db_hook().get_database()
+
     def test_hook_params_is_a_template_field(self):
         """Inherited from BaseSQLOperator, so hook params can be rendered per run."""
         assert "hook_params" in DuckDBExecuteQueryOperator.template_fields
@@ -67,7 +78,7 @@ class TestDuckDBExecuteQueryOperator:
         throwaway in-memory database instead of the file the author named.
         """
         operator = DuckDBExecuteQueryOperator(
-            task_id="t", sql="SELECT 1", database="/tmp/explicit.duckdb", conn_id="does_not_exist"
+            task_id="t", sql="SELECT 1", database="/tmp/explicit.duckdb", conn_id=DuckDBHook.default_conn_name
         )
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
             assert operator.get_db_hook().get_database() == "/tmp/explicit.duckdb"
@@ -78,7 +89,7 @@ class TestDuckDBExecuteQueryOperator:
             sql="SELECT 1",
             database="/tmp/explicit.duckdb",
             hook_params={"database": "/tmp/from_hook_params.duckdb"},
-            conn_id="does_not_exist",
+            conn_id=DuckDBHook.default_conn_name,
         )
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
             assert operator.get_db_hook().get_database() == "/tmp/explicit.duckdb"
@@ -100,7 +111,7 @@ class TestDuckDBExecuteQueryOperator:
             task_id="t",
             sql=["CREATE TABLE t AS SELECT 42 AS answer", "SELECT answer FROM t"],
             database=str(database),
-            conn_id="does_not_exist",
+            conn_id=DuckDBHook.default_conn_name,
             do_xcom_push=True,
         )
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
@@ -112,7 +123,7 @@ class TestDuckDBExecuteQueryOperator:
         operator = DuckDBExecuteQueryOperator(
             task_id="t",
             sql="SELECT 21 * 2 AS answer",
-            conn_id="does_not_exist",
+            conn_id=DuckDBHook.default_conn_name,
             do_xcom_push=True,
         )
         with mock.patch(GET_CONNECTION, side_effect=AirflowNotFoundException("nope")):
