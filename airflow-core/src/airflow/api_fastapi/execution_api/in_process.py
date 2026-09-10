@@ -30,7 +30,7 @@ import structlog
 from starlette.requests import Request
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
     from fastapi import FastAPI
 
 logger = structlog.get_logger(logger_name=__name__)
@@ -86,7 +86,7 @@ class InProcessExecutionAPI:
     A helper class to make it possible to run the ExecutionAPI "in-process".
 
     The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
-    needed so that we can use the sync httpx client
+    needed so that we can use the sync httpx2 client
     """
 
     _app: FastAPI | None = None
@@ -109,9 +109,11 @@ class InProcessExecutionAPI:
 
         return self._app
 
+    # httpx2, not httpx: the only consumers are Task SDK clients, which subclass httpx2.Client,
+    # and transports do not cross the httpx/httpx2 package boundary.
     @cached_property
-    def transport(self) -> httpx.WSGITransport:
-        import httpx
+    def transport(self) -> httpx2.WSGITransport:
+        import httpx2
         from a2wsgi import ASGIMiddleware
 
         from airflow import settings
@@ -133,7 +135,7 @@ class InProcessExecutionAPI:
         # Wait for startup so callers see a ready app and the finalizer can close an entered context.
         asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
 
-        transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
+        transport = httpx2.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
         # Callers can retain the transport after dropping this instance; finalizing on self would
         # stop the loop while requests still need it.
@@ -142,7 +144,7 @@ class InProcessExecutionAPI:
         return transport
 
     @cached_property
-    def atransport(self) -> httpx.ASGITransport:
-        import httpx
+    def atransport(self) -> httpx2.ASGITransport:
+        import httpx2
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx2.ASGITransport(app=self.app)

@@ -23,7 +23,7 @@ from contextlib import asynccontextmanager
 from unittest import mock
 from uuid import UUID
 
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI, Request, status
 from fastapi.params import Security as SecurityParam
@@ -81,7 +81,7 @@ def test_server_and_in_process_apps_isolate_auth(in_process_first, monkeypatch):
 
     with (
         TestClient(server_app) as server,
-        httpx.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
+        httpx2.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
     ):
         response = local.get("/variables/execution_api_hosting")
         assert response.status_code == 200
@@ -208,7 +208,7 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
 def test_in_process_execution_api_runs_without_jwt_secret():
     """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
     api = InProcessExecutionAPI()
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
 
