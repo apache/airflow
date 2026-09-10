@@ -230,6 +230,16 @@ class Connection:
                     "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
                     "'-' in the URI instead, which is decoded back to '_' on read."
                 )
+            elif "-" in self.conn_type:
+                # A hyphenated conn_type is the configuration this cannot ever resolve for,
+                # because '-' is the URI-scheme encoding of '_'. Say so, but as a hint rather
+                # than a diagnosis: the provider may simply not be installed.
+                message = (
+                    f"Unknown hook type \"{self.conn_type}\". Note that it contains '-', which is "
+                    "the URI-scheme encoding of '_', so a connection type spelled with '-' cannot "
+                    f"be resolved; the registered name is likely {self.conn_type.replace('-', '_')!r}. "
+                    "Otherwise the provider supplying this connection type may not be installed."
+                )
             else:
                 message = f'Unknown hook type "{self.conn_type}"'
             raise AirflowException(message)

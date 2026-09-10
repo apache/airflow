@@ -78,6 +78,18 @@ class TestConnections:
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
+    def test_get_hook_explains_a_hyphenated_conn_type(self, mock_providers_manager):
+        """Worker-side copy of the hyphenated-conn_type hint."""
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+
+        with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
+            conn.get_hook()
+
+        message = str(exc_info.value)
+        assert "google-cloud-platform" in message
+        assert "google_cloud_platform" in message
+
     def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self, mock_providers_manager):
         """
         A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme at
