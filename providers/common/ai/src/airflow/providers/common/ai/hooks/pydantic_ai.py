@@ -22,8 +22,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent, Embedder
 from pydantic_ai.embeddings import infer_embedding_model
-from pydantic_ai.models import infer_model
-from pydantic_ai.providers import infer_provider, infer_provider_class
+from pydantic_ai.models import infer_model, parse_model_id
+from pydantic_ai.providers import infer_provider_class
+from pydantic_ai.providers.gateway import gateway_provider
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.compat.sdk import BaseHook
@@ -90,8 +91,7 @@ class PydanticAIHook(BaseHook):
         self.embed_model_id = embed_model_id
         self._model: Model | None = None
         self._embedder: Embedder | None = None
-        self._conn: Connection | None = None
-        self._conn_extra_dejson: dict[str, Any] | None = None
+        self._connections: dict[str, Connection] = {}
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -100,7 +100,7 @@ class PydanticAIHook(BaseHook):
             "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {
-                "host": "https://api.openai.com/v1  (optional, for custom endpoints / Ollama)",
+                "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
                 "extra": '{"model": "openai:gpt-5.6-sol", "embed_model": "openai:text-embedding-3-small"}',
             },
         }
@@ -109,8 +109,8 @@ class PydanticAIHook(BaseHook):
     # Core connection / agent API
     # ------------------------------------------------------------------
 
+    @staticmethod
     def _get_provider_kwargs(
-        self,
         api_key: str | None,
         base_url: str | None,
         extra: dict[str, Any],
@@ -138,19 +138,34 @@ class PydanticAIHook(BaseHook):
             kwargs["base_url"] = base_url
         return kwargs
 
-    def _create_provider_factory(self, provider_kwargs: dict[str, Any]) -> Callable[[str], Any]:
-        def _provider_factory(provider_name: str) -> Any:
-            try:
-                return infer_provider_class(provider_name)(**provider_kwargs)
-            except TypeError:
-                self.log.warning(
-                    "Provider '%s' rejected kwargs %s; falling back to env-var auth",
-                    provider_name,
-                    list(provider_kwargs),
-                )
-                return infer_provider(provider_name)
+    def _get_cached_connection(self, conn_id: str) -> Connection:
+        if conn_id not in self._connections:
+            self._connections[conn_id] = self.get_connection(conn_id)
+        return self._connections[conn_id]
 
-        return _provider_factory
+    def _warn_if_vertexai_field_ignored(self, extra: dict[str, Any]) -> None:
+        if extra.get("vertexai") is not None:
+            self.log.warning(
+                "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
+                "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
+            )
+
+    def _get_provider_kwargs_for_model(self, conn: Connection, model_name: str) -> dict[str, Any]:
+        provider_name, _ = parse_model_id(model_name)
+        provider_kwargs_mapper = _PROVIDER_KWARGS_MAPPER_BY_MODEL_PREFIX.get(
+            provider_name, PydanticAIHook._get_provider_kwargs
+        )
+        extra = conn.extra_dejson
+        self._warn_if_vertexai_field_ignored(extra)
+        return provider_kwargs_mapper(conn.password, conn.host, extra)
+
+    def _create_provider_factory(self, provider_kwargs: dict[str, Any]) -> Callable[[str], Any]:
+        def _create_provider(provider_name: str) -> Any:
+            if provider_name.startswith("gateway/"):
+                return gateway_provider(provider_name.removeprefix("gateway/"), **provider_kwargs)
+            return infer_provider_class(provider_name)(**provider_kwargs)
+
+        return _create_provider
 
     def get_conn(self) -> Model:
         """
@@ -169,10 +184,8 @@ class PydanticAIHook(BaseHook):
         if self._model is not None:
             return self._model
 
-        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
-        extra: dict[str, Any] = (
-            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
-        )
+        conn = self._get_cached_connection(self.llm_conn_id)
+        extra = conn.extra_dejson
 
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
@@ -180,10 +193,7 @@ class PydanticAIHook(BaseHook):
                 "No model specified. Set model_id on the hook or the Model field on the connection."
             )
 
-        api_key: str | None = conn.password or None
-        base_url: str | None = conn.host or None
-
-        provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
+        provider_kwargs = self._get_provider_kwargs_for_model(conn, model_name)
         if provider_kwargs:
             self.log.info(
                 "Using explicit credentials for provider with model '%s': %s",
@@ -204,7 +214,7 @@ class PydanticAIHook(BaseHook):
         if self._embedder is not None:
             return self._embedder
 
-        conn = self.get_connection(self.embed_conn_id)
+        conn = self._get_cached_connection(self.embed_conn_id)
         extra: dict[str, Any] = conn.extra_dejson
 
         embed_model_name: str = self.embed_model_id or extra.get("embed_model", "")
@@ -214,10 +224,7 @@ class PydanticAIHook(BaseHook):
                 "on the connection."
             )
 
-        api_key: str | None = conn.password or None
-        base_url: str | None = conn.host or None
-
-        provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
+        provider_kwargs = self._get_provider_kwargs_for_model(conn, embed_model_name)
         if provider_kwargs:
             self.log.info(
                 "Using explicit credentials for provider with embedding model '%s': %s",
@@ -239,11 +246,8 @@ class PydanticAIHook(BaseHook):
         if self.model_id:
             return self.get_conn()
 
-        conn = self.get_connection(self.llm_conn_id)
-        self._conn = conn
-        self._conn_extra_dejson = conn.extra_dejson
-
-        if self._conn_extra_dejson.get("model"):
+        conn = self._get_cached_connection(self.llm_conn_id)
+        if conn.extra_dejson.get("model"):
             return self.get_conn()
 
         return None
@@ -253,7 +257,7 @@ class PydanticAIHook(BaseHook):
         if self.embed_model_id:
             return self.get_embedder()
 
-        conn = self.get_connection(self.embed_conn_id)
+        conn = self._get_cached_connection(self.embed_conn_id)
         if conn.extra_dejson.get("embed_model"):
             return self.get_embedder()
 
@@ -404,8 +408,8 @@ class PydanticAIAzureHook(PydanticAIHook):
             },
         }
 
+    @staticmethod
     def _get_provider_kwargs(
-        self,
         api_key: str | None,
         base_url: str | None,
         extra: dict[str, Any],
@@ -475,8 +479,8 @@ class PydanticAIBedrockHook(PydanticAIHook):
             },
         }
 
+    @staticmethod
     def _get_provider_kwargs(
-        self,
         api_key: str | None,
         base_url: str | None,
         extra: dict[str, Any],
@@ -568,8 +572,8 @@ class PydanticAIVertexHook(PydanticAIHook):
             },
         }
 
+    @staticmethod
     def _get_provider_kwargs(
-        self,
         api_key: str | None,
         base_url: str | None,
         extra: dict[str, Any],
@@ -582,19 +586,6 @@ class PydanticAIVertexHook(PydanticAIHook):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
 
-        # "vertexai" predates pydantic-ai splitting GoogleProvider (Generative Language API)
-        # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
-        # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
-        # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # swallow by falling back to env-var auth with *all* other kwargs discarded — silently
-        # authenticating as the wrong identity. Accept the field for backward compatibility but
-        # never forward it: which API is used is now controlled by the model prefix.
-        if extra.get("vertexai") is not None:
-            self.log.warning(
-                "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "
-                "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
-            )
-
         # Service-account credentials — loaded lazily to avoid importing
         # google-auth on non-Vertex code paths (optional heavy dependency).
         if sa_info:
@@ -606,3 +597,14 @@ class PydanticAIVertexHook(PydanticAIHook):
             )
 
         return kwargs
+
+
+_PROVIDER_KWARGS_MAPPER_BY_MODEL_PREFIX: dict[
+    str | None, Callable[[str | None, str | None, dict[str, Any]], dict[str, Any]]
+] = {
+    "azure": PydanticAIAzureHook._get_provider_kwargs,
+    "azure-responses": PydanticAIAzureHook._get_provider_kwargs,
+    "bedrock": PydanticAIBedrockHook._get_provider_kwargs,
+    "google": PydanticAIVertexHook._get_provider_kwargs,
+    "google-cloud": PydanticAIVertexHook._get_provider_kwargs,
+}
