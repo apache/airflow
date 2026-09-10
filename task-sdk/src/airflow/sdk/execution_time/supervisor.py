@@ -161,10 +161,7 @@ try:
 except ImportError:
     send_fds = None  # type: ignore[assignment]
 
-from opentelemetry import context as otel_context, trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-_trace_propagator = TraceContextTextMapPropagator()
+from opentelemetry import context as otel_context, propagate as otel_propagate, trace
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -957,7 +954,7 @@ class WatchedSubprocess:
             token = None
             try:
                 if request.context_carrier:
-                    ctx = _trace_propagator.extract(request.context_carrier)
+                    ctx = otel_propagate.extract(request.context_carrier)
                     token = otel_context.attach(ctx)
                 self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
