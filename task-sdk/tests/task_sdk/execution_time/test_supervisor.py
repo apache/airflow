@@ -4703,8 +4703,73 @@ class TestResolveChildTarget:
 
 
 @pytest.mark.usefixtures("disable_capturing")
+def test_fork_exec_bootstrap_runs_an_importable_target_end_to_end(
+    captured_logs, time_machine, monkeypatch, client_with_ti_start
+):
+    """
+    Drive the real ``os.execv`` bootstrap: the fresh interpreter runs ``_CHILD_EXEC_BOOTSTRAP``,
+    rebuilds FDs 0-3, rehydrates the target by name and hands it to ``_fork_main``.
+
+    The probe stands in for ``_subprocess_main`` rather than running the task runner: the
+    suite stubs plugin loading in-process (conftest ``_get_plugins``), which a bare-forked
+    child inherits and a fresh interpreter cannot.
+    """
+    from task_sdk.execution_time import exec_probe_target
+
+    tests_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    monkeypatch.setenv(
+        "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
+    )
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: True)
+    # ActivitySubprocess.start only execs its own entry point; let the probe be that entry point.
+    monkeypatch.setattr(supervisor, "_subprocess_main", exec_probe_target.exec_probe_main)
+    time_machine.move_to(timezone.datetime(2024, 11, 7, 12, 34, 56, 78901), tick=False)
+
+    proc = ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=client_with_ti_start,
+        target=exec_probe_target.exec_probe_main,
+    )
+
+    assert proc.wait() == 0, captured_logs
+    assert {
+        "logger": "task.stdout",
+        "event": "exec-probe-ok",
+        "level": "info",
+        "timestamp": "2024-11-07T12:34:56.078901Z",
+    } in captured_logs
+
+
 class TestChildExecMain:
     """Test the fork+exec child entry point."""
+
+    def test_bootstrap_is_prelude_then_entry_point(self):
+        assert supervisor._CHILD_EXEC_BOOTSTRAP.startswith(supervisor._CHILD_EXEC_PRELUDE)
+        assert supervisor._CHILD_EXEC_BOOTSTRAP.rstrip().endswith("_child_exec_main()")
+        compile(supervisor._CHILD_EXEC_BOOTSTRAP, "<bootstrap>", "exec")
+
+    def test_prelude_survives_an_interpreter_without_ctypes(self):
+        """Without _ctypes the prelude must fall through to the logged fallback, not kill the task."""
+        import subprocess
+
+        probe = (
+            "import sys\nsys.modules['_ctypes'] = None\n" + supervisor._CHILD_EXEC_PRELUDE + "print('ok')\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe], capture_output=True, text=True, timeout=60, check=False
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "ok"
 
     def test_reapplies_nondumpable_before_running_the_target(self, monkeypatch):
         """The logged fallback for the bootstrap prelude runs before _fork_main hands off."""

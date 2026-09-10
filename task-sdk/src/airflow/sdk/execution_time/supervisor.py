@@ -555,8 +555,9 @@ def _resolve_child_target(dotted: str) -> Callable[[], None]:
 _CHILD_EXEC_PRELUDE = """\
 import sys
 if sys.platform == "linux":
-    import ctypes
     try:
+        import ctypes
+
         ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)
     except Exception:
         pass
