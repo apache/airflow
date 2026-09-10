@@ -972,14 +972,15 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", autospec=True)
     @mock.patch.object(DAG, "test", autospec=True)
-    def test_dag_test_show_dag_from_dag_cli(self, mock_test, mock_render_dag, dag_maker):
+    def test_dag_test_show_dag_from_dag_cli(self, mock_test, mock_render_dag, dag_maker, stdout_capture):
         """``DAG.cli()`` passes the Dag positionally and its parser drops ``dag_id``."""
         with dag_maker("dag_cli_show_dagrun", schedule=None) as dag:
             EmptyOperator(task_id="only_task")
         mock_test.return_value = dag_maker.create_dagrun(run_id="dag_cli_run")
 
         parser = cli_parser.get_parser(dag_parser=True)
-        dag_command.dag_test(parser.parse_args(["dags", "test", "--show-dagrun"]), dag)
+        with stdout_capture:
+            dag_command.dag_test(parser.parse_args(["dags", "test", "--show-dagrun"]), dag)
 
         mock_render_dag.assert_called_once()
         assert mock_render_dag.call_args.args[0] is dag
