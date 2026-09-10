@@ -400,7 +400,6 @@ providers/telegram/src/airflow/providers/telegram/operators/telegram.py::2
 providers/teradata/src/airflow/providers/teradata/hooks/bteq.py::10
 providers/teradata/src/airflow/providers/teradata/hooks/ttu.py::1
 providers/teradata/src/airflow/providers/teradata/operators/teradata_compute_cluster.py::9
-providers/teradata/src/airflow/providers/teradata/triggers/teradata_compute_cluster.py::1
 providers/teradata/src/airflow/providers/teradata/utils/bteq_util.py::2
 providers/trino/src/airflow/providers/trino/hooks/trino.py::1
 providers/vespa/src/airflow/providers/vespa/operators/vespa_ingest.py::1
