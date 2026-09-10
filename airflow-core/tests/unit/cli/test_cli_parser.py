@@ -179,7 +179,7 @@ class TestCli:
 
     @pytest.mark.parametrize(
         "module_pattern",
-        ["airflow.auth.managers", "airflow.executors.executor_loader"],
+        ["airflow.api_fastapi.auth.managers", "airflow.executors.base_executor"],
     )
     def test_should_not_import_in_cli_parser(self, module_pattern: str):
         """Test that cli_parser does not import auth_managers or executor_loader at import time."""
@@ -208,6 +208,7 @@ class TestCli:
             "cli_command_functions",
             "cli_command_providers",
             "executor_without_check",
+            "executor_names",
             "expected_loaded_executors",
         ),
         [
@@ -218,6 +219,7 @@ class TestCli:
                     ("path.to.KubernetesExecutor", "apache-airflow-providers-cncf-kubernetes"),
                 },
                 ["path.to.KubernetesExecutor"],
+                ["path.to.KubernetesExecutor"],
                 id="empty cli section should load all the executors by ExecutorLoader",
             ),
             pytest.param(
@@ -227,6 +229,7 @@ class TestCli:
                     ("path.to.CeleryExecutor", "apache-airflow-providers-celery"),
                     ("path.to.KubernetesExecutor", "apache-airflow-providers-cncf-kubernetes"),
                 },
+                ["path.to.CeleryExecutor", "path.to.KubernetesExecutor"],
                 ["path.to.KubernetesExecutor"],
                 id="only partial executor define cli section in provider info, should load the rest by ExecutorLoader",
             ),
@@ -240,8 +243,25 @@ class TestCli:
                     ("path.to.CeleryExecutor", "apache-airflow-providers-celery"),
                     ("path.to.KubernetesExecutor", "apache-airflow-providers-cncf-kubernetes"),
                 },
+                ["path.to.CeleryExecutor", "path.to.KubernetesExecutor"],
                 [],
                 id="all executors define cli section in provider info, should not load any by ExecutorLoader",
+            ),
+            pytest.param(
+                [lambda: [ActionCommand(name="celery", help="", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-celery"},
+                {("path.to.CeleryExecutor", "apache-airflow-providers-celery")},
+                ["my.custom.module.ExecutorClass"],
+                ["my.custom.module.ExecutorClass"],
+                id="custom executor not packaged as a provider should load by ExecutorLoader",
+            ),
+            pytest.param(
+                [lambda: [ActionCommand(name="celery", help="", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-celery"},
+                {("path.to.CeleryExecutor", "apache-airflow-providers-celery")},
+                ["airflow.executors.local_executor.LocalExecutor"],
+                [],
+                id="core executor should not be imported",
             ),
         ],
     )
@@ -271,13 +291,14 @@ class TestCli:
         cli_command_functions: list[Callable[[], list[ActionCommand | cli_parser.GroupCommand]]],
         cli_command_providers: set[str],
         executor_without_check: set[tuple[str, str]],
+        executor_names: list[str],
         expected_loaded_executors: list[str],
         caplog,
     ):
         # Create mock ExecutorName objects
         mock_executor_names = [
             MagicMock(name=executor_name.split(".")[-1], module_path=executor_name)
-            for executor_name, _ in executor_without_check
+            for executor_name in executor_names
         ]
 
         # Create mock executor classes that return empty command lists
@@ -297,23 +318,71 @@ class TestCli:
 
         # assert
         expected_warning = "Please define the 'cli' section in the 'get_provider_info' for custom executors to avoid this warning."
-        if expected_loaded_executors:
+        executors_missing_cli = [
+            executor_path
+            for executor_path, executor_provider in executor_without_check
+            if executor_provider not in cli_command_providers
+        ]
+        if executors_missing_cli:
             assert expected_warning in caplog.text
-            for executor_path in expected_loaded_executors:
+            for executor_path in executors_missing_cli:
                 assert executor_path in caplog.text
         else:
             assert expected_warning not in caplog.text
 
-        # Verify import_executor_cls was called with correct ExecutorName objects
-        if expected_loaded_executors:
-            expected_calls = [
-                mock.call(executor_name)
-                for executor_name in mock_executor_names
-                if executor_name.module_path in expected_loaded_executors
-            ]
-            mock_import_executor_cls.assert_has_calls(expected_calls, any_order=True)
-        else:
-            mock_import_executor_cls.assert_not_called()
+        # Verify import_executor_cls was called with correct ExecutorName objects, and only with those
+        expected_calls = [
+            mock.call(executor_name)
+            for executor_name in mock_executor_names
+            if executor_name.module_path in expected_loaded_executors
+        ]
+        mock_import_executor_cls.assert_has_calls(expected_calls, any_order=True)
+        assert mock_import_executor_cls.call_count == len(expected_calls)
+
+    @patch("airflow.executors.executor_loader.ExecutorLoader.import_executor_cls")
+    @patch("airflow.executors.executor_loader.ExecutorLoader.get_executor_names")
+    @patch(
+        "airflow.providers_manager.ProvidersManager.executor_without_check",
+        new_callable=mock.PropertyMock,
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_providers",
+        new_callable=mock.PropertyMock,
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_functions",
+        new_callable=mock.PropertyMock,
+    )
+    def test_compat_cli_loading_skips_commands_registered_by_providers(
+        self,
+        mock_cli_command_functions: MagicMock,
+        mock_cli_command_providers: MagicMock,
+        mock_executor_without_check: MagicMock,
+        mock_get_executor_names: MagicMock,
+        mock_import_executor_cls: MagicMock,
+    ):
+        """A subclass of a provider executor inherits get_cli_commands(); the provider registration must win."""
+        mock_cli_command_functions.return_value = [
+            lambda: [ActionCommand(name="celery", help="from provider", func=lambda: None, args=[])]
+        ]
+        mock_cli_command_providers.return_value = {"apache-airflow-providers-celery"}
+        mock_executor_without_check.return_value = {
+            ("path.to.CeleryExecutor", "apache-airflow-providers-celery"),
+        }
+        mock_get_executor_names.return_value = [
+            MagicMock(module_path="my.custom.module.CustomCeleryExecutor")
+        ]
+        mock_executor_cls = MagicMock()
+        mock_executor_cls.get_cli_commands.return_value = [
+            ActionCommand(name="celery", help="inherited", func=lambda: None, args=[]),
+            ActionCommand(name="custom-executor", help="", func=lambda: None, args=[]),
+        ]
+        mock_import_executor_cls.return_value = (mock_executor_cls, None)
+
+        reload(cli_parser)
+
+        assert cli_parser.ALL_COMMANDS_DICT["celery"].help == "from provider"
+        assert "custom-executor" in cli_parser.ALL_COMMANDS_DICT
 
     @pytest.mark.parametrize(
         (
@@ -367,6 +436,32 @@ class TestCli:
                 True,
                 id="only configured auth manager should be loaded",
             ),
+            pytest.param(
+                [lambda: [ActionCommand(name="fab", help="", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-fab"},
+                {
+                    (
+                        "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                        "apache-airflow-providers-fab",
+                    ),
+                },
+                "my_company.auth_managers.MyCustomAuthManager",
+                True,
+                id="custom auth manager not packaged as a provider should load by import_string",
+            ),
+            pytest.param(
+                [lambda: [ActionCommand(name="fab", help="", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-fab"},
+                {
+                    (
+                        "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                        "apache-airflow-providers-fab",
+                    ),
+                },
+                "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+                False,
+                id="core auth manager should not be imported",
+            ),
         ],
     )
     @patch(
@@ -417,21 +512,24 @@ class TestCli:
 
         # assert
         expected_warning = "Please define the 'cli' section in the 'get_provider_info' for custom auth manager to avoid this warning."
-        if expected_loaded:
+        auth_managers_missing_cli = [
+            auth_manager_path
+            for auth_manager_path, auth_manager_provider in auth_manager_without_check
+            if auth_manager_provider not in cli_command_providers
+        ]
+        if auth_managers_missing_cli:
             assert expected_warning in caplog.text
-            assert auth_manager_cls_path in caplog.text
+            for auth_manager_path in auth_managers_missing_cli:
+                assert auth_manager_path in caplog.text
+        else:
+            assert expected_warning not in caplog.text
+
+        if expected_loaded:
             mock_import_string.assert_called_once_with(auth_manager_cls_path)
             mock_auth_manager_cls.assert_called_once()
             mock_auth_manager_instance.get_cli_commands.assert_called_once()
         else:
-            if auth_manager_cls_path in [path for path, _ in auth_manager_without_check]:
-                # Auth manager is in the without_check but also in cli_providers, so warning should appear
-                # but import_string should NOT be called
-                assert expected_warning not in caplog.text
-                mock_import_string.assert_not_called()
-            else:
-                # Auth manager is not in the without_check, no warning
-                mock_import_string.assert_not_called()
+            mock_import_string.assert_not_called()
 
     def test_falsy_default_value(self):
         arg = cli_config.Arg(("--test",), default=0, type=int)
