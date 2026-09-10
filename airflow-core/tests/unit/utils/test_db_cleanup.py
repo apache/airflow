@@ -23,7 +23,7 @@ from contextlib import suppress
 from importlib import import_module
 from io import StringIO
 from unittest.mock import MagicMock, call, mock_open, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pendulum
 import pytest
@@ -38,6 +38,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.providers.standard.operators.python import PythonOperator
@@ -551,6 +552,216 @@ class TestDBCleanup:
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
+    def test_serialized_dag_cleanup_skips_pinned_and_preserves_latest(self):
+        """db clean must skip serialized_dag rows whose dag_version is pinned by a task instance,
+        keep the latest serialized_dag per dag_id, and prune unreferenced older versions.
+        Also verifies cascade deletion of deadline_alert and archiving of pruned rows.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"testing-{uuid4()}"
+        dag_id = f"test_dag_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+            session.flush()
+
+            pinned_old = DagVersion(
+                dag_id=dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            orphan_old = DagVersion(
+                dag_id=dag_id,
+                version_number=2,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=1),
+                last_updated=base_date.add(minutes=1),
+            )
+            latest = DagVersion(
+                dag_id=dag_id,
+                version_number=3,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=2),
+                last_updated=base_date.add(minutes=2),
+            )
+            session.add_all([pinned_old, orphan_old, latest])
+            session.flush()
+
+            dag = DAG(dag_id=dag_id)
+            sdm_pinned = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+            sdm_pinned.dag_version_id = pinned_old.id
+            sdm_pinned.created_at = base_date
+            sdm_pinned.last_updated = base_date
+
+            sdm_orphan = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+            sdm_orphan.dag_version_id = orphan_old.id
+            sdm_orphan.created_at = base_date.add(minutes=1)
+            sdm_orphan.last_updated = base_date.add(minutes=1)
+
+            sdm_latest = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+            sdm_latest.dag_version_id = latest.id
+            sdm_latest.created_at = base_date.add(minutes=2)
+            sdm_latest.last_updated = base_date.add(minutes=2)
+
+            session.add_all([sdm_pinned, sdm_orphan, sdm_latest])
+            session.flush()
+
+            alert_pinned = DeadlineAlert(
+                serialized_dag_id=sdm_pinned.id,
+                name="pinned_alert",
+                reference="dagrun_queued_at",
+                interval=60.0,
+                callback_def={"path": "test.callback"},
+            )
+            alert_orphan = DeadlineAlert(
+                serialized_dag_id=sdm_orphan.id,
+                name="orphan_alert",
+                reference="dagrun_queued_at",
+                interval=60.0,
+                callback_def={"path": "test.callback"},
+            )
+            session.add_all([alert_pinned, alert_orphan])
+
+            dag_run = DagRun(dag_id, run_id="run-1", run_type=DagRunType.MANUAL, start_date=base_date)
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=pinned_old.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add_all([dag_run, ti])
+            session.commit()
+
+            pinned_id, orphan_id, latest_id = sdm_pinned.id, sdm_orphan.id, sdm_latest.id
+
+            _cleanup_table(
+                **config_dict["serialized_dag"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["serialized_dag"],
+                skip_archive=False,
+            )
+
+            remaining_sdm = set(
+                session.scalars(
+                    select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag_id)
+                ).all()
+            )
+            remaining_alerts = set(
+                session.scalars(
+                    select(DeadlineAlert.serialized_dag_id).where(
+                        DeadlineAlert.serialized_dag_id.in_([pinned_id, orphan_id])
+                    )
+                ).all()
+            )
+            archived_tables = [
+                t for t in _get_archived_table_names(["serialized_dag"], session) if "serialized_dag" in t
+            ]
+
+        assert pinned_id in remaining_sdm  # still referenced by a task instance -> skipped
+        assert latest_id in remaining_sdm  # kept by keep_last
+        assert orphan_id not in remaining_sdm  # old and unreferenced -> pruned
+        assert pinned_id in remaining_alerts
+        assert orphan_id not in remaining_alerts  # cascade deleted
+        assert len(archived_tables) == 1
+
+        with create_session() as session:
+            archived_rows = session.execute(text(f"SELECT id FROM {archived_tables[0]}")).fetchall()
+            archived_ids = {UUID(str(row[0])) for row in archived_rows}
+            assert orphan_id in archived_ids
+            for table_name in archived_tables:
+                session.execute(text(f"DROP TABLE {table_name}"))
+            session.commit()
+
+    def test_serialized_dag_cleanup_dag_id_filters(self):
+        """db clean on serialized_dag respects dag_ids and exclude_dag_ids."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"testing-{uuid4()}"
+        dag_id_1 = f"test_dag_1_{uuid4()}"
+        dag_id_2 = f"test_dag_2_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add_all(
+                [
+                    DagModel(dag_id=dag_id_1, bundle_name=bundle_name),
+                    DagModel(dag_id=dag_id_2, bundle_name=bundle_name),
+                ]
+            )
+            session.flush()
+
+            for dag_id in [dag_id_1, dag_id_2]:
+                v1 = DagVersion(
+                    dag_id=dag_id,
+                    version_number=1,
+                    bundle_name=bundle_name,
+                    created_at=base_date,
+                    last_updated=base_date,
+                )
+                v2 = DagVersion(
+                    dag_id=dag_id,
+                    version_number=2,
+                    bundle_name=bundle_name,
+                    created_at=base_date.add(minutes=1),
+                    last_updated=base_date.add(minutes=1),
+                )
+                session.add_all([v1, v2])
+                session.flush()
+
+                dag = DAG(dag_id=dag_id)
+                sdm_1 = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+                sdm_1.dag_version_id = v1.id
+                sdm_1.created_at = base_date
+                sdm_1.last_updated = base_date
+
+                sdm_2 = SerializedDagModel(LazyDeserializedDAG.from_dag(dag))
+                sdm_2.dag_version_id = v2.id
+                sdm_2.created_at = base_date.add(minutes=1)
+                sdm_2.last_updated = base_date.add(minutes=1)
+                session.add_all([sdm_1, sdm_2])
+            session.commit()
+
+            # Clean only dag_id_1
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=["serialized_dag"],
+                dag_ids=[dag_id_1],
+                dry_run=False,
+                confirm=False,
+                skip_archive=True,
+            )
+
+            sdm_1_count = session.scalar(
+                select(func.count())
+                .select_from(SerializedDagModel)
+                .where(SerializedDagModel.dag_id == dag_id_1)
+            )
+            sdm_2_count = session.scalar(
+                select(func.count())
+                .select_from(SerializedDagModel)
+                .where(SerializedDagModel.dag_id == dag_id_2)
+            )
+
+        assert sdm_1_count == 1  # older version cleaned, latest kept
+        assert sdm_2_count == 2  # not targeted, so untouched
+
+    def test_cleaning_dag_version_and_dag_pulls_in_serialized_dag(self):
+        """serialized_dag must be cleaned before dag_version and before dag."""
+        dv_selected, _ = _effective_table_names(table_names=["dag_version"])
+        assert "serialized_dag" in dv_selected
+        assert dv_selected.index("serialized_dag") < dv_selected.index("dag_version")
+
+        dag_selected, _ = _effective_table_names(table_names=["dag"])
+        assert "serialized_dag" in dag_selected
+        assert dag_selected.index("serialized_dag") < dag_selected.index("dag")
+
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
         with pytest.raises(ValueError, match="referenced_pk_column"):
@@ -849,7 +1060,6 @@ class TestDBCleanup:
             "asset",  # not good way to know if "stale"
             "asset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
-            "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
             "dag_tag",  # not a significant source of data; age not indicative of staleness,
             "dag_owner_attributes",  # not a significant source of data; age not indicative of staleness,
@@ -881,7 +1091,7 @@ class TestDBCleanup:
             "asset_partition_dag_run",
             "asset_watcher",  # cascade from trigger
             "dag_favorite",  # cascade from dag
-            "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
+            "deadline_alert",  # cascade from serialized_dag
             "hitl_detail",  # cascade from task_instance
             "hitl_detail_history",  # cascade from task_instance_history
             "task_inlet_asset_reference",  # cascade from dag
