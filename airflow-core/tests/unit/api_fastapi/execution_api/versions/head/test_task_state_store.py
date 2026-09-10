@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING
+from unittest import mock
 from uuid import uuid4
 
 import pendulum
@@ -36,6 +37,8 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from tests_common.pytest_plugin import CreateTaskInstance
 
 
@@ -211,6 +214,23 @@ class TestPutTaskState:
         response = client.put(_api_url(uuid4(), "job_id"), json={"value": "x"})
 
         assert response.status_code == 404
+
+    def test_put_missing_dagrun_returns_404(
+        self, client: TestClient, session: Session, create_task_instance: CreateTaskInstance
+    ):
+        """A missing DagRun must surface as a clean 404, not an internal 500."""
+        ti = create_task_instance()
+        session.commit()
+
+        with mock.patch("sqlalchemy.orm.Session.scalar", autospec=True) as mock_scalar:
+            mock_scalar.return_value = None
+            response = client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
+        }
 
     def test_put_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()

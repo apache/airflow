@@ -1391,6 +1391,15 @@ def validate_inlets_and_outlets(
 
     if not ti.task:
         dr = ti.dag_run
+        if not dr:
+            log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
+                },
+            )
         dag = dag_bag.get_dag_for_run(dag_run=dr, session=session)
         if dag:
             with contextlib.suppress(TaskNotFound):
