@@ -1,0 +1,1 @@
+Fixed ``airflow db clean`` failing with an ``IntegrityError`` when a ``dag_version`` row was still referenced by a ``task_instance`` created between the archive ``INSERT`` and the ``DELETE``.
