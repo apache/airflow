@@ -237,7 +237,7 @@ class TestTIRunState:
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
-            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.",
+            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
         }
 
     @pytest.mark.parametrize(
