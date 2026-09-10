@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime
 from pathlib import Path
 
 from airflow import settings
@@ -49,7 +48,7 @@ class FileProcessorHandler(logging.Handler):
         self.dag_dir = str(Path(settings.DAGS_FOLDER).expanduser())
         self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
 
-        self._cur_date = datetime.today()
+        self._cur_date = timezone.utcnow().date()
         Path(self._get_log_directory()).mkdir(parents=True, exist_ok=True)
 
         self._symlink_latest_log_directory()
@@ -65,9 +64,9 @@ class FileProcessorHandler(logging.Handler):
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
 
-        if self._cur_date < datetime.today():
+        if self._cur_date < timezone.utcnow().date():
             self._symlink_latest_log_directory()
-            self._cur_date = datetime.today()
+            self._cur_date = timezone.utcnow().date()
 
         return SetContextPropagate.DISABLE_PROPAGATE
 
