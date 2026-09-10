@@ -1298,17 +1298,16 @@ class TestAsyncGetConnection:
             patch(
                 "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
             ) as mock_load,
-            mock.patch.object(sample_connection, "aget_uri") as mock_aget_uri,
-            mock.patch.object(sample_connection, "get_uri") as mock_get_uri,
             mock.patch.object(SecretCache, "save_connection_uri"),
         ):
             mock_load.return_value = [MockSecretsBackend()]
-            mock_aget_uri.return_value = "postgres://localhost:5432/?sslmode=require"
 
             await _async_get_connection("test_conn")
 
-            mock_aget_uri.assert_awaited_once()
-            mock_get_uri.assert_not_called()
+            # get_uri() would reach the sync mask_secret() -> comms.send(), which deadlocks
+            # on the event-loop thread; aget_uri() must go through amask_secret() -> comms.asend().
+            mock_supervisor_comms.send.assert_not_called()
+            mock_supervisor_comms.asend.assert_awaited()
 
 
 class TestSecretsBackend:
