@@ -234,6 +234,58 @@ class TestConnections:
         connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
         assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.definitions.connection.Connection.aextra_dejson")
+    async def test_aget_uri(self, mock_aextra_dejson):
+        """aget_uri must produce the same URI as get_uri and use aextra_dejson."""
+        extra = {"charset": "utf8", "timeout": "30"}
+        mock_aextra_dejson.return_value = extra
+
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mysql",
+            host="localhost",
+            login="user",
+            password="password",
+            schema="test_schema",
+            port=3306,
+            extra='{"charset": "utf8", "timeout": "30"}',
+        )
+
+        uri = await conn.aget_uri()
+        assert uri == conn.get_uri()
+        mock_aextra_dejson.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_aextra_dejson_calls_amask_secret(self):
+        """aextra_dejson must use amask_secret (async), never the sync mask_secret."""
+        connection = Connection(
+            conn_id="test_conn",
+            conn_type="http",
+            extra='{"api_key": "secret"}',
+        )
+
+        with (
+            mock.patch("airflow.sdk.log.amask_secret") as mock_amask,
+            mock.patch("airflow.sdk.log.mask_secret") as mock_mask,
+        ):
+            result = await connection.aextra_dejson()
+
+        assert result == {"api_key": "secret"}
+        mock_amask.assert_awaited_once_with({"api_key": "secret"})
+        mock_mask.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aextra_dejson_no_extra(self):
+        """aextra_dejson must return an empty dict without calling amask_secret when extra is None."""
+        connection = Connection(conn_id="test_conn", conn_type="http")
+
+        with mock.patch("airflow.sdk.log.amask_secret") as mock_amask:
+            result = await connection.aextra_dejson()
+
+        assert result == {}
+        mock_amask.assert_not_called()
+
 
 class TestConnectionsFromSecrets:
     def test_get_connection_secrets_backend(self, mock_supervisor_comms, tmp_path):
