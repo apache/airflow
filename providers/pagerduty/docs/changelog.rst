@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+.. note::
+    The minimum required version of the ``pagerduty`` SDK is now ``7.0.0``, which replaced
+    ``httpx`` with ``httpx2``. Deployments pinning an older SDK must upgrade it alongside this
+    provider. The provider's own hooks and notifier are unchanged.
+
 5.2.6
 .....
 

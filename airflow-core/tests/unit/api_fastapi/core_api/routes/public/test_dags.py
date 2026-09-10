@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
@@ -33,7 +34,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -1184,6 +1185,21 @@ class TestUnfavoriteDag(TestDagEndpoint):
     def test_unfavoriting_dag_that_is_not_favorite_returns_409(self, test_client):
         response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
         assert response.status_code == 409
+
+    def test_unfavorite_dag_existence_check_is_bounded(self, test_client, session):
+        """The existing-favorite existence probe must ask the DB for one row."""
+        session.execute(insert(DagFavorite).values(dag_id=DAG1_ID, user_id="test"))
+        session.commit()
+
+        with capture_orm_selects("dag_favorite") as statements:
+            response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+
+        assert response.status_code == 204
+        assert statements, "expected the endpoint to query the dag_favorite table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), (
+                f"favorite existence check is not bounded to one row: {sql}"
+            )
 
 
 class TestDagDetails(TestDagEndpoint):

@@ -436,10 +436,12 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
     user_id = str(user.get_id())
 
     favorite_exists = session.execute(
-        select(DagFavorite).where(
+        select(DagFavorite)
+        .where(
             DagFavorite.dag_id == dag_id,
             DagFavorite.user_id == user_id,
         )
+        .limit(1)
     ).first()
 
     if not favorite_exists:

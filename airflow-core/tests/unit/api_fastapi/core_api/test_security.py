@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi import HTTPException, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -30,6 +31,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -42,9 +44,13 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    PermittedAssetEventByAssetFilter,
+    PermittedAssetFilter,
     _build_dag_run_access_requests,
     get_user,
     is_safe_url,
+    permitted_asset_filter_factory,
+    requires_access_asset,
     requires_access_backfill,
     requires_access_connection,
     requires_access_connection_bulk,
@@ -57,6 +63,7 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
@@ -1527,6 +1534,98 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+    @pytest.mark.parametrize(
+        ("path_params", "name_and_uri", "expected_details"),
+        [
+            pytest.param(
+                {"asset_id": "1"},
+                ("simple1", "s3://bucket/key/1"),
+                AssetDetails(id="1", name="simple1", uri="s3://bucket/key/1"),
+                id="existing-asset",
+            ),
+            pytest.param({"asset_id": "1"}, None, AssetDetails(id="1"), id="missing-asset"),
+            pytest.param({}, None, AssetDetails(id=None), id="no-asset-id"),
+        ],
+    )
+    @patch.object(AssetModel, "get_name_and_uri")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_asset_resolves_name_and_uri(
+        self, mock_get_auth_manager, mock_get_name_and_uri, path_params, name_and_uri, expected_details
+    ):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_asset.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_name_and_uri.return_value = name_and_uri
+
+        fastapi_request = Mock(spec=Request)
+        fastapi_request.path_params = path_params
+        user = Mock(spec=BaseUser)
+
+        requires_access_asset("GET")(fastapi_request, user)
+
+        auth_manager.is_authorized_asset.assert_called_once_with(
+            method="GET", details=expected_details, user=user
+        )
+        if path_params:
+            mock_get_name_and_uri.assert_called_once_with(1)
+        else:
+            mock_get_name_and_uri.assert_not_called()
+
+    @patch.object(AssetModel, "get_name_and_uri")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_asset_skips_lookup_for_non_numeric_id(
+        self, mock_get_auth_manager, mock_get_name_and_uri
+    ):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_asset.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+
+        fastapi_request = Mock(spec=Request)
+        fastapi_request.path_params = {"asset_id": "not-a-number"}
+        user = Mock(spec=BaseUser)
+
+        requires_access_asset("GET")(fastapi_request, user)
+
+        mock_get_name_and_uri.assert_not_called()
+        auth_manager.is_authorized_asset.assert_called_once_with(
+            method="GET", details=AssetDetails(id="not-a-number"), user=user
+        )
+
+    @pytest.mark.parametrize(
+        ("filter_class", "model", "expected_column"),
+        [
+            pytest.param(PermittedAssetFilter, AssetModel, "asset.id IN", id="assets"),
+            pytest.param(
+                PermittedAssetEventByAssetFilter, AssetEvent, "asset_event.asset_id IN", id="asset-events"
+            ),
+        ],
+    )
+    def test_permitted_asset_filters_scope_on_asset_id(self, filter_class, model, expected_column):
+        rendered = str(filter_class({1, 2}).to_orm(select(model)))
+        assert expected_column in rendered
+
+    def test_permitted_asset_event_filter_keeps_events_of_deleted_assets(self):
+        rendered = str(PermittedAssetEventByAssetFilter({1}).to_orm(select(AssetEvent)))
+        assert "asset_event.asset_id NOT IN (SELECT asset.id" in rendered
+
+    @pytest.mark.parametrize(
+        "filter_class",
+        [
+            pytest.param(PermittedAssetFilter, id="default"),
+            pytest.param(PermittedAssetEventByAssetFilter, id="events"),
+        ],
+    )
+    def test_permitted_asset_filter_factory(self, filter_class):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.get_authorized_assets.return_value = {1, 3}
+        user = Mock(spec=BaseUser)
+
+        permitted_filter = permitted_asset_filter_factory("GET", filter_class)(user, auth_manager)
+
+        assert isinstance(permitted_filter, filter_class)
+        assert permitted_filter.value == {1, 3}
+        auth_manager.get_authorized_assets.assert_called_once_with(user=user, method="GET")
 
 
 class TestAuthManagerDependency:

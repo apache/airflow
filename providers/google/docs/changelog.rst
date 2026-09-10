@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. note::
+    This provider now depends on ``httpx2`` instead of ``httpx``, and ``httpx2`` verifies TLS
+    against the operating system trust store rather than the ``certifi`` bundle. If
+    ``CloudSqlProxyRunner`` downloads the ``cloud-sql-proxy`` binary through a proxy presenting
+    a private CA, install that CA into the OS trust store or point ``SSL_CERT_FILE`` (or
+    ``SSL_CERT_DIR``) at it -- adding it to ``certifi`` alone no longer has any effect.
+
 22.4.0
 ......
 
