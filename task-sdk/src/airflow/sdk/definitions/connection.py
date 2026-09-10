@@ -220,7 +220,19 @@ class Connection:
         hook = ProvidersManagerTaskRuntime().hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+            if not self.conn_type:
+                # A URI scheme cannot contain '_' (RFC 3986), so "foo_bar://h" parses with no
+                # scheme at all and leaves conn_type empty. Name that, instead of reporting an
+                # unknown hook type of "".
+                message = (
+                    f"Connection {self.conn_id!r} has no connection type, so no hook could be "
+                    "looked up. If it was defined as a URI, note that a URI scheme cannot "
+                    "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
+                    "'-' in the URI instead, which is decoded back to '_' on read."
+                )
+            else:
+                message = f'Unknown hook type "{self.conn_type}"'
+            raise AirflowException(message)
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:

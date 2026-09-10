@@ -287,11 +287,19 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type) or ""
-        if "_" in conn_type:
+        conn_type = self.conn_type or ""
+        if "-" in conn_type:
+            # '-' is how '_' is encoded in a URI scheme, since RFC 3986 forbids '_' there.
+            # A literal '-' in conn_type is therefore indistinguishable from an encoded '_'
+            # once serialized, and _normalize_conn_type decodes it back to '_' on read, so
+            # the hook registered under the hyphenated name can never be found again.
             self.log.warning(
-                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
+                "Connection type %r contains '-', which does not survive URI serialization: "
+                "'-' is the URI-scheme encoding of '_', so this connection resolves back to %r. "
+                "A connection type has to be declared with '_' in the provider's "
+                "connection-type, and the connection has to use that same form.",
                 conn_type,
+                conn_type.lower().replace("-", "_"),
             )
 
         if self.conn_type:
@@ -393,7 +401,19 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+            if not self.conn_type:
+                # A URI scheme cannot contain '_' (RFC 3986), so "foo_bar://h" parses with no
+                # scheme at all and leaves conn_type empty. Name that, instead of reporting an
+                # unknown hook type of "".
+                message = (
+                    f"Connection {self.conn_id!r} has no connection type, so no hook could be "
+                    "looked up. If it was defined as a URI, note that a URI scheme cannot "
+                    "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
+                    "'-' in the URI instead, which is decoded back to '_' on read."
+                )
+            else:
+                message = f'Unknown hook type "{self.conn_type}"'
+            raise AirflowException(message)
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:

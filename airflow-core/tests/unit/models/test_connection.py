@@ -271,11 +271,29 @@ class TestConnection:
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
 
+    def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self):
+        """
+        A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme
+        at all and leaves conn_type empty. The resulting failure used to read
+        ``Unknown hook type ""``, which named neither the cause nor the fix.
+        """
+        conn = Connection(conn_id="c", uri="pydanticai_azure://h")
+        assert conn.conn_type == ""
+
+        with pytest.raises(AirflowException, match="has no connection type") as exc_info:
+            conn.get_hook()
+
+        assert "RFC 3986" in str(exc_info.value)
+
     @pytest.mark.parametrize(
         ("connection", "expected_warned"),
         [
+            # Parsed from a URI: _normalize_conn_type has already decoded '-' to '_', so the
+            # conn_type is the canonical form and there is nothing to warn about.
             (Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"), False),
             (Connection(conn_id="test-uri-2", uri="amazon://test:test@"), False),
+            # Set directly with a hyphen: this is the configuration that cannot round-trip,
+            # because '-' is the URI-scheme encoding of '_'. This is what must warn.
             (
                 Connection(
                     conn_id="test-non-uri-1",
@@ -283,8 +301,10 @@ class TestConnection:
                     login="testlogin",
                     password="testpassword",
                 ),
-                False,
+                True,
             ),
+            # The canonical underscore form. It serializes to 'google-cloud-platform://' and
+            # decodes back unchanged, so it is correct and must stay silent.
             (
                 Connection(
                     conn_id="test-non-uri-2",
@@ -292,7 +312,7 @@ class TestConnection:
                     login="testlogin",
                     password="testpassword",
                 ),
-                True,
+                False,
             ),
             (
                 Connection(
@@ -302,22 +322,22 @@ class TestConnection:
             ),
         ],
     )
-    def test_get_uri_conn_type_warning(self, connection: Connection, expected_warned: bool):
+    def test_get_uri_warns_only_for_a_conn_type_that_cannot_round_trip(
+        self, connection: Connection, expected_warned: bool
+    ):
         with capture_logs() as captured_logs:
             connection.get_uri()
-        conn_type_warnings = list(
-            filter(
-                lambda captured_log: (
-                    captured_log["log_level"] == "warning" and "RFC3986" in captured_log["event"]
-                ),
-                captured_logs,
-            )
-        )
+        conn_type_warnings = [
+            captured_log
+            for captured_log in captured_logs
+            if captured_log["log_level"] == "warning"
+            and "does not survive URI serialization" in captured_log["event"]
+        ]
         if expected_warned:
-            assert conn_type_warnings, f"RFC3986 warning expected for connection '{connection.conn_id}'."
+            assert conn_type_warnings, f"expected a hyphenated-conn_type warning for '{connection.conn_id}'."
         else:
             assert not conn_type_warnings, (
-                f"RFC3986 warning not expected for connection '{connection.conn_id}'."
+                f"unexpected hyphenated-conn_type warning for '{connection.conn_id}'."
             )
 
     @pytest.mark.parametrize(

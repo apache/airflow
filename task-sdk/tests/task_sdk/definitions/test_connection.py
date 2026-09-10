@@ -78,6 +78,21 @@ class TestConnections:
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
+    def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self, mock_providers_manager):
+        """
+        A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme at
+        all and leaves conn_type empty. This is the worker-side copy of that failure, which
+        used to read ``Unknown hook type ""`` and named neither the cause nor the fix.
+        """
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", uri="pydanticai_azure://h")
+        assert conn.conn_type == ""
+
+        with pytest.raises(AirflowException, match="has no connection type") as exc_info:
+            conn.get_hook()
+
+        assert "RFC 3986" in str(exc_info.value)
+
     def test_get_uri(self):
         """Test that get_uri generates the correct URI based on connection attributes."""
 
