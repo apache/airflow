@@ -42,12 +42,26 @@ except ImportError:
         InfluxDBClient3 = None  # type: ignore[assignment, misc]
         Point = None  # type: ignore[assignment, misc]
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
 
     from airflow.models import Connection
+
+
+def _import_pandas() -> Any:
+    """Import pandas for query result handling or raise a provider feature error."""
+    try:
+        import pandas as pd
+    except ImportError as e:
+        raise AirflowOptionalProviderFeatureException(
+            "pandas is required for InfluxDB 3 query results. Install it with: "
+            "pip install 'apache-airflow-providers-influxdb[pandas]'"
+        ) from e
+
+    return pd
 
 
 def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
@@ -205,13 +219,7 @@ class InfluxDB3Hook(BaseHook):
         :param query: SQL query string
         :return: pandas DataFrame with query results
         """
-        try:
-            import pandas as pd
-        except ImportError as e:
-            raise AirflowOptionalProviderFeatureException(
-                "pandas is required for InfluxDB 3 query results. Install it with: "
-                "pip install 'apache-airflow-providers-influxdb[pandas]'"
-            ) from e
+        pd = _import_pandas()
 
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
@@ -238,14 +246,7 @@ class InfluxDB3Hook(BaseHook):
         :return: pandas DataFrame with query results
         """
         client = await self.aget_conn()
-
-        try:
-            import pandas as pd
-        except ImportError as e:
-            raise AirflowOptionalProviderFeatureException(
-                "pandas is required for InfluxDB 3 query results. Install it with: "
-                "pip install 'apache-airflow-providers-influxdb[pandas]'"
-            ) from e
+        pd = _import_pandas()
 
         result = await client.query_async(query=query, language="sql", mode="pandas")
 
