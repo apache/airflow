@@ -513,6 +513,37 @@ class VariableResponse(BaseModel):
     value: Annotated[str | None, Field(title="Value")]
 
 
+class XComBatchItemResponse(BaseModel):
+    """
+    One XCom value returned from a batch Runtime request.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    value: JsonValue | None
+
+
+class XComBatchRequest(BaseModel):
+    """
+    Request body for batch XCom fetches.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    key: Annotated[str, Field(title="Key")]
+    task_ids: Annotated[list[str], Field(title="Task Ids")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    include_prior_dates: Annotated[bool | None, Field(title="Include Prior Dates")] = False
+
+
+class XComBatchResponse(BaseModel):
+    """
+    XCom values returned from a batch Runtime request.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    values: Annotated[list[XComBatchItemResponse], Field(title="Values")]
+
+
 class XComResponse(BaseModel):
     """
     XCom schema for responses with fields that are needed for Runtime.

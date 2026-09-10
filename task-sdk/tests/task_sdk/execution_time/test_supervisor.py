@@ -118,6 +118,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     GetXComCount,
+    GetXComs,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     HITLDetailRequestResult,
@@ -152,6 +153,8 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
     VariableKeysResult,
     VariableResult,
+    XComBatchItemResult,
+    XComBatchResult,
     XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
@@ -1913,6 +1916,36 @@ REQUEST_TEST_CASES = [
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=GetXComs(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_ids=["task_1", "task_2"],
+            key="test_key",
+            map_index=2,
+            include_prior_dates=True,
+        ),
+        test_id="get_xcoms",
+        client_mock=ClientMock(
+            method_path="xcoms.get_batch",
+            args=("test_dag", "test_run", ["task_1", "task_2"], "test_key", 2, True),
+            response=XComBatchResult(
+                key="test_key",
+                values=[
+                    XComBatchItemResult(task_id="task_1", value="value_1"),
+                    XComBatchItemResult(task_id="task_2", value=None),
+                ],
+            ),
+        ),
+        expected_body={
+            "key": "test_key",
+            "values": [
+                {"task_id": "task_1", "value": "value_1"},
+                {"task_id": "task_2", "value": None},
+            ],
+            "type": "XComBatchResult",
+        },
     ),
     RequestTestCase(
         message=SetXCom(

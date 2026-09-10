@@ -86,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComs,
     MaskSecret,
     OKResponse,
     PutVariable,
@@ -97,6 +98,7 @@ from airflow.sdk.execution_time.comms import (
     UpdateHITLDetail,
     VariableKeysResult,
     VariableResult,
+    XComBatchResult,
     XComResult,
     _new_encoder,
     _RequestFrame,
@@ -120,6 +122,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_variable,
     handle_get_variable_keys,
     handle_get_xcom,
+    handle_get_xcoms,
     handle_mask_secret,
     handle_put_variable,
     handle_set_asset_state_store_by_name,
@@ -366,6 +369,7 @@ ToTriggerRunner = Annotated[
     | ConnectionResult
     | VariableResult
     | VariableKeysResult
+    | XComBatchResult
     | XComResult
     | DagRunStateResult
     | DRCount
@@ -392,6 +396,7 @@ ToTriggerSupervisor = Annotated[
     | PutVariable
     | DeleteXCom
     | GetXCom
+    | GetXComs
     | SetXCom
     | GetTICount
     | GetTaskStates
@@ -634,6 +639,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp, dump_opts = handle_delete_xcom(self.client, msg)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
+        elif isinstance(msg, GetXComs):
+            resp, dump_opts = handle_get_xcoms(self.client, msg)
         elif isinstance(msg, SetXCom):
             resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, GetDRCount):

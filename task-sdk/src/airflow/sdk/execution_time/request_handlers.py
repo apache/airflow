@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     TaskStatesResponse,
     VariableResponse,
+    XComBatchResponse,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -63,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     GetXComCount,
+    GetXComs,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     MaskSecret,
@@ -74,6 +76,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     VariableKeysResult,
     VariableResult,
+    XComBatchResult,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -280,6 +283,17 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
     )
     if isinstance(xcom, XComResponse):
         xcom_result = XComResult.from_xcom_response(xcom)
+        return xcom_result, {"exclude_unset": True}
+    return xcom, {}
+
+
+def handle_get_xcoms(client: Client, msg: GetXComs) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch multiple XComs and normalize them for supervisor response handling."""
+    xcom = client.xcoms.get_batch(
+        msg.dag_id, msg.run_id, msg.task_ids, msg.key, msg.map_index, msg.include_prior_dates
+    )
+    if isinstance(xcom, XComBatchResponse):
+        xcom_result = XComBatchResult.from_xcom_batch_response(xcom)
         return xcom_result, {"exclude_unset": True}
     return xcom, {}
 

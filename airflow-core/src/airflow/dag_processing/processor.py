@@ -55,6 +55,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     GetXComCount,
+    GetXComs,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     MaskSecret,
@@ -66,6 +67,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStatesResult,
     VariableKeysResult,
     VariableResult,
+    XComBatchResult,
     XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
@@ -83,6 +85,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
     handle_get_xcom_sequence_slice,
+    handle_get_xcoms,
     handle_mask_secret,
     handle_put_variable,
 )
@@ -158,6 +161,7 @@ ToManager = Annotated[
     | GetPreviousDagRun
     | GetPreviousTI
     | GetXCom
+    | GetXComs
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
@@ -170,6 +174,7 @@ ToDagProcessor = Annotated[
     | ConnectionResult
     | VariableResult
     | VariableKeysResult
+    | XComBatchResult
     | TaskStatesResult
     | PreviousDagRunResult
     | PreviousTIResult
@@ -718,6 +723,8 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
+        elif isinstance(msg, GetXComs):
+            resp, dump_opts = handle_get_xcoms(self.client, msg)
         elif isinstance(msg, GetXComCount):
             resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):

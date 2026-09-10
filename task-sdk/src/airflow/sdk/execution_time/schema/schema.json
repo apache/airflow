@@ -3001,6 +3001,60 @@
       "title": "GetXComSequenceSlice",
       "type": "object"
     },
+    "GetXComs": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Task Ids",
+          "type": "array"
+        },
+        "map_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Map Index"
+        },
+        "include_prior_dates": {
+          "default": false,
+          "title": "Include Prior Dates",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "GetXComs",
+          "default": "GetXComs",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "dag_id",
+        "run_id",
+        "task_ids"
+      ],
+      "title": "GetXComs",
+      "type": "object"
+    },
     "HITLDetailRequestResult": {
       "description": "Response to CreateHITLDetailPayload request.",
       "properties": {
@@ -4505,6 +4559,58 @@
         "value"
       ],
       "title": "VariableResult",
+      "type": "object"
+    },
+    "XComBatchItemResult": {
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "task_id",
+        "value"
+      ],
+      "title": "XComBatchItemResult",
+      "type": "object"
+    },
+    "XComBatchResult": {
+      "description": "Response to batch ReadXCom request.",
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/XComBatchItemResult"
+          },
+          "title": "Values",
+          "type": "array"
+        },
+        "type": {
+          "const": "XComBatchResult",
+          "default": "XComBatchResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "values"
+      ],
+      "title": "XComBatchResult",
       "type": "object"
     },
     "XComCountResponse": {

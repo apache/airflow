@@ -35,10 +35,13 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetTICount,
     GetXCom,
+    GetXComs,
     GetXComSequenceItem,
     GetXComSequenceSlice,
     SetXCom,
     TICount,
+    XComBatchItemResult,
+    XComBatchResult,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
@@ -264,6 +267,11 @@ def test_mapped_render_template_fields_validating_operator(
         mapped = callable(mapped, task1.output)
 
     def mock_comms(msg):
+        if isinstance(msg, GetXComs):
+            return XComBatchResult(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                values=[XComBatchItemResult(task_id=task_id, value=["{{ ds }}"]) for task_id in msg.task_ids],
+            )
         if isinstance(msg, GetXCom):
             return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=["{{ ds }}"])
         if isinstance(msg, GetXComSequenceSlice):
@@ -461,6 +469,14 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
     letters = {"a": "x", "b": "y", "c": "z"}
 
     def mock_comms(msg):
+        if isinstance(msg, GetXComs):
+            values = {"emit_numbers": numbers, "emit_letters": letters}
+            return XComBatchResult(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                values=[
+                    XComBatchItemResult(task_id=task_id, value=values[task_id]) for task_id in msg.task_ids
+                ],
+            )
         if isinstance(msg, GetXCom):
             if msg.task_id == "emit_numbers":
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=numbers)
@@ -482,6 +498,19 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.send.side_effect = mock_comms
 
     states = [run_ti(dag, "show", map_index) for map_index in range(6)]
+    batch_requests = [
+        call.args[0]
+        for call in mock_supervisor_comms.send.call_args_list
+        if call.args and isinstance(call.args[0], GetXComs)
+    ]
+    assert batch_requests
+    assert all(request.task_ids == ["emit_numbers", "emit_letters"] for request in batch_requests)
+    direct_xcom_requests = [
+        call.args[0]
+        for call in mock_supervisor_comms.send.call_args_list
+        if call.args and isinstance(call.args[0], GetXCom)
+    ]
+    assert direct_xcom_requests == []
     assert states == [TaskInstanceState.SUCCESS] * 6
     assert outputs == [
         (1, ("a", "x")),
@@ -513,6 +542,11 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
     numbers = [1, 2]
 
     def mock_comms(msg):
+        if isinstance(msg, GetXComs):
+            return XComBatchResult(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                values=[XComBatchItemResult(task_id=task_id, value=numbers) for task_id in msg.task_ids],
+            )
         if isinstance(msg, GetXCom):
             if msg.task_id == "emit_numbers":
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=numbers)
@@ -529,6 +563,19 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
     mock_supervisor_comms.send.side_effect = mock_comms
 
     states = [run_ti(dag, "show", map_index) for map_index in range(4)]
+    batch_requests = [
+        call.args[0]
+        for call in mock_supervisor_comms.send.call_args_list
+        if call.args and isinstance(call.args[0], GetXComs)
+    ]
+    assert batch_requests
+    assert all(request.task_ids == ["emit_numbers", "emit_numbers"] for request in batch_requests)
+    direct_xcom_requests = [
+        call.args[0]
+        for call in mock_supervisor_comms.send.call_args_list
+        if call.args and isinstance(call.args[0], GetXCom)
+    ]
+    assert direct_xcom_requests == []
     assert states == [TaskInstanceState.SUCCESS] * 4
     assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
 
