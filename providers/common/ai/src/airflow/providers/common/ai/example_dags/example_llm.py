@@ -164,9 +164,10 @@ def example_llm_operator_templated_usage_limits():
         # A plain dict lets every UsageLimits field be templated -- e.g. driven by
         # an Airflow Variable so the budget can change per environment without
         # editing the Dag. This caps a single task run, not a day's total spend --
-        # each run gets the full budget again.
+        # each run gets the full budget again. Use var.value.get() with a default
+        # so the example doesn't fail outright if the Variable isn't set.
         usage_limits={
-            "cost_limit": "{{ var.value.llm_cost_cap_per_task }}",
+            "cost_limit": "{{ var.value.get('llm_cost_cap_per_task', '0.50') }}",
             "request_limit": 5,
         },
     )
