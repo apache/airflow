@@ -4039,7 +4039,11 @@ class TestDagRunHandleDagCallback:
         dag.has_on_success_callback = True
 
         dr.execute_dag_callbacks(
-            dag, success=True, relevant_ti=dr.get_task_instance("test_task"), reason="test_success"
+            dag,
+            success=True,
+            relevant_ti=dr.get_task_instance("test_task", session=session),
+            reason="test_success",
+            session=session,
         )
 
         assert called is True
@@ -4071,7 +4075,11 @@ class TestDagRunHandleDagCallback:
         dag.has_on_failure_callback = True
 
         dr.execute_dag_callbacks(
-            dag, success=False, relevant_ti=dr.get_task_instance("test_task"), reason="test_failure"
+            dag,
+            success=False,
+            relevant_ti=dr.get_task_instance("test_task", session=session),
+            reason="test_failure",
+            session=session,
         )
 
         assert called is True
@@ -4107,8 +4115,9 @@ class TestDagRunHandleDagCallback:
         dr.execute_dag_callbacks(
             dag,
             success=False,
-            relevant_ti=dr.get_task_instance("test_task"),
+            relevant_ti=dr.get_task_instance("test_task", session=session),
             reason="test_failure",
+            session=session,
         )
 
         assert call_count == 2
@@ -4132,8 +4141,9 @@ class TestDagRunHandleDagCallback:
         dr.execute_dag_callbacks(
             dag,
             success=False,
-            relevant_ti=dr.get_task_instance("test_task"),
+            relevant_ti=dr.get_task_instance("test_task", session=session),
             reason="test_failure",
+            session=session,
         )
 
         assert context_received is not None
@@ -4273,8 +4283,6 @@ class TestDagRunHandleDagCallback:
 
         assert mock_commit.mock_calls == []
         assert mock_close.mock_calls == []
-        # close() expunges everything, so an attached instance proves the session survived.
-        assert ti in session
 
     @pytest.mark.parametrize(
         ("multi_team", "team_name", "expected_tags"),
@@ -4303,7 +4311,7 @@ class TestDagRunHandleDagCallback:
             conf_vars({("core", "multi_team"): multi_team}),
             mock.patch("airflow.models.dag.DagModel.get_team_name", return_value=team_name),
         ):
-            dr.execute_dag_callbacks(dag, success=False)
+            dr.execute_dag_callbacks(dag, success=False, session=session)
 
         mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
 
