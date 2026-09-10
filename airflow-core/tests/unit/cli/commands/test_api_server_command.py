@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import ssl
+import subprocess
 import sys
 from unittest import mock
 
@@ -29,6 +31,23 @@ from airflow.exceptions import AirflowConfigException
 from unit.cli.commands._common_cli_classes import _CommonCLIUvicornTestClass
 
 console = Console(width=400, color_system="standard")
+
+
+def test_uses_worker_timeout_config_as_cli_default():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from airflow.cli.cli_parser import get_parser; "
+            "print(f\"worker_timeout={get_parser().parse_args(['api-server']).worker_timeout}\")",
+        ],
+        env={**os.environ, "AIRFLOW__API__WORKER_TIMEOUT": "321"},
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "worker_timeout=321" in result.stdout.splitlines()
 
 
 @pytest.mark.db_test
