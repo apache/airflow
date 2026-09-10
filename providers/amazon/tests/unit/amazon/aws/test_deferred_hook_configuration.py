@@ -101,7 +101,7 @@ def find_defer_sites() -> list[tuple[str, int, str, list[str]]]:
                 passed = {kw.arg for kw in call.keywords if kw.arg}
                 sites.append(
                     (
-                        str(path.relative_to(AWS_ROOT)),
+                        path.relative_to(AWS_ROOT).as_posix(),
                         call.lineno,
                         name,
                         [p for p in HOOK_CONFIGURATION if p not in passed],
@@ -129,7 +129,7 @@ def find_unreadable_defer_sites() -> set[tuple[str, str]]:
                 continue
             trigger = next((kw.value for kw in node.keywords if kw.arg == "trigger"), None)
             if isinstance(trigger, ast.Name):
-                unreadable.add((str(path.relative_to(AWS_ROOT)), trigger.id))
+                unreadable.add((path.relative_to(AWS_ROOT).as_posix(), trigger.id))
     return unreadable
 
 
@@ -186,7 +186,7 @@ def find_waiter_triggers() -> list[type[AwsBaseWaiterTrigger]]:
 )
 def test_waiter_trigger_can_build_a_hook(trigger_class):
     """Every waiter trigger must declare ``aws_hook_class`` or provide its own ``hook()``."""
-    assert hasattr(trigger_class, "aws_hook_class") or "hook" in vars(trigger_class), (
+    assert hasattr(trigger_class, "aws_hook_class") or trigger_class.hook is not AwsBaseWaiterTrigger.hook, (
         f"{trigger_class.__name__} sets neither aws_hook_class nor hook(); "
         f"building its hook would fail at runtime."
     )
@@ -213,18 +213,18 @@ def find_hand_built_hooks() -> list[tuple[str, int, str, list[str]]]:
     sites = []
     for path in sorted((AWS_ROOT / "triggers").rglob("*.py")):
         for node in ast.walk(ast.parse(path.read_text())):
-            if not (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id.endswith("Hook")
-            ):
+            if not isinstance(node, ast.Call):
+                continue
+            # Match a module-qualified ``module.SomeHook(...)`` as well as a bare name.
+            hook = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+            if not hook.endswith("Hook"):
                 continue
             passed = {keyword.arg for keyword in node.keywords if keyword.arg}
             # AwsGenericHook names the botocore config ``config``.
             if "config" in passed:
                 passed.add("botocore_config")
             missing = [name for name in HOOK_CONFIGURATION if name not in passed]
-            sites.append((path.name, node.lineno, node.func.id, missing))
+            sites.append((path.name, node.lineno, hook, missing))
     return sites
 
 

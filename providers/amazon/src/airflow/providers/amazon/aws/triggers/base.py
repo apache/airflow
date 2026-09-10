@@ -18,15 +18,13 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class AwsBaseWaiterTrigger(BaseTrigger):
@@ -72,6 +70,31 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
     # Should be assigned in child class, unless hook() is overridden.
     aws_hook_class: type[AwsGenericHook]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """
+        Reject a subclass that cannot build a hook, at import time.
+
+        ``hook()`` is only reached from ``run()``, which executes in the triggerer, so without this
+        a subclass that declares neither would defer successfully and fail later, out of sight of
+        the task that deferred. The operator side gets the same guarantee from
+        ``AwsBaseHookMixin.validate_attributes``. This runs on class creation rather than in
+        ``__init__`` because subclasses such as ``EksDeleteClusterTrigger`` never call
+        ``super().__init__()``.
+        """
+        super().__init_subclass__(**kwargs)
+        if cls.hook is not AwsBaseWaiterTrigger.hook:
+            return
+        hook_class = getattr(cls, "aws_hook_class", None)
+        if hook_class is None:
+            raise AttributeError(
+                f"Class attribute '{cls.__name__}.aws_hook_class' should be set, "
+                f"or {cls.__name__}.hook() overridden."
+            )
+        if not (isinstance(hook_class, type) and issubclass(hook_class, AwsGenericHook)):
+            raise AttributeError(
+                f"Class attribute '{cls.__name__}.aws_hook_class' is not a subclass of AwsGenericHook."
+            )
 
     def __init__(
         self,
