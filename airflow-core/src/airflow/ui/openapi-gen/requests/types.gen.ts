@@ -1527,6 +1527,10 @@ export type ImportErrorResponse = {
     filename: string;
     bundle_name: string | null;
     stack_trace: string;
+    /**
+     * Return a signed token identifying the file, used to request its reparse.
+     */
+    readonly file_token: string;
 };
 
 /**
