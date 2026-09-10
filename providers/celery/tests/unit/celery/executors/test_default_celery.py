@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ssl
+from unittest import mock
 
 import pytest
 
@@ -102,24 +103,18 @@ class TestGetDefaultCeleryConfig:
 
         assert config["result_backend"] == "db+postgresql://airflow@postgres/airflow"
 
-    @conf_vars(
-        {
-            ("celery", "result_backend"): None,
-            ("database", "sql_alchemy_conn"): "postgresql://airflow@postgres/airflow",
-        }
+    @mock.patch.dict(
+        "os.environ", {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "postgresql://airflow@postgres/airflow"}
     )
+    @conf_vars({("celery", "result_backend"): None})
     def test_result_backend_falls_back_to_sql_alchemy_conn_with_explicit_driver(self):
         config = get_default_celery_config(conf)
 
         assert config["result_backend"].startswith("db+postgresql+psycopg")
         assert config["result_backend"].endswith("://airflow@postgres/airflow")
 
-    @conf_vars(
-        {
-            ("celery", "result_backend"): None,
-            ("database", "sql_alchemy_conn"): "mysql://airflow@mysql/airflow",
-        }
-    )
+    @mock.patch.dict("os.environ", {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "mysql://airflow@mysql/airflow"})
+    @conf_vars({("celery", "result_backend"): None})
     def test_result_backend_fallback_keeps_non_postgres_scheme(self):
         config = get_default_celery_config(conf)
 
