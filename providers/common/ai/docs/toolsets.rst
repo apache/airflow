@@ -712,10 +712,13 @@ sandbox's job rather than passing the worker's environment through.
 
 A backend that cannot enforce a field it was given **raises instead of ignoring
 it**, so a spec never gives you a false sense of a restriction being in force.
-The ``sbx`` backend applies ``allow_egress_to`` as a per-sandbox policy rule,
-but only on top of a ``deny-all`` host policy, since a local rule can narrow
-egress and never widen it. Ask for an allowlist against an open host policy and
-it refuses rather than granting nothing quietly.
+Both backends refuse ``allow_egress_to`` until you have said something that makes
+it enforceable, and for different reasons. The ``sbx`` backend applies it as a
+per-sandbox policy rule, but only on top of a ``deny-all`` host policy, since a
+local rule can narrow egress and never widen it. The Modal backend can only
+enforce hostnames at the TLS layer, which leaves DNS open, so it wants
+``egress_enforcement="sni"`` to confirm that is understood. Both honor
+``block_network=True`` exactly, and that is the default.
 
 Using more than one sandbox
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -739,6 +742,171 @@ need ``tool_prefix``:
 That yields ``py_run_command``, ``node_run_command`` and so on. Without a
 prefix on at least one of them, the run fails at startup with a duplicate tool
 name. Give the model instructions on which one to use for what, or it will guess.
+
+Modal backend (hosted)
+^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
+sandbox in `Modal <https://modal.com/docs/guide/sandbox>`__, provisioned over the
+API. Of the backends that ship with the provider, **this is the one to use in
+production**, and the only one that runs on Kubernetes: nothing has to be installed on the worker, and model-written code
+never executes on the worker host at all, so the worker's filesystem, its process
+table and its network position are outside the blast radius rather than inside it.
+
+Modal also reclaims what it hands out. A sandbox ends at ``sandbox_timeout``, or
+earlier at ``idle_timeout`` if it goes quiet, so a worker killed outright cannot
+leak one -- the operational problem the ``sbx`` backend leaves you with.
+
+Install the extra and authenticate as you would for Modal's own CLI:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-common-ai[modal]'
+    modal token new          # writes ~/.modal.toml
+
+On a worker, set ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` in the environment
+instead. Nothing is read until the first sandbox is created, so a Dag file that
+constructs the backend parses fine without credentials present.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.operators.agent import AgentOperator
+    from airflow.providers.common.ai.sandbox import ModalSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    AgentOperator(
+        task_id="sandboxed_analyst",
+        prompt="Estimate pi with a Monte Carlo simulation of one million points.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SandboxToolset(ModalSandboxBackend())],
+    )
+
+Constructor parameters:
+
+- ``image``: Registry tag for the sandbox image. Default ``"python:3.12-slim"``.
+- ``app_name``: Modal app the sandboxes are created under. Default
+  ``"airflow-sandbox"``.
+- ``create_app_if_missing``: Create that app if it does not exist. Default ``True``.
+- ``sandbox_timeout``: Maximum lifetime of a sandbox in seconds. Default ``3600``.
+  Modal's own default is 300, which is below a plausible agent run.
+- ``idle_timeout``: Seconds of inactivity after which Modal reclaims the sandbox,
+  or ``None`` to rely on ``sandbox_timeout`` alone. Default ``None``. One sandbox
+  serves a whole agent run and nothing keeps it warm between tool calls, so a gap
+  for model generation or a human review can look idle and take the files with it.
+  Set it when you want tighter cost control and know your agent's pace.
+- ``workdir``: Working directory for commands, created if the image lacks it.
+  Default ``"/workspace"``.
+- ``cpu``, ``memory``, ``gpu``, ``region``, ``cloud``: passed through to Modal.
+  ``None`` lets Modal choose. ``cpu`` takes effect inside the sandbox, and an
+  unrecognized ``region`` or ``cloud`` fails the task rather than falling back.
+  **``memory`` is a request, not a ceiling**: a sandbox created with
+  ``memory=512`` allocated 1.5 GiB without complaint when measured, so do not
+  reach for it to bound what model-written code can consume.
+- ``tags``: Extra Modal tags on every sandbox, e.g. ``{"dag_id": "my_dag"}``.
+  You can query these, which is how you find what a Dag left behind:
+  ``modal.Sandbox.list(app_id=..., tags={"dag_id": "my_dag"})`` returns exactly
+  those sandboxes. Sandboxes are also named ``airflow-sandbox-*`` whatever you
+  pass, and the backend sets an ``airflow_sandbox`` tag of its own.
+- ``egress_enforcement``: ``"strict"`` (default) or ``"sni"``. See below.
+
+**Network policy.** ``SandboxSpec(block_network=True)``, the default, maps exactly
+onto Modal's own ``block_network``, which drops all outbound traffic including DNS
+resolution.
+
+A spec that names ``allow_egress_to`` is **refused by default**, and this is worth
+understanding rather than working around. Modal cannot combine an allowlist with
+``block_network`` at all, and its hostname allowlist is enforced by matching the
+hostname in the TLS handshake, which means:
+
+- TLS on port 443 to a listed host connects; any other host is refused at once.
+- Non-TLS traffic to a listed host is blocked, but only after a stall of roughly
+  thirty seconds, so a model that reaches for plain HTTP waits before it learns.
+- **DNS resolution stays open for every hostname**, listed or not. Sandbox code can
+  still carry data out through DNS queries.
+- A host that shares a TLS endpoint with a listed one -- two tenants of the same
+  CDN, which is normal for package registries and API providers -- can be reached
+  by presenting the listed name in the handshake and the other in the request. That
+  is not theoretical: with ``pypi.org`` as the only allowed host, a TLS session
+  opened to ``files.pythonhosted.org`` while presenting ``pypi.org`` as the
+  handshake name was allowed through and answered.
+
+So the allowlist bounds where TCP can go and does not stop data leaving by other routes. Pass
+``ModalSandboxBackend(egress_enforcement="sni")`` to say you accept that and have
+the allowlist applied:
+
+.. code-block:: python
+
+    SandboxToolset(
+        ModalSandboxBackend(egress_enforcement="sni"),
+        spec=SandboxSpec(block_network=True, allow_egress_to=["pypi.org", "files.pythonhosted.org"]),
+    )
+
+**Getting packages in.** A default sandbox has the standard library and no network,
+so an agent that reaches for ``pip install`` gets a DNS failure. There are two ways round
+it and the first is better. Either bake what it needs into the image, which needs no
+egress at all:
+
+.. code-block:: python
+
+    import modal
+
+    ModalSandboxBackend(
+        image=modal.Image.from_registry("python:3.12-slim").pip_install("pandas", "pyarrow"),
+    )
+
+Or open exactly the two hosts a Python install needs, accepting the SNI caveats below:
+
+.. code-block:: python
+
+    SandboxToolset(
+        ModalSandboxBackend(egress_enforcement="sni"),
+        spec=SandboxSpec(
+            block_network=True,
+            allow_egress_to=["pypi.org", "files.pythonhosted.org"],
+        ),
+    )
+
+Measured: with those two hosts allowed, installing pandas took 14 seconds and
+``https://github.com`` stayed blocked.
+
+**What it costs.** One sandbox serves a whole agent run, so you pay for the model's
+thinking time and any human review pause, not only for the seconds your commands run. A
+default sandbox is around two cents an hour, so this rarely matters; a data-sized one
+(``cpu=8, memory=32768``) is around two dollars an hour, and Modal bills the larger of
+what you requested and what you used, which is the second reason ``memory`` is worth
+setting deliberately. Fan-out is not the thing to worry about: 25 sandboxes created
+concurrently from one process all came up in under three seconds.
+
+**A timeout does not cost you the sandbox.** Modal stops the command server-side,
+so files written by earlier calls survive and the model can inspect them to work
+out what went wrong. The ``sbx`` backend has to destroy the sandbox to be certain a
+command stopped, which loses the files with it.
+
+**What the image needs.** ``write_file`` and ``list_directory`` use Modal's own
+filesystem API, so they need nothing from the image -- the helper they run inside
+the sandbox is injected by Modal, not expected of you. (With ``workdir=None`` the
+backend does ask the sandbox where it starts, once, with ``pwd``.) ``read_file`` deliberately
+does not: Modal's read API takes no length, so it cannot honor a read budget, and
+a single call on a file that streams without end -- ``/dev/zero``, a FIFO, a procfs
+entry -- would pull it into worker memory unbounded. That tool therefore runs the
+base class's shell implementation, which caps the read inside the guest, and the
+image needs ``stat``, ``head`` and ``base64``. Any Debian or Ubuntu based image,
+including ``python:*-slim``, has them.
+
+**Work does not survive the run.** The sandbox is created on the model's first tool
+call and destroyed when the agent run ends, so a file the agent built is gone unless the
+model carried it out through its own context: ``run_command`` keeps the last 50 KiB and
+``read_file`` transfers at most ``max_read_bytes`` before rendering it down for the model.
+A 200 MB parquet the agent just wrote cannot be collected this way, and raising
+``max_read_bytes`` to try costs roughly three times the file size in worker memory. If a
+task has to produce an artifact, drive a backend directly from a ``@task`` instead of
+handing it to an agent -- create, run, read what you need, destroy -- which is the shape
+the playground example in the provider's test Dags uses.
+
+One behavioral wrinkle worth knowing before pointing an agent at a tree of
+symlinks: because ``write_file`` goes through the native API, writing to a path that
+is a symlink replaces the link with a regular file and leaves the original target
+untouched, where a shell redirect would follow the link and write through it.
 
 sbx backend (Docker Sandboxes)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -764,9 +932,15 @@ agent code is isolated by a hardware boundary rather than a shared kernel.
    cannot satisfy the last one at all.
 
    Treat it as the backend you develop and test a sandboxed agent against, then
-   run something else in production. A hosted backend plugs in through
-   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, but none ships
-   with the provider yet.
+   run :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` in
+   production, which needs nothing on the worker host and works on Kubernetes. Swapping
+   the backend is one line, but four behaviours differ, so read them before you assume the
+   same Dag behaves identically in both places: ``sbx`` gives a sandbox every host CPU
+   while Modal defaults to a fraction of one, so set ``cpu``; ``sbx`` enforces
+   ``allow_egress_to`` at the host policy layer while Modal matches TLS hostnames, which
+   is a weaker control and has to be opted into; a command timeout destroys an ``sbx``
+   sandbox but leaves a Modal one alive with its files; and ``write_file`` through a
+   symlink follows the link on ``sbx`` and replaces it on Modal.
 
    **Orphans are not reclaimed automatically.** There is no server-side TTL. If
    the worker is killed outright, the microVM and its workspace directory
@@ -776,8 +950,9 @@ agent code is isolated by a hardware boundary rather than a shared kernel.
 Installing the CLI is a Deployment Manager prerequisite
 (``brew install docker/tap/sbx`` or ``winget install Docker.sbx``); the backend
 needs no Python dependency. The template image must provide GNU coreutils
-``timeout``, ``base64``, ``stat`` and ``ls``, which any Debian or Ubuntu based
-image, including ``python:*-slim``, does.
+``timeout``, ``base64``, ``stat``, ``head``, ``find``, ``mkdir`` and ``dirname``,
+which the command and file tools use, and which any Debian or Ubuntu based image,
+including ``python:*-slim``, has.
 
 .. code-block:: python
 
@@ -1040,9 +1215,12 @@ No single layer is sufficient — they work together.
        the same agent still run in the worker with its credentials, so this does
        not stop an agent reaching connections through some other tool. It also
        does not sanitize what the code computes or returns. Custom images can
-       carry secrets, a backend you add can expose its own identity, the ``sbx``
-       backend leaks orphaned microVMs
-       if the worker is killed, and its CPU allocation defaults to every host CPU.
+       carry secrets and a backend you add can expose its own identity. The
+       ``sbx`` backend leaks orphaned microVMs if the worker is killed, and its
+       CPU allocation defaults to every host CPU; the Modal backend reclaims its
+       sandboxes on a server-side timeout, and if you opt into
+       ``egress_enforcement="sni"`` its hostname allowlist is enforced at the TLS
+       layer and leaves DNS resolution open.
    * - **pydantic-ai: tool call budget**
      - pydantic-ai's ``max_result_retries`` and ``model_settings`` control
        how many tool-call rounds the agent can make before stopping.
@@ -1212,7 +1390,7 @@ existing hook and no new connection types are needed.
 A subclass implements two members:
 
 ``agent_ref``
-    Normalised identity of the remote agent — ``platform`` and ``name`` — logged
+    Normalized identity of the remote agent — ``platform`` and ``name`` — logged
     on every call so a run can be audited for which agents it consulted.
 
 ``invoke_sync(prompt)``

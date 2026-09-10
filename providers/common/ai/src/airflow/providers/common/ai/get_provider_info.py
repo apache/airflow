@@ -70,6 +70,11 @@ def get_provider_info():
                 "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
                 "tags": ["software"],
             },
+            {
+                "integration-name": "Modal",
+                "external-doc-url": "https://modal.com/docs/guide/sandbox",
+                "tags": ["service"],
+            },
         ],
         "hooks": [
             {
