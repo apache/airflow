@@ -157,7 +157,7 @@ class Connection:
         """
         Build the connection URI given a pre-resolved extra_dejson dict.
 
-        Shared by :meth:`get_uri` (sync) and :meth:`aget_uri` (async) so the
+        Shared by ``get_uri`` (sync) and ``aget_uri`` (async) so the
         URI-assembly logic lives in exactly one place.
         """
         if self.conn_type:
@@ -221,9 +221,9 @@ class Connection:
 
     async def aget_uri(self) -> str:
         """
-        Async version of :meth:`get_uri`, safe for use inside an async task.
+        Async version of ``get_uri``, safe for use inside an async task.
 
-        Calls `aextra_dejson` so that secret masking uses ``asend()``
+        Calls ``aextra_dejson`` so that secret masking uses ``asend()``
         instead of the synchronous ``send()``, preventing
         ``DeadlockImminentError`` when invoked from within an async context.
         """
@@ -324,11 +324,10 @@ class Connection:
 
     async def aextra_dejson(self) -> dict:
         """
-        Async version of :attr:`extra_dejson`, safe for use inside an async task.
+        Async version of ``extra_dejson``, safe for use inside an async task.
 
-        Uses :func:`~airflow.sdk.log.amask_secret` instead of the synchronous
-        ``mask_secret``, so calling this from within an async context does not
-        trigger ``DeadlockImminentError``.
+        Uses ``amask_secret`` instead of the synchronous ``mask_secret``, so calling
+        this from within an async context does not trigger ``DeadlockImminentError``.
         """
         from airflow.sdk.log import amask_secret
 
