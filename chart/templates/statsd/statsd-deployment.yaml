@@ -65,7 +65,7 @@ spec:
           {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/statsd-config: {{ (include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | fromYaml).data | toYaml | sha256sum }}
+        checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
         {{- with .Values.statsd.podAnnotations }}
           {{- tpl (toYaml .) $ | nindent 8 }}
         {{- end }}
