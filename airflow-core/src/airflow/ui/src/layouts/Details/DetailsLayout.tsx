@@ -112,6 +112,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     `version_indicator_display_mode`,
     VersionIndicatorOptions.ALL,
   );
+
   // Helper that updates a single search param without touching the rest.
   // Uses replace so filter tweaks don't pollute browser history.
   const setParam = (key: string, value: string | undefined) => {
