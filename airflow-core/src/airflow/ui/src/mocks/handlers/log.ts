@@ -62,6 +62,38 @@ const ti = {
 };
 
 export const handlers: Array<HttpHandler> = [
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/empty_logs/-1", () =>
+    HttpResponse.json({
+      ...ti,
+      dag_run_id: "manual__2025-02-18T12:19",
+      state: "failed",
+      task_display_name: "empty_logs",
+      task_id: "empty_logs",
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/empty_logs/logs/1", () =>
+    HttpResponse.json({ content: [], continuation_token: null }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/no_logs/-1", () =>
+    HttpResponse.json({
+      ...ti,
+      dag_run_id: "manual__2025-02-18T12:19",
+      state: "failed",
+      task_display_name: "no_logs",
+      task_id: "no_logs",
+      try_number: 0,
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/no_logs/logs/0", () =>
+    HttpResponse.json({
+      content: [
+        { event: "::group::Log message source details", timestamp: null },
+        { event: "::endgroup::", timestamp: null },
+        { event: "No logs available for this task.", timestamp: "2025-02-18T12:19:56.467235Z" },
+      ],
+      continuation_token: null,
+    }),
+  ),
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/-1", () =>
     HttpResponse.json({ ...ti, dag_run_id: "manual__2025-02-18T12:19" }),
   ),
