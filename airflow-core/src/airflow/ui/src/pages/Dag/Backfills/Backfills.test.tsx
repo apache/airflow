@@ -192,6 +192,38 @@ describe("Backfills filters", () => {
     });
   });
 
+  it.each([
+    ["active", true],
+    ["completed", false],
+  ])("requests %s backfills from the status URL filter", (_status, active) => {
+    mocks.getBackfill.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+    });
+    mocks.listBackfillDagRuns.mockReturnValue({
+      data: { backfill_dag_runs: [], total_entries: 0 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+    mocks.listBackfills.mockReturnValue({
+      data: { backfills: [], total_entries: 0 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    renderBackfills(`/dags/example_dag/backfills?active=${active}`);
+
+    expect(mocks.listBackfills).toHaveBeenCalledWith({
+      active,
+      dagId: "example_dag",
+      limit: 25,
+      offset: 0,
+    });
+  });
+
   it("opens a backfill's associated slots in a dialog", async () => {
     const backfills = [
       makeBackfill(),
