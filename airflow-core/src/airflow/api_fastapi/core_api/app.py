@@ -175,7 +175,6 @@ def init_config(app: FastAPI) -> None:
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
-    from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
     app.add_middleware(JWTRefreshMiddleware)
 
@@ -183,9 +182,8 @@ def init_middlewares(app: FastAPI) -> None:
         app.add_middleware(middleware_cls, **middleware_kwargs)
 
     # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
-    # the full end-to-end duration including compression time.
+    # the full end-to-end duration including compression time. HttpAccessLogMiddleware is
+    # installed by ``init_access_logging`` in ``create_app``, which runs after this
+    # function — do not reorder those calls.
     # See https://github.com/apache/airflow/issues/60165
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
-    # HttpAccessLogMiddleware must be outermost (added last) so it times the full
-    # request lifecycle including all inner middleware.
-    app.add_middleware(HttpAccessLogMiddleware)

@@ -125,7 +125,7 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
         store = getattr(self, "asset_state_store", None)
         if store is not None:
             try:
-                stored = await store.aget(WATERMARK_KEY)
+                stored = await asyncio.to_thread(store.get, WATERMARK_KEY)
             except ValueError as err:
                 # The accessor serves one asset at a time, so it refuses to guess when this
                 # trigger is watched by several. That happens because triggers are deduplicated
@@ -151,7 +151,7 @@ class IcebergTableSnapshotTrigger(BaseEventTrigger):
             if head is not None and head != self.last_seen_snapshot_id:
                 previous, self.last_seen_snapshot_id = self.last_seen_snapshot_id, head
                 if store is not None:
-                    await store.aset(WATERMARK_KEY, head)
+                    await asyncio.to_thread(store.set, WATERMARK_KEY, head)
                 yield TriggerEvent(
                     {
                         "table": self.table,
