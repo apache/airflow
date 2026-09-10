@@ -27,7 +27,7 @@ from airflow import settings
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, DagNotFound
 from airflow.models.backfill import NoBackfillRunsToCreate, ReprocessBehavior, _create_backfill, _do_dry_run
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import sigint_handler
@@ -83,15 +83,20 @@ def create_backfill(args) -> None:
         for k, v in params.items():
             console.print(f"    - {k} = {v}")
         with create_session() as session:
-            infos = _do_dry_run(
-                dag_id=args.dag_id,
-                from_date=args.from_date,
-                to_date=args.to_date,
-                reverse=args.run_backwards,
-                reprocess_behavior=reprocess_behavior or ReprocessBehavior.NONE,
-                dag_run_conf=dag_run_conf,
-                session=session,
-            )
+            try:
+                infos = list(
+                    _do_dry_run(
+                        dag_id=args.dag_id,
+                        from_date=args.from_date,
+                        to_date=args.to_date,
+                        reverse=args.run_backwards,
+                        reprocess_behavior=reprocess_behavior or ReprocessBehavior.NONE,
+                        dag_run_conf=dag_run_conf,
+                        session=session,
+                    )
+                )
+            except DagNotFound as e:
+                raise SystemExit(str(e))
         console.print("Runs to be attempted:")
         rows = [
             dict(logical_date=d.logical_date, partition_key=d.partition_key, partition_date=d.partition_date)
@@ -119,6 +124,8 @@ def create_backfill(args) -> None:
             reprocess_behavior=reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
         )
+    except DagNotFound as e:
+        raise SystemExit(str(e))
     except NoBackfillRunsToCreate as e:
         console.print(f"[yellow]Warning:[/yellow] {e}")
         raise SystemExit(1)
