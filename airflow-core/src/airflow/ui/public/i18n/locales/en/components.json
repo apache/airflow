@@ -28,6 +28,11 @@
     "schedulerPriorityHint": "Backfill Dag runs are ordered after non-backfill Dag runs in each scheduler cycle. Backfill runs may remain queued longer if other non-backfill runs are present.",
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
+    "status": "Status",
+    "statusOptions": {
+      "active": "Active",
+      "completed": "Completed"
+    },
     "title": "Run Backfill",
     "toaster": {
       "success": {
