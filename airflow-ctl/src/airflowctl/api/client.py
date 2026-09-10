@@ -229,10 +229,6 @@ class Credentials:
                 for candidate in candidates:
                     if hasattr(candidate, "_get_new_password"):
                         candidate._get_new_password = _bounded_get_new_password
-                keyring.set_password(
-                    "airflowctl",
-                    self.token_key_for_environment(self.api_environment),
-                    self.api_token,  # type: ignore[arg-type]
                 if self.api_token is None:
                     raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.")
                 keyring.set_password(

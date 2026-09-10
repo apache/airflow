@@ -216,7 +216,7 @@ class TestCredentials:
         mock_keyring.set_password.side_effect = NoKeyringError("no backend")
 
         with pytest.raises(AirflowCtlKeyringException, match="Keyring backend is not available"):
-            Credentials(client_kind=cli_client).save()
+            Credentials(client_kind=cli_client, api_token="TEST_TOKEN").save()
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_KEYRING_TYPE_ERROR"})
     @patch("airflowctl.api.client.keyring")
@@ -229,6 +229,14 @@ class TestCredentials:
                 api_token="TEST_TOKEN",
                 client_kind=ClientKind.AUTH,
             ).save()
+
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_NO_TOKEN"})
+    @patch("airflowctl.api.client.keyring")
+    def test_save_without_token(self, mock_keyring):
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="No API token found"):
+            Credentials(api_url="http://localhost:8080", client_kind=ClientKind.AUTH).save()
+
+        mock_keyring.set_password.assert_not_called()
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
     @patch("airflowctl.api.client.keyring")
