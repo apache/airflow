@@ -1527,26 +1527,29 @@ class DagRun(Base, LoggingMixin):
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
         from airflow.models.dag_version import DagVersion
 
-        dag_version_id = relevant_ti.dag_version_id
+        if relevant_ti.dag_version_id is not None:
+            return TIDataModel.model_validate(relevant_ti, from_attributes=True)
+
+        dag_version_id = self.created_dag_version_id
         if dag_version_id is None:
-            dag_version_id = self.created_dag_version_id
-            if dag_version_id is None:
-                latest_dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
-                dag_version_id = latest_dag_version.id if latest_dag_version else None
-            if dag_version_id is None:
-                self.log.warning(
-                    "Task instance %s has no dag_version_id and Dag %s has no version to stand in; "
-                    "omitting last_ti from the dag callback context.",
-                    relevant_ti,
-                    self.dag_id,
-                )
-                return None
+            latest_dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+            dag_version_id = latest_dag_version.id if latest_dag_version else None
+        if dag_version_id is None:
             self.log.warning(
-                "Task instance %s has no dag_version_id (pre-versioning record); "
-                "reporting it as %s in the dag callback context.",
+                "Task instance %s has no dag_version_id and Dag %s has no version to stand in; "
+                "omitting last_ti from the Dag callback context.",
                 relevant_ti,
-                dag_version_id,
+                self.dag_id,
             )
+            return None
+        self.log.warning(
+            "Task instance %s has no dag_version_id (pre-versioning record); "
+            "reporting it as %s in the Dag callback context.",
+            relevant_ti,
+            dag_version_id,
+        )
+        # The datamodel rejects a null version, so the stand-in has to be spliced in
+        # before validation rather than copied onto a validated model.
         values = {
             name: getattr(relevant_ti, name)
             for name in TIDataModel.model_fields
@@ -1555,7 +1558,6 @@ class DagRun(Base, LoggingMixin):
         values["dag_version_id"] = dag_version_id
         return TIDataModel.model_validate(values)
 
-    @provide_session
     def produce_dag_callback(
         self,
         dag: SerializedDAG,
@@ -1564,7 +1566,7 @@ class DagRun(Base, LoggingMixin):
         reason: str = "success",
         execute: bool = False,
         *,
-        session: Session = NEW_SESSION,
+        session: Session,
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
         if not execute:
@@ -1601,7 +1603,6 @@ class DagRun(Base, LoggingMixin):
         )
         return None
 
-    @provide_session
     def execute_dag_callbacks(
         self,
         dag: SDKDAG,
@@ -1609,7 +1610,7 @@ class DagRun(Base, LoggingMixin):
         relevant_ti: TI | None = None,
         reason: str = "success",
         *,
-        session: Session = NEW_SESSION,
+        session: Session,
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
