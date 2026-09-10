@@ -217,7 +217,8 @@ class Connection:
         """Return hook based on conn_type."""
         from airflow.sdk._shared.module_loading import import_string
 
-        hook = ProvidersManagerTaskRuntime().hooks.get(self.conn_type, None)
+        hooks = ProvidersManagerTaskRuntime().hooks
+        hook = hooks.get(self.conn_type, None)
 
         if hook is None:
             if not self.conn_type:
@@ -230,18 +231,29 @@ class Connection:
                     "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
                     "'-' in the URI instead, which is decoded back to '_' on read."
                 )
-            elif "-" in self.conn_type:
-                # A hyphenated conn_type is the configuration this cannot ever resolve for,
-                # because '-' is the URI-scheme encoding of '_'. Say so, but as a hint rather
-                # than a diagnosis: the provider may simply not be installed.
-                message = (
-                    f"Unknown hook type \"{self.conn_type}\". Note that it contains '-', which is "
-                    "the URI-scheme encoding of '_', so a connection type spelled with '-' cannot "
-                    f"be resolved; the registered name is likely {self.conn_type.replace('-', '_')!r}. "
-                    "Otherwise the provider supplying this connection type may not be installed."
-                )
             else:
                 message = f'Unknown hook type "{self.conn_type}"'
+                # To a URI scheme '-' and '_' are the same character: get_uri() encodes '_' as
+                # '-' because RFC 3986 forbids '_' in a scheme, and reading a connection back
+                # from a URI or from JSON decodes it again. A connection type spelled one way
+                # therefore cannot resolve a hook registered the other way. Hooks register under
+                # the connection-type verbatim, so look the other spelling up rather than
+                # asserting which one is right.
+                alternative = (
+                    self.conn_type.replace("-", "_")
+                    if "-" in self.conn_type
+                    else self.conn_type.replace("_", "-")
+                )
+                if alternative != self.conn_type and alternative in hooks:
+                    message += f", but a hook is registered for {alternative!r}. "
+                    if "-" in self.conn_type:
+                        message += "Spell this connection's type with '_' to reach it."
+                    else:
+                        message += (
+                            "Reading a connection from a URI or from JSON decodes '-' back to "
+                            "'_', so this connection cannot reach that hook; the provider has "
+                            "to declare its connection-type with '_'."
+                        )
             raise AirflowException(message)
         try:
             hook_class = import_string(hook.hook_class_name)

@@ -78,17 +78,47 @@ class TestConnections:
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
-    def test_get_hook_explains_a_hyphenated_conn_type(self, mock_providers_manager):
-        """Worker-side copy of the hyphenated-conn_type hint."""
-        mock_providers_manager.return_value.hooks = {}
-        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+    @pytest.mark.parametrize(
+        ("conn_type", "registered", "expected_remedy"),
+        [
+            pytest.param(
+                "google-cloud-platform",
+                "google_cloud_platform",
+                "Spell this connection's type with '_' to reach it.",
+                id="hyphenated-conn-type",
+            ),
+            pytest.param(
+                "pydanticai_vertex",
+                "pydanticai-vertex",
+                "so this connection cannot reach that hook",
+                id="hyphenated-registration",
+            ),
+        ],
+    )
+    def test_get_hook_names_the_other_spelling_when_it_is_the_registered_one(
+        self, mock_providers_manager, conn_type, registered, expected_remedy
+    ):
+        """Worker-side copy: this is the path a task actually raises from."""
+        mock_providers_manager.return_value.hooks = {registered: mock.MagicMock()}
+        conn = Connection(conn_id="test_conn", conn_type=conn_type)
 
         with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
             conn.get_hook()
 
         message = str(exc_info.value)
-        assert "google-cloud-platform" in message
-        assert "google_cloud_platform" in message
+        assert conn_type in message
+        assert registered in message
+        assert expected_remedy in message
+
+    def test_get_hook_does_not_guess_an_unregistered_spelling(self, mock_providers_manager):
+        """With neither spelling registered, say only what is known."""
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+
+        with pytest.raises(AirflowException) as exc_info:
+            conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
 
     def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self, mock_providers_manager):
         """

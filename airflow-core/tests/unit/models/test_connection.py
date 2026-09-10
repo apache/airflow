@@ -271,20 +271,63 @@ class TestConnection:
     def test_get_uri(self, connection, expected_uri):
         assert connection.get_uri() == expected_uri
 
-    def test_get_hook_explains_a_hyphenated_conn_type(self):
+    @pytest.mark.parametrize(
+        ("conn_type", "registered", "expected_remedy"),
+        [
+            # Typed with '-' where the provider registers '_': the connection is the thing to
+            # fix, so say which spelling reaches the hook.
+            pytest.param(
+                "google-cloud-platform",
+                "google_cloud_platform",
+                "Spell this connection's type with '_' to reach it.",
+                id="hyphenated-conn-type",
+            ),
+            # The reverse, which is what a hyphenated connection-type actually produces: a
+            # connection read from a URI or from JSON normalizes to '_' and cannot reach the
+            # registered name, so there is nothing that connection can do and the provider
+            # has to rename. A metadata-DB row keeps the hyphen and does resolve.
+            pytest.param(
+                "pydanticai_vertex",
+                "pydanticai-vertex",
+                "so this connection cannot reach that hook",
+                id="hyphenated-registration",
+            ),
+        ],
+    )
+    def test_get_hook_names_the_other_spelling_when_it_is_the_registered_one(
+        self, conn_type, registered, expected_remedy
+    ):
         """
-        A conn_type set directly with a hyphen, as a metadata-DB row can be, never round-trips
-        through get_uri(), so it reaches get_hook() unchanged and can never resolve. The bare
-        'Unknown hook type' told the user nothing about why.
+        '-' and '_' are the same character to a URI scheme, so a connection type spelled one
+        way cannot resolve a hook registered the other way. The bare 'Unknown hook type' named
+        neither the cause nor which spelling would work.
+        """
+        conn = Connection(conn_id="c", conn_type=conn_type)
+
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+            mock_manager.return_value.hooks = {registered: mock.MagicMock()}
+            with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
+                conn.get_hook()
+
+        message = str(exc_info.value)
+        assert conn_type in message
+        assert registered in message
+        assert expected_remedy in message
+
+    def test_get_hook_does_not_guess_an_unregistered_spelling(self):
+        """
+        A hyphenated connection-type registers verbatim and resolves for a connection built
+        with that type directly, so an unresolved hyphenated type is not evidence that the
+        underscored name exists. With nothing registered either way, say only what is known.
         """
         conn = Connection(conn_id="c", conn_type="google-cloud-platform")
 
-        with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
-            conn.get_hook()
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+            mock_manager.return_value.hooks = {}
+            with pytest.raises(AirflowException) as exc_info:
+                conn.get_hook()
 
-        message = str(exc_info.value)
-        assert "google-cloud-platform" in message
-        assert "google_cloud_platform" in message
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
 
     def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self):
         """
