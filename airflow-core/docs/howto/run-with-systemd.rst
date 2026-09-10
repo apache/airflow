@@ -80,11 +80,14 @@ At a minimum, you must run the ``scheduler``, the ``dag-processor`` and the ``ap
 - ``airflow-dag-processor.service``
 - ``airflow-api.service``
 
-Without a running Dag processor, Dag files are never parsed and the ``dag_processor`` entry of the
-``/api/v2/monitor/health`` endpoint reports its status as ``unhealthy``.
+Without a running Dag processor, Dag files are not parsed.
 
-The ``airflow-triggerer.service`` is optional: start it only if you use deferrable tasks or
-event-driven :doc:`triggers <../authoring-and-scheduling/event-scheduling>`. If it is not running, the
-``triggerer`` entry of the health endpoint reports ``unhealthy``, which is expected and safe to ignore.
+The ``airflow-triggerer.service`` is optional if you do not use deferrable tasks or
+event-driven :doc:`triggers <../authoring-and-scheduling/event-scheduling>`.
+
+For both ``dag_processor`` and ``triggerer``, the ``/api/v2/monitor/health`` endpoint returns
+``null`` for the status and latest heartbeat when no corresponding job record exists. If a job
+record exists but the job is no longer alive, its status is ``unhealthy``. You can ignore the
+``triggerer`` health status only when your deployment intentionally does not use a triggerer.
 
 See :ref:`Checking Airflow Health Status <check-health/http-endpoint>` for details on how each component reports its health.
