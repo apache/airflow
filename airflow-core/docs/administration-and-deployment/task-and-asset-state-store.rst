@@ -138,6 +138,26 @@ Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.
             elif isinstance(scope, AssetScope):
                 return self._asset_store.get(scope, key)
 
+If the storage client is synchronous, implement the async methods by offloading the sync work to a worker thread rather than calling it inline, so callers on an event loop (``async`` tasks and watcher triggers) are not blocked:
+
+.. code-block:: python
+
+    import asyncio
+
+
+    class MyBackend(BaseStoreBackend):
+        async def aget(self, scope, key, *, session=None):
+            return await asyncio.to_thread(self.get, scope, key)
+
+        async def aset(self, scope, key, value, *, expires_at=None, session=None):
+            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at, session=session)
+
+        async def adelete(self, scope, key, *, session=None):
+            await asyncio.to_thread(self.delete, scope, key, session=session)
+
+        async def aclear(self, scope, *, all_map_indices=False, session=None):
+            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices, session=session)
+
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 
 Configure the class via ``[state_store] backend``:

@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+7.20.0
+.......
+
 .. warning::
   ``DatabricksSQLStatementsSensor`` now rejects the combination of ``statement`` and
   ``statement_id`` when the Dag is parsed rather than when the task runs, and the check is
@@ -35,6 +38,30 @@ Changelog
   at Dag parse time. Pass exactly one of the two and omit the other entirely instead of
   passing an empty value. The argument-validation errors in this sensor are also now
   ``ValueError`` rather than ``AirflowException``.
+
+Features
+~~~~~~~~
+
+* ``Propagate OpenLineage context to Databricks job runs (#72643)``
+* ``Add performance_target to Databricks RunNow and CreateJobs operators (#72148)``
+* ``Add deferrable mode to Databricks SQL warehouse operators (#71752)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Report a retried Databricks task once, from its last attempt (#72313)``
+* ``Fix Databricks hook dropping tasks beyond the first page of a run (#72304)``
+* ``Validate DatabricksSQLStatementsSensor exclusivity at __init__ (#70831)``
+
+Misc
+~~~~
+
+* ``Use non-deprecated user_agent_entry param in DatabricksSqlHook (#72103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Warn about the DatabricksSQLStatementsSensor exclusivity tightening (#72761)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
 
 7.19.0
 ......

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ydb``
 
-Release: ``2.5.3``
+Release: ``2.6.0``
 
 
 `YDB <https://ydb.tech/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ydb`` provider. All classes for this provider p
 are in ``airflow.providers.ydb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.6.0/>`_.
 
 Installation
 ------------
@@ -60,5 +60,14 @@ PIP package                                 Version required
 ``ydb-dbapi``                               ``>=0.1.0``
 ==========================================  ==================
 
+Optional dependencies
+----------------------
+
+==============  ======================
+Extra           Dependencies
+==============  ======================
+``sqlalchemy``  ``sqlalchemy>=1.4.54``
+==============  ======================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.6.0/changelog.html>`_.

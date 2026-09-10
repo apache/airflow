@@ -203,8 +203,10 @@ def action_logging(event: str | None = None):
         masked_body_json = {}
 
         if has_json_body:
-            request_body = await request.json()
-            if isinstance(request_body, dict):
+            # Non-dict bodies fall through to the endpoint's own 422.
+            parsed_body = await request.json()
+            if isinstance(parsed_body, dict):
+                request_body = parsed_body
                 masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
 
                 if event_name in skip_dry_run_events and request_body.get("dry_run", True):
