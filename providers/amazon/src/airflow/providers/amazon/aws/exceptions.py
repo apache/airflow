@@ -34,7 +34,7 @@ class EcsTaskFailToStart(Exception):
 
     def __reduce__(self):
         """Return ECSTask state and its message."""
-        return EcsTaskFailToStart, (self.message)
+        return EcsTaskFailToStart, (self.message,)
 
 
 class EcsOperatorError(Exception):
@@ -115,7 +115,12 @@ class WaiterTerminalFailure(AirflowException):
 
     def __init__(self, message: str, last_response: dict[str, Any]):
         super().__init__(message)
+        self.message = message
         self.last_response = last_response
+
+    def __reduce__(self):
+        """Return the waiter failure state as its message and the last waiter response."""
+        return WaiterTerminalFailure, (self.message, self.last_response)
 
 
 class WaiterMaxAttemptsError(AirflowException):
