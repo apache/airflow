@@ -23,6 +23,7 @@ import copy
 import hashlib
 import json
 from collections.abc import Callable, Mapping
+from datetime import timedelta
 from enum import Enum
 from typing import Any, Literal
 
@@ -39,8 +40,6 @@ DIFF_SCHEMA_VERSION = 1
 DEFAULT_MAX_CHANGES = 500
 MAX_ALLOWED_CHANGES = 5000
 SUPPORTED_SERIALIZED_DAG_SCHEMA_VERSIONS = frozenset((1, 2, 3))
-
-DiffMode = Literal["observed_state", "unavailable"]
 
 _ORDER_INSENSITIVE_LIST_PATHS = {
     ("dag", "tags"),
@@ -181,6 +180,18 @@ _REDACTED_RECURSIVE_MAPPING_PATHS = {
 }
 
 
+def build_unavailable_dag_diff(
+    *,
+    base_data: dict[str, Any] | None,
+    target_data: dict[str, Any] | None,
+    reason: str,
+) -> dict[str, Any]:
+    """Report a known unavailable reason without comparing the stored payloads."""
+    return _mark_unavailable(
+        _build_diff_result(_get_schema_version(base_data), _get_schema_version(target_data)), reason
+    )
+
+
 def build_serialized_dag_diff(
     *,
     base_data: dict[str, Any] | None,
@@ -200,16 +211,7 @@ def build_serialized_dag_diff(
 
     base_schema_version = _get_schema_version(base_data)
     target_schema_version = _get_schema_version(target_data)
-    result: dict[str, Any] = {
-        "diff_schema_version": DIFF_SCHEMA_VERSION,
-        "serialized_dag_schema_versions": {
-            "base": base_schema_version,
-            "target": target_schema_version,
-        },
-        "mode": "observed_state",
-        "changes": [],
-        "truncated": False,
-    }
+    result = _build_diff_result(base_schema_version, target_schema_version)
 
     if base_data is None or target_data is None:
         return _mark_unavailable(result, "serialized_dag_missing")
@@ -230,14 +232,16 @@ def build_serialized_dag_diff(
     try:
         base_document = _canonicalize_payload_v1(base_data)
         target_document = _canonicalize_payload_v1(target_data)
+        base_document["provenance"] = _canonicalize_value(dict(base_provenance or {}), path=("provenance",))
+        target_document["provenance"] = _canonicalize_value(
+            dict(target_provenance or {}), path=("provenance",)
+        )
+
+        collector = _ChangeCollector(max_changes=max_changes, include_values=include_values)
+        _collect_changes(base_document, target_document, path=(), collector=collector)
     except (AttributeError, KeyError, OverflowError, TypeError, ValueError):
         return _mark_unavailable(result, "serialized_dag_canonicalization_failed")
 
-    base_document["provenance"] = _canonicalize_value(dict(base_provenance or {}), path=("provenance",))
-    target_document["provenance"] = _canonicalize_value(dict(target_provenance or {}), path=("provenance",))
-
-    collector = _ChangeCollector(max_changes=max_changes, include_values=include_values)
-    _collect_changes(base_document, target_document, path=(), collector=collector)
     result["changes"] = collector.changes
     result["truncated"] = collector.is_truncated
     return result
@@ -307,6 +311,19 @@ def _mark_unavailable(result: dict[str, Any], reason: str) -> dict[str, Any]:
     return result
 
 
+def _build_diff_result(base_schema_version: int | None, target_schema_version: int | None) -> dict[str, Any]:
+    return {
+        "diff_schema_version": DIFF_SCHEMA_VERSION,
+        "serialized_dag_schema_versions": {
+            "base": base_schema_version,
+            "target": target_schema_version,
+        },
+        "mode": "observed_state",
+        "changes": [],
+        "truncated": False,
+    }
+
+
 def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
     payload = copy.deepcopy(data)
     version = _get_schema_version(payload)
@@ -326,6 +343,8 @@ def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
         if field not in _DAG_CALLBACK_FIELDS
     }
     payload["dag"] = {**dag_defaults, **payload["dag"]}
+    for field in _DAG_CALLBACK_FIELDS & payload["dag"].keys():
+        payload["dag"][field] = True
     _apply_task_defaults(payload)
     payload.pop("__version", None)
     return _canonicalize_value(payload, path=())
@@ -362,11 +381,23 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
                 raise ValueError("partial_kwargs is not an object")
             # populate_operator only folds client defaults into partial_kwargs when the payload
             # carries the key, so an absent one leaves the top-level value as the effective value.
-            effective_partial_kwargs = dict(task_defaults) if "partial_kwargs" in task_data else {}
-            effective_partial_kwargs.update(partial_kwargs)
+            effective_partial_kwargs = (
+                {field: _encode_json_value(value) for field, value in task_defaults.items()}
+                if "partial_kwargs" in task_data
+                else {}
+            )
+            for field, value in partial_kwargs.items():
+                if isinstance(value, Mapping) and "__type" in value and "__var" in value:
+                    effective_partial_kwargs[field] = value
+                else:
+                    effective_partial_kwargs[field] = _encode_json_value(value)
             # Match populate_operator: partial values take precedence over outer task defaults.
             for field in partial_fields & task_data.keys():
-                effective_partial_kwargs.setdefault(field, task_data.pop(field))
+                value = task_data.pop(field)
+                # Outer fields are already encoded unless template handling bypasses deserialization.
+                if field in task_data.get("template_fields", []):
+                    value = _encode_json_value(value)
+                effective_partial_kwargs.setdefault(field, value)
             for field in _OPERATOR_TIMEDELTA_FIELDS:
                 value = effective_partial_kwargs.get(field)
                 if isinstance(value, Mapping) and value.get("__type") == "timedelta" and "__var" in value:
@@ -378,6 +409,15 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
         task["__var"] = task_data
 
 
+def _encode_json_value(value: Any) -> Any:
+    """Encode plain JSON without invoking object serializers."""
+    if isinstance(value, Mapping):
+        return {"__type": "dict", "__var": {key: _encode_json_value(item) for key, item in value.items()}}
+    if isinstance(value, list):
+        return [_encode_json_value(item) for item in value]
+    return value
+
+
 def _normalize_retry_backoff(task_fields: dict[str, Any]) -> None:
     if "retry_exponential_backoff" in task_fields:
         value = task_fields["retry_exponential_backoff"]
@@ -386,6 +426,18 @@ def _normalize_retry_backoff(task_fields: dict[str, Any]) -> None:
 
 def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
     if isinstance(value, Mapping):
+        if path == ("dag", "deadline"):
+            if value.get("__type") == "deadline_alert":
+                value = value["__var"]
+            value = {"name": None, **value}
+            interval = value.get("interval")
+            if isinstance(interval, (int, float)) and not isinstance(interval, bool):
+                # Diff schema v1 uses the SDK's version-2 timedelta encoding for legacy seconds.
+                value["interval"] = {
+                    "__classname__": "datetime.timedelta",
+                    "__version__": 2,
+                    "__data__": timedelta(seconds=interval).total_seconds(),
+                }
         return {
             canonical_key: _canonicalize_value(item, path=path + (canonical_key,))
             for canonical_key, item in (
