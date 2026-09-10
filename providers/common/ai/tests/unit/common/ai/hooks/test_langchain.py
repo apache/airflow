@@ -222,12 +222,12 @@ class TestGetEmbeddingModel:
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")
-    def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_init_embeddings):
+    def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_init_embeddings, caplog):
         mock_get_conn.return_value = _conn(password="sk-test")
 
         hook = LangChainHook(
             embed_model="openai:Qwen/Qwen3-Embedding-0.6B",
-            embedding_kwargs={"dimensions": 128, "timeout": 30},
+            embedding_kwargs={"api_key": "from-kwargs", "dimensions": 128, "timeout": 30},
         )
         hook.get_embedding_model()
 
@@ -237,6 +237,7 @@ class TestGetEmbeddingModel:
             dimensions=128,
             timeout=30,
         )
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")

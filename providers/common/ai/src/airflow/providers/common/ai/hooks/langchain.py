@@ -176,7 +176,11 @@ class LangChainHook(BaseHook):
             extra_key="embed_model",
             kind="embedding",
         )
-        kwargs = {**self.embedding_kwargs, **self._connection_kwargs(conn)}
+        connection_kwargs = self._connection_kwargs(conn)
+        overridden_keys = sorted(self.embedding_kwargs.keys() & connection_kwargs.keys())
+        if overridden_keys:
+            self.log.warning("Connection parameters override embedding_kwargs values: %s", overridden_keys)
+        kwargs = {**self.embedding_kwargs, **connection_kwargs}
         return init_embeddings(model_id, **kwargs)
 
     def test_connection(self) -> tuple[bool, str]:
