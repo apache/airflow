@@ -174,6 +174,24 @@ def _coerce_value(field: str, value: Any) -> Any:
         # the same finite check below as the templated-string path -- a bare
         # ``float`` must not bypass the one safety promise this module makes.
         value = _coerce_decimal(field, str(value))
+    elif field_type is int and isinstance(value, bool):
+        # bool is a subclass of int, so a plain isinstance(value, int) check below
+        # would silently accept it and build e.g. UsageLimits(request_limit=False),
+        # which only fails deep inside pydantic-ai. Exclude it explicitly here.
+        raise ValueError(
+            f"usage_limits[{field!r}] must be an integer, not a bool (got {value!r}); "
+            "if it is templated, check the rendered value."
+        )
+    elif field_type is int and isinstance(value, float) and math.isfinite(value):
+        # Non-finite floats (inf/nan) deliberately fall through unchanged so the
+        # finite check in _validate_range below reports them as "not finite" --
+        # checking is_integer() first would misreport them as "not an integer".
+        if not value.is_integer():
+            raise ValueError(
+                f"usage_limits[{field!r}] must be an integer (got {value!r}); "
+                "if it is templated, check the rendered value."
+            )
+        value = int(value)
 
     if field_type in (Decimal, int):
         # A value that reached here is neither a rendered string nor a bare

@@ -87,6 +87,23 @@ class TestCoerceUsageLimitsTemplatedDict:
         result = coerce_usage_limits({"count_tokens_before_request": value})
         assert result.count_tokens_before_request is expected
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", 2.0),
+            ("total_tokens_limit", 100.0),
+        ],
+        ids=["request_limit-2.0-float", "total_tokens_limit-100.0-float"],
+    )
+    def test_integral_float_on_int_field_is_coerced_to_int(self, field, value):
+        """``2.0`` is mathematically an integer with none of the ambiguity of
+        ``2.5`` -- e.g. Jinja can render an integer literal as a float under
+        ``render_template_as_native_obj=True``, and rejecting it would punish a
+        legitimate templated input."""
+        result = coerce_usage_limits({field: value})
+        assert getattr(result, field) == int(value)
+        assert isinstance(getattr(result, field), int)
+
     def test_explicit_none_disables_the_limit(self):
         """None is the author's deliberate choice -- Jinja never produces None
         from a string template -- so it must pass through untouched."""
@@ -102,6 +119,8 @@ class TestCoerceUsageLimitsInvalidValues:
             ("cost_limit", "n/a"),
             ("cost_limit", "$0.50"),
             ("request_limit", "abc"),
+            ("cost_limit", True),
+            ("cost_limit", False),
         ],
     )
     def test_unparsable_value_raises_naming_field_and_value(self, field, value):
@@ -109,7 +128,9 @@ class TestCoerceUsageLimitsInvalidValues:
         ``decimal.InvalidOperation``/``ValueError`` traceback gives a Dag author
         no clue which key (often a mistyped or unset Airflow Variable) broke.
         Covers both the ``Decimal`` (``cost_limit``) and ``int`` (``request_limit``)
-        coercion error paths."""
+        coercion error paths. ``cost_limit`` with a ``bool`` pins the existing
+        ``str(True)`` -> ``Decimal("True")`` -> ``InvalidOperation`` behavior --
+        this path is not changed by the ``int``-field bool guard below."""
         with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
             coerce_usage_limits({field: value})
         message = str(exc_info.value)
@@ -158,6 +179,51 @@ class TestCoerceUsageLimitsInvalidValues:
         case would be caught with a misleading "must not be negative" message."""
         with pytest.raises(ValueError, match="finite"):
             coerce_usage_limits({field: value})
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", True),
+            ("request_limit", False),
+            ("tool_calls_limit", True),
+            ("tool_calls_limit", False),
+        ],
+        ids=[
+            "request_limit-True-bool",
+            "request_limit-False-bool",
+            "tool_calls_limit-True-bool",
+            "tool_calls_limit-False-bool",
+        ],
+    )
+    def test_bool_value_on_int_field_raises(self, field, value):
+        """``bool`` is a subclass of ``int``, so an unguarded ``isinstance(value,
+        int)`` check would silently build e.g. ``UsageLimits(request_limit=False)``,
+        which only fails deep inside pydantic-ai with a confusing message."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", 2.5),
+            ("tool_calls_limit", 1.1),
+        ],
+        ids=[
+            "request_limit-2.5-float",
+            "tool_calls_limit-1.1-float",
+        ],
+    )
+    def test_non_integral_float_on_int_field_raises(self, field, value):
+        """A non-integral float has no single unambiguous truncation/rounding --
+        silently picking one would hide the ambiguity from the Dag author."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
 
     def test_signaling_nan_raises_naming_the_field(self):
         """``Decimal('sNaN')`` traps on unguarded comparison (``InvalidOperation``,
