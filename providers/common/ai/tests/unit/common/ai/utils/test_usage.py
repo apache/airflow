@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 from decimal import Decimal
 from typing import Literal
 
@@ -24,7 +25,9 @@ from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.utils.usage import (
     _COERCERS,
-    _FIELD_TYPES,
+    _FIELD_NAMES,
+    _field_hints,
+    _get_field_type,
     _resolve_field_type,
     coerce_usage_limits,
 )
@@ -307,13 +310,22 @@ class TestCoercersCompleteness:
         Guards against pydantic-ai adding a UsageLimits field whose type this
         module doesn't know how to coerce from a templated string.
 
+        Field types are no longer resolved eagerly at import time (see
+        ``_get_field_type``'s per-field, lazy, cached resolution), so this test
+        drives the same full-field scan itself by calling ``_get_field_type``
+        for every name in ``_FIELD_NAMES`` -- the set of fields covered is
+        identical to before, only *when* each field's type gets resolved has
+        moved from import time into this test.
+
         If this goes red after a pydantic-ai upgrade, it means a new field's
         type has no entry in ``_COERCERS`` -- add a ``coerce_*`` function for
         that type in ``airflow.providers.common.ai.utils.usage``.
         """
-        missing = {
-            field: field_type for field, field_type in _FIELD_TYPES.items() if field_type not in _COERCERS
-        }
+        missing = {}
+        for field in _FIELD_NAMES:
+            field_type = _get_field_type(field)
+            if field_type not in _COERCERS:
+                missing[field] = field_type
         assert not missing, (
             f"No coercer registered for {missing}; add a coerce_* function for that type "
             "in airflow.providers.common.ai.utils.usage._COERCERS"
@@ -339,3 +351,48 @@ class TestResolveFieldType:
         """A single-member ``Literal`` resolves to a value, not a type."""
         with pytest.raises(TypeError, match="resolved to a non-type"):
             _resolve_field_type("some_field", Literal["a"])
+
+
+class TestLazyFieldTypeResolution:
+    """Simulates a future pydantic-ai release adding a ``UsageLimits`` field
+    whose annotation ``_resolve_field_type`` cannot support, to prove type
+    resolution stays lazy and per-field: it must not break every import, only
+    Dags that actually set that specific field (see PR #71403 review
+    discussion)."""
+
+    def setup_method(self):
+        _get_field_type.cache_clear()
+        _field_hints.cache_clear()
+
+    def teardown_method(self):
+        _get_field_type.cache_clear()
+        _field_hints.cache_clear()
+
+    def test_unsupported_field_does_not_break_import_or_unrelated_fields(self, monkeypatch):
+        @dataclasses.dataclass
+        class FakeUsageLimits:
+            request_limit: int | None = None
+            weird_field: Literal["a", "b"] | None = None
+
+        monkeypatch.setattr("airflow.providers.common.ai.utils.usage.UsageLimits", FakeUsageLimits)
+        monkeypatch.setattr(
+            "airflow.providers.common.ai.utils.usage._FIELD_NAMES",
+            frozenset({"request_limit", "weird_field"}),
+        )
+
+        # (a) Resolving type hints for the whole class -- the operation that used
+        # to run eagerly at import time -- does not raise just because one field
+        # has an unsupported annotation. ``_field_hints`` only evaluates
+        # annotation strings into typing objects; it never judges whether a
+        # shape is supported.
+        _field_hints()
+
+        # (b) A call that never touches the unsupported field is unaffected.
+        result = coerce_usage_limits({"request_limit": "3"})
+        assert result.request_limit == 3
+
+        # (c) Actually using the unsupported field still raises loudly and
+        # names the field -- lazy, per-field resolution must not silently
+        # swallow an unsupported shape.
+        with pytest.raises(TypeError, match="weird_field"):
+            coerce_usage_limits({"weird_field": "a"})

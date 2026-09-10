@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import math
 import typing
 from collections.abc import Callable
@@ -45,14 +46,27 @@ def _resolve_field_type(field: str, hint: Any) -> type:
     return resolved
 
 
-def _build_field_types() -> dict[str, type]:
+@functools.lru_cache(maxsize=1)
+def _field_hints() -> dict[str, Any]:
     # ``pydantic_ai.usage`` uses ``from __future__ import annotations``, so
     # ``field.type`` is a string; ``get_type_hints`` resolves the real objects.
-    hints = typing.get_type_hints(UsageLimits)
-    return {
-        field.name: _resolve_field_type(field.name, hints[field.name])
-        for field in dataclasses.fields(UsageLimits)
-    }
+    # This only evaluates each annotation string into a type/typing object --
+    # it never raises for a shape ``_resolve_field_type`` can't support, so
+    # calling it (even for every field at once) is safe to do lazily on first
+    # use rather than deferring further per field.
+    return typing.get_type_hints(UsageLimits)
+
+
+@functools.cache
+def _get_field_type(field: str) -> type:
+    # Resolved lazily and cached per field rather than for every field at
+    # import time: a future ``UsageLimits`` field typed e.g. ``Literal[...]``
+    # or ``list[int] | None`` must only break Dags that actually set that
+    # field, not every Dag that imports a common.ai operator module (see
+    # PR #71403 review discussion). ``lru_cache`` never caches a raised
+    # exception, so a field whose annotation is unsupported keeps raising the
+    # same way on every call -- it never gets silently "fixed" by caching.
+    return _resolve_field_type(field, _field_hints()[field])
 
 
 def _coerce_decimal(field: str, value: str) -> Decimal:
@@ -97,7 +111,7 @@ def _coerce_bool(field: str, value: str) -> bool:
     )
 
 
-_FIELD_TYPES: dict[str, type] = _build_field_types()
+_FIELD_NAMES: frozenset[str] = frozenset(field.name for field in dataclasses.fields(UsageLimits))
 
 # Keyed by the field's declared type rather than the field name so a new
 # ``UsageLimits`` field of an already-supported type (another ``int`` cap, say)
@@ -136,7 +150,7 @@ def _validate_range(field: str, value: Decimal | int | float) -> None:
 
 
 def _unknown_field_message(field: str) -> str:
-    valid_fields = ", ".join(sorted(_FIELD_TYPES))
+    valid_fields = ", ".join(sorted(_FIELD_NAMES))
     return f"usage_limits has no field {field!r}; valid fields are: {valid_fields}"
 
 
@@ -155,7 +169,7 @@ def _coerce_value(field: str, value: Any) -> Any:
     if value is None:
         return value
 
-    field_type = _FIELD_TYPES[field]
+    field_type = _get_field_type(field)
     # Only ``str`` values are converted: Jinja only ever renders a scalar leaf to
     # ``str``, so a non-``str`` value is exactly what the author wrote (a literal
     # ``Decimal``, ``int``, or ``bool``) and is passed through unchanged.
@@ -251,7 +265,7 @@ def coerce_usage_limits(usage_limits: UsageLimits | dict[str, Any] | None) -> Us
 
     coerced: dict[str, Any] = {}
     for field, value in usage_limits.items():
-        if field not in _FIELD_TYPES:
+        if field not in _FIELD_NAMES:
             raise ValueError(_unknown_field_message(field))
         coerced[field] = _coerce_value(field, value)
     return UsageLimits(**coerced)
