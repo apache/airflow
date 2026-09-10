@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import timezone
@@ -56,6 +57,11 @@ class TestLogsApiRoutes:
         assert p
         assert str(Path(f"dag_id={DAG_ID}") / f"run_id={RUN_ID}" / f"task_id={TASK_ID}" / "attempt=1") in p
         assert "-1" not in Path(p).parts
+
+    def test_logfile_path_missing_ti_returns_404(self, session: Session):
+        with pytest.raises(HTTPException) as exc_info:
+            logfile_path(dag_id=DAG_ID, task_id="nonexistent_task", run_id=RUN_ID, try_number=1, map_index=-1)
+        assert exc_info.value.status_code == 404
 
     def test_push_logs(self, session: Session):
         log_data = PushLogsBody(
