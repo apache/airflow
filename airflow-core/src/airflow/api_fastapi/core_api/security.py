@@ -70,7 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -147,6 +147,13 @@ async def get_user(
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
+    # An explicitly supplied credential always wins over the ambient session cookie.
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        return await resolve_user_from_token(bearer_credentials.credentials)
+    if oauth_token:
+        return await resolve_user_from_token(oauth_token)
+
+    # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
     # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
     # `request.state.user_authenticated_via` is set to the trust sentinel above.
@@ -156,16 +163,7 @@ async def get_user(
     trust_marker = getattr(request.state, "user_authenticated_via", None)
     if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
         return user
-
-    token_str: str | None
-    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
-        token_str = bearer_credentials.credentials
-    elif oauth_token:
-        token_str = oauth_token
-    else:
-        token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-
-    return await resolve_user_from_token(token_str)
+    return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
@@ -991,16 +989,83 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
     return inner
 
 
+class PermittedAssetFilter(OrmClause[set[int]]):
+    """A parameter that filters the permitted assets for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(AssetModel.id.in_(self.value or set()))
+
+
+# Uncorrelated on purpose: a correlated EXISTS would bind to the outer AssetModel join some
+# asset event queries add (e.g. for name filters) and produce an invalid statement.
+_existing_asset_ids = select(AssetModel.id)
+
+
+class PermittedAssetEventByAssetFilter(PermittedAssetFilter):
+    """A parameter that filters asset events to those of the assets the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Events outlive their asset by design. Once the asset row is gone there is no name or
+        # uri left to authorize on, so such events stay visible to any caller who may read
+        # assets, the same way events with no source Dag do.
+        return select.where(
+            or_(
+                AssetEvent.asset_id.in_(self.value or set()),
+                AssetEvent.asset_id.not_in(_existing_asset_ids),
+            )
+        )
+
+
+def permitted_asset_filter_factory(
+    method: ResourceMethod,
+    filter_class: type[PermittedAssetFilter] = PermittedAssetFilter,
+) -> Callable[[BaseUser, BaseAuthManager], PermittedAssetFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted assets for the user.
+
+    :param method: whether filter readable or writable.
+    :param filter_class: the filter class to instantiate, defaulting to ``PermittedAssetFilter``.
+    """
+
+    def depends_permitted_assets_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedAssetFilter:
+        authorized_assets: set[int] = auth_manager.get_authorized_assets(user=user, method=method)
+        return filter_class(authorized_assets)
+
+    return depends_permitted_assets_filter
+
+
+ReadableAssetsFilterDep = Annotated[PermittedAssetFilter, Depends(permitted_asset_filter_factory("GET"))]
+ReadableAssetEventsByAssetFilterDep = Annotated[
+    PermittedAssetEventByAssetFilter,
+    Depends(permitted_asset_filter_factory("GET", PermittedAssetEventByAssetFilter)),
+]
+
+
+def _build_asset_details(asset_id: str | None) -> AssetDetails:
+    """Resolve the name and uri of the asset so an auth manager can authorize on more than the id."""
+    if asset_id is None or not asset_id.isdigit():
+        # A non-numeric id fails the route's own path validation; there is nothing to look up.
+        return AssetDetails(id=asset_id)
+    name_and_uri = AssetModel.get_name_and_uri(int(asset_id))
+    if name_and_uri is None:
+        return AssetDetails(id=asset_id)
+    name, uri = name_and_uri
+    return AssetDetails(id=asset_id, name=name, uri=uri)
+
+
 def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
-        asset_id = request.path_params.get("asset_id")
+        details = _build_asset_details(request.path_params.get("asset_id"))
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
-                method=method, details=AssetDetails(id=asset_id), user=user
+                method=method, details=details, user=user
             ),
         )
 

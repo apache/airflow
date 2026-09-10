@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import copy
 import datetime
+import json
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -40,6 +42,7 @@ from airflow.providers.databricks.utils.openlineage import (
     _process_data_from_api,
     _run_api_call,
     emit_openlineage_events_for_databricks_queries,
+    inject_openlineage_context_into_databricks_job_parameters,
     inject_openlineage_properties_into_databricks_job,
 )
 from airflow.providers.openlineage.conf import namespace
@@ -1201,6 +1204,143 @@ def test_emit_openlineage_events_with_old_openlineage_provider(mock_version):
 
 
 OL_UTILS = "airflow.providers.databricks.utils.openlineage"
+
+
+@pytest.mark.parametrize(
+    ("dag_run_conf", "expected_root_job_type"),
+    [
+        pytest.param(
+            {},
+            {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "DAG"},
+            id="current-dag-is-root",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    "rootParentRunId": "11111111-1111-1111-1111-111111111111",
+                    "rootParentJobNamespace": "external_namespace",
+                    "rootParentJobName": "external_job",
+                }
+            },
+            None,
+            id="inherited-root-without-job-type",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    "rootParentRunId": "11111111-1111-1111-1111-111111111111",
+                    "rootParentJobNamespace": "external_namespace",
+                    "rootParentJobName": "external_job",
+                    "rootParentJobType": {
+                        "processingType": "STREAMING",
+                        "integration": "CUSTOM",
+                        "jobType": "PIPELINE",
+                    },
+                }
+            },
+            {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"},
+            id="inherited-root-with-job-type",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    "parentRunId": "22222222-2222-2222-2222-222222222222",
+                    "parentJobNamespace": "external_namespace",
+                    "parentJobName": "external_job",
+                    "rootParentJobType": {
+                        "processingType": "BATCH",
+                        "integration": "DBT",
+                        "jobType": "JOB",
+                    },
+                }
+            },
+            {"processingType": "BATCH", "integration": "DBT", "jobType": "JOB"},
+            id="parent-is-inherited-root-with-job-type",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    "rootParentRunId": "invalid-run-id",
+                    "rootParentJobNamespace": "external_namespace",
+                    "rootParentJobName": "external_job",
+                }
+            },
+            {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "DAG"},
+            id="invalid-inherited-root-falls-back-to-current-dag",
+        ),
+    ],
+)
+@mock.patch(f"{OL_UTILS}._get_parent_run_facet", autospec=True)
+@mock.patch(f"{OL_UTILS}._is_openlineage_provider_accessible", autospec=True, return_value=True)
+def test_inject_openlineage_context_into_job_parameters(
+    mock_accessible, mock_parent, dag_run_conf, expected_root_job_type
+):
+    context = {"ti": SimpleNamespace(dag_run=SimpleNamespace(conf=dag_run_conf))}
+    parent_run_facet = SimpleNamespace(
+        run=SimpleNamespace(runId="run_id"),
+        job=SimpleNamespace(namespace="namespace", name="dag_id.task_id"),
+        root=SimpleNamespace(
+            run=SimpleNamespace(runId="root_run_id"),
+            job=SimpleNamespace(namespace="namespace", name="dag_id"),
+        ),
+    )
+    mock_parent.return_value = parent_run_facet
+    job_parameters = {"input": "value"}
+
+    result = inject_openlineage_context_into_databricks_job_parameters(job_parameters, context)
+
+    assert result["input"] == "value"
+    context_value = json.loads(result["OPENLINEAGE_CONTEXT"])
+    expected_root_job = {
+        "namespace": "namespace",
+        "name": "dag_id",
+    }
+    if expected_root_job_type is not None:
+        expected_root_job["facets"] = {"jobType": expected_root_job_type}
+
+    assert context_value == {
+        "parent": {
+            "run": {"runId": "run_id"},
+            "job": {
+                "namespace": "namespace",
+                "name": "dag_id.task_id",
+                "facets": {
+                    "jobType": {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "TASK"}
+                },
+            },
+            "root": {
+                "run": {"runId": "root_run_id"},
+                "job": expected_root_job,
+            },
+        }
+    }
+    assert job_parameters == {"input": "value"}
+    mock_parent.assert_called_once_with(context["ti"])
+    mock_accessible.assert_called_once_with()
+
+
+@mock.patch(f"{OL_UTILS}._get_parent_run_facet", autospec=True)
+@mock.patch(f"{OL_UTILS}._is_openlineage_provider_accessible", autospec=True, return_value=True)
+def test_inject_openlineage_context_preserves_existing_parameters(mock_accessible, mock_parent):
+    job_parameters = {"OPENLINEAGE_CONTEXT": "manual_context", "input": "value"}
+
+    result = inject_openlineage_context_into_databricks_job_parameters(job_parameters, {"ti": object()})
+
+    assert result == job_parameters
+    mock_accessible.assert_not_called()
+    mock_parent.assert_not_called()
+
+
+@mock.patch(f"{OL_UTILS}._get_parent_run_facet", autospec=True)
+@mock.patch(f"{OL_UTILS}._is_openlineage_provider_accessible", autospec=True, return_value=False)
+def test_inject_openlineage_context_provider_inaccessible(mock_accessible, mock_parent):
+    job_parameters = {"input": "value"}
+
+    result = inject_openlineage_context_into_databricks_job_parameters(job_parameters, {"ti": object()})
+
+    assert result == job_parameters
+    mock_accessible.assert_called_once_with()
+    mock_parent.assert_not_called()
 
 
 def test_extract_new_clusters_from_databricks_job():

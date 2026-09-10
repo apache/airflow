@@ -74,6 +74,7 @@ export const ExternalView = () => {
           They are not user provided plugins. */}
         <Iframe
           externalView={externalView}
+          key={page}
           sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
         />
       </Box>

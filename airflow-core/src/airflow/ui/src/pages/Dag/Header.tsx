@@ -111,7 +111,7 @@ export const Header = ({
     },
     ...nextRunStat,
     {
-      label: translate("dagDetails.maxActiveRuns"),
+      label: translate("dagDetails.activeRuns"),
       value:
         dag?.max_active_runs === undefined
           ? undefined

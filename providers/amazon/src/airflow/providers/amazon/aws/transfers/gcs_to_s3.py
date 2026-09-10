@@ -164,6 +164,29 @@ class GCSToS3Operator(BaseOperator):
             return os.path.basename(file_path)
         return file_path
 
+    @staticmethod
+    def _strip_overlapping_folder_markers(keys: list[str]) -> tuple[list[str], list[str]]:
+        """
+        Drop trailing-slash keys that are strict prefixes of other listed keys.
+
+        Treated as directory markers. A lone trailing-slash key with no overlap
+        (e.g. ``lonely/``) is preserved, and a non-slash key that happens to be a
+        strict prefix of another (e.g. ``abc`` of ``abcdef``) is also preserved.
+        Returns ``(kept, dropped)``.
+        """
+        if not keys:
+            return [], []
+        ordered = sorted(set(keys))
+        kept: list[str] = []
+        dropped: list[str] = []
+        for current, nxt in zip(ordered, ordered[1:]):
+            if current.endswith("/") and nxt.startswith(current):
+                dropped.append(current)
+            else:
+                kept.append(current)
+        kept.append(ordered[-1])
+        return kept, dropped
+
     def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
         gcs_hook = GCSHook(
@@ -186,6 +209,18 @@ class GCSToS3Operator(BaseOperator):
             list_kwargs["match_glob"] = self.match_glob
 
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore
+
+        gcs_files, dropped_keys = self._strip_overlapping_folder_markers(gcs_files)
+        if self.flatten_structure:
+            # A kept marker like lonely/ has no basename, so flattening would hit the destination prefix.
+            dropped_keys += [file for file in gcs_files if not self._transform_file_path(file)]
+            gcs_files = [file for file in gcs_files if self._transform_file_path(file)]
+        if dropped_keys:
+            self.log.info(
+                "Skipping %s GCS folder-marker key(s) (omitted from transfer and XCom output): %s",
+                len(dropped_keys),
+                dropped_keys,
+            )
 
         s3_hook = S3Hook(
             aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args

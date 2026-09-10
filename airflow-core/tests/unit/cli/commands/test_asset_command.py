@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import os
 import typing
-from unittest import mock
 
 import pytest
 
@@ -124,9 +123,7 @@ def test_cli_assets_alias_details(parser: ArgumentParser, stdout_capture) -> Non
     }
 
 
-@mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_capture) -> None:
-    mock_hasattr.return_value = False
+def test_cli_assets_materialize(parser: ArgumentParser, stdout_capture) -> None:
     args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
     with stdout_capture as capture:
         asset_command.asset_materialize(args)
@@ -136,47 +133,6 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
     # Check if output is empty first
     assert output, "No output captured from asset_materialize command"
 
-    run_list = json.loads(output)
-    assert len(run_list) == 1
-
-    # No good way to statically compare these.
-    undeterministic: dict = {
-        "dag_run_id": None,
-        "dag_versions": [],
-        "data_interval_end": None,
-        "data_interval_start": None,
-        "logical_date": None,
-        "queued_at": None,
-        "run_after": "2025-02-12T19:27:59.066046Z",
-    }
-
-    assert run_list[0] | undeterministic == undeterministic | {
-        "conf": {},
-        "bundle_version": None,
-        "dag_display_name": "asset1_producer",
-        "dag_id": "asset1_producer",
-        "end_date": None,
-        "duration": None,
-        "last_scheduling_decision": None,
-        "note": None,
-        "partition_date": None,
-        "partition_key": None,
-        "run_type": "asset_materialization",
-        "start_date": None,
-        "state": "queued",
-        "team_name": None,
-        "triggered_by": "cli",
-        "triggering_user_name": "root",
-        "run_after": "2025-02-12T19:27:59.066046Z",
-    }
-
-
-def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, stdout_capture) -> None:
-    args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
-    with stdout_capture as capture:
-        asset_command.asset_materialize(args)
-
-    output = capture.getvalue()
     run_list = json.loads(output)
     assert len(run_list) == 1
 
