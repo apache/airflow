@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest import mock
 
@@ -37,6 +38,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     _DAG_CALLBACK_FIELDS,
     _OPERATOR_TIMEDELTA_FIELDS,
+    BaseSerialization,
     DagSerialization,
     OperatorSerialization,
 )
@@ -96,6 +98,11 @@ def test_operator_timedelta_fields_track_serializer_schema() -> None:
     assert {
         field for field, schema in schema_fields.items() if schema.get("$ref") == "#/definitions/timedelta"
     } == _OPERATOR_TIMEDELTA_FIELDS
+
+
+def test_json_value_encoding_tracks_serializer() -> None:
+    value = {"nested": [None, True, 7, 1.5, "plain", {"__type": "dict", "__var": {"cpu": 1}}]}
+    assert dag_version_diff._encode_json_value(value) == BaseSerialization.serialize(value)
 
 
 @pytest.mark.parametrize("include_values", [False, True])
@@ -360,6 +367,38 @@ def test_build_diff_returns_unavailable_for_unsafe_inputs(base_data, target_data
     assert result["mode"] == "unavailable"
     assert result["changes"] == []
     assert result["unavailable_reason"] == reason
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize("location", ["dag", "task", "provenance"])
+def test_build_diff_discards_changes_when_json_serialization_fails(location, include_values):
+    base = _build_payload(tasks=[{"task_id": "extract"}])
+    target = copy.deepcopy(base)
+    base["dag"]["catchup"] = True
+    target["dag"]["catchup"] = False
+    base_provenance = {}
+    target_provenance = {}
+    if location == "provenance":
+        before, after = base_provenance, target_provenance
+    elif location == "task":
+        before, after = base["dag"]["tasks"][0]["__var"], target["dag"]["tasks"][0]["__var"]
+    else:
+        before, after = base["dag"], target["dag"]
+    before["opaque"] = None
+    after["opaque"] = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    result = build_serialized_dag_diff(
+        base_data=base,
+        target_data=target,
+        base_provenance=base_provenance,
+        target_provenance=target_provenance,
+        include_values=include_values,
+    )
+
+    assert result["mode"] == "unavailable"
+    assert result["unavailable_reason"] == "serialized_dag_canonicalization_failed"
+    assert result["changes"] == []
+    assert result["truncated"] is False
 
 
 def test_build_diff_rejects_non_positive_change_bound() -> None:
@@ -796,6 +835,104 @@ def test_build_diff_normalizes_mapped_timedelta_defaults(field) -> None:
     assert result["changes"] == []
 
 
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize("encoded_location", ["partial_kwargs", "top_level"])
+@pytest.mark.parametrize(
+    "executor_config",
+    [
+        {"queue": "same"},
+        {"nested": {"limits": [{"cpu": 2}]}},
+        {"nested": {"__type": "timedelta", "__var": 60.0}},
+    ],
+)
+def test_build_diff_normalizes_mapped_plain_mappings(executor_config, encoded_location, include_values):
+    with DAG("example", schedule=None) as dag:
+        BashOperator.partial(task_id="extract", executor_config=executor_config).expand(
+            bash_command=["echo hello"]
+        )
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    if encoded_location == "top_level":
+        encoded_task = base["dag"]["tasks"][0]["__var"]
+        encoded_task["executor_config"] = encoded_task["partial_kwargs"].pop("executor_config")
+    target = copy.deepcopy(base)
+    target["dag"]["tasks"][0]["__var"]["partial_kwargs"]["executor_config"] = executor_config
+    stored_payloads = copy.deepcopy((base, target))
+    for payload in (base, target):
+        DagSerialization.validate_schema(payload)
+        assert (
+            DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["extract"].executor_config
+            == executor_config
+        )
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+    assert (base, target) == stored_payloads
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_preserves_literal_mapping_client_defaults(include_values):
+    executor_config = {"__type": "dict", "__var": {"queue": "same"}}
+    with DAG("example", schedule=None) as dag:
+        BashOperator.partial(task_id="extract").expand(bash_command=["echo hello"])
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    base["dag"]["tasks"][0]["__var"]["partial_kwargs"].pop("executor_config", None)
+    base["client_defaults"] = {"tasks": {"executor_config": executor_config}}
+    target = copy.deepcopy(base)
+    target["dag"]["tasks"][0]["__var"]["partial_kwargs"]["executor_config"] = OperatorSerialization.serialize(
+        executor_config
+    )
+    for payload in (base, target):
+        DagSerialization.validate_schema(payload)
+        assert (
+            DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["extract"].executor_config
+            == executor_config
+        )
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+@pytest.mark.parametrize(
+    ("field", "value", "is_template"),
+    [
+        ("resources", {"cpus": 1}, False),
+        ("execution_timeout", timedelta(seconds=60), False),
+        ("executor_config", {"pod": {"cpu": 1}}, True),
+    ],
+)
+def test_build_diff_normalizes_encoded_outer_mapped_fields(field, value, is_template, include_values):
+    with DAG("example", schedule=None) as dag:
+        BashOperator.partial(task_id="extract").expand(bash_command=["echo hello"])
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    base.get("client_defaults", {}).get("tasks", {}).pop(field, None)
+    encoded_value = json.loads(json.dumps(BaseSerialization.serialize(value)))
+    expected = encoded_value if is_template else value
+    base_task = base["dag"]["tasks"][0]["__var"]
+    if is_template:
+        base_task["template_fields"].append(field)
+    base_task["partial_kwargs"][field] = BaseSerialization.serialize(expected)
+    target = copy.deepcopy(base)
+    target_task = target["dag"]["tasks"][0]["__var"]
+    target_task["partial_kwargs"].pop(field)
+    target_task[field] = encoded_value
+    for payload in (base, target):
+        DagSerialization.validate_schema(payload)
+        assert (
+            getattr(DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["extract"], field)
+            == expected
+        )
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
 @pytest.mark.parametrize(
     "base_data",
     [
@@ -1076,6 +1213,24 @@ def test_build_diff_preserves_dag_callback_presence(field):
     assert result["changes"] == [
         {"path": f"/dag/{field}", "operation": "added", "category": "callback", "impact": "execution"}
     ]
+
+
+@pytest.mark.parametrize("field", sorted(_DAG_CALLBACK_FIELDS))
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_normalizes_present_dag_callbacks(field, include_values):
+    with DAG("example", schedule=None) as dag:
+        BashOperator(task_id="extract", bash_command="echo hello")
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    target = copy.deepcopy(base)
+    base["dag"][field] = False
+    target["dag"][field] = True
+    for payload in (base, target):
+        assert getattr(DagSerialization.from_dict(copy.deepcopy(payload)), field) is True
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
 
 
 def _handle_failure(context):
