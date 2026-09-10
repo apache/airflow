@@ -29,12 +29,14 @@ import warnings
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import quote as urlquote
+from urllib.parse import quote as urlquote, urlsplit
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 log = logging.getLogger(__name__)
+
+_DEFAULT_GITHUB_API_URL = "https://api.github.com"
 
 
 class GitHook(BaseHook):
@@ -59,6 +61,9 @@ class GitHook(BaseHook):
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
+    * ``github_api_url`` — base URL of the GitHub REST API that mints the installation access
+      token. Defaults to ``https://api.github.com``. It is required when the repository is not on
+      ``github.com``, for example on GitHub Enterprise Server.
     """
 
     conn_name_attr = "git_conn_id"
@@ -88,6 +93,7 @@ class GitHook(BaseHook):
                         "ssh_port": "",
                         "github_app_id": "",
                         "github_installation_id": "",
+                        "github_api_url": "",
                     }
                 )
             },
@@ -121,6 +127,7 @@ class GitHook(BaseHook):
         # GitHub App Auth Options
         self.github_app_id = extra.get("github_app_id")
         self.github_installation_id = extra.get("github_installation_id")
+        self.github_api_url: str | None = None
         self.github_app_token_exp: datetime | None = None
 
         self.env: dict[str, str] = {}
@@ -148,10 +155,21 @@ class GitHook(BaseHook):
         if all(github_app_fields):
             if self.auth_token:
                 raise ValueError("Password field must be empty to use GitHub App Auth")
-            if not (self.repo_url or "").startswith(("https://", "http://")):
+            repo_url = self.repo_url or ""
+            if not repo_url.startswith(("https://", "http://")):
                 raise ValueError(
                     f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
+            self.github_api_url = extra.get("github_api_url")
+            if not self.github_api_url:
+                repo_host = urlsplit(repo_url).hostname or ""
+                if repo_host != "github.com":
+                    raise ValueError(
+                        f"GitHub App authentication against {repo_host!r} requires 'github_api_url' "
+                        "in the connection extra. The default API URL only serves repositories "
+                        "on 'github.com'."
+                    )
+                self.github_api_url = _DEFAULT_GITHUB_API_URL
             if self.key_file and not self.private_key:
                 with open(self.key_file, encoding="utf-8") as key_file:
                     self.private_key = key_file.read()
@@ -225,7 +243,7 @@ class GitHook(BaseHook):
             ) from exc
 
         auth = Auth.AppAuth(self.github_app_id, self.private_key)
-        integration = GithubIntegration(auth=auth)
+        integration = GithubIntegration(auth=auth, base_url=self.github_api_url)
         access_token = integration.get_access_token(installation_id=self.github_installation_id)
         github_app_token_exp = access_token.expires_at
         log.info(

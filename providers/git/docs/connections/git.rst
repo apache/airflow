@@ -131,6 +131,8 @@ Extra (optional)
     * ``private_key``: An inline PEM-encoded private key string. When provided, the hook writes it
       to a temporary file and uses it for the GitHub App connection.
       Mutually exclusive with ``key_file``.
+    * ``github_api_url``: Base URL of the GitHub REST API. Defaults to ``https://api.github.com``.
+      Set it when the repository is not on ``github.com``, for example on GitHub Enterprise Server.
 
 
     Example with key file:
@@ -151,4 +153,15 @@ Extra (optional)
             "github_app_id": "1234567",
             "github_installation_id": "67890",
             "private_key": "<content of your PEM-encoded private key>"
+        }
+
+    Example with GitHub Enterprise Server:
+
+    .. code-block:: json
+
+        {
+            "github_app_id": "1234567",
+            "github_installation_id": "67890",
+            "key_file": "/path/to/private-key.pem",
+            "github_api_url": "https://github.example.com/api/v3"
         }

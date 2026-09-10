@@ -602,6 +602,58 @@ class TestGitHook:
 
         assert [w for w in recwarn if issubclass(w.category, AirflowProviderDeprecationWarning)] == []
 
+    def test_app_auth_defaults_api_url_to_github_com(self):
+        """A repository on github.com needs no explicit 'github_api_url'."""
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+
+        assert hook.github_api_url == "https://api.github.com"
+
+    def test_app_auth_without_api_url_on_enterprise_host_raises(self, create_connection_without_db):
+        """api.github.com cannot get a token for an Enterprise host."""
+        create_connection_without_db(
+            Connection(
+                conn_id="git_app_enterprise_no_api_url",
+                host="https://github.example.com/apache/airflow.git",
+                conn_type="git",
+                extra={
+                    "github_app_id": "12345",
+                    "github_installation_id": "67890",
+                    "private_key": "inline_pem_key",
+                },
+            )
+        )
+        with pytest.raises(
+            ValueError,
+            match=r"against 'github\.example\.com' requires 'github_api_url' in the connection extra",
+        ):
+            GitHook(git_conn_id="git_app_enterprise_no_api_url")
+
+    @pytest.mark.parametrize(
+        ("repo_url", "github_api_url"),
+        [
+            ("https://github.example.com/apache/airflow.git", "https://github.example.com/api/v3"),
+            (AIRFLOW_HTTPS_URL, "https://api.example.com"),
+        ],
+    )
+    def test_app_auth_keeps_explicit_api_url(self, repo_url, github_api_url, create_connection_without_db):
+        """An explicit 'github_api_url' is used as given, on any host."""
+        create_connection_without_db(
+            Connection(
+                conn_id="git_app_explicit_api_url",
+                host=repo_url,
+                conn_type="git",
+                extra={
+                    "github_app_id": "12345",
+                    "github_installation_id": "67890",
+                    "private_key": "inline_pem_key",
+                    "github_api_url": github_api_url,
+                },
+            )
+        )
+        hook = GitHook(git_conn_id="git_app_explicit_api_url")
+
+        assert hook.github_api_url == github_api_url
+
     @pytest.mark.parametrize(
         ("app_id", "installation_id"),
         [
@@ -689,7 +741,7 @@ class TestGitHook:
 
         fake_github = SimpleNamespace(
             Auth=SimpleNamespace(AppAuth=lambda app_id, key: "auth"),
-            GithubIntegration=lambda auth: mock_integration,
+            GithubIntegration=lambda auth, base_url: mock_integration,
         )
         monkeypatch.setitem(sys.modules, "github", fake_github)
 
@@ -700,3 +752,62 @@ class TestGitHook:
             _, kwargs = mock_integration.get_access_token.call_args
             assert "installation_id" in kwargs
             assert str(kwargs["installation_id"]) == "67890"
+
+    @pytest.mark.parametrize(
+        ("repo_url", "extra_api_url", "expected_base_url"),
+        [
+            (AIRFLOW_HTTPS_URL, None, "https://api.github.com"),
+            (
+                "https://github.example.com/apache/airflow.git",
+                "https://github.example.com/api/v3",
+                "https://github.example.com/api/v3",
+            ),
+        ],
+    )
+    def test_github_app_integration_receives_base_url(
+        self,
+        repo_url,
+        extra_api_url,
+        expected_base_url,
+        create_connection_without_db,
+        monkeypatch,
+    ):
+        """The resolved API base URL reaches PyGithub, which is what makes Enterprise work."""
+        from datetime import datetime, timedelta, timezone
+        from unittest import mock
+
+        extra = {
+            "github_app_id": "12345",
+            "github_installation_id": "67890",
+            "private_key": "inline_pem_key",
+        }
+        if extra_api_url:
+            extra["github_api_url"] = extra_api_url
+        create_connection_without_db(
+            Connection(conn_id="git_app_base_url", host=repo_url, conn_type="git", extra=extra)
+        )
+
+        mock_access_token = mock.MagicMock()
+        mock_access_token.token = "ghs_test_token"
+        mock_access_token.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        mock_integration = mock.MagicMock()
+        mock_integration.get_access_token.return_value = mock_access_token
+
+        import sys
+        from types import SimpleNamespace
+
+        captured = {}
+
+        def fake_integration(auth, base_url):
+            captured["base_url"] = base_url
+            return mock_integration
+
+        fake_github = SimpleNamespace(
+            Auth=SimpleNamespace(AppAuth=lambda app_id, key: "auth"),
+            GithubIntegration=fake_integration,
+        )
+        monkeypatch.setitem(sys.modules, "github", fake_github)
+
+        hook = GitHook(git_conn_id="git_app_base_url")
+        with hook.configure_hook_env():
+            assert captured["base_url"] == expected_base_url
