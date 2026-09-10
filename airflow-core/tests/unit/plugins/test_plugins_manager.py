@@ -237,11 +237,13 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
             external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]  # type: ignore[typeddict-item, typeddict-unknown-key]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
 
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
             external_views = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
             react_apps = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
 
@@ -266,6 +268,7 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
             external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[list-item, typeddict-item]
             react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[list-item, typeddict-item]
 
