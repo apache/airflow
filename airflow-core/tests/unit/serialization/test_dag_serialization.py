@@ -5112,12 +5112,16 @@ class TestWeightRule:
         assert mock_get_registered_priority_weight_strategy.mock_calls == [
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
-            mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
         ]
 
     def test_invalid(self):
         op = BaseOperator(task_id="should_fail", weight_rule="no rule")
-        with pytest.raises(ValueError, match="Unknown priority strategy"):
+        message = (
+            "Priority weight strategy class 'no rule' is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+        with pytest.raises(ValueError, match=re.escape(message)):
             OperatorSerialization.serialize(op)
 
     def test_not_registered_custom(self):
@@ -5126,5 +5130,13 @@ class TestWeightRule:
                 return 99
 
         op = BaseOperator(task_id="empty_task", weight_rule=NotRegisteredPriorityWeightStrategy())
-        with pytest.raises(ValueError, match="Unknown priority strategy"):
+        message = (
+            "Priority weight strategy class "
+            "'unit.serialization.test_dag_serialization."
+            "TestWeightRule.test_not_registered_custom.<locals>."
+            "NotRegisteredPriorityWeightStrategy' is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+        with pytest.raises(ValueError, match=re.escape(message)):
             OperatorSerialization.serialize(op)
