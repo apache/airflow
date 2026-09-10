@@ -1248,6 +1248,8 @@ class TestTaskInstance:
             ["all_success", _UpstreamTIStates(2, 1, 0, 0, 0, 0, 0, 0), True, State.SKIPPED, False],
             # 1:1 mapped upstream shrank: map_index >= success once the upstream is done
             ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 5, 0, 0), True, State.REMOVED, True],
+            # same counts while the upstream is still running: no removal inference yet
+            ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 0, 0, 0), True, None, True],
             #
             # Tests for one_success
             #
