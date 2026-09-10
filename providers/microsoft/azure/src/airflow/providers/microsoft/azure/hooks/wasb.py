@@ -546,7 +546,8 @@ class WasbHook(BaseHook):
         self.check_for_variable_type("container", container, ContainerClient)
         container = cast("ContainerClient", container)
 
-        for blob in container.list_blobs(name_starts_with=prefix):
+        list_prefix = f"{prefix.rstrip('/')}/" if prefix else prefix
+        for blob in container.list_blobs(name_starts_with=list_prefix):
             if blob.name.endswith("/"):
                 continue
             blob_path = Path(blob.name)
