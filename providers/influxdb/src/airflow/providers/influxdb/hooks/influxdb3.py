@@ -47,7 +47,7 @@ from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureEx
 if TYPE_CHECKING:
     import pandas as pd
 
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 
 def _import_pandas() -> Any:
