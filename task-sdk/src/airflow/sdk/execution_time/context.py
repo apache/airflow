@@ -72,6 +72,7 @@ if TYPE_CHECKING:
         OKResponse,
         PrevSuccessfulDagRunResponse,
         ReceiveMsgType,
+        ToSupervisor,
         VariableResult,
     )
     from airflow.sdk.state import BaseStoreBackend
@@ -694,21 +695,31 @@ class AssetStateStoreAccessor:
 
     def get(self, key: str, default: JsonValue = None) -> JsonValue:
         """Return the stored value, or ``default`` if the key does not exist."""
-        from airflow.sdk.execution_time.comms import (
-            AssetStateStoreResult,
-            ErrorResponse,
-            GetAssetStateStoreByName,
-            GetAssetStateStoreByUri,
-            ToSupervisor,
-        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        resp = SUPERVISOR_COMMS.send(self._build_get_message(key))
+        return self._extract_get_response(resp, key, default)
+
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Async version of `get` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        resp = await SUPERVISOR_COMMS.asend(self._build_get_message(key))
+        return self._extract_get_response(resp, key, default)
+
+    def _build_get_message(self, key: str) -> ToSupervisor:
+        from airflow.sdk.execution_time.comms import GetAssetStateStoreByName, GetAssetStateStoreByUri
 
         msg: ToSupervisor
         if self._name:
             msg = GetAssetStateStoreByName(name=self._name, key=key)
         elif self._uri:
             msg = GetAssetStateStoreByUri(uri=self._uri, key=key)
-        resp = SUPERVISOR_COMMS.send(msg)
+        return msg
+
+    def _extract_get_response(self, resp: Any, key: str, default: JsonValue) -> JsonValue:
+        from airflow.sdk.execution_time.comms import AssetStateStoreResult, ErrorResponse
+
         if isinstance(resp, ErrorResponse) and resp.error != ErrorType.ASSET_STORE_NOT_FOUND:
             raise AirflowRuntimeError(resp)
         if isinstance(resp, AssetStateStoreResult):
@@ -730,12 +741,18 @@ class AssetStateStoreAccessor:
 
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the given key. ``value`` must not be ``None``."""
-        from airflow.sdk.execution_time.comms import (
-            SetAssetStateStoreByName,
-            SetAssetStateStoreByUri,
-            ToSupervisor,
-        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send(self._build_set_message(key, value))
+
+    async def aset(self, key: str, value: JsonValue) -> None:
+        """Async version of `set` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_set_message(key, value))
+
+    def _build_set_message(self, key: str, value: JsonValue) -> ToSupervisor:
+        from airflow.sdk.execution_time.comms import SetAssetStateStoreByName, SetAssetStateStoreByUri
 
         if value is None:
             raise ValueError("Cannot set value as None")
@@ -765,49 +782,66 @@ class AssetStateStoreAccessor:
             msg = SetAssetStateStoreByName(name=self._name, key=key, value=stored)
         elif self._uri:
             msg = SetAssetStateStoreByUri(uri=self._uri, key=key, value=stored)
-        SUPERVISOR_COMMS.send(msg)
+        return msg
 
     def delete(self, key: str) -> None:
         """Delete a single key. No-op if the key does not exist."""
-        from airflow.sdk._shared.state import AssetScope
-        from airflow.sdk.execution_time.comms import (
-            DeleteAssetStateStoreByName,
-            DeleteAssetStateStoreByUri,
-            ToSupervisor,
-        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        # DB ref first: if backend cleanup fails after this, the ref is gone and
+        # deterministic keys are recoverable on next set().
+        SUPERVISOR_COMMS.send(self._build_delete_message(key))
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
+
+    async def adelete(self, key: str) -> None:
+        """Async version of `delete` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_delete_message(key))
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            await backend.adelete(AssetScope(name=self._name, uri=self._uri), key)
+
+    def _build_delete_message(self, key: str) -> ToSupervisor:
+        from airflow.sdk.execution_time.comms import DeleteAssetStateStoreByName, DeleteAssetStateStoreByUri
 
         msg: ToSupervisor
         if self._name:
             msg = DeleteAssetStateStoreByName(name=self._name, key=key)
         elif self._uri:
             msg = DeleteAssetStateStoreByUri(uri=self._uri, key=key)
-        # DB ref first: if backend cleanup fails after this, the ref is gone and
-        # deterministic keys are recoverable on next set().
-        SUPERVISOR_COMMS.send(msg)
-        backend = _get_worker_state_store_backend()
-        if backend is not None:
-            backend.delete(AssetScope(name=self._name, uri=self._uri), key)
+        return msg
 
     def clear(self) -> None:
         """Delete all state keys for this asset."""
-        from airflow.sdk._shared.state import AssetScope
-        from airflow.sdk.execution_time.comms import (
-            ClearAssetStateStoreByName,
-            ClearAssetStateStoreByUri,
-            ToSupervisor,
-        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        # DB ref first, same ordering rationale as delete().
+        SUPERVISOR_COMMS.send(self._build_clear_message())
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            backend.clear(AssetScope(name=self._name, uri=self._uri))
+
+    async def aclear(self) -> None:
+        """Async version of `clear` that awaits instead of blocking the event loop."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        await SUPERVISOR_COMMS.asend(self._build_clear_message())
+        backend = _get_worker_state_store_backend()
+        if backend is not None:
+            await backend.aclear(AssetScope(name=self._name, uri=self._uri))
+
+    def _build_clear_message(self) -> ToSupervisor:
+        from airflow.sdk.execution_time.comms import ClearAssetStateStoreByName, ClearAssetStateStoreByUri
 
         msg: ToSupervisor
         if self._name:
             msg = ClearAssetStateStoreByName(name=self._name)
         elif self._uri:
             msg = ClearAssetStateStoreByUri(uri=self._uri)
-        SUPERVISOR_COMMS.send(msg)
-        backend = _get_worker_state_store_backend()
-        if backend is not None:
-            backend.clear(AssetScope(name=self._name, uri=self._uri))
+        return msg
 
 
 class AssetStateStoreAccessors:
@@ -818,7 +852,8 @@ class AssetStateStoreAccessors:
     accessor as: ``context['asset_state_store'][MY_ASSET].get('watermark')``.
 
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
-    ``set``, ``delete``, ``clear``) can be called directly without subscripting.
+    ``set``, ``delete``, ``clear``, and their async counterparts ``aget``, ``aset``,
+    ``adelete``, ``aclear``) can be called directly without subscripting.
     """
 
     def __init__(self, inlets: list, outlets: list | None = None) -> None:
@@ -871,17 +906,33 @@ class AssetStateStoreAccessors:
         """Return the stored value for the single-inlet or single-outlet task, or ``default`` if not found."""
         return self._single_accessor().get(key, default)
 
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        """Async version of `get` that awaits instead of blocking the event loop."""
+        return await self._single_accessor().aget(key, default)
+
     def set(self, key: str, value: JsonValue) -> None:
         """Write or overwrite the value for the single-inlet task."""
         self._single_accessor().set(key, value)
+
+    async def aset(self, key: str, value: JsonValue) -> None:
+        """Async version of `set` that awaits instead of blocking the event loop."""
+        await self._single_accessor().aset(key, value)
 
     def delete(self, key: str) -> None:
         """Delete a single key for the single-inlet task."""
         self._single_accessor().delete(key)
 
+    async def adelete(self, key: str) -> None:
+        """Async version of `delete` that awaits instead of blocking the event loop."""
+        await self._single_accessor().adelete(key)
+
     def clear(self) -> None:
         """Delete all state keys for the single-inlet task."""
         self._single_accessor().clear()
+
+    async def aclear(self) -> None:
+        """Async version of `clear` that awaits instead of blocking the event loop."""
+        await self._single_accessor().aclear()
 
     def __repr__(self) -> str:
         parts = [f"name={k!r}" for k in self._by_name] + [f"uri={k!r}" for k in self._by_uri]
@@ -942,7 +993,6 @@ class _AssetRefResolutionMixin:
             ErrorResponse,
             GetAssetByName,
             GetAssetByUri,
-            ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -1134,7 +1184,6 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             ErrorResponse,
             GetAssetEventByAsset,
             GetAssetEventByAssetAlias,
-            ToSupervisor,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
