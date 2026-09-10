@@ -203,8 +203,7 @@ def action_logging(event: str | None = None):
         masked_body_json = {}
 
         if has_json_body:
-            # ``request_body`` stays empty unless the body parses to a dict, so the ``.items()``
-            # calls below never see a list or a bare string. The endpoint rejects those with 422.
+            # Non-dict bodies fall through to the endpoint's own 422.
             parsed_body = await request.json()
             if isinstance(parsed_body, dict):
                 request_body = parsed_body
