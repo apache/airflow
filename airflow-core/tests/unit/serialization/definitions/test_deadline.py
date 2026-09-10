@@ -49,6 +49,7 @@ class TestVariableInterval:
             (None, True, "not found"),
             ("abc", False, "must be an integer"),
             ("", False, "must be an integer"),
+            ("99999999999999", False, "too large to be a valid interval"),
         ],
     )
     def test_resolve_invalid(self, mocker, value, raise_missing, match):

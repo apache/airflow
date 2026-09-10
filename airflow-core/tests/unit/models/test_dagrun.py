@@ -1604,30 +1604,98 @@ class TestDagRun:
             "log_level": "warning",
         } not in caplog
 
-    @mock.patch.object(Deadline, "prune_deadlines")
-    def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-
-        with mock.patch.object(
-            Variable,
-            "get",
-            side_effect=KeyError,
-        ):
-            future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-
-            scheduler_dag = deadline_test_dag(
-                deadline=DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(future_date),
-                    interval=VariableInterval("missing_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
+    @pytest.mark.parametrize(
+        ("interval", "failure"),
+        [
+            pytest.param(
+                VariableInterval("missing_key"),
+                mock.patch.object(Variable, "get", side_effect=KeyError),
+                id="unresolvable_interval",
+            ),
+            pytest.param(
+                datetime.timedelta(hours=1),
+                mock.patch(
+                    "airflow.serialization.definitions.dag.decode_deadline_alert",
+                    autospec=True,
+                    side_effect=ValueError("corrupt deadline alert blob"),
                 ),
+                id="undecodable_alert",
+            ),
+            pytest.param(
+                datetime.timedelta(hours=1),
+                mock.patch.object(
+                    SerializedReferenceModels.FixedDatetimeDeadline,
+                    "evaluate_with",
+                    autospec=True,
+                    side_effect=RuntimeError("evaluate_with failed"),
+                ),
+                id="unevaluable_reference",
+            ),
+        ],
+    )
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_failure_does_not_abort_dagrun(
+        self, _, mock_stats_incr, interval, failure, session, deadline_test_dag
+    ):
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=interval,
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        with (
+            conf_vars({("core", "multi_team"): "true"}),
+            mock.patch("airflow.models.dag.DagModel.get_team_name", return_value="team_alpha"),
+            failure,
+        ):
+            dag_run = self.create_dag_run(
+                dag=scheduler_dag,
+                task_states={"task_1": TaskInstanceState.SUCCESS},
+                session=session,
             )
 
-            with pytest.raises(ValueError, match="not found"):
-                self.create_dag_run(
-                    dag=scheduler_dag,
-                    task_states={"task_1": TaskInstanceState.SUCCESS},
-                    session=session,
-                )
+        assert dag_run is not None
+        assert session.execute(select(Deadline)).scalars().one_or_none() is None
+        mock_stats_incr.assert_any_call(
+            "deadline_alerts.deadline_creation_failed",
+            tags={"dag_id": scheduler_dag.dag_id, "team_name": "team_alpha"},
+        )
+
+    @pytest.mark.parametrize(
+        ("interval", "expect_deadline"),
+        [
+            pytest.param(datetime.timedelta(seconds=5), True, id="deadline_created"),
+            pytest.param(VariableInterval("missing_key"), False, id="deadline_skipped"),
+        ],
+    )
+    @mock.patch.object(Deadline, "prune_deadlines")
+    def test_dagrun_deadline_handling_does_not_commit(
+        self, _, interval, expect_deadline, session, deadline_test_dag
+    ):
+        """DagRuns are created under ``prohibit_commit``, so neither creating a deadline nor
+        skipping one whose interval will not resolve may commit the scheduler's session."""
+        future_date = datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=interval,
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        # No task_states: the helper's get_task_instance() opens its own session and would trip the guard.
+        with prohibit_commit(session), mock.patch.object(Variable, "get", side_effect=KeyError):
+            dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+        session.flush()
+
+        assert dag_run is not None
+        deadline = session.execute(select(Deadline)).scalars().one_or_none()
+        assert (deadline is not None) is expect_deadline
 
 
 @pytest.mark.parametrize(
