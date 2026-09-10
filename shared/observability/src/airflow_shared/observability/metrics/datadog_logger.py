@@ -142,6 +142,15 @@ class SafeDogStatsdLogger:
             return Timer(self.dogstatsd.timed(stat, tags=tags_list, **kwargs))
         return Timer()
 
+    def observable_gauge(
+        self,
+        stat: str,
+        callback,
+        *,
+        description: str = "",
+    ) -> None:
+        """Observable gauges are not supported by the Datadog backend; this is a no-op."""
+
 
 def get_dogstatsd_logger(
     *,

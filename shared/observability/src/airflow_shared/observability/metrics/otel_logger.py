@@ -26,6 +26,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
+from opentelemetry.metrics import CallbackOptions, Observation
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import (
     ConsoleMetricExporter,
@@ -319,6 +320,40 @@ class SafeOtelLogger:
         """Timer context manager returns the duration and can be cancelled."""
         safe_stat = stat if self._is_recordable(stat) else None
         return _OtelTimer(self, safe_stat, tags)
+
+    def observable_gauge(
+        self,
+        stat: str,
+        callback,
+        *,
+        description: str = "",
+    ) -> None:
+        """
+        Register a callback-based gauge whose values are collected at export time.
+
+        The callback is invoked by the OTel SDK during metric collection (in the
+        export thread), not during registration.  It receives a single
+        ``timeout_millis`` argument (a ``float``) and must yield
+        ``(value, attributes)`` tuples where *value* is numeric and
+        *attributes* is an optional ``dict``.  The tuples are converted to
+        :class:`~opentelemetry.metrics.Observation` objects internally.
+
+        :param stat: The metric name.
+        :param callback: A callable that yields ``(value, attributes)`` tuples.
+        :param description: Optional human-readable description of the metric.
+        """
+        if not self._is_recordable(stat):
+            return
+
+        def _otel_callback(options: CallbackOptions):
+            for value, attributes in callback(options.timeout_millis):
+                yield Observation(value=value, attributes=attributes)
+
+        self.meter.create_observable_gauge(
+            name=_get_otel_safe_name(full_name(prefix=self.prefix, name=stat)),
+            callbacks=[_otel_callback],
+            description=description,
+        )
 
 
 class InternalGauge:
