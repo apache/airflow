@@ -507,6 +507,53 @@ class DAGTagCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DagBundleResponse(BaseModel):
+    """
+    Dag bundle serializer for responses.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    active: Annotated[
+        bool | None,
+        Field(
+            description="Whether the bundle is still present in this deployment's configuration.",
+            title="Active",
+        ),
+    ]
+    version: Annotated[
+        str | None,
+        Field(
+            description="The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.",
+            title="Version",
+        ),
+    ]
+    last_refreshed: Annotated[
+        datetime | None,
+        Field(
+            description="When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.",
+            title="Last Refreshed",
+        ),
+    ]
+    bundle_url: Annotated[
+        str | None,
+        Field(
+            description="A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.",
+            title="Bundle Url",
+        ),
+    ]
+    team_name: Annotated[
+        str | None,
+        Field(description="The team owning the bundle, in a multi-team deployment.", title="Team Name"),
+    ]
+    import_error_count: Annotated[
+        int | None,
+        Field(
+            description="Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.",
+            title="Import Error Count",
+        ),
+    ]
+
+
 class DagProcessorInstanceInfoResponse(BaseModel):
     """
     Dag processor instance info serializer for responses.
@@ -1931,6 +1978,15 @@ class DAGWarningResponse(BaseModel):
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+
+
+class DagBundleCollectionResponse(BaseModel):
+    """
+    Dag bundle collection response.
+    """
+
+    dag_bundles: Annotated[list[DagBundleResponse], Field(title="Dag Bundles")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class DagProcessorInfoResponse(BaseModel):

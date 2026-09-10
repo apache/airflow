@@ -3327,6 +3327,87 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dagBundles:
+    get:
+      tags:
+      - Dag Bundle
+      summary: Get Dag Bundles
+      description: 'List the Dag bundles Airflow knows about.
+
+
+        Reports the version of each bundle Airflow currently holds and when a Dag
+        processor last
+
+        refreshed it, so whoever deployed the code can tell whether it has been picked
+        up yet.
+
+
+        A bundle is visible to a user who can read at least one Dag recorded against
+        it, so one from
+
+        which no Dag has ever parsed successfully is not listed at all.'
+      operationId: get_dag_bundles
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `name, version,
+            last_refreshed, active`'
+          default:
+          - name
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `name, version, last_refreshed,
+          active`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagBundleCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dagStats:
     get:
       tags:
@@ -13934,6 +14015,82 @@ components:
       - dag_display_name
       title: DAGWarningResponse
       description: Dag Warning serializer for responses.
+    DagBundleCollectionResponse:
+      properties:
+        dag_bundles:
+          items:
+            $ref: '#/components/schemas/DagBundleResponse'
+          type: array
+          title: Dag Bundles
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dag_bundles
+      - total_entries
+      title: DagBundleCollectionResponse
+      description: Dag bundle collection response.
+    DagBundleResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        active:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Active
+          description: Whether the bundle is still present in this deployment's configuration.
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+          description: The latest version Airflow has seen for the bundle. Null when
+            the bundle does not support versioning, or when no Dag processor has refreshed
+            it successfully yet.
+        last_refreshed:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Refreshed
+          description: When a Dag processor last successfully refreshed the bundle.
+            It advances even when the version did not change, and a failed refresh
+            leaves it untouched.
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          description: A link to view the bundle at ``version``, when one is configured
+            and the caller may read Dag versions.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: The team owning the bundle, in a multi-team deployment.
+        import_error_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Import Error Count
+          description: Number of Dag import errors recorded against this bundle that
+            the caller is permitted to see, counted on the same terms as ``GET /importErrors``.
+            Null when the caller may not read import errors.
+      type: object
+      required:
+      - name
+      - active
+      - version
+      - last_refreshed
+      - bundle_url
+      - team_name
+      - import_error_count
+      title: DagBundleResponse
+      description: Dag bundle serializer for responses.
     DagProcessorInfoResponse:
       properties:
         status:

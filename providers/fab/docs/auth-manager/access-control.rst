@@ -298,6 +298,10 @@ Stable API Permissions
      - PATCH
      - Connections.can_edit
      - Op
+   * - ``/api/v2/dagBundles``
+     - GET
+     - DAGs.can_read
+     - Viewer
    * - ``/api/v2/dagSources/{dag_id}``
      - GET
      - DAGs.can_read, DAG Code.can_read
