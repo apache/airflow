@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Tipo de Evento"
-    },
-    "title": "Log de Auditoria"
+    }
   },
   "xcom": {
     "add": {

@@ -26,11 +26,13 @@ import shlex
 import stat
 import tempfile
 import warnings
+from collections.abc import Generator
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote as urlquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +55,10 @@ class GitHook(BaseHook):
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
+    * ``github_app_id`` — GitHub App ID used for GitHub App authentication. Requires the GitHub App
+      private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
+      ``key_file`` (path to key file).
+    * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
     """
 
     conn_name_attr = "git_conn_id"
@@ -80,6 +86,8 @@ class GitHook(BaseHook):
                         "ssh_config_file": "",
                         "host_proxy_cmd": "",
                         "ssh_port": "",
+                        "github_app_id": "",
+                        "github_installation_id": "",
                     }
                 )
             },
@@ -110,6 +118,11 @@ class GitHook(BaseHook):
         self.host_proxy_cmd = extra.get("host_proxy_cmd")
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
+        # GitHub App Auth Options
+        self.github_app_id = extra.get("github_app_id")
+        self.github_installation_id = extra.get("github_installation_id")
+        self.github_app_token_exp: datetime | None = None
+
         self.env: dict[str, str] = {}
 
         if self.key_file and self.private_key:
@@ -127,6 +140,21 @@ class GitHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+        github_app_fields = (self.github_app_id, self.github_installation_id)
+        if any(github_app_fields) and not all(github_app_fields):
+            raise ValueError(
+                "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
+            )
+        if all(github_app_fields):
+            if self.auth_token:
+                raise ValueError("Password field must be empty to use GitHub App Auth")
+            if not (self.repo_url or "").startswith(("https://", "http://")):
+                raise ValueError(
+                    f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
+                )
+            if self.key_file and not self.private_key:
+                with open(self.key_file, encoding="utf-8") as key_file:
+                    self.private_key = key_file.read()
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
@@ -183,7 +211,89 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
-    def _process_git_auth_url(self):
+    def _get_github_app_token(self):
+        try:
+            from github import Auth, GithubIntegration
+        except ImportError as exc:
+            raise AirflowOptionalProviderFeatureException(
+                "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
+            ) from exc
+
+        auth = Auth.AppAuth(self.github_app_id, self.private_key)
+        integration = GithubIntegration(auth=auth)
+        access_token = integration.get_access_token(installation_id=self.github_installation_id)
+        github_app_token_exp = access_token.expires_at
+        log.info(
+            "Successfully obtained GitHub App installation access token (expires at: %s)",
+            github_app_token_exp,
+        )
+
+        return "x-access-token", access_token.token, github_app_token_exp
+
+    def _ensure_github_app_token(self) -> None:
+        TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
+        if (
+            self.github_app_token_exp is None
+            or self.github_app_token_exp < datetime.now(timezone.utc) + TOKEN_REFRESH_BUFFER
+        ):
+            log.info(
+                "GitHub App token is missing or near expiry (expires at: %s). Refreshing token.",
+                self.github_app_token_exp,
+            )
+            self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
+
+    @contextlib.contextmanager
+    def _github_app_askpass_env(self) -> Generator[None]:
+        if not self.auth_token:
+            yield
+            return
+
+        token = shlex.quote(self.auth_token)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
+            askpass_script.write(
+                "#!/bin/sh\n"
+                'case "$1" in\n'
+                "  *Username*) echo x-access-token;;\n"
+                f"  *Password*) echo {token};;\n"
+                f"  *) echo {token};;\n"
+                "esac\n"
+            )
+            askpass_script.flush()
+            os.chmod(askpass_script.name, stat.S_IRWXU)
+
+            old_askpass = os.environ.get("GIT_ASKPASS")
+            old_lc_all = os.environ.get("LC_ALL")
+            old_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
+            try:
+                os.environ["GIT_ASKPASS"] = askpass_script.name
+                os.environ["GIT_TERMINAL_PROMPT"] = "0"
+                self.env["GIT_ASKPASS"] = askpass_script.name
+                self.env["LC_ALL"] = "C"
+                self.env["GIT_TERMINAL_PROMPT"] = "0"
+                yield
+            finally:
+                if old_askpass is None:
+                    self.env.pop("GIT_ASKPASS", None)
+                    os.environ.pop("GIT_ASKPASS", None)
+                else:
+                    self.env["GIT_ASKPASS"] = old_askpass
+                    os.environ["GIT_ASKPASS"] = old_askpass
+
+                if old_lc_all is None:
+                    self.env.pop("LC_ALL", None)
+                    os.environ.pop("LC_ALL", None)
+                else:
+                    self.env["LC_ALL"] = old_lc_all
+                    os.environ["LC_ALL"] = old_lc_all
+
+                if old_terminal_prompt is None:
+                    self.env.pop("GIT_TERMINAL_PROMPT", None)
+                    os.environ.pop("GIT_TERMINAL_PROMPT", None)
+                else:
+                    self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
+                    os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
+
+    def _process_git_auth_url(self) -> None:
         if not isinstance(self.repo_url, str):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
@@ -240,6 +350,12 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
+        if self.github_app_id is not None and self.github_installation_id is not None:
+            self._ensure_github_app_token()
+            with self._github_app_askpass_env():
+                yield
+            return
+
         if self.private_key:
             with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
                 tmp_keyfile.write(self.private_key)

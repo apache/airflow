@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from airflow_breeze.commands.developer_commands import build_docs
+from airflow_breeze.commands.developer_commands import build_docs, run
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
 
@@ -51,23 +51,21 @@ class TestBuildDocsPythonVersion:
 
     def _invoke(self, runner: CliRunner, args: list[str], env: dict[str, str] | None = None):
         with (
-            patch(
-                "airflow_breeze.commands.developer_commands.rebuild_or_pull_ci_image_if_needed"
-            ) as mock_rebuild,
+            patch("airflow_breeze.commands.developer_commands.build_ci_image_if_needed") as mock_build,
             patch("airflow_breeze.commands.developer_commands.execute_command_in_shell") as mock_shell,
         ):
             mock_shell.return_value.returncode = 0
             runner.invoke(build_docs, args, env=env, catch_exceptions=False)
-        return mock_rebuild, mock_shell
+        return mock_build, mock_shell
 
     def test_environment_python_does_not_change_the_docs_build(self, runner):
         # PYTHON_MAJOR_MINOR_VERSION is set on every job of the docs publishing workflow, so an
         # option reading it silently decided what the docs were built with.
-        mock_rebuild, mock_shell = self._invoke(
+        mock_build, mock_shell = self._invoke(
             runner, ["--docs-only"], env={"PYTHON_MAJOR_MINOR_VERSION": "3.12"}
         )
 
-        assert mock_rebuild.call_args.kwargs["command_params"].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+        assert mock_build.call_args.kwargs["command_params"].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
         assert mock_shell.call_args.args[0].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
     def test_python_option_is_rejected(self, runner):
@@ -75,3 +73,35 @@ class TestBuildDocsPythonVersion:
 
         assert result.exit_code != 0
         assert "no such option" in result.output.lower()
+
+
+class TestRunIncludeMypyVolume:
+    @pytest.fixture(autouse=True)
+    def _no_docker(self, monkeypatch):
+        monkeypatch.setenv("SKIP_SAVING_CHOICES", "true")
+        monkeypatch.delenv("INCLUDE_MYPY_VOLUME", raising=False)
+        monkeypatch.setattr(
+            "airflow_breeze.commands.developer_commands.bring_compose_project_down", lambda *a, **kw: None
+        )
+        for name in ("fix_ownership_using_docker", "remove_docker_networks"):
+            monkeypatch.setattr(f"airflow_breeze.utils.docker_command_utils.{name}", lambda *a, **kw: None)
+
+    def _invoke(self, runner: CliRunner, args: list[str], env: dict[str, str] | None = None):
+        with (
+            patch("airflow_breeze.commands.ci_image_commands.build_ci_image_if_needed"),
+            patch("airflow_breeze.utils.docker_command_utils.execute_command_in_shell") as mock_shell,
+        ):
+            mock_shell.return_value.returncode = 0
+            runner.invoke(run, [*args, "true"], env=env, catch_exceptions=False)
+        return mock_shell.call_args.kwargs["shell_params"]
+
+    @pytest.mark.parametrize(
+        ("args", "env", "expected"),
+        [
+            pytest.param([], None, False, id="default"),
+            pytest.param(["--include-mypy-volume"], None, True, id="flag"),
+            pytest.param([], {"INCLUDE_MYPY_VOLUME": "true"}, True, id="env"),
+        ],
+    )
+    def test_include_mypy_volume_is_passed_to_shell_params(self, runner, args, env, expected):
+        assert self._invoke(runner, args, env=env).include_mypy_volume is expected

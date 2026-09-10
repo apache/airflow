@@ -25,7 +25,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -40,8 +39,7 @@ const (
 )
 
 // translateApiError converts a supervisor *ApiError whose Err field matches
-// code into a sentinel-wrapped error (matching the formatting the HTTP-backed
-// sdk.client uses for the same condition). Any other error - including a
+// code into a sentinel-wrapped error. Any other error - including a
 // *ApiError with a different code - is returned unchanged so callers can keep
 // distinguishing transport / server errors from "thing not found".
 func translateApiError(err error, code string, sentinel error, key string) error {
@@ -72,10 +70,6 @@ func NewCoordinatorClient(comm *CoordinatorComm) *CoordinatorClient {
 
 // GetVariable requests a variable value from the supervisor.
 func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string, error) {
-	// TODO: this duplicates variableFromEnv in sdk/client.go. The env-first
-	// precedence is part of the SDK contract, so both clients should share a
-	// single helper (e.g. an exported sdk.VariableFromEnv) instead of two
-	// independent copies that can drift.
 	if env, ok := os.LookupEnv(sdk.VariableEnvPrefix + strings.ToUpper(key)); ok {
 		return env, nil
 	}
@@ -100,9 +94,6 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 	// TODO: register secret-named variables with a SecretsMasker so the
 	// returned value is automatically redacted from subsequent task logs,
 	// matching Python's airflow.models.variable.Variable.get behaviour.
-	// Pairs with the "TODO: mask secrets here" hook in
-	// pkg/worker/runner.go's task log handler — both halves are needed
-	// before secret masking actually works end-to-end.
 
 	switch v := result.Value.(type) {
 	case string:
@@ -165,7 +156,7 @@ func (c *CoordinatorClient) GetConnection(
 	// Preserve the null-vs-empty distinction on credentials so an explicitly
 	// empty credential (distinct from "no credential set") survives the
 	// coordinator hop and reaches sdk.Connection's URI-building code the same
-	// way it does in the HTTP-backed SDK. The supervisor schema types these as
+	// way it does in Airflow. The supervisor schema types these as
 	// nullable strings, decoded here from the generated `any` fields.
 	conn.Login = ifaceStringPtr(result.Login)
 	conn.Password = ifaceStringPtr(result.Password)
@@ -179,9 +170,7 @@ func (c *CoordinatorClient) GetConnection(
 	// TODO: register conn.Password and sensitive-keyed entries of conn.Extra
 	// with a SecretsMasker so they are auto-redacted from subsequent task
 	// logs, matching Python's airflow.models.connection.Connection.get
-	// behaviour. Pairs with the "TODO: mask secrets here" hook in
-	// pkg/worker/runner.go's task log handler and the matching TODO on
-	// GetVariable above.
+	// behaviour.
 
 	return conn, nil
 }
@@ -223,16 +212,16 @@ func (c *CoordinatorClient) GetXCom(
 // PushXCom sends an XCom value to the supervisor.
 func (c *CoordinatorClient) PushXCom(
 	ctx context.Context,
-	ti api.TaskInstance,
+	ti sdk.TaskInstance,
 	key string,
 	value any,
 ) error {
 	msg := genmodels.SetXCom{
 		Key:    key,
 		Value:  value,
-		DagID:  ti.DagId,
-		TaskID: ti.TaskId,
-		RunID:  ti.RunId,
+		DagID:  ti.DagID,
+		TaskID: ti.TaskID,
+		RunID:  ti.RunID,
 	}
 	// map_index mirrors Python's SetXCom.map_index (int | None): -1 is the
 	// unmapped sentinel, omitted from the payload rather than sent. Assign the

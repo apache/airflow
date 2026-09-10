@@ -36,9 +36,9 @@ concurrency:
 jobs:
   dependency-review:
     name: Reject vulnerable dependency changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Review dependency changes
-        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48  # v4.9.0
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
         with:
           fail-on-severity: high

@@ -28,7 +28,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import (
@@ -47,7 +47,6 @@ from airflow.providers.common.sql.operators.sql import (
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 

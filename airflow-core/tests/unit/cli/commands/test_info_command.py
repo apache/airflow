@@ -162,6 +162,15 @@ class TestAirflowInfo:
         assert airflow_version in output
         assert "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow" in output
 
+    @mock.patch.dict(os.environ, {"FORCE_COLOR": "1", "TERM": "xterm-256color"})
+    def test_render_text_stays_plain_on_a_color_terminal(self):
+        instance = info_command.AirflowInfo(info_command.NullAnonymizer())
+
+        rendered = instance.render_text("table")
+
+        assert airflow_version in rendered
+        assert "\x1b[" not in rendered
+
 
 @pytest.fixture
 def setup_parser():
@@ -188,3 +197,4 @@ class TestInfoCommandMockHttpx:
             with stdout_capture as stdout:
                 info_command.show_info(setup_parser.parse_args(["info", "--file-io", "--anonymize"]))
             assert "https://file.io/TEST" in stdout.getvalue()
+            assert airflow_version in post.call_args.kwargs["content"]

@@ -23,29 +23,64 @@ from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSp
 GCP_CONN_ID = "test"
 SPREADSHEET_URL = "https://example/sheets"
 SPREADSHEET_ID = "1234567890"
+DRIVE_ID = "shared_drive_123"
+SPREADSHEET_DATA = {"properties": {"title": "My Test Spreadsheet"}}
 
 
 class TestGoogleSheetsCreateSpreadsheet:
     @mock.patch("airflow.providers.google.suite.operators.sheets.GSheetsHook")
-    def test_execute(self, mock_hook):
+    def test_execute_via_sheets_api(self, mock_sheets_hook):
+        """Test spreadsheet creation using the standard Sheets API, no drive_id provided."""
         mock_task_instance = mock.MagicMock()
         context = {"task_instance": mock_task_instance}
-        spreadsheet = mock.MagicMock()
-        mock_hook.return_value.create_spreadsheet.return_value = {
+
+        mock_sheets_hook.return_value.create_spreadsheet.return_value = {
             "spreadsheetId": SPREADSHEET_ID,
             "spreadsheetUrl": SPREADSHEET_URL,
         }
+
         op = GoogleSheetsCreateSpreadsheetOperator(
-            task_id="test_task", spreadsheet=spreadsheet, gcp_conn_id=GCP_CONN_ID
+            task_id="test_task", spreadsheet=SPREADSHEET_DATA, gcp_conn_id=GCP_CONN_ID
         )
         op_execute_result = op.execute(context)
 
-        mock_hook.return_value.create_spreadsheet.assert_called_once_with(spreadsheet=spreadsheet)
+        mock_sheets_hook.return_value.create_spreadsheet.assert_called_once_with(spreadsheet=SPREADSHEET_DATA)
 
         # Verify xcom_push was called with correct arguments
         assert mock_task_instance.xcom_push.call_count == 2
         mock_task_instance.xcom_push.assert_any_call(key="spreadsheet_id", value=SPREADSHEET_ID)
         mock_task_instance.xcom_push.assert_any_call(key="spreadsheet_url", value=SPREADSHEET_URL)
 
-        assert op_execute_result["spreadsheetId"] == "1234567890"
-        assert op_execute_result["spreadsheetUrl"] == "https://example/sheets"
+        assert op_execute_result["spreadsheetId"] == SPREADSHEET_ID
+        assert op_execute_result["spreadsheetUrl"] == SPREADSHEET_URL
+
+    @mock.patch("airflow.providers.google.suite.operators.sheets.GoogleDriveHook")
+    def test_execute_via_drive_api(self, mock_drive_hook):
+        """Test spreadsheet creation using the Drive API with drive_id provided."""
+        mock_task_instance = mock.MagicMock()
+        context = {"task_instance": mock_task_instance}
+
+        mock_drive_hook.return_value.create_file.return_value = {
+            "id": SPREADSHEET_ID,
+            "webViewLink": SPREADSHEET_URL,
+        }
+
+        op = GoogleSheetsCreateSpreadsheetOperator(
+            task_id="test_task", spreadsheet=SPREADSHEET_DATA, gcp_conn_id=GCP_CONN_ID, drive_id=DRIVE_ID
+        )
+        op_execute_result = op.execute(context)
+
+        expected_metadata = {
+            "name": "My Test Spreadsheet",
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+            "parents": [DRIVE_ID],
+        }
+
+        mock_drive_hook.return_value.create_file.assert_called_once_with(file_metadata=expected_metadata)
+
+        assert mock_task_instance.xcom_push.call_count == 2
+        mock_task_instance.xcom_push.assert_any_call(key="spreadsheet_id", value=SPREADSHEET_ID)
+        mock_task_instance.xcom_push.assert_any_call(key="spreadsheet_url", value=SPREADSHEET_URL)
+
+        assert op_execute_result["spreadsheetId"] == SPREADSHEET_ID
+        assert op_execute_result["spreadsheetUrl"] == SPREADSHEET_URL

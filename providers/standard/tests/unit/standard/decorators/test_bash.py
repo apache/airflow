@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import warnings
 from contextlib import nullcontext as no_raise
@@ -34,7 +35,7 @@ from tests_common.test_utils.taskinstance import (
     render_template_fields,
     run_task_instance,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -48,10 +49,7 @@ else:
     from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
         NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
     )
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
@@ -415,32 +413,36 @@ class TestBashDecorator:
         else:
             assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS,
+        reason="Airflow 2 resolves @task.bash to its own bundled decorator, which ignores multiple_outputs",
+    )
     def test_multiple_outputs_true(self):
-        """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
+        """Verify `multiple_outputs=True` reaches the operator instead of being ignored."""
         with self.dag_maker:
 
-            @task.bash(multiple_outputs=True)
+            @task.bash(multiple_outputs=True, output_processor=json.loads)
             def bash():
-                return "echo"
+                return """echo '{"rows": 42, "uri": "s3://bucket/out"}'"""
 
-            with pytest.warns(
-                UserWarning, match="`multiple_outputs=True` is not supported in @task.bash tasks. Ignoring."
-            ):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=UserWarning)
                 bash_task = bash()
 
             assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
-        ti, _ = self.execute_task(bash_task)
+        ti, return_val = self.execute_task(bash_task)
 
-        assert bash_task.operator.multiple_outputs is False
-        self.validate_bash_command_rtif(ti, "echo")
+        assert bash_task.operator.multiple_outputs is True
+        assert return_val == {"rows": 42, "uri": "s3://bucket/out"}
+        self.validate_bash_command_rtif(ti, """echo '{"rows": 42, "uri": "s3://bucket/out"}'""")
 
     @pytest.mark.parametrize(
         "multiple_outputs",
         [False, pytest.param(None, id="none"), pytest.param(SET_DURING_EXECUTION, id="not-set")],
     )
     def test_multiple_outputs(self, multiple_outputs):
-        """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
+        """Verify `multiple_outputs` defaults to False when unset or falsy."""
         decorator_kwargs = {}
         if multiple_outputs is not SET_DURING_EXECUTION:
             decorator_kwargs["multiple_outputs"] = multiple_outputs
@@ -460,6 +462,46 @@ class TestBashDecorator:
 
         assert bash_task.operator.multiple_outputs is False
         self.validate_bash_command_rtif(ti, "echo")
+
+    def test_multiple_outputs_not_inferred_from_str_annotation(self):
+        """A `-> str` annotation must not infer `multiple_outputs=True`; the callable returns the command."""
+        with self.dag_maker:
+
+            @task.bash
+            def bash() -> str:
+                return "echo hello"
+
+            bash_task = bash()
+
+        ti, return_val = self.execute_task(bash_task)
+
+        assert bash_task.operator.multiple_outputs is False
+        assert return_val == "hello"
+        self.validate_bash_command_rtif(ti, "echo hello")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="XCom unrolling asserted via the Task SDK runner")
+    def test_multiple_outputs_pushes_one_xcom_per_key(self, session):
+        """Each key of the processed output is pushed as its own XCom, alongside the return value."""
+        with self.dag_maker:
+
+            @task.bash(multiple_outputs=True, output_processor=json.loads)
+            def bash():
+                return """echo '{"rows": 42, "uri": "s3://bucket/out"}'"""
+
+            bash_task = bash()
+
+        dag_run = self.dag_maker.create_dagrun(
+            run_id=f"bash_deco_multi_xcom_{DEFAULT_DATE.date()}", session=session
+        )
+        ti = dag_run.get_task_instance(bash_task.operator.task_id, session=session)
+        run_task_instance(ti, bash_task.operator, session=session)
+
+        assert ti.xcom_pull(task_ids=ti.task_id, key="rows", session=session) == 42
+        assert ti.xcom_pull(task_ids=ti.task_id, key="uri", session=session) == "s3://bucket/out"
+        assert ti.xcom_pull(task_ids=ti.task_id, session=session) == {
+            "rows": 42,
+            "uri": "s3://bucket/out",
+        }
 
     @pytest.mark.parametrize(
         argnames=("return_val", "expected"),

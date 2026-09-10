@@ -20,56 +20,6 @@
 Static Type Checking for Dags
 =============================
 
-Airflow publishes a set of `mypy <https://mypy-lang.org/>`_ plugins as a standalone, independently
-versioned distribution: `apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_.
-
-When to use it
---------------
-
-If you run ``mypy`` over your Dags, custom operators, or hooks, install the plugins to get accurate
-results for Airflow-specific patterns that plain ``mypy`` cannot reason about and would otherwise report
-as false positives. The plugins teach ``mypy`` about:
-
-* **Typed decorators** -- decorators that inject keyword arguments at runtime (for example
-  ``GoogleBaseHook.fallback_to_default_project_id``), so ``mypy`` does not flag those arguments as missing.
-* **Operator outputs** -- the ``.output`` attribute of operators and the return value of ``@task``-decorated
-  functions (an ``XComArg``) are resolved to the underlying runtime type. This lets you wire a task's output
-  into a downstream task without spurious type errors:
-
-  .. code-block:: python
-
-     @task
-     def f(a: str) -> int:
-         return len(a)
-
-
-     @task
-     def g(b: int) -> None: ...
-
-
-     g(f("hello"))  # mypy understands the output of f() is an int
-
-The package is entirely optional -- Airflow does not require it at runtime; it only improves the accuracy
-of static type checking for Dag authors.
-
-Installation
-------------
-
-Install it alongside ``mypy``:
-
-.. code-block:: bash
-
-   pip install apache-airflow-mypy
-
-The package follows `SemVer <https://semver.org/>`_ and is released on its own cadence, so you can adopt it
-independently of your Airflow version.
-
-Configuration
--------------
-
-Enable the plugins in your ``mypy`` configuration (``mypy.ini``, ``setup.cfg`` or ``pyproject.toml``):
-
-.. code-block:: ini
-
-   [mypy]
-   plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
+Airflow publishes optional `mypy <https://mypy-lang.org/>`_ plugins as the independently versioned
+`apache-airflow-mypy <https://airflow.apache.org/docs/apache-airflow-mypy/stable/index.html>`_ distribution.
+See the plugin documentation for installation, configuration, supported Airflow patterns, and release notes.

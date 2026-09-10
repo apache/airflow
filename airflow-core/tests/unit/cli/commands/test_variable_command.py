@@ -360,6 +360,40 @@ class TestCliVariables:
         """Test variables_export command"""
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.devnull]))
 
+    @pytest.mark.parametrize(
+        ("stored_value", "expected_export"),
+        [
+            pytest.param(
+                '{"value": "a", "description": "b"}',
+                {"value": {"value": "a", "description": "b"}, "description": None},
+                id="envelope_lookalike",
+            ),
+            pytest.param(
+                '{"value": 1, "other": 2}',
+                {"value": {"value": 1, "other": 2}, "description": None},
+                id="envelope_lookalike_with_extra_keys",
+            ),
+            pytest.param('"hello"', '"hello"', id="json_string"),
+        ],
+    )
+    def test_variables_export_survives_reimport(self, tmp_path, stored_value, expected_export):
+        """Values that collide with the export format must round-trip through export/import."""
+        path = tmp_path / "variables.json"
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "k", stored_value]))
+        variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path)]))
+
+        assert json.loads(path.read_text()) == {"k": expected_export}
+
+        variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "k"]))
+        with create_session() as session:
+            variable_command.variables_import(
+                self.parser.parse_args(["variables", "import", os.fspath(path)]), session=session
+            )
+
+        assert Variable.get("k", deserialize_json=True) == json.loads(stored_value)
+        with create_session() as session:
+            assert session.scalar(select(Variable.description).where(Variable.key == "k")) is None
+
     def test_variables_isolation(self, tmp_path):
         """Test isolation of variables"""
         path1 = tmp_path / "testfile1.json"

@@ -131,6 +131,10 @@ looks like:
         # Note: React apps are only supported in Airflow 3.1 and later.
         # Note: The React app integration is experimental and interfaces might change in future versions. Particularly, dependency and state interactions between the UI and plugins may need to be refactored for more complex plugin apps.
         react_apps = []
+        # A list of UI translation sources to add languages to, or override translations in, the UI.
+        # Each entry is a path to a ``<language>/<namespace>.json`` directory tree or an inline
+        # ``{language: {namespace: {key: value}}}`` mapping. See the example below.
+        ui_translations = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
@@ -258,6 +262,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this view is shown. Omit it entirely to show the view
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "dag_ids": ["my_dag", "my_other_dag"],
+        },
     }
 
     # Note: The React app integration is experimental and interfaces might change in future versions.
@@ -273,7 +283,7 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
-        "destination": "dag_run",
+        "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
@@ -288,6 +298,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this app is shown. Omit it entirely to show the app
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "operators": ["KubernetesPodOperator"],
+        },
     }
 
 
@@ -301,6 +317,71 @@ definitions in Airflow.
         react_apps = [react_app_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
+
+Scoping a view to specific Dags and tasks
+-----------------------------------------
+
+By default an external view or React app is shown on every page matching its ``destination``.
+The optional ``applies_to`` block narrows that down, so a tab is only offered where it is
+relevant instead of appearing on every Dag:
+
+.. code-block:: python
+
+    "applies_to": {
+        "dag_tags": ["ml"],  # Dag carries any of these tags
+        "dag_ids": ["train_pipeline"],  # exact dag_id
+        "task_ids": ["train_model"],  # exact task_id
+        "operators": ["KubernetesPodOperator"],  # operator class name
+    }
+
+All keys are optional. ``operators`` and ``operator_names`` are matched separately, the same
+way the task instance filters treat them: ``operators`` is the operator class name, while
+``operator_names`` is the display name shown in the UI (an operator's
+``custom_operator_name``). For a plain operator the two are identical, so either key works.
+They differ for decorator-based tasks: a ``@task.bash`` task has the display name
+``@task.bash`` but the private class name ``_BashDecoratedOperator``, so use
+``operator_names`` to target it.
+
+Criteria combine like Kubernetes label selectors — **OR within a key, AND across keys**. A
+Dag matching any listed tag satisfies ``dag_tags``, and a view configured with both
+``dag_tags`` and ``operators`` requires both to match.
+
+Crucially, the AND applies **only across criteria the current page can evaluate**. A
+``task_ids`` criterion cannot be judged on a Dag-level page, so it is skipped there rather
+than failing the match. This lets one ``applies_to`` block be shared by a plugin's Dag- and
+task-level destinations. Which criteria each destination can evaluate:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Destination
+     - ``dag_tags`` / ``dag_ids``
+     - ``task_ids`` / ``operators`` / ``operator_names``
+   * - ``dag``, ``dag_run``, ``dag_overview``
+     - evaluated
+     - skipped
+   * - ``task``, ``task_overview``, ``task_instance``
+     - evaluated
+     - evaluated
+   * - ``nav``, ``base``, ``dashboard``, ``asset``
+     - skipped
+     - skipped
+
+If none of the configured criteria can be evaluated on a given page, the view is shown. On
+task group pages the task-level criteria are skipped, since a group is not a task.
+
+A malformed ``applies_to`` — one that is not a dictionary, names an unknown criterion, or
+gives a criterion something other than a list of strings — is reported as a warning when
+plugins are loaded, and ignored, so the view still loads unscoped. Configuring a criterion
+the ``destination`` cannot evaluate (for example ``task_ids`` on a ``dag`` view) is also
+warned about, since it has no effect there. Check the API server log for these warnings if a
+view is not scoped the way you expect.
+
+.. note::
+    ``applies_to`` is a display convenience, not an authorization boundary. It controls
+    whether the UI offers the tab, not whether the underlying view can be reached — a user
+    who knows the ``url_route`` can still navigate to it directly. Use access control to
+    restrict who may view a plugin's data.
 
 React app context props
 -----------------------
@@ -322,6 +403,47 @@ The props available depend on where the app is mounted (its ``destination`` and 
   is served from the UI's query cache the details page has already populated (no extra request).
   On routes or ``destination`` values without those identifiers (e.g. ``nav``, ``base``,
   ``dashboard``), the corresponding objects are ``undefined``.
+
+Adding or overriding UI translations
+------------------------------------
+
+The ``ui_translations`` attribute lets a plugin add a language the Airflow UI does not ship, or
+override individual strings in a language it does. Each entry is either a path to a
+``<language>/<namespace>.json`` directory tree (mirroring Airflow's own
+``airflow/ui/public/i18n/locales`` layout) or an inline
+``{language: {namespace: {key: value}}}`` mapping. Both forms can be mixed in the same list.
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    from airflow.plugins_manager import AirflowPlugin
+
+
+    class TranslationsPlugin(AirflowPlugin):
+        name = "translations"
+        ui_translations = [
+            # A directory tree, e.g. locales/eo/common.json, adding Esperanto as a new language.
+            Path(__file__).parent / "locales",
+            # Override individual keys in a language Airflow already ships.
+            {"en": {"dags": {"dag_one": "Pipeline"}}},
+        ]
+
+The plugin's values are deep-merged on top of the built-in translations, so an override replaces
+only the keys it names (at any nesting depth) and leaves the rest untouched. Keys a plugin does not
+provide fall back to the built-in language, and ultimately to English.
+
+Because translations are not versioned in lockstep with Airflow, robustness is built in:
+
+- A malformed or unreadable translation source is skipped with a warning in the API server log; it
+  never stops the API server from starting or keeps other plugins from loading.
+- English is the reference for which keys exist. When translations are consolidated at startup, any
+  plugin key that is **not** present in the English file for its namespace (likely renamed or removed
+  upstream) is logged as a warning in the API server log and otherwise ignored.
+
+Right-to-left languages are handled automatically: the UI derives text direction from the language
+code (via the browser's locale data, e.g. Persian ``fa`` or Urdu ``ur``), so a custom RTL language
+flips the whole UI to right-to-left without any extra configuration.
 
 Exclude views from CSRF protection
 ----------------------------------

@@ -220,7 +220,7 @@ class EdgeWorker:
             self.background_tasks.add(task)
             task.add_done_callback(self.background_tasks.discard)
         else:
-            logger.info("Request to get status of Edge Worker received.")
+            logger.debug("Request to get status of Edge Worker received.")
         status_path = Path(status_file_path(None))
         status_path.write_text(
             WorkerStatus(

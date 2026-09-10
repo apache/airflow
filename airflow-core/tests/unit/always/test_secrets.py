@@ -29,10 +29,9 @@ from airflow.secrets import BaseSecretsBackend
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_variables
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.fake_secrets_backend import FAKE_BACKEND_PATH, FakeSecretsBackend
 
 
-@skip_if_force_lowest_dependencies_marker
 class TestConnectionsFromSecrets:
     def setup_method(self) -> None:
         SecretCache.reset()
@@ -55,11 +54,8 @@ class TestConnectionsFromSecrets:
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+            ("secrets", "backend"): FAKE_BACKEND_PATH,
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow"}',
         }
     )
     def test_initialize_secrets_backends(self):
@@ -67,34 +63,26 @@ class TestConnectionsFromSecrets:
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
         assert len(backends) == 3
-        assert "SystemsManagerParameterStoreBackend" in backend_classes
+        assert "FakeSecretsBackend" in backend_classes
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): FAKE_BACKEND_PATH,
             ("secrets", "backend_kwargs"): '{"use_ssl": false}',
         }
     )
     def test_backends_kwargs(self):
         backends = initialize_secrets_backends()
-        systems_manager = next(
-            backend
-            for backend in backends
-            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        fake_backend = next(
+            backend for backend in backends if backend.__class__.__name__ == "FakeSecretsBackend"
         )
-        assert systems_manager.kwargs == {}
-        assert systems_manager.use_ssl is False
+        assert fake_backend.kwargs == {}
+        assert fake_backend.use_ssl is False
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+            ("secrets", "backend"): FAKE_BACKEND_PATH,
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow"}',
         }
     )
     @mock.patch.dict(
@@ -103,20 +91,16 @@ class TestConnectionsFromSecrets:
             "AIRFLOW_CONN_TEST_MYSQL": "mysql://airflow:airflow@host:5432/airflow",
         },
     )
-    @mock.patch(
-        "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend.get_connection"
-    )
+    @mock.patch.object(FakeSecretsBackend, "get_connection")
     def test_backend_fallback_to_env_var(self, mock_get_connection):
         mock_get_connection.return_value = None
 
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
-        assert "SystemsManagerParameterStoreBackend" in backend_classes
+        assert "FakeSecretsBackend" in backend_classes
 
         conn = Connection.get_connection_from_secrets(conn_id="test_mysql")
 
-        # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_connection.assert_called_once_with(conn_id="test_mysql", team_name=None)
 
         assert conn.get_uri() == "mysql://airflow:airflow@host:5432/airflow"
@@ -134,7 +118,6 @@ class TestConnectionsFromSecrets:
             Connection.get_connection_from_secrets(conn_id="_team___test_mysql")
 
 
-@skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 class TestVariableFromSecrets:
     def setup_method(self) -> None:
@@ -181,11 +164,8 @@ class TestVariableFromSecrets:
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
+            ("secrets", "backend"): FAKE_BACKEND_PATH,
+            ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow"}',
         }
     )
     @mock.patch.dict(
@@ -195,14 +175,11 @@ class TestVariableFromSecrets:
         },
     )
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
-    @mock.patch(
-        "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend.get_variable"
-    )
+    @mock.patch.object(FakeSecretsBackend, "get_variable")
     def test_backend_variable_order(self, mock_secret_get, mock_meta_get):
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
-        assert "SystemsManagerParameterStoreBackend" in backend_classes
+        assert "FakeSecretsBackend" in backend_classes
 
         mock_secret_get.return_value = None
         mock_meta_get.return_value = None
@@ -230,7 +207,7 @@ class TestVariableFromSecrets:
         assert Variable.get_variable_from_secrets(key="_team___myvar") is None
 
 
-class _LegacyGetConnectionBackend(BaseSecretsBackend):
+class _TeamUnawareGetConnectionBackend(BaseSecretsBackend):
     """Backend overriding ``get_connection`` with the pre-3.2 ``(self, conn_id)`` signature (e.g. Vault)."""
 
     def __init__(self, conns: dict[str, Connection]):
@@ -240,7 +217,7 @@ class _LegacyGetConnectionBackend(BaseSecretsBackend):
         return self._conns.get(conn_id)
 
 
-class _LegacyGetVariableBackend(BaseSecretsBackend):
+class _TeamUnawareGetVariableBackend(BaseSecretsBackend):
     """Backend overriding ``get_variable`` with the pre-3.2 ``(self, key)`` signature."""
 
     def __init__(self, variables: dict[str, str]):
@@ -250,8 +227,7 @@ class _LegacyGetVariableBackend(BaseSecretsBackend):
         return self._vars.get(key)
 
 
-@skip_if_force_lowest_dependencies_marker
-class TestLegacyBackendSignatureCompat:
+class TestTeamUnawareBackendSignatureCompat:
     """Backends whose overrides predate the ``team_name`` keyword must keep working (issue #1333)."""
 
     def setup_method(self) -> None:
@@ -260,40 +236,32 @@ class TestLegacyBackendSignatureCompat:
     @pytest.mark.parametrize("team_name", [None, "team_a"])
     @conf_vars({("core", "multi_team"): "True"})
     @mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.task_runner": None})
-    def test_get_connection_with_legacy_get_connection_override(self, team_name):
-        backend = _LegacyGetConnectionBackend(
-            {"legacy_conn": Connection(conn_id="legacy_conn", conn_type="mysql", host="h")}
+    def test_get_connection_with_team_unaware_override(self, team_name):
+        backend = _TeamUnawareGetConnectionBackend(
+            {"team_unaware_conn": Connection(conn_id="team_unaware_conn", conn_type="mysql", host="h")}
         )
         with mock.patch("airflow.configuration.ensure_secrets_loaded", return_value=[backend]):
-            conn = Connection.get_connection_from_secrets("legacy_conn", team_name=team_name)
+            conn = Connection.get_connection_from_secrets("team_unaware_conn", team_name=team_name)
 
-        assert conn.conn_id == "legacy_conn"
+        assert conn.conn_id == "team_unaware_conn"
         assert conn.conn_type == "mysql"
 
     @pytest.mark.parametrize("team_name", [None, "team_a"])
-    def test_get_variable_with_legacy_get_variable_override(self, team_name):
-        backend = _LegacyGetVariableBackend({"legacy_var": "secret_value"})
+    def test_get_variable_with_team_unaware_override(self, team_name):
+        backend = _TeamUnawareGetVariableBackend({"team_unaware_var": "secret_value"})
         with mock.patch("airflow.models.variable.ensure_secrets_loaded", return_value=[backend]):
-            value = Variable.get_variable_from_secrets("legacy_var", team_name=team_name)
+            value = Variable.get_variable_from_secrets("team_unaware_var", team_name=team_name)
 
         assert value == "secret_value"
 
 
-@skip_if_force_lowest_dependencies_marker
 class TestSecretBackendKwargEnvVars:
     """Test per-key env var overrides for secrets backend kwargs."""
 
     def setup_method(self) -> None:
         SecretCache.reset()
 
-    @conf_vars(
-        {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-        }
-    )
+    @conf_vars({("secrets", "backend"): FAKE_BACKEND_PATH})
     @mock.patch.dict(
         "os.environ",
         {"AIRFLOW__SECRETS__BACKEND_KWARG__CONNECTIONS_PREFIX": "/airflow/connections"},
@@ -301,17 +269,12 @@ class TestSecretBackendKwargEnvVars:
     def test_backend_kwarg_env_vars_basic(self):
         """Per-key env var is picked up when no JSON blob is set."""
         backends = initialize_secrets_backends()
-        systems_manager = next(
-            b for b in backends if b.__class__.__name__ == "SystemsManagerParameterStoreBackend"
-        )
-        assert systems_manager.connections_prefix == "/airflow/connections"
+        fake_backend = next(b for b in backends if b.__class__.__name__ == "FakeSecretsBackend")
+        assert fake_backend.connections_prefix == "/airflow/connections"
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): FAKE_BACKEND_PATH,
             ("secrets", "backend_kwargs"): '{"connections_prefix": "/old"}',
         }
     )
@@ -322,17 +285,12 @@ class TestSecretBackendKwargEnvVars:
     def test_backend_kwarg_env_vars_override_json(self):
         """Per-key env var overrides the same key in the JSON blob."""
         backends = initialize_secrets_backends()
-        systems_manager = next(
-            b for b in backends if b.__class__.__name__ == "SystemsManagerParameterStoreBackend"
-        )
-        assert systems_manager.connections_prefix == "/new"
+        fake_backend = next(b for b in backends if b.__class__.__name__ == "FakeSecretsBackend")
+        assert fake_backend.connections_prefix == "/new"
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): FAKE_BACKEND_PATH,
             ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow"}',
         }
     )
@@ -343,8 +301,6 @@ class TestSecretBackendKwargEnvVars:
     def test_backend_kwarg_env_vars_merge_with_json(self):
         """Per-key env var is merged with (not replacing) the JSON blob."""
         backends = initialize_secrets_backends()
-        systems_manager = next(
-            b for b in backends if b.__class__.__name__ == "SystemsManagerParameterStoreBackend"
-        )
-        assert systems_manager.connections_prefix == "/airflow"
-        assert systems_manager.variables_prefix == "/airflow/variables"
+        fake_backend = next(b for b in backends if b.__class__.__name__ == "FakeSecretsBackend")
+        assert fake_backend.connections_prefix == "/airflow"
+        assert fake_backend.variables_prefix == "/airflow/variables"

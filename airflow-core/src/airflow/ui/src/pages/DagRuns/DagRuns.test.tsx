@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -56,14 +56,8 @@ describe("DagRuns logical date filter", () => {
 });
 
 describe("DagRuns conf expand/collapse", () => {
-  beforeEach(() => {
-    // The conf column is hidden by default; reveal it so the JSON viewer renders.
-    globalThis.localStorage.setItem(
-      "dataTable:common:dagRun:columnVisibility",
-      JSON.stringify({ conf: true }),
-    );
-  });
-
+  // Relies on the conf column being visible by default, which is what renders the JSON viewer.
+  // useTableURLState persists sorting to localStorage, so clear it between cases.
   afterEach(() => {
     globalThis.localStorage.clear();
   });
@@ -84,5 +78,20 @@ describe("DagRuns conf expand/collapse", () => {
     await waitFor(() =>
       expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true"),
     );
+  });
+
+  it("hides the expand/collapse buttons when no runs match the filter", async () => {
+    render(
+      <AppWrapper
+        initialEntries={[
+          "/dag_runs?logical_date_gte=2030-01-01T00%3A00%3A00Z&logical_date_lte=2030-01-31T23%3A59%3A59Z",
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("table-no-rows")).toBeInTheDocument());
+
+    expect(screen.queryByTestId("expand-all-button")).toBeNull();
+    expect(screen.queryByTestId("collapse-all-button")).toBeNull();
   });
 });

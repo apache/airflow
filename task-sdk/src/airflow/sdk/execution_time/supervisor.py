@@ -1062,6 +1062,46 @@ class WatchedSubprocess:
                     pass
         self._process.send_signal(sig)
 
+    def cleanup_sockets_after_kill(self) -> None:
+        """Drain log-bearing sockets, then close every remaining socket after a forced kill."""
+        for sock, socket_type in list(self._open_sockets.items()):
+            try:
+                key = self.selector.get_key(sock)
+            except KeyError:
+                key = None
+
+            if key is not None:
+                socket_handler, on_close = key.data
+                try:
+                    if socket_type != "requests":
+                        sock.setblocking(False)
+                        while True:
+                            try:
+                                if not socket_handler(sock):
+                                    break
+                            except (BlockingIOError, InterruptedError, OSError):
+                                break
+
+                    if on_close is not None:
+                        on_close(sock)
+                    else:
+                        with suppress(KeyError):
+                            self.selector.unregister(sock)
+                        self._open_sockets.pop(sock, None)
+                except Exception:
+                    log.exception(
+                        "Failed to clean up killed subprocess socket",
+                        pid=self.pid,
+                        socket_type=socket_type,
+                    )
+                    with suppress(KeyError):
+                        self.selector.unregister(sock)
+                    self._open_sockets.pop(sock, None)
+            with suppress(OSError, ValueError):
+                sock.close()
+
+        self._open_sockets.clear()
+
     def kill(
         self,
         signal_to_send: signal.Signals = signal.SIGINT,
@@ -1071,11 +1111,13 @@ class WatchedSubprocess:
         """
         Attempt to terminate the subprocess with a given signal.
 
-        If the process does not exit within `escalation_delay` seconds, escalate to SIGTERM and eventually SIGKILL if necessary.
+        Only `signal_to_send` is sent unless `force` is set. With `force=True`, if the process does not exit
+        within `escalation_delay` seconds, escalate along SIGINT -> SIGTERM -> SIGKILL, starting from
+        `signal_to_send`.
 
         :param signal_to_send: The signal to send initially (default is SIGINT).
-        :param escalation_delay: Time in seconds to wait before escalating to a stronger signal.
-        :param force: If True, ensure escalation through all signals without skipping.
+        :param escalation_delay: Time in seconds to wait for the process to exit after each signal.
+        :param force: If True, escalate through the remaining signals instead of sending only `signal_to_send`.
         """
         if self._exit_code is not None:
             return
@@ -1514,9 +1556,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self._replay_pending_terminal_state_msg()
             return
 
-        # If the process has finished a non-directly-patched state (e.g.
-        # FAILED, UP_FOR_RETRY without RetryTask), `finish()` is the
-        # dedicated endpoint for those transitions. For states already in
+        # If the process has finished in a non-directly-patched state (e.g.
+        # FAILED, or SKIPPED reported via a TaskState message), `finish()` is
+        # the dedicated endpoint for those transitions. For states already in
         # STATES_SENT_DIRECTLY whose direct API call succeeded, no further
         # action is needed.
         if self.final_state not in STATES_SENT_DIRECTLY:
@@ -2335,6 +2377,9 @@ def length_prefixed_frame_reader(
     gen: Generator[None, _RequestFrame, None], on_close: Callable[[socket], None]
 ):
     length_needed: int | None = None
+    # Accumulates the 4-byte length header across selector callbacks; stream
+    # sockets may return fewer than the requested 4 bytes in a single recv.
+    header_buffer = bytearray()
     # This will hold our accumulated/partial binary frame if it doesn't come in a single read
     buffer: memoryview | None = None
     # position in the buffer to store next read
@@ -2345,16 +2390,19 @@ def length_prefixed_frame_reader(
     next(gen)
 
     def cb(sock: socket):
-        nonlocal buffer, length_needed, pos
+        nonlocal buffer, length_needed, pos, header_buffer
 
         if length_needed is None:
-            # Read the 32bit length of the frame
-            bytes = sock.recv(4)
-            if bytes == b"":
+            chunk = sock.recv(4 - len(header_buffer))
+            if not chunk:
                 return False
+            header_buffer.extend(chunk)
+            if len(header_buffer) < 4:
+                return True
 
-            length_needed = int.from_bytes(bytes, byteorder="big")
+            length_needed = int.from_bytes(header_buffer, byteorder="big")
             buffer = memoryview(bytearray(length_needed))
+            header_buffer = bytearray()
         if length_needed and buffer:
             n = sock.recv_into(buffer[pos:])
             if n == 0:
@@ -2413,9 +2461,18 @@ def process_log_messages_from_subprocess(
             event["error_detail"] = exc
 
         if level := NAME_TO_LEVEL.get(event.pop("level")):
-            msg = event.pop("event", None)
+            msg = event.pop("event", None) or ""
             for target in loggers:
-                target.log(level, msg, **event)
+                _log_to_target(target, level, msg, **event)
+
+
+def _log_to_target(target: FilteringBoundLogger, level: int, msg: str, **event) -> None:
+    try:
+        target.log(level, msg, **event)
+    except ValueError as e:
+        if "closed file" not in str(e):
+            raise
+        log.debug("Dropped log line for closed logger handle", level=level, logger=event.get("logger"))
 
 
 def forward_to_log(
@@ -2430,7 +2487,7 @@ def forward_to_log(
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
         for log in target_loggers:
-            log.log(level, msg, logger=logger)
+            _log_to_target(log, level, msg, logger=logger)
 
 
 def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:

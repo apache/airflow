@@ -95,6 +95,9 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
 
             response = await call_next(request)
 
+            if new_token == "" and getattr(request.state, "jwt_token_issued", False):
+                new_token = None
+
             if new_user or new_token is not None:
                 secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
                 cookie_path = get_cookie_path()

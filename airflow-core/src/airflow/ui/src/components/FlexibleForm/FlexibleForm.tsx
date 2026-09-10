@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState, type ReactNode } from "react";
+
 import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
+
+import { Accordion } from "src/system-components";
 
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import ReactMarkdown from "../ReactMarkdown";
-import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
@@ -33,7 +35,7 @@ const FlatSection = ({
   hasError,
   title,
 }: {
-  readonly children: React.ReactNode;
+  readonly children: ReactNode;
   readonly hasError: boolean;
   readonly title: string;
 }) => (

@@ -510,6 +510,7 @@ class CommandFactory:
             "trigger",
             "add",
             "edit",
+            "set",
             "clear",
         ]
         # Datamodels whose generated bool flags follow the datamodel field defaults instead of
@@ -552,6 +553,14 @@ class CommandFactory:
             defaults_count = len(node.args.defaults)
             required_count = len(positional_args) - defaults_count
             required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+            # Parameters whose signature default carries real meaning (e.g. ``limit: int = 100``).
+            # ``argparse`` fills an omitted flag with ``None``, so these have to be dropped from
+            # the call instead of being forwarded, or the method never sees its own default.
+            non_none_default_param_names: set[str] = {
+                arg.arg
+                for arg, default in zip(positional_args[required_count:], node.args.defaults)
+                if not (isinstance(default, ast.Constant) and default.value is None)
+            }
 
             for arg in positional_args:
                 arg_name = arg.arg
@@ -567,6 +576,7 @@ class CommandFactory:
                 "name": func_name,
                 "parameters": args,
                 "required_param_names": required_param_names,
+                "non_none_default_param_names": non_none_default_param_names,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -632,7 +642,7 @@ class CommandFactory:
             "bool": bool,
             "str": str,
             "bytes": bytes,
-            "list": list,
+            "list": string_list_type,
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
@@ -700,8 +710,8 @@ class CommandFactory:
         """Create Arg for non-primitive type Pydantic."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
         commands = []
-        if parameter_type_map not in self.datamodels_extended_map.keys():
-            self.datamodels_extended_map[parameter_type] = []
+        # Rebuilt per visit: datamodels are shared across operations, so appending would duplicate fields.
+        self.datamodels_extended_map[parameter_type] = []
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
@@ -837,12 +847,14 @@ class CommandFactory:
             datamodel = None
             datamodel_param_name = None
             args_dict = vars(args)
+            non_none_default_param_names = api_operation.get("non_none_default_param_names") or set()
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
-                            parameter_key
-                        ]
+                        value = args_dict[parameter_key]
+                        if value is None and parameter_key in non_none_default_param_names:
+                            continue
+                        method_params[self._sanitize_method_param_key(parameter_key)] = value
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:

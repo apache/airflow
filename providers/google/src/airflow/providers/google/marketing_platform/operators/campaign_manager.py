@@ -27,10 +27,10 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient import http
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.providers.google.version_compat import BaseOperator
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -84,11 +84,8 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if not (report_name or report_id):
-            raise AirflowException("Please provide `report_name` or `report_id`.")
-        if report_name and report_id:
-            raise AirflowException("Please provide only one parameter `report_name` or `report_id`.")
-
+        if not exactly_one(report_name is not None, report_id is not None):
+            raise ValueError("Please provide exactly one of `report_name` or `report_id`.")
         self.profile_id = profile_id
         self.report_name = report_name
         self.report_id = report_id

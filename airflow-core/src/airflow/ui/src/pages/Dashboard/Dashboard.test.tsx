@@ -21,6 +21,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { UIAlert } from "openapi/requests/types.gen";
+
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -38,6 +39,7 @@ vi.mock("openapi/queries", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) =>
       key === "alerts.showMoreAlerts"

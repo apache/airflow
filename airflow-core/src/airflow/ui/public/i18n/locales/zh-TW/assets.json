@@ -1,5 +1,8 @@
 {
   "additional_data": "資源額外資訊",
+  "alias_one": "別名",
+  "alias_other": "別名",
+  "aliases": "別名",
   "asset_many": "資源",
   "asset_one": "資源",
   "assetStateStore": {
@@ -13,9 +16,11 @@
     "deleteWarning": "此資源將失去這筆持久化的儲存資料。",
     "edit": "編輯資源儲存區",
     "emptyState": "資源儲存區會儲存綁定於資源識別的值，並在所有 Dag 執行間共用。工作節點可透過 Task SDK 寫入資源儲存區。",
+    "entry_one": "項目",
+    "entry_other": "項目",
     "lastUpdatedBy": "Last Updated By",
     "lastUpdatedByApi": "API",
-    "lastUpdatedByWatcher": "Watcher",
+    "lastUpdatedByWatcher": "監聽器",
     "title": "資源儲存區"
   },
   "consumingDags": "消費者 Dags",
@@ -53,5 +58,8 @@
   "scheduledDags": "已排程的 Dags",
   "scheduling": "排程",
   "searchPlaceholder": "搜尋資源",
-  "taskDependencies": "任務相依性"
+  "taskDependencies": "任務相依性",
+  "watcher_one": "監聽器",
+  "watcher_other": "監聽器",
+  "watchers": "監聽器"
 }

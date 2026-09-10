@@ -112,7 +112,7 @@
 
       return `
         <a href="${escapeHtml(result.url)}" class="${escapeHtml(resultType)}${index === selectedIndex ? ' selected' : ''}" data-index="${index}">
-          <span>${icon}</span>
+          <span>${escapeHtml(icon)}</span>
           <div>
             <div>
               ${escapeHtml(name)}

@@ -20,6 +20,7 @@
 import type { JSX } from "react";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 
 export type Slots = Omit<

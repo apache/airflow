@@ -11,18 +11,25 @@
     "allRunTypes": "全部執行類型",
     "allStates": "全部狀態",
     "anyRunState": "全部執行",
+    "anyRunStatePlaceholder": "選擇任一執行狀態…",
     "favorite": {
       "all": "全部",
       "favorite": "已加為最愛",
       "unfavorite": "未加為最愛"
     },
+    "favoriteState": "最愛狀態",
+    "favoriteStatePlaceholder": "選擇最愛狀態…",
     "lastRunState": "最後執行狀態",
+    "lastRunStatePlaceholder": "選擇最後執行狀態…",
     "noTimetableTypesFound": "找不到排程規則類型",
     "paused": {
       "active": "啟用中",
       "all": "全部",
       "paused": "暫停"
     },
+    "pausedPlaceholder": "選擇暫停狀態…",
+    "pausedState": "暫停狀態",
+    "requiresHitlAction": "需要回應",
     "runIdPatternFilter": "搜尋 Dag 執行",
     "timetableType": "排程規則類型"
   },
@@ -77,6 +84,7 @@
       "preventRunningTasks": "若任務正在執行中，則防止重新執行",
       "queueNew": "排隊新任務",
       "runOnLatestVersion": "執行最新套件包版本",
+      "runOnLatestVersionForced": "一律使用最新的套件包版本 — 沒有可回復的較舊版本",
       "upstream": "上游"
     }
   },

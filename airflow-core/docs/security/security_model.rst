@@ -567,6 +567,19 @@ model — Airflow does not enforce these natively.
      be available to components that need to generate tokens (Scheduler/Executor, API Server) and
      components that need to validate tokens (API Server). Workers should not have access to the signing
      key — they only need the tokens provided to them.
+
+     **Exception — remote edge workers.** The ``edge3`` provider's worker signs its own API requests, so
+     every host running an edge worker must be provisioned with ``[api_auth] jwt_secret``. There is no
+     asymmetric alternative on that path, and no arrangement in which the worker is issued a token by
+     the API server instead: the worker has to authenticate to the Edge API before it can be given
+     any workload, so it must already hold a credential at that point. Provisioning the signing key on
+     the host is what satisfies that bootstrap. In symmetric mode this is the same secret used to sign user
+     JWTs and Execution API task tokens, so a deployment running edge workers cannot satisfy the
+     guidance above, and the assurance in *Token signing key might be a shared secret* below — which is
+     conditioned on the secret being available only to the API server and scheduler — does not hold for
+     it. Deployment Managers should treat edge-worker hosts as part of the control-plane trust boundary,
+     or accept that compromise of any edge-worker host is equivalent to compromise of the deployment's
+     token-signing capability.
    * Connection credentials for external systems (via Secrets Managers) should only be available to the API Server
      (which serves them to workers via the Execution API), not to the Scheduler, Dag File Processor,
      or Triggerer processes directly. This however limits some of the features of Airflow - such as Deadline
@@ -983,9 +996,23 @@ team's connection" are describing a known limitation of the current isolation mo
 Execution API tokens not being revocable
 ........................................
 
-Execution API tokens issued to workers are short-lived (default 10 minutes) with automatic refresh
-and are intentionally not subject to revocation. This is a design choice documented in
-:doc:`/security/jwt_token_authentication`, not a missing security control.
+Execution API tokens issued to workers have a short nominal lifetime (default 10 minutes) with
+automatic refresh, and are intentionally not subject to revocation. This is a design choice documented
+in :doc:`/security/jwt_token_authentication`, not a missing security control.
+
+Deployment Managers should read the two properties together rather than separately. Refresh re-issues
+a token from its own claims, so a holder who keeps presenting a token keeps extending it: the nominal
+lifetime bounds only a holder who *stops* using it. Combined with the absence of revocation, this means a token
+that leaks — through a log, a process listing, or a compromised worker — remains usable for as long as
+its holder continues to present it, and cannot be withdrawn. The ten-minute figure is not a bound on
+exposure after a leak.
+
+Refresh is also not tied to the task's lifecycle: the reissue path validates the token's signature and
+expiry but does not consult the database, so a token naming a task instance that has finished, or whose
+row has been archived, still refreshes. Reports of this specific behaviour are treated as hardening
+opportunities rather than vulnerabilities, and contributions binding reissue to task state are welcome
+through the normal process. Deployments requiring a hard bound on credential lifetime should rely on
+network isolation of workers rather than on token expiry.
 
 Connection configuration capabilities
 ......................................
@@ -997,6 +1024,18 @@ design — connection configuration users are highly privileged and must be trus
 capabilities. The ``test connection`` feature is disabled by default since Airflow 2.7.0, and enabling
 it is an explicit Deployment Manager decision that acknowledges these risks. See
 :ref:`connection-configuration-users` for details.
+
+The boundary of this grant is **worker-context execution and the connection values the role may
+write**. A connection configuration user causing code to run on a worker, or influencing a client
+library's behaviour through connection parameters, is exercising a documented capability and is not a
+vulnerability — even where the mechanism looks like injection.
+
+What this grant does **not** include is obtaining credential material the role is not entitled to
+read, or reaching a component the role has no execution rights over. The role has write-only access to
+stored credentials, so a defect that lets a connection configuration user *recover* a secret, or that
+causes code to execute in the Scheduler or API server rather than on a worker, crosses the boundary and
+**is** a vulnerability. The distinguishing question is not the role, which is privileged either way,
+but whether the defect yields something the role could not already obtain.
 
 Denial of Service by authenticated users
 ........................................
@@ -1049,6 +1088,97 @@ code" or "database credentials accessible in configuration") are expected behavi
 include a proof-of-concept that demonstrates how the finding violates the security model described
 in this document, including identifying the specific user role involved and the attack scenario.
 
+Client libraries and caller-supplied values
+...........................................
+
+The Apache Airflow Python Client, and other client libraries the project publishes, are **libraries**.
+They act on values their calling application supplies and have no basis on which to decide that one
+caller-supplied string is trusted and another is not.
+
+Reports that an embedding application can cause a client library to misbehave by passing it untrusted
+or malformed input — an attacker-influenced path parameter, a configuration value of the wrong type, a
+plaintext scheme chosen for a remote host, or configuration mutated after the client was constructed —
+describe a decision the calling application made. The trust boundary sits in that application, not in
+the library. This mirrors the position taken for Dag authors passing unsanitized input to operators
+and hooks.
+
+A defect in a client library **is** in scope when it misbehaves on input the calling application
+supplied correctly — for example if a value the library itself documents as safe is mishandled, or if
+the library silently ignores a security-relevant setting the caller did set.
+
+Experimental and alpha features
+................................
+
+Features the project documents as experimental, alpha, or preview do not yet carry security
+guarantees, and defects confined to them are not treated as production security vulnerabilities.
+This includes, at the time of writing, multi-team mode and executors marked alpha in their provider
+documentation.
+
+Such defects are still worth fixing and are welcome as public contributions; they are simply not
+handled through the security process, and no advisory is issued. When a feature graduates out of
+experimental status, previously deferred issues affecting it should be reassessed on their merits at
+that point.
+
+Request size limits and other reverse-proxy responsibilities
+.............................................................
+
+Airflow's API server is an ASGI application. Like any such application, it reads a request body into
+memory before dispatching to a handler, and it does not impose a limit on request size. Bounding
+request size, connection rates, and total concurrent connections is the responsibility of the
+terminating reverse proxy or ingress — ``client_max_body_size`` in nginx, ``max_request_bytes`` in
+Envoy, or the equivalent in the deployment's chosen load balancer.
+
+Reports that an unauthenticated client can cause the API server to allocate memory by sending a large
+request body, including to endpoints that must be reachable without credentials such as the login
+route, describe this property. They are not treated as vulnerabilities in Airflow. Note that this
+holds regardless of whether the request is authenticated: it is a distinct point from the
+*Denial of Service by authenticated users* carve-out above, and applies to unauthenticated requests
+as well.
+
+Deployment Managers should ensure a request-size limit is configured at the proxy layer. Airflow is
+not intended to be exposed directly to untrusted networks.
+
+Issues only reachable on end-of-life Airflow versions
+......................................................
+
+Security advisories are issued for release lines that still receive releases. A defect reachable only
+on a line that has reached end of life is not handled through the security process, because there is
+no release in which to ship a fix.
+
+This holds even when a provider package that still installs on that line contains the affected code:
+a provider continuing to support an end-of-life core does not extend security support to that core.
+Users on an end-of-life line should upgrade.
+
+Params and schema validation
+.............................
+
+Airflow's params schema validation is a correctness and usability feature. It is not a security
+control, and it is not relied upon to enforce any trust boundary.
+
+In particular, an operator that declares no params has opted out of validation for that field; it has
+not asserted that the field will be empty. Reports that unchecked data can be supplied where no
+schema was declared describe the absence of a control that was never claimed.
+
+Impersonation and Dag file parsing
+..................................
+
+``run_as_user`` confines task **execution** to a different Unix user. It does not confine Dag file
+**import**.
+
+The effective ``run_as_user`` value is itself Dag-author-controlled — it can be set on the Dag or on
+the task, overriding the deployment default. Airflow therefore cannot know which user to impersonate
+until it has parsed the Dag file, and parsing a Dag file executes its module-level code. That code
+runs as the worker's own Unix user, before any impersonation takes place.
+
+This ordering follows from where the setting lives, not from an oversight, and it cannot be reversed
+without moving the setting somewhere the worker can read before parsing. Reports that module-level
+Dag code executes as the worker user prior to impersonation describe expected behaviour.
+
+Deployment Managers using ``run_as_user`` to confine Dag authors should read it as constraining what
+a task does once it runs, not as a sandbox around the Dag file. A deployment that also needs
+module-level Dag code confined must isolate the worker itself rather than rely on impersonation
+within it. See :ref:`workload-isolation` and the impersonation section of :doc:`/security/workload`.
+
 Supported deployment platforms
 ..............................
 
@@ -1067,3 +1197,104 @@ judged on the Linux behavior; the non-Linux aspect is informational.
 
 Reporters who identify a non-Linux-only bug should still report it through the regular contribution
 process — fixes are welcome as defense-in-depth hardening, with no CVE or advisory.
+
+Hardening opportunities with no demonstrated exploitation path
+...............................................................
+
+Many reports describe code that could be written more defensively — a shell command assembled by
+string formatting, a path that is not confined, a check that fails open on a branch the reporter
+has not shown to be reachable. Where no path exists by which an actor reaches an outcome they were
+not already entitled to, the finding is hardening rather than a vulnerability.
+
+Hardening is handled in public: open a normal pull request or issue and it is reviewed like any
+other change. No CVE is allocated and no advisory is issued. This is the disposition the security
+team applies most often, and it is not a dismissal — such findings are frequently fixed soon after
+they reach the public process, which is the faster route precisely because it does not wait on a
+coordinated release.
+
+A report that states a weakness and then observes that it is not reachable has answered its own
+question. If you believe the weakness *is* reachable, show the path; that is the part that decides
+which process handles it.
+
+Findings whose premise is a misconfiguration
+.............................................
+
+Airflow gives Deployment Managers settings that widen what the software will do: deserialization
+allow-lists, module and plugin paths loaded by name, and the ``test connection`` feature among
+others. Reports of the form "if this allow-list were misconfigured, arbitrary classes could be
+instantiated", or "a misconfigured module path could load unintended code", describe the
+consequence of choosing an unsafe value. They do not describe a defect in the code that reads it.
+
+Choosing that value is a Deployment Manager decision of the same kind as granting a user the Admin
+role, and Deployment Managers are trusted. For a report in this shape to be actionable it has to
+establish one of two things: that the **default** configuration is exploitable, or that some actor
+who is not a Deployment Manager can cause the setting to take the unsafe value.
+
+The same applies to a call site presented without a route to it. Pointing at ``import_string()``, a
+deserialization helper, or a subprocess invocation does not establish that attacker-controlled
+input reaches it. Name the entry point, the role of the actor who controls the input, and each hop
+in between — that trace is the finding, not the call site.
+
+Restating a documented design property
+.......................................
+
+Sections of this document record decisions the project has made and the consequences that follow:
+that a symmetric JWT signing secret is held by every component that must verify tokens, that Dag
+authors execute arbitrary code, that the Execution API does not isolate workloads from one another.
+A report whose evidence is a link to one of those sections restates the project's position rather
+than contradicting it, and submitting the same restatement more than once does not change the
+assessment.
+
+Such a report becomes useful at the point where it shows behaviour that differs from what this
+document describes, or a consequence of a documented decision that the document does not
+acknowledge and that a Deployment Manager could not reasonably have anticipated. Disagreement with
+a documented decision is welcome and often productive, but it is a design discussion for the
+developer mailing list rather than a security report.
+
+Components the project does not release
+........................................
+
+The security process covers what the Apache Airflow project releases: ``apache-airflow``, the
+provider distributions, the Task SDK, the Helm chart, and the reference Docker image. Third-party
+plugins, operators distributed outside the project, forks, vendor builds, and images built by
+others are not ASF releases and fall outside it — including when they are widely deployed
+alongside Airflow, and when their name contains "airflow".
+
+Report those to whoever publishes them. Where a third-party component is only exploitable because
+of something Airflow itself does, that part is in scope and worth reporting here; say which part is
+which.
+
+Findings whose precondition already grants the capability
+..........................................................
+
+A report has to gain an attacker something they could not already do. Where the stated precondition
+is write access to the metadata database, the ability to place a file in a Dag bundle, or a
+permission whose documented purpose is the action being demonstrated, the conclusion follows from
+the premise and no boundary has been crossed.
+
+Two shapes recur. The first assumes a principal that is already inside a trust boundary — a
+metadata-database writer can approve a gated task, but that principal can already set task and Dag
+run states directly. The second reads an administrative permission as an escalation: a role holding
+the FAB user-administration permission can grant roles, Admin included, because granting roles is
+what that permission is for.
+
+State what the attacker holds at the start and what they hold at the end. Where those are the same,
+there is no escalation to report.
+
+Values outside the secret-masking contract
+...........................................
+
+Secret masking covers values Airflow has been told are secret: a connection's password and its
+``extra``, and values whose field name matches the sensitive-field list that
+``[core] sensitive_var_conn_names`` extends. It reduces accidental disclosure in logs and the UI.
+It is not a boundary that contains a Dag author, who can always read and print the values their
+tasks are given.
+
+Two consequences of that scope are by design. Identity fields are not secrets — a connection's
+``login`` is deliberately absent from the sensitive-field list, as are ``user`` and ``username`` —
+so a report that ``login`` appears in logs describes intended behaviour. And values placed
+somewhere Airflow has not been told is sensitive, most often a Dag run configuration, are not
+masked; the project has never documented them as being.
+
+A value that *is* within the contract and appears in clear text is a real bug and worth raising, in most
+cases through the public issue tracker rather than the security process.

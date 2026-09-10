@@ -16,77 +16,159 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import select
 
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
+from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
+DEGRADED = "degraded"
+DOWN = "down"
+
+
+@provide_session
+def get_jobs_health(job_runner_class, *, session: Session = NEW_SESSION) -> list[Job]:
+    """Return unfinished jobs for the runner class, ordered by latest heartbeat."""
+    return list(
+        session.scalars(
+            select(Job)
+            .where(
+                Job.job_type == job_runner_class.job_type,
+                Job.end_date.is_(None),
+            )
+            .order_by(Job.latest_heartbeat.desc())
+        )
+    )
+
+
+def _job_instance_health(job: Job, heartbeat_field_name: str) -> dict[str, Any]:
+    heartbeat = job.latest_heartbeat.isoformat() if job.latest_heartbeat else None
+    return {
+        "hostname": job.hostname,
+        "status": HEALTHY if job.is_alive() else UNHEALTHY,
+        heartbeat_field_name: heartbeat,
+    }
+
+
+def _legacy_status(jobs: list[Job]) -> str:
+    """Top-level status: healthy if any instance is alive."""
+    return HEALTHY if any(job.is_alive() for job in jobs) else UNHEALTHY
+
+
+def _triggerer_instance_health(job: Job) -> dict[str, Any]:
+    return {
+        **_job_instance_health(job, "latest_triggerer_heartbeat"),
+        "team_name": job.team_name,
+    }
+
+
+def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
+    return {
+        **_job_instance_health(job, "latest_dag_processor_heartbeat"),
+        "bundle_names": job.bundle_names,
+    }
+
+
+def _aggregate_detailed_status(jobs: list[Job]) -> str:
+    """detailed_status: healthy (all alive), degraded (some alive), down (none alive)."""
+    alive_count = sum(1 for job in jobs if job.is_alive())
+    if alive_count == 0:
+        return DOWN
+    if alive_count == len(jobs):
+        return HEALTHY
+    return DEGRADED
 
 
 def get_airflow_health() -> dict[str, Any]:
-    """Get the health for Airflow metadatabase, scheduler and triggerer."""
+    """Get the health for Airflow metadatabase, scheduler, triggerer, and dag processor."""
     metadatabase_status = HEALTHY
+
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
     latest_dag_processor_heartbeat = None
 
+    scheduler_instances: list[dict[str, Any]] | None = None
+    triggerer_instances: list[dict[str, Any]] | None = None
+    dag_processor_instances: list[dict[str, Any]] | None = None
+
     scheduler_status = UNHEALTHY
-    triggerer_status: str | None = UNHEALTHY
-    dag_processor_status: str | None = UNHEALTHY
+    triggerer_status = UNHEALTHY
+    dag_processor_status = UNHEALTHY
+
+    scheduler_detailed_status = DOWN
+    triggerer_detailed_status = DOWN
+    dag_processor_detailed_status = DOWN
 
     try:
-        latest_scheduler_job = SchedulerJobRunner.most_recent_job()
+        scheduler_jobs = get_jobs_health(SchedulerJobRunner)
+        scheduler_status = _legacy_status(scheduler_jobs)
+        scheduler_detailed_status = _aggregate_detailed_status(scheduler_jobs)
+        if scheduler_jobs:
+            scheduler_instances = [
+                _job_instance_health(job, "latest_scheduler_heartbeat") for job in scheduler_jobs
+            ]
 
-        if latest_scheduler_job:
-            if latest_scheduler_job.latest_heartbeat:
-                latest_scheduler_heartbeat = latest_scheduler_job.latest_heartbeat.isoformat()
-            if latest_scheduler_job.is_alive():
-                scheduler_status = HEALTHY
+            if scheduler_jobs[0].latest_heartbeat:
+                latest_scheduler_heartbeat = scheduler_jobs[0].latest_heartbeat.isoformat()
     except Exception:
         metadatabase_status = UNHEALTHY
 
     try:
-        latest_triggerer_job = TriggererJobRunner.most_recent_job()
+        triggerer_jobs = get_jobs_health(TriggererJobRunner)
+        triggerer_status = _legacy_status(triggerer_jobs)
+        triggerer_detailed_status = _aggregate_detailed_status(triggerer_jobs)
+        if triggerer_jobs:
+            triggerer_instances = [_triggerer_instance_health(job) for job in triggerer_jobs]
 
-        if latest_triggerer_job:
-            if latest_triggerer_job.latest_heartbeat:
-                latest_triggerer_heartbeat = latest_triggerer_job.latest_heartbeat.isoformat()
-            if latest_triggerer_job.is_alive():
-                triggerer_status = HEALTHY
-        else:
-            triggerer_status = None
+            if triggerer_jobs[0].latest_heartbeat:
+                latest_triggerer_heartbeat = triggerer_jobs[0].latest_heartbeat.isoformat()
     except Exception:
         metadatabase_status = UNHEALTHY
+        triggerer_status = UNHEALTHY
+        triggerer_detailed_status = DOWN
 
     try:
-        latest_dag_processor_job = DagProcessorJobRunner.most_recent_job()
+        dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
+        dag_processor_status = _legacy_status(dag_processor_jobs)
+        dag_processor_detailed_status = _aggregate_detailed_status(dag_processor_jobs)
+        if dag_processor_jobs:
+            dag_processor_instances = [_dag_processor_instance_health(job) for job in dag_processor_jobs]
 
-        if latest_dag_processor_job:
-            if latest_dag_processor_job.latest_heartbeat:
-                latest_dag_processor_heartbeat = latest_dag_processor_job.latest_heartbeat.isoformat()
-            if latest_dag_processor_job.is_alive():
-                dag_processor_status = HEALTHY
-        else:
-            dag_processor_status = None
+            if dag_processor_jobs[0].latest_heartbeat:
+                latest_dag_processor_heartbeat = dag_processor_jobs[0].latest_heartbeat.isoformat()
     except Exception:
         metadatabase_status = UNHEALTHY
+        dag_processor_status = UNHEALTHY
+        dag_processor_detailed_status = DOWN
 
     airflow_health_status = {
         "metadatabase": {"status": metadatabase_status},
         "scheduler": {
             "status": scheduler_status,
             "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+            "detailed_status": scheduler_detailed_status,
+            "instances": scheduler_instances,
         },
         "triggerer": {
             "status": triggerer_status,
             "latest_triggerer_heartbeat": latest_triggerer_heartbeat,
+            "detailed_status": triggerer_detailed_status,
+            "instances": triggerer_instances,
         },
         "dag_processor": {
             "status": dag_processor_status,
             "latest_dag_processor_heartbeat": latest_dag_processor_heartbeat,
+            "detailed_status": dag_processor_detailed_status,
+            "instances": dag_processor_instances,
         },
     }
 

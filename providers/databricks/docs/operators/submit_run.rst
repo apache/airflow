@@ -80,6 +80,7 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``libraries``
     - ``run_name``
     - ``timeout_seconds``
+    - ``performance_target``
 
 .. code-block:: python
 
@@ -135,6 +136,22 @@ or ``tasks`` argument.
   # The submitted run's notebook_task.base_parameters becomes:
   #   {"env": "dev", "shard": "1"}
   # i.e. the same dict, copied into the task's dict-shaped parameter slot.
+
+
+OpenLineage parent context
+--------------------------
+
+Set ``openlineage_inject_parent_job_info=True`` to inject the standardized OpenLineage context into
+the dict-shaped parameter slot of each supported task. The context is passed under the
+``OPENLINEAGE_CONTEXT`` key and includes the Airflow task as a ``BATCH/AIRFLOW/TASK`` parent. The root
+job is marked as ``BATCH/AIRFLOW/DAG`` when it is the current Airflow Dag. For a root inherited
+through ``DagRun.conf``, its job type is copied from
+``conf["openlineage"]["rootParentJobType"]`` when available and otherwise omitted.
+
+For tasks with a ``new_cluster``, the operator also retains the existing injection into
+``new_cluster.spark_conf``. Tasks that only accept positional list parameters
+(``spark_jar_task``, ``spark_python_task``, or ``spark_submit_task``) receive the context only when
+their Spark configuration can be injected.
 
 
 Examples
@@ -214,6 +231,10 @@ To opt out and always submit a fresh run on retry, set ``durable=False``:
 Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the
 Triggerer already tracks the run across the wait, so deferrable mode takes precedence and
 ``durable`` has no effect.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always submits a fresh run on retry, exactly as before this feature existed.
 
 
 DatabricksSubmitRunDeferrableOperator

@@ -28,7 +28,13 @@ import os
 import subprocess
 import sys
 
-from common_prek_utils import AIRFLOW_ROOT_PATH, console, initialize_breeze_prek
+from common_prek_utils import (
+    AIRFLOW_ROOT_PATH,
+    SETUP_BREEZE_PATH,
+    console,
+    describe_breeze_not_running_from_lock,
+    initialize_breeze_prek,
+)
 
 BREEZE_INSTALL_DIR = AIRFLOW_ROOT_PATH / "dev" / "breeze"
 BREEZE_DOC_DIR = BREEZE_INSTALL_DIR / "doc"
@@ -40,12 +46,10 @@ FORCE = os.environ.get("FORCE", "false")[0].lower() == "t"
 def breeze_env_with_local_sources() -> dict[str, str]:
     """Return an environment that forces breeze to import the local worktree sources.
 
-    The ``breeze`` command on PATH is normally the uvx shim (ADR 0017), which runs
-    breeze from a *cached* build. That cache does not always reflect uncommitted edits
-    to ``dev/breeze``: ``uvx --refresh`` / ``--reinstall`` do not rebuild a local path
-    dependency, only ``uvx --no-cache`` does. When the cache is stale this hook computes
-    the command hashes / option groups from old code and then either misses a needed
-    regeneration or *reverts* a correctly regenerated image back to the stale version.
+    The ``breeze`` command on PATH is not guaranteed to import this worktree's sources: a
+    legacy global install (``uv tool`` / ``pipx``) stays bound to whichever checkout it was
+    installed from. Computing the command hashes / option groups from that other checkout's
+    code either misses a needed regeneration or *reverts* a correctly regenerated image.
 
     Prepending the local breeze sources to ``PYTHONPATH`` makes the in-process
     computation (and the help rendering it spawns) always reflect the current source,
@@ -100,12 +104,34 @@ def is_regeneration_needed() -> bool:
     return result.returncode != 0
 
 
+def fail_if_breeze_does_not_run_from_lock() -> None:
+    """Stop before regenerating anything from a breeze whose dependencies are not the locked ones.
+
+    The stored hashes cover the command definitions *as rendered by the locked click*, so
+    regenerating from an unlocked install rewrites every one of them and the drift comes back on
+    the next run from a locked install.
+    """
+    reason = describe_breeze_not_running_from_lock()
+    if reason is None:
+        return
+    console.print(
+        f"\n[red]Cannot regenerate breeze command output: {reason}.[/]\n\n"
+        "[yellow]Install or upgrade the breeze shim, which runs breeze from "
+        "`dev/breeze/uv.lock` (ADR 0017):[/]\n\n"
+        f"    {SETUP_BREEZE_PATH}\n\n"
+        "[yellow]A legacy global install has to go first — it owns the same path:[/]\n\n"
+        "    uv tool uninstall apache-airflow-breeze   # or: pipx uninstall apache-airflow-breeze\n"
+    )
+    sys.exit(1)
+
+
 def main() -> int:
     initialize_breeze_prek(__name__, __file__)
 
     return_code = 0
     verify_all_commands_described_in_docs()
     if is_regeneration_needed():
+        fail_if_breeze_does_not_run_from_lock()
         console.print(
             "\n[bright_blue]Some of the commands changed since last time images were generated. "
             "Regenerating.\n"

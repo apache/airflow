@@ -19,6 +19,37 @@
 Changelog
 ---------
 
+0.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add GitHub App authentication for git Dag bundles (#64422)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
+0.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix malformed GitDagBundle error message for missing repository path (#70622)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document commit SHA support for GitDagBundle tracking_ref (#69735)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 0.4.2
 .....
 

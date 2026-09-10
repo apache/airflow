@@ -30,4 +30,8 @@ def mark_image_as_rebuilt(ci_image_params: BuildCiParams):
     ci_image_cache_dir = BUILD_CACHE_PATH / ci_image_params.airflow_branch
     ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
     touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
-    calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)
+    calculate_md5_checksum_for_files(
+        ci_image_params.md5sum_cache_dir,
+        update=True,
+        skip_provider_dependencies_check=ci_image_params.skip_provider_dependencies_check,
+    )

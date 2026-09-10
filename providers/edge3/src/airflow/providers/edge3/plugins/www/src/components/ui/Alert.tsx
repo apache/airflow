@@ -18,17 +18,17 @@
  */
 /* eslint-disable no-extra-boolean-cast */
 import { Alert as ChakraAlert } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode, type ReactElement } from "react";
 
 import { CloseButton } from "./CloseButton";
 
 export type AlertProps = {
   readonly closable?: boolean;
-  readonly endElement?: React.ReactNode;
-  readonly icon?: React.ReactElement;
+  readonly endElement?: ReactNode;
+  readonly icon?: ReactElement;
   readonly onClose?: () => void;
-  readonly startElement?: React.ReactNode;
-  readonly title?: React.ReactNode;
+  readonly startElement?: ReactNode;
+  readonly title?: ReactNode;
 } & Omit<ChakraAlert.RootProps, "title">;
 
 export const Alert = forwardRef<HTMLDivElement, AlertProps>((props, ref) => {

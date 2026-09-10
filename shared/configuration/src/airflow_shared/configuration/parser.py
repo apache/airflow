@@ -2100,7 +2100,7 @@ class AirflowConfigParser(ConfigParser):
         :param include_env_vars: Include environment variables corresponding to each config option
         :param include_providers: Include providers configuration
         :param comment_out_everything: Comment out all values
-        :param hide_sensitive_values: Include sensitive values in the output
+        :param hide_sensitive: Replace sensitive values in the output with "< hidden >"
         :param extra_spacing: Add extra spacing before examples and after variables
         :param only_defaults: Only include default values when writing the config, not the actual values
         """

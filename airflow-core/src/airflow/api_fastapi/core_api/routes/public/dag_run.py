@@ -106,6 +106,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag_run_bulk,
     requires_access_dag_run_clear_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
@@ -158,6 +159,7 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ],
     ),
     dependencies=[
@@ -287,7 +289,10 @@ def get_upstream_asset_events(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-        .options(joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset))
+        .options(
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset),
+            joinedload(DagRun.consumed_asset_events).subqueryload(AssetEvent.created_dagruns),
+        )
     )
     if dag_run is None:
         raise HTTPException(
@@ -296,7 +301,7 @@ def get_upstream_asset_events(
         )
     events = dag_run.consumed_asset_events
     return AssetEventCollectionResponse(
-        asset_events=events,
+        asset_events=serialize_asset_events(events, session=session),
         total_entries=len(events),
     )
 
@@ -487,7 +492,12 @@ def clear_dag_run_partitions(
 
 @dag_run_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_dag_runs(

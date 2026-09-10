@@ -17,10 +17,12 @@
  * under the License.
  */
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
-import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
-import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
+import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 /**
  * Dags Page Object
@@ -30,10 +32,12 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  public readonly addFilterButton: Locator;
   public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
   public readonly lastRunStateFilter: Locator;
+  public readonly lastRunStatePill: Locator;
   public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
   public readonly operatorFilter: Locator;
@@ -61,11 +65,15 @@ export class DagsPage extends BasePage {
     this.retriesFilter = page.getByTestId("retries-filter");
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
-    this.lastRunStateFilter = page.getByTestId("dags-last-run-state-filter");
+    // Dags filters live in the shared FilterBar: a filter is added from the "Add Filter"
+    // menu, then edited in its pill. Test ids are derived from the search-param key.
+    this.addFilterButton = page.getByTestId("add-filter-button");
+    this.lastRunStateFilter = page.getByTestId("last_dag_run_state-filter");
+    this.lastRunStatePill = page.getByTestId("last_dag_run_state-pill");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
-    // Uses testId because this button's text is driven by an i18n key.
-    this.needsReviewFilter = page.getByTestId("dags-needs-review-filter");
+    // Uses testId because this menu item's text is driven by an i18n key.
+    this.needsReviewFilter = page.getByTestId("add-filter-needs_review");
   }
 
   public static getDagDetailUrl(dagName: string): string {
@@ -80,21 +88,13 @@ export class DagsPage extends BasePage {
    * Clear the search input and wait for list to reset
    */
   public async clearSearch(): Promise<void> {
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 10_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
-
     // Click the clear button instead of programmatically clearing the input.
     // The SearchBar component uses a 200ms debounce on keystroke changes,
     // but the clear button calls onChange("") directly, bypassing the debounce.
     await this.page.getByTestId("clear-search").click();
-    await responsePromise;
+    // Clearing goes back to a query the page already holds, which react-query answers from cache
+    // instead of refetching, so the dropped search param is the only signal there is.
+    await expect(this.page).not.toHaveURL(/name_pattern=/u);
     await this.waitForDagList();
   }
 
@@ -112,23 +112,45 @@ export class DagsPage extends BasePage {
   public async filterByStatus(
     status: "failed" | "needs_review" | "queued" | "running" | "success",
   ): Promise<void> {
-    // Set up response listener before the click so we don't miss a fast response.
-    const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
-        timeout: 10_000,
-      })
-      .catch((error: unknown) => {
-        if (error instanceof Error && !error.message.includes("Timeout")) {
-          throw error;
-        }
-      });
+    // Set up response listener before the click so we don't miss a fast response. /ui/dags shares
+    // its prefix with the page's other endpoints and is refetched on a poll interval, so only the
+    // filters a request carries tell this fetch from one that predates it.
+    const responsePromise = this.page.waitForResponse(
+      (response: Response) => {
+        const url = new URL(response.url());
+        const filters = url.searchParams;
+
+        return (
+          url.pathname.endsWith("/ui/dags") &&
+          (status === "needs_review"
+            ? filters.get("has_pending_actions") === "true"
+            : filters.get("last_dag_run_state") === status) &&
+          response.status() === 200
+        );
+      },
+      { timeout: 10_000 },
+    );
 
     if (status === "needs_review") {
+      // A boolean filter is active the moment it is picked from the menu.
+      await this.openAddFilterMenu();
       await this.needsReviewFilter.click();
     } else {
-      // Run-state filters live in the "Last run" dropdown.
-      await this.lastRunStateFilter.getByRole("combobox").click();
-      await this.page.getByTestId(`dags-last-run-state-filter-${status}`).click();
+      // A pill is only in the DOM once it collapses out of edit mode, so sampling its
+      // visibility races that. The URL carries the same fact and never animates.
+      if (new URL(this.page.url()).searchParams.has("last_dag_run_state")) {
+        // An existing pill already holds a value, so re-opening it leaves the menu shut.
+        await this.lastRunStatePill.click();
+        await this.lastRunStateFilter.click();
+      } else {
+        // A filter added from the menu opens onto its options; clicking the trigger would shut it.
+        await this.openAddFilterMenu();
+        await this.page.getByTestId("add-filter-last_dag_run_state").click();
+      }
+      await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
+      // Selecting blurs the pill, which collapses it ~150ms later. Hand back a settled bar
+      // instead of one mid-transition.
+      await expect(this.lastRunStatePill).toBeVisible({ timeout: 5000 });
     }
     await responsePromise;
   }
@@ -221,7 +243,7 @@ export class DagsPage extends BasePage {
       return this.page.locator('[data-testid="dag-id"]').count();
     }
 
-    return this.page.getByTestId("table-list").locator("tbody tr").count();
+    return this.page.getByTestId("table-list").locator(DATA_ROWS).count();
   }
 
   public async getFilterOptions(filter: Locator): Promise<Array<string>> {
@@ -309,6 +331,14 @@ export class DagsPage extends BasePage {
         timeout: 30_000,
       });
     }).toPass({ intervals: [2000], timeout: 60_000 });
+  }
+
+  /**
+   * Open the Add Filter menu and wait for its items to render.
+   */
+  public async openAddFilterMenu(): Promise<void> {
+    await expect(this.addFilterButton).toBeVisible({ timeout: 30_000 });
+    await this.addFilterButton.click();
   }
 
   /**

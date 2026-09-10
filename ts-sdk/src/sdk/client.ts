@@ -43,7 +43,7 @@ export interface TaskClient {
    * This matches Python `Variable.get` behavior when no default value is
    * supplied.
    *
-   * @throws {@link VariableNotFoundError} when the key is missing.
+   * @throws {@link Exceptions!VariableNotFoundError | VariableNotFoundError} when the key is missing.
    */
   getVariableOrThrow(key: string): Promise<string>;
 
@@ -86,7 +86,7 @@ export interface TaskClient {
    *
    * This matches Python `BaseHook.get_connection` behavior.
    *
-   * @throws {@link ConnectionNotFoundError} when the connection does not exist.
+   * @throws {@link Exceptions!ConnectionNotFoundError | ConnectionNotFoundError} when the connection does not exist.
    */
   getConnectionOrThrow(connId: string): Promise<ConnectionResult>;
 }

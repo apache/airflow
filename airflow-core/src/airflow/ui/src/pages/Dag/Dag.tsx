@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
+
+import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -27,9 +28,11 @@ import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { ApiError } from "openapi/requests/core/ApiError";
+
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 

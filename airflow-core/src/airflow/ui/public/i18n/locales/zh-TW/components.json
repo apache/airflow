@@ -17,6 +17,10 @@
     "missingRuns": "遺漏的執行",
     "notCreatedReason": "未建立原因",
     "overrideExistingParams": "覆寫既有執行的參數",
+    "partitionRange": "分區範圍",
+    "partitionsAffected_one": "將會回填 1 個分區：",
+    "partitionsAffected_other": "將會回填 {{count}} 個分區：",
+    "partitionsNone": "無符合所選範圍的分區。",
     "permissionDenied": "試執行失敗：使用者沒有建立回填的權限。",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
@@ -118,6 +122,10 @@
   "logs": {
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
+  },
+  "passwordToggle": {
+    "hide": "隱藏",
+    "show": "顯示"
   },
   "reparseDag": "重新解析 Dag",
   "slowestTaskInstances": {

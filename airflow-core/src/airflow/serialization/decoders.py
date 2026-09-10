@@ -38,6 +38,7 @@ from airflow.serialization.definitions.deadline import (
     DeadlineAlertFields,
     SerializedDeadlineAlert,
     SerializedReferenceModels,
+    SerializedVariableInterval,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
@@ -127,6 +128,7 @@ def _decode_asset(var: dict[str, Any]):
                 trigger={
                     "classpath": watcher["trigger"]["classpath"],
                     "kwargs": smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
+                    **({"queue": watcher["trigger"]["queue"]} if "queue" in watcher["trigger"] else {}),
                 },
             )
             for watcher in watchers
@@ -167,7 +169,12 @@ def decode_deadline_reference(reference_data: dict):
     """Decode a previously serialized deadline reference."""
     ref_name = reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
 
-    if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+    # A custom reference may share a name with a builtin, so ``__class_path`` wins.
+    if "__class_path" in reference_data:
+        reference_class: type[SerializedReferenceModels.SerializedBaseDeadlineReference] = (
+            SerializedReferenceModels.SerializedCustomReference
+        )
+    elif ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
         reference_class = SerializedReferenceModels.get_reference_class(ref_name)
     else:
         reference_class = SerializedReferenceModels.SerializedCustomReference
@@ -197,7 +204,7 @@ def decode_deadline_alert(encoded_data: dict):
             "from a version that supports VariableInterval. Downgrade is not fully reversible."
         )
 
-    interval: datetime.timedelta | VariableInterval
+    interval: datetime.timedelta | SerializedVariableInterval
 
     # Backward compatibility: previously interval was stored as total_seconds() (float/int).
     # Handle numeric values by converting to timedelta.
@@ -205,8 +212,13 @@ def decode_deadline_alert(encoded_data: dict):
         interval = datetime.timedelta(seconds=raw_interval)
     else:
         deserialized = deserialize(raw_interval)
-        if isinstance(deserialized, (datetime.timedelta, VariableInterval)):
+
+        if isinstance(deserialized, datetime.timedelta):
             interval = deserialized
+        elif isinstance(deserialized, SerializedVariableInterval):
+            interval = deserialized
+        elif isinstance(deserialized, VariableInterval):
+            interval = SerializedVariableInterval(key=deserialized.key)
         else:
             raise TypeError(f"Invalid interval type: {type(deserialized).__name__}")
 

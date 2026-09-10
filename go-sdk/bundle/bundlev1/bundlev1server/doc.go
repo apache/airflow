@@ -15,11 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundlev1server implements a server implementation to run bundlev1
-// as gRPC servers, making it accessible to the Airflow Go Workers.
-//
-// This "serving" is to local process only, and is not exposed over any network
-//
-// Bundle will likely be calling [Serve] from their main function to
-// start the server so Airflow's go worker can connect to it.
+// Package bundlev1server runs a bundle through Airflow's coordinator protocol.
+// Bundle entry points call [Serve] so the Python ExecutableCoordinator can
+// connect over the local comm and logs channels.
 package bundlev1server

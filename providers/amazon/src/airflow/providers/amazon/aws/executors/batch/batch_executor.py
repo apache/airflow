@@ -268,11 +268,38 @@ class AwsBatchExecutor(BaseExecutor):
         self.log.debug("Active Workers: %s", describe_job_response)
 
         for job in describe_job_response:
-            if job.get_job_state() == State.FAILED:
-                self._handle_failed_job(job)
-            elif job.get_job_state() == State.SUCCESS:
-                workload_key = self.active_workers.pop_by_id(job.job_id)
-                self.success(workload_key)
+            # snapshot the key before handling the job: if the error strikes after
+            # pop_by_id() already removed it, the collection can no longer tell us
+            # whose workload it was, and the workload would be left with no terminal state
+            workload_key = self.active_workers.id_to_key.get(job.job_id)
+            try:
+                if job.get_job_state() == State.FAILED:
+                    self._handle_failed_job(job)
+                elif job.get_job_state() == State.SUCCESS:
+                    self.success(self.active_workers.pop_by_id(job.job_id))
+            except (ClientError, NoCredentialsError):
+                # credential problems are executor-wide, not job-specific: let sync() handle them
+                raise
+            except Exception:
+                self.log.exception(
+                    "Evicting Batch job %s after an unexpected error while syncing it.", job.job_id
+                )
+                self._evict_job(job.job_id, workload_key)
+
+    def _evict_job(self, job_id: str, workload_key: BatchJobWorkloadKey | None = None) -> None:
+        """
+        Remove a job from the collection and fail its workload, tolerating corrupted bookkeeping.
+
+        workload_key is the caller's snapshot of the mapping taken before the error;
+        it is the fallback when the job was already removed from the collection.
+        """
+        workload_key = self.active_workers.remove_job(job_id) or workload_key
+        if workload_key is None:
+            return
+        try:
+            self.fail(workload_key)
+        except Exception:
+            self.log.exception("Failed to fail workload %s of evicted Batch job %s", workload_key, job_id)
 
     def _handle_failed_job(self, job):
         """

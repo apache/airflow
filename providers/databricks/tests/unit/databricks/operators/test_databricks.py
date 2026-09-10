@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import warnings
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
@@ -40,6 +41,7 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, 
 from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
+    _DURABLE_UNSET,
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
@@ -47,6 +49,7 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
+    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -347,6 +350,26 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
+            }
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    def test_init_with_performance_target_named_parameter(self):
+        """
+        Test the initializer merges ``performance_target`` into the create payload.
+        """
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            name=JOB_NAME,
+            tasks=TASKS,
+            performance_target="PERFORMANCE_OPTIMIZED",
+        )
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tasks": TASKS,
+                "performance_target": "PERFORMANCE_OPTIMIZED",
             }
         )
 
@@ -741,6 +764,27 @@ class TestDatabricksSubmitRunOperator:
         )
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK, "run_name": TASK_ID}
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    def test_init_with_performance_target_named_parameter(self):
+        """
+        Test the initializer merges ``performance_target`` into the submit payload.
+        """
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task=NOTEBOOK_TASK,
+            performance_target="PERFORMANCE_OPTIMIZED",
+        )
+        expected = utils.normalise_json_content(
+            {
+                "new_cluster": NEW_CLUSTER,
+                "notebook_task": NOTEBOOK_TASK,
+                "performance_target": "PERFORMANCE_OPTIMIZED",
+                "run_name": TASK_ID,
+            }
         )
 
         assert expected == utils.normalise_json_content(op._get_merged_json())
@@ -1668,6 +1712,217 @@ class TestDatabricksSubmitRunOperatorOpenLineageInjection:
         assert submitted["new_cluster"]["spark_conf"]["spark.executor.memory"] == "8g"
         assert submitted["new_cluster"]["spark_conf"]["spark.openlineage.parentJobNamespace"] == "ns"
 
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job",
+        autospec=True,
+    )
+    def test_injects_context_into_task_parameters_in_addition_to_spark_conf(
+        self, mock_spark_inject, mock_context_inject
+    ):
+        mock_context_inject.side_effect = lambda job_parameters, context: {
+            **job_parameters,
+            "OPENLINEAGE_CONTEXT": "context",
+        }
+        mock_spark_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: {
+            **job,
+            "new_cluster": {
+                **job["new_cluster"],
+                "spark_conf": {"spark.openlineage.context": "spark-context"},
+            },
+        }
+        context = {"ti": object()}
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            new_cluster=NEW_CLUSTER,
+            notebook_task={"notebook_path": "/Users/me/notebook"},
+            openlineage_inject_parent_job_info=True,
+        )
+
+        result = op._prepare_submit_json(context)
+
+        assert result["notebook_task"]["base_parameters"] == {"OPENLINEAGE_CONTEXT": "context"}
+        assert result["new_cluster"]["spark_conf"] == {"spark.openlineage.context": "spark-context"}
+        mock_context_inject.assert_called_once_with(job_parameters={}, context=context)
+        mock_spark_inject.assert_called_once()
+        spark_call = mock_spark_inject.call_args.kwargs
+        assert spark_call["context"] == context
+        assert spark_call["inject_parent_job_info"] is True
+        assert spark_call["inject_transport_info"] is False
+        assert spark_call["job"]["notebook_task"]["base_parameters"] == {"OPENLINEAGE_CONTEXT": "context"}
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job",
+        autospec=True,
+    )
+    def test_injects_context_into_supported_tasks_without_new_cluster(
+        self, mock_spark_inject, mock_context_inject
+    ):
+        mock_context_inject.side_effect = lambda job_parameters, context: {
+            **job_parameters,
+            "OPENLINEAGE_CONTEXT": "context",
+        }
+        mock_spark_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: (
+            job
+        )
+        context = {"ti": object()}
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            tasks=[
+                {"task_key": "notebook", "notebook_task": {"notebook_path": "/notebook"}},
+                {"task_key": "wheel", "python_wheel_task": {"package_name": "package"}},
+                {"task_key": "jar", "spark_jar_task": {"main_class_name": "Main"}},
+            ],
+            openlineage_inject_parent_job_info=True,
+        )
+
+        result = op._prepare_submit_json(context)
+
+        assert result["tasks"][0]["notebook_task"]["base_parameters"] == {"OPENLINEAGE_CONTEXT": "context"}
+        assert result["tasks"][1]["python_wheel_task"]["named_parameters"] == {
+            "OPENLINEAGE_CONTEXT": "context"
+        }
+        assert "OPENLINEAGE_CONTEXT" not in result["tasks"][2]["spark_jar_task"]
+        assert mock_context_inject.call_count == 2
+        mock_spark_inject.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+        side_effect=RuntimeError("context generation failed"),
+    )
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage.inject_openlineage_properties_into_databricks_job",
+        autospec=True,
+    )
+    def test_context_injection_failure_does_not_block_spark_conf_injection(
+        self, mock_spark_inject, mock_context_inject
+    ):
+        mock_spark_inject.side_effect = lambda job, context, inject_parent_job_info, inject_transport_info: (
+            job
+        )
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            notebook_task={"notebook_path": "/Users/me/notebook"},
+            new_cluster=NEW_CLUSTER,
+            openlineage_inject_parent_job_info=True,
+        )
+
+        result = op._prepare_submit_json({"ti": object()})
+
+        assert "base_parameters" not in result["notebook_task"]
+        mock_context_inject.assert_called_once()
+        mock_spark_inject.assert_called_once()
+
+
+class TestDatabricksRunNowOperatorOpenLineageInjection:
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_inject_openlineage_context_into_job_parameters(self, db_mock_class, mock_inject):
+        mock_inject.side_effect = lambda job_parameters, context: {
+            **job_parameters,
+            "OPENLINEAGE_CONTEXT": '{"parent":{"job":{"facets":{"jobType":{"jobType":"TASK"}}}}}',
+        }
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        context = {"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})}
+
+        op.execute(context)
+
+        mock_inject.assert_called_once_with(job_parameters={}, context=context)
+        submitted = db_mock.run_now.call_args.args[0]
+        assert submitted["job_parameters"] == {
+            "OPENLINEAGE_CONTEXT": '{"parent":{"job":{"facets":{"jobType":{"jobType":"TASK"}}}}}'
+        }
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+        side_effect=RuntimeError("context generation failed"),
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_injection_failure_leaves_job_parameters_unchanged(self, db_mock_class, mock_inject):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+
+        op.execute({"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})})
+
+        mock_inject.assert_called_once()
+        submitted = db_mock.run_now.call_args.args[0]
+        assert "job_parameters" not in submitted
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_does_not_inject_parent_job_info_when_disabled(self, db_mock_class, mock_inject):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=False,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+
+        op.execute({"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})})
+
+        mock_inject.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.databricks.utils.openlineage."
+        "inject_openlineage_context_into_databricks_job_parameters",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_skips_injection_with_legacy_parameter_slots(self, db_mock_class, mock_inject):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            notebook_params={"input": "value"},
+            wait_for_termination=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+
+        op.execute({"ti": MagicMock(spec=["stats_tags", "xcom_push"], stats_tags={})})
+
+        mock_inject.assert_not_called()
+        submitted = db_mock.run_now.call_args.args[0]
+        assert submitted["notebook_params"] == {"input": "value"}
+        assert "job_parameters" not in submitted
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
@@ -1889,6 +2144,12 @@ class TestDatabricksSubmitRunOperatorDurable:
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json={"notebook_task": NOTEBOOK_TASK})
         assert op.is_job_succeeded(status) is expected
 
+    def test_default_args_durable_reaches_operator(self):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID, json={"notebook_task": NOTEBOOK_TASK}, default_args={"durable": False}
+        )
+        assert op.durable is False
+
 
 class TestDatabricksRunNowOperator:
     def test_init_with_named_parameters(self):
@@ -1897,6 +2158,15 @@ class TestDatabricksRunNowOperator:
         """
         op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
         expected = utils.normalise_json_content({"job_id": 42})
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    def test_init_with_performance_target_named_parameter(self):
+        """
+        Test the initializer merges ``performance_target`` into the run-now payload.
+        """
+        op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID, performance_target="STANDARD")
+        expected = utils.normalise_json_content({"job_id": 42, "performance_target": "STANDARD"})
 
         assert expected == utils.normalise_json_content(op._get_merged_json())
 
@@ -3201,6 +3471,10 @@ class TestDatabricksRunNowOperatorDurable:
     def test_is_job_succeeded(self, status, expected):
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
         assert op.is_job_succeeded(status) is expected
+
+    def test_default_args_durable_reaches_operator(self):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, default_args={"durable": False})
+        assert op.durable is False
 
 
 class TestDatabricksSQLStatementsOperator:
@@ -4800,3 +5074,18 @@ class TestDatabricksTaskOperator:
 
         operator.monitor_databricks_job()
         assert mock_databricks_hook.return_value.get_run.call_count == 3
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False

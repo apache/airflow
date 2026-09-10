@@ -16,19 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Button, HStack, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiDatabase } from "react-icons/fi";
 
 import { useAssetServiceGetDagAssetQueuedEvents, useAssetServiceNextRunAssets } from "openapi/queries";
 import type { NextRunAssetEventResponse } from "openapi/requests/types.gen";
+
+import { Popover, RouterLink, Tooltip } from "src/system-components";
+
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Popover, RouterLink } from "src/components/ui";
-import { Tooltip } from "src/components/ui/Tooltip";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";
 
@@ -47,7 +49,7 @@ type PartitionScheduleProps = {
 };
 
 const PartitionSchedule = ({ dagId, hasInactiveAsset, isLoading, pendingCount }: PartitionScheduleProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
