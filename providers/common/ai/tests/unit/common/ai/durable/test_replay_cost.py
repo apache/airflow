@@ -64,9 +64,13 @@ def durable_storage(tmp_path):
         yield DurableStorage(dag_id="dag", task_id="task", run_id="run_1", map_index=-1)
 
 
-async def _run_one_attempt(storage: DurableStorage, *, cost_limit: Decimal | None = None):
-    """Simulate one Airflow task attempt: fresh Agent + fresh DurableStepCounter, shared cache."""
-    counter = DurableStepCounter()
+async def _run_one_attempt(
+    storage: DurableStorage, *, cost_limit: Decimal | None = None, counter: DurableStepCounter | None = None
+):
+    """Simulate one Airflow task attempt with a fresh Agent and shared cache.
+
+    DurableStepCounter is fresh unless one is supplied."""
+    counter = counter or DurableStepCounter()
     caching = CachingModel(FunctionModel(_build_priced_response), storage=storage, counter=counter)
     agent = Agent(model=caching)
     result = await agent.run("What is the answer?", usage_limits=UsageLimits(cost_limit=cost_limit))
@@ -111,8 +115,13 @@ class TestDurableReplayCostDuplication:
         # Attempt 2 sets a limit below the already-paid-for replayed cost: zero new
         # spend, yet the replayed step alone pushes the cumulative usage over it.
         cost_limit = PRICED_COST / 2
+        counter2 = DurableStepCounter()
         with pytest.raises(UsageLimitExceeded):
-            await _run_one_attempt(_reopen_storage(), cost_limit=cost_limit)
+            await _run_one_attempt(_reopen_storage(), cost_limit=cost_limit, counter=counter2)
+
+        # Zero new model calls this attempt -- the raise came purely from replayed cost.
+        assert counter2.cached_model == 0
+        assert counter2.replayed_model == 1
 
 
 class TestDurableStorageCostRoundTrip:
