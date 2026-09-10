@@ -28,6 +28,8 @@ Additionally the following services are available and can be enabled as needed:
 * airflow-flower.service for a Flower monitoring interface
 * airflow-kerberos.service for the Kerberos renewal daemon
 
-The ``/api/v2/monitor/health`` endpoint reports ``dag_processor`` and ``triggerer`` as ``unhealthy`` when no
-corresponding service is running, so make sure the services you depend on are started. See the "Checking Airflow
+For both ``dag_processor`` and ``triggerer``, the ``/api/v2/monitor/health`` endpoint returns ``null`` for the
+status and latest heartbeat when no corresponding job record exists. If a job record exists but the job is no
+longer alive, its status is ``unhealthy``. Make sure the services you depend on are started; ignore the triggerer
+health status only when your deployment intentionally does not use a triggerer. See the "Checking Airflow
 Health Status" documentation for details.
