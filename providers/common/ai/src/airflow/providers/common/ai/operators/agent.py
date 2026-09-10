@@ -150,12 +150,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         ``{"cost_limit": "{{ params.budget }}", "request_limit": 5}``). The dict
         form is templated: each value is rendered by Jinja like any other
         ``template_fields`` entry, then coerced to that field's type (``Decimal``,
-        ``int``, or ``bool``). A value that cannot be coerced -- an unset Airflow
-        Variable renders to ``""``, a typo renders to a non-numeric string --
-        fails the task with a ``ValueError`` naming the field and the rendered
-        value, instead of silently disabling the limit. A ``UsageLimits``
-        instance passed directly is used as-is and is not templated or
-        validated. ``None`` (default) means no enforcement.
+        ``int``, or ``bool``). A value that cannot be coerced -- a Variable
+        that exists but is empty renders to ``""``, a typo renders to a
+        non-numeric string -- fails the task with a ``ValueError`` naming the
+        field and the rendered value, instead of silently disabling the
+        limit. A ``UsageLimits`` instance passed directly is used as-is and
+        is not templated or validated. ``None`` (default) means no
+        enforcement.
 
         A dict that omits ``request_limit`` still gets pydantic-ai's default of
         ``50`` requests -- pass ``"request_limit": None`` explicitly for no

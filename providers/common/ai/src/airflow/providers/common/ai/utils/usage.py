@@ -50,10 +50,11 @@ def _resolve_field_type(field: str, hint: Any) -> type:
 def _field_hints() -> dict[str, Any]:
     # ``pydantic_ai.usage`` uses ``from __future__ import annotations``, so
     # ``field.type`` is a string; ``get_type_hints`` resolves the real objects.
-    # This only evaluates each annotation string into a type/typing object --
-    # it never raises for a shape ``_resolve_field_type`` can't support, so
-    # calling it (even for every field at once) is safe to do lazily on first
-    # use rather than deferring further per field.
+    # ``get_type_hints`` parses every field's annotation in one call: if a
+    # future field's annotation can't be resolved at all (e.g. a forward ref
+    # only importable under ``TYPE_CHECKING``), that failure hits every caller
+    # of ``_get_field_type``, not just Dags that set that field -- unlike
+    # ``_resolve_field_type`` below, whose failures are scoped per field.
     return typing.get_type_hints(UsageLimits)
 
 
@@ -61,9 +62,11 @@ def _field_hints() -> dict[str, Any]:
 def _get_field_type(field: str) -> type:
     # Resolved lazily and cached per field rather than for every field at
     # import time: a future ``UsageLimits`` field typed e.g. ``Literal[...]``
-    # or ``list[int] | None`` must only break Dags that actually set that
-    # field, not every Dag that imports a common.ai operator module (see
-    # PR #71403 review discussion). ``lru_cache`` never caches a raised
+    # or ``list[int] | None`` -- a shape ``_resolve_field_type`` itself
+    # rejects -- only breaks Dags that actually set that field, not every Dag
+    # that imports a common.ai operator module (see PR #71403 review
+    # discussion). This scoping doesn't extend to ``_field_hints()`` failing
+    # outright; see the comment above. ``lru_cache`` never caches a raised
     # exception, so a field whose annotation is unsupported keeps raising the
     # same way on every call -- it never gets silently "fixed" by caching.
     return _resolve_field_type(field, _field_hints()[field])
@@ -164,8 +167,12 @@ def _truncated_repr(value: Any, limit: int = 100) -> str:
 
 
 def _coerce_value(field: str, value: Any) -> Any:
-    # ``None`` is always the author's explicit choice to disable that limit --
-    # Jinja never produces ``None`` from a string template -- so it passes through.
+    # ``None`` is the author's explicit choice to disable that limit under the
+    # default (string) rendering, where Jinja always renders a scalar leaf to
+    # ``str``. Under ``render_template_as_native_obj=True`` a ``None``-valued
+    # param (e.g. ``{{ params.budget }}`` where ``params.budget`` is ``None``)
+    # also renders to a real ``None``, indistinguishable here from the author's
+    # own ``None`` -- a known limitation, not something this function detects.
     if value is None:
         return value
 
@@ -230,9 +237,9 @@ def coerce_usage_limits(usage_limits: UsageLimits | dict[str, Any] | None) -> Us
     A ``UsageLimits`` instance has neither ``resolve`` nor ``template_fields``, so
     Airflow's template walk is a no-op on it even though ``usage_limits`` is in the
     operators' ``template_fields``. Passing a plain dict instead lets every field be
-    templated, but the rendered value is then not in the Dag author's control: an
-    unset Airflow Variable renders to ``""``, and a typo renders to an arbitrary
-    non-numeric string. This function performs the defensive, per-field parsing
+    templated, but the rendered value is then not in the Dag author's control: a
+    Variable that exists but is empty renders to ``""``, and a typo renders to
+    an arbitrary non-numeric string. This function performs the defensive, per-field parsing
     that keeps those failures loud and specific instead of a ``TypeError`` raised
     deep inside pydantic-ai.
 

@@ -130,10 +130,11 @@ Variable so the budget can change per environment without editing the Dag:
 
 Each dict value is rendered by Jinja like any other ``template_fields`` entry,
 then coerced to that field's type (``Decimal``, ``int``, or ``bool``). A value
-that doesn't parse -- an unset Variable renders to ``""``, a typo renders to a
-non-numeric string -- fails the task with a ``ValueError`` naming the field and
-the rendered value, instead of silently disabling the limit. A ``UsageLimits``
-instance passed directly is used as-is and is not templated or validated.
+that doesn't parse -- a Variable that exists but is empty renders to ``""``, a
+typo renders to a non-numeric string -- fails the task with a ``ValueError``
+naming the field and the rendered value, instead of silently disabling the
+limit. A ``UsageLimits`` instance passed directly is used as-is and is not
+templated or validated.
 
 Common knobs on ``UsageLimits``:
 

@@ -108,8 +108,12 @@ class TestCoerceUsageLimitsTemplatedDict:
         assert isinstance(getattr(result, field), int)
 
     def test_explicit_none_disables_the_limit(self):
-        """None is the author's deliberate choice -- Jinja never produces None
-        from a string template -- so it must pass through untouched."""
+        """None is the author's deliberate choice under the default (string)
+        rendering, where Jinja never produces None from a string template --
+        so it must pass through untouched. (Under
+        render_template_as_native_obj=True a None-valued param can also
+        render to a real None indistinguishable from this; see the comment
+        in _coerce_value -- not covered by this test.)"""
         result = coerce_usage_limits({"request_limit": None})
         assert result.request_limit is None
 
@@ -129,7 +133,8 @@ class TestCoerceUsageLimitsInvalidValues:
     def test_unparsable_value_raises_naming_field_and_value(self, field, value):
         """The error must name the field and the offending value -- a bare
         ``decimal.InvalidOperation``/``ValueError`` traceback gives a Dag author
-        no clue which key (often a mistyped or unset Airflow Variable) broke.
+        no clue which key (often a mistyped Variable name, or a Variable that
+        exists but is empty) broke.
         Covers both the ``Decimal`` (``cost_limit``) and ``int`` (``request_limit``)
         coercion error paths. ``cost_limit`` with a ``bool`` pins the existing
         ``str(True)`` -> ``Decimal("True")`` -> ``InvalidOperation`` behavior --
