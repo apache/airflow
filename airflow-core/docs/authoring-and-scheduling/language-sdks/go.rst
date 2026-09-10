@@ -52,22 +52,13 @@ Prerequisites
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 
-Deployment modes
-----------------
+Execution architecture
+----------------------
 
-A packed bundle can run in two ways. The same binary works in both, and you pick one per deployment:
-
-* **Coordinator (recommended).** A Python task runner launches the Go bundle directly, with no separate Go
-  worker process on the host. This is the same coordinator mechanism the Java SDK uses. Because the mature
-  Python supervisor handles the Airflow-facing concerns, this path inherits remote task logs (S3/GCS), the
-  full range of task states, and alternate XCom backends, rather than implementing them again in Go. Those are
-  exactly the features the Edge Worker path is still missing.
-* **Edge Worker.** A long-running Go process (``airflow-go-edge-worker``) polls Airflow for work and runs
-  your bundle, with no Python in the data path. It runs end-to-end today but is missing the features listed
-  under :ref:`go-sdk/limitations`.
-
-The rest of this guide covers the recommended coordinator path; see :ref:`go-sdk/edge-worker` for a summary
-of the Edge Worker.
+A Python task runner launches the Go bundle directly, with no separate Go worker process on the host. This
+is the same coordinator mechanism the Java SDK uses. Because the mature Python supervisor handles the
+Airflow-facing concerns, Go tasks inherit remote task logs (S3/GCS), the full range of task states, and
+alternate XCom backends rather than implementing them again in Go.
 
 Quick start
 -----------
@@ -158,10 +149,6 @@ manifest can never drift from what the binary actually executes.
     type myBundle struct{}
 
     var _ v1.BundleProvider = (*myBundle)(nil)
-
-    func (m *myBundle) GetBundleVersion() v1.BundleInfo {
-        return v1.BundleInfo{Name: bundleName, Version: &bundleVersion}
-    }
 
     func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
         simpleDag := dagbag.AddDag("simple_dag") // must match the Python dag_id
@@ -327,12 +314,10 @@ surface as Go values when read back via ``GetXCom``.
 .. note::
 
   ``GetXCom`` returns the value exactly as decoded from the transport; there is no typed XCom
-  deserialization layer yet. The concrete type of a *numeric* value therefore depends on the deployment
-  mode. Over the Execution API (the Edge Worker path) numbers are decoded with ``encoding/json``, so every
-  number - integer or not - arrives as ``float64``. In coordinator mode the Python supervisor re-encodes the
-  value as ``msgpack``, so a whole number arrives as a Go integer type (whose width depends on the value) and
-  only a non-integer as ``float64``. Do not assume a fixed numeric type: type-switch over the numeric types
-  you expect, or round-trip the value through ``json.Marshal`` / ``json.Unmarshal`` into a typed Go value.
+  deserialization layer yet. The Python supervisor encodes values as ``msgpack``, so a whole number arrives
+  as a Go integer type (whose width depends on the value) and only a non-integer arrives as ``float64``. Do
+  not assume a fixed integer width: type-switch over the numeric types you expect, or round-trip the value
+  through ``json.Marshal`` / ``json.Unmarshal`` into a typed Go value.
 
 .. _go-sdk/build:
 
@@ -432,22 +417,6 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
        bundle startup is slow (e.g. on constrained hardware).
 
-.. _go-sdk/edge-worker:
-
-Alternative: the Go Edge Worker
--------------------------------
-
-The same bundle binary can also run **without a Python coordinator**, under the standalone Go Edge Worker.
-Rather than the worker launching the bundle once per task, ``airflow-go-edge-worker`` is a long-running Go
-process that registers with the scheduler, polls the Edge Executor API for workloads, and runs the bundle
-directly over HashiCorp ``go-plugin`` (gRPC), with no Python in the data path. The bundle source and
-``RegisterDags`` registration are identical; only the deployment differs, and the mode is selected
-automatically at launch from the CLI flags, so you do not change any task code.
-
-This path does not use the ``[sdk] coordinators`` configuration and is currently missing the features listed
-under :ref:`go-sdk/limitations`. See the Go SDK's own repository documentation for Edge Worker setup
-(``airflow-go-edge-worker`` configuration and ``go install``).
-
 .. _go-sdk/limitations:
 
 Limitations
@@ -455,14 +424,4 @@ Limitations
 
 * **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
   languages, so task names and dependencies are declared in Python with
-  :func:`@task.stub <airflow.sdk.task.stub>`. This applies to both deployment modes and is a documented
-  known limitation.
-
-The following are a non-exhaustive list of features the **Edge Worker** path has yet to implement. They are
-the main reason the coordinator path is recommended: in coordinator mode the Python supervisor handles these
-concerns, so they are **not** limitations there.
-
-* Putting tasks into states other than success or failed/up-for-retry (deferred, failed-without-retries,
-  etc.).
-* Remote task logs (e.g. S3/GCS).
-* XCom reading/writing through non-default XCom backends.
+  :func:`@task.stub <airflow.sdk.task.stub>`. This is a documented known limitation.

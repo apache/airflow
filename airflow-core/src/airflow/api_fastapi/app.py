@@ -25,9 +25,11 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.routing import Mount
+from starlette.middleware import Middleware
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -151,6 +153,8 @@ def create_app(apps: str = "all") -> FastAPI:
         init_error_handlers(app)
         init_middlewares(app)
 
+    init_access_logging(app)
+
     init_config(app)
 
     return app
@@ -218,11 +222,18 @@ def get_auth_manager() -> BaseAuthManager:
     return _AuthManagerState.instance
 
 
+def init_access_logging(app: FastAPI) -> None:
+    """Install the access log middleware, the only producer of access records."""
+    app.add_middleware(HttpAccessLogMiddleware)
+
+
 def init_plugins(app: FastAPI) -> None:
     """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
+    from airflow.api_fastapi.auth.middlewares.team_authorization import TeamAuthorizationMiddleware
 
     apps, root_middlewares = plugins_manager.get_fastapi_plugins()
+    multi_team = conf.getboolean("core", "multi_team")
 
     for subapp_dict in apps:
         name = subapp_dict.get("name")
@@ -241,6 +252,25 @@ def init_plugins(app: FastAPI) -> None:
             log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
             continue
 
+        if multi_team and (team_name := subapp_dict.get("team_name")) is not None:
+            # Airflow applies no authorization to mounted plugin apps, so a team-scoped
+            # plugin's endpoints would otherwise be reachable by any authenticated user.
+            # `app.mount()` cannot attach middleware, so build the Mount directly.
+            log.debug(
+                "Adding subapplication %s under prefix %s, restricted to team %s",
+                name,
+                url_prefix,
+                team_name,
+            )
+            app.router.routes.append(
+                Mount(
+                    url_prefix,
+                    app=subapp,
+                    middleware=[Middleware(TeamAuthorizationMiddleware, team_name=team_name)],
+                )
+            )
+            continue
+
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
@@ -256,6 +286,19 @@ def init_plugins(app: FastAPI) -> None:
 
         if not callable(middleware):
             log.error("'middleware' value for %s is should be callable: %s", name, middleware)
+            continue
+
+        if multi_team and (team_name := middleware_dict.get("team_name")) is not None:
+            # Root middlewares wrap every request to the API server, including other
+            # teams' and core routes, so they cannot be scoped to one team. A team plugin
+            # that needs middleware should apply it inside its own FastAPI app.
+            log.warning(
+                "Skipping root middleware %s from team-scoped plugin (team %s): root middlewares "
+                "apply to the entire API server and cannot be restricted to a single team. "
+                "Apply it within the plugin's own fastapi_apps instead.",
+                name,
+                team_name,
+            )
             continue
 
         log.debug("Adding root middleware %s", name)

@@ -102,7 +102,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``akeyless``                                ``>=5.0.0``
 ==========================================  ==================
 
@@ -117,11 +117,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-akeyless[cloud_id]
 
 
-============  =====================
+============  ============================
 Extra         Dependencies
-============  =====================
-``cloud_id``  ``akeyless_cloud_id``
-============  =====================
+============  ============================
+``cloud_id``  ``akeyless-cloud-id>=0.3.0``
+============  ============================
 
 Downloading official packages
 -----------------------------

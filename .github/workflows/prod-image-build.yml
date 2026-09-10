@@ -138,15 +138,15 @@ jobs:
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.upload-package-artifact == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: inputs.upload-package-artifact == 'true'
       - name: "Install prek"
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{ matrix.python-version }}
           platform: ${{ inputs.platform }}
           save-cache: false
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
         if: inputs.upload-package-artifact == 'true'
       - name: "Prepare providers packages - all providers built from sources"
         shell: bash
@@ -284,7 +284,7 @@ jobs:
           breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           key: prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"

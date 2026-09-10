@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Gebeurtenis type"
-    },
-    "title": "Audit Log"
+    }
   },
   "deadlines": {
     "columns": {

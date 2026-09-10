@@ -35,6 +35,19 @@
 Changelog
 ---------
 
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support TaskFlow call syntax on stub tasks for the Lang SDK (#69757)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
 1.17.0
 ......
 

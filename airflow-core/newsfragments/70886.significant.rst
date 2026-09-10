@@ -1,0 +1,19 @@
+Team names must now be lower case, and cannot contain two consecutive underscores
+
+``airflow teams create`` and ``airflow teams sync`` now accept only names matching
+``(?!.*__)[a-z0-9_-]{3,50}`` -- lower case letters, digits, hyphens and single
+underscores. Upper case letters and ``__`` were previously accepted.
+
+A team name is embedded in the ``AIRFLOW_CONN__<TEAM>___<ID>`` environment variable
+namespace that holds team scoped secrets, and the backend upper-cases the name when it
+builds that variable. ``data_eng`` and ``Data_Eng`` therefore resolved a single
+namespace between them, and a name containing ``___`` could not be told apart from the
+separator.
+
+``airflow db migrate`` lower-cases every stored team name, moving that team's Dag
+bundles, Connections, Variables, Pools and Triggers with it. Two stored names that
+differ only in case would collapse onto one row and silently merge two teams, so
+migration refuses to start while any such pair exists -- rename all but one first. Names
+that stay invalid for another reason, such as containing ``__``, are migrated as they
+are; they keep working, but ``airflow teams sync`` exits non-zero until they are
+renamed.

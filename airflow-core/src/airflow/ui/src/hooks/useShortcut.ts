@@ -17,6 +17,7 @@
  * under the License.
  */
 import { type DependencyList, useEffect, useId } from "react";
+
 import { type HotkeyCallback, type Options, useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
@@ -47,7 +48,7 @@ export const useShortcut = ({
   options,
 }: UseShortcutParams) => {
   const id = useId();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { register, unregister } = useShortcutRegistry();
 
   const ref = useHotkeys(keys, callback, options, dependencies);

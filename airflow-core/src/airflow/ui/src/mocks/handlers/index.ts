@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { handlers as assetsHandlers } from "./assets";
+import { handlers as backfillsHandlers } from "./backfills";
 import { handlers as configHandlers } from "./config";
 import { handlers as dagHandlers } from "./dag";
 import { handlers as dagRunsHandlers } from "./dag_runs";
@@ -23,6 +25,8 @@ import { handlers as dagsHandlers } from "./dags";
 import { handlers as logHandlers } from "./log";
 
 export const handlers = [
+  ...backfillsHandlers,
+  ...assetsHandlers,
   ...configHandlers,
   ...dagHandlers,
   ...dagRunsHandlers,

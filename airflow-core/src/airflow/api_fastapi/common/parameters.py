@@ -39,6 +39,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
@@ -1267,6 +1268,28 @@ def float_range_filter_factory(
     return depends_float
 
 
+def int_range_filter_factory(
+    filter_name: str, model: Base
+) -> Callable[[int | None, int | None, int | None, int | None], RangeFilter]:
+    def depends_int(
+        lower_bound_gte: int | None = Query(alias=f"{filter_name}_gte", default=None),
+        lower_bound_gt: int | None = Query(alias=f"{filter_name}_gt", default=None),
+        upper_bound_lte: int | None = Query(alias=f"{filter_name}_lte", default=None),
+        upper_bound_lt: int | None = Query(alias=f"{filter_name}_lt", default=None),
+    ) -> RangeFilter:
+        return RangeFilter(
+            Range(
+                lower_bound_gte=lower_bound_gte,
+                lower_bound_gt=lower_bound_gt,
+                upper_bound_lte=upper_bound_lte,
+                upper_bound_lt=upper_bound_lt,
+            ),
+            getattr(model, filter_name),
+        )
+
+    return depends_int
+
+
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[str | None, AfterValidator(_safe_parse_datetime_optional)]
@@ -1480,10 +1503,13 @@ class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
         if self.value is None and self.skip_none:
             return select
 
-        # EXISTS resolves each Dag via the (dag_id, state) index instead of scanning every run in the state.
+        # Alias DagRun so this EXISTS subquery cannot auto-correlate to a DagRun the outer query
+        # may already reference (e.g. the last_dag_run_state filter), which would strip the
+        # subquery's FROM and raise. EXISTS resolves each Dag via the (dag_id, state) index.
+        any_run = aliased(DagRun)
         has_run_in_state = (
-            sql_select(DagRun.dag_id)
-            .where(DagRun.dag_id == DagModel.dag_id, DagRun.state == self.value)
+            sql_select(any_run.dag_id)
+            .where(any_run.dag_id == DagModel.dag_id, any_run.state == self.value)
             .exists()
         )
         return select.where(has_run_in_state)

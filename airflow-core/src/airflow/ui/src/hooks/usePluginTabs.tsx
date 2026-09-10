@@ -17,11 +17,13 @@
  * under the License.
  */
 import type { ReactNode } from "react";
+
 import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { ExternalViewResponse, ReactAppResponse } from "openapi/requests/types.gen";
+
 import { useColorMode } from "src/context/colorMode";
+import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
 
 type TabPlugin = {
   icon: ReactNode;
@@ -33,33 +35,31 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
   const { colorMode } = useColorMode();
   const { data: pluginData } = usePluginServiceGetPlugins();
 
-  // Get external views with the specified destination and ensure they have url_route
-  const externalViews =
-    pluginData?.plugins
-      .flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps])
-      .filter(
-        (view: ExternalViewResponse | ReactAppResponse) =>
-          view.destination === destination && Boolean(view.url_route),
-      ) ?? [];
+  const views =
+    pluginData?.plugins.flatMap((plugin) => [...plugin.external_views, ...plugin.react_apps]) ?? [];
 
-  return externalViews.map((view) => {
-    // Choose icon based on theme - prefer dark mode icon if available and in dark mode
-    const iconSrc =
-      colorMode === "dark" && view.icon_dark_mode !== undefined && view.icon_dark_mode !== null
-        ? view.icon_dark_mode
-        : view.icon;
+  const scopedViews = useScopedPluginViews(views, destination);
 
-    const icon =
-      iconSrc !== undefined && iconSrc !== null ? (
-        <img alt={view.name} src={iconSrc} style={{ height: "1rem", width: "1rem" }} />
-      ) : (
-        <LuPlug />
-      );
+  return scopedViews
+    .filter((view) => Boolean(view.url_route))
+    .map((view) => {
+      // Choose icon based on theme - prefer dark mode icon if available and in dark mode
+      const iconSrc =
+        colorMode === "dark" && view.icon_dark_mode !== undefined && view.icon_dark_mode !== null
+          ? view.icon_dark_mode
+          : view.icon;
 
-    return {
-      icon,
-      label: view.name,
-      value: `plugin/${view.url_route}`,
-    };
-  });
+      const icon =
+        iconSrc !== undefined && iconSrc !== null ? (
+          <img alt={view.name} src={iconSrc} style={{ height: "1rem", width: "1rem" }} />
+        ) : (
+          <LuPlug />
+        );
+
+      return {
+        icon,
+        label: view.name,
+        value: `plugin/${view.url_route}`,
+      };
+    });
 };

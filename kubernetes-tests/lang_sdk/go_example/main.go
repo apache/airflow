@@ -36,20 +36,9 @@ import (
 // Must match the dag_id of the Python stub Dag and the Java bundle.
 const combinedDagID = "lang_sdk_combined"
 
-// Set by `-ldflags` at build time; the coordinator finds the bundle by dag_id,
-// so the name is only cosmetic.
-var (
-	bundleName    = "lang_sdk_combined_go"
-	bundleVersion = "0.0"
-)
-
 type combinedBundle struct{}
 
 var _ v1.BundleProvider = (*combinedBundle)(nil)
-
-func (m *combinedBundle) GetBundleVersion() v1.BundleInfo {
-	return v1.BundleInfo{Name: bundleName, Version: &bundleVersion}
-}
 
 func (m *combinedBundle) RegisterDags(dagbag v1.Registry) error {
 	dag := dagbag.AddDag(combinedDagID)

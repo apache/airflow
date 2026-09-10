@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { Box, Button, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Accordion, Modal } from "src/system-components";
+
 import { getColumns } from "src/components/ActionAccordion/columns";
 import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
-import { Accordion, Dialog } from "src/components/ui";
+
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
@@ -61,91 +64,82 @@ const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: 
         {translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">
-                {translate("dags:runAndTaskActions.delete.dialog.title", {
-                  type: translate("taskInstance_other"),
-                })}
-              </Heading>
-            </VStack>
-          </Dialog.Header>
+      <Modal
+        footerActions={
+          <Button
+            colorPalette="danger"
+            loading={isPending}
+            onClick={() => {
+              bulkAction({
+                actions: [
+                  {
+                    action: "delete" as const,
+                    action_on_non_existence: "skip",
+                    entities: selectedTaskInstances.map((ti) => ({
+                      dag_id: ti.dag_id,
+                      dag_run_id: ti.dag_run_id,
+                      map_index: ti.map_index,
+                      task_id: ti.task_id,
+                    })),
+                  },
+                ],
+              });
+            }}
+          >
+            <FiTrash2 />
+            <Text fontWeight="bold">{translate("modal.confirm")}</Text>
+          </Button>
+        }
+        onOpenChange={onClose}
+        open={open}
+        title={translate("dags:runAndTaskActions.delete.dialog.title", {
+          type: translate("taskInstance_other"),
+        })}
+      >
+        <Text color="fg.subtle" fontSize="sm" mb={4}>
+          {translate("dags:runAndTaskActions.delete.dialog.warning", {
+            type: translate("taskInstance_other"),
+          })}
+        </Text>
 
-          <Dialog.CloseTrigger />
-          <Dialog.Body width="full">
-            <Text color="fg.subtle" fontSize="sm" mb={4}>
-              {translate("dags:runAndTaskActions.delete.dialog.warning", {
-                type: translate("taskInstance_other"),
-              })}
-            </Text>
+        <Box maxH="400px" overflowY="auto">
+          {isGrouped ? (
+            <Accordion.Root collapsible multiple variant="enclosed">
+              {[...byRunId.entries()].map(([runId, tis]) => (
+                <Accordion.Item key={runId} value={runId}>
+                  <Accordion.ItemTrigger>
+                    <Text fontSize="sm" fontWeight="semibold">
+                      {translate("runId")}: {runId}{" "}
+                      <Text as="span" color="fg.subtle" fontWeight="normal">
+                        ({tis.length})
+                      </Text>
+                    </Text>
+                  </Accordion.ItemTrigger>
+                  <Accordion.ItemContent>
+                    <DataTable
+                      columns={columns}
+                      data={tis}
+                      displayMode="table"
+                      modelName="common:taskInstance"
+                      total={tis.length}
+                    />
+                  </Accordion.ItemContent>
+                </Accordion.Item>
+              ))}
+            </Accordion.Root>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={selectedTaskInstances}
+              displayMode="table"
+              modelName="common:taskInstance"
+              total={selectedTaskInstances.length}
+            />
+          )}
+        </Box>
 
-            <Box maxH="400px" overflowY="auto">
-              {isGrouped ? (
-                <Accordion.Root collapsible multiple variant="enclosed">
-                  {[...byRunId.entries()].map(([runId, tis]) => (
-                    <Accordion.Item key={runId} value={runId}>
-                      <Accordion.ItemTrigger>
-                        <Text fontSize="sm" fontWeight="semibold">
-                          {translate("runId")}: {runId}{" "}
-                          <Text as="span" color="fg.subtle" fontWeight="normal">
-                            ({tis.length})
-                          </Text>
-                        </Text>
-                      </Accordion.ItemTrigger>
-                      <Accordion.ItemContent>
-                        <DataTable
-                          columns={columns}
-                          data={tis}
-                          displayMode="table"
-                          modelName="common:taskInstance"
-                          total={tis.length}
-                        />
-                      </Accordion.ItemContent>
-                    </Accordion.Item>
-                  ))}
-                </Accordion.Root>
-              ) : (
-                <DataTable
-                  columns={columns}
-                  data={selectedTaskInstances}
-                  displayMode="table"
-                  modelName="common:taskInstance"
-                  total={selectedTaskInstances.length}
-                />
-              )}
-            </Box>
-
-            <ActionErrors actionResponse={data?.delete} error={error} />
-            <Flex justifyContent="end" mt={3}>
-              <Button
-                colorPalette="danger"
-                loading={isPending}
-                onClick={() => {
-                  bulkAction({
-                    actions: [
-                      {
-                        action: "delete" as const,
-                        action_on_non_existence: "skip",
-                        entities: selectedTaskInstances.map((ti) => ({
-                          dag_id: ti.dag_id,
-                          dag_run_id: ti.dag_run_id,
-                          map_index: ti.map_index,
-                          task_id: ti.task_id,
-                        })),
-                      },
-                    ],
-                  });
-                }}
-              >
-                <FiTrash2 />
-                <Text fontWeight="bold">{translate("modal.confirm")}</Text>
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+        <ActionErrors actionResponse={data?.delete} error={error} />
+      </Modal>
     </>
   );
 };

@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "事件类型"
-    },
-    "title": "审计日志"
+    }
   },
   "deadlines": {
     "columns": {

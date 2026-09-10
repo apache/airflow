@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-sql``
 
-Release: ``2.1.0``
+Release: ``2.1.1``
 
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
@@ -36,7 +36,7 @@ This is a provider package for ``common.sql`` provider. All classes for this pro
 are in ``airflow.providers.common.sql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.1.1/>`_.
 
 Installation
 ------------
@@ -84,10 +84,10 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-==================  ================================================================================================================================================================================
+==================  =======================================================================================================================================================================
 Extra               Dependencies
-==================  ================================================================================================================================================================================
-``pandas``          ``pandas[sql-other]>=2.1.2,<3; python_version <"3.13"``, ``pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3,<3; python_version >="3.14"``
+==================  =======================================================================================================================================================================
+``pandas``          ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``openlineage``     ``apache-airflow-providers-openlineage``
 ``polars``          ``polars>=1.26.0``
 ``sqlalchemy``      ``sqlalchemy>=1.4.54``
@@ -95,7 +95,7 @@ Extra               Dependencies
 ``datafusion``      ``datafusion>=50.0.0,<52.0.0``
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
 ``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
-==================  ================================================================================================================================================================================
+==================  =======================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.1.1/changelog.html>`_.

@@ -127,8 +127,12 @@ external_view_with_metadata = {
     "href": "https://airflow.apache.org/",
     "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
     "url_route": "test_iframe_plugin",
-    "destination": "nav",
+    "destination": "dag",
     "category": "browse",
+    "applies_to": {
+        "dag_tags": ["ml", "production"],
+        "dag_ids": ["example_dag"],
+    },
 }
 
 react_app_with_metadata = {

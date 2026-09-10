@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "Ενότητα"
-    },
-    "title": "Ρυθμίσεις Airflow"
+    }
   },
   "connections": {
     "add": "Προσθήκη Σύνδεσης",

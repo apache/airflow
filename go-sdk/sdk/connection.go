@@ -22,8 +22,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/apache/airflow/go-sdk/pkg/api"
 )
 
 // Connection is an Airflow Connection resolved for a task: the endpoint and
@@ -116,34 +114,4 @@ func (c Connection) GetURI() *url.URL {
 	}
 
 	return uri
-}
-
-// ConnFromAPIResponse converts an Execution-API ConnectionResponse into the
-// SDK's Connection type. It is exported so other internal SDK packages (for
-// example, the coordinator-mode runtime in bundlev1server/impl/coord) can
-// reuse the same conversion.
-func ConnFromAPIResponse(resp *api.ConnectionResponse) (Connection, error) {
-	var err error
-	conn := Connection{
-		ID:       resp.ConnId,
-		Type:     resp.ConnType,
-		Host:     "",
-		Port:     0,
-		Login:    resp.Login,
-		Password: resp.Password,
-	}
-	if resp.Host != nil {
-		conn.Host = *resp.Host
-	}
-	if resp.Port != nil {
-		conn.Port = *resp.Port
-	}
-	if resp.Schema != nil {
-		conn.Path = *resp.Schema
-	}
-	if resp.Extra != nil {
-		conn.Extra = map[string]any{}
-		err = json.Unmarshal([]byte(*resp.Extra), &conn.Extra)
-	}
-	return conn, err
 }

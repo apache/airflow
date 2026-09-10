@@ -20,10 +20,12 @@ import os
 import shutil
 
 from airflow_breeze.global_constants import (
+    get_airflow_mypy_version,
     get_airflow_version,
     get_airflowctl_version,
     get_java_sdk_version,
     get_task_sdk_version,
+    get_ts_sdk_version,
 )
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.helm_chart_utils import chart_version
@@ -81,10 +83,14 @@ class DocsPublisher:
             return provider["versions"][0]
         if self.package_name == "task-sdk":
             return get_task_sdk_version()
+        if self.package_name == "ts-sdk":
+            return get_ts_sdk_version()
         if self.package_name == "helm-chart":
             return chart_version()
         if self.package_name == "apache-airflow-ctl":
             return get_airflowctl_version()
+        if self.package_name == "apache-airflow-mypy":
+            return get_airflow_mypy_version()
         if self.package_name == "java-sdk":
             return get_java_sdk_version()
         raise SystemExit(f"Unsupported package: {self.package_name}")

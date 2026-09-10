@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "סוג אירוע"
-    },
-    "title": "יומן מערכת"
+    }
   },
   "deadlines": {
     "columns": {

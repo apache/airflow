@@ -17,4 +17,4 @@
  * under the License.
  */
 
-export { SearchDagsButton } from "./SearchDagsButton";
+export { SearchDags } from "./SearchDags";

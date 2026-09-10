@@ -25,6 +25,7 @@ from functools import cached_property
 from typing import Any
 
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.common.compat.sdk import conf
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -335,7 +336,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         the caller's own team builds looks equivalent and is not -- a caller in team ``a`` would
         match ``a--b``'s namespace on the prefix and read its secrets. Only the caller's own
         namespace is ever constructed, never parsed.
+
+        Only checked in multi-team mode: ``team_name`` is never non-``None`` otherwise, so no
+        team scoped secret can exist to collide with.
         """
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return False
         return TEAM_SEP in secret_id
 
     def _log_refusal(self, kind: str, secret_id: str) -> None:

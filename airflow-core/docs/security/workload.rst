@@ -51,6 +51,24 @@ not set.
     [core]
     default_impersonation = airflow
 
+What impersonation does not cover
+'''''''''''''''''''''''''''''''''
+
+Impersonation applies to task **execution**. It does not apply to Dag file **parsing**.
+
+``run_as_user`` can be set on the Dag or on the task, so it overrides ``default_impersonation``.
+Airflow cannot know which user to switch to until it has parsed the Dag file, and parsing a Dag file
+executes its module-level code. That code therefore runs as the worker's own unix user, before any
+``sudo -u`` takes place; the file is parsed a second time after the switch, as the impersonated user.
+
+So ``run_as_user`` and ``default_impersonation`` constrain what a task does once it runs. Neither
+isolates the Dag file itself, and neither can be made to without moving the setting somewhere the
+worker can read before parsing. If module-level Dag code also has to be confined, isolate the worker
+— for example by running untrusted Dag authors' workloads on separate workers — rather than relying
+on impersonation within a shared one.
+
+See :doc:`/security/security_model` for how this fits the overall trust boundaries.
+
 .. _workload-isolation:
 
 Workload Isolation and Current Limitations

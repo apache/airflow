@@ -30,6 +30,10 @@ import yandex.cloud.lockbox.v1.secret_service_pb2 as secret_service_pb
 from airflow.providers.yandex.secrets.lockbox import LockboxSecretBackend
 from airflow.providers.yandex.utils.defaults import default_conn_name
 
+from tests_common.test_utils.config import conf_vars
+
+multi_team_enabled = conf_vars({("core", "multi_team"): "True"})
+
 
 class TestLockboxSecretBackend:
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
@@ -305,6 +309,7 @@ class TestLockboxSecretBackend:
         assert result == "global-value"
         mock_get_payload.assert_called_once_with("456", ANY)
 
+    @multi_team_enabled
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_get_secrets):
         backend = LockboxSecretBackend()
@@ -312,6 +317,7 @@ class TestLockboxSecretBackend:
         assert backend.get_variable("teama//hello") is None
         mock_get_secrets.assert_not_called()
 
+    @multi_team_enabled
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     def test_get_conn_value_returns_none_for_team_scoped_id_without_team_name(self, mock_get_secrets):
         backend = LockboxSecretBackend()
@@ -319,6 +325,7 @@ class TestLockboxSecretBackend:
         assert backend.get_conn_value("teama//my_db") is None
         mock_get_secrets.assert_not_called()
 
+    @multi_team_enabled
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
     def test_another_teams_secret_is_not_reachable(self, mock_get_payload, mock_get_secrets):
@@ -339,6 +346,7 @@ class TestLockboxSecretBackend:
         assert backend.get_conn_value("teama//my_db", team_name="teamb") is None
         mock_get_payload.assert_not_called()
 
+    @multi_team_enabled
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
     def test_team_whose_name_extends_the_callers_is_not_reachable(self, mock_get_payload, mock_get_secrets):
@@ -355,6 +363,7 @@ class TestLockboxSecretBackend:
         assert backend.get_conn_value("teama//prod//my_db", team_name="teama") is None
         mock_get_payload.assert_not_called()
 
+    @multi_team_enabled
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
     def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(
@@ -379,6 +388,7 @@ class TestLockboxSecretBackend:
         assert backend.get_conn_value("prod//my_db", team_name="teama") is None
         mock_get_payload.assert_not_called()
 
+    @multi_team_enabled
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     def test_refusing_an_ambiguous_id_is_logged(self, mock_get_secrets, caplog):
         """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
@@ -391,6 +401,22 @@ class TestLockboxSecretBackend:
         assert len(refusals) == 2
         assert all(r.levelname == "WARNING" for r in refusals)
         mock_get_secrets.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self, mock_get_payload, mock_get_secrets):
+        """No team scoped secret can exist without multi-team mode, so there is no ambiguity
+        to refuse -- an ordinary id containing the separator must resolve normally."""
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(id="123", name="airflow/connections/prod//my_db"),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="prod-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("prod//my_db") == "prod-conn"
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")

@@ -219,14 +219,20 @@ class SecretsMasker(logging.Filter):
                     break
             else:
                 # Block only runs if no break above.
+                # Use a factory so the captured subclass method is held in the factory's
+                # closure rather than as a default argument on `_redact`. A default arg
+                # would leak the name into `_redact`'s keyword signature (visible via
+                # `inspect.signature(..., follow_wrapped=False)` and callable-visible via
+                # `**kwargs`), which would let a caller silently substitute a different
+                # function inside the secrets-masking path.
+                def _make_redact(f):
+                    @functools.wraps(f)
+                    def _redact(*args, replacement: str = "***", **kwargs):
+                        return f(*args, **kwargs)
 
-                f = cls._redact
+                    return _redact
 
-                @functools.wraps(f)
-                def _redact(*args, replacement: str = "***", **kwargs):
-                    return f(*args, **kwargs)
-
-                cls._redact = _redact
+                cls._redact = _make_redact(cls._redact)
                 ...
 
     @classmethod

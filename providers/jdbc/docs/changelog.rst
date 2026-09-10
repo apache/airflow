@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+5.5.1
+.....
+
+Misc
+~~~~
+
+* ``Narrow 'AirflowException' to 'TypeError' and 'ValueError' in JdbcHook (#70535)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 5.5.0
 .....
 

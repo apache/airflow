@@ -68,7 +68,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.routes.ui.dashboard import STATE_COUNT_CAP
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagsFilterDep,
@@ -82,6 +81,9 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
+
+# Per-dag run counts read at most this many rows per state; the UI shows "N+" at the cap.
+STATE_COUNT_CAP = 1000
 
 
 @dags_router.get(
@@ -319,7 +321,12 @@ def get_dag_timetable_types(
 
 @dags_router.get(
     "/{dag_id}/latest_run",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse | None:

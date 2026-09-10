@@ -16,22 +16,26 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select, update
 
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -260,6 +264,220 @@ class TestDagEndpoint:
 
 class TestGetDags(TestDagEndpoint):
     """Unit tests for Get DAGs."""
+
+    def _update_and_assert_dag_fields(self, session, expected_fields):
+        """Persist DAG controls and query them back before exercising the API."""
+        for dag_id, fields in expected_fields.items():
+            dag_model = session.get(DagModel, dag_id)
+            for field, value in fields.items():
+                setattr(dag_model, field, value)
+        session.commit()
+        session.expire_all()
+
+        persisted = {
+            dag_model.dag_id: dag_model
+            for dag_model in session.scalars(
+                select(DagModel).where(DagModel.dag_id.in_(expected_fields))
+            ).all()
+        }
+        assert set(persisted) == set(expected_fields)
+        for dag_id, fields in expected_fields.items():
+            for field, value in fields.items():
+                assert getattr(persisted[dag_id], field) == value
+
+    def test_get_dags_filter_is_scheduled_combines_with_paused(self, session, test_client):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": "NullTimetable", "is_paused": True},
+                DAG2_ID: {"timetable_type": "NullTimetable", "is_paused": False},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable", "is_paused": True},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": False, "paused": True, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    @pytest.mark.parametrize(
+        "query_params",
+        [
+            pytest.param({}, id="no-other-parameters"),
+            pytest.param({"limit": 100}, id="with-unrelated-parameter"),
+        ],
+    )
+    def test_get_dags_without_is_scheduled_returns_all_dags(self, test_client, query_params):
+        query_params = {**query_params, "exclude_stale": False}
+
+        response = test_client.get("/dags", params=query_params)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID, DAG3_ID]
+
+    @pytest.mark.parametrize(
+        ("timetable_type", "is_scheduled", "other_timetable_type"),
+        [
+            pytest.param("NullTimetable", False, "CronTriggerTimetable", id="null"),
+            pytest.param(
+                "PartitionedAtRuntime",
+                False,
+                "CronTriggerTimetable",
+                id="partitioned-at-runtime",
+            ),
+            pytest.param("CronTriggerTimetable", True, "NullTimetable", id="cron"),
+            pytest.param("OnceTimetable", True, "NullTimetable", id="once"),
+            pytest.param("my_plugin.timetables.Custom", True, "NullTimetable", id="plugin"),
+        ],
+    )
+    def test_get_dags_filter_is_scheduled_by_timetable_type(
+        self,
+        session,
+        test_client,
+        timetable_type,
+        is_scheduled,
+        other_timetable_type,
+    ):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": timetable_type},
+                DAG2_ID: {"timetable_type": other_timetable_type},
+                DAG3_ID: {"timetable_type": other_timetable_type},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": is_scheduled, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    @pytest.mark.parametrize(
+        "timetable_summary",
+        [
+            pytest.param("None", id="None"),
+            pytest.param(None, id="NoneValue"),
+            pytest.param("", id="empty"),
+            pytest.param("2 2 * * *", id="cron-summary"),
+        ],
+    )
+    def test_get_dags_filter_is_scheduled_ignores_summary(self, session, test_client, timetable_summary):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {
+                    "timetable_type": "NullTimetable",
+                    "timetable_summary": timetable_summary,
+                },
+                DAG2_ID: {"timetable_type": "CronTriggerTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": False, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    def test_get_dags_filter_is_scheduled_true(self, session, test_client):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": "NullTimetable"},
+                DAG2_ID: {"timetable_type": "NullTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": True, "exclude_stale": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG3_ID]
+
+    def test_get_dags_filter_is_scheduled_combines_with_asset_filter(self, session, test_client):
+        self._create_asset_test_data(session)
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                ASSET_DEP_DAG_ID: {"timetable_type": "AssetTriggeredTimetable"},
+                ASSET_DEP_DAG2_ID: {"timetable_type": "AssetTriggeredTimetable"},
+                ASSET_SCHEDULED_DAG_ID: {"timetable_type": "AssetTriggeredTimetable"},
+                DAG1_ID: {"timetable_type": "NullTimetable"},
+                DAG2_ID: {"timetable_type": "NullTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={
+                "is_scheduled": True,
+                "has_asset_schedule": False,
+                "exclude_stale": False,
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG3_ID]
+
+    def test_get_dags_filter_is_scheduled_preserves_total_when_paginated(self, session, test_client):
+        self._update_and_assert_dag_fields(
+            session,
+            {
+                DAG1_ID: {"timetable_type": "NullTimetable"},
+                DAG2_ID: {"timetable_type": "NullTimetable"},
+                DAG3_ID: {"timetable_type": "CronTriggerTimetable"},
+            },
+        )
+
+        response = test_client.get(
+            "/dags",
+            params={"is_scheduled": False, "exclude_stale": False, "limit": 1},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID]
+
+    def test_get_dags_filter_is_scheduled_rejects_invalid_boolean(self, test_client):
+        response = test_client.get("/dags", params={"is_scheduled": "not-a-boolean"})
+
+        assert response.status_code == 422
+
+    def test_get_dags_filter_is_scheduled_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags", params={"is_scheduled": False})
+
+        assert response.status_code == 401
+
+    def test_get_dags_filter_is_scheduled_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags", params={"is_scheduled": False})
+
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         ("query_params", "expected_total_entries", "expected_ids"),
@@ -968,6 +1186,21 @@ class TestUnfavoriteDag(TestDagEndpoint):
         response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
         assert response.status_code == 409
 
+    def test_unfavorite_dag_existence_check_is_bounded(self, test_client, session):
+        """The existing-favorite existence probe must ask the DB for one row."""
+        session.execute(insert(DagFavorite).values(dag_id=DAG1_ID, user_id="test"))
+        session.commit()
+
+        with capture_orm_selects("dag_favorite") as statements:
+            response = test_client.post(f"/dags/{DAG1_ID}/unfavorite")
+
+        assert response.status_code == 204
+        assert statements, "expected the endpoint to query the dag_favorite table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), (
+                f"favorite existence check is not bounded to one row: {sql}"
+            )
+
 
 class TestDagDetails(TestDagEndpoint):
     """Unit tests for DAG Details."""
@@ -988,10 +1221,8 @@ class TestDagDetails(TestDagEndpoint):
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
     def test_dag_details(
         self,
-        mock_hasattr,
         test_client,
         query_params,
         dag_id,
@@ -1001,7 +1232,6 @@ class TestDagDetails(TestDagEndpoint):
         owner_links,
         last_parse_duration,
     ):
-        mock_hasattr.return_value = False
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -1082,108 +1312,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
-        }
-        assert res_json == expected
-
-    @pytest.mark.parametrize(
-        ("query_params", "dag_id", "expected_status_code", "dag_display_name", "start_date", "owner_links"),
-        [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
-        ],
-    )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_dag_details_with_view_url_template(
-        self,
-        test_client,
-        query_params,
-        dag_id,
-        expected_status_code,
-        dag_display_name,
-        start_date,
-        owner_links,
-    ):
-        response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
-        assert response.status_code == expected_status_code
-        if expected_status_code != 200:
-            return
-
-        # Match expected and actual responses below.
-        res_json = response.json()
-        last_parsed = res_json["last_parsed"]
-        last_parsed_time = res_json["last_parsed_time"]
-        last_parse_duration = res_json["last_parse_duration"]
-        file_token = res_json["file_token"]
-        expected = {
-            "active_runs_count": 0,
-            "allowed_run_types": None,
-            "asset_expression": None,
-            "bundle_name": "dag_maker",
-            "bundle_version": None,
-            "catchup": False,
-            "concurrency": 16,
-            "dag_display_name": dag_display_name,
-            "dag_id": dag_id,
-            "dag_run_timeout": None,
-            "default_args": {
-                "depends_on_past": False,
-                "retries": 1,
-                "retry_delay": "PT5M",
-            },
-            "description": None,
-            "doc_md": "details",
-            "end_date": None,
-            "fileloc": __file__,
-            "file_token": file_token,
-            "has_import_errors": False,
-            "has_task_concurrency_limits": True,
-            "is_backfillable": False,
-            "is_favorite": False,
-            "is_stale": False,
-            "is_paused": False,
-            "is_paused_upon_creation": None,
-            "latest_dag_version": {
-                "bundle_name": "dag_maker",
-                "bundle_url": "http://test_host.github.com/tree/None/dags",
-                "bundle_version": None,
-                "created_at": mock.ANY,
-                "dag_id": "test_dag2",
-                "dag_display_name": dag_display_name,
-                "id": mock.ANY,
-                "version_number": 1,
-            },
-            "last_expired": None,
-            "last_parsed": last_parsed,
-            "last_parsed_time": last_parsed_time,
-            "last_parse_duration": last_parse_duration,
-            "max_active_runs": 16,
-            "max_active_tasks": 16,
-            "max_consecutive_failed_dag_runs": 0,
-            "next_dagrun_data_interval_end": None,
-            "next_dagrun_data_interval_start": None,
-            "next_dagrun_logical_date": None,
-            "next_dagrun_run_after": None,
-            "owners": ["airflow"],
-            "owner_links": {},
-            "params": {
-                "foo": {
-                    "description": None,
-                    "schema": {},
-                    "source": None,
-                    "value": 1,
-                }
-            },
-            "relative_fileloc": "test_dags.py",
-            "render_template_as_native_obj": False,
-            "rerun_with_latest_version": None,
-            "start_date": start_date,
-            "tags": [],
-            "template_search_path": None,
-            "timetable_summary": None,
-            "timetable_description": "Never, external triggers only",
-            "timetable_partitioned": False,
-            "timetable_periodic": False,
-            "timezone": UTC_JSON_REPR,
+            "team_name": None,
         }
         assert res_json == expected
 
@@ -1288,6 +1417,35 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+    def test_dag_details_team_name_none_without_multi_team(self, test_client):
+        """Without multi-team enabled, ``team_name`` stays ``None`` and no lookup happens."""
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        assert response.json()["team_name"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_dag_details_includes_team_name(self, session, test_client):
+        original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == DAG1_ID))
+        bundle = DagBundleModel(name="team-bundle-details")
+        bundle.teams.append(Team(name="team-details"))
+        session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG1_ID).values(bundle_name="team-bundle-details")
+        )
+        session.commit()
+        try:
+            response = test_client.get(f"/dags/{DAG1_ID}/details")
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-details"
+        finally:
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == DAG1_ID).values(bundle_name=original_bundle_name)
+            )
+            session.execute(delete(DagBundleModel).where(DagBundleModel.name == "team-bundle-details"))
+            session.execute(delete(Team).where(Team.name == "team-details"))
+            session.commit()
 
 
 class TestGetDag(TestDagEndpoint):

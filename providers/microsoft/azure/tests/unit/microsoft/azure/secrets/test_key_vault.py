@@ -24,7 +24,10 @@ from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.providers.microsoft.azure.secrets.key_vault import AzureKeyVaultBackend
 
+from tests_common.test_utils.config import conf_vars
+
 KEY_VAULT_MODULE = "airflow.providers.microsoft.azure.secrets.key_vault"
+multi_team_enabled = conf_vars({("core", "multi_team"): "True"})
 
 
 class TestAzureKeyVaultBackend:
@@ -107,6 +110,7 @@ class TestAzureKeyVaultBackend:
         assert secret_val == "team-value"
         mock_client.get_secret.assert_called_once_with(name="custom-variables-team-a--hello")
 
+    @multi_team_enabled
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_client):
         backend = AzureKeyVaultBackend()
@@ -114,6 +118,7 @@ class TestAzureKeyVaultBackend:
         assert backend.get_variable("teama--hello") is None
         mock_client.get_secret.assert_not_called()
 
+    @multi_team_enabled
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_another_teams_secret_is_not_reachable(self, mock_client):
         """A caller scoped to one team must not reach another team's secret by naming it.
@@ -133,6 +138,7 @@ class TestAzureKeyVaultBackend:
 
         assert backend.get_conn_value("teama--my_db", team_name="teamb") is None
 
+    @multi_team_enabled
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_team_whose_name_extends_the_callers_is_not_reachable(self, mock_client):
         """A prefix match on the caller's own namespace is not proof of ownership.
@@ -153,6 +159,7 @@ class TestAzureKeyVaultBackend:
 
         assert backend.get_conn_value("teama--prod--my_db", team_name="teama") is None
 
+    @multi_team_enabled
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(self, mock_client):
         """The team scoped name is not safe by construction -- the id can extend it.
@@ -174,6 +181,7 @@ class TestAzureKeyVaultBackend:
 
         assert backend.get_conn_value("prod--my_db", team_name="teama") is None
 
+    @multi_team_enabled
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_underscores_cannot_manufacture_a_team_namespace(self, mock_client):
         """``build_path`` maps ``_`` onto the separator, so ``__`` becomes the team separator.
@@ -193,6 +201,7 @@ class TestAzureKeyVaultBackend:
 
         assert backend.get_conn_value("prod__my_db", team_name="teama") is None
 
+    @multi_team_enabled
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_refusing_an_ambiguous_id_is_logged(self, mock_client, caplog):
         """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
@@ -214,6 +223,21 @@ class TestAzureKeyVaultBackend:
         for refused_id in ("prod--my_db", "prod__hello", "prod--sql_alchemy_conn"):
             assert sum(refused_id in r.getMessage() for r in refusals) == 1
         mock_client.get_secret.assert_not_called()
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self, mock_client):
+        """No team scoped secret can exist without multi-team mode, so there is no ambiguity
+        to refuse -- an ordinary id containing the separator must resolve normally."""
+        mock_client.get_secret.return_value = mock.Mock(value="world")
+        backend = AzureKeyVaultBackend()
+
+        assert backend.get_conn_value("prod--my_db") == "world"
+        assert backend.get_variable("prod__hello") == "world"
+        assert backend.get_config("prod--sql_alchemy_conn") == "world"
+
+        mock_client.get_secret.assert_any_call(name="airflow-connections-prod--my-db")
+        mock_client.get_secret.assert_any_call(name="airflow-variables-prod--hello")
+        mock_client.get_secret.assert_any_call(name="airflow-config-prod--sql-alchemy-conn")
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):

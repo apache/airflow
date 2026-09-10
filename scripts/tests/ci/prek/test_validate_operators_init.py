@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 import validate_operators_init
+from rich.text import Text
 from validate_operators_init import (
     _check_constructor_field_logic,
     _check_constructor_template_fields,
@@ -130,6 +131,18 @@ class TestConstructorFieldLogic:
     )
     def test_flags_logic_but_not_sanctioned_patterns(self, ctor_body: str, expected: int):
         assert _logic_findings(_operator_code(ctor_body), ["foo"]) == expected
+
+    def test_failure_message_explains_provision_check_exception(self):
+        code = _operator_code("self._validate(foo)\nself.foo = foo")
+        with validate_operators_init.console.capture() as capture:
+            assert _logic_findings(code, ["foo"]) == 1
+
+        output = " ".join(Text.from_ansi(capture.get()).plain.split())
+        assert "value-dependent validation or transformation" in output
+        assert "whether an argument was passed" in output
+        assert "is None" in output
+        assert "is not None" in output
+        assert "https://github.com/apache/airflow/issues/70296#false-positives" in output
 
     def test_name_in_parameter_default_is_not_the_field(self):
         # A field named like a module (e.g. "conf") used in a parameter default evaluates at

@@ -17,6 +17,10 @@
     "missingRuns": "Missing Runs",
     "notCreatedReason": "Not Created Reason",
     "overrideExistingParams": "Override parameters on existing runs",
+    "partitionRange": "Partition Range",
+    "partitionsAffected_one": "1 partition will be backfilled:",
+    "partitionsAffected_other": "{{count}} partitions will be backfilled:",
+    "partitionsNone": "No partitions matching selected range.",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
@@ -106,6 +110,10 @@
     "taskGroup": "Task Group",
     "zoomToTask": "Zoom to selected task"
   },
+  "jsonPreview": {
+    "items_one": "1 item",
+    "items_other": "{{count}} items"
+  },
   "limitedList": "+{{count}} more",
   "limitedList.allItems": "All {{count}} items:",
   "limitedList.allTags_one": "All Tags (1)",
@@ -118,6 +126,10 @@
   "logs": {
     "file": "File",
     "location": "line {{line}} in {{name}}"
+  },
+  "passwordToggle": {
+    "hide": "Hide value",
+    "show": "Show value"
   },
   "reparseDag": "Reparse Dag",
   "slowestTaskInstances": {

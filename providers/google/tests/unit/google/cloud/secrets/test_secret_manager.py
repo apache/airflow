@@ -28,6 +28,10 @@ from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.secrets.secret_manager import TEAM_SEP, CloudSecretManagerBackend
 
+from tests_common.test_utils.config import conf_vars
+
+multi_team_enabled = conf_vars({("core", "multi_team"): "True"})
+
 CREDENTIALS = "test-creds"
 KEY_FILE = "test-file.json"
 PROJECT_ID = "test-project-id"
@@ -318,6 +322,7 @@ class TestCloudSecretManagerBackendTeamScope:
 
         assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.TEAM) == CONN_URI
 
+    @multi_team_enabled
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_scoped_secret_is_not_resolved_for_another_team(self, mock_client, mock_get_creds):
@@ -329,6 +334,7 @@ class TestCloudSecretManagerBackendTeamScope:
 
         assert backend.get_conn_value(conn_id=encoded, team_name=self.OTHER_TEAM) is None
 
+    @multi_team_enabled
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_scoped_secret_is_not_resolved_without_a_team_scope(self, mock_client, mock_get_creds):
@@ -339,6 +345,7 @@ class TestCloudSecretManagerBackendTeamScope:
 
         assert backend.get_conn_value(conn_id=encoded) is None
 
+    @multi_team_enabled
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_whose_name_extends_the_callers_is_not_readable(self, mock_client, mock_get_creds):
@@ -362,6 +369,7 @@ class TestCloudSecretManagerBackendTeamScope:
         assert backend.get_conn_value(conn_id=CONN_ID) == CONN_URI
         assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.TEAM) == CONN_URI
 
+    @multi_team_enabled
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_scoped_variable_is_not_resolved_for_another_team(self, mock_client, mock_get_creds):
@@ -416,6 +424,7 @@ class TestCloudSecretManagerBackendTeamScope:
         # the two names must not coincide in the first place
         assert backend._build_team_secret_name(CONNECTIONS_PREFIX, self.TEAM, f"prod__{CONN_ID}") != victim
 
+    @multi_team_enabled
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_ambiguous_id_is_refused_even_for_its_own_team(self, mock_client, mock_get_creds):
@@ -432,6 +441,7 @@ class TestCloudSecretManagerBackendTeamScope:
 
         assert backend.get_conn_value(conn_id=ambiguous, team_name=self.TEAM) is None
 
+    @multi_team_enabled
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_refusing_an_ambiguous_id_is_logged(self, mock_client, mock_get_creds, caplog):
@@ -447,6 +457,18 @@ class TestCloudSecretManagerBackendTeamScope:
         assert len(refusals) == 2
         assert all(r.levelname == "WARNING" for r in refusals)
         assert all(ambiguous in r.getMessage() for r in refusals)
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_ambiguous_id_resolves_when_multi_team_is_disabled(self, mock_client, mock_get_creds):
+        """No team scoped secret can exist without multi-team mode, so there is no ambiguity
+        to refuse -- an ordinary id containing the separator must resolve normally."""
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend, store = self._backend(mock_client)
+        ambiguous = f"prod{TEAM_SEP}{CONN_ID}"
+        store[backend.build_path(CONNECTIONS_PREFIX, ambiguous, SEP)] = CONN_URI
+
+        assert backend.get_conn_value(conn_id=ambiguous) == CONN_URI
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")

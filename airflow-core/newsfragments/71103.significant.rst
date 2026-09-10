@@ -1,0 +1,33 @@
+pandas 3 changes how DataFrame XComs are stored and read back
+
+pandas 3 exposes its public classes from the ``pandas`` namespace, so a DataFrame is qualified as
+``pandas.DataFrame`` instead of ``pandas.core.frame.DataFrame``. XComs record that name alongside the
+serialized value, so the name written into the metadata database depends on the pandas version of the
+component that pushed the value. Airflow registers both names, and a DataFrame written by either
+pandas version can be read by either — no configuration change is needed, and existing XComs stay
+readable.
+
+What you should do:
+
+* **Roll this Airflow version out to every component before pandas 3 reaches any of them** — workers
+  in particular. A component that predates this change cannot read a DataFrame XCom written under
+  pandas 3, and fails the pull with:
+
+  .. code-block:: text
+
+      ImportError: pandas.DataFrame was not found in allow list for deserialization imports.
+      To allow it, add it to allowed_deserialization_classes in the configuration
+
+  The message points at configuration, but the allow list is not the cause and changing it does not
+  help. The rows are not corrupt: they become readable again as soon as the reader is upgraded.
+
+* **Treat a downgrade as a one-way door for those XComs.** Rolling back to an Airflow version without
+  this change strands any DataFrame XCom written while on pandas 3, with the same error, until you
+  roll forward again.
+
+* **Review Dags that inspect the dtypes of a pulled DataFrame.** The pandas version of the *reader*
+  determines what a pulled DataFrame looks like, not the version that wrote it. Under pandas 3, a
+  column of strings comes back with the ``str`` dtype rather than ``object``, and its missing values
+  come back as ``nan`` rather than ``None``. Values are unchanged, but downstream code that branches
+  on ``dtype == "object"``, checks cells with ``is None``, or compares against a reference frame with
+  ``DataFrame.equals()`` can behave differently after the upgrade.

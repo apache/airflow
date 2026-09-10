@@ -83,7 +83,7 @@ A new locale may be added when all of the following are true:
 
 The PR for a new locale should include:
 
-- A locale-specific translation guide file at `.github/skills/airflow-translations/locales/<locale>.md`
+- A locale-specific translation guide file at `.agents/skills/airflow-translations/locales/<locale>.md`
 - Locale files under `airflow-core/src/airflow/ui/public/i18n/locales/<locale>`.
 - Updates to `airflow-core/src/airflow/ui/src/i18n/config.ts`.
 - Updates to `dev/breeze/src/airflow_breeze/commands/ui_commands.py`.
@@ -210,22 +210,22 @@ primarily intended for LLM-assisted translation work, but can also be used by hu
 
 | Locale Code | Language                | Guideline File                  |
 | ----------- | ----------------------- | ------------------------------- |
-| `ar`        | Arabic                  | [.github/skills/airflow-translations/locales/ar.md](../../../../../../.github/skills/airflow-translations/locales/ar.md)  |
-| `ca`        | Catalan                 | [.github/skills/airflow-translations/locales/ca.md](../../../../../../.github/skills/airflow-translations/locales/ca.md)  |
-| `de`        | German                  | [.github/skills/airflow-translations/locales/de.md](../../../../../../.github/skills/airflow-translations/locales/de.md)  |
-| `el`        | Greek                   | [.github/skills/airflow-translations/locales/el.md](../../../../../../.github/skills/airflow-translations/locales/el.md)  |
-| `es`        | Spanish                 | [.github/skills/airflow-translations/locales/es.md](../../../../../../.github/skills/airflow-translations/locales/es.md)  |
-| `fr`        | French                  | [.github/skills/airflow-translations/locales/fr.md](../../../../../../.github/skills/airflow-translations/locales/fr.md)  |
-| `he`        | Hebrew                  | [.github/skills/airflow-translations/locales/he.md](../../../../../../.github/skills/airflow-translations/locales/he.md)  |
-| `hi`        | Hindi                   | [.github/skills/airflow-translations/locales/hi.md](../../../../../../.github/skills/airflow-translations/locales/hi.md)  |
-| `hu`        | Hungarian               | [.github/skills/airflow-translations/locales/hu.md](../../../../../../.github/skills/airflow-translations/locales/hu.md)  |
-| `it`        | Italian                 | [.github/skills/airflow-translations/locales/it.md](../../../../../../.github/skills/airflow-translations/locales/it.md)  |
-| `ja`        | Japanese                | [.github/skills/airflow-translations/locales/ja.md](../../../../../../.github/skills/airflow-translations/locales/ja.md)  |
-| `ko`        | Korean                  | [.github/skills/airflow-translations/locales/ko.md](../../../../../../.github/skills/airflow-translations/locales/ko.md)  |
-| `nl`        | Dutch                   | [.github/skills/airflow-translations/locales/nl.md](../../../../../../.github/skills/airflow-translations/locales/nl.md)  |
-| `pl`        | Polish                  | [.github/skills/airflow-translations/locales/pl.md](../../../../../../.github/skills/airflow-translations/locales/pl.md)  |
-| `pt`        | Portuguese              | [.github/skills/airflow-translations/locales/pt.md](../../../../../../.github/skills/airflow-translations/locales/pt.md)  |
-| `th`        | Thai                    | [.github/skills/airflow-translations/locales/th.md](../../../../../../.github/skills/airflow-translations/locales/th.md)  |
-| `tr`        | Turkish                 | [.github/skills/airflow-translations/locales/tr.md](../../../../../../.github/skills/airflow-translations/locales/tr.md)  |
-| `zh-CN`     | Simplified Chinese      | [.github/skills/airflow-translations/locales/zh-CN.md](../../../../../../.github/skills/airflow-translations/locales/zh-CN.md) |
-| `zh-TW`     | Traditional Chinese     | [.github/skills/airflow-translations/locales/zh-TW.md](../../../../../../.github/skills/airflow-translations/locales/zh-TW.md) |
+| `ar`        | Arabic                  | [.agents/skills/airflow-translations/locales/ar.md](../../../../../../.agents/skills/airflow-translations/locales/ar.md)  |
+| `ca`        | Catalan                 | [.agents/skills/airflow-translations/locales/ca.md](../../../../../../.agents/skills/airflow-translations/locales/ca.md)  |
+| `de`        | German                  | [.agents/skills/airflow-translations/locales/de.md](../../../../../../.agents/skills/airflow-translations/locales/de.md)  |
+| `el`        | Greek                   | [.agents/skills/airflow-translations/locales/el.md](../../../../../../.agents/skills/airflow-translations/locales/el.md)  |
+| `es`        | Spanish                 | [.agents/skills/airflow-translations/locales/es.md](../../../../../../.agents/skills/airflow-translations/locales/es.md)  |
+| `fr`        | French                  | [.agents/skills/airflow-translations/locales/fr.md](../../../../../../.agents/skills/airflow-translations/locales/fr.md)  |
+| `he`        | Hebrew                  | [.agents/skills/airflow-translations/locales/he.md](../../../../../../.agents/skills/airflow-translations/locales/he.md)  |
+| `hi`        | Hindi                   | [.agents/skills/airflow-translations/locales/hi.md](../../../../../../.agents/skills/airflow-translations/locales/hi.md)  |
+| `hu`        | Hungarian               | [.agents/skills/airflow-translations/locales/hu.md](../../../../../../.agents/skills/airflow-translations/locales/hu.md)  |
+| `it`        | Italian                 | [.agents/skills/airflow-translations/locales/it.md](../../../../../../.agents/skills/airflow-translations/locales/it.md)  |
+| `ja`        | Japanese                | [.agents/skills/airflow-translations/locales/ja.md](../../../../../../.agents/skills/airflow-translations/locales/ja.md)  |
+| `ko`        | Korean                  | [.agents/skills/airflow-translations/locales/ko.md](../../../../../../.agents/skills/airflow-translations/locales/ko.md)  |
+| `nl`        | Dutch                   | [.agents/skills/airflow-translations/locales/nl.md](../../../../../../.agents/skills/airflow-translations/locales/nl.md)  |
+| `pl`        | Polish                  | [.agents/skills/airflow-translations/locales/pl.md](../../../../../../.agents/skills/airflow-translations/locales/pl.md)  |
+| `pt`        | Portuguese              | [.agents/skills/airflow-translations/locales/pt.md](../../../../../../.agents/skills/airflow-translations/locales/pt.md)  |
+| `th`        | Thai                    | [.agents/skills/airflow-translations/locales/th.md](../../../../../../.agents/skills/airflow-translations/locales/th.md)  |
+| `tr`        | Turkish                 | [.agents/skills/airflow-translations/locales/tr.md](../../../../../../.agents/skills/airflow-translations/locales/tr.md)  |
+| `zh-CN`     | Simplified Chinese      | [.agents/skills/airflow-translations/locales/zh-CN.md](../../../../../../.agents/skills/airflow-translations/locales/zh-CN.md) |
+| `zh-TW`     | Traditional Chinese     | [.agents/skills/airflow-translations/locales/zh-TW.md](../../../../../../.agents/skills/airflow-translations/locales/zh-TW.md) |

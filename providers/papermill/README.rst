@@ -50,19 +50,19 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ====================================================================
+==========================================  =================================================================
 PIP package                                 Version required
-==========================================  ====================================================================
+==========================================  =================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``papermill[all]``                          ``>=2.6.0``
 ``scrapbook[all]``                          ``>=0.5.0``
 ``ipykernel``                               ``>=6.29.4``
-``pandas``                                  ``>=2.1.2,<3; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3,<3; python_version >= "3.13" and python_version < "3.14"``
-``pandas``                                  ``>=2.3.3,<3; python_version >= "3.14"``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``nbconvert``                               ``>=7.16.1``
-==========================================  ====================================================================
+==========================================  =================================================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.13.2/changelog.html>`_.

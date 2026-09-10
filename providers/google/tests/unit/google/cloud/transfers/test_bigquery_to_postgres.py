@@ -226,6 +226,9 @@ class TestBigQueryToPostgresOperator:
         op.execute(context=context)
 
         result = op.get_openlineage_facets_on_complete(task_instance=MagicMock())
+        mock_postgres_hook.get_openlineage_database_info.assert_called_once_with(
+            mock_postgres_hook.connection
+        )
         assert len(result.inputs) == 1
         assert len(result.outputs) == 1
 
@@ -239,6 +242,9 @@ class TestBigQueryToPostgresOperator:
         output_ds = result.outputs[0]
         assert output_ds.namespace == "postgres://localhost:5432"
         assert output_ds.name == "postgresdb.postgres-schema.destination"
+        output_schema_fields = output_ds.facets["schema"].fields
+        assert {field.name for field in output_schema_fields} == {"id", "name", "value"}
+        assert all(field.type is None for field in output_schema_fields)
 
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]
@@ -261,7 +267,7 @@ class TestBigQueryToPostgresOperator:
             task_id=TASK_ID,
             dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
             target_table_name="destination",
-            selected_fields=["id", "name"],
+            selected_fields=" id, name, ",
             database="postgresdb",
         )
         op.bigquery_hook = mock_bq_hook
@@ -279,11 +285,14 @@ class TestBigQueryToPostgresOperator:
         assert input_ds.name == f"{TEST_PROJECT}.{TEST_DATASET}.{TEST_TABLE_ID}"
         assert "schema" in input_ds.facets
         schema_fields = [f.name for f in input_ds.facets["schema"].fields]
-        assert set(schema_fields) == {"id", "name"}
+        assert set(schema_fields) == {"id", "name", "value"}
 
         output_ds = result.outputs[0]
         assert output_ds.namespace == "postgres://localhost:5432"
         assert output_ds.name == "postgresdb.postgres-schema.destination"
+        output_schema_fields = output_ds.facets["schema"].fields
+        assert {field.name for field in output_schema_fields} == {"id", "name"}
+        assert all(field.type is None for field in output_schema_fields)
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]
         assert set(col_lineage.fields.keys()) == {"id", "name"}

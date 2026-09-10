@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections.abc import Callable, Collection, Iterable
 from contextlib import contextmanager
+from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, or_, select
+from sqlalchemy import exc, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -41,12 +42,12 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
     TaskOutletAssetReference,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
@@ -118,38 +119,6 @@ def _lock_asset_model(
             raise RuntimeError(f"Asset {asset_id} does not exist – cannot lock.")
 
         yield
-
-
-def _create_asset_event(*, session: Session, **event_kwargs) -> AssetEvent:
-    """
-    Persist an :class:`AssetEvent` row and return it, bound to *session*.
-
-    On SQLite the event is added directly to the caller's *session* and
-    flushed. SQLite serialises writes at the database-file level: opening
-    a second connection here would compete with any write locks the
-    caller's transaction already holds (for example, an UPDATE on
-    ``dag_run`` flushed earlier in ``register_asset_changes_in_db``) and
-    deadlock with ``database is locked``.
-
-    On Postgres/MySQL a short-lived independent session is used so the
-    row is committed — and therefore visible to the scheduler's session
-    via MVCC — before the caller continues. The committed row is then
-    re-loaded into the caller's *session* so subsequent relationship
-    operations work correctly.
-    """
-    if get_dialect_name(session) == "sqlite":
-        asset_event = AssetEvent(**event_kwargs)
-        session.add(asset_event)
-        session.flush()
-        return asset_event
-
-    with create_session(scoped=False) as ae_session:
-        asset_event = AssetEvent(**event_kwargs)
-        ae_session.add(asset_event)
-        ae_session.flush()
-        asset_event_id = asset_event.id
-
-    return session.get_one(AssetEvent, asset_event_id)
 
 
 class AssetManager(LoggingMixin):
@@ -314,6 +283,7 @@ class AssetManager(LoggingMixin):
         api_user_teams: set[str] | None = None,
         api_allow_consumer_teams: list[str] | None = None,
         api_allow_global_consumers: bool = True,
+        callback_sink: list[Callable[[], None]] | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -339,6 +309,8 @@ class AssetManager(LoggingMixin):
             Only used when source_is_api=True.
         :param api_allow_global_consumers: Whether teamless consumers are allowed for an
             API-triggered event. Only used when source_is_api=True. Defaults to True.
+        :param callback_sink: If specified, registration callbacks are added
+            into the list instead of executed inline.
         """
         from airflow.models.dag import DagModel
 
@@ -374,23 +346,35 @@ class AssetManager(LoggingMixin):
                 source_run_id=task_instance.run_id,
                 source_map_index=task_instance.map_index,
             )
-        asset_event = _create_asset_event(session=session, **event_kwargs)
+
+        asset_event = AssetEvent(**event_kwargs)
+        session.add(asset_event)
+        session.flush()
 
         dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
-            asset_alias_models: Iterable[AssetAliasModel] = session.scalars(
-                select(AssetAliasModel)
-                .where(AssetAliasModel.name.in_(source_alias_names))
-                .options(
-                    joinedload(AssetAliasModel.scheduled_dags).joinedload(DagScheduleAssetAliasReference.dag)
+            asset_alias_models = (
+                session.scalars(
+                    select(AssetAliasModel)
+                    .where(AssetAliasModel.name.in_(source_alias_names))
+                    .options(
+                        joinedload(AssetAliasModel.scheduled_dags).joinedload(
+                            DagScheduleAssetAliasReference.dag
+                        )
+                    )
                 )
-            ).unique()
+                .unique()
+                .all()
+            )
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.asset_events.append(asset_event)
-                session.add(asset_alias_model)
+                session.execute(
+                    insert(asset_alias_asset_event_association_table).values(
+                        alias_id=asset_alias_model.id, event_id=asset_event.id
+                    )
+                )
 
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
@@ -416,20 +400,23 @@ class AssetManager(LoggingMixin):
         )
 
         asset = asset_model.to_serialized()
-        cls.notify_asset_changed(asset=asset)
-        cls.nofity_asset_event_emitted(
-            asset_event=ListenerAssetEvent(
-                asset=asset,
-                extra=asset_event.extra,
-                source_dag_id=asset_event.source_dag_id,
-                source_task_id=asset_event.source_task_id,
-                source_run_id=asset_event.source_run_id,
-                source_map_index=asset_event.source_map_index,
-                source_aliases=[aam.to_serialized() for aam in asset_alias_models],
-                partition_key=partition_key,
-                partition_date=partition_date,
-            )
+        listener_asset_event = ListenerAssetEvent(
+            asset=asset,
+            extra=asset_event.extra,
+            source_dag_id=asset_event.source_dag_id,
+            source_task_id=asset_event.source_task_id,
+            source_run_id=asset_event.source_run_id,
+            source_map_index=asset_event.source_map_index,
+            source_aliases=[aam.to_serialized() for aam in asset_alias_models],
+            partition_key=partition_key,
+            partition_date=partition_date,
         )
+        if callback_sink is None:
+            cls.notify_asset_changed(asset=asset)
+            cls.nofity_asset_event_emitted(asset_event=listener_asset_event)
+        else:
+            callback_sink.append(partial(cls.notify_asset_changed, asset=asset))
+            callback_sink.append(partial(cls.nofity_asset_event_emitted, asset_event=listener_asset_event))
 
         team_name = None
         if task_instance and conf.getboolean("core", "multi_team"):
@@ -544,25 +531,7 @@ class AssetManager(LoggingMixin):
         if not non_partitioned_dags or partition_key is not None:
             return None
 
-        # Possible race condition: if multiple dags or multiple (usually
-        # mapped) tasks update the same asset, this can fail with a unique
-        # constraint violation.
-        #
-        # Where the dialect supports a single-statement "insert, update on
-        # conflict" we use it; it is atomic, avoids the per-row SAVEPOINT churn,
-        # and holds locks for far less time (which on MySQL/InnoDB also makes the
-        # concurrent fan-out much less deadlock-prone). Otherwise we "fallback" to
-        # a nested transaction per row. Either way the rows are added in the same
-        # transaction where `ti.state` is changed.
-        dialect_name = get_dialect_name(session)
-        if TYPE_CHECKING:
-            assert dialect_name is not None
-        if dialect_name == "mysql":
-            return cls._queue_dagruns_nonpartitioned_mysql(asset_id, non_partitioned_dags, event, session)
-        # PostgreSQL and SQLite both support ON CONFLICT DO UPDATE.
-        return cls._queue_dagruns_nonpartitioned_conflict_update(
-            asset_id, non_partitioned_dags, event, session, dialect_name
-        )
+        return cls._queue_dagruns_nonpartitioned(asset_id, non_partitioned_dags, event, session)
 
     @classmethod
     def _queue_partitioned_dags(
@@ -827,71 +796,38 @@ class AssetManager(LoggingMixin):
             return apdr
 
     @classmethod
-    def _queue_dagruns_nonpartitioned_slow_path(
+    def _queue_dagruns_nonpartitioned(
         cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
     ) -> None:
-        def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id, created_at=event.timestamp)
-            # Don't error whole transaction when a single RunQueue item conflicts.
-            # https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
-            try:
-                with session.begin_nested():
-                    existing = session.get(
-                        AssetDagRunQueue, {"target_dag_id": dag.dag_id, "asset_id": asset_id}
-                    )
-                    if existing and existing.created_at >= event.timestamp:
-                        cls.logger().debug("Skipping record %s due to newer timestamp", item)
-                        return dag.dag_id  # already queued with a newer timestamp
-                    session.merge(item)
-            except exc.IntegrityError:
-                cls.logger().debug("Skipping record %s", item, exc_info=True)
-            return dag.dag_id
+        if not dags_to_queue:
+            return
+        values = [
+            {"asset_id": asset_id, "target_dag_id": dag.dag_id, "asset_event_id": event.id}
+            for dag in dags_to_queue
+        ]
 
-        queued_results = (_queue_dagrun_if_needed(dag) for dag in dags_to_queue)
-        if queued_dag_ids := [r for r in queued_results if r is not None]:
-            cls.logger().debug("consuming dag ids %s", queued_dag_ids)
+        if (dialect_name := get_dialect_name(session)) == "mysql":
+            from sqlalchemy.dialects.mysql import insert as my_insert
 
-    @classmethod
-    def _queue_dagruns_nonpartitioned_mysql(
-        cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
-    ) -> None:
-        from sqlalchemy import case
-        from sqlalchemy.dialects.mysql import insert
-
-        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id, created_at=event.timestamp)
-
-        update_stmt = stmt.on_duplicate_key_update(
-            created_at=case(
-                (stmt.inserted.created_at >= AssetDagRunQueue.created_at, stmt.inserted.created_at),
-                else_=AssetDagRunQueue.created_at,
+            session.execute(
+                # The on-dup update a no-op since we are always working on ADRQs
+                # for the asset. It may not hold if you change e.g. ADRQ schema.
+                my_insert(AssetDagRunQueue).on_duplicate_key_update(asset_id=AssetDagRunQueue.asset_id),
+                values,
             )
-        )
-        session.execute(update_stmt, values)
+            return
 
-    @classmethod
-    def _queue_dagruns_nonpartitioned_conflict_update(
-        cls,
-        asset_id: int,
-        dags_to_queue: set[DagModel],
-        event: AssetEvent,
-        session: Session,
-        dialect_name: str,
-    ) -> None:
-        """Handle ON CONFLICT DO UPDATE upsert for dialects that support it (postgresql, sqlite)."""
         if dialect_name == "postgresql":
             from sqlalchemy.dialects.postgresql import insert
         else:
             from sqlalchemy.dialects.sqlite import insert  # type: ignore[assignment]
 
-        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id, created_at=event.timestamp)
-        update_stmt = stmt.on_conflict_do_update(
-            index_elements=["asset_id", "target_dag_id"],
-            set_={"created_at": stmt.excluded.created_at},
-            where=(AssetDagRunQueue.created_at < stmt.excluded.created_at),
+        session.execute(
+            insert(AssetDagRunQueue).on_conflict_do_nothing(
+                index_elements=["target_dag_id", "asset_event_id"]
+            ),
+            values,
         )
-        session.execute(update_stmt, values)
 
 
 def resolve_asset_manager() -> AssetManager:

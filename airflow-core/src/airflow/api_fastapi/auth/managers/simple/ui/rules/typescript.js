@@ -971,6 +971,8 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
      * -   Lodash.
      * -   Moment.
      * -   Underscore.
+     * -   The `React` default and namespace import — the automatic JSX runtime
+     *     makes it unnecessary.
      *
      * @see [@typescript-eslint/no-restricted-imports](https://typescript-eslint.io/rules/no-restricted-imports/)
      * @see [no-restricted-imports](https://eslint.org/docs/latest/rules/no-restricted-imports)
@@ -978,6 +980,14 @@ export const typescriptRules = /** @type {const} @satisfies {FlatConfig.Config} 
     [`${typescriptNamespace}/no-restricted-imports`]: [
       ERROR,
       {
+        paths: [
+          {
+            importNames: ["default"],
+            message:
+              'The automatic JSX runtime makes the React namespace import unnecessary. Import what you need by name, e.g. `import { forwardRef, type ReactNode } from "react"`.',
+            name: "react",
+          },
+        ],
         patterns: [
           {
             group: ["jquery", "lodash", "lodash-es", "lodash.*", "lodash/*", "underscore"],

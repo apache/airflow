@@ -34,6 +34,7 @@ import pytest
 from airflow_shared.configuration.exceptions import AirflowConfigException
 from airflow_shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
+    base_section_name,
     configure_parser_from_configuration_description,
 )
 
@@ -1123,6 +1124,148 @@ existing_list = one,two,three
             {"AIRFLOW__MY_TEAM___MY_SECTION__MY_KEY": "team_value"},
         ):
             assert test_conf.get("my_section", "my_key", team_name="my_team") == "team_value"
+
+    @pytest.mark.parametrize(
+        ("section", "expected"),
+        [
+            pytest.param("celery", "celery", id="base_section"),
+            pytest.param("team_a=celery", "celery", id="team_scoped_section"),
+            pytest.param("team-a=celery", "celery", id="team_name_with_dash"),
+            pytest.param("a=team=celery", "celery", id="separator_inside_team_name"),
+        ],
+    )
+    def test_base_section_name(self, section, expected):
+        """The base section name is recovered from a team scoped section name."""
+        assert base_section_name(section) == expected
+
+    def test_is_sensitive_option_resolves_team_scoped_names(self):
+        """A team scoped spelling of a registered sensitive option is recognised as sensitive."""
+        test_conf = AirflowConfigParser()
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+
+        assert test_conf.is_sensitive_option("test", "sensitive_key")
+        assert test_conf.is_sensitive_option("team_a=test", "sensitive_key")
+        assert test_conf.is_sensitive_option("team-a=test", "sensitive_key")
+        assert test_conf.is_sensitive_option("a=team=test", "sensitive_key")
+        # The section and key an AIRFLOW__<TEAM>___<SECTION>__<KEY> variable name splits into.
+        assert test_conf.is_sensitive_option("team_a", "_test__sensitive_key")
+
+        # An option that is not registered as sensitive stays readable under any spelling.
+        assert not test_conf.is_sensitive_option("test", "key1")
+        assert not test_conf.is_sensitive_option("team_a=test", "key1")
+        assert not test_conf.is_sensitive_option("team_a", "_test__key1")
+        # A team name matching a registered option does not make the section sensitive either.
+        assert not test_conf.is_sensitive_option("sensitive_key=test", "key1")
+
+    def test_team_scoped_sensitive_value_is_hidden_in_as_dict(self):
+        """A sensitive option set in a [team=section] section is hidden like the base option is."""
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(
+            textwrap.dedent(
+                """\
+                [test]
+                sensitive_key = global_value
+
+                [team_a=test]
+                sensitive_key = team_a_value
+                key1 = team_a_key1_value
+            """
+            )
+        )
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+
+        as_dict = test_conf.as_dict(display_sensitive=False)
+
+        assert as_dict["team_a=test"]["sensitive_key"] == "< hidden >"
+        # The base option keeps being hidden, and an option that is not registered as sensitive
+        # keeps being readable.
+        assert as_dict["test"]["sensitive_key"] == "< hidden >"
+        assert as_dict["team_a=test"]["key1"] == "team_a_key1_value"
+
+        # display_source keeps reporting where the value came from
+        as_dict_with_source = test_conf.as_dict(display_sensitive=False, display_source=True)
+        assert as_dict_with_source["team_a=test"]["sensitive_key"] == ("< hidden >", "airflow.cfg")
+
+        # display_sensitive=True still returns the real values
+        as_dict_sensitive = test_conf.as_dict(display_sensitive=True)
+        assert as_dict_sensitive["team_a=test"]["sensitive_key"] == "team_a_value"
+        assert as_dict_sensitive["test"]["sensitive_key"] == "global_value"
+
+    def test_team_scoped_sensitive_cmd_and_secret_fallbacks_are_hidden_in_as_dict(self):
+        """The _cmd / _secret fallbacks of a team scoped option are not resolved, so they are hidden."""
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(
+            textwrap.dedent(
+                """\
+                [team_a=test]
+                sensitive_key_cmd = echo -n team_a_value
+                sensitive_key_secret = team_a/secret/path
+            """
+            )
+        )
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+
+        as_dict = test_conf.as_dict(display_sensitive=False)
+
+        assert as_dict["team_a=test"]["sensitive_key_cmd"] == "< hidden >"
+        assert as_dict["team_a=test"]["sensitive_key_secret"] == "< hidden >"
+
+    def test_team_scoped_sensitive_env_var_is_hidden_in_as_dict(self):
+        """A sensitive option set by a team scoped env var is hidden like the base option is."""
+        test_conf = AirflowConfigParser()
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+
+        with patch.dict(
+            os.environ,
+            {
+                "AIRFLOW__TEAM_A___TEST__SENSITIVE_KEY": "team_a_value",
+                "AIRFLOW__TEAM_A___TEST__SENSITIVE_KEY_CMD": "echo -n team_a_cmd_value",
+                "AIRFLOW__TEAM_A___TEST__KEY1": "team_a_key1_value",
+            },
+        ):
+            hidden_values = self._collected_values(test_conf.as_dict(display_sensitive=False))
+            sensitive_values = self._collected_values(test_conf.as_dict(display_sensitive=True))
+
+        assert "team_a_value" not in hidden_values
+        assert "echo -n team_a_cmd_value" not in hidden_values
+        assert "< hidden >" in hidden_values
+        assert "team_a_key1_value" in hidden_values
+        # display_sensitive=True still returns the real value.
+        assert "team_a_value" in sensitive_values
+
+    def test_team_scoped_sensitive_value_is_hidden_by_write(self):
+        """A sensitive option set in a [team=section] section is hidden when writing the config out."""
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(
+            textwrap.dedent(
+                """\
+                [team_a=test]
+                sensitive_key = team_a_value
+                key1 = team_a_key1_value
+            """
+            )
+        )
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+
+        file = StringIO()
+        test_conf.write(
+            file,
+            include_descriptions=False,
+            include_examples=False,
+            include_sources=False,
+            show_values=True,
+            hide_sensitive=True,
+        )
+        written = file.getvalue()
+
+        assert "team_a_value" not in written
+        assert "sensitive_key = < hidden >" in written
+        assert "key1 = team_a_key1_value" in written
+
+    @staticmethod
+    def _collected_values(as_dict):
+        """Flatten the values of an ``as_dict`` result, whatever section they were reported under."""
+        return {value for options in as_dict.values() for value in options.values()}
 
     @pytest.mark.parametrize(
         "populate_caches",

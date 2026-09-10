@@ -1,0 +1,1 @@
+Fix misleading deadline warnings when DagRun-based deadline references evaluate to None because the referenced timestamp field is null.

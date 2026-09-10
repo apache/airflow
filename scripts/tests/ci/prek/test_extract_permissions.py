@@ -627,7 +627,8 @@ class TestExtractAllPermissions:
     """
 
     @pytest.fixture(scope="class")
-    def all_entries(self) -> list[PermissionEntry]:
+    @classmethod
+    def all_entries(cls) -> list[PermissionEntry]:
         return extract_all_permissions(PUBLIC_ROUTES_DIR)
 
     def test_extracts_non_empty_result(self, all_entries):
@@ -769,7 +770,8 @@ class TestExtractAllPermissions:
 
 class TestRenderRst:
     @pytest.fixture(scope="class")
-    def rst_content(self) -> str:
+    @classmethod
+    def rst_content(cls) -> str:
         entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
         return render_rst(entries)
 

@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
+    # Read by core Dag serialization to materialize the TaskFlow arg-binding spec.
+    is_stub: bool = True
+
     def __init__(
         self,
         *,

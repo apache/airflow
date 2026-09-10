@@ -111,7 +111,7 @@ def get_provider_info():
                         "type": "string",
                         "example": '[{"scope": {"dag_id": "expensive_dag"}, "controls": {"extract_operator_metadata": false}}]',
                         "default": "[]",
-                        "version_added": "2.18.0",
+                        "version_added": "2.19.0",
                     },
                     "execution_timeout": {
                         "description": "Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction for\ntask (on worker). Note that other configurations, sometimes with higher priority, such as\n`[core] task_success_overtime\n<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime>`_,\nmay also affect how much time OpenLineage has for execution.\n",
@@ -125,7 +125,7 @@ def get_provider_info():
                         "default": "False",
                         "example": None,
                         "type": "boolean",
-                        "version_added": "2.19.0",
+                        "version_added": "2.20.0",
                     },
                     "extractors": {
                         "description": "Register custom OpenLineage Extractors by passing a string of semicolon separated full import paths.\n",
