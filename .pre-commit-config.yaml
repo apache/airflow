@@ -1363,7 +1363,12 @@ repos:
         entry: ./scripts/ci/prek/check_mapped_column_nullable_annotations.py
         language: python
         pass_filenames: true
-        files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/check_mapped_column_nullable_annotations\.py$
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/(models|jobs)/.*\.py$|
+          ^providers/edge3/src/airflow/providers/edge3/models/.*\.py$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/models/.*\.py$|
+          ^scripts/ci/prek/check_mapped_column_nullable_annotations\.py$
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"

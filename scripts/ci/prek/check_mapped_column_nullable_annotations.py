@@ -38,8 +38,8 @@ Default (files passed by prek):
     Check only the supplied files.
 
 ``--all-files``:
-    Walk ``airflow-core`` and ``providers`` (the only distributions that define ORM models)
-    and check every ``.py`` file.
+    Walk the directories that define ORM models (``models`` and ``jobs`` in airflow-core,
+    and the ``models`` packages of the edge3 and FAB providers) and check every ``.py`` file.
 """
 
 from __future__ import annotations
@@ -57,7 +57,13 @@ from rich.markup import escape
 console = Console(color_system="standard", width=200)
 
 REPO_ROOT = AIRFLOW_ROOT_PATH
-SCAN_ROOTS: tuple[str, ...] = ("airflow-core", "providers")
+# Keep in sync with the hook's ``files`` pattern in .pre-commit-config.yaml.
+SCAN_ROOTS: tuple[str, ...] = (
+    "airflow-core/src/airflow/models",
+    "airflow-core/src/airflow/jobs",
+    "providers/edge3/src/airflow/providers/edge3/models",
+    "providers/fab/src/airflow/providers/fab/auth_manager/models",
+)
 
 _NONE_ADMITTING_NAMES = frozenset({"Any", "Optional"})
 
@@ -203,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--all-files",
         action="store_true",
-        help="Check every Python file under airflow-core and providers",
+        help="Check every Python file in the ORM model directories",
     )
     args = parser.parse_args(argv)
 
