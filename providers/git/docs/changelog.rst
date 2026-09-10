@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+0.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add GitHub App authentication for git Dag bundles (#64422)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
 0.4.3
 .....
 

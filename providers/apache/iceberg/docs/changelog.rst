@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Use the common.compat alias for BaseEventTrigger (#72140)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Iceberg watcher crash by reverting to the sync state store (#72312)``
+   * ``Reduce Iceberg snapshot watcher thread use (#72173)``
+   * ``Fix flaky Iceberg snapshot trigger tests under CI thread-pool latency (#71825)``
+
 2.1.0
 .....
 

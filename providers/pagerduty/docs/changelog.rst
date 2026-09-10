@@ -27,10 +27,24 @@
 Changelog
 ---------
 
+5.2.7
+.....
+
 .. note::
     The minimum required version of the ``pagerduty`` SDK is now ``7.0.0``, which replaced
     ``httpx`` with ``httpx2``. Deployments pinning an older SDK must upgrade it alongside this
     provider. The provider's own hooks and notifier are unchanged.
+
+Misc
+~~~~
+
+* ``Require ''pagerduty'' SDK 7.0.0 or newer (#72111)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Bump aiohttp regarding dependabot warning (#67978)``
 
 5.2.6
 .....
