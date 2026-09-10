@@ -330,7 +330,7 @@ unprivileged, which constrains what can go on it:
 - **No Docker daemon.** The Docker *client* is on the image, but nothing can build an
   image, start a container, or use a Docker-container action. Anything touching Breeze
   is out.
-- **`python3` is Ubuntu's system interpreter**, so it is PEP 668 externally managed and
+- **`python3` is Ubuntu's system interpreter**, so it is [PEP 668](https://peps.python.org/pep-0668/) externally managed and
   a bare `pip install` fails. Stdlib-only scripts are fine; a job that needs
   dependencies must bring its own interpreter. For anything driven by `uv run`, use
   `astral-sh/setup-uv` with `version-file: uv.lock` — that installs the uv version the
