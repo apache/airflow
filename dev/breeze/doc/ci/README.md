@@ -30,4 +30,4 @@ This directory contains detailed design of the Airflow CI setup.
 * [Workflows](05_workflows.md) - contains description of the workflows used in CI
 * [Debugging](06_debugging.md) - contains description of debugging CI issues
 * [Running CI Locally](07_running_ci_locally.md) - contains description of running CI locally
-* [Image Reuse](08_image_reuse.md) - describes publication, compatibility, and retention of main images
+* [Image Reuse](08_image_reuse.md) - describes compatible main images, production dependency layers, and retention

@@ -200,6 +200,7 @@ jobs:
     name: "Publish and tag constraints"
     needs: [build-info, generate-constraints]
     permissions:
+      actions: read
       contents: write
       packages: read
     env:

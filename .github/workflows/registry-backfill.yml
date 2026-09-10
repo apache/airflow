@@ -125,6 +125,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     name: "Backfill ${{ matrix.provider }} (${{ matrix.versions }})"
     permissions:
+      actions: read
       contents: read
       packages: read
     steps:

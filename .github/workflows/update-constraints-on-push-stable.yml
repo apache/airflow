@@ -122,6 +122,7 @@ jobs:
     name: "Commit and push constraints"
     needs: [build-info, generate-constraints]
     permissions:
+      actions: read
       contents: write
       packages: read
     env:

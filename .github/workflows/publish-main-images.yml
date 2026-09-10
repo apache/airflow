@@ -33,6 +33,7 @@ on:  # yamllint disable-line rule:truthy
       - scripts/docker/**
       - scripts/in_container/**
       - scripts/ci/resolve_main_image.sh
+      - scripts/ci/restore_selected_image.sh
       - scripts/ci/configure_prod_image_cache.sh
       - dev/breeze/**
       - prod_image_installed_providers.txt

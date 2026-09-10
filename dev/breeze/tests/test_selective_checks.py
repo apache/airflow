@@ -4224,3 +4224,27 @@ def test_helm_test_kubernetes_versions(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+class TestReuseEligibility:
+    @pytest.mark.parametrize(
+        "labels",
+        [(), ("disable image cache",), ("upgrade to newer dependencies",), ("canary",), ("force pip",)],
+    )
+    def test_labels(self, labels):
+        checks = SelectiveChecks(files=("airflow-core/src/airflow/api_fastapi/app.py",), pr_labels=labels)
+        assert checks.image_reuse_eligible is (not labels)
+        assert checks.ci_image_build
+
+    @pytest.mark.parametrize(
+        "event", [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+    )
+    def test_full_builds(self, event):
+        assert not SelectiveChecks(github_event=event).image_reuse_eligible
+
+    @pytest.mark.parametrize("default_branch", ["v3-1-test", "v3-2-test"])
+    def test_stable_branch_never_reuses_main(self, default_branch):
+        checks = SelectiveChecks(
+            files=("airflow-core/src/airflow/api_fastapi/app.py",), default_branch=default_branch
+        )
+        assert not checks.image_reuse_eligible

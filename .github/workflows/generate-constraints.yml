@@ -86,6 +86,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   generate-constraints-matrix:
     permissions:
+      actions: read
       contents: read
     timeout-minutes: 70
     name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}

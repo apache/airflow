@@ -71,6 +71,7 @@ jobs:
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
+      image-reuse-eligible: ${{ steps.selective-checks.outputs.image-reuse-eligible }}
       core-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.core-test-types-list-as-strings-in-json }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
@@ -264,6 +265,9 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
+      use-selected-image: true
+      reuse-main-image: >-
+        ${{ github.repository == 'apache/airflow' && needs.build-info.outputs.image-reuse-eligible == 'true' }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       push-image: "false"
@@ -283,6 +287,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
     permissions:
+      actions: read
       contents: read
       packages: write
       id-token: write
@@ -320,6 +325,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/ci-image-checks.yml
     permissions:
+      actions: read
       id-token: write
       contents: read
     with:
@@ -434,6 +440,7 @@ jobs:
     uses: ./.github/workflows/test-providers.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     if: >
@@ -461,6 +468,7 @@ jobs:
     uses: ./.github/workflows/helm-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -480,6 +488,7 @@ jobs:
     uses: ./.github/workflows/kustomize-overlays-tests.yml
     needs: [build-info, build-prod-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -513,6 +522,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -542,6 +552,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -571,6 +582,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -600,6 +612,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -629,6 +642,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -660,6 +674,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -691,6 +706,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -721,6 +737,7 @@ jobs:
     uses: ./.github/workflows/run-unit-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -751,6 +768,7 @@ jobs:
     uses: ./.github/workflows/special-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     if: >
@@ -783,6 +801,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/integration-system-tests.yml
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -805,6 +824,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
+      actions: read
       contents: read
       packages: read
     if: >
@@ -836,6 +856,7 @@ jobs:
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/run-unit-tests.yml
     permissions:
+      actions: read
       contents: read
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
@@ -872,6 +893,9 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
+      use-selected-image: true
+      reuse-main-image: >-
+        ${{ github.repository == 'apache/airflow' && needs.build-info.outputs.image-reuse-eligible == 'true' }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       build-type: "Regular"
@@ -926,6 +950,7 @@ jobs:
     uses: ./.github/workflows/k8s-tests.yml
     needs: [build-info, build-prod-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -949,6 +974,7 @@ jobs:
     uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -971,6 +997,7 @@ jobs:
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     timeout-minutes: 15
     permissions:
+      actions: read
       contents: read
       packages: read
     if: needs.build-info.outputs.run-go-sdk-tests == 'true'
@@ -1020,6 +1047,7 @@ jobs:
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     timeout-minutes: 15
     permissions:
+      actions: read
       contents: read
       packages: read
     if: needs.build-info.outputs.run-java-sdk-tests == 'true'
@@ -1050,6 +1078,7 @@ jobs:
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     timeout-minutes: 30
     permissions:
+      actions: read
       contents: read
       packages: read
     if: needs.build-info.outputs.run-java-sdk-tests == 'true'
@@ -1082,6 +1111,7 @@ jobs:
     runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
     timeout-minutes: 30
     permissions:
+      actions: read
       contents: read
       packages: read
     if: needs.build-info.outputs.run-ts-sdk-docs == 'true'
@@ -1113,6 +1143,7 @@ jobs:
     uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info]
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
@@ -1132,6 +1163,7 @@ jobs:
   finalize-tests:
     name: Finalize tests
     permissions:
+      actions: read
       contents: write
       packages: write
     # This will fire when all the jobs from "needs" are either successful or skipped

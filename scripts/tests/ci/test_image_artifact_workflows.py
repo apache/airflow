@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -32,6 +33,7 @@ class TestResolveMainImageAction:
         workflow = yaml.safe_load((ROOT / f".github/workflows/{kind}-image-build.yml").read_text())
         trigger = workflow.get("on", workflow.get(True))
         inputs = trigger["workflow_call"]["inputs"]
+        assert inputs["use-selected-image"]["default"] is False
         assert inputs["publish-main-image"]["default"] is False
         resolvers = [
             step
@@ -40,7 +42,7 @@ class TestResolveMainImageAction:
         ]
         assert resolvers
         for step in resolvers:
-            assert "inputs.publish-main-image" in step["if"]
+            assert "inputs.use-selected-image || inputs.publish-main-image" in step["if"]
 
     @pytest.mark.parametrize(
         ("disabled", "publish", "docker_script", "returncode", "miss"),
@@ -93,6 +95,23 @@ class TestResolveMainImageAction:
         assert values["built-image-name"] == "built-ci-3.12-amd64-2"
         assert (values.get("hit") == "false") is miss
         assert "base-image" not in values
+
+    @pytest.mark.parametrize("kind", ["ci", "prod"])
+    def test_selected_image_hit_bypasses_build_and_export(self, kind: str) -> None:
+        workflow = yaml.safe_load((ROOT / f".github/workflows/{kind}-image-build.yml").read_text())
+        steps = workflow["jobs"][f"build-{kind}-images"]["steps"]
+        expensive_steps = [
+            step
+            for step in steps
+            if "run" in step
+            and (f"breeze {kind}-image build" in step["run"] or f"breeze {kind}-image save" in step["run"])
+        ]
+        assert len(expensive_steps) == 2
+        assert all("steps.main-image.outputs.hit != 'true'" in step["if"] for step in expensive_steps)
+        local_upload = next(step for step in steps if step.get("id") == "local-image")
+        assert local_upload["with"]["name"] == "${{ steps.main-image.outputs.built-image-name }}"
+        selection_step = next(step for step in steps if "select-local" in step.get("run", ""))
+        assert steps.index(selection_step) > steps.index(local_upload)
 
     @pytest.mark.parametrize("exists", ["true", "false"])
     def test_publisher_retains_existing_immutable_artifact(self, tmp_path: Path, exists: str) -> None:
@@ -149,6 +168,17 @@ esac
         assert values["base-image"] == f"debian@{digest}"
         assert values["hit"] == "false"
 
+    @pytest.mark.parametrize("architecture", ["amd", "arm"])
+    @pytest.mark.parametrize("kind", ["ci", "prod"])
+    def test_shared_images_require_upstream_repository_context(self, architecture: str, kind: str) -> None:
+        workflow = yaml.safe_load((ROOT / f".github/workflows/ci-{architecture}.yml").read_text())
+        inputs = workflow["jobs"][f"build-{kind}-images"]["with"]
+        assert inputs["reuse-main-image"] == (
+            "${{ github.repository == 'apache/airflow' && "
+            "needs.build-info.outputs.image-reuse-eligible == 'true' }}"
+        )
+        assert inputs["use-selected-image"] is True
+
     @pytest.mark.parametrize(
         ("workflow_name", "producer_job", "artifact_name"),
         [
@@ -190,6 +220,80 @@ esac
             if step.get("uses", "").startswith("actions/upload-artifact@")
         ]
         assert all("overwrite" not in step["with"] for step in uploads)
+
+
+class TestRestoreSelectedImageAction:
+    @pytest.mark.parametrize(
+        ("kind", "scope", "returncode", "mount_sources"),
+        [
+            pytest.param("ci", "main", 0, True, id="main-ci-mounts-checkout"),
+            pytest.param("ci", "current-run", 0, False, id="local-ci-keeps-mounts"),
+            pytest.param("prod", "main", 0, False, id="prod-keeps-mounts"),
+            pytest.param("ci", "main", 1, False, id="failed-download-stops-consumer"),
+        ],
+    )
+    def test_restore_selection(
+        self, tmp_path: Path, kind: str, scope: str, returncode: int, mount_sources: bool
+    ) -> None:
+        uv = tmp_path / "uv"
+        uv.write_text(f'#!/bin/bash\nprintf "%s\\n" "$@" > "${{RUNNER_TEMP}}/arguments"\nexit {returncode}\n')
+        uv.chmod(0o755)
+        (tmp_path / "selected-image.json").write_text(json.dumps({"hit": True, "scope": scope}))
+        output = tmp_path / "output"
+        environment = tmp_path / "environment"
+        output.touch()
+        environment.touch()
+        action = yaml.safe_load((ROOT / ".github/actions/prepare_breeze_and_image/action.yml").read_text())
+        step = next(step for step in action["runs"]["steps"] if step.get("id") == "selected-image")
+        result = subprocess.run(
+            ["bash", "-e", "-o", "pipefail", "-c", step["run"]],
+            cwd=ROOT,
+            env={
+                "PATH": f"{tmp_path}:/usr/bin:/bin",
+                "RUNNER_TEMP": str(tmp_path),
+                "GITHUB_OUTPUT": str(output),
+                "GITHUB_ENV": str(environment),
+                "GITHUB_REPOSITORY": "apache/airflow",
+                "GITHUB_RUN_ID": "123",
+                "GITHUB_RUN_ATTEMPT": "2",
+                "IMAGE_KIND": kind,
+                "IMAGE_PYTHON": "3.12",
+                "IMAGE_PLATFORM": "linux/amd64",
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == returncode, result.stderr
+        assert output.read_text() == ("hit=true\n" if returncode == 0 else "")
+        assert environment.read_text() == ("MOUNT_SOURCES=selected\n" if mount_sources else "")
+        arguments = (tmp_path / "arguments").read_text().splitlines()
+        assert arguments == [
+            "run",
+            "--project",
+            "dev/breeze",
+            "python",
+            "-m",
+            "airflow_breeze.utils.image_artifacts",
+            "restore-selection",
+            "--kind",
+            kind,
+            "--python",
+            "3.12",
+            "--platform",
+            "linux/amd64",
+            "--repository",
+            "apache/airflow",
+            "--run-id",
+            "123",
+            "--run-attempt",
+            "2",
+            "--output",
+            str(tmp_path / "selected-image.json"),
+            "--output-directory",
+            "/mnt",
+            "--require-selection",
+        ]
 
 
 class TestProductionDependencyCache:

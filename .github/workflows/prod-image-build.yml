@@ -20,6 +20,14 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      use-selected-image:
+        description: "Publish immutable image selections for CI consumers instead of branch stashes"
+        type: boolean
+        default: false
+      reuse-main-image:
+        description: "Allow compatible trusted main artifacts (normal PR builds only)"
+        type: boolean
+        default: false
       publish-main-image:
         description: "Publish verified images for the dedicated main publisher"
         type: boolean
@@ -243,7 +251,7 @@ jobs:
           path: ./docker-context-files/constraints-${{ matrix.python-version }}
       - name: "Resolve compatible main PROD image"
         id: main-image
-        if: inputs.publish-main-image
+        if: inputs.use-selected-image || inputs.publish-main-image
         uses: ./.github/actions/resolve_main_image
         with:
           kind: prod
@@ -252,20 +260,41 @@ jobs:
           publish: ${{ inputs.publish-main-image }}
           python: ${{ matrix.python-version }}
           platform: ${{ inputs.platform }}
-          disabled: "true"
+          disabled: >-
+            ${{
+            !inputs.use-selected-image || !inputs.reuse-main-image || inputs.publish-main-image ||
+            inputs.push-image == 'true' ||
+            inputs.upgrade-to-newer-dependencies != 'false' || inputs.docker-cache == 'disabled' ||
+            inputs.branch != 'main' || inputs.constraints-branch != 'constraints-main' ||
+            inputs.install-mysql-client-type != 'mariadb' || inputs.debian-version != 'bookworm' ||
+            inputs.use-uv != 'true' || secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' ||
+            inputs.build-type != 'Regular'
+            }}
+      - name: "Publish selected PROD image reference"
+        if: inputs.use-selected-image && steps.main-image.outputs.hit == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.main-image.outputs.selection-name }}
+          path: ${{ runner.temp }}/image-artifacts/prod/selection.json
+          retention-days: 2
+          if-no-files-found: error
       - name: "Make /mnt writeable"
         run: ./scripts/ci/make_mnt_writeable.sh
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*.whl
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Download packages prepared as artifacts"
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: ${{ inputs.artifact-prefix }}prod-packages
           path: ./docker-context-files
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Resolve reusable production dependency layers"
         id: dependency-cache
-        if: inputs.publish-main-image
+        if: >-
+          (inputs.use-selected-image || inputs.publish-main-image) && steps.main-image.outputs.hit != 'true'
         uses: ./.github/actions/resolve_main_image
         with:
           kind: prod-dependencies
@@ -273,19 +302,37 @@ jobs:
           publish: ${{ inputs.publish-main-image }}
           python: ${{ matrix.python-version }}
           platform: ${{ inputs.platform }}
-          disabled: "true"
+          disabled: >-
+            ${{ !inputs.use-selected-image || !inputs.reuse-main-image || inputs.publish-main-image ||
+            inputs.build-type != 'Regular' ||
+            inputs.push-image == 'true' || inputs.upgrade-to-newer-dependencies != 'false' ||
+            inputs.docker-cache == 'disabled' || inputs.branch != 'main' ||
+            inputs.constraints-branch != 'constraints-main' || inputs.use-uv != 'true' ||
+            inputs.install-mysql-client-type != 'mariadb' || inputs.debian-version != 'bookworm' ||
+            secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' }}
+      - name: "Download production dependency layers"
+        id: dependency-download
+        if: steps.dependency-cache.outputs.hit == 'true'
+        continue-on-error: true
+        shell: bash
+        run: >
+          uv run --project dev/breeze python -m airflow_breeze.utils.image_artifacts download
+          --selection-file "${RUNNER_TEMP}/image-artifacts/prod-dependencies/selection.json"
+          --output-directory /mnt/prod-dependencies-cache-in
+          --output "${RUNNER_TEMP}/dependency-download.json"
       - name: "Configure production dependency cache"
         if: >-
-          inputs.build-type == 'Regular' &&
-          inputs.publish-main-image && inputs.docker-cache != 'disabled' &&
+          steps.main-image.outputs.hit != 'true' && inputs.build-type == 'Regular' &&
+          (inputs.reuse-main-image || inputs.publish-main-image) && inputs.docker-cache != 'disabled' &&
           inputs.upgrade-to-newer-dependencies != 'true' && inputs.use-uv == 'true'
         shell: bash
         env:
-          CACHE_RESTORED: "false"
+          CACHE_RESTORED: ${{ steps.dependency-download.outcome == 'success' }}
           PUBLISH_CACHE: ${{ inputs.publish-main-image }}
         run: ./scripts/ci/configure_prod_image_cache.sh
       - name: "Show downloaded files"
         run: ls -R ./docker-context-files
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Show constraints"
         run: |
           for file in ./docker-context-files/constraints*/constraints*.txt
@@ -296,11 +343,13 @@ jobs:
             echo
             echo "=== END ${file} ==="
           done
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Login to ghcr.io"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Build PROD images w/ source providers ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         shell: bash
         run: >
@@ -321,14 +370,16 @@ jobs:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
           USE_UV: ${{ inputs.use-uv }}
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
+        if: steps.main-image.outputs.hit != 'true'
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
         run: >
           breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
-        if: inputs.upload-image-artifact == 'true'
+        if: steps.main-image.outputs.hit != 'true' && inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
@@ -337,6 +388,7 @@ jobs:
           if-no-files-found: 'error'
           retention-days: '2'
         if: >-
+          !inputs.use-selected-image && steps.main-image.outputs.hit != 'true' &&
           inputs.upload-image-artifact == 'true'
       - name: "Publish verified main PROD image"
         if: >-
@@ -361,4 +413,33 @@ jobs:
           path: /mnt/prod-dependencies-cache-out
           compression-level: 6
           retention-days: 7
+          if-no-files-found: error
+      - name: "Upload this run's PROD image"
+        id: local-image
+        if: inputs.use-selected-image && steps.main-image.outputs.hit != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.main-image.outputs.built-image-name }}
+          path: /mnt/prod-image-save-*-${{ matrix.python-version }}.tar
+          compression-level: 6
+          retention-days: 2
+          if-no-files-found: error
+      - name: "Select this run's PROD image"
+        if: inputs.use-selected-image && steps.main-image.outputs.hit != 'true'
+        shell: bash
+        env:
+          IMAGE_ARTIFACT_ID: ${{ steps.local-image.outputs.artifact-id }}
+          IMAGE_PLATFORM: ${{ inputs.platform }}
+        run: >
+          uv run --project dev/breeze python -m airflow_breeze.utils.image_artifacts select-local
+          --artifact-id "${IMAGE_ARTIFACT_ID}" --kind prod --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --platform "${IMAGE_PLATFORM}" --repository "${GITHUB_REPOSITORY}" --run-id "${GITHUB_RUN_ID}"
+          --output "${RUNNER_TEMP}/image-artifacts/prod/selection.json"
+      - name: "Publish this run's PROD image reference"
+        if: inputs.use-selected-image && steps.main-image.outputs.hit != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.main-image.outputs.selection-name }}
+          path: ${{ runner.temp }}/image-artifacts/prod/selection.json
+          retention-days: 2
           if-no-files-found: error

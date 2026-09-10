@@ -576,6 +576,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
 | helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                             | \["airflow_aux", "airflow_core"\]        | *    |
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
+| image-reuse-eligible                                    | Whether a main artifact lookup is allowed; compatibility still requires matching image inputs           | true                                     |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
 | individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
@@ -690,3 +691,38 @@ This table summarizes the labels you can use on PRs to control the selective che
 -----
 
 Read next about [Workflows](05_workflows.md)
+
+### Reusing main image artifacts
+
+`ci-image-build` and `prod-image-build` continue to mean that their consumers need an image.
+They must not be disabled on a cache hit: the image preparation workflow succeeds after selecting
+an existing artifact, and the same tests still run. `image-reuse-eligible` permits a lookup only
+for pull requests targeting main, without canary, dependency-upgrade, forced-pip, or disabled-cache
+settings. Eligibility is not proof of compatibility.
+
+`airflow_breeze.utils.image_artifacts` fingerprints the actual checkout against the inputs recorded
+in the artifact name. The key includes image kind, Python, architecture, build arguments, resolved
+base-image digest, external constraints bytes, file modes, and content. Unknown inputs invalidate
+reuse. CI keys omit mounted editable implementation files and UI source, while retaining manifests,
+version files, provider metadata, build hooks and shared distributions. All CI consumers of a reused
+image must mount current PR sources. Production image keys retain application and UI sources;
+production dependency artifacts contain BuildKit cache, whose layers are validated again by BuildKit.
+
+Only artifacts from a completed, successful `.github/workflows/publish-main-images.yml` run in
+`apache/airflow`, on main with a push, schedule or manual event, are accepted. The GitHub API supplies
+immutable artifact/run IDs, repository, source SHA, creation time and SHA-256 digest; manifest fields
+alone never establish trust. Consumers download selected images directly and verify the archive
+digest before extraction. Missing or invalid candidates cause a normal build. After a selection has
+been made, a failed download is an explicit job failure, with bounded retries for transport failures.
+
+Shared main artifacts have seven-day retention and a maximum selection age of 48 hours. Daily
+publication refreshes mutable upstream inputs; input changes may publish earlier. Expiration handles
+eviction so in-flight consumers can still retrieve older generations. Cache-disabled and canary
+runs retain full-build coverage.
+
+Normal CI consumers require an image selection manifest. A miss builds and uploads a run-local image,
+then records its immutable artifact ID; it does not restore a branch-named image from another run.
+Run-local selections are accepted only when the caller's repository and workflow run match the
+GitHub API's artifact provenance. They never qualify as trusted main images. A retried consumer may
+use the latest selection from an earlier attempt of that same workflow run. Missing required
+manifests or incomplete artifact listings fail explicitly instead of silently loading another image.

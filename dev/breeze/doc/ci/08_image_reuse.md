@@ -20,42 +20,103 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [Publishing reusable main images](#publishing-reusable-main-images)
-  - [Build inputs and verification](#build-inputs-and-verification)
-  - [Reruns and retention](#reruns-and-retention)
+- [Reusing main images in PR tests](#reusing-main-images-in-pr-tests)
+  - [Compatibility](#compatibility)
+  - [Artifact selection and failures](#artifact-selection-and-failures)
+  - [Retention and refresh](#retention-and-refresh)
+  - [Verifying source freshness locally](#verifying-source-freshness-locally)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Publishing reusable main images
+# Reusing main images in PR tests
 
-The `.github/workflows/publish-main-images.yml` workflow publishes CI images, complete production
-images, and production dependency layers for both AMD64 and ARM64. It runs daily, on changes to
-its build inputs, and on manual dispatch. Publication requires the `apache/airflow` repository
-and the `main` branch. The concurrency group lets an active publication finish before another starts.
+Selective checks decide which tests need an image. Image selection separately decides whether
+that environment must be built. A cache hit keeps the prerequisite job successful and preserves
+the selected tests and Python versions.
 
-## Build inputs and verification
+The main publisher builds images on a daily schedule and on changes to its build inputs. Its
+concurrency group lets an active publication finish when another main push arrives. The main
+image selection policy accepts only artifacts from a successful run of that publisher in
+`apache/airflow`, on `main`. Canary and dependency-upgrade jobs continue to build images.
 
-Each platform builds CI environments with frozen dependencies, generates constraints, and builds
-production packages and images. A failed frozen CI install fails publication rather than resolving
-a different dependency set. CI and production images are verified before upload.
+## Compatibility
 
-Artifact names include the image kind, Python version, architecture, and a fingerprint of the
-checkout inputs, build options, immutable Debian base digest, and applicable constraints.
-Unknown inputs invalidate compatibility. Production dependency artifacts contain a BuildKit local
-cache exported with `mode=max`; they are not archives accepted by `docker load`.
+An image fingerprint includes the actual checkout's build inputs, their executable modes and
+symlink targets, the Python version and architecture, build options, base-image digest, and
+applicable constraints. Unknown inputs are included conservatively. Comparing these fingerprints
+accounts for dependency changes on main since the cached build, even when the PR itself only
+changes application code.
 
-The [production dependency layer](02_images.md#reusing-production-dependency-layers) retains
-resolver metadata while allowing application wheels to be installed separately. Publishers build
-without importing an older shared dependency cache, allowing mutable external inputs to refresh.
+CI environments can reuse editable installations with the PR sources mounted. The consumer
+overrides `MOUNT_SOURCES=skip` to `selected` for a main CI image; otherwise the unit-test jobs
+would execute main's baked-in code. Package manifests, generated metadata, shared-library inputs,
+and installation scripts remain part of the fingerprint. The publisher requires frozen
+dependency installation: a failed frozen install must not silently resolve a different environment
+under the same fingerprint.
 
-## Reruns and retention
+Complete production images additionally fingerprint application and UI contents. An API or UI
+change therefore needs fresh production packages and a fresh final image. The
+[production dependency layer](02_images.md#reusing-production-dependency-layers) allows that build
+to reuse dependency installation while installing the current PR's wheels. Wheel metadata,
+constraints, and build options invalidate that layer independently of application source changes.
+The actual package installation still resolves dependencies and runs `pip check`.
 
-Package and constraint intermediates have an architecture prefix and may be replaced on partial
-reruns. Published images and dependency caches remain immutable: a retry preserves an existing
-artifact with the exact identity instead of replacing it. Artifact selection validates the successful
-publisher attempt, repository, branch, event, workflow path, source commit, and archive digest.
+| Change | CI environment | Complete production image |
+| --- | --- | --- |
+| Editable Python implementation | Reuse compatible main environment with PR mounts | Build current application layer |
+| UI implementation | Reuse compatible environment; build/test current UI | Build current UI and application layer |
+| Tests or chart, with identical image inputs | Reuse | Reuse when an image is needed |
+| Dependency or installation inputs | Build | Build affected layers |
+| Disable image cache / dependency upgrade / canary | Build | Build |
 
-Shared artifacts have seven-day retention. The selection utility accepts new candidates only within
-48 hours of creation, while retained selections can still download their pinned artifact afterwards.
-Record archive sizes and publication frequency to budget storage, including intermediate BuildKit
-layers. Retention bounds storage without deleting an artifact as soon as a newer publication appears.
+## Artifact selection and failures
+
+Consumers download the selected image directly using an immutable artifact reference. The
+preparation job publishes a small selection artifact instead of downloading and uploading a
+multi-gigabyte main image again. A missed lookup builds an image for the current workflow run.
+That fallback image is also identified by a current-run artifact, rather than searching previous
+builds of the PR branch.
+
+Downloads verify the GitHub-provided archive digest and producer provenance. Failed downloads
+are retried a bounded number of times; a failed verification fails the job instead of silently
+substituting another environment. Main selections pin the successful publisher attempt, so a later
+running or failed publisher retry cannot invalidate a retained image. Publisher retries may replace
+their run-local package and constraints intermediates, while shared images remain immutable.
+Re-running failed jobs can read the preparation selection from
+an earlier attempt of the same workflow run. Existing workflows outside this reuse path retain
+their existing stash behavior.
+
+The consumer needs `actions: read` to download artifacts. PR jobs cannot publish trusted main
+entries: repository, branch, event, workflow identity, run outcome, and source commit are checked
+against the GitHub API rather than trusting fields supplied in a selection file.
+
+## Retention and refresh
+
+Shared artifacts use seven-day retention; candidates older than 48 hours are not selected. PR
+artifacts retain their shorter lifetime. Expiration bounds storage without deleting an artifact
+as soon as a newer publication appears, which would disrupt consumers already using it.
+
+Artifacts have explicit retention and do not compete with the Actions dependency-cache quota.
+The dependency-layer export uses BuildKit `mode=max`, which retains intermediate build layers;
+its storage must be measured separately from the final image tar archives. Compression is useful
+for those uncompressed image archives, while already-compressed BuildKit blobs gain less from it.
+
+Record archive sizes, publication frequency, hit/miss reasons, download/load time, and complete
+job duration when evaluating the policy. A faster build step alone does not demonstrate a faster
+workflow. Main input changes can create extra generations between daily publications, so budget
+storage from the observed publication rate rather than assuming exactly one generation per day.
+
+## Verifying source freshness locally
+
+With an existing CI image built from compatible dependencies, run:
+
+```bash
+AIRFLOW_REUSE_TEST_IMAGE=ghcr.io/apache/airflow/main/ci/python3.10:latest \
+  uv run --project dev/breeze pytest \
+  dev/breeze/tests/integration_tests/test_reused_ci_image.py -m integration_tests
+```
+
+The test mounts a temporary modified checkout and verifies that core, Task SDK, provider, and
+shared-library imports see those modifications inside the existing image. It does not pull or
+rebuild an image. Fingerprint, producer validation, download failure, and selective-check tests
+run separately in the Breeze unit suite.

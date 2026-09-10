@@ -1259,6 +1259,18 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def image_reuse_eligible(self) -> bool:
+        """Allow lookup without changing which consumers and build checks are required."""
+        return (
+            self._default_branch == "main"
+            and self._github_event == GithubEvents.PULL_REQUEST
+            and not self._is_canary_run()
+            and not self.upgrade_to_newer_dependencies
+            and self.docker_cache != "disabled"
+            and not self.force_pip
+        )
+
+    @cached_property
     def prod_image_build(self) -> bool:
         if AREA_E2E_TESTS_LABEL in self._pr_labels:
             console_print(
