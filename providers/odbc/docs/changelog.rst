@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Declare allow_driver_in_extra in the ODBC provider configuration metadata (#72547)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 4.12.3
 ......
 

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.4.0``
+Release: ``22.5.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.5.0/>`_.
 
 Installation
 ------------
@@ -157,6 +157,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
@@ -183,6 +184,7 @@ Optional dependencies
 ====================  ====================================================
 Extra                 Dependencies
 ====================  ====================================================
+``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
@@ -207,4 +209,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.5.0/changelog.html>`_.
