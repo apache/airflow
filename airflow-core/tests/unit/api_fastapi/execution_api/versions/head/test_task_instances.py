@@ -3898,7 +3898,10 @@ class TestGetPreviousTI:
             )
         session.commit()
 
-        with capture_orm_selects("task_instance") as statements:
+        with (
+            capture_orm_selects("task_instance") as statements,
+            capture_orm_selects("dag_run") as dag_run_only_selects,
+        ):
             response = client.get(
                 "/execution/task-instances/previous/dag/test_task",
                 params={"logical_date": "2025-01-05T00:00:00Z"},
@@ -3915,6 +3918,10 @@ class TestGetPreviousTI:
             assert dag_run_join_count == 1, (
                 f"previous-TI query joins dag_run {dag_run_join_count} times, expected once: {sql}"
             )
+        assert not dag_run_only_selects, (
+            "logical_date should come from the eager-loaded dag_run join, but a separate "
+            f"SELECT was issued: {dag_run_only_selects}"
+        )
 
 
 class TestGetTaskStates:
