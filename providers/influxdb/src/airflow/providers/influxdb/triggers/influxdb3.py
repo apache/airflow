@@ -21,7 +21,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook, _convert_dataframe_to_records
+from airflow.providers.influxdb._utils import _convert_dataframe_to_records
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
