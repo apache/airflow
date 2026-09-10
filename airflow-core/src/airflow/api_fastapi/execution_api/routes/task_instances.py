@@ -276,7 +276,7 @@ def ti_run(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
                     "reason": "not_found",
-                    "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.",
+                    "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
                 },
             )
 
