@@ -61,7 +61,7 @@ class TestInfluxDB3Hook:
         await self.influxdb3_hook.aget_conn()
 
         assert self.influxdb3_hook.uri == "https://localhost:8086"
-        self.influxdb3_hook.aget_connection.assert_awaited_once_with("influxdb3_default")
+        self.influxdb3_hook.aget_connection.assert_awaited_once_with(conn_id="influxdb3_default")
         influx_db_client_3.assert_called_once_with(
             host="https://localhost:8086", token="123456789", database="test_db", org="test_org"
         )
