@@ -1200,7 +1200,7 @@ def get_previous_task_instance(
     if state:
         query = query.where(TI.state == state)
 
-    ti = session.scalars(query).first()
+    ti = session.scalars(query.limit(1)).first()
 
     if not ti:
         return None

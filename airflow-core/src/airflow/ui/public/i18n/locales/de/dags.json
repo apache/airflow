@@ -11,18 +11,27 @@
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
     "anyRunState": "Beliebiger Lauf",
+    "anyRunStatePlaceholder": "Beliebigen Laufzustand auswählen…",
     "favorite": {
       "all": "Alle",
       "favorite": "Favorisierte",
       "unfavorite": "Nicht favorisierte"
     },
+    "favoriteState": "Favorisierter Zustand",
+    "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
     "lastRunState": "Letzter Lauf",
+    "lastRunStatePlaceholder": "Letzten Laufzustand auswählen…",
+    "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
       "all": "Alle",
       "paused": "Pausiert"
     },
-    "runIdPatternFilter": "Dag Läufe suchen"
+    "pausedPlaceholder": "Pausierten Zustand auswählen…",
+    "pausedState": "Pausierter Zustand",
+    "requiresHitlAction": "Erfordert HITL-Aktion",
+    "runIdPatternFilter": "Dag Läufe suchen",
+    "timetableType": "Zeitplantyp"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
