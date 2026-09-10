@@ -57,8 +57,8 @@ def _import_pandas() -> Any:
         import pandas as pd
     except ImportError as e:
         raise AirflowOptionalProviderFeatureException(
-            "pandas is required for InfluxDB 3 query results. Install it with: "
-            "pip install 'apache-airflow-providers-influxdb[pandas]'"
+            "pandas is required for InfluxDB 3 query results. Reinstall "
+            "apache-airflow-providers-influxdb or install pandas directly."
         ) from e
 
     return pd
