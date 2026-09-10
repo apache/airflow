@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, reconstructor
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
@@ -202,6 +202,14 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             mask_secret(quote(self.password))
         self.team_name = team_name
 
+    @validates("port")
+    def validate_port(self, key, port):
+        if port is not None:
+            if isinstance(port, str):
+                port = int(port)
+            if not (0 <= port <= 65535):
+                raise ValueError(f"Port must be between 0 and 65535, got {port}")
+        return port
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
         """Verify that ``extra`` is a JSON-encoded Python dict."""

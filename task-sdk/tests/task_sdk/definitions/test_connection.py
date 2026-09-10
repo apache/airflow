@@ -234,6 +234,26 @@ class TestConnections:
         connection.extra = '{"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}'
         assert connection.extra_dejson == {"auth": {"type": "oauth"}, "headers": {"User-Agent": "Airflow"}}
 
+    @pytest.mark.parametrize(
+        "invalid_port",
+        [-1, 65536, 999999, -8080],
+    )
+    def test_connection_port_bounds_validation(self, invalid_port):
+        """Test that connection port bounds (0-65535) are validated in SDK."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection(conn_id="test_invalid_port", port=invalid_port)
+
+    def test_connection_port_valid_bounds(self):
+        """Test that valid connection ports are accepted in SDK."""
+        conn1 = Connection(conn_id="test_valid_port_1", port=0)
+        assert conn1.port == 0
+
+        conn2 = Connection(conn_id="test_valid_port_2", port=65535)
+        assert conn2.port == 65535
+
+        conn3 = Connection(conn_id="test_valid_port_3", port="8080")
+        assert conn3.port == 8080
+
 
 class TestConnectionsFromSecrets:
     def test_get_connection_secrets_backend(self, mock_supervisor_comms, tmp_path):

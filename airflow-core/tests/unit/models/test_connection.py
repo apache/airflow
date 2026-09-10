@@ -540,3 +540,24 @@ class TestConnection:
             "test_conn2": None,
         }
         clear_db_connections()
+
+@pytest.mark.parametrize(
+    "invalid_port",
+    [-1, 65536, 999999, -8080],
+)
+def test_connection_port_bounds_validation(invalid_port):
+    """Test that connection port bounds (0-65535) are validated."""
+    with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+        Connection(conn_id="test_invalid_port", port=invalid_port)
+
+
+def test_connection_port_valid_bounds():
+    """Test that valid connection ports are accepted."""
+    conn1 = Connection(conn_id="test_valid_port_1", port=0)
+    assert conn1.port == 0
+
+    conn2 = Connection(conn_id="test_valid_port_2", port=65535)
+    assert conn2.port == 65535
+
+    conn3 = Connection(conn_id="test_valid_port_3", port="8080")
+    assert conn3.port == 8080
