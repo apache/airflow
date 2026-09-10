@@ -113,7 +113,7 @@ def _make_execution_api() -> InProcessExecutionAPI:
 
 
 class SerializationErrorInGroup(RuntimeError):
-    """Raised to discard a group whose write found a Dag that will not serialize."""
+    """A Dag failed to serialize within a persistence group."""
 
 
 class DagParsingStat(NamedTuple):
@@ -169,7 +169,7 @@ class DagFileInfo:
 
 
 class FileParseResult(NamedTuple):
-    """A completed parse with captured statistics and version metadata."""
+    """Parse output and bundle metadata captured at collection."""
 
     file: DagFileInfo
     parsing_result: DagFileParsingResult
@@ -177,9 +177,7 @@ class FileParseResult(NamedTuple):
     stat: DagFileStat
     """Statistics to record after persistence."""
     bundle_version: str | None
-    """Version captured at collection."""
     version_data: dict | None
-    """Version metadata absent from DagFileInfo."""
 
 
 def _config_int_factory(section: str, key: str):
@@ -250,7 +248,7 @@ class DagFileProcessorManager(LoggingMixin):
     """
 
     allow_persistence_replay: ClassVar[bool] = False
-    """Allow overridden persistence hooks to repeat whole transactions and replay individual files safely."""
+    """Opt overridden hooks into transaction retries and per-file replay."""
 
     max_runs: int
     bundle_names_to_parse: list[str] | None = None
@@ -298,10 +296,7 @@ class DagFileProcessorManager(LoggingMixin):
     _max_dags_per_group: int = attrs.field(
         factory=_config_int_factory("dag_processor", "max_dags_per_persistence_group"), init=False
     )
-    """
-    Counted in Dags, not files: a write's cost is its Dags, and one file can define thousands. A
-    file is never split, so one defining more than this is still written in one go.
-    """
+    """Soft Dag limit per transaction; files are never split."""
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
@@ -1292,8 +1287,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Handle one completion; overriding this disables batching.
 
-        With no session, retry persistence safely and record its success after commit.
-        With a session, leave commit, rollback, and retries to the caller.
+        A supplied session leaves commit, rollback, and retries to the caller.
         """
         result = self._build_parse_result(file, proc, session=session)
         if result is None:
@@ -1315,7 +1309,6 @@ class DagFileProcessorManager(LoggingMixin):
         *,
         session: Session | None = None,
     ) -> FileParseResult | None:
-        """Build a persistence payload, or record statistics and return None when there is no result."""
         is_callback_only = proc.had_callbacks and proc.parsing_result is None
         if is_callback_only:
             self.log.debug("Detected callback-only processing for %s", file)
@@ -1394,13 +1387,11 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     def _has_override_for(self, name: str) -> bool:
-        """Detect class or instance overrides."""
         if name in getattr(self, "__dict__", ()):
             return True
         return getattr(type(self), name) is not getattr(DagFileProcessorManager, name)
 
     def _has_per_file_persist_override(self) -> bool:
-        """Detect an active legacy hook; a batch override takes precedence."""
         if self._has_override_for("persist_parsing_results"):
             return False
         return self._has_override_for("persist_parsing_result")
@@ -1421,8 +1412,6 @@ class DagFileProcessorManager(LoggingMixin):
                 type(self).__name__,
             )
         if self._has_handle_parsing_result_override():
-            # Not deprecated: nothing replaces handling a file in full. Reported on its own,
-            # since a manager may replace this and the write below it for the same deployment.
             self.log.warning(
                 "%s overrides handle_parsing_result, so parse results are persisted one file at a "
                 "time rather than a group at a time.",
@@ -1439,15 +1428,12 @@ class DagFileProcessorManager(LoggingMixin):
         session: Session | None = None,
     ) -> None:
         """
-        Persist a group of parse results, including files containing no Dags.
+        Persist parse results, including files containing no Dags.
 
-        The caller owns a supplied session; otherwise this method owns the transaction.
-        Overrides must set ``allow_persistence_replay`` only if retries and splitting are safe
-        for all effects. Without opt-in, a failed group's healthy files may remain unwritten.
-        Use :meth:`handle_parsing_result` for callback-only completions and failed parses.
-
-        FAB commits and listeners limit rollback: https://github.com/apache/airflow/issues/71911
+        The caller owns a supplied session. Overrides must opt into safe replay
+        with ``allow_persistence_replay``. See the Dag file processing docs for details.
         """
+        # FAB commits and listeners limit rollback: https://github.com/apache/airflow/issues/71911
         if session is None:
             self._run_persistence_transaction(
                 lambda owned_session: DagFileProcessorManager.persist_parsing_results(
@@ -1479,13 +1465,11 @@ class DagFileProcessorManager(LoggingMixin):
                     self._persist_bundle_group(group[0].file.bundle_name, group, session=session)
 
     def _build_persistence_groups(self, results: Sequence[FileParseResult]) -> list[list[FileParseResult]]:
-        """Group compatible consecutive files within the Dag cap, preserving write order."""
+        """Group compatible files within the Dag cap without reordering."""
         groups: list[list[FileParseResult]] = []
         bundles: list[tuple[str, str | None, dict | None]] = []
         dag_counts: list[int] = []
         claimed_dag_ids: list[set[str]] = []
-        # Where a run files its Dags, and which files it reports on: a collision either way round
-        # has to end the run.
         dag_locs_claimed: list[set[str]] = []
         file_locs_claimed: list[set[str]] = []
         run_ended = False
@@ -1531,12 +1515,9 @@ class DagFileProcessorManager(LoggingMixin):
         *,
         session: Session,
     ) -> None:
-        """Merge one bundle's parse results into a single write."""
         dags: list[LazyDeserializedDAG] = []
         import_errors: dict[tuple[str, str], str] = {}
         files_parsed: set[tuple[str, str]] = set()
-        # Duration is per file, but the Dags of several files are written together, so it has to be
-        # carried per Dag rather than as one value for the call.
         parse_durations: dict[str, float] = {}
         dag_warnings: set[DagWarning] = set()
 
@@ -1548,14 +1529,10 @@ class DagFileProcessorManager(LoggingMixin):
                 (bundle_name, rel_path): error
                 for rel_path, error in (parsing_result.import_errors or {}).items()
             }
-            # A file's own parse is the last word on it, so it drops an error another file in the
-            # group reported against it. The manager never builds such a group -- a file reporting
-            # import errors ends its run -- but this writes whatever it is handed, so a caller
-            # passing a wider sweep still gets the later word.
+            # A file's own result supersedes errors reported by earlier files.
             import_errors.pop((bundle_name, relative_fileloc), None)
             import_errors.update(file_errors)
-            # Include the parsed file even when it defines no Dags, so its stale import errors
-            # still get cleared.
+            # Empty files still need their old import errors cleared.
             files_parsed.add((bundle_name, relative_fileloc))
             files_parsed.update(file_errors)
 
@@ -1566,8 +1543,7 @@ class DagFileProcessorManager(LoggingMixin):
             file_warnings = parsing_result.warnings or []
             if file_warnings and isinstance(file_warnings[0], dict):
                 file_warnings = [DagWarning(**warn) for warn in file_warnings]
-            # Likewise for the Dags this file defines: what it says now replaces what was said
-            # about them earlier in the sweep, including saying nothing.
+            # Later definitions replace earlier warnings, including clearing them.
             defined = {dag.dag_id for dag in parsing_result.serialized_dags}
             dag_warnings = {warning for warning in dag_warnings if warning.dag_id not in defined}
             dag_warnings.update(file_warnings)
@@ -1585,9 +1561,7 @@ class DagFileProcessorManager(LoggingMixin):
             files_parsed=files_parsed,
         )
         if len(items) > 1 and set(import_errors) - reported_by_parsing:
-            # The write reads what is registered before it knows a Dag will not serialize, and
-            # stales that Dag last, so the files beside it were written against stale state.
-            # The built-in sweep retries these files separately after rolling back the group.
+            # Neighbouring files used stale state; roll back before replaying separately.
             raise SerializationErrorInGroup(
                 f"{len(set(import_errors) - reported_by_parsing)} Dag(s) in this group of "
                 f"{len(items)} files failed to serialize."
@@ -1596,7 +1570,6 @@ class DagFileProcessorManager(LoggingMixin):
     def _collect_results(self):
         finished = []
         to_persist: list[FileParseResult] = []
-        # Such an override owns persistence too, leaving a sweep nothing to write together.
         handles_each_file = self._has_handle_parsing_result_override()
         try:
             for file, proc in list(self._processors.items()):
@@ -1610,18 +1583,15 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     result = self._build_parse_result(file, proc)
                 except Exception:
-                    # Working out what a file leaves to persist can reach the DB, for the team a
-                    # bundle belongs to. Losing that file must not lose the sweep it arrived in.
                     self.log.exception(
                         "Failed to handle the parse result for %s in bundle %s; "
                         "the rest of the sweep is still persisted.",
                         str(file.rel_path),
                         file.bundle_name,
                     )
+                    # Callback-only failures must not advance parse timestamps and stale Dags.
                     if not (proc.had_callbacks and proc.parsing_result is None):
                         self._throttle_retry(file, timezone.utcnow(), time.monotonic() - proc.start_time)
-                    # A callback-only run leaves the timestamps alone; failing to handle one must
-                    # too, or it advertises a parse that never happened and its Dags go stale.
                     continue
                 if result is not None:
                     to_persist.append(result)
@@ -1629,23 +1599,20 @@ class DagFileProcessorManager(LoggingMixin):
             if to_persist:
                 self._persist_sweep(to_persist)
         finally:
-            # Leaving these open leaks their sockets and keeps them queued as if still running.
-            # Close what was collected rather than what is still registered: a hook that ran above
-            # may have dropped one, and dropping it is not closing it.
+            # Hooks may have removed processors without closing their sockets.
             for file, processor in finished:
                 self._processors.pop(file, None)
                 processor.close()
 
     def _persist_sweep(self, to_persist: list[FileParseResult]) -> None:
-        """Persist each group in its own transaction; recover files individually when replay is safe."""
+        """Commit groups separately, replaying failed groups per file when safe."""
         if self._has_per_file_persist_override():
             groups = [[item] for item in to_persist]
         else:
             try:
                 groups = self._build_persistence_groups(to_persist)
             except Exception:
-                # Grouping reads the Dags the parser sent, so a malformed one lands here. A file at
-                # a time hits the same failure inside _persist_single, which contains it.
+                # Per-file persistence isolates malformed results.
                 self.log.exception(
                     "Failed to group %d parse results; persisting them a file at a time.",
                     len(to_persist),
@@ -1698,14 +1665,12 @@ class DagFileProcessorManager(LoggingMixin):
                         write(session)
 
     def _dispatch_persist(self, results: Sequence[FileParseResult]) -> None:
-        """Call the active hook in a manager-owned transaction."""
         self._run_persistence_transaction(
             lambda session: self.persist_parsing_results(results, session=session),
             replay_safe=self._is_persistence_replay_safe(),
         )
 
     def _persist_single(self, item: FileParseResult) -> None:
-        """Persist one file and throttle failures."""
         try:
             self._dispatch_persist([item])
         except Exception:
@@ -1714,7 +1679,6 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_stats[item.file] = item.stat
 
     def _throttle_after_failed_persist(self, item: FileParseResult) -> None:
-        """Log and throttle a failed write, retaining the previous counts."""
         self.log.exception(
             "Failed to persist parsing result for %s in bundle %s; "
             "keeping previous persisted stats while throttling retries. "
@@ -2131,12 +2095,7 @@ def process_parse_results(
     relative_fileloc: str | None = None,
     team_name: str | None = None,
 ) -> DagFileStat:
-    """
-    Create a DagFileStat from parsing results and emit metrics.
-
-    This function handles stat creation and metrics only — database persistence
-    is handled separately by ``DagFileProcessorManager.persist_parsing_results``.
-    """
+    """Create a DagFileStat from parsing results and emit metrics."""
     if is_callback_only:
         # Callback-only processing - don't update timestamps to avoid stale DAG detection issues
         stat = DagFileStat(

@@ -89,7 +89,7 @@ _DISABLE_DAG_PARSING_RETRIES = "_airflow_disable_dag_parsing_retries"
 
 @contextmanager
 def _disable_dag_parsing_retries(*, session: Session) -> Iterator[None]:
-    """Leave retries to the transaction owner across legacy hooks and nested writes."""
+    """Leave nested write retries to the transaction owner."""
     missing = object()
     previous = session.info.get(_DISABLE_DAG_PARSING_RETRIES, missing)
     session.info[_DISABLE_DAG_PARSING_RETRIES] = True
@@ -225,7 +225,6 @@ class _RunInfo(NamedTuple):
 def _resolve_parse_duration(
     parse_duration: float | Mapping[str, float | None] | None, dag_id: str
 ) -> float | None:
-    """Resolve a Dag's duration from a scalar or per-Dag mapping."""
     if isinstance(parse_duration, Mapping):
         return parse_duration.get(dag_id)
     return parse_duration
@@ -519,25 +518,10 @@ def update_dag_parsing_results_in_db(
     files_parsed: set[tuple[str, str]] | None = None,
 ):
     """
-    Update everything to do with DAG parsing in the DB.
+    Persist Dag metadata, serialized Dags, permissions, errors, and warnings.
 
-    This function will create or update rows in the following tables:
-
-    - DagModel (`dag` table), DagTag, DagCode and DagVersion
-    - SerializedDagModel (`serialized_dag` table)
-    - ParseImportError (including with any errors as a result of serialization, not just parsing)
-    - DagWarning
-    - DAG Permissions
-
-    This function will not remove any rows for dags not passed in. It will remove parse errors and warnings
-    from dags/dag files that are passed in. In order words, if a DAG is passed in with a fileloc of `a.py`
-    then all warnings and errors related to this file will be removed.
-
-    ``import_errors`` will be updated in place with an new errors
-
-    :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
-        If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
-        import errors are cleared for files that were parsed but no longer contain DAGs.
+    Add serialization errors to ``import_errors`` in place. ``files_parsed`` contains
+    (bundle_name, relative_fileloc) pairs, including empty files whose errors need clearing.
     """
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
@@ -627,8 +611,7 @@ class DagModelOperation(NamedTuple):
                 .options(joinedload(DagModel.schedule_asset_alias_references))
                 .options(joinedload(DagModel.task_outlet_asset_references))
                 .options(joinedload(DagModel.dag_owner_links))
-                # ``FOR NO KEY UPDATE`` conflicts with itself, and a group holds far more rows
-                # than one file did, so every writer takes them in the same order.
+                # Consistent row-lock order avoids deadlocks between writers.
                 .order_by(DagModel.dag_id)
             ),
             of=DagModel,
@@ -892,8 +875,6 @@ class AssetModelOperation(NamedTuple):
                 dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
-            # Definition order decides which asset wins the unique-name race in ``asset_active``;
-            # :meth:`sync_assets` sorts what it inserts instead.
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
@@ -913,8 +894,7 @@ class AssetModelOperation(NamedTuple):
             asset = self.assets[key]
             model.group = asset.group
             model.extra = asset.extra
-        # ``asset`` is unique on (name, uri): two writers inserting the same new assets in
-        # opposite orders deadlock on that index.
+        # Consistent insertion order avoids deadlocks on the unique (name, uri) index.
         to_create = sorted(
             (asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets),
             key=lambda asset: (asset.name, asset.uri),
@@ -923,8 +903,7 @@ class AssetModelOperation(NamedTuple):
             (model.name, model.uri): model
             for model in asset_manager.create_assets(to_create, session=session)
         }
-        # Back to collection order: ``activate_assets_if_possible`` takes these first come, first
-        # served, so sorting for insertion must not decide which of two assets sharing a name wins.
+        # Preserve collection order for activation when assets share a name.
         orm_assets.update((key, created[key]) for key in self.assets if key in created)
         return orm_assets
 

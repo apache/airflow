@@ -651,7 +651,6 @@ class TestAssetModelOperation:
 
     @staticmethod
     def _unpersisted(dag_id: str, assets: list[Asset]) -> LazyDeserializedDAG:
-        """Build a Dag without writing it, so its assets are still new when the write runs."""
         return LazyDeserializedDAG.from_dag(DAG(dag_id=dag_id, schedule=assets))
 
     def test_new_assets_are_inserted_in_one_order_whatever_defined_them(self, session):
