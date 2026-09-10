@@ -23,7 +23,7 @@ import os
 import shutil
 import stat
 from io import BytesIO, StringIO
-from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, patch
 
 import paramiko
 import pytest
@@ -34,7 +34,7 @@ from paramiko.sftp_client import SFTPClient
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync, SFTPOperation
+from airflow.providers.sftp.hooks.sftp import CHUNK_SIZE, SFTPHook, SFTPHookAsync, SFTPOperation
 
 
 def generate_host_key(pkey: paramiko.PKey):
@@ -1131,28 +1131,31 @@ class TestSFTPHookAsync:
         sftp_client_mock.__aexit__.assert_awaited()
 
     @pytest.mark.asyncio
-    @patch("aiofiles.open")
-    async def test_retrieve_file_to_path(self, mock_aiofiles_open, sftp_hook_mocked):
+    async def test_retrieve_file_to_path(self, sftp_hook_mocked):
         """
-        Assert that retrieve_file writes to a local file using aiofiles
+        Assert that retrieve_file downloads to a local path using sftp.get with pipelined reads.
         """
         hook, sftp_client_mock = sftp_hook_mocked
 
         sftp_client = sftp_client_mock.__aenter__.return_value
-        mock_remote_file = AsyncMock()
-        mock_remote_file.read = AsyncMock(side_effect=[b"abc", b"", StopAsyncIteration])
-        sftp_client.open.return_value.__aenter__.return_value = mock_remote_file
-
-        mock_file = AsyncMock()
-        aiofiles_cm = AsyncMock()
-        aiofiles_cm.__aenter__.return_value = mock_file
-        aiofiles_cm.__aexit__.return_value = None
-        mock_aiofiles_open.return_value = aiofiles_cm
+        sftp_client.get = AsyncMock()
 
         await hook.retrieve_file("/remote/file", "/local/file")
-        sftp_client.open.assert_called_once_with("/remote/file", "rb")
-        mock_file.write.assert_awaited()
+        sftp_client.get.assert_awaited_once_with("/remote/file", "/local/file", block_size=CHUNK_SIZE)
         sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_retrieve_file_to_path_disables_prefetch(self, sftp_hook_mocked):
+        """Assert that prefetch=False disables pipelined reads by capping max_requests to 1."""
+        hook, sftp_client_mock = sftp_hook_mocked
+
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.get = AsyncMock()
+
+        await hook.retrieve_file("/remote/file", "/local/file", prefetch=False)
+        sftp_client.get.assert_awaited_once_with(
+            "/remote/file", "/local/file", block_size=CHUNK_SIZE, max_requests=1
+        )
 
     @pytest.mark.asyncio
     async def test_retrieve_file_to_bytesio(self, sftp_hook_mocked):
@@ -1179,22 +1182,62 @@ class TestSFTPHookAsync:
         sftp_client = sftp_client_mock.__aenter__.return_value
         sftp_client.makedirs = AsyncMock()
 
-        await hook.store_file("/remote/new/dir/file.txt", BytesIO(b"abc"))
+        await hook.store_file("/remote/new/dir/file.txt", BytesIO(b"abc"), confirm=False)
 
         sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir")
         sftp_client.open.assert_called_once_with("/remote/new/dir/file.txt", "wb")
 
     @pytest.mark.asyncio
-    async def test_store_file_path_creates_parent_directories(self, sftp_hook_mocked):
+    async def test_store_file_bytesio_confirms_uploaded_size(self, sftp_hook_mocked):
+        """Assert that confirm=True checks the remote file size against the uploaded byte count."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+        sftp_client.stat = AsyncMock(return_value=Mock(spec=SFTPAttrs, size=3))
+
+        await hook.store_file("/remote/new/dir/file.txt", BytesIO(b"abc"), confirm=True)
+
+        sftp_client.stat.assert_awaited_once_with("/remote/new/dir/file.txt")
+
+    @pytest.mark.asyncio
+    async def test_store_file_bytesio_confirm_mismatch_raises(self, sftp_hook_mocked):
+        """Assert that a size mismatch on confirm raises OSError, mirroring the sync hook."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+        sftp_client.stat = AsyncMock(return_value=Mock(spec=SFTPAttrs, size=1))
+
+        with pytest.raises(OSError, match="size mismatch in put"):
+            await hook.store_file("/remote/new/dir/file.txt", BytesIO(b"abc"), confirm=True)
+
+    @pytest.mark.asyncio
+    async def test_store_file_path_creates_parent_directories(self, sftp_hook_mocked, tmp_path):
         """Assert that local-path uploads create parent dirs before put()."""
         hook, sftp_client_mock = sftp_hook_mocked
         sftp_client = sftp_client_mock.__aenter__.return_value
         sftp_client.makedirs = AsyncMock()
 
-        await hook.store_file("/remote/new/dir/file.txt", "/local/file.txt")
+        local_file = tmp_path / "file.txt"
+        local_file.write_bytes(b"abc")
+
+        await hook.store_file("/remote/new/dir/file.txt", str(local_file), confirm=False)
 
         sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir")
-        sftp_client.put.assert_awaited_once_with("/local/file.txt", "/remote/new/dir/file.txt")
+        sftp_client.put.assert_awaited_once_with(str(local_file), "/remote/new/dir/file.txt")
+
+    @pytest.mark.asyncio
+    async def test_store_file_path_confirm_mismatch_raises(self, sftp_hook_mocked, tmp_path):
+        """Assert that confirm=True (the default) verifies size for path-based uploads too."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+        sftp_client.stat = AsyncMock(return_value=Mock(spec=SFTPAttrs, size=1))
+
+        local_file = tmp_path / "file.txt"
+        local_file.write_bytes(b"abc")
+
+        with pytest.raises(OSError, match="size mismatch in put"):
+            await hook.store_file("/remote/new/dir/file.txt", str(local_file))
 
     @pytest.mark.asyncio
     async def test_store_file_rejects_raw_bytes(self, sftp_hook_mocked):
@@ -1403,6 +1446,322 @@ class TestSFTPHookAsync:
         assert files is not None
         assert sorted(files) == sorted(["file1", "subdir/file2"])
         sftp_client_mock.__aexit__.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_isdir_true_for_directory(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.stat = AsyncMock(return_value=Mock(spec=SFTPAttrs, permissions=stat.S_IFDIR))
+
+        assert await hook.isdir("/remote/dir") is True
+
+    @pytest.mark.asyncio
+    async def test_isdir_false_for_file(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.stat = AsyncMock(return_value=Mock(spec=SFTPAttrs, permissions=stat.S_IFREG))
+
+        assert await hook.isdir("/remote/file") is False
+
+    @pytest.mark.asyncio
+    async def test_isdir_false_when_missing(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.stat = AsyncMock(side_effect=SFTPNoSuchFile("no such file"))
+
+        assert await hook.isdir("/remote/missing") is False
+
+    @pytest.mark.asyncio
+    async def test_path_exists_true(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.stat = AsyncMock(return_value=Mock(spec=SFTPAttrs))
+
+        assert await hook.path_exists("/remote/file") is True
+
+    @pytest.mark.asyncio
+    async def test_path_exists_false_when_missing(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.stat = AsyncMock(side_effect=SFTPNoSuchFile("no such file"))
+
+        assert await hook.path_exists("/remote/missing") is False
+
+    @pytest.mark.asyncio
+    async def test_create_directory_is_idempotent(self, sftp_hook_mocked):
+        """Assert that create_directory uses exist_ok=True, mirroring SFTPHook.create_directory."""
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.makedirs = AsyncMock()
+
+        await hook.create_directory("/remote/new/dir")
+        sftp_client.makedirs.assert_awaited_once_with("/remote/new/dir", exist_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_delete_file_calls_unlink(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.unlink = AsyncMock()
+
+        await hook.delete_file("/remote/file")
+        sftp_client.unlink.assert_awaited_once_with("/remote/file")
+
+    @pytest.mark.asyncio
+    async def test_delete_directory_without_files_only_removes_directory(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.remove = AsyncMock()
+        sftp_client.rmdir = AsyncMock()
+
+        await hook.delete_directory("/remote/dir")
+
+        sftp_client.remove.assert_not_awaited()
+        sftp_client.rmdir.assert_awaited_once_with("/remote/dir")
+
+    @pytest.mark.asyncio
+    async def test_delete_directory_include_files_removes_deepest_first(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+        sftp_client.remove = AsyncMock()
+        sftp_client.rmdir = AsyncMock()
+
+        with patch.object(
+            hook,
+            "get_tree_map",
+            AsyncMock(return_value=(["/remote/dir/file1", "/remote/dir/sub/file2"], ["/remote/dir/sub"], [])),
+        ):
+            await hook.delete_directory("/remote/dir", include_files=True)
+
+        sftp_client.remove.assert_any_await("/remote/dir/file1")
+        sftp_client.remove.assert_any_await("/remote/dir/sub/file2")
+        assert sftp_client.rmdir.await_args_list == [
+            call("/remote/dir/sub"),
+            call("/remote/dir"),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_get_tree_map_splits_files_dirs_and_unknowns(self, sftp_hook_mocked):
+        hook, sftp_client_mock = sftp_hook_mocked
+        sftp_client = sftp_client_mock.__aenter__.return_value
+
+        async def readdir_side_effect(path):
+            if path == "/dir":
+
+                class File:
+                    filename = "file1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFREG})
+
+                class Subdir:
+                    filename = "subdir"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFDIR})
+
+                class Fifo:
+                    filename = "fifo1"
+                    attrs = type("attrs", (), {"permissions": stat.S_IFIFO})
+
+                return [File(), Subdir(), Fifo()]
+            return []
+
+        sftp_client.readdir.side_effect = readdir_side_effect
+        sftp_client.realpath.side_effect = lambda path: path
+
+        files, dirs, unknowns = await hook.get_tree_map("/dir")
+        assert files == ["/dir/file1"]
+        assert dirs == ["/dir/subdir"]
+        assert unknowns == ["/dir/fifo1"]
+
+    @pytest.mark.asyncio
+    async def test_retrieve_directory_rejects_existing_local_path(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+
+        with pytest.raises(AirflowException, match="already exists"):
+            await hook.retrieve_directory("/remote/dir", str(tmp_path))
+
+    @pytest.mark.asyncio
+    async def test_retrieve_directory_downloads_files_and_creates_subdirs(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+        local_dir = tmp_path / "download"
+
+        with (
+            patch.object(
+                hook,
+                "get_tree_map",
+                AsyncMock(
+                    return_value=(
+                        ["/remote/dir/file1", "/remote/dir/sub/file2"],
+                        ["/remote/dir/sub"],
+                        [],
+                    )
+                ),
+            ),
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
+        ):
+            await hook.retrieve_directory("/remote/dir", str(local_dir))
+
+        assert local_dir.is_dir()
+        assert (local_dir / "sub").is_dir()
+        mock_retrieve_file.assert_any_await("/remote/dir/file1", str(local_dir / "file1"), prefetch=True)
+        mock_retrieve_file.assert_any_await(
+            "/remote/dir/sub/file2", str(local_dir / "sub" / "file2"), prefetch=True
+        )
+
+    @pytest.mark.asyncio
+    async def test_retrieve_directory_rejects_path_traversal(self, sftp_hook_mocked, tmp_path):
+        """Assert that a malicious remote path escaping the local destination is rejected."""
+        hook, _ = sftp_hook_mocked
+        local_dir = tmp_path / "download"
+
+        with (
+            patch.object(
+                hook,
+                "get_tree_map",
+                AsyncMock(return_value=(["/remote/dir/../../evil"], [], [])),
+            ),
+            patch.object(hook, "retrieve_file", AsyncMock()),
+        ):
+            with pytest.raises(ValueError, match="outside the destination directory"):
+                await hook.retrieve_directory("/remote/dir", str(local_dir))
+
+    @pytest.mark.asyncio
+    async def test_store_directory_rejects_existing_remote_path(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+
+        with patch.object(hook, "path_exists", AsyncMock(return_value=True)):
+            with pytest.raises(AirflowException, match="already exists"):
+                await hook.store_directory("/remote/dir", str(tmp_path))
+
+    @pytest.mark.asyncio
+    async def test_store_directory_uploads_tree(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+        local_dir = tmp_path / "upload"
+        (local_dir / "sub").mkdir(parents=True)
+        (local_dir / "file1").write_bytes(b"abc")
+        (local_dir / "sub" / "file2").write_bytes(b"def")
+
+        with (
+            patch.object(hook, "path_exists", AsyncMock(return_value=False)),
+            patch.object(hook, "create_directory", AsyncMock()) as mock_create_directory,
+            patch.object(hook, "store_file", AsyncMock()) as mock_store_file,
+        ):
+            await hook.store_directory("/remote/dir", str(local_dir))
+
+        mock_create_directory.assert_any_await("/remote/dir")
+        mock_create_directory.assert_any_await(os.path.join("/remote/dir", "sub"))
+        mock_store_file.assert_any_await(
+            os.path.join("/remote/dir", "file1"), str(local_dir / "file1"), confirm=True
+        )
+        mock_store_file.assert_any_await(
+            os.path.join("/remote/dir", "sub", "file2"), str(local_dir / "sub" / "file2"), confirm=True
+        )
+
+    @pytest.mark.asyncio
+    async def test_transfer_get_dispatches_to_retrieve_directory(self, sftp_hook_mocked):
+        hook, _ = sftp_hook_mocked
+
+        with (
+            patch.object(hook, "isdir", AsyncMock(return_value=True)),
+            patch.object(hook, "retrieve_directory", AsyncMock()) as mock_retrieve_directory,
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
+        ):
+            await hook.transfer(SFTPOperation.GET, local_filepath="/local/dir", remote_filepath="/remote/dir")
+
+        mock_retrieve_directory.assert_awaited_once_with("/remote/dir", "/local/dir", prefetch=True)
+        mock_retrieve_file.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_transfer_get_dispatches_to_retrieve_file(self, sftp_hook_mocked):
+        hook, _ = sftp_hook_mocked
+
+        with (
+            patch.object(hook, "isdir", AsyncMock(return_value=False)),
+            patch.object(hook, "retrieve_directory", AsyncMock()) as mock_retrieve_directory,
+            patch.object(hook, "retrieve_file", AsyncMock()) as mock_retrieve_file,
+        ):
+            await hook.transfer(
+                SFTPOperation.GET, local_filepath="/local/file", remote_filepath="/remote/file"
+            )
+
+        mock_retrieve_file.assert_awaited_once_with("/remote/file", "/local/file", prefetch=True)
+        mock_retrieve_directory.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_transfer_get_creates_intermediate_dirs(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+        local_file = tmp_path / "new" / "dir" / "file"
+
+        with (
+            patch.object(hook, "isdir", AsyncMock(return_value=False)),
+            patch.object(hook, "retrieve_file", AsyncMock()),
+        ):
+            await hook.transfer(
+                SFTPOperation.GET,
+                local_filepath=str(local_file),
+                remote_filepath="/remote/file",
+                create_intermediate_dirs=True,
+            )
+
+        assert local_file.parent.is_dir()
+
+    @pytest.mark.asyncio
+    async def test_transfer_put_dispatches_to_store_directory(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+        local_dir = tmp_path / "dir"
+        local_dir.mkdir()
+
+        with (
+            patch.object(hook, "store_directory", AsyncMock()) as mock_store_directory,
+            patch.object(hook, "store_file", AsyncMock()) as mock_store_file,
+        ):
+            await hook.transfer(
+                SFTPOperation.PUT, local_filepath=str(local_dir), remote_filepath="/remote/dir"
+            )
+
+        mock_store_directory.assert_awaited_once_with("/remote/dir", str(local_dir), confirm=True)
+        mock_store_file.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_transfer_put_dispatches_to_store_file(self, sftp_hook_mocked, tmp_path):
+        hook, _ = sftp_hook_mocked
+        local_file = tmp_path / "file"
+        local_file.write_bytes(b"abc")
+
+        with (
+            patch.object(hook, "store_directory", AsyncMock()) as mock_store_directory,
+            patch.object(hook, "store_file", AsyncMock()) as mock_store_file,
+        ):
+            await hook.transfer(
+                SFTPOperation.PUT, local_filepath=str(local_file), remote_filepath="/remote/file"
+            )
+
+        mock_store_file.assert_awaited_once_with("/remote/file", str(local_file), confirm=True)
+        mock_store_directory.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_transfer_delete_dispatches_to_directory_delete(self, sftp_hook_mocked):
+        hook, _ = sftp_hook_mocked
+
+        with (
+            patch.object(hook, "isdir", AsyncMock(return_value=True)),
+            patch.object(hook, "delete_directory", AsyncMock()) as mock_delete_directory,
+            patch.object(hook, "delete_file", AsyncMock()) as mock_delete_file,
+        ):
+            await hook.transfer(SFTPOperation.DELETE, local_filepath=None, remote_filepath="/remote/dir")
+
+        mock_delete_directory.assert_awaited_once_with("/remote/dir", include_files=True)
+        mock_delete_file.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_transfer_delete_missing_file_warns_instead_of_raising(self, sftp_hook_mocked, caplog):
+        """Assert that deleting a missing file warns and continues, mirroring SFTPHook.transfer."""
+        hook, _ = sftp_hook_mocked
+
+        with (
+            patch.object(hook, "isdir", AsyncMock(return_value=False)),
+            patch.object(hook, "delete_file", AsyncMock(side_effect=SFTPNoSuchFile("missing"))),
+        ):
+            await hook.transfer(SFTPOperation.DELETE, local_filepath=None, remote_filepath="/remote/missing")
+
+        assert "does not exist" in caplog.text
 
 
 def test_sftp_operation_values():
