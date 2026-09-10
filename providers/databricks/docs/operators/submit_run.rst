@@ -191,11 +191,12 @@ when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is 
 run id won't be there for the next retry, and the operator will submit a fresh run instead of
 reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose run
-already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
-and returns immediately without submitting a new run. See
+Clearing a task now discards the stored run id by default, so the next attempt submits a new run
+instead of reconnecting to the one already run. To resume from the stored run id instead, pass
+``keep_task_state`` when clearing (or tick the corresponding box in the clear dialog). See
 :doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+``[state_store] clear_on_success`` setting that discards the run id automatically as soon as the
+task succeeds.
 
 This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
 polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to
