@@ -16,13 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.dagbag import DagPriorityParsingRequest, DBDagBag
+from airflow.models.errors import ParseImportError
 
 from tests_common.test_utils.api_fastapi import _check_last_log
-from tests_common.test_utils.db import clear_db_dag_parsing_requests, clear_db_logs, parse_and_sync_to_db
+from tests_common.test_utils.db import (
+    clear_db_dag_parsing_requests,
+    clear_db_import_errors,
+    clear_db_logs,
+    parse_and_sync_to_db,
+)
 from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
 pytestmark = pytest.mark.db_test
@@ -33,10 +43,26 @@ NOT_READABLE_DAG_ID = "latest_only_with_trigger"
 TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
 
+@pytest.fixture
+def dag_reader_test_client(test_client):
+    """A caller who may read the Dags (and import errors) but not edit them: viewer is below the role edits require."""
+    auth_manager = test_client.app.state.auth_manager
+    token = auth_manager._get_token_signer().generate(
+        auth_manager.serialize_user(SimpleAuthManagerUser(username="reader", role="viewer"))
+    )
+    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+        yield TestClient(
+            test_client.app,
+            headers={"Authorization": f"Bearer {token}"},
+            base_url=str(test_client.base_url),
+        )
+
+
 class TestDagParsingEndpoint:
     @staticmethod
     def clear_db():
         clear_db_dag_parsing_requests()
+        clear_db_import_errors()
 
     @pytest.fixture(autouse=True)
     def setup(self, session) -> None:
@@ -94,3 +120,54 @@ class TestDagParsingEndpoint:
 
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests == []
+
+    def test_reparse_import_error_file(self, url_safe_serializer, session, test_client):
+        # A file with an import error has no registered Dags, but reparse must still be allowed
+        # so the user can retry after fixing the file.
+        session.add(ParseImportError(bundle_name="some_bundle", filename="dags/broken.py", stacktrace="boom"))
+        session.commit()
+        token = url_safe_serializer.dumps(
+            {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+
+        response = test_client.put(f"/parseDagFile/{token}", headers={"Accept": "application/json"})
+
+        assert response.status_code == 201
+        parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
+        assert len(parsing_requests) == 1
+        assert parsing_requests[0].bundle_name == "some_bundle"
+        assert parsing_requests[0].relative_fileloc == "dags/broken.py"
+
+    def test_reparse_import_error_file_forbidden(
+        self, url_safe_serializer, session, unauthorized_test_client
+    ):
+        session.add(ParseImportError(bundle_name="some_bundle", filename="dags/broken.py", stacktrace="boom"))
+        session.commit()
+        token = url_safe_serializer.dumps(
+            {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+
+        response = unauthorized_test_client.put(
+            f"/parseDagFile/{token}", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == 403
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []
+
+    def test_reparse_import_error_file_requires_dag_edit_not_just_view(
+        self, url_safe_serializer, session, dag_reader_test_client
+    ):
+        # Reparse is a write action: a caller who can view import errors but not edit Dags
+        # (viewer) must not be able to trigger a reparse of an errored file.
+        session.add(ParseImportError(bundle_name="some_bundle", filename="dags/broken.py", stacktrace="boom"))
+        session.commit()
+        token = url_safe_serializer.dumps(
+            {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+
+        response = dag_reader_test_client.put(
+            f"/parseDagFile/{token}", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == 403
+        assert session.scalars(select(DagPriorityParsingRequest)).all() == []

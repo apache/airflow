@@ -5642,10 +5642,16 @@ export const $ImportErrorResponse = {
         stack_trace: {
             type: 'string',
             title: 'Stack Trace'
+        },
+        file_token: {
+            type: 'string',
+            title: 'File Token',
+            description: 'Return a signed token identifying the file, used to request its reparse.',
+            readOnly: true
         }
     },
     type: 'object',
-    required: ['import_error_id', 'timestamp', 'filename', 'bundle_name', 'stack_trace'],
+    required: ['import_error_id', 'timestamp', 'filename', 'bundle_name', 'stack_trace', 'file_token'],
     title: 'ImportErrorResponse',
     description: 'Import Error Response.'
 } as const;

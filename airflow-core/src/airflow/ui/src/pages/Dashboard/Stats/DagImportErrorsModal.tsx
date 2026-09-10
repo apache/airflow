@@ -20,15 +20,25 @@ import { useState } from "react";
 
 import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { AiOutlineFileSync } from "react-icons/ai";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
-import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+import { useDagParsingServiceReparseDagFile, useImportErrorServiceGetImportErrors } from "openapi/queries";
 
-import { Accordion, ClipboardIconButton, Modal, Pagination } from "src/system-components";
+import {
+  Accordion,
+  ClipboardIconButton,
+  IconButton,
+  Modal,
+  Pagination,
+  toaster,
+} from "src/system-components";
 
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
+
+import { createErrorToaster } from "src/utils";
 
 type ImportDAGErrorModalProps = {
   readonly onClose: () => void;
@@ -36,6 +46,32 @@ type ImportDAGErrorModalProps = {
 };
 
 const PAGE_LIMIT = 15;
+
+const ReparseButton = ({ fileToken }: { readonly fileToken: string }) => {
+  const { t: translate } = useTranslation(["components", "dag"]);
+
+  const { isPending, mutate } = useDagParsingServiceReparseDagFile({
+    onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
+    onSuccess: () =>
+      toaster.create({
+        description: translate("dag:parse.toaster.success.description"),
+        title: translate("dag:parse.toaster.success.title"),
+        type: "success",
+      }),
+  });
+
+  return (
+    <IconButton
+      data-testid="reparse-import-error"
+      label={translate("components:reparseDag")}
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+      variant="outline"
+    >
+      <AiOutlineFileSync />
+    </IconButton>
+  );
+};
 
 export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
@@ -121,7 +157,8 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   {importError.filename}
                 </HStack>
               </Accordion.ItemTrigger>
-              <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
+              <Box alignItems="center" display="flex" flexShrink={0} gap={1} pr={2}>
+                <ReparseButton fileToken={importError.file_token} />
                 <ClipboardRoot value={importError.filename}>
                   <ClipboardIconButton variant="outline" />
                 </ClipboardRoot>
