@@ -62,7 +62,9 @@ class XComOperatorLink(LoggingMixin):
                     dag_ids=ti_key.dag_id,
                     task_ids=ti_key.task_id,
                     map_indexes=ti_key.map_index,
-                ).with_only_columns(XComModel.value)
+                )
+                .with_only_columns(XComModel.value)
+                .limit(1)
             ).first()
         if not result:
             self.log.debug(
