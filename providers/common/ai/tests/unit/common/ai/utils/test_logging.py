@@ -125,6 +125,17 @@ class TestLogRunSummary:
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert records[1].message == "LLM run cost: $0.0123 (USD, best-effort)"
 
+    def test_small_cost_logs_plain_decimal_not_scientific_notation(self, caplog):
+        """A cheap single-call run's cost must not render as e.g. "$7.5E-7"."""
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=Decimal("0.00000075"))
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM run cost: $0.00000075 (USD, best-effort)"
+
 
 class TestLogOutputDebug:
     def test_logs_string_output(self, caplog):

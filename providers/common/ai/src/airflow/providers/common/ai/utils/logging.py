@@ -50,7 +50,9 @@ def log_run_summary(logger: Logger | logging.Logger, result: AgentRunResult[Any]
         usage.total_tokens,
     )
     if usage.cost is not None:
-        logger.info("LLM run cost: $%s (USD, best-effort)", usage.cost)
+        # %s on a small Decimal renders scientific notation (e.g. "7.5E-7"); format as
+        # plain decimal so cheap runs show a readable dollar amount.
+        logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
 
     if tool_names := _extract_tool_sequence(result):
         logger.info("Tool call sequence: %s", " -> ".join(tool_names))
