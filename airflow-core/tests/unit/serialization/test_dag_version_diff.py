@@ -792,45 +792,71 @@ def test_build_diff_reports_effective_mapped_default_changes() -> None:
     assert change["after_value"] == 5
 
 
-def _build_mapped_precedence_payload(*, top_level_retries: int, partial_kwargs: dict | None) -> dict:
+def _build_mapped_precedence_payload(
+    *, field: str, top_level_value: int | str, client_default: int | str, partial_kwargs: dict | None
+) -> dict:
     with DAG("mapped_precedence", schedule=None) as dag:
         BashOperator.partial(task_id="mapped").expand(bash_command=["first", "second"])
     payload = json.loads(json.dumps(DagSerialization.to_dict(dag)))
     task = payload["dag"]["tasks"][0]["__var"]
     task.pop("partial_kwargs", None)
-    task["retries"] = top_level_retries
+    task[field] = top_level_value
     if partial_kwargs is not None:
         task["partial_kwargs"] = partial_kwargs
-    payload["client_defaults"] = {"tasks": {"retries": 5}}
+    payload["client_defaults"] = {"tasks": {field: client_default}}
     return payload
 
 
-def _resolve_runtime_partial_retries(payload: dict) -> int:
+def _resolve_runtime_partial_value(payload: dict, field: str) -> int | str:
     hydrated = DagSerialization.from_dict(copy.deepcopy(payload))
-    return hydrated.task_dict["mapped"].partial_kwargs["retries"]
+    return hydrated.task_dict["mapped"].partial_kwargs[field]
 
 
-def test_build_diff_reports_top_level_shadowing_without_partial_kwargs() -> None:
-    base = _build_mapped_precedence_payload(top_level_retries=2, partial_kwargs=None)
-    target = _build_mapped_precedence_payload(top_level_retries=3, partial_kwargs=None)
+@pytest.mark.parametrize(
+    ("field", "before", "after", "client_default"),
+    [("retries", 2, 3, 5), ("pool", "base_pool", "target_pool", "client_pool")],
+)
+def test_build_diff_reports_top_level_shadowing_without_partial_kwargs(field, before, after, client_default):
+    base = _build_mapped_precedence_payload(
+        field=field, top_level_value=before, client_default=client_default, partial_kwargs=None
+    )
+    target = _build_mapped_precedence_payload(
+        field=field, top_level_value=after, client_default=client_default, partial_kwargs=None
+    )
     # populate_operator only folds client defaults into partial_kwargs for a payload that carries
     # the key, so without it the top-level values survive and the two versions really do differ.
-    assert (_resolve_runtime_partial_retries(base), _resolve_runtime_partial_retries(target)) == (2, 3)
+    assert (_resolve_runtime_partial_value(base, field), _resolve_runtime_partial_value(target, field)) == (
+        before,
+        after,
+    )
 
     result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=True)
 
     assert result["mode"] == "observed_state"
     assert [
         (change["path"], change["before_value"], change["after_value"]) for change in result["changes"]
-    ] == [("/dag/tasks/mapped/partial_kwargs/retries", 2, 3)]
+    ] == [(f"/dag/tasks/mapped/partial_kwargs/{field}", before, after)]
 
 
-def test_build_diff_ignores_top_level_shadowing_behind_empty_partial_kwargs() -> None:
-    base = _build_mapped_precedence_payload(top_level_retries=2, partial_kwargs={})
-    target = _build_mapped_precedence_payload(top_level_retries=3, partial_kwargs={})
+@pytest.mark.parametrize(
+    ("field", "before", "after", "client_default"),
+    [("retries", 2, 3, 5), ("pool", "base_pool", "target_pool", "client_pool")],
+)
+def test_build_diff_ignores_top_level_shadowing_behind_empty_partial_kwargs(
+    field, before, after, client_default
+):
+    base = _build_mapped_precedence_payload(
+        field=field, top_level_value=before, client_default=client_default, partial_kwargs={}
+    )
+    target = _build_mapped_precedence_payload(
+        field=field, top_level_value=after, client_default=client_default, partial_kwargs={}
+    )
     # The present key makes populate_operator apply the client default instead, shadowing both
     # top-level values, so the versions resolve identically and the diff must stay silent.
-    assert (_resolve_runtime_partial_retries(base), _resolve_runtime_partial_retries(target)) == (5, 5)
+    assert (_resolve_runtime_partial_value(base, field), _resolve_runtime_partial_value(target, field)) == (
+        client_default,
+        client_default,
+    )
 
     result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=True)
 
