@@ -364,8 +364,6 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     run_id=job_run_id,
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
-                    verify=self.verify,
-                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
