@@ -339,7 +339,11 @@ class TaskInstanceOperations:
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
     def update_dagrun_note(self, id: uuid.UUID, note: str | None) -> OKResponse:
-        """Update the note for the DagRun associated with this task instance."""
+        """
+        Update the note for the DagRun associated with this task instance.
+
+        An empty note removes it, and ``None`` leaves any existing note untouched.
+        """
         body = DagRunNoteUpdatePayload(note=Note(note) if note is not None else None)
         self.client.patch(f"task-instances/{id}/dag-run-note", content=body.model_dump_json())
         return OKResponse(ok=True)

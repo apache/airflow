@@ -18,11 +18,10 @@
 """
 In-progress supervisor schema version.
 
-New supervisor message bodies introduced in the head schema (currently
-``UpdateDagRunNote``) need no field-level migration instructions here: a lang-SDK
-pinned to an older version simply never sends them, so there is nothing to strip
-on the way down. Only *changes* to bodies that already existed at an earlier
-dated version require a ``VersionChange`` entry below.
+A brand-new message body needs no field-level migration instructions here: a lang-SDK
+pinned to an older version simply never sends it, so there is nothing to strip on the
+way down. Only *changes* to bodies that already existed at an earlier dated version
+require a ``VersionChange`` entry below.
 """
 
 from __future__ import annotations

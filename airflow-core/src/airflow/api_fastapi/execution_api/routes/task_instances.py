@@ -925,7 +925,12 @@ def update_dag_run_note(
     body: DagRunNoteUpdatePayload,
     session: SessionDep,
 ) -> None:
-    """Update the note for the DagRun associated with this task instance."""
+    """
+    Update the note for the DagRun associated with this task instance.
+
+    An empty note removes the existing note, matching the public API. A null note is a
+    no-op so runtime callers can leave a user-authored note untouched.
+    """
     bind_contextvars(ti_id=str(task_instance_id))
 
     dag_run = session.scalar(
