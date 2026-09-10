@@ -329,6 +329,21 @@ class TestConnection:
 
         assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
 
+    def test_get_hook_does_not_advise_a_spelling_whose_hook_cannot_be_imported(self):
+        """
+        ProvidersManager.hooks holds None for a connection type whose hook could not be
+        imported, so membership alone does not mean the other spelling would resolve. Advice
+        that still fails when followed is worse than no advice.
+        """
+        conn = Connection(conn_id="c", conn_type="google-cloud-platform")
+
+        with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
+            mock_manager.return_value.hooks = {"google_cloud_platform": None}
+            with pytest.raises(AirflowException) as exc_info:
+                conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
     def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self):
         """
         A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme

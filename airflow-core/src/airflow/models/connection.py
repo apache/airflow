@@ -399,18 +399,20 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
                 )
             else:
                 message = f'Unknown hook type "{self.conn_type}"'
-                # To a URI scheme '-' and '_' are the same character: get_uri() encodes '_' as
-                # '-' because RFC 3986 forbids '_' in a scheme, and reading a connection back
-                # from a URI or from JSON decodes it again. A connection type spelled one way
-                # therefore cannot resolve a hook registered the other way. Hooks register under
-                # the connection-type verbatim, so look the other spelling up rather than
-                # asserting which one is right.
+                # get_uri() encodes '_' as '-' because RFC 3986 forbids '_' in a scheme, and
+                # reading a connection back from a URI or from JSON decodes it again, so both
+                # characters serialize to '-' and a connection type spelled one way cannot
+                # resolve a hook registered the other way. Hooks register under the
+                # connection-type verbatim, so look the other spelling up rather than asserting
+                # which one is right, and resolve it rather than testing for membership: a
+                # registered connection type maps to None when its hook cannot be imported, and
+                # naming a spelling that still will not resolve is worse than naming none.
                 alternative = (
                     self.conn_type.replace("-", "_")
                     if "-" in self.conn_type
                     else self.conn_type.replace("_", "-")
                 )
-                if alternative != self.conn_type and alternative in hooks:
+                if alternative != self.conn_type and hooks.get(alternative) is not None:
                     message += f", but a hook is registered for {alternative!r}. "
                     if "-" in self.conn_type:
                         message += "Spell this connection's type with '_' to reach it."
