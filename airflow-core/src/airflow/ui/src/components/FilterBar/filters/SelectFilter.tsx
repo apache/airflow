@@ -17,6 +17,7 @@
  * under the License.
  */
 import { createListCollection, Box, Text } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
 import { Select } from "src/components/ui";
 
@@ -24,7 +25,7 @@ import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps, FilterConfig } from "../types";
 
 type SelectOption = {
-  label: string;
+  label: ReactNode;
   value: string;
 };
 
@@ -52,6 +53,8 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
   const displayValue = config.options.find(
     (option) => option.value === (typeof filter.value === "string" ? filter.value : ""),
   )?.label;
+  // Chakra line-clamps value text by default, which clips padded elements such as state badges.
+  const hasRichDisplayValue = displayValue !== undefined && typeof displayValue !== "string";
 
   return (
     <FilterPill
@@ -95,7 +98,11 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
           >
             <Select.Trigger dataTestId="select-filter-trigger" triggerProps={{ border: "none" }}>
-              <Select.ValueText placeholder={filter.config.placeholder} />
+              <Select.ValueText
+                lineClamp={hasRichDisplayValue ? "none" : undefined}
+                overflow={hasRichDisplayValue ? "visible" : undefined}
+                placeholder={filter.config.placeholder}
+              />
             </Select.Trigger>
             <Select.Content>
               {config.options.map((option) => (
