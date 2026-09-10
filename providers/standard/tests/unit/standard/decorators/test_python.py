@@ -23,7 +23,6 @@ from datetime import date
 
 import pytest
 
-from airflow.models.taskmap import TaskMap
 from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
 from tests_common.test_utils.taskinstance import get_template_context, render_template_fields
@@ -842,6 +841,8 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
 def test_mapped_render_template_fields(dag_maker, session):
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
+    from tests_common.test_utils.mapping import push_mapped_length
+
     @task_decorator
     def fn(arg1, arg2): ...
 
@@ -852,18 +853,7 @@ def test_mapped_render_template_fields(dag_maker, session):
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
 
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
-
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=1,
-            keys=None,
-        )
-    )
+    push_mapped_length(ti, ["{{ ds }}"], session=session)
     session.flush()
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
@@ -880,6 +870,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 def test_mapped_render_template_fields_af2(dag_maker, session):
+    from airflow.models.taskmap import TaskMap
     from airflow.utils.task_instance_session import set_current_task_instance_session
 
     @task_decorator

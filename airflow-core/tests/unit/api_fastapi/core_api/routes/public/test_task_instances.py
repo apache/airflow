@@ -45,7 +45,6 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.sdk import BaseOperator
@@ -63,6 +62,7 @@ from tests_common.test_utils.db import (
     clear_rendered_ti_fields,
 )
 from tests_common.test_utils.logs import check_last_log
+from tests_common.test_utils.mapping import expand_mapped_task_instances, push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.team import attach_dag_to_team
@@ -733,15 +733,8 @@ class TestGetMappedTaskInstances:
                 data_interval=(DEFAULT_DATETIME_1, DEFAULT_DATETIME_2),
             )
             dag_version = DagVersion.get_latest_version(dag_id)
-            session.add(
-                TaskMap(
-                    dag_id=dr.dag_id,
-                    task_id=task1.task_id,
-                    run_id=dr.run_id,
-                    map_index=-1,
-                    length=count,
-                    keys=None,
-                )
+            push_mapped_length(
+                dr.get_task_instance(task1.task_id, session=session), range(count), session=session
             )
 
             if count:
@@ -773,7 +766,7 @@ class TestGetMappedTaskInstances:
             sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
 
-            TaskMap.expand_mapped_task(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
+            expand_mapped_task_instances(sdag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):

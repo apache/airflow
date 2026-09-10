@@ -35,7 +35,6 @@ from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
@@ -44,6 +43,7 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.mapping import expand_mapped_task_instances
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -263,7 +263,9 @@ class TestRenderedTaskInstanceFields:
                 run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
             )
 
-            TaskMap.expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, session=dag_maker.session)
+            expand_mapped_task_instances(
+                dag.task_dict[mapped.task_id], dr.run_id, session=dag_maker.session
+            )
             session.refresh(dr)
             for ti in dr.task_instances:
                 ti.task = dag_maker.serialized_dag.get_task(ti.task_id)

@@ -71,7 +71,6 @@ from airflow.models.taskinstance import (
     find_relevant_relatives,
 )
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
@@ -116,6 +115,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.mapping import expand_mapped_task_instances
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import (
     create_task_instance as _create_task_instance,
@@ -3129,13 +3129,19 @@ class TestTaskInstanceRelationships:
             getattr(loaded_ti, attr)
 
 
-class TestTaskInstanceRecordTaskMapXComPush:
-    """Test TI.xcom_push() correctly records return values for task-mapping."""
+def _mapped_length_count(session) -> int:
+    return session.scalar(
+        select(func.count()).select_from(XComModel).where(XComModel.mapped_length.is_not(None))
+    )
+
+
+class TestTaskInstanceRecordMappedLengthXComPush:
+    """Test TI.xcom_push() correctly records return value lengths for task-mapping."""
 
     def setup_class(self):
         """Ensure we start fresh."""
         with create_session() as session:
-            session.execute(delete(TaskMap))
+            session.execute(delete(XComModel))
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
@@ -3151,7 +3157,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         run_task_instance(ti, dag.get_task(ti.task_id))
 
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
+        assert _mapped_length_count(dag_maker.session) == 0
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
@@ -3171,7 +3177,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         run_task_instance(ti, dag.get_task(ti.task_id))
 
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
+        assert _mapped_length_count(dag_maker.session) == 0
 
     @pytest.mark.parametrize("xcom_1", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     @pytest.mark.parametrize("xcom_4", [[1, 2, 3], {"a": 1, "b": 2}])
@@ -3210,16 +3216,16 @@ class TestTaskInstanceRecordTaskMapXComPush:
         dr = dag_maker.create_dagrun()
 
         dag_maker.run_ti("push_1", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
+        assert _mapped_length_count(dag_maker.session) == 0
 
         dag_maker.run_ti("push_2", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 1
+        assert _mapped_length_count(dag_maker.session) == 1
 
         dag_maker.run_ti("push_3", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 1
+        assert _mapped_length_count(dag_maker.session) == 1
 
         dag_maker.run_ti("push_4", dr)
-        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 2
+        assert _mapped_length_count(dag_maker.session) == 2
 
 
 class TestMappedTaskInstanceReceiveValue:
@@ -3282,7 +3288,7 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -3293,7 +3299,7 @@ class TestMappedTaskInstanceReceiveValue:
     def test_map_xcom_wide_batched_expand(self, dag_maker, session):
         """Wide XCom-driven expand goes through the batched add_all()/flush() path.
 
-        Exercises ``TaskMap.expand_mapped_task`` over a 20-element upstream XCom and
+        Exercises ``TaskInstance.expand_mapped_task`` over a 20-element upstream XCom and
         asserts the batched expansion creates exactly N mapped TIs with contiguous
         ``map_index`` 0..N-1, the expected ``None`` (schedulable) state, and that the
         returned instances are usable: they keep their ``.task`` (no merge() that drops
@@ -3330,7 +3336,9 @@ class TestMappedTaskInstanceReceiveValue:
         # a slower one. Measured at 7 for this fixture; margin allows for minor backend
         # differences while staying far below what a per-index merge() would cost.
         with assert_queries_count(7, margin=2):
-            mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+            mapped_tis, max_map_index = expand_mapped_task_instances(
+                show_task, dag_run.run_id, session=session
+            )
 
         # Correct count + contiguous indexes 0..N-1.
         assert len(mapped_tis) == width
@@ -3406,29 +3414,20 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 3
         assert max_map_index == 2
 
-        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom and
-        # the TaskMap row that records the mapped length.
+        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom.
         XComModel.set(
             key="return_value",
             value=[1, 2, 3, 4, 5],
             dag_id=dag_run.dag_id,
             task_id="emit",
             run_id=dag_run.run_id,
+            mapped_length=5,
             session=session,
         )
-        task_map = session.scalars(
-            select(TaskMap).where(
-                TaskMap.dag_id == dag_run.dag_id,
-                TaskMap.task_id == "emit",
-                TaskMap.run_id == dag_run.run_id,
-            )
-        ).one()
-        task_map.length = 5
-        task_map.keys = None
         session.flush()
 
         # Pins the query count so a regression back to per-index session.merge() -- which
@@ -3470,7 +3469,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         show_task = dag.get_task("show")
         assert show_task.get_parse_time_mapped_ti_count() == 6
-        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        mapped_tis, max_map_index = expand_mapped_task_instances(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5
 
@@ -3517,7 +3516,7 @@ class TestMappedTaskInstanceReceiveValue:
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
 
         bash_task = dag.get_task("dynamic.bash")
-        mapped_bash_tis, max_map_index = TaskMap.expand_mapped_task(
+        mapped_bash_tis, max_map_index = expand_mapped_task_instances(
             bash_task, dag_run.run_id, session=session
         )
         assert max_map_index == 3  # 2 * 2 mapped tasks.
