@@ -711,6 +711,27 @@ class TestSFTPOperatorDeferrable:
         assert isinstance(exc.value.trigger, SFTPTransferTrigger)
         assert exc.value.method_name == "execute_complete"
 
+    def test_sftp_operator_defer_uses_sftp_hook_conn_id_when_ssh_conn_id_unset(self):
+        """
+        Assert that deferring honors a supplied sftp_hook's connection id.
+
+        Regression test: previously, when only ``sftp_hook`` (not ``ssh_conn_id``) was
+        provided, the trigger silently fell back to ``SFTPHookAsync.default_conn_name``
+        ("sftp_default") instead of the hook's actual connection, redirecting the
+        deferred transfer to the wrong server.
+        """
+        operator = SFTPOperator(
+            task_id="test_sftp_defer_hook_conn_id",
+            sftp_hook=SFTPHook(ssh_conn_id="my_prod_sftp"),
+            local_filepath="/tmp/test.txt",
+            remote_filepath="/remote/test.txt",
+            operation=SFTPOperation.PUT,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context={})
+        assert exc.value.trigger.sftp_conn_id == "my_prod_sftp"
+
     def test_sftp_operator_execute_complete_success(self):
         """Test execute_complete returns local_filepath on success."""
         operator = SFTPOperator(
