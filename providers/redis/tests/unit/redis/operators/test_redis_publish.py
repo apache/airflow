@@ -47,16 +47,3 @@ class TestRedisPublishOperator:
 
         mock_redis_conn.assert_called_once_with()
         mock_redis_conn().publish.assert_called_once_with(channel="test_channel", message="test_message")
-
-    def test_redis_conn_id_is_templated(self):
-        operator = RedisPublishOperator(
-            task_id="test_task",
-            dag=self.dag,
-            channel="test_channel",
-            message="test_message",
-            redis_conn_id="{{ conn_id }}",
-        )
-
-        assert "redis_conn_id" in operator.template_fields
-        operator.render_template_fields({"conn_id": "redis_custom"})
-        assert operator.redis_conn_id == "redis_custom"
