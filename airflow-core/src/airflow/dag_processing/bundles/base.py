@@ -298,6 +298,9 @@ class BaseDagBundle(ABC):
 
     supports_versioning: bool = False
 
+    is_initialized: bool = False
+    """Whether :meth:`initialize` has run. ``path`` is only guaranteed usable once it has."""
+
     _locked: bool = False
 
     def __init__(
@@ -313,7 +316,7 @@ class BaseDagBundle(ABC):
         self.version = version
         self.version_data = version_data
         self.refresh_interval = refresh_interval
-        self.is_initialized: bool = False
+        self.is_initialized = False
 
         self.base_dir = get_bundle_base_folder(bundle_name=self.name)
         """Base directory for all bundle files for this bundle."""

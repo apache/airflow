@@ -745,10 +745,33 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Return the bundle to run the callback against, or ``None`` to skip the callback.
 
-        Default implementation looks the bundle up via :class:`DagBundlesManager` and, for
-        versioned requests on bundles that support versioning, calls ``bundle.initialize()``.
+        An unversioned request is served from this processor's own bundles; a pinned one is
+        looked up via :class:`DagBundlesManager` and initialized when it supports versioning.
         Override to source the bundle from an API.
+
+        A returned bundle that supports versioning must be initialized: ``bundle.path`` is only
+        guaranteed usable once ``initialize()`` has succeeded for such bundles.
         """
+        if request.bundle_version is None:
+            # An unversioned request runs against the bundle's current contents, which is what
+            # this processor's own instance tracks. Reusing it keeps the path identical to the
+            # one the file scan queues, and keeps a fresh initialize() -- for a versioned
+            # bundle, a fetch/checkout under the bundle lock -- out of the parsing loop.
+            loaded = next((b for b in self._dag_bundles if b.name == request.bundle_name), None)
+            if loaded is None:
+                self.log.error(
+                    "Bundle %s is not parsed by this processor, skipping callback", request.bundle_name
+                )
+                return None
+            if loaded.supports_versioning and not loaded.is_initialized:
+                # :meth:`_refresh_dag_bundles` runs before callbacks are fetched and initializes
+                # what it can, so an uninitialized instance here means it just failed. Retrying
+                # per callback would block the loop on the same failure up to
+                # ``max_callbacks_per_loop`` times, so leave the retry to the refresh loop and
+                # its check interval.
+                self.log.error("Bundle %s is not initialized, skipping callback", request.bundle_name)
+                return None
+            return loaded
         try:
             bundle = DagBundlesManager().get_bundle(
                 name=request.bundle_name,
@@ -758,7 +781,7 @@ class DagFileProcessorManager(LoggingMixin):
         except ValueError:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
-        if bundle.supports_versioning and request.bundle_version:
+        if bundle.supports_versioning:
             try:
                 bundle.initialize()
             except Exception:
@@ -774,6 +797,13 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
+            return
+        if bundle.supports_versioning and not bundle.is_initialized:
+            # Queueing an unresolved path would spawn a processor against a file that isn't there,
+            # and callback-only runs record no import error, so the callback would be lost silently.
+            self.log.error(
+                "Bundle %s for callback was not initialized, skipping callback", request.bundle_name
+            )
             return
 
         file_info = DagFileInfo(
@@ -1405,9 +1435,8 @@ class DagFileProcessorManager(LoggingMixin):
             self._symlink_latest_log_directory()
             self._latest_log_symlink_date = datetime.today()
 
-        bundle = next(b for b in self._dag_bundles if b.name == dag_file.bundle_name)
         relative_path = Path(dag_file.rel_path)
-        return os.path.join(self._get_log_dir(), bundle.name, f"{relative_path}.log")
+        return os.path.join(self._get_log_dir(), dag_file.bundle_name, f"{relative_path}.log")
 
     def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
         log_filename = self._render_log_filename(dag_file)
