@@ -112,10 +112,9 @@ describe("TaskInstanceTooltip", () => {
 
     const durationText = screen.getByText(/duration/iu).parentElement?.textContent;
 
-    // The calculated duration should be around 2 hours (e.g., "02:00:00" or similar)
-    // It should definitely NOT be "00:00:50.000" which is what `renderDuration(50)` gives
-    expect(durationText).not.toContain("00:00:50");
-    expect(durationText).toContain("02:00:");
+    // The live start_date is two hours old; the stale `duration: 50` field must not win.
+    expect(durationText).not.toContain("50s");
+    expect(durationText).toContain("2h");
   });
 
   it("shows only start date when max_end_date is null", () => {

@@ -54,7 +54,6 @@ def app(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",
-            "init_appbuilder_views",
             "init_jinja_globals",
             "init_plugins",
             "init_airflow_session_interface",

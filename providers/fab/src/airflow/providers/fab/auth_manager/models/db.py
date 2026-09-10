@@ -43,14 +43,14 @@ def _release_metadata_locks_if_supported(manager: BaseDBManager) -> None:
 
 def _get_flask_db(sql_database_uri):
     from flask import Flask
-    from flask_sqlalchemy import SQLAlchemy
 
+    from airflow.providers.fab.www.db import AirflowSQLAlchemy
     from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    db = SQLAlchemy(flask_app)
+    db = AirflowSQLAlchemy(flask_app)
     AirflowDatabaseSessionInterface(app=flask_app, client=db, table="session", key_prefix="")
     return db, flask_app
 
