@@ -174,7 +174,7 @@ class InfluxDB3Hook(BaseHook):
         """Initiate a new InfluxDB 3.x connection asynchronously."""
         return self._create_client(await get_async_connection(self.influxdb3_conn_id, hook=self))
 
-    def _create_client(self, connection) -> InfluxDBClient3:
+    def _create_client(self, connection: Connection) -> InfluxDBClient3:
         self.connection = connection
         self.extras = self.connection.extra_dejson.copy()
 
