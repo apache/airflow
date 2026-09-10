@@ -182,7 +182,7 @@ class TestCli:
         ["airflow.api_fastapi.auth.managers", "airflow.executors.base_executor"],
     )
     def test_should_not_import_in_cli_parser(self, module_pattern: str):
-        """Test that cli_parser does not import auth_managers or executor_loader at import time."""
+        """Test that cli_parser does not import any auth manager or executor class at import time."""
         # Remove the module from sys.modules if present to force a fresh import
         import sys
 
@@ -339,6 +339,28 @@ class TestCli:
         mock_import_executor_cls.assert_has_calls(expected_calls, any_order=True)
         assert mock_import_executor_cls.call_count == len(expected_calls)
 
+    @pytest.mark.parametrize(
+        ("cli_command_functions", "cli_command_providers", "executor_commands", "expected_celery_source"),
+        [
+            pytest.param(
+                [lambda: [ActionCommand(name="celery", help="provider", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-celery"},
+                {"my.custom.module.CustomCeleryExecutor": ["celery", "custom-executor"]},
+                "provider",
+                id="already registered by a provider cli section",
+            ),
+            pytest.param(
+                [],
+                set(),
+                {
+                    "path.to.CeleryExecutor": ["celery"],
+                    "my.custom.module.CustomCeleryExecutor": ["celery", "custom-executor"],
+                },
+                "path.to.CeleryExecutor",
+                id="already registered by an earlier executor",
+            ),
+        ],
+    )
     @patch("airflow.executors.executor_loader.ExecutorLoader.import_executor_cls")
     @patch("airflow.executors.executor_loader.ExecutorLoader.get_executor_names")
     @patch(
@@ -353,35 +375,41 @@ class TestCli:
         "airflow.providers_manager.ProvidersManager.cli_command_functions",
         new_callable=mock.PropertyMock,
     )
-    def test_compat_cli_loading_skips_commands_registered_by_providers(
+    def test_compat_cli_loading_skips_already_registered_commands(
         self,
         mock_cli_command_functions: MagicMock,
         mock_cli_command_providers: MagicMock,
         mock_executor_without_check: MagicMock,
         mock_get_executor_names: MagicMock,
         mock_import_executor_cls: MagicMock,
+        cli_command_functions: list[Callable[[], list[ActionCommand | cli_parser.GroupCommand]]],
+        cli_command_providers: set[str],
+        executor_commands: dict[str, list[str]],
+        expected_celery_source: str,
     ):
-        """A subclass of a provider executor inherits get_cli_commands(); the provider registration must win."""
-        mock_cli_command_functions.return_value = [
-            lambda: [ActionCommand(name="celery", help="from provider", func=lambda: None, args=[])]
-        ]
-        mock_cli_command_providers.return_value = {"apache-airflow-providers-celery"}
+        """A subclass inherits get_cli_commands() from its provider executor. The first registration wins."""
+        mock_cli_command_functions.return_value = cli_command_functions
+        mock_cli_command_providers.return_value = cli_command_providers
         mock_executor_without_check.return_value = {
             ("path.to.CeleryExecutor", "apache-airflow-providers-celery"),
         }
         mock_get_executor_names.return_value = [
-            MagicMock(module_path="my.custom.module.CustomCeleryExecutor")
+            MagicMock(module_path=module_path) for module_path in executor_commands
         ]
-        mock_executor_cls = MagicMock()
-        mock_executor_cls.get_cli_commands.return_value = [
-            ActionCommand(name="celery", help="inherited", func=lambda: None, args=[]),
-            ActionCommand(name="custom-executor", help="", func=lambda: None, args=[]),
-        ]
-        mock_import_executor_cls.return_value = (mock_executor_cls, None)
+
+        def import_executor_cls(executor_name):
+            executor_cls = MagicMock()
+            executor_cls.get_cli_commands.return_value = [
+                ActionCommand(name=name, help=executor_name.module_path, func=lambda: None, args=[])
+                for name in executor_commands[executor_name.module_path]
+            ]
+            return executor_cls, None
+
+        mock_import_executor_cls.side_effect = import_executor_cls
 
         reload(cli_parser)
 
-        assert cli_parser.ALL_COMMANDS_DICT["celery"].help == "from provider"
+        assert cli_parser.ALL_COMMANDS_DICT["celery"].help == expected_celery_source
         assert "custom-executor" in cli_parser.ALL_COMMANDS_DICT
 
     @pytest.mark.parametrize(

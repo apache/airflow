@@ -71,18 +71,18 @@ def _exclude_registered_commands(
     commands: Iterable[CLICommand], registered_names: set[str], source: str
 ) -> list[CLICommand]:
     """
-    Drop commands that a provider already registered through its ``cli`` section.
+    Drop commands whose name is already registered, and record the names of the commands kept.
 
-    A custom class subclassing a provider executor or auth manager inherits its ``get_cli_commands`` and
-    would otherwise re-register the same commands, which is reported as a conflict.
+    A subclass of a provider executor or auth manager inherits ``get_cli_commands``, so the same command can
+    come from a provider ``cli`` section and from an imported class, or from two imported classes. Only the
+    first one is kept, otherwise the duplicate is reported as a conflict.
     """
     result: list[CLICommand] = []
     for command in commands:
         if command.name in registered_names:
-            log.debug(
-                "Skipping CLI command '%s' from %s: already registered by a provider.", command.name, source
-            )
+            log.debug("Skipping CLI command '%s' from %s: already registered.", command.name, source)
             continue
+        registered_names.add(command.name)
         result.append(command)
     return result
 
@@ -104,8 +104,8 @@ if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
         log.warning("Failed to load CLI commands from providers: %s", e)
         # do not re-raise for the same reason as above
 
-    # Commands registered through a provider "cli" section take precedence over the compat loading below
-    provider_command_names = {command.name for command in airflow_commands} - {
+    # Core commands are left out so that a class redefining one still fails the conflict check below
+    registered_command_names = {command.name for command in airflow_commands} - {
         command.name for command in core_commands
     }
 
@@ -133,10 +133,8 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
                 )
             )
         executors_defined_cli = {
-            executor_name
-            for executor_name, executor_provider in providers_manager.executor_without_check
-            if executor_provider in providers_manager.cli_command_providers
-        }
+            executor_name for executor_name, _ in providers_manager.executor_without_check
+        } - executors_not_defined_cli.keys()
 
         for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
             if executor_name.module_path in executors_defined_cli or executor_name.module_path.startswith(
@@ -152,7 +150,7 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
                 executor, _ = ExecutorLoader.import_executor_cls(executor_name)
                 airflow_commands.extend(
                     _exclude_registered_commands(
-                        executor.get_cli_commands(), provider_command_names, executor_name.module_path
+                        executor.get_cli_commands(), registered_command_names, executor_name.module_path
                     )
                 )
             except Exception:
@@ -186,10 +184,8 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
                 )
             )
         auth_managers_defined_cli = {
-            auth_manager_name
-            for auth_manager_name, auth_manager_provider in providers_manager.auth_manager_without_check
-            if auth_manager_provider in providers_manager.cli_command_providers
-        }
+            auth_manager_name for auth_manager_name, _ in providers_manager.auth_manager_without_check
+        } - auth_managers_not_defined_cli.keys()
 
         auth_manager_cls_path = conf.get(section="core", key="auth_manager")
 
@@ -206,7 +202,7 @@ Providers with {component} missing 'cli' section in 'get_provider_info': {not_de
                 auth_manager = auth_manager_cls()
                 airflow_commands.extend(
                     _exclude_registered_commands(
-                        auth_manager.get_cli_commands(), provider_command_names, auth_manager_cls_path
+                        auth_manager.get_cli_commands(), registered_command_names, auth_manager_cls_path
                     )
                 )
             except Exception:
