@@ -30,6 +30,7 @@ from aiohttp import ClientConnectionError
 from kubernetes.client import CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
 from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError
 from urllib3 import HTTPConnectionPool, HTTPResponse
 from urllib3.exceptions import MaxRetryError, ProtocolError
 
@@ -2113,6 +2114,74 @@ class TestKubernetesExecutor:
         assert executor.kube_scheduler.delete_pod.call_count == 2
         assert executor.running == set()
         assert executor.event_buffer == {key: (State.SUCCESS, None)}
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client", autospec=True)
+    def test_change_state_retries_processing_after_successful_pod_deletion(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, create_task_instance, dag_maker
+    ):
+        """A metadata lookup failure must not lose the retry after the pod was deleted."""
+        kube_client = mock.create_autospec(CoreV1Api, instance=True)
+        kube_client.delete_namespaced_pod.return_value = k8s.V1Status(status="Success")
+        mock_get_kube_client.return_value = kube_client
+        executor = self.kubernetes_executor
+        executor.kube_config.delete_worker_pods = True
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.pod_launch_failure_max_retries = 2
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            key = ti.key
+            # Persist the queued state before the simulated transaction failure.
+            dag_maker.session.commit()
+            job = KubernetesJob(key, ["airflow", "tasks", "run"], {}, None)
+            executor.running = {key}
+            executor.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
+            results = KubernetesResults(
+                key,
+                State.FAILED,
+                "pod_name",
+                "default",
+                "1",
+                {"container_reason": "ContainerStatusUnknown", "exit_code": 137},
+                pod_uid="pod-uid",
+            )
+            real_lookup = executor._get_task_instance_state
+            lookup_failed = False
+
+            def lookup_after_outage(key, *, session):
+                nonlocal lookup_failed
+                if not lookup_failed:
+                    lookup_failed = True
+                    raise OperationalError("SELECT state", {}, RuntimeError("temporary metadata failure"))
+                return real_lookup(key, session=session)
+
+            with mock.patch.object(
+                executor, "_get_task_instance_state", autospec=True, side_effect=lookup_after_outage
+            ) as lookup:
+                with pytest.raises(OperationalError):
+                    executor._change_state(results)
+                kube_client.delete_namespaced_pod.assert_called_once()
+                assert executor.task_queue.empty()
+                assert executor.running == {key}
+
+                executor._change_state(results._replace(resource_version="2"))
+
+                requeued_job = executor.task_queue.get(timeout=5)
+                executor.task_queue.task_done()
+                assert requeued_job == job
+                assert lookup.call_count == 2
+                kube_client.delete_namespaced_pod.assert_called_once_with(
+                    "pod_name", "default", body=k8s.V1DeleteOptions()
+                )
+                assert executor.running == {key}
+                assert key not in executor.event_buffer
+        finally:
+            executor.end()
 
     @pytest.mark.db_test
     @mock.patch.object(KubernetesExecutor, "_MAX_DELETED_PODS", 2)
