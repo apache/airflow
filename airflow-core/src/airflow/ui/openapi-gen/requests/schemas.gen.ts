@@ -423,11 +423,25 @@ export const $AssetExpressionAsset = {
 export const $AssetExpressionAssetInfo = {
     properties: {
         uri: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Uri'
         },
         name: {
-            type: 'string',
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Name'
         },
         group: {
@@ -444,6 +458,11 @@ export const $AssetExpressionAssetInfo = {
                 }
             ],
             title: 'Id'
+        },
+        hidden: {
+            type: 'boolean',
+            title: 'Hidden',
+            default: false
         }
     },
     type: 'object',
@@ -454,7 +473,11 @@ export const $AssetExpressionAssetInfo = {
 \`\`id\`\` is injected by \`\`DagModelOperation.update_dag_asset_expression\`\` when the expression is
 persisted; \`\`BaseAsset.as_expression()\`\` itself only emits \`\`uri\`\`/\`\`name\`\`/\`\`group\`\`. It is left
 optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
-degrades gracefully instead of failing response validation.`
+degrades gracefully instead of failing response validation.
+
+A leaf the caller is not authorized to read is served with \`\`hidden\`\` set and \`\`uri\`\`, \`\`name\`\`
+and \`\`id\`\` blanked (see \`\`airflow.api_fastapi.common.asset_expression\`\`), so the shape of the
+schedule stays visible without revealing which asset it waits on.`
 } as const;
 
 export const $AssetExpressionRef = {
