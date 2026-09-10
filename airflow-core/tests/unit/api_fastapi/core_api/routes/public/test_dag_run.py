@@ -408,6 +408,38 @@ class TestGetDagRun:
         assert response.status_code == 403
 
 
+class TestClearDagRunMasksPasswordConf:
+    def test_single_run_clear_response_masks_password_conf(self, test_client, dag_maker, session):
+        with dag_maker(
+            "test_dag_password_clear",
+            schedule=None,
+            start_date=START_DATE1,
+            params={"api_token": Param("default", type="string", format="password")},
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task_1")
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_clear_secret",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        dag_run.conf = {"api_token": "super-secret-value"}
+        session.merge(dag_run)
+        session.commit()
+
+        # dry_run=False so the response comes from perform_clear_dag_run(), not the dry-run
+        # ClearTaskInstanceCollectionResponse branch.
+        response = test_client.post(
+            "/dags/test_dag_password_clear/dagRuns/run_clear_secret/clear",
+            json={"dry_run": False},
+        )
+        assert response.status_code == 200
+        assert response.json()["conf"]["api_token"] == "***"
+
+
 class TestGetDagRunsMasksPasswordConfAcrossVersions:
     def test_list_masks_only_the_version_that_declares_password(self, test_client, dag_maker, session):
         from airflow.models.dag_version import DagVersion

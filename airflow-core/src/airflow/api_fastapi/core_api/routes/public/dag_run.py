@@ -380,7 +380,7 @@ def clear_dag_run(
             total_entries=len(task_instances),
         )
 
-    return perform_clear_dag_run(
+    cleared_dag_run = perform_clear_dag_run(
         session=session,
         dag=dag,
         dag_run=dag_run,
@@ -391,6 +391,9 @@ def clear_dag_run(
         note=body.note,
         user=user,
     )
+    response = DAGRunResponse.model_validate(cleared_dag_run)
+    response.conf = _mask_password_conf(dag, response.conf)
+    return response
 
 
 @dag_run_at_dag_router.post(
