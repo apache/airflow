@@ -73,7 +73,7 @@ A task remains ``queued`` while it is waiting to be executed. If it stays queued
 
 Here are some of the common causes:
 
-- Not enough worker capacity, pool slots, or :ref:`core.parallelism <config:core__parallelism>`.
+- Not enough worker capacity.
 - The executor is unable to dispatch tasks to workers.
 - The queued timeout is shorter than how long tasks wait under normal load.
 
@@ -81,7 +81,6 @@ How to troubleshoot:
 
 - Check scheduler logs for tasks stuck in ``queued``.
 - Confirm workers are running and accepting work.
-- Check pool and concurrency limits.
 - If tasks wait in queue longer than the timeout under normal load, increase :ref:`scheduler.task_queued_timeout <config:scheduler__task_queued_timeout>` or add worker capacity.
 
 .. _troubleshooting-task-stuck-running:
