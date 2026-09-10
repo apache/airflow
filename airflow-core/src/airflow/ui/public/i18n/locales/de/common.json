@@ -23,6 +23,7 @@
   },
   "backfill_one": "Auffüllung",
   "backfill_other": "Auffüllungen",
+  "breadcrumb": "Brotkrümel",
   "browse": {
     "auditLog": "Prüf-Log",
     "deadlines": "Fristen",
@@ -38,6 +39,7 @@
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
+    "activeRuns": "Aktive Läufe",
     "catchup": "Nachgeholt",
     "dagRunTimeout": "Dag Lauf Zeitüberschreitung",
     "defaultArgs": "Standard-Parameter",
@@ -72,6 +74,7 @@
     "expectedDuration": "Erwartete mittlere Laufzeit",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
     "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
+    "partitionDate": "Partitionsdatum",
     "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
@@ -84,8 +87,8 @@
   "dagRun_other": "Dag Läufe",
   "dagRunId": "Dag Lauf ID",
   "dagWarnings": "Dag Warnungen und Fehler",
-  "defaultToGraphView": "Graph-Ansicht als Standard",
-  "defaultToGridView": "Gitter-Ansicht als Standard",
+  "defaultToGraphView": "Standardmäßig Graphansicht",
+  "defaultToGridView": "Standardmäßig Gitteransicht",
   "delete": "Löschen",
   "diff": "Differenzansicht",
   "diffCompareWith": "Vergleichen mit",
@@ -134,18 +137,27 @@
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Filter hinzufügen",
+    "date": "Datum",
     "durationFrom": "Laufzeit Von",
     "durationTo": "Laufzeit Bis",
     "endTime": "Endzeitpunkt",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
+    "removeFilter": "Filter entfernen",
     "runAfterFrom": "Gelaufen-nach von filtern",
     "runAfterTo": "Gelaufen-nach bis filtern",
     "searchAsset": "Datenset (Asset) suchen",
     "selectDateRange": "Zeitraum auswählen",
-    "startTime": "Startzeitpunkt"
+    "selectDateTime": "Datum und Uhrzeit auswählen",
+    "startTime": "Startzeitpunkt",
+    "time": "Uhrzeit"
+  },
+  "fullscreen": {
+    "tooltip": "Drücken Sie {{hotkey}} für den Vollbildmodus"
   },
   "generateToken": "Zugriffstoken erzeugen",
+  "includedIn": "Enthalten in",
   "key": "Schlüssel",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
@@ -166,6 +178,7 @@
     "assets": "Datensets",
     "browse": "Browsen",
     "dags": "Dags",
+    "dashboard": "Dashboard",
     "docs": "Doku",
     "home": "Start",
     "legacyFabViews": "Alte Ansichten",
@@ -176,16 +189,22 @@
   "note": {
     "add": "Eine Notiz hinzufügen",
     "dagRun": "Notizen zum Dag Lauf",
+    "edit": "Notiz bearbeiten",
     "label": "Notiz",
     "placeholder": "Eine Notiz hinzufügen...",
-    "taskInstance": "Notizen zu Task Instanzen"
+    "preview": "Vorschau",
+    "taskInstance": "Notizen zu Task Instanzen",
+    "write": "Schreiben"
   },
   "overallStatus": "Gesamtstatus",
+  "partition_one": "Partition",
+  "partition_other": "Partitionen",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
   "partitionedDagRun_other": "Partitionierte Dag Läufe",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
+  "pause": "Pausieren",
   "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
   "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "reset": "Zurücksetzen",
@@ -219,6 +238,98 @@
   },
   "selectLanguage": "Sprache wählen",
   "selected": "Ausgewählt",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "Laufende Tasks beim Löschen von Task Instanzen überspringen.",
+        "label": "Löschen laufender Tasks verhindern"
+      },
+      "runSelection": {
+        "helper": "Standardmäßig ausgewählte Optionen beim Löschen eines Dag Laufs.",
+        "label": "Standardauswahl zum Löschen eines Laufs"
+      },
+      "taskSelection": {
+        "helper": "Standardmäßig ausgewählte Optionen beim Löschen von Task Instanzen.",
+        "label": "Standardauswahl zum Löschen von Tasks"
+      },
+      "title": "Löschen"
+    },
+    "description": "Diese Einstellungen werden nur in diesem Browser gespeichert und gelten für die gesamte Anwendung.",
+    "general": {
+      "landingPage": {
+        "helper": "Seite, die angezeigt wird, wenn Sie Airflow öffnen.",
+        "label": "Startseite",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "Allgemein"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Ausrichtung für Dag- und Datenset-(Asset)-Graphen, für die Sie keine individuelle Ausrichtung festgelegt haben.",
+        "label": "Standardausrichtung des Graphen"
+      },
+      "title": "Graph"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Standardmäßig ausgewählte Optionen beim Markieren des Status einer Task Instanz.",
+        "label": "Standardauswahl zum Markieren"
+      },
+      "title": "Markieren"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Tab, der zuerst angezeigt wird, wenn Sie eine Task Instanz öffnen. Links zu einem bestimmten Tab öffnen weiterhin diesen Tab.",
+        "label": "Standard-Tab der Task Instanz"
+      },
+      "title": "Task Instanz"
+    },
+    "title": "Einstellungen"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Dag-Ansicht",
+      "filters": "Filter",
+      "global": "Global",
+      "logs": "Protokolle",
+      "navigation": "Navigation",
+      "runActions": "Lauf- und Task-Aktionen",
+      "search": "Suche"
+    },
+    "descriptions": {
+      "clearRun": "$t(dagRun_one) löschen",
+      "clearTaskInstance": "$t(taskInstance_one) löschen",
+      "downloadLogs": "Protokolle herunterladen",
+      "focusFilterSearch": "Filtersuche fokussieren",
+      "focusLogSearch": "Protokolle durchsuchen",
+      "focusSearch": "Suche fokussieren",
+      "markRunFailed": "$t(dagRun_one) als fehlgeschlagen markieren",
+      "markRunSuccess": "$t(dagRun_one) als erfolgreich markieren",
+      "markTaskFailed": "$t(task_one) als fehlgeschlagen markieren",
+      "markTaskGroupFailed": "$t(taskGroup_one) als fehlgeschlagen markieren",
+      "markTaskGroupSuccess": "$t(taskGroup_one) als erfolgreich markieren",
+      "markTaskSuccess": "$t(task_one) als erfolgreich markieren",
+      "navigateTasks": "Zu $t(task_other) navigieren",
+      "openGraphFilters": "Graphfilter öffnen",
+      "scrollBottom": "Nach unten scrollen",
+      "scrollTop": "Nach oben scrollen",
+      "searchDags": "$t(dag_other) suchen",
+      "showHelp": "$t(shortcuts.title) anzeigen",
+      "toggleExpand": "Alle Gruppen ein- oder ausklappen",
+      "toggleFullscreen": "Vollbild umschalten",
+      "toggleGraphGrid": "Zwischen Graph- und Gitteransicht wechseln",
+      "toggleSource": "Quelle umschalten",
+      "toggleTaskGroup": "$t(taskGroup_one) ein- oder ausklappen",
+      "toggleTimestamp": "Zeitstempel umschalten",
+      "toggleWrap": "$t(wrap.wrap) umschalten"
+    },
+    "empty": "Auf dieser Seite sind keine Tastenkürzel verfügbar.",
+    "title": "Tastenkürzel"
+  },
   "showDetailsPanel": "Detailansicht einblenden",
   "signedInAs": "Angemeldet als",
   "source": {
@@ -249,6 +360,7 @@
     "up_for_retry": "Wartet auf neuen Versuch",
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
+  "switchDag": "Wechsel zu $t(dag_one)",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -258,7 +370,10 @@
     "filterReset_other": "Filter zurücksetzen",
     "from": "Von",
     "maxActiveRuns": "Maximal aktive Läufe",
+    "noResultsFound": "Keine Ergebnisse gefunden",
     "noTagsFound": "Keine Markierungen gefunden",
+    "noTeamsFound": "Keine Teams gefunden",
+    "ownerPlaceholder": "Nach Besitzer filtern",
     "tagMode": {
       "all": "Alle",
       "any": "Einer"
@@ -285,10 +400,12 @@
   "taskGroup_other": "Task Gruppen",
   "taskId": "Task ID",
   "taskInstance": {
+    "additionalAttributes": "Zusätzliche Attribute der Task Instanz",
     "dagVersion": "Dag Version",
     "executor": "Ausführungsumgebung",
     "executorConfig": "Konfiguration der Ausführungsumgebung",
     "hostname": "Hostname",
+    "id": "ID",
     "maxTries": "Maximale Versuche",
     "pid": "PID",
     "pool": "Pool",
@@ -298,11 +415,13 @@
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
+    "trigger": "Auslöser",
     "triggerer": {
       "assigned": "Zugewiesene Abrufumgebung",
       "class": "Abruf-Klasse",
       "createdAt": "Zeitpunkt der Erstellung",
       "id": "Abrufungs ID",
+      "job": "Abrufumgebungs-Job",
       "latestHeartbeat": "Letztes Lebenszeichen",
       "title": "Abrufumgebungs-Information"
     },
@@ -394,6 +513,7 @@
   "total": "Gesamt {{state}}",
   "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
+  "unpause": "Fortsetzen",
   "user": "Benutzer",
   "validation": {
     "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
