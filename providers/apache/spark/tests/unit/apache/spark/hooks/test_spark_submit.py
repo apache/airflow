@@ -352,101 +352,81 @@ class TestSparkSubmitHook:
         ):
             hook._build_spark_submit_command(self._spark_job_file)
 
-    def test_build_track_driver_status_command(self):
+    @pytest.mark.parametrize(
+        ("conn_id", "expected_command"),
+        [
+            (
+                "spark_standalone_cluster",
+                [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    "30",
+                    "http://spark-standalone-master:6066/v1/submissions/status/driver-1",
+                ],
+            ),
+            (
+                "spark_yarn_cluster",
+                [
+                    "spark-submit",
+                    "--master",
+                    "yarn://yarn-master",
+                    "--status",
+                    "driver-1",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_rpc_endpoint",
+                [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    "30",
+                    "http://spark-standalone-master-rpc-endpoint:6066/v1/submissions/status/driver-1",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_ha",
+                [
+                    "spark-submit",
+                    "--master",
+                    "spark://m1:6066,m2:6066",
+                    "--status",
+                    "driver-1",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_ipv6",
+                [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    "30",
+                    "http://[2001:db8::1]:6066/v1/submissions/status/driver-1",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_ipv6_ha",
+                [
+                    "spark-submit",
+                    "--master",
+                    "spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
+                    "--status",
+                    "driver-1",
+                ],
+            ),
+        ],
+    )
+    def test_build_track_driver_status_command(self, conn_id, expected_command):
         # note this function is only relevant for spark setup matching below condition
         # 'spark://' in self._connection['master'] and self._connection['deploy_mode'] == 'cluster'
 
         # Given
-        hook_spark_standalone_cluster = SparkSubmitHook(conn_id="spark_standalone_cluster")
-        hook_spark_standalone_cluster._driver_id = "driver-20171128111416-0001"
-        hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
-        hook_spark_yarn_cluster._driver_id = "driver-20171128111417-0001"
-        hook_spark_standalone_cluster_rpc_endpoint = SparkSubmitHook(
-            conn_id="spark_standalone_cluster_rpc_endpoint"
-        )
-        hook_spark_standalone_cluster_rpc_endpoint._driver_id = "driver-20171128111418-0001"
-        hook_spark_standalone_cluster_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ha")
-        hook_spark_standalone_cluster_ha._driver_id = "driver-20171128111419-0001"
-        hook_spark_standalone_cluster_ipv6 = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6")
-        hook_spark_standalone_cluster_ipv6._driver_id = "driver-20171128111420-0001"
-        hook_spark_standalone_cluster_ipv6_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6_ha")
-        hook_spark_standalone_cluster_ipv6_ha._driver_id = "driver-20171128111421-0001"
+        hook = SparkSubmitHook(conn_id=conn_id)
+        hook._driver_id = "driver-1"
 
         # When
-        build_track_driver_status_spark_standalone_cluster = (
-            hook_spark_standalone_cluster._build_track_driver_status_command()
-        )
-        build_track_driver_status_spark_yarn_cluster = (
-            hook_spark_yarn_cluster._build_track_driver_status_command()
-        )
-        build_track_driver_status_spark_standalone_cluster_rpc_endpoint = (
-            hook_spark_standalone_cluster_rpc_endpoint._build_track_driver_status_command()
-        )
-        build_track_driver_status_spark_standalone_cluster_ha = (
-            hook_spark_standalone_cluster_ha._build_track_driver_status_command()
-        )
-        build_track_driver_status_spark_standalone_cluster_ipv6 = (
-            hook_spark_standalone_cluster_ipv6._build_track_driver_status_command()
-        )
-        build_track_driver_status_spark_standalone_cluster_ipv6_ha = (
-            hook_spark_standalone_cluster_ipv6_ha._build_track_driver_status_command()
-        )
+        build_track_driver_status = hook._build_track_driver_status_command()
 
         # Then
-        expected_spark_standalone_cluster = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
-            "http://spark-standalone-master:6066/v1/submissions/status/driver-20171128111416-0001",
-        ]
-        expected_spark_yarn_cluster = [
-            "spark-submit",
-            "--master",
-            "yarn://yarn-master",
-            "--status",
-            "driver-20171128111417-0001",
-        ]
-        expected_spark_standalone_cluster_rpc_endpoint = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
-            "http://spark-standalone-master-rpc-endpoint:6066/v1/submissions/status/driver-20171128111418-0001",
-        ]
-
-        expected_spark_standalone_cluster_ha = [
-            "spark-submit",
-            "--master",
-            "spark://m1:6066,m2:6066",
-            "--status",
-            "driver-20171128111419-0001",
-        ]
-        expected_spark_standalone_cluster_ipv6 = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
-            "http://[2001:db8::1]:6066/v1/submissions/status/driver-20171128111420-0001",
-        ]
-        expected_spark_standalone_cluster_ipv6_ha = [
-            "spark-submit",
-            "--master",
-            "spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
-            "--status",
-            "driver-20171128111421-0001",
-        ]
-        assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
-        assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
-        assert (
-            expected_spark_standalone_cluster_rpc_endpoint
-            == build_track_driver_status_spark_standalone_cluster_rpc_endpoint
-        )
-        assert expected_spark_standalone_cluster_ha == build_track_driver_status_spark_standalone_cluster_ha
-        assert (
-            expected_spark_standalone_cluster_ipv6 == build_track_driver_status_spark_standalone_cluster_ipv6
-        )
-        assert (
-            expected_spark_standalone_cluster_ipv6_ha
-            == build_track_driver_status_spark_standalone_cluster_ipv6_ha
-        )
+        assert build_track_driver_status == expected_command
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
@@ -1338,7 +1318,65 @@ class TestSparkSubmitHook:
         submit_process.kill.assert_not_called()
         mock_popen.assert_not_called()
 
-    def test_standalone_cluster_process_on_kill(self):
+    @pytest.mark.parametrize(
+        ("conn_id", "expected_command"),
+        [
+            (
+                "spark_standalone_cluster",
+                [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    "30",
+                    "-X",
+                    "POST",
+                    "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_rpc_endpoint",
+                [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    "30",
+                    "-X",
+                    "POST",
+                    "http://spark-standalone-master-rpc-endpoint:6066/v1/submissions/kill/driver-20171128111415-0001",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_ha",
+                [
+                    "spark-submit",
+                    "--master",
+                    "spark://m1:6066,m2:6066",
+                    "--kill",
+                    "driver-20171128111415-0001",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_ipv6",
+                [
+                    "/usr/bin/curl",
+                    "--max-time",
+                    "30",
+                    "-X",
+                    "POST",
+                    "http://[2001:db8::1]:6066/v1/submissions/kill/driver-20171128111415-0001",
+                ],
+            ),
+            (
+                "spark_standalone_cluster_ipv6_ha",
+                [
+                    "spark-submit",
+                    "--master",
+                    "spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
+                    "--kill",
+                    "driver-20171128111415-0001",
+                ],
+            ),
+        ],
+    )
+    def test_standalone_cluster_process_on_kill(self, conn_id, expected_command):
         # Given
         log_lines = [
             "Running Spark using the REST application submission protocol.",
@@ -1347,71 +1385,14 @@ class TestSparkSubmitHook:
             "17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully "
             "created as driver-20171128111415-0001. Polling submission state...",
         ]
-        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        hook = SparkSubmitHook(conn_id=conn_id)
         hook._process_spark_submit_log(log_lines)
-        hook_rpc_endpoint = SparkSubmitHook(conn_id="spark_standalone_cluster_rpc_endpoint")
-        hook_rpc_endpoint._process_spark_submit_log(log_lines)
-        hook_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ha")
-        hook_ha._process_spark_submit_log(log_lines)
-        hook_ipv6 = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6")
-        hook_ipv6._process_spark_submit_log(log_lines)
-        hook_ipv6_ha = SparkSubmitHook(conn_id="spark_standalone_cluster_ipv6_ha")
-        hook_ipv6_ha._process_spark_submit_log(log_lines)
 
         # When
         kill_cmd = hook._build_spark_driver_kill_command()
-        kill_cmd_rpc_endpoint = hook_rpc_endpoint._build_spark_driver_kill_command()
-        kill_cmd_ha = hook_ha._build_spark_driver_kill_command()
-        kill_cmd_ipv6 = hook_ipv6._build_spark_driver_kill_command()
-        kill_cmd_ipv6_ha = hook_ipv6_ha._build_spark_driver_kill_command()
 
         # Then
-        expected_spark_standalone_cluster = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
-            "-X",
-            "POST",
-            "http://spark-standalone-master:6066/v1/submissions/kill/driver-20171128111415-0001",
-        ]
-
-        expected_spark_standalone_cluster_rpc_endpoint = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
-            "-X",
-            "POST",
-            "http://spark-standalone-master-rpc-endpoint:6066/v1/submissions/kill/driver-20171128111415-0001",
-        ]
-
-        expected_spark_standalone_cluster_ha = [
-            "spark-submit",
-            "--master",
-            "spark://m1:6066,m2:6066",
-            "--kill",
-            "driver-20171128111415-0001",
-        ]
-        expected_spark_standalone_cluster_ipv6 = [
-            "/usr/bin/curl",
-            "--max-time",
-            "30",
-            "-X",
-            "POST",
-            "http://[2001:db8::1]:6066/v1/submissions/kill/driver-20171128111415-0001",
-        ]
-        expected_spark_standalone_cluster_ipv6_ha = [
-            "spark-submit",
-            "--master",
-            "spark://[2001:db8::1]:6066,[1993:db8::1]:6066",
-            "--kill",
-            "driver-20171128111415-0001",
-        ]
-
-        assert expected_spark_standalone_cluster == kill_cmd
-        assert expected_spark_standalone_cluster_rpc_endpoint == kill_cmd_rpc_endpoint
-        assert expected_spark_standalone_cluster_ha == kill_cmd_ha
-        assert expected_spark_standalone_cluster_ipv6 == kill_cmd_ipv6
-        assert expected_spark_standalone_cluster_ipv6_ha == kill_cmd_ipv6_ha
+        assert kill_cmd == expected_command
 
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
