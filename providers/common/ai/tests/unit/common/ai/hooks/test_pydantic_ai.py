@@ -1050,7 +1050,7 @@ class TestConnTypeResolution:
         round_tripped = Connection(conn_id="c", uri=conn.get_uri())
 
         assert round_tripped.conn_type == hook_class.conn_type
-        assert isinstance(round_tripped.get_hook(), hook_class)
+        assert type(round_tripped.get_hook()) is hook_class
 
     @pytest.mark.parametrize("hook_class", ALL_HOOKS, ids=lambda c: c.__name__)
     def test_hook_resolves_from_json(self, hook_class):
@@ -1059,7 +1059,7 @@ class TestConnTypeResolution:
         round_tripped = Connection.from_json(conn.as_json(), conn_id="c")
 
         assert round_tripped.conn_type == hook_class.conn_type
-        assert isinstance(round_tripped.get_hook(), hook_class)
+        assert type(round_tripped.get_hook()) is hook_class
 
     @pytest.mark.parametrize("hook_class", ALL_HOOKS, ids=lambda c: c.__name__)
     @pytest.mark.parametrize("serializer", ["uri", "json"])
@@ -1069,11 +1069,12 @@ class TestConnTypeResolution:
         connections, so it is the widest blast radius for a conn_type that does not
         round-trip.
         """
-        conn = Connection(conn_id="c", conn_type=hook_class.conn_type, host="example.com")
+        conn_id = f"vendor_{hook_class.conn_type}_{serializer}"
+        conn = Connection(conn_id=conn_id, conn_type=hook_class.conn_type, host="example.com")
         serialized = conn.get_uri() if serializer == "uri" else conn.as_json()
-        monkeypatch.setenv("AIRFLOW_CONN_VENDOR_CONN", serialized)
+        monkeypatch.setenv(f"AIRFLOW_CONN_{conn_id.upper()}", serialized)
 
-        resolved = Connection.get_connection_from_secrets("vendor_conn")
+        resolved = Connection.get_connection_from_secrets(conn_id)
 
         assert resolved.conn_type == hook_class.conn_type
-        assert isinstance(resolved.get_hook(), hook_class)
+        assert type(resolved.get_hook()) is hook_class

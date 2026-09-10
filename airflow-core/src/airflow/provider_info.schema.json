@@ -292,9 +292,8 @@
                 "type": "object",
                 "properties": {
                     "connection-type": {
-                        "description": "Type of connection defined by the provider. Must not contain '-': the hook is registered under this exact string, but Connection.from_uri/from_json rewrite '-' to '_', which would leave the hook unreachable from every secrets backend.",
-                        "type": "string",
-                        "pattern": "^[a-z0-9_]+$"
+                        "description": "Type of connection defined by the provider",
+                        "type": "string"
                     },
                     "hook-class-name": {
                         "description": "Hook class name that implements the connection type",

@@ -30,11 +30,26 @@ that the generic :doc:`pydantic_ai` connection assumes. All fields live in
 
 .. note::
 
-    This connection type was previously named ``pydanticai-bedrock``. A connection stored
-    with the old hyphenated type will not resolve; update its type to
-    ``pydanticai_bedrock``. Hyphens are not usable here because a hook is registered
-    under this exact string while ``Connection.from_uri`` and ``from_json`` rewrite
-    ``-`` to ``_``, which left the hook unreachable from every secrets backend.
+    This connection type was previously named ``pydanticai-bedrock``.
+
+    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
+    encoded in a URI scheme, so ``pydanticai-bedrock`` is decoded to ``pydanticai_bedrock``
+    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
+    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
+    GCP Secret Manager.
+
+    A connection whose type is stored verbatim does need updating, because the
+    hyphen is preserved and no longer matches a registered hook. That means rows in
+    the metadata database, including any created through the UI, and connections
+    imported in object form from a local file:
+
+    .. code-block:: bash
+
+        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-bedrock'
+        airflow connections delete <conn_id>
+        airflow connections add <conn_id> --conn-type pydanticai_bedrock ...
+
+    In the UI, edit the connection and re-pick its type.
 
 Default Connection IDs
 ----------------------
