@@ -38,6 +38,42 @@ KubernetesExecutor requires a non-sqlite database in the backend.
 
 When a Dag submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
 
+What the worker pod runs
+------------------------
+
+The executor sets the ``base`` container's ``args`` and the image's own entrypoint runs them.
+What it puts there depends on the Airflow version.
+
+On Airflow 2.11 it is the task CLI:
+
+.. code-block:: text
+
+    args:
+      - airflow
+      - tasks
+      - run
+      - example_bash_operator
+      - runme_0
+      - scheduled__2026-09-10T00:00:00+00:00
+      - --local
+      - --subdir
+      - DAGS_FOLDER/example_bash_operator.py
+
+On Airflow 3 there is no ``airflow worker`` command to call, so a serialized workload is handed
+to the Task SDK instead:
+
+.. code-block:: text
+
+    args:
+      - python
+      - -m
+      - airflow.sdk.execution_time.execute_workload
+      - --json-string
+      - '{"token": "...", "dag_rel_path": "...", "ti": {...}, "type": "ExecuteTask"}'
+
+In both cases, leave ``command`` unset on the ``base`` container: setting it replaces the
+entrypoint and the task never runs.
+
 .. image:: img/arch-diag-kubernetes.png
 
 
