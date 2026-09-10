@@ -24,7 +24,6 @@ API compared to InfluxDB 2.x.
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -62,11 +61,6 @@ def _import_pandas() -> Any:
         ) from e
 
     return pd
-
-
-def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
-    """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
-    return json.loads(dataframe.to_json(orient="records", date_format="iso"))
 
 
 class InfluxDB3Hook(BaseHook):

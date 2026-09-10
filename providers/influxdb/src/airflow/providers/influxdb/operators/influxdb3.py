@@ -23,7 +23,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
-from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook, _convert_dataframe_to_records
+from airflow.providers.influxdb._utils import _convert_dataframe_to_records
+from airflow.providers.influxdb.hooks.influxdb3 import InfluxDB3Hook
 from airflow.providers.influxdb.triggers.influxdb3 import InfluxDB3QueryTrigger
 
 if TYPE_CHECKING:
