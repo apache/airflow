@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+
 import { HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import type { ChangeEvent, Dispatch, SetStateAction } from "react";
 import { MdAccessTime } from "react-icons/md";
 
 import { useTimezone } from "src/context/timezone";

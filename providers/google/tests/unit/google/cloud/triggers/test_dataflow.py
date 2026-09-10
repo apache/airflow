@@ -19,58 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
-import types
 from unittest import mock
 
 import pytest
 from google.api_core.exceptions import ServiceUnavailable
 from google.cloud.dataflow_v1beta3 import Job, JobState, JobType
 
-
-# While the apache-beam provider is suspended (#61926),
-# `airflow.providers.google.cloud.hooks.dataflow` cannot be imported because it
-# does `from airflow.providers.apache.beam.hooks.beam import ...` at module
-# scope. Probe-import the real module first (which also triggers Airflow's
-# provider-entry-point discovery while the real `airflow.providers.apache`
-# namespace package is still intact) and only fall back to stubs when the
-# probe fails. The stubs deliberately cover only the missing beam-specific
-# subtree — we never overwrite `airflow.providers.apache` itself, otherwise
-# sibling providers such as `airflow.providers.apache.pig` would be unreachable
-# via the namespace package's `__path__`.
-def _beam_module_stubs() -> dict[str, types.ModuleType]:
-    beam_package = types.ModuleType("airflow.providers.apache.beam")
-    beam_package.__path__ = []
-    hooks_package = types.ModuleType("airflow.providers.apache.beam.hooks")
-    hooks_package.__path__ = []
-
-    class BeamRunnerType:
-        DataflowRunner = "DataflowRunner"
-
-    class BeamModule(types.ModuleType):
-        BeamHook: object
-        BeamRunnerType: object
-        beam_options_to_args: object
-
-    beam_module = BeamModule("airflow.providers.apache.beam.hooks.beam")
-    beam_module.BeamHook = mock.MagicMock()
-    beam_module.BeamRunnerType = BeamRunnerType
-    beam_module.beam_options_to_args = mock.MagicMock(return_value=[])
-
-    return {
-        "airflow.providers.apache.beam": beam_package,
-        "airflow.providers.apache.beam.hooks": hooks_package,
-        "airflow.providers.apache.beam.hooks.beam": beam_module,
-    }
-
-
-try:
-    import airflow.providers.apache.beam.hooks.beam  # noqa: F401
-except ImportError:
-    sys.modules.update(_beam_module_stubs())
-
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus  # noqa: E402
-from airflow.providers.google.cloud.triggers.dataflow import (  # noqa: E402
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
+from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobAutoScalingEventTrigger,
     DataflowJobMessagesTrigger,
     DataflowJobMetricsTrigger,
@@ -79,7 +35,7 @@ from airflow.providers.google.cloud.triggers.dataflow import (  # noqa: E402
     DataflowStartYamlJobTrigger,
     TemplateJobStartTrigger,
 )
-from airflow.triggers.base import TriggerEvent  # noqa: E402
+from airflow.triggers.base import TriggerEvent
 
 PROJECT_ID = "test-project-id"
 JOB_ID = "test_job_id_2012-12-23-10:00"

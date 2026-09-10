@@ -24,6 +24,7 @@
   },
   "backfill_one": "Auffüllung",
   "backfill_other": "Auffüllungen",
+  "breadcrumb": "Brotkrümel",
   "browse": {
     "auditLog": "Prüf-Log",
     "deadlines": "Fristen",
@@ -138,16 +139,21 @@
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Filter hinzufügen",
+    "date": "Datum",
     "durationFrom": "Laufzeit Von",
     "durationTo": "Laufzeit Bis",
     "endTime": "Endzeitpunkt",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
+    "removeFilter": "Filter entfernen",
     "runAfterFrom": "Gelaufen-nach von filtern",
     "runAfterTo": "Gelaufen-nach bis filtern",
     "searchAsset": "Datenset (Asset) suchen",
     "selectDateRange": "Zeitraum auswählen",
-    "startTime": "Startzeitpunkt"
+    "selectDateTime": "Datum und Uhrzeit auswählen",
+    "startTime": "Startzeitpunkt",
+    "time": "Uhrzeit"
   },
   "fullscreen": {
     "tooltip": "Drücken Sie {{hotkey}} für den Vollbildmodus"
@@ -174,6 +180,7 @@
     "assets": "Datensets",
     "browse": "Browsen",
     "dags": "Dags",
+    "dashboard": "Dashboard",
     "docs": "Doku",
     "home": "Start",
     "legacyFabViews": "Alte Ansichten",
@@ -192,11 +199,14 @@
     "write": "Schreiben"
   },
   "overallStatus": "Gesamtstatus",
+  "partition_one": "Partition",
+  "partition_other": "Partitionen",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
   "partitionedDagRun_other": "Partitionierte Dag Läufe",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
+  "pause": "Pausieren",
   "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
   "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "presetFilters": {
@@ -264,6 +274,17 @@
       "title": "Löschen"
     },
     "description": "Diese Einstellungen werden nur in diesem Browser gespeichert und gelten für die gesamte Anwendung.",
+    "general": {
+      "landingPage": {
+        "helper": "Seite, die angezeigt wird, wenn Sie Airflow öffnen.",
+        "label": "Startseite",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "Allgemein"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "Ausrichtung für Dag- und Datenset-(Asset)-Graphen, für die Sie keine individuelle Ausrichtung festgelegt haben.",
@@ -277,6 +298,13 @@
         "label": "Standardauswahl zum Markieren"
       },
       "title": "Markieren"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Tab, der zuerst angezeigt wird, wenn Sie eine Task Instanz öffnen. Links zu einem bestimmten Tab öffnen weiterhin diesen Tab.",
+        "label": "Standard-Tab der Task Instanz"
+      },
+      "title": "Task Instanz"
     },
     "title": "Einstellungen"
   },
@@ -354,6 +382,7 @@
     "up_for_retry": "Wartet auf neuen Versuch",
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
+  "switchDag": "Wechsel zu $t(dag_one)",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -363,8 +392,10 @@
     "filterReset_other": "Filter zurücksetzen",
     "from": "Von",
     "maxActiveRuns": "Maximal aktive Läufe",
+    "noResultsFound": "Keine Ergebnisse gefunden",
     "noTagsFound": "Keine Markierungen gefunden",
     "noTeamsFound": "Keine Teams gefunden",
+    "ownerPlaceholder": "Nach Besitzer filtern",
     "tagMode": {
       "all": "Alle",
       "any": "Einer"
@@ -510,6 +541,7 @@
   "total": "Gesamt {{state}}",
   "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
+  "unpause": "Fortsetzen",
   "user": "Benutzer",
   "validation": {
     "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",

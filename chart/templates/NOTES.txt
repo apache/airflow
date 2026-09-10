@@ -108,7 +108,7 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhos
 {{- if .Values.flower.extraNetworkPolicies }}
 
 DEPRECATION WARNING:
-   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.peers`.
+   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.ingress.from`.
    Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Node as ReactFlowNode } from "@xyflow/react";
 import { useMemo } from "react";
+
+import type { Node as ReactFlowNode } from "@xyflow/react";
 
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 

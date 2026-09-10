@@ -17,7 +17,7 @@
  * under the License.
  */
 export const reprocessBehaviors = [
-  { label: "backfill.missingRuns", value: "none" },
-  { label: "backfill.missingAndErroredRuns", value: "failed" },
-  { label: "backfill.allRuns", value: "completed" },
+  { label: "components:backfill.missingRuns", value: "none" },
+  { label: "components:backfill.missingAndErroredRuns", value: "failed" },
+  { label: "components:backfill.allRuns", value: "completed" },
 ];

@@ -6945,6 +6945,14 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: order_by
         in: query
         required: false
@@ -16936,6 +16944,11 @@ components:
           type: string
           format: date-time
           title: Run After
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - key
@@ -16987,6 +17000,11 @@ components:
           type: string
           format: date-time
           title: Run After
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         value:
           title: Value
       type: object
@@ -17041,6 +17059,11 @@ components:
           type: string
           format: date-time
           title: Run After
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         value:
           anyOf:
           - type: string

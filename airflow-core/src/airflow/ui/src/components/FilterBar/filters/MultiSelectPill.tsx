@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text } from "@chakra-ui/react";
-import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
 import { useEffect, useRef } from "react";
 
+import { Box, HStack, Text } from "@chakra-ui/react";
+import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
+
 import { MatchModeToggle } from "src/components/MatchModeToggle";
+
 import { useMatchMode } from "src/hooks/useMatchMode";
 
 import { FilterPill } from "../FilterPill";

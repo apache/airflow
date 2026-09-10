@@ -644,6 +644,28 @@ class TestCliDb:
             (
                 {
                     "to_revision": None,
+                    "to_version": "abc",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "Invalid version 'abc' supplied as `--to-version`",
+            ),
+            (
+                {
+                    "to_revision": "abc1",
+                    "to_version": None,
+                    "from_revision": None,
+                    "from_version": "abc",
+                    "show_sql_only": True,
+                    "yes": True,
+                },
+                "Invalid version 'abc' supplied as `--from-version`",
+            ),
+            (
+                {
+                    "to_revision": None,
                     "to_version": None,
                     "from_revision": "abc",
                     "from_version": None,
@@ -726,7 +748,12 @@ class TestCliDb:
                 ["-y", "--to-revision", "abc", "--from-version", "2.2.0", "--from-revision", "abc"],
                 "may not be combined",
             ),
-            (["-y", "--to-version", "abc"], r"Downgrading to .* not supported\."),
+            (["-y", "--to-version", "2.1.25"], r"Downgrading to .* not supported\."),
+            (["-y", "--to-version", "abc"], "Invalid version 'abc' supplied as `--to-version`"),
+            (
+                ["-y", "--to-revision", "abc1", "--from-version", "abc", "-s"],
+                "Invalid version 'abc' supplied as `--from-version`",
+            ),
             (["-y"], "Must provide either"),
         ],
     )

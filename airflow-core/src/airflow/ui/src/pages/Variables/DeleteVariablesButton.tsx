@@ -20,8 +20,10 @@ import { Button, Code, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
+import { Modal } from "src/system-components";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Modal } from "src/components/ui";
+
 import { useBulkDeleteVariables } from "src/queries/useBulkDeleteVariables";
 
 type Props = {

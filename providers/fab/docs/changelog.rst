@@ -20,6 +20,44 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FAB ignoring create_metadata_engine from local settings (#71674)``
+* ``Close database sessions after users and roles collection reads (#72578)``
+* ``Validate id_token issuer and audience in the FAB Authentik provider (#72645)``
+* ``Invalidate a user's sessions when their password is changed through the API (#72657)``
+* ``Compare session and user identifiers consistently when resetting a password (#72198)``
+* ``Reject tokens naming a deactivated account in the FAB auth manager (#72199)``
+* ``Use secrets for fab users '--use-random-password' generation (#72092)``
+
+Misc
+~~~~
+
+* ``Bump FAB UI JavaScript dependencies (#72726)``
+* ``Remove unused FAB app-init helpers that could never run (#72610)``
+* ``Bump webpack in the FAB UI (#72653)``
+* ``Bump webpack in the FAB UI (#72490)``
+* ``Pin pnpm version for FAB and Edge3 UI so bumps keep security overrides (#72390)``
+* ``Bump FAB UI JavaScript dependencies (#72383)``
+* ``Bump eslint from 10.8.1 to 10.9.0 in the FAB UI (#72065)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate fab permission table (#72230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.8.1
 .....
 

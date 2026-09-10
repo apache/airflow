@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
+import re
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -27,12 +29,51 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+
+# Matches the `google...` provider key pydantic-ai expects before the `:model-name`
+# separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
+_GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
+
+
+def _assert_prefix_is_known_provider(prefix: str) -> None:
+    """
+    Assert pydantic-ai's provider registry recognizes ``prefix``.
+
+    ``infer_provider_class`` raises ``ValueError: Unknown provider: ...`` for a
+    name it doesn't recognize, but ``ImportError`` for a recognized name whose
+    optional dependency (``google-genai``) isn't installed in this test env.
+    Only the former indicates the advertised prefix has drifted out of sync
+    with what's actually installed.
+    """
+    try:
+        with contextlib.suppress(ImportError):
+            infer_provider_class(prefix)
+    except ValueError as exc:
+        pytest.fail(f"{prefix!r} is not a recognized pydantic-ai provider: {exc}")
+
+
+def _extract_google_cloud_prefix(text: str) -> str:
+    """
+    Extract the ``google...`` model prefix out of ``text`` and assert it is exactly
+    ``"google-cloud"``.
+
+    ``_GOOGLE_MODEL_PREFIX_RE`` alone would also match the bare ``"google"``
+    provider (the Generative Language API, which pydantic-ai also recognizes),
+    so a documented prefix that silently regressed from ``google-cloud:`` to
+    ``google:`` would still pass a plain "is it a known provider" check. The
+    exact-match assertion here is what actually catches that drift.
+    """
+    match = _GOOGLE_MODEL_PREFIX_RE.search(text)
+    assert match, f"no google model prefix found in: {text!r}"
+    assert match.group() == "google-cloud", f"expected 'google-cloud' prefix, got {match.group()!r}"
+    return match.group()
 
 
 class TestPydanticAIHookInit:
@@ -479,7 +520,7 @@ class TestPydanticAIAzureHook:
     """Tests for PydanticAIAzureHook."""
 
     def test_conn_type(self):
-        assert PydanticAIAzureHook.conn_type == "pydanticai-azure"
+        assert PydanticAIAzureHook.conn_type == "pydanticai_azure"
 
     def test_hook_name(self):
         assert "Azure" in PydanticAIAzureHook.hook_name
@@ -540,7 +581,7 @@ class TestPydanticAIAzureHook:
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
         conn = Connection(
             conn_id="azure_test",
-            conn_type="pydanticai-azure",
+            conn_type="pydanticai_azure",
             password="azure-key",
             host="https://myresource.openai.azure.com",
             extra=json.dumps({"model": "azure:gpt-4o", "api_version": "2024-07-01-preview"}),
@@ -563,7 +604,7 @@ class TestPydanticAIAzureHook:
         hook = PydanticAIAzureHook(llm_conn_id="azure_test")
         conn = Connection(
             conn_id="azure_test",
-            conn_type="pydanticai-azure",
+            conn_type="pydanticai_azure",
             extra=json.dumps({"model": "azure:gpt-4o"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -576,7 +617,7 @@ class TestPydanticAIBedrockHook:
     """Tests for PydanticAIBedrockHook."""
 
     def test_conn_type(self):
-        assert PydanticAIBedrockHook.conn_type == "pydanticai-bedrock"
+        assert PydanticAIBedrockHook.conn_type == "pydanticai_bedrock"
 
     def test_hook_name(self):
         assert "Bedrock" in PydanticAIBedrockHook.hook_name
@@ -616,7 +657,7 @@ class TestPydanticAIBedrockHook:
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
             conn_id="bedrock_test",
-            conn_type="pydanticai-bedrock",
+            conn_type="pydanticai_bedrock",
             extra=json.dumps({"model": "bedrock:us.anthropic.claude-opus-4-5"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -634,7 +675,7 @@ class TestPydanticAIBedrockHook:
         hook = PydanticAIBedrockHook(llm_conn_id="bedrock_test")
         conn = Connection(
             conn_id="bedrock_test",
-            conn_type="pydanticai-bedrock",
+            conn_type="pydanticai_bedrock",
             extra=json.dumps(
                 {
                     "model": "bedrock:us.anthropic.claude-opus-4-5",
@@ -706,7 +747,7 @@ class TestPydanticAIVertexHook:
     """Tests for PydanticAIVertexHook."""
 
     def test_conn_type(self):
-        assert PydanticAIVertexHook.conn_type == "pydanticai-vertex"
+        assert PydanticAIVertexHook.conn_type == "pydanticai_vertex"
 
     def test_hook_name(self):
         assert "Vertex" in PydanticAIVertexHook.hook_name
@@ -817,7 +858,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai-vertex",
+            conn_type="pydanticai_vertex",
             extra=json.dumps({"model": "google-cloud:gemini-2.0-flash"}),
         )
         with patch.object(hook, "get_connection", return_value=conn):
@@ -835,7 +876,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai-vertex",
+            conn_type="pydanticai_vertex",
             extra=json.dumps(
                 {
                     "model": "google-cloud:gemini-2.0-flash",
@@ -893,7 +934,7 @@ class TestPydanticAIVertexHook:
         hook = PydanticAIVertexHook(llm_conn_id="vertex_test")
         conn = Connection(
             conn_id="vertex_test",
-            conn_type="pydanticai-vertex",
+            conn_type="pydanticai_vertex",
             extra=json.dumps(
                 {
                     "model": "google-cloud:gemini-2.0-flash",
@@ -921,12 +962,119 @@ class TestPydanticAIVertexHook:
         pydantic/pydantic-ai#5336, which renamed the old Vertex provider id shortly
         before Airflow's docstrings/placeholders were written).
         """
-        try:
-            infer_provider_class("google-cloud")
-        except ValueError as exc:
-            pytest.fail(f"Documented prefix 'google-cloud' is not a recognized provider: {exc}")
-        except ImportError:
-            # The optional `google-genai` dependency isn't installed in the test
-            # environment; failing past provider-name resolution is enough to
-            # prove "google-cloud" is recognized.
-            pass
+        _assert_prefix_is_known_provider("google-cloud")
+
+    def test_conn_fields_model_description_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``provider.yaml`` conn-field, the actual UI source.
+
+        Once a hook's ``provider.yaml`` declares ``conn-fields``, the connection
+        form renders those and ``get_ui_field_behaviour`` placeholders are never
+        shown (``providers_manager.py``'s ``ui_metadata_loaded``, deprecated
+        since 3.2.0) — so this description, not the placeholder below, is what
+        a user actually copies the model prefix from.
+        """
+        connection_types = get_provider_info()["connection-types"]
+        vertex_conn_fields = next(
+            c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai_vertex"
+        )
+        description = vertex_conn_fields["model"]["description"]
+        prefix = _extract_google_cloud_prefix(description)
+        _assert_prefix_is_known_provider(prefix)
+
+    def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``provider.yaml`` ``ui-field-behaviour.placeholders.extra``,
+        a sibling of ``conn-fields`` under the same connection-type block.
+
+        This placeholder is superseded at runtime by the ``conn-fields`` description
+        above (once ``conn-fields`` is declared, the connection form no longer shows
+        ``ui-field-behaviour`` placeholders), but ``provider.yaml`` still carries its
+        own independent copy of the model prefix here, and nothing was covering it.
+        """
+        connection_types = get_provider_info()["connection-types"]
+        vertex_connection_type = next(
+            c for c in connection_types if c["connection-type"] == "pydanticai_vertex"
+        )
+        placeholder = vertex_connection_type["ui-field-behaviour"]["placeholders"]["extra"]
+        prefix = _extract_google_cloud_prefix(placeholder)
+        _assert_prefix_is_known_provider(prefix)
+
+    def test_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
+        """
+        Drift tripwire for the ``get_ui_field_behaviour`` placeholder.
+
+        Superseded at runtime by the ``provider.yaml`` conn-field above, but
+        still source code a developer can read and copy from directly, so it
+        needs to stay accurate too.
+        """
+        placeholder = PydanticAIVertexHook.get_ui_field_behaviour()["placeholders"]["extra"]
+        prefix = _extract_google_cloud_prefix(placeholder)
+        _assert_prefix_is_known_provider(prefix)
+
+
+ALL_HOOKS = [PydanticAIHook, PydanticAIAzureHook, PydanticAIBedrockHook, PydanticAIVertexHook]
+DECLARED_CONNECTION_TYPES = [c["connection-type"] for c in get_provider_info()["connection-types"]]
+
+
+class TestConnTypeResolution:
+    """
+    Every hook is registered under the literal ``connection-type`` string from
+    ``provider.yaml``, but ``Connection.from_uri`` and ``Connection.from_json`` rewrite
+    ``-`` to ``_`` before the lookup happens. A hyphen in ``conn_type`` therefore makes
+    the hook unreachable from every secrets backend, which is what happened to the three
+    vendor types (apache/airflow#72316): only a connection read straight out of the
+    metadata DB kept its hyphen and resolved.
+    """
+
+    def test_provider_declares_connection_types(self):
+        """Keeps the round-trip guard below from passing vacuously."""
+        assert DECLARED_CONNECTION_TYPES
+
+    @pytest.mark.parametrize("conn_type", DECLARED_CONNECTION_TYPES)
+    def test_declared_connection_type_survives_a_uri_round_trip(self, conn_type):
+        """Guards every connection-type this provider declares, current and future."""
+        source = Connection(conn_id="c", conn_type=conn_type)
+
+        parsed = Connection(conn_id="c", uri=source.get_uri())
+
+        assert parsed.conn_type == conn_type, (
+            f"connection-type {conn_type!r} does not survive URI serialization, so its hook "
+            "cannot be looked up from any secrets backend; declare it with underscores"
+        )
+
+    @pytest.mark.parametrize("hook_class", ALL_HOOKS, ids=lambda c: c.__name__)
+    def test_hook_resolves_from_uri(self, hook_class):
+        conn = Connection(conn_id="c", conn_type=hook_class.conn_type, host="example.com")
+
+        round_tripped = Connection(conn_id="c", uri=conn.get_uri())
+
+        assert round_tripped.conn_type == hook_class.conn_type
+        assert type(round_tripped.get_hook()) is hook_class
+
+    @pytest.mark.parametrize("hook_class", ALL_HOOKS, ids=lambda c: c.__name__)
+    def test_hook_resolves_from_json(self, hook_class):
+        conn = Connection(conn_id="c", conn_type=hook_class.conn_type, host="example.com")
+
+        round_tripped = Connection.from_json(conn.as_json(), conn_id="c")
+
+        assert round_tripped.conn_type == hook_class.conn_type
+        assert type(round_tripped.get_hook()) is hook_class
+
+    @pytest.mark.parametrize("hook_class", ALL_HOOKS, ids=lambda c: c.__name__)
+    @pytest.mark.parametrize("serializer", ["uri", "json"])
+    def test_hook_resolves_from_environment_variable(self, hook_class, serializer, monkeypatch):
+        """
+        ``AIRFLOW_CONN_*`` is enabled by default and is how most deployments define
+        connections, so it is the widest blast radius for a conn_type that does not
+        round-trip.
+        """
+        conn_id = f"vendor_{hook_class.conn_type}_{serializer}"
+        conn = Connection(conn_id=conn_id, conn_type=hook_class.conn_type, host="example.com")
+        serialized = conn.get_uri() if serializer == "uri" else conn.as_json()
+        monkeypatch.setenv(f"AIRFLOW_CONN_{conn_id.upper()}", serialized)
+
+        resolved = Connection.get_connection_from_secrets(conn_id)
+
+        assert resolved.conn_type == hook_class.conn_type
+        assert type(resolved.get_hook()) is hook_class

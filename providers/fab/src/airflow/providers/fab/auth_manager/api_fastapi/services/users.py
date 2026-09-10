@@ -31,6 +31,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_orderin
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.utils import get_fab_auth_manager
+from airflow.utils.session import create_session
 
 
 class FABAuthManagerUsers:
@@ -66,31 +67,29 @@ class FABAuthManagerUsers:
     @classmethod
     def get_users(cls, *, order_by: str, limit: int, offset: int) -> UserCollectionResponse:
         """Get users with pagination and ordering."""
-        security_manager = get_fab_auth_manager().security_manager
-        session = security_manager.session
+        with create_session(scoped=False) as session:
+            total_entries = session.scalars(select(func.count(User.id))).one()
 
-        total_entries = session.scalars(select(func.count(User.id))).one()
+            ordering = build_ordering(
+                order_by,
+                allowed={
+                    "id": User.id,
+                    "user_id": User.id,
+                    "first_name": User.first_name,
+                    "last_name": User.last_name,
+                    "username": User.username,
+                    "email": User.email,
+                    "active": User.active,
+                },
+            )
 
-        ordering = build_ordering(
-            order_by,
-            allowed={
-                "id": User.id,
-                "user_id": User.id,
-                "first_name": User.first_name,
-                "last_name": User.last_name,
-                "username": User.username,
-                "email": User.email,
-                "active": User.active,
-            },
-        )
+            stmt = select(User).order_by(ordering).offset(offset).limit(limit)
+            users = session.scalars(stmt).unique().all()
 
-        stmt = select(User).order_by(ordering).offset(offset).limit(limit)
-        users = session.scalars(stmt).unique().all()
-
-        return UserCollectionResponse(
-            users=[UserResponse.model_validate(u) for u in users],
-            total_entries=total_entries,
-        )
+            return UserCollectionResponse(
+                users=[UserResponse.model_validate(u) for u in users],
+                total_entries=total_entries,
+            )
 
     @classmethod
     def create_user(cls, body: UserBody) -> UserResponse:
@@ -187,8 +186,10 @@ class FABAuthManagerUsers:
                 )
             user.roles = roles_to_update
 
+        password_changed = False
         if "password" in fields_to_update and body.password is not None:
             user.password = generate_password_hash(body.password.get_secret_value())
+            password_changed = True
 
         if "username" in fields_to_update and body.username is not None:
             user.username = body.username
@@ -199,7 +200,27 @@ class FABAuthManagerUsers:
         if "last_name" in fields_to_update and body.last_name is not None:
             user.last_name = body.last_name
 
-        security_manager.update_user(user)
+        if not security_manager.update_user(user):
+            # `update_user` rolls back and returns False on failure. Ignoring it would
+            # report success for a change that was not persisted.
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update user `{username}`",
+            )
+
+        if password_changed:
+            # Changing a password has to end the sessions the old password established,
+            # or a session captured beforehand keeps authenticating as this user and the
+            # change does not evict whoever holds it. `reset_password` -- the other
+            # supported way to change a password -- already does this; going through the
+            # user-management API must not silently skip it.
+            #
+            # Deliberately ordered *after* persistence, unlike `reset_password`.
+            # `reset_user_sessions` commits its deletions immediately, so invalidating
+            # first would log the user out even when the password update then fails,
+            # leaving the old password working and the user evicted for nothing.
+            security_manager.reset_user_sessions(user)
+
         return UserResponse.model_validate(user)
 
     @classmethod

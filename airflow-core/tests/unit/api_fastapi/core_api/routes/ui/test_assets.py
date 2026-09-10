@@ -531,6 +531,25 @@ class TestGetAssetsUi:
         assert body["total_entries"] == 1
         assert body["assets"][0]["name"] == "ui_asset"
 
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(3)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.commit()
+        mock_get_authorized_assets.return_value = {assets[1].id}
+
+        response = test_client.get("/assets")
+
+        mock_get_authorized_assets.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+        assert [asset["name"] for asset in body["assets"]] == ["asset1"]
+        # The count must be scoped too, so the existence of hidden assets does not leak.
+        assert body["total_entries"] == 1
+
     def test_sort_by_last_asset_event_timestamp(self, test_client, session):
         older = AssetModel(name="older", uri="s3://bucket/older", group="asset")
         newer = AssetModel(name="newer", uri="s3://bucket/newer", group="asset")
@@ -828,7 +847,8 @@ class TestGetAssetsUi:
             assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        with assert_queries_count(8):
+        # One of these queries resolves the caller's readable assets so the list can be scoped to them.
+        with assert_queries_count(9):
             assert test_client.get("/assets").status_code == 200
 
     @conf_vars({("core", "multi_team"): "True"})
@@ -856,7 +876,7 @@ class TestGetAssetsUi:
             session.add(TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task", asset=asset))
         session.commit()
 
-        with assert_queries_count(12):
+        with assert_queries_count(13):
             response = test_client.get("/assets")
 
         assert response.status_code == 200

@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, InputGroup } from "@chakra-ui/react";
 import { useState } from "react";
 
+import { Input, InputGroup } from "@chakra-ui/react";
+
 import { PasswordToggle } from "src/components/PasswordToggle";
+
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";

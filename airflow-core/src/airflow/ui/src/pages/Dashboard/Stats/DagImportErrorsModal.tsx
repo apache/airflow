@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+
+import { Accordion, ClipboardIconButton, Modal, Pagination } from "src/system-components";
+
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { Accordion, ClipboardIconButton, Modal } from "src/components/ui";
-import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
   readonly onClose: () => void;

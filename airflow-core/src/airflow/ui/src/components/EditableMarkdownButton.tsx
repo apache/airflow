@@ -17,9 +17,10 @@
  * under the License.
  */
 import { useState } from "react";
+
 import { useTranslation } from "react-i18next";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
 
 import MarkdownModal from "./MarkdownModal";
 import NoteIcon from "./NoteIcon";
