@@ -60,6 +60,26 @@ class TestDuckDBHookWithoutConnection:
         with pytest.raises(ValueError, match="read_only is not supported"):
             DuckDBHook(read_only=True).get_conn()
 
+    def test_missing_default_connection_is_reported_at_info(self, mock_get_connection):
+        """The fallback is intended, but it must be visible: DEBUG is hidden at the default log level."""
+        with mock.patch.object(DuckDBHook, "log") as mock_log:
+            assert DuckDBHook().airflow_connection is None
+        mock_log.info.assert_called_once()
+        mock_log.debug.assert_not_called()
+
+    def test_missing_explicit_connection_raises(self, mock_get_connection):
+        """
+        Only the default id is optional.
+
+        Supplying another id asserts that it exists, so falling back would let a task that meant to
+        write to a real database silently write to one discarded when it finishes.
+        """
+        with pytest.raises(AirflowNotFoundException):
+            DuckDBHook(duckdb_conn_id="analytics_prod").airflow_connection
+
+    def test_explicitly_passing_the_default_id_still_falls_back(self, mock_get_connection):
+        assert DuckDBHook(duckdb_conn_id=DuckDBHook.default_conn_name).airflow_connection is None
+
 
 class TestDuckDBHookDatabaseResolution:
     @pytest.mark.parametrize(

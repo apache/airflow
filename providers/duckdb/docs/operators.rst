@@ -29,9 +29,9 @@ Run a query
 Use :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` to run SQL
 against an in-process DuckDB database.
 
-Unlike the other SQL operators this one does not require an Airflow connection to exist. With none
-configured it runs against an in-memory database, which is the common case for a task that reads its
-input, transforms it and writes its output back out:
+Unlike the other SQL operators this one does not require an Airflow connection to exist. With no
+``duckdb_default`` connection configured it runs against an in-memory database, which is the common
+case for a task that reads its input, transforms it and writes its output back out:
 
 .. code-block:: python
 
