@@ -149,6 +149,32 @@ def test_sqlite_sanitize_without_json1():
     assert json.loads(rows[3]) == _MIXED_EXPECTED["report"]
 
 
+def test_sqlite_has_json1_probe():
+    """The probe reports True on a build with JSON1 and swallows only the missing-function error."""
+    engine = sa.create_engine("sqlite://")
+    with engine.connect() as conn:
+        assert _migration._sqlite_has_json1(conn) is True
+
+    class _NoJson1:
+        def execute(self, *args, **kwargs):
+            raise sa.exc.OperationalError(
+                "SELECT json_valid('{}')", {}, Exception("no such function: json_valid")
+            )
+
+    assert _migration._sqlite_has_json1(_NoJson1()) is False
+
+
+def test_sqlite_has_json1_probe_propagates_other_errors():
+    """A failure that is not a missing function must surface instead of downgrading the sanitize."""
+
+    class _Broken:
+        def execute(self, *args, **kwargs):
+            raise sa.exc.InterfaceError("SELECT json_valid('{}')", {}, Exception("connection gone"))
+
+    with pytest.raises(sa.exc.InterfaceError):
+        _migration._sqlite_has_json1(_Broken())
+
+
 @pytest.mark.db_test
 class TestPostgresSanitize:
     @pytest.mark.backend("postgres")

@@ -211,7 +211,8 @@ def _sqlite_has_json1(conn) -> bool:
     """Whether this SQLite build provides json_valid() (the JSON1 extension)."""
     try:
         conn.execute(text("SELECT json_valid('{}')")).fetchone()
-    except Exception:
+    except sa.exc.OperationalError:
+        # Only a build without JSON1 lands here; a broader catch would hide a real connection error.
         print("SQLite JSON functions unavailable; sanitizing without the json_valid() guard.")
         return False
     return True
