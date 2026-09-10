@@ -429,11 +429,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return resp.json()
         return {}
 
-    def _validate_jwt(self, id_token, jwks):
+    def _validate_jwt(self, id_token, jwks, claims_options=None):
         from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
         keyset = JsonWebKey.import_key_set(jwks)
-        claims = authlib_jwt.decode(id_token, keyset)
+        claims = authlib_jwt.decode(id_token, keyset, claims_options=claims_options)
         claims.validate()
         log.info("JWT token is validated")
         return claims
@@ -446,7 +446,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if jwks_uri:
                 jwks = self._get_authentik_jwks(jwks_uri)
                 if jwks:
-                    return self._validate_jwt(id_token, jwks)
+                    # The issuer must be known before the token is trusted. Verifying only
+                    # the audience would still accept a token minted by an untrusted issuer
+                    # whenever the configured key set signs for more than one of them, so a
+                    # missing issuer fails closed rather than downgrading to an audience-only
+                    # check.
+                    issuer = self.oauth_remotes["authentik"].client_kwargs.get(
+                        "issuer"
+                    ) or self.oauth_remotes["authentik"].server_metadata.get("issuer")
+                    if not issuer:
+                        raise FabException(
+                            "Cannot verify the authentik id_token: no issuer is available. "
+                            "The OpenID metadata for the 'authentik' provider carries no "
+                            "'issuer', so the token's issuer cannot be pinned. Configure "
+                            "'server_metadata_url' so the issuer is discovered, or set "
+                            "'issuer' in the authentik provider's client_kwargs."
+                        )
+                    claims_options = {
+                        # The token must have been issued by the configured provider.
+                        "iss": {"essential": True, "value": issuer},
+                        # The token must have been minted for this application. One key set
+                        # signs for every application registered with the provider, so a valid
+                        # signature does not establish that the token was addressed to Airflow.
+                        "aud": {
+                            "essential": True,
+                            "value": self.oauth_remotes["authentik"].client_id,
+                        },
+                    }
+                    return self._validate_jwt(id_token, jwks, claims_options=claims_options)
             else:
                 log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
         else:

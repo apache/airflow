@@ -621,6 +621,21 @@ class TestCli:
         )
 
     @pytest.mark.parametrize(
+        "argv",
+        [
+            pytest.param(["pools", "set", "foo", "1", "test", "--output", "json"], id="set"),
+            pytest.param(["pools", "delete", "foo", "--output", "json"], id="delete"),
+        ],
+    )
+    def test_pools_set_and_delete_reject_output_flag(self, argv):
+        with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
+            with pytest.raises(SystemExit) as e:
+                parser.parse_args(argv)
+        assert e.value.code == 2
+        assert "unrecognized arguments: --output json" in stderr.getvalue()
+
+    @pytest.mark.parametrize(
         "action_cmd",
         [
             ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=True),
