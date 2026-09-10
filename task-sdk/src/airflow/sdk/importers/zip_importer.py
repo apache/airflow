@@ -24,13 +24,9 @@ import sys
 import tempfile
 import threading
 import zipfile
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from airflow.dag_processing.bundles.base import BaseDagBundle
 
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers.base import (
@@ -47,13 +43,18 @@ from airflow.sdk.importers.base import (
     get_file_suffix,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
+
 log = logging.getLogger(__name__)
 
 _sys_path_lock = threading.Lock()
 
 
 @contextlib.contextmanager
-def _temporary_sys_path(path: str) -> Iterator[None]:
+def _temporary_sys_path(path: str) -> Generator[None, None, None]:
     """Safely prepend a path to sys.path with synchronization and restoration."""
     with _sys_path_lock:
         already_present = path in sys.path
@@ -74,40 +75,29 @@ class ZipFileDagDefinition(DagDefinition):
     zip_path: Path
     file_path: str
     _content: bytes | None = field(default=None, repr=False, compare=False)
-    _temp_path: Path | None = field(default=None, repr=False, compare=False)
 
     @property
     def freshness_token(self) -> str:
         try:
             stat = self.zip_path.stat()
-            return f"{stat.st_mtime_ns}-{stat.st_size}-{self.file_path}"
         except OSError:
             return ""
+        return f"{stat.st_mtime_ns}-{stat.st_size}-{self.file_path}"
 
     def get_relative_loc(self, root: Path | None = None) -> str:
-        if root is None:
-            return f"{self.zip_path}:{self.file_path}"
-        try:
-            rel_zip = self.zip_path.relative_to(root)
-            return f"{rel_zip}:{self.file_path}"
-        except ValueError:
-            return f"{self.zip_path}:{self.file_path}"
+        if root is not None:
+            with contextlib.suppress(ValueError):
+                return f"{self.zip_path.relative_to(root)}:{self.file_path}"
+        return f"{self.zip_path}:{self.file_path}"
 
     def read_bytes(self) -> bytes:
         if self._content is None:
-            if self._temp_path is not None and self._temp_path.exists():
-                self._content = self._temp_path.read_bytes()
-            else:
-                with zipfile.ZipFile(self.zip_path) as z:
-                    self._content = z.read(self.file_path)
+            with zipfile.ZipFile(self.zip_path) as z:
+                self._content = z.read(self.file_path)
         return self._content
 
     @contextlib.contextmanager
-    def as_file(self) -> Iterator[Path]:
-        if self._temp_path is not None and self._temp_path.exists():
-            yield self._temp_path
-            return
-
+    def as_file(self) -> Generator[Path, None, None]:
         suffix = Path(self.file_path).suffix
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
             f.write(self.read_bytes())
@@ -189,63 +179,57 @@ class ZipImporter(AbstractDagImporter):
         *,
         safe_mode: bool = True,
     ) -> DagImportResult:
-        """Import DAGs from a ZIP archive DAG definition by routing internal files."""
+        """
+        Import DAGs from a ZIP archive by routing its members to internal importers.
+
+        The archive itself is placed on ``sys.path`` so Python imports between
+        members resolve via ``zipimport``. A real file is materialized on demand
+        with :meth:`.as_file()` for internal importers.
+        """
         result = DagImportResult(definition=definition)
 
         with definition.as_file() as local_zip_path:
-            with tempfile.TemporaryDirectory(prefix="airflow_zip_") as temp_dir:
-                temp_dir_path = Path(temp_dir)
-                extracted_members: list[tuple[str, Path, AbstractDagImporter]] = []
-
-                try:
-                    with zipfile.ZipFile(local_zip_path) as z:
-                        for member_name in z.namelist():
-                            if member_name.startswith("__MACOSX/") or member_name.endswith("/"):
-                                continue
-                            # ZipSlip prevention: check for directory traversal attempts
-                            target_path = (temp_dir_path / member_name).resolve()
-                            if not target_path.is_relative_to(temp_dir_path.resolve()):
-                                log.warning(
-                                    "Skipping zip member %r in %s: directory traversal patterns detected",
-                                    member_name,
-                                    local_zip_path,
-                                )
-                                continue
-                            importer = self._get_internal_importer(member_name)
-                            if importer is not None:
-                                extracted_path = Path(z.extract(member_name, path=temp_dir_path))
-                                extracted_members.append((member_name, extracted_path, importer))
-                except Exception as e:
-                    result.errors.append(
-                        DagImportError(
-                            source_reference=definition.get_relative_loc(bundle.path),
-                            message=f"Failed to read ZIP archive: {e}",
-                            error_type="zip_read_error",
-                        )
+            try:
+                with zipfile.ZipFile(local_zip_path) as z:
+                    member_names = z.namelist()
+            except Exception as e:
+                result.errors.append(
+                    DagImportError(
+                        source_reference=definition.get_relative_loc(bundle.path),
+                        message=f"Failed to read ZIP archive: {e}",
+                        error_type="zip_read_error",
                     )
-                    return result
+                )
+                return result
 
-                with _temporary_sys_path(str(temp_dir_path)):
-                    for member_name, extracted_file, importer in extracted_members:
-                        nested_def = ZipFileDagDefinition(
-                            zip_path=local_zip_path,
-                            file_path=member_name,
-                            _temp_path=extracted_file,
+            with _temporary_sys_path(str(local_zip_path)):
+                for member_name in member_names:
+                    if member_name.endswith("/") or member_name.startswith("__MACOSX/"):
+                        continue
+                    # ZipSlip defence: reject traversal or absolute member names.
+                    member_path = Path(member_name)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        log.warning(
+                            "Skipping zip member %r in %s: directory traversal patterns detected",
+                            member_name,
+                            definition,
                         )
-                        if not importer.can_handle(nested_def):
-                            continue
+                        continue
 
-                        member_result = importer.import_definition(
-                            definition=nested_def,
-                            bundle=bundle,
-                            safe_mode=safe_mode,
-                        )
+                    importer = self._get_internal_importer(member_name)
+                    if importer is None:
+                        continue
 
-                        result.dags.extend(member_result.dags)
-                        result.errors.extend(member_result.errors)
-                        result.warnings.extend(member_result.warnings)
-                        result.skipped_definitions.extend(member_result.skipped_definitions)
-                        result.dependencies.extend(member_result.dependencies)
+                    nested_def = ZipFileDagDefinition(zip_path=local_zip_path, file_path=member_name)
+                    if not importer.can_handle(nested_def):
+                        continue
+
+                    member_result = importer.import_definition(nested_def, bundle, safe_mode=safe_mode)
+                    result.dags.extend(member_result.dags)
+                    result.errors.extend(member_result.errors)
+                    result.warnings.extend(member_result.warnings)
+                    result.skipped_definitions.extend(member_result.skipped_definitions)
+                    result.dependencies.extend(member_result.dependencies)
 
         return result
 

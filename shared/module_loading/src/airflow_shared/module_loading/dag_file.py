@@ -22,11 +22,17 @@ from __future__ import annotations
 import hashlib
 import re
 import zipfile
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 UNUSUAL_MODULE_PREFIX = "unusual_prefix_"
 MODIFIED_DAG_MODULE_NAME = f"{UNUSUAL_MODULE_PREFIX}{{path_hash}}_{{module_name}}"
+
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    class _MightContainDagCallable(Protocol):
+        def __call__(self, file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool: ...
 
 
 def get_unique_dag_module_name(file_path: str) -> str:
@@ -71,7 +77,7 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile
     if not safe_mode:
         return True
 
-    might_contain_dag_callable: Callable[[str, zipfile.ZipFile | None], bool] | None = None
+    might_contain_dag_callable: _MightContainDagCallable | None = None
     try:
         # Use importlib to avoid hard import at module level
         import importlib

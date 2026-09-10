@@ -22,7 +22,6 @@ import contextlib
 import functools
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -32,9 +31,11 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable, Iterator
+
     from typing_extensions import Self
 
-    from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG
 
 log = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ class FileDagDefinition(DagDefinition):
         return self.path.read_bytes()
 
     @contextlib.contextmanager
-    def as_file(self) -> Iterator[Path]:
+    def as_file(self) -> Generator[Path, None, None]:
         yield self.path
 
     def __repr__(self) -> str:

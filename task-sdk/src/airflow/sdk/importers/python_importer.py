@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from types import ModuleType
 
-    from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
 
 log = logging.getLogger(__name__)
 
