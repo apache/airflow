@@ -27,12 +27,16 @@ Operators with durable execution are worth particular attention. Clearing a *fai
 id means submitting a second one. The same applies to operators configured to leave their job alive
 on kill, such as ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"``.
 
+On the CLI, ``airflowctl tasks clear --keep-task-state`` is the equivalent flag. ``airflow dags
+clear`` and ``airflow tasks clear`` (airflow-core) are unaffected: the former clears Dag runs and
+never touches task state, and the latter is deprecated in favor of ``airflowctl tasks clear``.
+
 * Types of change
 
   * [ ] Dag changes
   * [ ] Config changes
   * [x] API changes
-  * [ ] CLI changes
+  * [x] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency changes

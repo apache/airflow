@@ -4339,9 +4339,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ti_id = response_data["task_instances"][0]["id"]
         _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
 
-    def _seed_task_state(self, session, dag_id):
-        """Store one task state key for the single TI created by these tests."""
-        ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).one()
+    def _seed_task_state(self, session, dag_id, task_id=None, map_index=None):
+        """Store one task state key for the TI matching the given task_id/map_index."""
+        stmt = select(TaskInstance).where(TaskInstance.dag_id == dag_id)
+        if task_id is not None:
+            stmt = stmt.where(TaskInstance.task_id == task_id)
+        if map_index is not None:
+            stmt = stmt.where(TaskInstance.map_index == map_index)
+        ti = session.scalars(stmt).one()
         MetastoreBackend().set(
             TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
             "job_id",
@@ -4350,8 +4355,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         session.commit()
 
-    def _task_state_rows(self, session, dag_id):
-        return session.scalars(select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == dag_id)).all()
+    def _task_state_rows(self, session, dag_id, task_id=None, map_index=None):
+        stmt = select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == dag_id)
+        if task_id is not None:
+            stmt = stmt.where(TaskStateStoreModel.task_id == task_id)
+        if map_index is not None:
+            stmt = stmt.where(TaskStateStoreModel.map_index == map_index)
+        return session.scalars(stmt).all()
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -4363,25 +4373,42 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ],
     )
     def test_clear_task_state_store(self, test_client, session, payload_extra, expect_kept):
-        """Clearing discards task state unless the caller asks to keep it."""
-        dag_id = "example_python_operator"
+        """Clearing one mapped index discards only that index's task state, unless kept."""
+        dag_id = "example_task_mapping_second_order"
         self.create_task_instances(
             session,
             dag_id=dag_id,
-            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            task_instances=[
+                {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                {
+                    "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                    "state": State.FAILED,
+                    "map_indexes": (0, 1),
+                },
+            ],
             update_extras=False,
         )
-        self._seed_task_state(session, dag_id)
-        assert self._task_state_rows(session, dag_id)
+        self._seed_task_state(session, dag_id, "times_2", 0)
+        self._seed_task_state(session, dag_id, "times_2", 1)
+        assert self._task_state_rows(session, dag_id, "times_2", 0)
+        assert self._task_state_rows(session, dag_id, "times_2", 1)
 
         response = test_client.post(
             f"/dags/{dag_id}/clearTaskInstances",
-            json={"dry_run": False, "reset_dag_runs": False, "only_failed": True, **payload_extra},
+            json={
+                "dry_run": False,
+                "reset_dag_runs": False,
+                "only_failed": True,
+                "task_ids": [["times_2", 0]],
+                **payload_extra,
+            },
         )
         assert response.status_code == 200
 
         session.expire_all()
-        assert bool(self._task_state_rows(session, dag_id)) is expect_kept
+        assert bool(self._task_state_rows(session, dag_id, "times_2", 0)) is expect_kept
+        # The untargeted map index is never touched, regardless of keep_task_state.
+        assert self._task_state_rows(session, dag_id, "times_2", 1)
 
     @pytest.mark.db_test
     def test_clear_dry_run_does_not_discard_task_state(self, test_client, session):

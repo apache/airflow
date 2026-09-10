@@ -315,13 +315,6 @@ ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
     action="store_true",
     help="Only clear running task instances",
 )
-ARG_DAG_CLEAR_KEEP_TASK_STATE = Arg(
-    flags=("--keep-task-state",),
-    default=False,
-    action="store_true",
-    help="Keep the task state store entries of the cleared task instances so the next "
-    "attempt resumes from them. By default they are discarded, so the task starts over.",
-)
 ARG_DAG_CLEAR_YES = Arg(
     flags=("-y", "--yes"),
     default=False,
@@ -1129,7 +1122,6 @@ DAG_COMMANDS = (
             ARG_DAG_PARTITION_DATE_END,
             ARG_DAG_CLEAR_ONLY_FAILED,
             ARG_DAG_CLEAR_ONLY_RUNNING,
-            ARG_DAG_CLEAR_KEEP_TASK_STATE,
             ARG_DAG_CLEAR_YES,
         ),
     ),

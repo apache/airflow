@@ -101,11 +101,13 @@ const ClearTaskInstanceDialog = (props: Props) => {
   useEffect(() => {
     if (openDialog) {
       setNote(taskInstance?.note ?? null);
+      setKeepTaskState(false);
     }
   }, [openDialog, taskInstance?.note]);
 
   const onCloseDialog = () => {
     setNote(taskInstance?.note ?? null);
+    setKeepTaskState(false);
     closeDialog();
   };
 
@@ -215,13 +217,13 @@ const ClearTaskInstanceDialog = (props: Props) => {
             <Checkbox
               checked={keepTaskState}
               onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+              style={{ marginRight: "auto" }}
             >
               {translate("dags:runAndTaskActions.options.keepTaskState")}
             </Checkbox>
             <Checkbox
               checked={preventRunningTask}
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
-              style={{ marginRight: "auto" }}
             >
               {translate("dags:runAndTaskActions.options.preventRunningTasks")}
             </Checkbox>

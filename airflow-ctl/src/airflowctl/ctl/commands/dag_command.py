@@ -322,7 +322,6 @@ def clear(args, api_client=NEW_API_CLIENT) -> dict[str, int | bool]:
                 only_failed=args.only_failed,
                 only_running=args.only_running,
                 reset_dag_runs=True,
-                keep_task_state=args.keep_task_state,
             ),
         )
         cleared_task_instances += response.total_entries or 0
