@@ -15,17 +15,40 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydanticai-azure:
+.. _howto/connection:pydanticai_azure:
 
 Pydantic AI (Azure OpenAI) Connection
 ======================================
 
-The ``pydanticai-azure`` connection type configures access to
+The ``pydanticai_azure`` connection type configures access to
 `Azure OpenAI <https://azure.microsoft.com/en-us/products/ai-services/openai-service>`__
 via the pydantic-ai framework. It backs ``PydanticAIAzureHook``, the dedicated
 subclass of ``PydanticAIHook`` for Azure's non-standard auth (an endpoint URL
 plus an API version, rather than the plain ``api_key`` + optional ``base_url``
 that the generic :doc:`pydantic_ai` connection assumes).
+
+.. note::
+
+    This connection type was previously named ``pydanticai-azure``.
+
+    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
+    encoded in a URI scheme, so ``pydanticai-azure`` is decoded to ``pydanticai_azure``
+    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
+    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
+    GCP Secret Manager.
+
+    A connection whose type is stored verbatim does need updating, because the
+    hyphen is preserved and no longer matches a registered hook. That means rows in
+    the metadata database, including any created through the UI, and connections
+    imported in object form from a local file:
+
+    .. code-block:: bash
+
+        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-azure'
+        airflow connections delete <conn_id>
+        airflow connections add <conn_id> --conn-type pydanticai_azure ...
+
+    In the UI, edit the connection and re-pick its type.
 
 Default Connection IDs
 ----------------------
@@ -60,7 +83,7 @@ Examples
 .. code-block:: json
 
     {
-        "conn_type": "pydanticai-azure",
+        "conn_type": "pydanticai_azure",
         "password": "<azure-api-key>",
         "host": "https://<resource>.openai.azure.com",
         "extra": "{\"model\": \"azure:gpt-4o\", \"api_version\": \"2024-07-01-preview\"}"
