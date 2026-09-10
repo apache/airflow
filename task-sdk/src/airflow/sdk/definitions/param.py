@@ -382,12 +382,19 @@ def process_params(
         params.update(dag.params)
     if task.params:
         params.update(task.params)
-    if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
-        # Mask before logging: dag.params/task.params are already merged into `params` at this
-        # point, so the declared format="password" schema for a key is available here even though
-        # dagrun_conf hasn't been merged in yet. Registering first ensures the debug log below is
-        # redacted by the SecretsMasker logging filter rather than emitting the raw value.
+
+    if dagrun_conf:
+        # Mask dagrun_conf's password-format values unconditionally, regardless of
+        # dag_run_conf_overrides_params: dag_run.conf remains accessible to task code and
+        # templates via context["dag_run"].conf even when this setting is False, so those values
+        # need to be registered with the masker either way, not only when merged into task params.
         _mask_password_values(params, dagrun_conf)
+
+    if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
+        # Mask params' own current values before logging params below: dag.params/task.params
+        # may carry a password-format default that was never overridden by dagrun_conf, and that
+        # default would otherwise be logged raw here before the final masking call after validate().
+        _mask_password_values(params, params.dump())
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
         params.update(dagrun_conf)
 
