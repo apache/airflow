@@ -620,14 +620,22 @@ class TestConnection:
     @pytest.mark.parametrize(
         ("val", "expected"),
         [
+            ('{"port": 0}', 0),
             ('{"port": 1}', 1),
             ('{"port": "1"}', 1),
+            ('{"port": "0"}', 0),
+            ('{"port": ""}', None),
             ('{"port": null}', None),
         ],
     )
     def test_from_json_port(self, val, expected):
         """Two conn_type normalizations are applied: replace - with _ and postgresql with postgres"""
         assert Connection.from_json(val).port == expected
+
+    @pytest.mark.parametrize("val", ['{"port": -1}', '{"port": 65536}', '{"port": 1.5}', '{"port": "1.5"}'])
+    def test_from_json_rejects_invalid_port(self, val):
+        with pytest.raises(ValueError, match="port"):
+            Connection.from_json(val)
 
     @pytest.mark.parametrize(
         ("val", "expected"),

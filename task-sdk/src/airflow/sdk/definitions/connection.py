@@ -29,6 +29,19 @@ from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, A
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 log = logging.getLogger(__name__)
+PORT_MIN = 0
+PORT_MAX = 65535
+
+
+def _validate_port(_, __, value: int | None) -> None:
+    if value is None:
+        return
+    if type(value) is not int:
+        raise ValueError(f"Expected integer value for `port`, but got {value!r} instead.")
+    if not PORT_MIN <= value <= PORT_MAX:
+        raise ValueError(
+            f"Expected value for `port` in the range {PORT_MIN}-{PORT_MAX}, but got {value!r} instead."
+        )
 
 
 def _parse_netloc_to_hostname(uri_parts):
@@ -118,7 +131,7 @@ class Connection:
     schema: str | None = None
     login: str | None = None
     password: str | None = None
-    port: int | None = None
+    port: int | None = attrs.field(default=None, validator=attrs.validators.optional(_validate_port))
     extra: str | None = None
 
     EXTRA_KEY = "__extra__"
@@ -152,6 +165,18 @@ class Connection:
             self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
+
+    @classmethod
+    def _coerce_port(cls, port) -> int | None:
+        if port is None or port == "":
+            return None
+        if isinstance(port, str):
+            try:
+                port = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.") from None
+        _validate_port(None, None, port)
+        return port
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""
@@ -191,7 +216,7 @@ class Connection:
         host_block = ""
         if host_to_use:
             host_block += quote(host_to_use, safe="")
-        if self.port:
+        if self.port is not None:
             if host_block == "" and authority_block == "":
                 host_block += f"@:{self.port}"
             else:
@@ -355,11 +380,8 @@ class Connection:
         if conn_type:
             kwargs["conn_type"] = cls._normalize_conn_type(conn_type)
         port = kwargs.pop("port", None)
-        if port:
-            try:
-                kwargs["port"] = int(port)
-            except ValueError:
-                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        if port is not None:
+            kwargs["port"] = cls._coerce_port(port)
         return cls(conn_id=conn_id, **kwargs)
 
     def as_json(self) -> str:
