@@ -18,7 +18,7 @@ minimum you need to run the following services:
 
 * airflow-scheduler.service
 * airflow-dag-processor.service
-* airflow-webserver.service or airflow-api.service
+* airflow-api.service
 
 Additionally the following services are available and can be enabled as needed:
 
