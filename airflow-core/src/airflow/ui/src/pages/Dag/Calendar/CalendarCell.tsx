@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { Tooltip } from "src/components/ui";
+import { Tooltip } from "src/system-components";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import type { CalendarCellData, CalendarColorMode } from "./types";
