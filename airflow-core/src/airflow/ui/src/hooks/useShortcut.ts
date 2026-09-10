@@ -47,7 +47,7 @@ export const useShortcut = ({
   options,
 }: UseShortcutParams) => {
   const id = useId();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { register, unregister } = useShortcutRegistry();
 
   const ref = useHotkeys(keys, callback, options, dependencies);

@@ -39,7 +39,7 @@ export const useStoreMutation = ({
   resourceName,
 }: UseStoreMutationOptions) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   const onError = (error: unknown) => {
     createErrorToaster(

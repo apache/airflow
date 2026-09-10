@@ -28,7 +28,7 @@ import { NavButton } from "./NavButton";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResponse> }) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (navItems.length === 0) {
     return undefined;

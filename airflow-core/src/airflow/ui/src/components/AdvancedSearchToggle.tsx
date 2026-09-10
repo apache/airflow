@@ -37,7 +37,7 @@ export const AdvancedSearchToggle = ({
   size = "sm",
   variant = "standalone",
 }: AdvancedSearchToggleProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
     <Tooltip

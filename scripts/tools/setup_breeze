@@ -41,11 +41,13 @@ SHIM_MARKER="# Apache Airflow breeze shim — managed by scripts/tools/setup_bre
 # into the installed shim; if the installed shim is older it warns the user to
 # re-run this script. See warn_if_shim_outdated() in
 # dev/breeze/src/airflow_breeze/utils/path_utils.py.
-SHIM_VERSION="1"
+SHIM_VERSION="2"
 
-# The shim itself. Runs breeze via 'uvx' against the dev/breeze folder of the
+# The shim itself. Runs breeze via 'uv run' against the dev/breeze folder of the
 # *current* git worktree, so multiple checkouts / agentic worktrees never
-# share a single global install. See ADR 0017.
+# share a single global install. '--locked' pins every dependency to the
+# committed dev/breeze/uv.lock, so a fresh third-party release cannot change
+# what breeze runs with until that lock is upgraded. See ADR 0017.
 #
 # When invoked outside any Airflow worktree (e.g. from an SVN release checkout
 # such as asf-dist during a provider release), the shim falls back to, in order:
@@ -55,9 +57,9 @@ read -r -d '' BREEZE_SHIM_BODY <<BREEZE_SHIM || true
 #!/usr/bin/env bash
 ${SHIM_MARKER}
 # breeze-shim-version: ${SHIM_VERSION}
-# Runs breeze from the dev/breeze folder of the current git worktree via 'uvx',
-# so each worktree (e.g. parallel agentic runs) gets its own ephemerally-installed
-# breeze tied to that worktree's source.
+# Runs breeze from the dev/breeze folder of the current git worktree via 'uv run',
+# so each worktree (e.g. parallel agentic runs) gets its own environment tied to
+# that worktree's source, with dependencies resolved from dev/breeze/uv.lock.
 #
 # Resolution order for the Airflow sources breeze runs from:
 #   1. the current git worktree (per-worktree isolation — see ADR 0017);
@@ -83,7 +85,7 @@ else
     exit 1
 fi
 exec env AIRFLOW_ROOT_PATH="\${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \\
-    uvx --from "\${breeze_root}/dev/breeze" --quiet breeze "\$@"
+    uv run --project "\${breeze_root}/dev/breeze" --locked --quiet breeze "\$@"
 BREEZE_SHIM
 
 function manual_instructions() {
