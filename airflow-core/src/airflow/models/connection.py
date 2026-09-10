@@ -287,21 +287,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        conn_type = self.conn_type or ""
-        if "-" in conn_type:
-            # '-' is how '_' is encoded in a URI scheme, since RFC 3986 forbids '_' there.
-            # A literal '-' in conn_type is therefore indistinguishable from an encoded '_'
-            # once serialized, and _normalize_conn_type decodes it back to '_' on read, so a
-            # hook registered under the hyphenated name is unreachable from that point on.
-            self.log.warning(
-                "Connection type %r contains '-', which does not survive URI serialization: "
-                "'-' is the URI-scheme encoding of '_', so this connection resolves back to %r. "
-                "Only a connection type spelled with '_' round-trips through a URI, so the "
-                "provider's connection-type and this connection both have to use that form.",
-                conn_type,
-                conn_type.lower().replace("-", "_"),
-            )
-
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:

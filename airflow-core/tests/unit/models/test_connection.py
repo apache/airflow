@@ -344,59 +344,47 @@ class TestConnection:
         assert "RFC 3986" in str(exc_info.value)
 
     @pytest.mark.parametrize(
-        ("connection", "expected_warned"),
+        "connection",
         [
-            # Parsed from a URI: _normalize_conn_type has already decoded '-' to '_', so the
-            # conn_type is the canonical form and there is nothing to warn about.
-            (Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"), False),
-            (Connection(conn_id="test-uri-2", uri="amazon://test:test@"), False),
-            # Set directly with a hyphen: this is the configuration that cannot round-trip,
-            # because '-' is the URI-scheme encoding of '_'. This is what must warn.
-            (
-                Connection(
-                    conn_id="test-non-uri-1",
-                    conn_type="google-cloud-platform",
-                    login="testlogin",
-                    password="testpassword",
-                ),
-                True,
+            # Parsed from a URI, so _normalize_conn_type has already decoded '-' to '_'.
+            Connection(conn_id="test-uri-1", uri="google-cloud-platform://testlogin:testpassword@"),
+            Connection(conn_id="test-uri-2", uri="amazon://test:test@"),
+            # Set directly with a hyphen, which is the spelling that cannot round-trip.
+            Connection(
+                conn_id="test-non-uri-1",
+                conn_type="google-cloud-platform",
+                login="testlogin",
+                password="testpassword",
             ),
-            # The canonical underscore form. It serializes to 'google-cloud-platform://' and
-            # decodes back unchanged, so it is correct and must stay silent.
-            (
-                Connection(
-                    conn_id="test-non-uri-2",
-                    conn_type="google_cloud_platform",
-                    login="testlogin",
-                    password="testpassword",
-                ),
-                False,
+            # The canonical underscore form, which serializes to 'google-cloud-platform://'
+            # and decodes back unchanged.
+            Connection(
+                conn_id="test-non-uri-2",
+                conn_type="google_cloud_platform",
+                login="testlogin",
+                password="testpassword",
             ),
-            (
-                Connection(
-                    conn_id="test-non-uri-3", conn_type="amazon", login="testlogin", password="testpassword"
-                ),
-                False,
+            Connection(
+                conn_id="test-non-uri-3", conn_type="amazon", login="testlogin", password="testpassword"
             ),
         ],
     )
-    def test_get_uri_warns_only_for_a_conn_type_that_cannot_round_trip(
-        self, connection: Connection, expected_warned: bool
-    ):
+    def test_get_uri_does_not_warn_about_the_connection_type(self, connection: Connection):
+        """
+        get_uri() serializes a connection; it does not validate one.
+
+        It used to warn that a conn_type containing '_' broke RFC 3986. That is the one
+        spelling which survives the round trip, since get_uri() encodes '_' as '-' and
+        reading a connection back decodes it, and the warning fired on every uncached
+        connection fetch. A connection type that cannot round-trip is reported where it
+        fails, by get_hook(), and is rejected by the provider schema.
+        """
         with capture_logs() as captured_logs:
             connection.get_uri()
-        conn_type_warnings = [
-            captured_log
-            for captured_log in captured_logs
-            if captured_log["log_level"] == "warning"
-            and "does not survive URI serialization" in captured_log["event"]
-        ]
-        if expected_warned:
-            assert conn_type_warnings, f"expected a hyphenated-conn_type warning for '{connection.conn_id}'."
-        else:
-            assert not conn_type_warnings, (
-                f"unexpected hyphenated-conn_type warning for '{connection.conn_id}'."
-            )
+
+        assert [
+            captured_log for captured_log in captured_logs if captured_log["log_level"] == "warning"
+        ] == []
 
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
