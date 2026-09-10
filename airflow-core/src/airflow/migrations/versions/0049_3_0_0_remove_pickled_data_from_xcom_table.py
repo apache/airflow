@@ -50,28 +50,22 @@ airflow_version = "3.0.0"
 _XCOM_PG_SANITIZE_SQL = r"""
                 UPDATE __TABLE__
                 SET value = convert_to(
-                    regexp_replace(
-                        -- Strip the active U+0000 (NUL) escape (illegal in JSON/JSONB, not quotable).
-                        -- Protect escaped backslashes with chr(1) first so an embedded literal
-                        -- backslash + u0000 in the data is preserved; chr(1) is safe because
-                        -- json.dumps escapes control bytes, so it never appears in the JSON text.
-                        replace(
+                    CASE
+                        WHEN json_valid(convert_from(value, 'UTF8'))
+                            THEN convert_from(value, 'UTF8')
+                        ELSE regexp_replace(
                             replace(
-                                replace(convert_from(value, 'UTF8'), '\\', chr(1)),
-                                '\u0000', ''
+                                replace(
+                                    replace(convert_from(value, 'UTF8'), '\\', chr(1)),
+                                    '\u0000', ''
+                                ),
+                                chr(1), '\\'
                             ),
-                            chr(1), '\\'
-                        ),
-                        -- Group 1 captures the preceding delimiter (:, comma, or [)
-                        -- or ^ for a bare scalar value (the entire XCom value is just NaN).
-                        -- A lookahead is used for the closing delimiter instead of a
-                        -- consuming group so that consecutive tokens in an array
-                        -- (e.g. [NaN, Infinity]) are each matched independently.
-                        -- NaN and Infinity are done in the same query to avoid another table scan.
-                        '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
-                        '\1"\2"',
-                        'g'
-                    ),
+                            '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
+                            '\1"\2"',
+                            'g'
+                        )
+                    END,
                     'UTF8'
                 )
                 WHERE value IS NOT NULL AND get_byte(value, 0) != 128
@@ -79,7 +73,9 @@ _XCOM_PG_SANITIZE_SQL = r"""
 _XCOM_MYSQL_SANITIZE_SQL = """
                 UPDATE __TABLE__
                 SET value = CONVERT(
-                    REGEXP_REPLACE(
+                    CASE
+                        WHEN JSON_VALID(CONVERT(value USING utf8mb4)) THEN CONVERT(value USING utf8mb4)
+                        ELSE REGEXP_REPLACE(
                         -- Strip the active U+0000 (NUL) escape (illegal JSON; see PostgreSQL branch).
                         -- Protect escaped backslashes with CHAR(1) first so an embedded literal
                         -- backslash + u0000 in the data is preserved.
@@ -100,14 +96,17 @@ _XCOM_MYSQL_SANITIZE_SQL = """
                         1,
                         0,
                         'c'
-                    ) USING BINARY
+                    )
+                    END USING BINARY
                 )
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
             """
 _XCOM_SQLITE_SANITIZE_SQL = """
                 UPDATE __TABLE__
                 SET value = CAST(
-                    REPLACE(
+                    CASE
+                        WHEN json_valid(CAST(value AS TEXT)) THEN CAST(value AS TEXT)
+                        ELSE REPLACE(
                         REPLACE(
                             -- Step 1: replace NaN first so it doesn't interfere with Infinity.
                             REPLACE(
@@ -128,7 +127,8 @@ _XCOM_SQLITE_SANITIZE_SQL = """
                         ),
                         -- Step 3: fix the -"Infinity" artifact left by step 2.
                         '-"Infinity"', '"-Infinity"'
-                    ) AS BLOB)
+                    )
+                    END AS BLOB)
                 -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
                 -- This is a substring operation and will incorrectly alter XCom values
                 -- that contain the literal text 'NaN' or 'Infinity' inside a JSON string
