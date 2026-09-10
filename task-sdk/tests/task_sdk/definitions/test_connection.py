@@ -78,6 +78,73 @@ class TestConnections:
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
 
+    @pytest.mark.parametrize(
+        ("conn_type", "registered", "expected_remedy"),
+        [
+            pytest.param(
+                "google-cloud-platform",
+                "google_cloud_platform",
+                "Spell this connection's type with '_' to reach it.",
+                id="hyphenated-conn-type",
+            ),
+            pytest.param(
+                "pydanticai_vertex",
+                "pydanticai-vertex",
+                "so this connection cannot reach that hook",
+                id="hyphenated-registration",
+            ),
+        ],
+    )
+    def test_get_hook_names_the_other_spelling_when_it_is_the_registered_one(
+        self, mock_providers_manager, conn_type, registered, expected_remedy
+    ):
+        """Worker-side copy: this is the path a task actually raises from."""
+        mock_providers_manager.return_value.hooks = {registered: mock.MagicMock()}
+        conn = Connection(conn_id="test_conn", conn_type=conn_type)
+
+        with pytest.raises(AirflowException, match="Unknown hook type") as exc_info:
+            conn.get_hook()
+
+        message = str(exc_info.value)
+        assert conn_type in message
+        assert registered in message
+        assert expected_remedy in message
+
+    def test_get_hook_does_not_guess_an_unregistered_spelling(self, mock_providers_manager):
+        """With neither spelling registered, say only what is known."""
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+
+        with pytest.raises(AirflowException) as exc_info:
+            conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
+    def test_get_hook_does_not_advise_a_spelling_whose_hook_cannot_be_imported(self, mock_providers_manager):
+        """A registered connection type maps to None when its hook cannot be imported."""
+        mock_providers_manager.return_value.hooks = {"google_cloud_platform": None}
+        conn = Connection(conn_id="test_conn", conn_type="google-cloud-platform")
+
+        with pytest.raises(AirflowException) as exc_info:
+            conn.get_hook()
+
+        assert str(exc_info.value) == 'Unknown hook type "google-cloud-platform"'
+
+    def test_get_hook_explains_a_uri_whose_scheme_was_dropped(self, mock_providers_manager):
+        """
+        A URI scheme cannot contain '_' (RFC 3986), so ``foo_bar://h`` parses with no scheme at
+        all and leaves conn_type empty. This is the worker-side copy of that failure, which
+        used to read ``Unknown hook type ""`` and named neither the cause nor the fix.
+        """
+        mock_providers_manager.return_value.hooks = {}
+        conn = Connection(conn_id="test_conn", uri="pydanticai_azure://h")
+        assert conn.conn_type == ""
+
+        with pytest.raises(AirflowException, match="has no connection type") as exc_info:
+            conn.get_hook()
+
+        assert "RFC 3986" in str(exc_info.value)
+
     def test_get_uri(self):
         """Test that get_uri generates the correct URI based on connection attributes."""
 
