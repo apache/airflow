@@ -19,13 +19,13 @@
 import { useState } from "react";
 
 import { Box, Button, Heading } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 
-import { Alert, Modal } from "src/system-components";
+import { Alert, Modal, RouterLink } from "src/system-components";
 
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 
@@ -40,6 +40,7 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
+import { getTaskInstanceLink } from "src/utils/links";
 
 import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
@@ -299,6 +300,24 @@ export const Logs = () => {
     );
   }
 
+  const noLogsAlert =
+    taskInstance !== undefined &&
+    fetchedData !== undefined &&
+    !isLoadingLogs &&
+    error === null &&
+    logError === null &&
+    (tryNumber === 0 || parsedData.parsedLogs?.length === 0) ? (
+      <Alert data-testid="no-task-logs" status="info" title={translate("logs.noLogsTitle")}>
+        <Trans
+          components={{
+            AuditLogLink: <RouterLink to={getTaskInstanceLink(taskInstance, "events")} />,
+          }}
+          i18nKey="logs.noLogsHelp"
+          ns="dag"
+        />
+      </Alert>
+    ) : undefined;
+
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader {...logHeaderProps} />
@@ -313,6 +332,7 @@ export const Logs = () => {
           />
         )
       ) : undefined}
+      {noLogsAlert}
       <TaskLogContent {...logContentProps} />
       <Modal
         bodyProps={{ display: "flex", flexDirection: "column" }}
@@ -332,6 +352,7 @@ export const Logs = () => {
         scrollBehavior="inside"
         size="full"
       >
+        {noLogsAlert}
         <TaskLogContent {...logContentProps} />
       </Modal>
     </Box>
