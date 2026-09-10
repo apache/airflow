@@ -269,7 +269,9 @@ class DagVersion(Base):
 
         ``values_status`` carries an authorization decision the caller has already made. It defaults
         to withholding raw values, leaving the structural diff available in redacted form. Callers
-        must verify the requesting user's permission to access Dag code before enabling values.
+        must authorize disclosure of the entire serialized payload, including access-control role
+        names and permission mappings, before enabling values. This also exposes digests and
+        value-derived paths; permission to access Dag code alone may not cover that disclosure.
         """
         # Keep this local to avoid the dag_version -> dag_version_diff -> serialized_objects cycle.
         from airflow.models.serialized_dag import SerializedDagModel
