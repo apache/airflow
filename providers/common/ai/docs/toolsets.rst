@@ -1240,12 +1240,22 @@ derives one from a method name when there is no docstring.
 Metrics
 ^^^^^^^
 
-Every successful call -- through a lone toolset or a
-``FailoverManagedAgentToolset`` alike -- emits ``managed_agent.invoked``,
-tagged by ``tool`` and ``platform``. It is emitted from the shared
-``call_tool()`` path that every toolset inherits, so a lone toolset gets a
-per-tool call count it would otherwise have no metric for at all, and a group
-gets exactly one increment per call regardless of how many members were tried.
+Every call -- through a lone toolset or a ``FailoverManagedAgentToolset``
+alike -- emits ``managed_agent.invoked``, tagged by ``tool`` and ``platform``,
+whether it succeeds or fails. It is emitted before ``invoke()`` runs, from the
+shared ``call_tool()`` path that every toolset inherits, so a lone toolset
+gets a per-tool call count it would otherwise have no metric for at all, and a
+group gets exactly one increment per call regardless of how many members were
+tried -- an attempt, not an answer, so it keeps moving even during a total
+outage that leaves nothing to divide by otherwise.
+
+For a group, the ``platform`` tag on ``managed_agent.invoked`` is always the
+literal string ``"failover"``, not the cloud that actually answered --
+``agent_ref`` on a group describes the group's own identity, not whichever
+member ends up serving the call. Summing ``managed_agent.invoked`` by
+``platform`` therefore mixes that ``failover`` bucket in with real platform
+names from lone toolsets; filter by ``tool`` instead when a group and its
+members share a dashboard.
 
 .. warning::
 
@@ -1404,13 +1414,12 @@ Groups nest.
 
 .. note::
 
-    The same is true in reverse for ``timeout``: ``FailoverManagedAgentToolset``
-    does not override the ``timeout`` property, so it just mirrors whatever
-    the group's own constructor received, and the group's ``invoke()`` above
-    calls only ``member.invoke(prompt)`` -- it never reads ``self.timeout``.
-    Passing ``timeout=`` to a failover group is therefore a silent no-op; set
-    it on each member instead, the same platform-specific way a lone toolset
-    would.
+    ``FailoverManagedAgentToolset`` rejects ``timeout=`` outright, with a
+    ``ValueError``, rather than silently ignoring it: the group's ``invoke()``
+    above calls only ``member.invoke(prompt)`` and never reads
+    ``self.timeout``, so a value passed here would never take effect. Set
+    ``timeout`` on each member instead, the same platform-specific way a lone
+    toolset would.
 
 Members must satisfy two preconditions the class cannot check.
 
@@ -1454,7 +1463,7 @@ durable cache cannot know which member produced the answer it holds.
     run, where failing the task would discard the calling agent's accumulated
     context and re-run every earlier tool call.
 
-Two counters make failover visible, because a failover is a *success-shaped*
+These counters make failover visible, because a failover is a *success-shaped*
 event — without them a primary that has been down for a week looks identical to a
 healthy one:
 
@@ -1464,22 +1473,24 @@ healthy one:
 
     * - Metric
       - Tags
+    * - ``managed_agent.invoked``
+      - ``tool``, ``platform`` — one per call, whether it succeeds or fails
     * - ``managed_agent.failover``
-      - ``from_platform``, ``to_platform`` — one per failover transition
+      - ``tool``, ``from_platform``, ``to_platform`` — one per failover transition
     * - ``managed_agent.served``
-      - ``platform``, ``role`` (``primary`` / ``standby``) — one per answer
+      - ``tool``, ``platform``, ``role`` (``primary`` / ``standby``), ``position`` — one per answer
 
 The standby-served fraction is a ratio over ``managed_agent.served`` alone, so
 "are we quietly running on the standby?" is a dashboard question rather than a log
-grep. Both are tagged by platform rather than agent name to keep cardinality
+grep. All three are tagged by platform rather than agent name to keep cardinality
 bounded.
 
 ``managed_agent.invoked`` (see `Metrics`_ above) is the denominator for
-``managed_agent.failover``: ``managed_agent.failover`` count divided by
-``managed_agent.invoked`` count, matched on the same ``tool`` tag, is a
-per-tool failover rate. ``managed_agent.served`` is not a substitute
-denominator for that ratio -- it is already split by member ``role`` and
-``position``, and it does not exist for a lone toolset at all.
+``managed_agent.failover``, matched on the same ``tool`` tag -- but the result is
+failovers per call, not a rate bounded by 1: a three-member group where the first
+two fail adds two to the numerator for a single invocation. ``managed_agent.served``
+is not a substitute denominator for that count -- it is already split by member
+``role`` and ``position``, and it does not exist for a lone toolset at all.
 
 One limitation remains: which member served a *particular* answer is in the task
 log but not in XCom. ``agent_ref`` on a group describes the group, not the

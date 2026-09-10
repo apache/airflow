@@ -275,15 +275,15 @@ class BaseManagedAgentToolset(AbstractToolset[Any]):
     ) -> Any:
         ref = _safe_agent_ref(self)
         log.info("Consulting managed agent %s on %s", ref.get("name"), ref.get("platform"))
-        result = await self.invoke(tool_args["prompt"])
-        # Emitted here, not in FailoverManagedAgentToolset.invoke(), so a lone
-        # toolset gets it too -- it is the only per-tool signal a bare toolset
-        # has, and it is the ratio that turns managed_agent.failover from a raw
-        # count into a rate (failovers / invocations for the same tool).
+        # Emitted before invoke() runs, not after -- an attempt, not an answer,
+        # so a total outage still moves this counter and it stays the right
+        # per-tool denominator for managed_agent.failover even when nothing
+        # succeeds at all.
         Stats.incr(
             "managed_agent.invoked",
             tags={"tool": self._tool_name, "platform": ref.get("platform", "unknown")},
         )
+        result = await self.invoke(tool_args["prompt"])
         return serialize_for_llm(result)
 
 
@@ -324,6 +324,8 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
         common base), so the safe default is broad. It can be narrowed when the
         members' exception types are known. ``ModelRetry`` is always re-raised
         and never triggers failover, whatever this is set to.
+    :param timeout: Rejected if not ``None``; see the failover section of the
+        toolsets guide for why. Set it on each member instead.
     """
 
     def __init__(
@@ -331,8 +333,15 @@ class FailoverManagedAgentToolset(BaseManagedAgentToolset):
         *,
         members: Sequence[BaseManagedAgentToolset],
         failover_on: tuple[type[BaseException], ...] = (Exception,),
+        timeout: float | None = None,
         **kwargs,
     ) -> None:
+        if timeout is not None:
+            raise ValueError(
+                f"FailoverManagedAgentToolset does not enforce timeout; got {timeout}. "
+                "Set timeout on each member instead; see the failover section of the "
+                "toolsets guide for why."
+            )
         super().__init__(**kwargs)
         if len(members) < 2:
             raise ValueError(

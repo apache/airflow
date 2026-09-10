@@ -271,6 +271,17 @@ class TestFailoverManagedAgentToolset:
         tools = await group.get_tools(ctx=None)
         return await group.call_tool(group._tool_name, {"prompt": prompt}, None, tools[group._tool_name])
 
+    @pytest.mark.parametrize("timeout", [5.0, 0.0], ids=["positive", "falsy-zero"])
+    def test_timeout_kwarg_is_rejected_on_a_group(self, timeout):
+        # 0.0 is falsy but not None: the check must be `is not None`, not a
+        # truthiness check, or a caller passing an explicit zero would silently
+        # slip through.
+        with pytest.raises(ValueError, match="does not enforce timeout"):
+            self._group(FakeManagedAgentToolset(), FakeManagedAgentToolset(), timeout=timeout)
+
+    def test_timeout_kwarg_none_is_accepted_on_a_group(self):
+        self._group(FakeManagedAgentToolset(), FakeManagedAgentToolset(), timeout=None)
+
     @pytest.mark.parametrize("count", [0, 1], ids=["none", "one"])
     def test_needs_at_least_two_members(self, count):
         members = [FakeManagedAgentToolset() for _ in range(count)]
@@ -515,12 +526,15 @@ class TestInvokedMetric:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
-    async def test_call_tool_does_not_emit_invoked_on_failure(self, mock_stats):
+    async def test_call_tool_emits_invoked_on_failure_too(self, mock_stats):
         toolset = FakeManagedAgentToolset(raises=RuntimeError("503"))
         tools = await toolset.get_tools(ctx=None)
         with pytest.raises(RuntimeError):
             await toolset.call_tool("ask_specialist", {"prompt": "q"}, None, tools["ask_specialist"])
-        mock_stats.incr.assert_not_called()
+        mock_stats.incr.assert_called_once_with(
+            "managed_agent.invoked",
+            tags={"tool": "ask_specialist", "platform": "fake.cloud"},
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
@@ -535,5 +549,52 @@ class TestInvokedMetric:
         tools = await group.get_tools(ctx=None)
         await group.call_tool("ask_resilient", {"prompt": "q"}, None, tools["ask_resilient"])
 
+        # invoked is emitted before invoke() runs, so it leads the list; its
+        # platform tag is the group's own "failover", not the cloud that
+        # actually answered -- summing by platform mixes that bucket in with
+        # real platforms.
+        assert mock_stats.incr.call_args_list == [
+            mock.call(
+                "managed_agent.invoked",
+                tags={"tool": "ask_resilient", "platform": "failover"},
+            ),
+            mock.call(
+                "managed_agent.failover",
+                tags={
+                    "tool": "ask_resilient",
+                    "from_platform": "fake.cloud",
+                    "to_platform": "fake.cloud",
+                },
+            ),
+            mock.call(
+                "managed_agent.served",
+                tags={
+                    "tool": "ask_resilient",
+                    "platform": "fake.cloud",
+                    "role": "standby",
+                    "position": "1",
+                },
+            ),
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
+    async def test_group_call_tool_emits_invoked_when_every_member_fails(self, mock_stats):
+        # The scenario invoked exists for: a total outage keeps moving
+        # managed_agent.failover, so invoked must move too, or the ratio has
+        # nothing to divide by exactly when the group has stopped answering.
+        primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("a down"))
+        standby = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("b down"))
+        group = FailoverManagedAgentToolset(
+            members=[primary, standby],
+            tool_name="ask_resilient",
+            description="Answers questions, on whichever cloud is up.",
+        )
+        tools = await group.get_tools(ctx=None)
+        with pytest.raises(ManagedAgentInvocationError):
+            await group.call_tool("ask_resilient", {"prompt": "q"}, None, tools["ask_resilient"])
+
         kinds = [c.args[0] for c in mock_stats.incr.call_args_list]
-        assert kinds == ["managed_agent.failover", "managed_agent.served", "managed_agent.invoked"]
+        assert kinds == ["managed_agent.invoked", "managed_agent.failover"], (
+            "no answer means no served counter"
+        )
