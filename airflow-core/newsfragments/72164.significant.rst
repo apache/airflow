@@ -5,8 +5,9 @@ On Airflow 3 the option had no effect on task execution (only the Edge worker re
 which prevents the fork from inheriting a lock held by a supervisor thread (a permanent hang at the
 task's first TLS call). Deployments that kept the option ``True`` from Airflow 2 get this behaviour,
 and its per-task interpreter start-up cost, on upgrade without further action; set it to ``False`` to
-keep bare fork. Edge workers with the option ``True`` already start a fresh interpreter for the
-supervisor and will now start a second one for the task. The Dag processor, the triggerer and task
+keep bare fork. The task process reads the global value, so a team-scoped Edge setting alone does not
+turn it on. Edge workers with the option ``True`` already start a fresh interpreter for the supervisor
+and will now start a second one for the task. The Dag processor, the triggerer and task
 callbacks (which the callback supervisor runs from a closure that cannot be named for an exec'd
 child) are not affected and keep bare fork.
 

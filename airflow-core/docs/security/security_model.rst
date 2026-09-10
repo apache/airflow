@@ -593,8 +593,9 @@ model — Airflow does not enforce these natively.
    Airflow's worker processes because of a built-in protection: on Linux, the supervisor process
    calls ``prctl(PR_SET_DUMPABLE, 0)`` before forking the task process; a bare-forked child inherits
    the flag, and a child started through ``exec`` restores it in its bootstrap, before importing
-   Airflow, because ``execve`` resets it (``kernel.yama.ptrace_scope >= 1`` covers the remaining
-   interpreter-start window). This marks both processes as non-dumpable, which prevents same-UID sibling
+   Airflow, because ``execve`` resets it (``kernel.yama.ptrace_scope >= 1`` covers ``/proc/<pid>/mem``
+   and ``ptrace`` attach for the remaining interpreter-start window). This marks both processes as
+   non-dumpable, which prevents same-UID sibling
    processes from reading ``/proc/<pid>/environ``, ``/proc/<pid>/mem``, or attaching via
    ``ptrace``. In contrast, configuration files on disk are readable by any process running as
    the same Unix user. Environment variables can also be scoped to individual processes or
