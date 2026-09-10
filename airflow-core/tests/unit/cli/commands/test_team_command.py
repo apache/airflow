@@ -673,6 +673,41 @@ class TestCliTeams:
             is None
         )
 
+    def test_team_sync_dry_run_reports_no_changes(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        self.session.add(
+            Pool(
+                pool=Pool.get_default_team_pool_name("team1"),
+                slots=128,
+                description="Default pool",
+                include_deferred=False,
+                team_name="team1",
+            )
+        )
+        self.session.commit()
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                team_command.team_sync(self.parser.parse_args(["teams", "sync", "--dry-run"]))
+
+        assert "No changes to sync." in stdout.getvalue()
+
     def test_team_verify_missing_default_pool(self):
         self.session.add(Team(name="team1"))
         self.session.commit()
