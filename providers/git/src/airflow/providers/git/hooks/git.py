@@ -160,9 +160,14 @@ class GitHook(BaseHook):
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
     _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
 
+    def _uses_github_app_auth(self) -> bool:
+        return bool(self.github_app_id and self.github_installation_id)
+
     def _uses_ssh_transport_options(self) -> bool:
         # Heuristic: any SSH-specific option implies SSH; otherwise fall back to the URL scheme.
         # A bare ssh-config Host alias (no ``user@``) without SSH options is not detected.
+        if self._uses_github_app_auth():
+            return False
         if any(
             (
                 self.key_file,

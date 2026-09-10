@@ -543,8 +543,7 @@ class TestGitHook:
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             lambda self: ("x-access-token", "ghs_test_token", mock_expiry),
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id="git_app_key_file")
+        hook = GitHook(git_conn_id="git_app_key_file")
 
         assert hook.private_key == "file_pem_key_content"
 
@@ -561,9 +560,8 @@ class TestGitHook:
                 },
             )
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            with pytest.raises(FileNotFoundError):
-                GitHook(git_conn_id="git_app_missing_key_file")
+        with pytest.raises(FileNotFoundError):
+            GitHook(git_conn_id="git_app_missing_key_file")
 
     def test_app_auth_defers_token_fetch(self, monkeypatch):
         """GitHub App token is not fetched in __init__, only on configure_hook_env."""
@@ -580,8 +578,7 @@ class TestGitHook:
             mock_get_token,
         )
         # __init__ should NOT call _get_github_app_token
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert len(mock_called) == 0
         assert hook.auth_token is None
         assert hook.github_app_id == "12345"
@@ -595,10 +592,15 @@ class TestGitHook:
 
     def test_app_auth_success_stores_app_id_and_installation_id(self):
         """App ID and installation ID are stored at __init__ time."""
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert hook.github_app_id == "12345"
         assert hook.github_installation_id == "67890"
+
+    def test_app_auth_does_not_warn_about_ssh_host_key_checking(self, recwarn):
+        """GitHub App auth is HTTPS-only, so the SSH host key deprecation must not fire."""
+        GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+
+        assert [w for w in recwarn if issubclass(w.category, AirflowProviderDeprecationWarning)] == []
 
     @pytest.mark.parametrize(
         ("app_id", "installation_id"),
@@ -628,8 +630,7 @@ class TestGitHook:
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             lambda self: ("x-access-token", "token", datetime.now(timezone.utc) + timedelta(hours=1)),
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id="git_app_int_check")
+        hook = GitHook(git_conn_id="git_app_int_check")
         assert hook.github_app_id == app_id
         assert hook.github_installation_id == installation_id
 
@@ -659,8 +660,7 @@ class TestGitHook:
             "airflow.providers.git.hooks.git.GitHook._get_github_app_token",
             mock_get_token,
         )
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         assert mock_get_token_call_count[0] == 0  # No call in __init__
 
         # First configure_hook_env triggers first token fetch
@@ -693,8 +693,7 @@ class TestGitHook:
         )
         monkeypatch.setitem(sys.modules, "github", fake_github)
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
-            hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
+        hook = GitHook(git_conn_id=CONN_APP_INLINE_KEY)
         with hook.configure_hook_env():
             # Verify get_access_token was called with installation_id kwarg
             assert mock_integration.get_access_token.call_count == 1
