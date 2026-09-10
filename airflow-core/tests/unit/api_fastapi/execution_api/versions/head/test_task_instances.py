@@ -59,7 +59,7 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
-from tests_common.test_utils.asserts import capture_orm_selects
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -3900,7 +3900,7 @@ class TestGetPreviousTI:
 
         with (
             capture_orm_selects("task_instance") as statements,
-            capture_orm_selects("dag_run") as dag_run_only_selects,
+            assert_queries_count(1),
         ):
             response = client.get(
                 "/execution/task-instances/previous/dag/test_task",
@@ -3918,10 +3918,6 @@ class TestGetPreviousTI:
             assert dag_run_join_count == 1, (
                 f"previous-TI query joins dag_run {dag_run_join_count} times, expected once: {sql}"
             )
-        assert not dag_run_only_selects, (
-            "logical_date should come from the eager-loaded dag_run join, but a separate "
-            f"SELECT was issued: {dag_run_only_selects}"
-        )
 
 
 class TestGetTaskStates:
