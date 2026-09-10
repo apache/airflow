@@ -582,7 +582,7 @@ class TestTIRunState:
 
     def test_dynamic_task_mapping_with_xcom(self, client: Client, dag_maker: DagMaker, session: Session):
         """Test that dynamic task mapping works correctly with XCom values."""
-        from airflow.models.taskmap import TaskMap
+        from tests_common.test_utils.mapping import push_mapped_length
 
         with dag_maker(session=session, serialized=True):
 
@@ -608,10 +608,10 @@ class TestTIRunState:
 
         decision = dr.task_instance_scheduling_decisions(session=session)
 
-        # Simulate task_1 execution to produce TaskMap.
+        # Simulate task_1 execution to produce the mapped length.
         (ti_1,) = decision.schedulable_tis
         ti_1.state = TaskInstanceState.SUCCESS
-        session.add(TaskMap.from_task_instance_xcom(ti_1, [0, 1]))
+        push_mapped_length(ti_1, [0, 1], session=session)
         session.flush()
 
         # Now task_2 in mapped tagk group is expanded.

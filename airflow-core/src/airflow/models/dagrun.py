@@ -91,7 +91,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
-from airflow.models.taskmap import TaskMap
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -1674,7 +1673,7 @@ class DagRun(Base, LoggingMixin):
                 # the db references.
                 ti.clear_db_references(session=session)
             try:
-                expanded_tis, _ = TaskMap.expand_mapped_task(ti.task, self.run_id, session=session)
+                expanded_tis, _ = ti.expand_mapped_task(session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
