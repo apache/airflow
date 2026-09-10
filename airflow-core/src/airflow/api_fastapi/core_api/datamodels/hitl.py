@@ -22,7 +22,6 @@ from typing import Any
 
 from pydantic import Field, field_validator
 
-from airflow._shared.serialization import SERDE_RESERVED_DICT_KEYS
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import TaskInstanceHistoryResponse
@@ -37,11 +36,11 @@ class UpdateHITLDetailPayload(BaseModel):
 
     @field_validator("params_input")
     @classmethod
-    def _check_serde_reserved_keys(cls, params_input: Mapping) -> Mapping:
-        # serde.serialize refuses these keys, and it only runs once the task resumes, long after the
-        # response was stored and the request returned. Reject it here instead, while the user can
-        # still correct the input and resubmit.
-        found = find_reserved_keys(params_input, SERDE_RESERVED_DICT_KEYS, root="params_input")
+    def _check_reserved_keys(cls, params_input: Mapping) -> Mapping:
+        # params_input is serialized into the resume event and deserialized again on the worker, so
+        # it needs the same guard XCom uses. Rejecting it here keeps the failure in front of the
+        # user who can still fix the input, rather than stranding the task when it resumes.
+        found = find_reserved_keys(params_input, root="params_input")
         if found is not None:
             path, keys = found
             raise ValueError(

@@ -87,11 +87,9 @@ class XComCollectionResponse(BaseModel):
 
 def _check_forbidden_xcom_keys(value: Any) -> Any:
     """Recursively reject forbidden deserialization keys in user-provided XCom data."""
-    from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
-
     # A value sent as a JSON string literal is stored as-is and parsed back into a dict or list on
     # a ``deserialize=true`` read, so the decoded structure needs checking too.
-    found = find_reserved_keys(value, FORBIDDEN_XCOM_KEYS, decode_json_strings=True)
+    found = find_reserved_keys(value, decode_json_strings=True)
     if found is not None:
         path, keys = found
         raise ValueError(

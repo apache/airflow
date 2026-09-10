@@ -28,7 +28,7 @@ import time_machine
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from airflow._shared.serialization import CLASSNAME, SERDE_RESERVED_DICT_KEYS
+from airflow._shared.serialization import CLASSNAME, FORBIDDEN_XCOM_KEYS
 from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
@@ -410,7 +410,7 @@ class TestUpdateHITLDetailEndpoint:
         assert "Invalid options" in response.json()["detail"]
 
     @pytest.mark.usefixtures("sample_hitl_detail")
-    @pytest.mark.parametrize("reserved_key", sorted(SERDE_RESERVED_DICT_KEYS))
+    @pytest.mark.parametrize("reserved_key", sorted(FORBIDDEN_XCOM_KEYS))
     @pytest.mark.parametrize(
         "make_params_input",
         [
@@ -419,14 +419,14 @@ class TestUpdateHITLDetailEndpoint:
             pytest.param(lambda key: {"items": [{key: "x"}]}, id="inside-list"),
         ],
     )
-    def test_should_respond_422_for_serde_reserved_key_in_params_input(
+    def test_should_respond_422_for_reserved_key_in_params_input(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         reserved_key: str,
         make_params_input: Callable[[str], dict[str, Any]],
     ) -> None:
-        """A params_input carrying a serde-reserved key at any depth is rejected (422) at submission time."""
+        """A params_input carrying a reserved key at any depth is rejected (422) at submission time."""
         response = test_client.patch(
             f"{sample_ti_url_identifier}/hitlDetails",
             json={"chosen_options": ["Approve"], "params_input": make_params_input(reserved_key)},
@@ -437,20 +437,13 @@ class TestUpdateHITLDetailEndpoint:
         assert reserved_key in detail
 
     @pytest.mark.usefixtures("sample_hitl_detail")
-    @pytest.mark.parametrize(
-        "params_input",
-        [
-            pytest.param({"input_1": {"__version__": 1, "__data__": "x"}}, id="non-serde-reserved-keys"),
-            pytest.param({"input_1": '{"__classname__": "x"}'}, id="json-string-stays-a-string"),
-        ],
-    )
-    def test_should_respond_200_for_params_input_serde_accepts(
+    def test_should_respond_200_for_json_string_holding_a_reserved_key(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
-        params_input: dict[str, Any],
     ) -> None:
-        """Only the two keys serde.serialize refuses are rejected, not the wider XCom set."""
+        """A string value stays a string through serde, so it is not decoded and searched."""
+        params_input = {"input_1": '{"__classname__": "x"}'}
         response = test_client.patch(
             f"{sample_ti_url_identifier}/hitlDetails",
             json={"chosen_options": ["Approve"], "params_input": params_input},
