@@ -223,7 +223,7 @@ class Connection:
         """
         Async version of :meth:`get_uri`, safe for use inside an async task.
 
-        Calls :meth:`aextra_dejson` so that secret masking uses ``asend()``
+        Calls `aextra_dejson` so that secret masking uses ``asend()``
         instead of the synchronous ``send()``, preventing
         ``DeadlockImminentError`` when invoked from within an async context.
         """
