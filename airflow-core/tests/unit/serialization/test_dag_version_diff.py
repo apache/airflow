@@ -361,17 +361,23 @@ def test_build_diff_classifies_fail_fast_as_schedule() -> None:
         ),
     ],
 )
-def test_build_diff_returns_unavailable_for_unsafe_inputs(base_data, target_data, reason) -> None:
+def test_build_diff_returns_unavailable_for_unsafe_inputs(base_data, target_data, reason, caplog) -> None:
     result = build_serialized_dag_diff(base_data=base_data, target_data=target_data)
 
     assert result["mode"] == "unavailable"
     assert result["changes"] == []
     assert result["unavailable_reason"] == reason
+    if reason == "serialized_dag_canonicalization_failed":
+        assert {
+            "event": "Serialized Dag diff canonicalization failed",
+            "base_schema_version": base_data["__version"],
+            "target_schema_version": target_data["__version"],
+        } in caplog
 
 
 @pytest.mark.parametrize("include_values", [False, True])
 @pytest.mark.parametrize("location", ["dag", "task", "provenance"])
-def test_build_diff_discards_changes_when_json_serialization_fails(location, include_values):
+def test_build_diff_discards_changes_when_json_serialization_fails(location, include_values, caplog):
     base = _build_payload(tasks=[{"task_id": "extract"}])
     target = copy.deepcopy(base)
     base["dag"]["catchup"] = True
@@ -396,9 +402,26 @@ def test_build_diff_discards_changes_when_json_serialization_fails(location, inc
     )
 
     assert result["mode"] == "unavailable"
-    assert result["unavailable_reason"] == "serialized_dag_canonicalization_failed"
+    assert result["unavailable_reason"] == "serialized_dag_json_encoding_failed"
     assert result["changes"] == []
     assert result["truncated"] is False
+    assert {
+        "event": "Serialized Dag diff JSON encoding failed",
+        "base_schema_version": 3,
+        "target_schema_version": 3,
+    } in caplog
+
+
+@pytest.mark.parametrize("error_type", [AttributeError, KeyError, TypeError, ValueError])
+@mock.patch.object(dag_version_diff, "_get_category", autospec=True)
+def test_build_diff_propagates_comparison_bugs(mock_get_category, error_type):
+    mock_get_category.side_effect = error_type("comparison bug")
+    base = _build_payload(tasks=[])
+    target = copy.deepcopy(base)
+    target["dag"]["catchup"] = False
+
+    with pytest.raises(error_type, match="comparison bug"):
+        build_serialized_dag_diff(base_data=base, target_data=target)
 
 
 def test_build_diff_rejects_non_positive_change_bound() -> None:
@@ -816,20 +839,105 @@ def test_build_diff_ignores_top_level_shadowing_behind_empty_partial_kwargs() ->
 
 
 @pytest.mark.parametrize("field", sorted(_OPERATOR_TIMEDELTA_FIELDS))
-def test_build_diff_normalizes_mapped_timedelta_defaults(field) -> None:
-    base = _build_payload(
-        tasks=[
-            {
-                "task_id": "extract",
-                "_is_mapped": True,
-                "partial_kwargs": {field: {"__type": "timedelta", "__var": 60.0}},
-            }
-        ]
-    )
-    target = _build_payload(tasks=[{"task_id": "extract", "_is_mapped": True, "partial_kwargs": {}}])
-    target["client_defaults"] = {"tasks": {field: 60.0}}
+@pytest.mark.parametrize("duration_source", ["encoded_partial", "plain_partial", "client_default"])
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_distinguishes_mapped_template_numbers_from_timedeltas(
+    field, duration_source, include_values
+):
+    with DAG("example", schedule=None) as dag:
+        BashOperator.partial(task_id="extract").expand(bash_command=["echo hello"])
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    base.get("client_defaults", {}).get("tasks", {}).pop(field, None)
+    base_task = base["dag"]["tasks"][0]["__var"]
+    base_task["partial_kwargs"].pop(field, None)
+    base_task["template_fields"].append(field)
+    base_task[field] = 60.0
+    target = copy.deepcopy(base)
+    target_task = target["dag"]["tasks"][0]["__var"]
+    target_task.pop(field)
+    if duration_source == "client_default":
+        target.setdefault("client_defaults", {}).setdefault("tasks", {})[field] = 60.0
+    else:
+        target_task["partial_kwargs"][field] = (
+            {"__type": "timedelta", "__var": 60.0} if duration_source == "encoded_partial" else 60.0
+        )
+    stored_payloads = copy.deepcopy((base, target))
+    for payload, expected in ((base, 60.0), (target, timedelta(seconds=60))):
+        DagSerialization.validate_schema(payload)
+        actual = getattr(DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["extract"], field)
+        assert actual == expected
+        assert type(actual) is type(expected)
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
+
+    assert result["mode"] == "observed_state"
+    assert len(result["changes"]) == 1
+    change = result["changes"][0]
+    task_id = "extract" if include_values else "*"
+    assert change["path"] == f"/dag/tasks/{task_id}/partial_kwargs/{field}"
+    assert change["operation"] == "changed"
+    if include_values:
+        assert change["before_value"] == 60.0
+        assert change["after_value"] == {"__type": "timedelta", "__var": 60.0}
+    assert (base, target) == stored_payloads
+
+
+@pytest.mark.parametrize("field", sorted(_OPERATOR_TIMEDELTA_FIELDS))
+@pytest.mark.parametrize("duration_source", ["encoded_partial", "plain_partial", "client_default"])
+def test_build_diff_normalizes_mapped_timedelta_defaults(field, duration_source) -> None:
+    with DAG("example", schedule=None) as dag:
+        BashOperator.partial(task_id="extract").expand(bash_command=["echo hello"])
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    base.get("client_defaults", {}).get("tasks", {}).pop(field, None)
+    base_task = base["dag"]["tasks"][0]["__var"]
+    base_task["template_fields"].append(field)
+    base_task[field] = 60.0
+    base_task["partial_kwargs"][field] = {"__type": "timedelta", "__var": 60.0}
+    target = copy.deepcopy(base)
+    target_task = target["dag"]["tasks"][0]["__var"]
+    target_task[field] = 120.0
+    if duration_source == "client_default":
+        target_task["partial_kwargs"].pop(field)
+        target.setdefault("client_defaults", {}).setdefault("tasks", {})[field] = 60.0
+    elif duration_source == "plain_partial":
+        target_task["partial_kwargs"][field] = 60.0
+    for payload in (base, target):
+        DagSerialization.validate_schema(payload)
+        assert getattr(
+            DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["extract"], field
+        ) == timedelta(seconds=60)
 
     result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=True)
+
+    assert result["mode"] == "observed_state"
+    assert result["changes"] == []
+
+
+@pytest.mark.parametrize(
+    "field",
+    sorted(_OPERATOR_TIMEDELTA_FIELDS & DagSerialization.get_schema_defaults("operator").keys()),
+)
+@pytest.mark.parametrize("stores_partial_kwargs", [True, False])
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_normalizes_mapped_timedelta_schema_defaults(field, stores_partial_kwargs, include_values):
+    default = DagSerialization.get_schema_defaults("operator")[field]
+    with DAG("example", schedule=None) as dag:
+        BashOperator.partial(task_id="extract").expand(bash_command=["echo hello"])
+    base = json.loads(json.dumps(DagSerialization.to_dict(dag)))
+    base.get("client_defaults", {}).get("tasks", {}).pop(field, None)
+    base_task = base["dag"]["tasks"][0]["__var"]
+    base_task["partial_kwargs"].pop(field, None)
+    if not stores_partial_kwargs:
+        base_task.pop("partial_kwargs")
+    target = copy.deepcopy(base)
+    target["dag"]["tasks"][0]["__var"].setdefault("partial_kwargs", {})[field] = default
+    for payload in (base, target):
+        DagSerialization.validate_schema(payload)
+        assert getattr(
+            DagSerialization.from_dict(copy.deepcopy(payload)).task_dict["extract"], field
+        ) == timedelta(seconds=default)
+
+    result = build_serialized_dag_diff(base_data=base, target_data=target, include_values=include_values)
 
     assert result["mode"] == "observed_state"
     assert result["changes"] == []

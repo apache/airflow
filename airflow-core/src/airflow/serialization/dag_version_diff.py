@@ -27,6 +27,8 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Literal
 
+import structlog
+
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.serialized_objects import (
@@ -35,6 +37,8 @@ from airflow.serialization.serialized_objects import (
     DagSerialization,
     OperatorSerialization,
 )
+
+log = structlog.get_logger(__name__)
 
 DIFF_SCHEMA_VERSION = 1
 DEFAULT_MAX_CHANGES = 500
@@ -205,7 +209,9 @@ def build_serialized_dag_diff(
     Build a bounded, deterministic diff from two stored serialized Dag payloads.
 
     Raw values, digests, and value-derived path components are returned only when
-    ``include_values`` is true.
+    ``include_values`` is true. Callers must authorize disclosure of the entire
+    serialized payload, including access-control role names and permission mappings,
+    before enabling it.
     """
     validate_max_changes(max_changes)
 
@@ -236,11 +242,25 @@ def build_serialized_dag_diff(
         target_document["provenance"] = _canonicalize_value(
             dict(target_provenance or {}), path=("provenance",)
         )
-
-        collector = _ChangeCollector(max_changes=max_changes, include_values=include_values)
-        _collect_changes(base_document, target_document, path=(), collector=collector)
-    except (AttributeError, KeyError, OverflowError, TypeError, ValueError):
+    except (AttributeError, KeyError, OverflowError, TypeError, ValueError) as error:
+        log.warning(
+            "Serialized Dag diff canonicalization failed",
+            error_type=type(error).__name__,
+            base_schema_version=base_schema_version,
+            target_schema_version=target_schema_version,
+        )
         return _mark_unavailable(result, "serialized_dag_canonicalization_failed")
+
+    collector = _ChangeCollector(max_changes=max_changes, include_values=include_values)
+    try:
+        _collect_changes(base_document, target_document, path=(), collector=collector)
+    except _JsonEncodingError:
+        log.warning(
+            "Serialized Dag diff JSON encoding failed",
+            base_schema_version=base_schema_version,
+            target_schema_version=target_schema_version,
+        )
+        return _mark_unavailable(result, "serialized_dag_json_encoding_failed")
 
     result["changes"] = collector.changes
     result["truncated"] = collector.is_truncated
@@ -365,6 +385,14 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
     partial_fields = (
         SerializedBaseOperator.get_serialized_fields() - SerializedMappedOperator.get_serialized_fields()
     )
+    # A mapped task resolves these through partial_kwargs, so their defaults have to be applied
+    # there and encoded like any other partial value rather than left at the outer level.
+    partial_schema_defaults = {
+        field: value for field, value in schema_defaults.items() if field in partial_fields
+    }
+    outer_schema_defaults = {
+        field: value for field, value in schema_defaults.items() if field not in partial_fields
+    }
     tasks = payload["dag"].get("tasks", [])
     if not isinstance(tasks, list):
         raise ValueError("dag.tasks is not a list")
@@ -374,15 +402,16 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
         encoded_task = OperatorSerialization._apply_defaults_to_encoded_op(
             dict(task["__var"]), dict(client_defaults)
         )
-        task_data = {**schema_defaults, **OperatorSerialization._upgrade_encoded_operator(encoded_task)}
-        if task_data.get("_is_mapped"):
+        upgraded_task = OperatorSerialization._upgrade_encoded_operator(encoded_task)
+        if upgraded_task.get("_is_mapped"):
+            task_data = {**outer_schema_defaults, **upgraded_task}
             partial_kwargs = task_data.get("partial_kwargs", {})
             if not isinstance(partial_kwargs, Mapping):
                 raise ValueError("partial_kwargs is not an object")
             # populate_operator only folds client defaults into partial_kwargs when the payload
             # carries the key, so an absent one leaves the top-level value as the effective value.
             effective_partial_kwargs = (
-                {field: _encode_json_value(value) for field, value in task_defaults.items()}
+                {field: _encode_partial_field_value(field, value) for field, value in task_defaults.items()}
                 if "partial_kwargs" in task_data
                 else {}
             )
@@ -390,23 +419,30 @@ def _apply_task_defaults(payload: dict[str, Any]) -> None:
                 if isinstance(value, Mapping) and "__type" in value and "__var" in value:
                     effective_partial_kwargs[field] = value
                 else:
-                    effective_partial_kwargs[field] = _encode_json_value(value)
+                    effective_partial_kwargs[field] = _encode_partial_field_value(field, value)
             # Match populate_operator: partial values take precedence over outer task defaults.
+            template_fields = task_data.get("template_fields", [])
             for field in partial_fields & task_data.keys():
                 value = task_data.pop(field)
                 # Outer fields are already encoded unless template handling bypasses deserialization.
-                if field in task_data.get("template_fields", []):
+                if field in template_fields:
                     value = _encode_json_value(value)
                 effective_partial_kwargs.setdefault(field, value)
-            for field in _OPERATOR_TIMEDELTA_FIELDS:
-                value = effective_partial_kwargs.get(field)
-                if isinstance(value, Mapping) and value.get("__type") == "timedelta" and "__var" in value:
-                    effective_partial_kwargs[field] = value["__var"]
+            for field, value in partial_schema_defaults.items():
+                effective_partial_kwargs.setdefault(field, _encode_partial_field_value(field, value))
             task_data["partial_kwargs"] = effective_partial_kwargs
             _normalize_retry_backoff(effective_partial_kwargs)
         else:
+            task_data = {**schema_defaults, **upgraded_task}
             _normalize_retry_backoff(task_data)
         task["__var"] = task_data
+
+
+def _encode_partial_field_value(field: str, value: Any) -> Any:
+    # Only partial kwargs and client defaults use field-specific timedelta deserialization.
+    if field in _OPERATOR_TIMEDELTA_FIELDS and value is not None:
+        return {"__type": "timedelta", "__var": value}
+    return _encode_json_value(value)
 
 
 def _encode_json_value(value: Any) -> Any:
@@ -608,8 +644,15 @@ def _format_path(path: tuple[str, ...]) -> str:
     return "/" + "/".join(component.replace("~", "~0").replace("/", "~1") for component in path)
 
 
+class _JsonEncodingError(TypeError):
+    """Distinguish unsupported JSON values from comparison implementation errors."""
+
+
 def _serialize_canonical_json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    try:
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    except TypeError as error:
+        raise _JsonEncodingError from error
 
 
 def _is_json_equal(before: Any, after: Any) -> bool:
