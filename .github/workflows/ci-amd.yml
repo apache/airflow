@@ -55,6 +55,7 @@ on:  # yamllint disable-line rule:truthy
       - airflow-ctl/v[0-9]+-[0-9]+-test
   workflow_dispatch:
 permissions:
+  actions: read
   # All other permissions are set to none by default
   contents: read
 env:
@@ -268,6 +269,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
+      actions: read
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
@@ -875,6 +877,7 @@ jobs:
     needs: [build-info, build-ci-images, generate-constraints]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
+      actions: read
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.

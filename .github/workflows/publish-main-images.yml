@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Publish reusable main images
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**/pyproject.toml'
+      - uv.lock
+      - '**/provider.yaml'
+      - Dockerfile
+      - Dockerfile.ci
+      - .dockerignore
+      - scripts/docker/**
+      - scripts/in_container/**
+      - scripts/ci/resolve_main_image.sh
+      - scripts/ci/configure_prod_image_cache.sh
+      - dev/breeze/**
+      - prod_image_installed_providers.txt
+      - .github/workflows/*image*.yml
+      - .github/workflows/generate-constraints.yml
+      - .github/actions/resolve_main_image/**
+      - .github/actions/prepare_breeze_and_image/**
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: publish-main-images
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runners: '["ubuntu-22.04"]'
+            artifact-prefix: amd64-
+          - platform: linux/arm64
+            runners: '["ubuntu-22.04-arm"]'
+            artifact-prefix: arm64-
+    uses: ./.github/workflows/publish-main-images-platform.yml
+    with:
+      platform: ${{ matrix.platform }}
+      runners: ${{ matrix.runners }}
+      artifact-prefix: ${{ matrix.artifact-prefix }}

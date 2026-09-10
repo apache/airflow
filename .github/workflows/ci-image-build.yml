@@ -20,6 +20,10 @@ name: Build CI images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      publish-main-image:
+        description: "Publish verified images for the dedicated main publisher"
+        type: boolean
+        default: false
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -123,6 +127,7 @@ on:  # yamllint disable-line rule:truthy
         default: ""
         type: string
 permissions:
+  actions: read
   contents: read
 jobs:
   build-ci-images:
@@ -151,6 +156,18 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Resolve compatible main CI image"
+        id: main-image
+        if: inputs.publish-main-image
+        uses: ./.github/actions/resolve_main_image
+        with:
+          kind: ci
+          publish: ${{ inputs.publish-main-image }}
+          python: ${{ matrix.python-version }}
+          platform: ${{ inputs.platform }}
+          disabled: "true"
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
@@ -158,8 +175,6 @@ jobs:
         run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"
         run: ./scripts/ci/move_docker_to_mnt.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
       # A ref is not a commit: a branch documented twice moves between the two publishes, and
       # an image built before it moved is a cache, not an answer. The commit each stashed image
       # is saved with tells the two apart, and it is stashed separately so that deciding costs
@@ -295,6 +310,8 @@ jobs:
           echo "Build with ${DOCKER_CACHE} cache failed - retrying with the cache disabled."
           DOCKER_CACHE="disabled" breeze ci-image build --platform "${PLATFORM}"
         env:
+          PYTHON_IMAGE: ${{ steps.main-image.outputs.base-image }}
+          REQUIRE_FROZEN_DEPENDENCIES: ${{ inputs.publish-main-image }}
           RETRY_WITHOUT_CACHE: ${{ inputs.retry-without-cache }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
@@ -321,6 +338,9 @@ jobs:
           docker rmi "${CACHE_FROM_IMAGE}"
         shell: bash
         if: always() && env.CACHE_FROM_IMAGE != ''
+      - name: "Verify shared CI image"
+        if: inputs.publish-main-image
+        run: breeze ci-image verify
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
@@ -329,7 +349,9 @@ jobs:
           breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
           git rev-parse HEAD > "${COMMIT_FILE}"
         shell: bash
-        if: inputs.upload-image-artifact == 'true' && steps.stashed-image.outputs.reusable != 'true'
+        if: >-
+          inputs.upload-image-artifact == 'true' &&
+          steps.stashed-image.outputs.reusable != 'true'
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
@@ -337,7 +359,9 @@ jobs:
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
-        if: inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == ''
+        if: >-
+          inputs.upload-image-artifact == 'true' &&
+          inputs.image-stash-ref == ''
       # The per-branch stash above is written by every build on this branch, so an image built
       # from a ref other than the branch tip cannot live there: whoever restores it next would
       # get sources they never asked for. The ref keeps its own stash instead, which is also
@@ -393,3 +417,15 @@ jobs:
           steps.stashed-image.outputs.reusable != 'true'
       - name: "Check disk space after build"
         run: df -H
+      - name: "Publish verified main CI image"
+        if: >-
+          inputs.publish-main-image && steps.main-image.outputs.publication-exists != 'true' &&
+          github.repository == 'apache/airflow' &&
+          github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.main-image.outputs.artifact-name }}
+          path: /mnt/ci-image-save-*-${{ matrix.python-version }}.tar
+          compression-level: 6
+          retention-days: 7
+          if-no-files-found: error

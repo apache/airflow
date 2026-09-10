@@ -20,6 +20,14 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      publish-main-image:
+        description: "Publish verified images for the dedicated main publisher"
+        type: boolean
+        default: false
+      artifact-prefix:
+        description: "Namespace package and constraint artifacts when publishing multiple architectures"
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -110,6 +118,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 permissions:
+  actions: read
   contents: read
 jobs:
   build-prod-packages:
@@ -182,7 +191,9 @@ jobs:
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: prod-packages
+          name: ${{ inputs.artifact-prefix }}prod-packages
+          # Publisher intermediates stay within this run; replacement also permits partial reruns.
+          overwrite: ${{ inputs.artifact-prefix != '' }}
           path: ./dist
           retention-days: 7
           if-no-files-found: error
@@ -223,23 +234,56 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: "Make /mnt writeable"
-        run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: "Cleanup dist and context file"
-        shell: bash
-        run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Download packages prepared as artifacts"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        with:
-          name: prod-packages
-          path: ./docker-context-files
       - name: "Download constraints"
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          name: constraints-${{ matrix.python-version }}
+          name: ${{ inputs.artifact-prefix }}constraints-${{ matrix.python-version }}
           path: ./docker-context-files/constraints-${{ matrix.python-version }}
+      - name: "Resolve compatible main PROD image"
+        id: main-image
+        if: inputs.publish-main-image
+        uses: ./.github/actions/resolve_main_image
+        with:
+          kind: prod
+          constraints-file: "docker-context-files/constraints-${{ matrix.python-version }}\
+            /constraints-source-providers-${{ matrix.python-version }}.txt"
+          publish: ${{ inputs.publish-main-image }}
+          python: ${{ matrix.python-version }}
+          platform: ${{ inputs.platform }}
+          disabled: "true"
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Cleanup dist and context file"
+        shell: bash
+        run: rm -fv ./dist/* ./docker-context-files/*.whl
+      - name: "Download packages prepared as artifacts"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}prod-packages
+          path: ./docker-context-files
+      - name: "Resolve reusable production dependency layers"
+        id: dependency-cache
+        if: inputs.publish-main-image
+        uses: ./.github/actions/resolve_main_image
+        with:
+          kind: prod-dependencies
+          base-image: ${{ steps.main-image.outputs.base-image }}
+          publish: ${{ inputs.publish-main-image }}
+          python: ${{ matrix.python-version }}
+          platform: ${{ inputs.platform }}
+          disabled: "true"
+      - name: "Configure production dependency cache"
+        if: >-
+          inputs.build-type == 'Regular' &&
+          inputs.publish-main-image && inputs.docker-cache != 'disabled' &&
+          inputs.upgrade-to-newer-dependencies != 'true' && inputs.use-uv == 'true'
+        shell: bash
+        env:
+          CACHE_RESTORED: "false"
+          PUBLISH_CACHE: ${{ inputs.publish-main-image }}
+        run: ./scripts/ci/configure_prod_image_cache.sh
       - name: "Show downloaded files"
         run: ls -R ./docker-context-files
       - name: "Show constraints"
@@ -267,6 +311,8 @@ jobs:
           --airflow-constraints-mode constraints-source-providers
           --use-constraints-for-context-distributions
         env:
+          PYTHON_IMAGE: >-
+            ${{ steps.main-image.outputs.base-image || steps.dependency-cache.outputs.base-image }}
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
@@ -290,4 +336,29 @@ jobs:
           path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
-        if: inputs.upload-image-artifact == 'true'
+        if: >-
+          inputs.upload-image-artifact == 'true'
+      - name: "Publish verified main PROD image"
+        if: >-
+          inputs.publish-main-image && steps.main-image.outputs.publication-exists != 'true' &&
+          github.repository == 'apache/airflow' &&
+          github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.main-image.outputs.artifact-name }}
+          path: /mnt/prod-image-save-*-${{ matrix.python-version }}.tar
+          compression-level: 6
+          retention-days: 7
+          if-no-files-found: error
+      - name: "Publish verified production dependency layers"
+        if: >-
+          inputs.publish-main-image && steps.dependency-cache.outputs.publication-exists != 'true' &&
+          github.repository == 'apache/airflow' &&
+          github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ steps.dependency-cache.outputs.artifact-name }}
+          path: /mnt/prod-dependencies-cache-out
+          compression-level: 6
+          retention-days: 7
+          if-no-files-found: error
