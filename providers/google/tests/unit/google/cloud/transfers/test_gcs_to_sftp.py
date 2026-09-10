@@ -597,6 +597,7 @@ class TestGoogleCloudStorageToSFTPOperator:
     def test_execute_skips_folder_markers_colliding_with_their_children(self, sftp_hook_mock, gcs_hook_mock):
         """``folder/`` normalises to the path its children need as a directory."""
         gcs_hook_mock.return_value.list.return_value = ["folder/", "folder/file.txt", "lonely/"]
+        sftp_hook_mock.return_value.isdir.return_value = False
         operator = GCSToSFTPOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
@@ -611,3 +612,46 @@ class TestGoogleCloudStorageToSFTPOperator:
             mock.call(os.path.join(DESTINATION_SFTP, "folder/file.txt"), mock.ANY),
             mock.call(os.path.join(DESTINATION_SFTP, "lonely"), mock.ANY),
         ]
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
+    def test_execute_skips_marker_whose_destination_is_already_a_directory(
+        self, sftp_hook_mock, gcs_hook_mock
+    ):
+        """After ``move_object`` took the children, the marker is listed alone but its target is not free."""
+        gcs_hook_mock.return_value.list.return_value = ["folder/"]
+        sftp_hook_mock.return_value.isdir.return_value = True
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="*",
+            destination_path=DESTINATION_SFTP,
+            move_object=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        sftp_hook_mock.return_value.store_file.assert_not_called()
+        gcs_hook_mock.return_value.delete.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
+    def test_execute_transfers_marker_whose_destination_is_free(self, sftp_hook_mock, gcs_hook_mock):
+        gcs_hook_mock.return_value.list.return_value = ["lonely/"]
+        sftp_hook_mock.return_value.isdir.return_value = False
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="*",
+            destination_path=DESTINATION_SFTP,
+            move_object=True,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        sftp_hook_mock.return_value.store_file.assert_called_once_with(
+            os.path.join(DESTINATION_SFTP, "lonely"), mock.ANY
+        )
+        gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, "lonely/")

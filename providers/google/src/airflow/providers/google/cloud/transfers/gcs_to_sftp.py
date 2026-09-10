@@ -184,6 +184,17 @@ class GCSToSFTPOperator(BaseOperator):
             # objects = gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             objects, dropped_keys = self._strip_overlapping_folder_markers(objects)
+            # With move_object a marker's children leave the bucket, so a later run sees the
+            # marker alone and keeps it. Its target is the directory those children created.
+            occupied = [
+                obj
+                for obj in objects
+                if obj.endswith("/")
+                and self.sftp_hook.isdir(self._resolve_destination_path(obj, prefix=prefix_dirname))
+            ]
+            if occupied:
+                objects = [obj for obj in objects if obj not in occupied]
+                dropped_keys += occupied
             if dropped_keys:
                 self.log.info(
                     "Skipping %s GCS folder-marker key(s) (omitted from transfer): %s",
