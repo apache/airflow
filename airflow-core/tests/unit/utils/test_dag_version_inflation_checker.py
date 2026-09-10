@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ast
+from textwrap import dedent
 
 from airflow.utils.dag_version_inflation_checker import (
     AirflowRuntimeVaryingValueChecker,
@@ -364,22 +365,26 @@ class TestDAGTaskDetector:
         assert result is True
 
     def test_is_task_decorator__check_when_normal_decorator(self):
-        code = """
-@task(task_id='task_id')
-def test():
-    print("test")
-"""
+        code = dedent(
+            """
+            @task(task_id='task_id')
+            def test():
+                print("test")
+            """
+        )
         call_node = ast.parse(code).body
 
         assert isinstance(call_node[0], ast.FunctionDef)
         assert self.detector.is_task_decorator(call_node[0].decorator_list[0]) is True
 
     def test_is_task_decorator__check_when_attribute_decorator(self):
-        code = """
-@sdk.task
-def test():
-    print("test")
-        """
+        code = dedent(
+            """
+            @sdk.task
+            def test():
+                print("test")
+            """
+        )
         call_node = ast.parse(code).body
 
         assert isinstance(call_node[0], ast.FunctionDef)
@@ -453,10 +458,12 @@ class TestAirflowRuntimeVaryingValueChecker:
 
     def test_visit_assign__registers_dag_instance(self):
         """When assigning DAG(), remember the variable name."""
-        code = """
-from airflow import DAG
-my_dag = DAG(dag_id="test")
-"""
+        code = dedent(
+            """
+            from airflow import DAG
+            my_dag = DAG(dag_id="test")
+            """
+        )
         tree = ast.parse(code)
 
         self.checker.visit(tree)
@@ -465,10 +472,12 @@ my_dag = DAG(dag_id="test")
 
     def test_visit_assign__tracks_varying_variable(self):
         """When assigning a runtime-varying value, track the variable."""
-        code = """
-from datetime import datetime
-current_time = datetime.now()
-"""
+        code = dedent(
+            """
+            from datetime import datetime
+            current_time = datetime.now()
+            """
+        )
         tree = ast.parse(code)
 
         self.checker.visit(tree)
@@ -479,11 +488,13 @@ current_time = datetime.now()
 
     def test_visit_assign__warns_on_dag_with_varying_value(self):
         """Warn when Dag constructor uses runtime-varying values."""
-        code = """
-from airflow import DAG
-from datetime import datetime
-dag = DAG(dag_id=f"dag_{datetime.now()}")
-"""
+        code = dedent(
+            """
+            from airflow import DAG
+            from datetime import datetime
+            dag = DAG(dag_id=f"dag_{datetime.now()}")
+            """
+        )
         tree = ast.parse(code)
 
         self.checker.visit(tree)
@@ -493,14 +504,16 @@ dag = DAG(dag_id=f"dag_{datetime.now()}")
 
     def test_visit_call__detects_task_in_dag_context(self):
         """Detect task creation inside Dag with block."""
-        code = """
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from datetime import datetime
+        code = dedent(
+            """
+            from airflow import DAG
+            from airflow.operators.python import PythonOperator
+            from datetime import datetime
 
-with DAG(dag_id="test") as dag:
-    task = PythonOperator(task_id=f"task_{datetime.now()}") # !problem
-"""
+            with DAG(dag_id="test") as dag:
+                task = PythonOperator(task_id=f"task_{datetime.now()}") # !problem
+            """
+        )
         tree = ast.parse(code)
 
         self.checker.visit(tree)
@@ -510,22 +523,24 @@ with DAG(dag_id="test") as dag:
 
     def test_visit_for__warns_on_varying_range(self):
         """Warn when for-loop range is runtime-varying."""
-        code = """
-from airflow import DAG
-from airflow.operators.bash import BashOperator
-from datetime import datetime
+        code = dedent(
+            """
+            from airflow import DAG
+            from airflow.operators.bash import BashOperator
+            from datetime import datetime
 
-with DAG(
-    dag_id=dag_id,
-    schedule_interval='@daily',
-) as dag:
-    for i in [datetime.now(), "3"]:
-        task = BashTask(
-            task_id='print_bash_hello_{i}',
-            bash_command=f'echo "Hello from DAG {i}!"',  # !problem
-            dag=dag,
+            with DAG(
+                dag_id=dag_id,
+                schedule_interval='@daily',
+            ) as dag:
+                for i in [datetime.now(), "3"]:
+                    task = BashTask(
+                        task_id='print_bash_hello_{i}',
+                        bash_command=f'echo "Hello from DAG {i}!"',  # !problem
+                        dag=dag,
+                    )
+            """
         )
-"""
         tree = ast.parse(code)
 
         self.checker.visit(tree)
@@ -578,51 +593,55 @@ class TestIntegrationScenarios:
 
     def test_antipattern__dynamic_dag_id_with_timestamp(self):
         """ANTI-PATTERN: Using timestamps in Dag IDs."""
-        code = """
-from airflow import DAG
-from datetime import datetime
+        code = dedent(
+            """
+            from airflow import DAG
+            from datetime import datetime
 
-# BAD: Dag ID includes current timestamp
-dag = DAG(dag_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-"""
+            # BAD: Dag ID includes current timestamp
+            dag = DAG(dag_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            """
+        )
         warnings = self._check_code(code)
 
         assert len(warnings) == 1
         assert any("datetime.now()" in w.code for w in warnings)
 
     def test_define_dag_with_block(self):
-        code = """
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
-import uuid
-from datetime import datetime as dt
+        code = dedent(
+            """
+            from airflow import DAG
+            from airflow.operators.python import PythonOperator
+            from airflow.operators.bash import BashOperator
+            import uuid
+            from datetime import datetime as dt
 
-start_date = dt.now()
+            start_date = dt.now()
 
-default_args = {
-    'start_date': start_date
-}
+            default_args = {
+                'start_date': start_date
+            }
 
-with DAG(
-    dag_id="my_dag",
-    default_args=default_args # !problem
-) as dag, Test(default_args=default_args) as test:
-    task1 = PythonOperator(
-        task_id=f"task_{uuid.uuid4()}", # !problem
-        python_callable=lambda: None
-    )
+            with DAG(
+                dag_id="my_dag",
+                default_args=default_args # !problem
+            ) as dag, Test(default_args=default_args) as test:
+                task1 = PythonOperator(
+                    task_id=f"task_{uuid.uuid4()}", # !problem
+                    python_callable=lambda: None
+                )
 
-    task2 = BashOperator(
-        task_id=f"task_{dt.now()}" # !problem
-    )
+                task2 = BashOperator(
+                    task_id=f"task_{dt.now()}" # !problem
+                )
 
-    task3 = BashOperator(
-        task_id="task_for_normal_case"
-    )
+                task3 = BashOperator(
+                    task_id="task_for_normal_case"
+                )
 
-    task1 >> task2 >> task3
-"""
+                task1 >> task2 >> task3
+            """
+        )
         warnings = self._check_code(code)
 
         assert len(warnings) == 3
@@ -631,47 +650,49 @@ with DAG(
         assert any("default_args" in w.code for w in warnings)
 
     def test_correct_pattern__static_dag_with_runtime_context(self):
-        code = """
-from airflow import DAG
-from airflow.models.param import Param
-from airflow.operators.bash import BashOperator
-from datetime import datetime
-from mydule import test_function
+        code = dedent(
+            """
+            from airflow import DAG
+            from airflow.models.param import Param
+            from airflow.operators.bash import BashOperator
+            from datetime import datetime
+            from mydule import test_function
 
-import time
+            import time
 
-current_timestamp = time.time()
-local_time = time.localtime()
+            current_timestamp = time.time()
+            local_time = time.localtime()
 
-dag = DAG(
-    dag_id='time_module_dag',
-    start_date=datetime(2024, 1, 1),
-    schedule_interval='@daily',
-    params={
-        "execution_date": Param(
-            default=f"manual_run_{datetime.now().isoformat()}", # !problem
-            description="Unique identifier for the run",
-            type="string",
-            minLength=10,
+            dag = DAG(
+                dag_id='time_module_dag',
+                start_date=datetime(2024, 1, 1),
+                schedule_interval='@daily',
+                params={
+                    "execution_date": Param(
+                        default=f"manual_run_{datetime.now().isoformat()}", # !problem
+                        description="Unique identifier for the run",
+                        type="string",
+                        minLength=10,
+                    )
+                },
+            )
+
+            b = test_function(time=current_timestamp)
+
+            task1 = BashOperator(
+                task_id='time_task',
+                bash_command=f'echo "Timestamp: {current_timestamp}"',  # !problem
+                dag=dag,
+            )
+
+            task2 = BashOperator(
+                task_id='time_task2',
+                dag=dag,
+            )
+
+            task1 >> task2
+            """
         )
-    },
-)
-
-b = test_function(time=current_timestamp)
-
-task1 = BashOperator(
-    task_id='time_task',
-    bash_command=f'echo "Timestamp: {current_timestamp}"',  # !problem
-    dag=dag,
-)
-
-task2 = BashOperator(
-    task_id='time_task2',
-    dag=dag,
-)
-
-task1 >> task2
-"""
         warnings = self._check_code(code)
 
         assert len(warnings) == 2
@@ -682,20 +703,22 @@ task1 >> task2
         """
         PATTERN: @dag decorator usage
         """
-        code = """
-from airflow.decorators import dag, task
-from datetime import datetime
-from random import random
+        code = dedent(
+            """
+            from airflow.decorators import dag, task
+            from datetime import datetime
+            from random import random
 
-@dag(dag_id=f"my_dag_{datetime.now()}") # !problem
-def my_dag_function():
+            @dag(dag_id=f"my_dag_{datetime.now()}") # !problem
+            def my_dag_function():
 
-    @task
-    def my_task():
-        return "hello"
+                @task
+                def my_task():
+                    return "hello"
 
-    my_task()
-"""
+                my_task()
+            """
+        )
         warnings = self._check_code(code)
         assert len(warnings) == 1
 
@@ -704,159 +727,171 @@ def my_dag_function():
         There are runtime-varying case in create_dag function.
         But the function doesn't use in here so doesn't make warning
         """
-        code = """
-from airflow import DAG
-from airflow.operators.bash import BashOperator
-from datetime import datetime
-import pendulum
+        code = dedent(
+            """
+            from airflow import DAG
+            from airflow.operators.bash import BashOperator
+            from datetime import datetime
+            import pendulum
 
-def create_dag(dag_id, task_id):
-    default_args = {
-        "depends_on_past": False,
-        "start_date": datetime.now()
-    }
+            def create_dag(dag_id, task_id):
+                default_args = {
+                    "depends_on_past": False,
+                    "start_date": datetime.now()
+                }
 
-    with DAG(
-        dag_id,
-        default_args=default_args, # not problem, because the function create_dag not called in statement
-    ) as dag:
-        task1 = BashOperator(
-            task_id=task_id
+                with DAG(
+                    dag_id,
+                    default_args=default_args, # not problem, because the function create_dag not called in statement
+                ) as dag:
+                    task1 = BashOperator(
+                        task_id=task_id
+                    )
+
+                return dag
+
+            now = pendulum.now()
+            seoul = now.in_timezone('Asia/Seoul')
+
+            for i in [datetime.now(), "3"]:
+                dag_id = f"dag_{i}_{random.randint(1, 1000)}"
+
+                dag = DAG(
+                    dag_id=dag_id,  # !problem
+                    schedule_interval='@daily',
+                    tags=[f"iteration_{i}"],
+                )
+
+                task1 = BashOperator(
+                    task_id='print_bash_hello',
+                    bash_command=f'echo "Hello from DAG {i}!"',  # !problem
+                    dag=dag,
+                )
+
+                task2 = BashOperator(
+                    task_id=f'random_task_{random.randint(1, 100)}',  # !problem
+                    bash_command='echo "World"',
+                    dag=dag,
+                )
+
+                task3 = BashOperator(
+                    task_id=f'random_task_in_{seoul}',  # !problem
+                    bash_command='echo "World"',
+                    dag=dag,
+                )
+
+                task1 >> task2 >> task3
+            """
         )
-
-    return dag
-
-now = pendulum.now()
-seoul = now.in_timezone('Asia/Seoul')
-
-for i in [datetime.now(), "3"]:
-    dag_id = f"dag_{i}_{random.randint(1, 1000)}"
-
-    dag = DAG(
-        dag_id=dag_id,  # !problem
-        schedule_interval='@daily',
-        tags=[f"iteration_{i}"],
-    )
-
-    task1 = BashOperator(
-        task_id='print_bash_hello',
-        bash_command=f'echo "Hello from DAG {i}!"',  # !problem
-        dag=dag,
-    )
-
-    task2 = BashOperator(
-        task_id=f'random_task_{random.randint(1, 100)}',  # !problem
-        bash_command='echo "World"',
-        dag=dag,
-    )
-
-    task3 = BashOperator(
-        task_id=f'random_task_in_{seoul}',  # !problem
-        bash_command='echo "World"',
-        dag=dag,
-    )
-
-    task1 >> task2 >> task3
-"""
         warnings = self._check_code(code)
         assert len(warnings) == 4
 
     def test_import_dag_from_sdk_module(self):
-        code = """
-from airflow import sdk
-from airflow.providers.standard.operators.python import PythonOperator
-from time import sleep
-import datetime
+        code = dedent(
+            """
+            from airflow import sdk
+            from airflow.providers.standard.operators.python import PythonOperator
+            from time import sleep
+            import datetime
 
-with sdk.DAG(
-    dag_id="test1",
-    schedule="* * * * *",
-    start_date=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1),
-    tags=["example"],
-) as dag:
-    PythonOperator(
-        task_id="test1_task",
-        python_callable=lambda: print(datetime.now()),
-    )
-"""
+            with sdk.DAG(
+                dag_id="test1",
+                schedule="* * * * *",
+                start_date=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1),
+                tags=["example"],
+            ) as dag:
+                PythonOperator(
+                    task_id="test1_task",
+                    python_callable=lambda: print(datetime.now()),
+                )
+            """
+        )
         warnings = self._check_code(code)
         assert len(warnings) == 1
 
     def test_python_task_with_task_decorator(self):
-        code = """
-from airflow.sdk import task, DAG
-import datetime
+        code = dedent(
+            """
+            from airflow.sdk import task, DAG
+            import datetime
 
-with DAG(
-    dag_id="test1",
-    schedule="* * * * *",
-    tags=["example"],
-) as dag:
-    # the function is serialized with code string byte, so it doesn't affect dag version
+            with DAG(
+                dag_id="test1",
+                schedule="* * * * *",
+                tags=["example"],
+            ) as dag:
+                # the function is serialized with code string byte, so it doesn't affect dag version
 
-    @task
-    def add_one_task(x: int):
-        from random import random
+                @task
+                def add_one_task(x: int):
+                    from random import random
 
-        for i in range(int(random() * 50)):
-            do_task(f"Simulating work... {i+1}")
-            sleep(1)
-        return x + 1
+                    for i in range(int(random() * 50)):
+                        do_task(f"Simulating work... {i+1}")
+                        sleep(1)
+                    return x + 1
 
-    #!problem
-    @task(task_id=datetime.now())
-    def test_task():
-        print("test")
+                #!problem
+                @task(task_id=datetime.now())
+                def test_task():
+                    print("test")
 
-    add_one(3)
-"""
+                add_one(3)
+            """
+        )
         warnings = self._check_code(code)
         assert len(warnings) == 1
 
     def test_nested_non_dag_with_does_not_exit_dag_context(self):
         """A non-Dag with-statement nested inside a Dag with-block must not exit the Dag context."""
-        code = """
-from airflow import DAG
-from datetime import datetime
-from airflow.operators.bash import BashOperator
+        code = dedent(
+            """
+            from airflow import DAG
+            from datetime import datetime
+            from airflow.operators.bash import BashOperator
 
-with DAG('my_dag') as dag:
-    with open('some_file.txt') as f:
-        data = f.read()
-    t1 = BashOperator(
-        task_id='test',
-        bash_command=str(datetime.now()),  # !problem
-    )
-"""
+            with DAG('my_dag') as dag:
+                with open('some_file.txt') as f:
+                    data = f.read()
+                t1 = BashOperator(
+                    task_id='test',
+                    bash_command=str(datetime.now()),  # !problem
+                )
+            """
+        )
         warnings = self._check_code(code)
         assert len(warnings) == 1
 
     def test_task_inside_nested_non_dag_with_is_still_flagged(self):
         """A task constructed inside a nested non-Dag with-block is still in Dag context."""
-        code = """
-from airflow import DAG
-from datetime import datetime
-from airflow.operators.bash import BashOperator
+        code = dedent(
+            """
+            from airflow import DAG
+            from datetime import datetime
+            from airflow.operators.bash import BashOperator
 
-with DAG('my_dag') as dag:
-    with open('a.txt') as f:
-        t1 = BashOperator(task_id='t', bash_command=str(datetime.now()))  # !problem
-"""
+            with DAG('my_dag') as dag:
+                with open('a.txt') as f:
+                    t1 = BashOperator(task_id='t', bash_command=str(datetime.now()))  # !problem
+            """
+        )
         warnings = self._check_code(code)
         assert len(warnings) == 1
 
     def test_task_outside_dag_with_not_flagged(self):
         """Tasks genuinely outside any Dag block must not be flagged."""
-        code = """
-from airflow import DAG
-from datetime import datetime
-from airflow.operators.bash import BashOperator
+        code = dedent(
+            """
+            from airflow import DAG
+            from datetime import datetime
+            from airflow.operators.bash import BashOperator
 
-with DAG('my_dag') as dag:
-    with open('a.txt') as f:
-        pass
+            with DAG('my_dag') as dag:
+                with open('a.txt') as f:
+                    pass
 
-t_outside = BashOperator(task_id='outside', bash_command=str(datetime.now()))
-"""
+            t_outside = BashOperator(task_id='outside', bash_command=str(datetime.now()))
+            """
+        )
         warnings = self._check_code(code)
         assert len(warnings) == 0

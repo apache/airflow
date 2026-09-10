@@ -3942,6 +3942,7 @@ class TestGetTaskStates:
             params={
                 "dag_id": "test_get_task_group_states_with_multiple_task_tasks",
                 "task_group_id": "group1",
+                "task_ids": ["task2"],
             },
         )
         assert response.status_code == 200
@@ -3949,6 +3950,7 @@ class TestGetTaskStates:
             "task_states": {
                 "test": {
                     "group1.task1": "success",
+                    "task2": "failed",
                 },
             },
         }

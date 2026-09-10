@@ -200,6 +200,48 @@ class TestFastApiSecurity:
         mock_resolve_user_from_token.assert_called_once_with("cookie_token")
 
     @pytest.mark.parametrize(
+        ("oauth_token", "bearer_credentials_creds", "expected"),
+        [
+            pytest.param(None, "bearer_token", "bearer_token", id="bearer"),
+            pytest.param("oauth_token", None, "oauth_token", id="oauth"),
+        ],
+    )
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_explicit_credential_beats_cookie_user(
+        self, mock_resolve_user_from_token, oauth_token, bearer_credentials_creds, expected
+    ):
+        """An explicitly supplied credential wins over the cookie-derived session user.
+
+        `JWTRefreshMiddleware` resolves a user from the `_token` cookie alone and stamps
+        it on `request.state`. When the client *also* presents an explicit credential,
+        that credential is the identity the caller asked to act as, so it must be the one
+        that is resolved — otherwise the request executes, and is audit-logged, as the
+        cookie's principal instead.
+        """
+        from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+
+        cookie_user = Mock(name="cookie_user")
+        token_user = Mock(name="token_user")
+        mock_resolve_user_from_token.return_value = token_user
+
+        request = Mock()
+        request.state.user = cookie_user
+        request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+        request.cookies = {COOKIE_NAME_JWT_TOKEN: "cookie_token"}
+
+        bearer_credentials = None
+        if bearer_credentials_creds:
+            bearer_credentials = Mock()
+            bearer_credentials.scheme = "bearer"
+            bearer_credentials.credentials = bearer_credentials_creds
+
+        result = await get_user(request, oauth_token, bearer_credentials)
+
+        assert result == token_user
+        assert result != cookie_user
+        mock_resolve_user_from_token.assert_called_once_with(expected)
+
+    @pytest.mark.parametrize(
         ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),
         [
             ("oauth_token", None, {}, "oauth_token"),

@@ -191,6 +191,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             self.serialize_user(user)
         )
 
+    def generate_api_jwt(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
+    ) -> str:
+        """
+        Return the JWT token for a client that authenticates with the ``Authorization`` header.
+
+        Such a client sends no cookies, so an auth manager that keeps part of its state in
+        cookies has to put that state in the token's claims instead for the request to be
+        authorized. Auth managers whose tokens are already self-contained need not override
+        this.
+
+        :param user: the user to generate the token for
+        :param expiration_time_in_seconds: expiration time in seconds of the token
+        """
+        return self.generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
+
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""

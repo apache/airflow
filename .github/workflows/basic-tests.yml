@@ -283,7 +283,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{ steps.breeze.outputs.host-python-version }}
           platform: ${{ inputs.platform }}
           save-cache: true
       - name: Fetch incoming commit ${{ github.sha }} with its parent

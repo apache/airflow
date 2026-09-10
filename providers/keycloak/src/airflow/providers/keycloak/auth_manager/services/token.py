@@ -58,7 +58,7 @@ def create_token_for(
         refresh_token=tokens["refresh_token"],
     )
 
-    return get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
+    return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
 
 def create_client_credentials_token(
@@ -118,4 +118,4 @@ def create_client_credentials_token(
         ),  # client_credentials may not return refresh_token (RFC6749 section 4.4.3)
     )
 
-    return get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
+    return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)

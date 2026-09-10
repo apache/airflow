@@ -1205,10 +1205,8 @@ class TestDagDetails(TestDagEndpoint):
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
     def test_dag_details(
         self,
-        mock_hasattr,
         test_client,
         query_params,
         dag_id,
@@ -1218,7 +1216,6 @@ class TestDagDetails(TestDagEndpoint):
         owner_links,
         last_parse_duration,
     ):
-        mock_hasattr.return_value = False
         response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -1298,109 +1295,6 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_partitioned": False,
             "timetable_periodic": False,
             "timetable_summary": None,
-            "timezone": UTC_JSON_REPR,
-            "team_name": None,
-        }
-        assert res_json == expected
-
-    @pytest.mark.parametrize(
-        ("query_params", "dag_id", "expected_status_code", "dag_display_name", "start_date", "owner_links"),
-        [
-            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z", {}),
-            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z", {}),
-        ],
-    )
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_dag_details_with_view_url_template(
-        self,
-        test_client,
-        query_params,
-        dag_id,
-        expected_status_code,
-        dag_display_name,
-        start_date,
-        owner_links,
-    ):
-        response = test_client.get(f"/dags/{dag_id}/details", params=query_params)
-        assert response.status_code == expected_status_code
-        if expected_status_code != 200:
-            return
-
-        # Match expected and actual responses below.
-        res_json = response.json()
-        last_parsed = res_json["last_parsed"]
-        last_parsed_time = res_json["last_parsed_time"]
-        last_parse_duration = res_json["last_parse_duration"]
-        file_token = res_json["file_token"]
-        expected = {
-            "active_runs_count": 0,
-            "allowed_run_types": None,
-            "asset_expression": None,
-            "bundle_name": "dag_maker",
-            "bundle_version": None,
-            "catchup": False,
-            "concurrency": 16,
-            "dag_display_name": dag_display_name,
-            "dag_id": dag_id,
-            "dag_run_timeout": None,
-            "default_args": {
-                "depends_on_past": False,
-                "retries": 1,
-                "retry_delay": "PT5M",
-            },
-            "description": None,
-            "doc_md": "details",
-            "end_date": None,
-            "fileloc": __file__,
-            "file_token": file_token,
-            "has_import_errors": False,
-            "has_task_concurrency_limits": True,
-            "is_backfillable": False,
-            "is_favorite": False,
-            "is_stale": False,
-            "is_paused": False,
-            "is_paused_upon_creation": None,
-            "latest_dag_version": {
-                "bundle_name": "dag_maker",
-                "bundle_url": "http://test_host.github.com/tree/None/dags",
-                "bundle_version": None,
-                "created_at": mock.ANY,
-                "dag_id": "test_dag2",
-                "dag_display_name": dag_display_name,
-                "id": mock.ANY,
-                "version_number": 1,
-            },
-            "last_expired": None,
-            "last_parsed": last_parsed,
-            "last_parsed_time": last_parsed_time,
-            "last_parse_duration": last_parse_duration,
-            "max_active_runs": 16,
-            "max_active_tasks": 16,
-            "max_consecutive_failed_dag_runs": 0,
-            "next_dagrun_data_interval_end": None,
-            "next_dagrun_data_interval_start": None,
-            "next_dagrun_logical_date": None,
-            "next_dagrun_run_after": None,
-            "owners": ["airflow"],
-            "owner_links": {},
-            "params": {
-                "foo": {
-                    "description": None,
-                    "schema": {},
-                    "source": None,
-                    "value": 1,
-                }
-            },
-            "relative_fileloc": "test_dags.py",
-            "render_template_as_native_obj": False,
-            "rerun_with_latest_version": None,
-            "start_date": start_date,
-            "tags": [],
-            "template_search_path": None,
-            "timetable_summary": None,
-            "timetable_description": "Never, external triggers only",
-            "timetable_partitioned": False,
-            "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
             "team_name": None,
         }

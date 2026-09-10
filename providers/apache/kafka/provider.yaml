@@ -138,6 +138,28 @@ plugins:
     plugin-class: airflow.providers.apache.kafka.plugins.event_producer.KafkaEventProducerPlugin
 
 config:
+  apache_kafka:
+    description: |
+      Common settings for the Apache Kafka Provider.
+    options:
+      callback_allowlist:
+        description: |
+          Comma-separated list of callbacks that may be resolved from a Kafka
+          connection extra into confluent-kafka callback options (``error_cb``,
+          ``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``).
+          Each entry is the full importable path of the callback itself — module
+          plus attribute, e.g. ``my_company.kafka.auth.oauth_cb`` — matched exactly
+          against the dotted-path string on the connection extra (a bare module such
+          as ``my_company.kafka.auth`` won't lead to authorization of the callables
+          inside it). This is enforced for security reasons, to prevent malicious
+          callbacks from being executed: only paths listed here are resolved, and any
+          other string-valued callback is refused. Empty (default) disables
+          string-valued callbacks entirely. Managed authentication (Amazon MSK IAM,
+          Google Managed Kafka) does not rely on this and is unaffected.
+        version_added: 1.16.0
+        type: string
+        example: "my_company.kafka.auth.oauth_cb"
+        default: ""
   kafka_event_producer:
     description: |
       Settings for the Kafka event producer plugin that publishes Airflow

@@ -1548,14 +1548,11 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     def test_dagrun_deadline_variable_interval_missing_variable_fails(self, _, session, deadline_test_dag):
-        mock_err = mock.Mock()
-        mock_err.error.value = "MISSING_DEADLINE"
-        mock_err.detail = "missing deadline"
 
         with mock.patch.object(
             Variable,
             "get",
-            side_effect=KeyError(mock_err),
+            side_effect=KeyError,
         ):
             future_date = datetime.datetime.now() + datetime.timedelta(days=365)
 

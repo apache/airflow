@@ -355,6 +355,26 @@ class TestDatabricksCreateJobsOperator:
 
         assert expected == utils.normalise_json_content(op._get_merged_json())
 
+    def test_init_with_performance_target_named_parameter(self):
+        """
+        Test the initializer merges ``performance_target`` into the create payload.
+        """
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            name=JOB_NAME,
+            tasks=TASKS,
+            performance_target="PERFORMANCE_OPTIMIZED",
+        )
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tasks": TASKS,
+                "performance_target": "PERFORMANCE_OPTIMIZED",
+            }
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
     def test_init_with_json(self):
         """
         Test the initializer with json data.
@@ -1927,6 +1947,15 @@ class TestDatabricksRunNowOperator:
         """
         op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
         expected = utils.normalise_json_content({"job_id": 42})
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    def test_init_with_performance_target_named_parameter(self):
+        """
+        Test the initializer merges ``performance_target`` into the run-now payload.
+        """
+        op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID, performance_target="STANDARD")
+        expected = utils.normalise_json_content({"job_id": 42, "performance_target": "STANDARD"})
 
         assert expected == utils.normalise_json_content(op._get_merged_json())
 

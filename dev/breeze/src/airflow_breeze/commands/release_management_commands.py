@@ -982,6 +982,13 @@ def classify_provider_changes(
     help="Runs incremental update only after rebase of earlier branch to check if there are no changes.",
 )
 @click.option(
+    "--mark-doc-only",
+    is_flag=True,
+    help="Take the named providers back out of the release: restore their version and changelog to the "
+    "released state and record the doc-only marker to commit. Use when review concludes that an "
+    "already-prepared provider has no user-facing changes. Requires an explicit list of providers.",
+)
+@click.option(
     "--skip-readme",
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
@@ -1011,6 +1018,7 @@ def prepare_provider_documentation(
     skip_changelog: bool,
     skip_readme: bool,
     incremental_update: bool,
+    mark_doc_only: bool,
     release_date: str | None,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
@@ -1019,6 +1027,7 @@ def prepare_provider_documentation(
         PrepareReleaseDocsNoChangesException,
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
+        drop_provider_to_doc_only,
         update_changelog,
         update_index_rst,
         update_min_airflow_version_and_build_files,
@@ -1029,10 +1038,19 @@ def prepare_provider_documentation(
         console_print("[error]Release date is required unless --only-min-version-update is used![/]")
         sys.exit(1)
 
+    if mark_doc_only and not provider_distributions:
+        console_print(
+            "[error]--mark-doc-only takes the named providers out of the release, so it needs an "
+            "explicit list of providers rather than defaulting to all of them![/]"
+        )
+        sys.exit(1)
+
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    if incremental_update:
+    # Forcing "yes" keeps the incremental pass from re-asking about every provider, which also puts
+    # the reclassify-to-doc-only prompt out of reach - --mark-doc-only is how that decision is applied.
+    if incremental_update and not mark_doc_only:
         set_forced_answer("yes")
     if not provider_distributions:
         provider_distributions = get_available_distributions(
@@ -1052,6 +1070,9 @@ def prepare_provider_documentation(
     for provider_id in provider_distributions:
         try:
             provider_metadata = basic_provider_checks(provider_id)
+            if mark_doc_only:
+                with ci_group(f"Marking '{provider_id}' as doc-only"):
+                    drop_provider_to_doc_only(provider_id, base_branch=base_branch)
             if os.environ.get("GITHUB_ACTIONS", "false") != "true":
                 if not only_min_version_update:
                     console_print("-" * get_console().width)

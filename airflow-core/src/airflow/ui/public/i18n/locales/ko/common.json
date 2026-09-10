@@ -24,6 +24,7 @@
   },
   "backfill_one": "백필",
   "backfill_other": "백필들",
+  "breadcrumb": "탐색 경로",
   "browse": {
     "auditLog": "감사 로그",
     "deadlines": "데드라인",
@@ -179,6 +180,7 @@
     "assets": "에셋",
     "browse": "탐색",
     "dags": "Dags",
+    "dashboard": "대시보드",
     "docs": "문서",
     "home": "홈",
     "legacyFabViews": "레거시 FAB 뷰",
@@ -197,11 +199,14 @@
     "write": "작성"
   },
   "overallStatus": "전체 상태",
+  "partition_one": "파티션",
+  "partition_other": "파티션",
   "partitionedDagRun_one": "파티션된 Dag 실행",
   "partitionedDagRun_other": "파티션된 Dag 실행",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "수신된 에셋 이벤트"
   },
+  "pause": "일시 중지",
   "pendingDagRun_one": "대기 중인 Dag 실행 {{count}}개",
   "pendingDagRun_other": "대기 중인 Dag 실행 {{count}}개",
   "presetFilters": {
@@ -269,6 +274,17 @@
       "title": "지우기"
     },
     "description": "이 환경설정은 이 브라우저에만 저장되며 앱 전체에 적용됩니다.",
+    "general": {
+      "landingPage": {
+        "helper": "Airflow를 열면 표시되는 페이지입니다.",
+        "label": "시작 페이지",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "대시보드"
+        }
+      },
+      "title": "일반"
+    },
     "graph": {
       "defaultDirection": {
         "helper": "개별적으로 설정하지 않은 Dag 및 에셋 그래프의 레이아웃 방향입니다.",
@@ -282,6 +298,13 @@
         "label": "상태 표시 기본 선택"
       },
       "title": "상태 표시"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "태스크 인스턴스를 열 때 처음 표시할 탭입니다. 특정 탭으로 연결된 링크는 해당 탭을 계속 엽니다.",
+        "label": "기본 태스크 인스턴스 탭"
+      },
+      "title": "태스크 인스턴스"
     },
     "title": "환경설정"
   },
@@ -359,6 +382,7 @@
     "up_for_retry": "재시도 대기 중",
     "upstream_failed": "업스트림 실패"
   },
+  "switchDag": "$t(dag_one) 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",
@@ -517,6 +541,7 @@
   "total": "총 {{state}} 수",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
+  "unpause": "일시 중지 해제",
   "user": "사용자",
   "validation": {
     "mustBeAtLeast": "최소 {{min}} 이상이어야 합니다.",

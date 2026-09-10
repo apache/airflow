@@ -53,11 +53,12 @@ export class XComsPage extends BasePage {
 
     await filterOption.click();
 
-    const filterPill = this.page
-      .locator("div")
-      .filter({ hasText: `${filterName}:` })
-      .first();
-    const filterInput = filterPill.getByRole("textbox");
+    // The newly added pill enters edit mode immediately, and `filter-pill-input` is only
+    // rendered on the pill that is actively being edited — so this resolves to exactly one
+    // element. Previously this scoped through `page.locator("div").filter({ hasText: ... })`,
+    // which matches any ancestor whose descendant text contains "<filterName>:" and broke
+    // (matched 12 elements instead of 1) once #71554 restructured the filter bar's DOM.
+    const filterInput = this.page.getByTestId("filter-pill-input");
 
     await expect(filterInput).toBeVisible({ timeout: 30_000 });
     await filterInput.fill(value);

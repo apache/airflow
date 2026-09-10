@@ -27,6 +27,11 @@
 Changelog
 ---------
 
+.. warning::
+  ``SnowparkContainerJobOperator`` now applies a default ``timeout`` of 24 hours where it
+  previously polled indefinitely, so a task running longer than a day now fails. Increase
+  ``timeout`` to allow more time.
+
 6.16.1
 ......
 

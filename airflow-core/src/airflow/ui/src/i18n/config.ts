@@ -23,6 +23,10 @@ import { initReactI18next } from "react-i18next";
 
 import { VersionService } from "openapi/requests/services.gen";
 
+// Also configures the generated client, which must happen before the version
+// request below. See src/basePath.
+import { basePath } from "src/basePath";
+
 import { registerDayjsLocaleSync } from "./dayjsLocale";
 
 export const supportedLanguages = [
@@ -60,10 +64,6 @@ export const namespaces = [
   "components",
   "hitl",
 ] as const;
-
-const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
-const baseUrl = new URL(baseHref, globalThis.location.origin);
-const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 const supportedCodes: Array<string> = supportedLanguages.map((lang) => lang.code);
 
