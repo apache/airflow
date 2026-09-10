@@ -294,7 +294,7 @@ ARG_DR_STATE = Arg(
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
-ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
+ARG_LIMIT = Arg(("--limit",), type=positive_int(allow_zero=True), help="Return a limited number of records")
 job_states = tuple(state.value for state in JobState)
 ARG_JOB_STATE = Arg(
     ("--state",),
