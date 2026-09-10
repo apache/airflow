@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Generate Execution API OpenAPI schema. Prints JSON to stdout. Run with cwd at repo root."""
-
-from __future__ import annotations
-
-import json
-import os
-import sys
-from pathlib import Path
-
-os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
-sys.path.insert(0, str(Path("airflow-core/src").resolve()))
-
-import httpx2
-
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-app = InProcessExecutionAPI()
-version = app.app.versions.version_values[0]
-client = httpx2.Client(transport=app.transport)
-response = client.get(f"http://localhost/openapi.json?version={version}")
-response.raise_for_status()
-print(json.dumps(response.json()))
+---
+id: no-httpx-import
+language: python
+severity: error
+message: Import 'httpx2' instead of 'httpx' -- see https://github.com/apache/airflow/issues/70522
+note: >-
+  The Task SDK's Execution API client is an 'httpx2.Client'. Requests, responses,
+  transports and exceptions do not cross the 'httpx'/'httpx2' boundary, so a stray
+  'httpx' import here silently breaks mocking, retries and error handling.
+files:
+  - "**/*.py"
+rule:
+  all:
+    - kind: dotted_name
+    - regex: ^httpx($|\.)
+    - any:
+        - inside:
+            kind: import_statement
+            stopBy: end
+        - inside:
+            kind: import_from_statement
+            field: module_name
