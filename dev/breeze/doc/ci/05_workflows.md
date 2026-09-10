@@ -28,6 +28,7 @@
   - [Workflow Architecture Overview](#workflow-architecture-overview)
   - [Branch-Specific Behavior](#branch-specific-behavior)
   - [Tests Workflow Structure](#tests-workflow-structure)
+  - [Runners](#runners)
   - [Implementation Details](#implementation-details)
   - [CodeQL scan](#codeql-scan)
   - [Publishing documentation](#publishing-documentation)
@@ -310,6 +311,36 @@ Special tests (integration and system tests) run selectively:
 - When complete test coverage is required for thorough validation
 - In canary runs for scheduled quality checks
 - When dependency upgrades require thorough testing
+
+## Runners
+
+Two kinds of GitHub-hosted runner are used, and which one a job gets depends on what
+the job actually needs.
+
+**`ubuntu-22.04` / `ubuntu-22.04-arm`** (2 cores, 7-16 GB RAM, privileged) is the
+default for anything that builds or runs a container, installs Airflow, or runs a real
+test suite. Jobs that get their runner from selective checks (`amd-runners` /
+`arm-runners`, see [04_selective_checks.md](04_selective_checks.md)) always land here.
+
+**`ubuntu-slim`** (1 core, 5 GB RAM, 14 GB disk) is used for the short bookkeeping jobs
+around the edges of CI — computing a matrix, posting a Slack notification, closing stale
+issues, checking a newsfragment name. It is a container rather than a VM and runs
+unprivileged, which constrains what can go on it:
+
+- **No Docker daemon.** The Docker *client* is on the image, but nothing can build an
+  image, start a container, or use a Docker-container action. Anything touching Breeze
+  is out.
+- **`python3` is Ubuntu's system interpreter**, so it is [PEP 668](https://peps.python.org/pep-0668/) externally managed and
+  a bare `pip install` fails. Stdlib-only scripts are fine; a job that needs
+  dependencies must bring its own interpreter. For anything driven by `uv run`, use
+  `astral-sh/setup-uv` with `version-file: uv.lock` — that installs the uv version the
+  workspace is locked to, and `uv run` then provisions its own Python.
+- **Minimal toolset** — `git`, `gh`, `jq`, `node`, `curl` are present; Java and Go are
+  not. `actions/setup-*` still works, since those actions download into the tool cache.
+- **One core**, so give a job that does real work a timeout with some slack in it.
+
+When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
+`ubuntu-22.04` otherwise.
 
 ## Implementation Details
 
