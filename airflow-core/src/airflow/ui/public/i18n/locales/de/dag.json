@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Muss innerhalb von {{interval}} nach {{reference}} abgeschlossen sein",
+    "completionRuleDynamic": "Muss innerhalb eines variablen, ab {{reference}} gemessenen Intervalls abgeschlossen werden",
     "count_one": "{{count}} Frist",
     "count_other": "{{count}} Fristen",
     "referenceType": {
@@ -91,10 +92,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Vollbild",
-      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
-    },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
     "search": {
@@ -149,7 +146,7 @@
     "dependencies": {
       "label": "Abhängigkeiten",
       "options": {
-        "allDagDependencies": "Alle Dag Abhängigkeiten",
+        "allDagDependencies": "Alle Dag-Abhängigkeiten",
         "externalConditions": "Externe Bedingungen",
         "onlyTasks": "Nur Tasks"
       },
