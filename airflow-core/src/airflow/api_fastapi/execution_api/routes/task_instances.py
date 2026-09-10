@@ -36,7 +36,7 @@ from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import contains_eager, joinedload, load_only
+from sqlalchemy.orm import contains_eager, joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
