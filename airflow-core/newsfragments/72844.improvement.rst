@@ -1,0 +1,1 @@
+Expose the sidebar as a navigation landmark with a translated accessible name.
