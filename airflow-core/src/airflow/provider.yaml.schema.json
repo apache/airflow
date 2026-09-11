@@ -388,6 +388,30 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "external-services": {
+                        "description": "Per-module list of external services each toolset reaches. Representative, non-exhaustive. Each 'module' must also appear in 'python-modules'.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "module": {
+                                    "type": "string",
+                                    "description": "Dotted path of the toolset module, as listed in 'python-modules'."
+                                },
+                                "services": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "additionalProperties": false,
+                            "required": [
+                                "module",
+                                "services"
+                            ]
+                        }
                     }
                 },
                 "additionalProperties": false,
