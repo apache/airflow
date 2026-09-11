@@ -34,7 +34,10 @@ from airflow.providers.common.compat.sdk import (
     conf,
 )
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from airflow.providers.databricks.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_1_PLUS,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -404,8 +407,11 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            if not AIRFLOW_V_3_1_PLUS or ti_key is None:
-                # The Airflow-3 repair backend requires 3.1+ (see DatabricksWorkflowPlugin).
+            # The Airflow-3 repair backend is only registered on 3.1.1+ (see
+            # DatabricksWorkflowPlugin), so render no link below that.
+            if not AIRFLOW_V_3_1_1_PLUS:
+                return ""
+            if ti_key is None:
                 return ""
             launch_task_id = _get_launch_task_id_v3(operator, ti_key)
             if not launch_task_id:
@@ -526,8 +532,11 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            if not AIRFLOW_V_3_1_PLUS or ti_key is None:
-                # The Airflow-3 repair backend requires 3.1+ (see DatabricksWorkflowPlugin).
+            # The Airflow-3 repair backend is only registered on 3.1.1+ (see
+            # DatabricksWorkflowPlugin), so render no link below that.
+            if not AIRFLOW_V_3_1_1_PLUS:
+                return ""
+            if ti_key is None:
                 return ""
             launch_task_id = _get_launch_task_id_v3(operator, ti_key)
             if not launch_task_id:
@@ -658,7 +667,7 @@ def _get_launch_task_id_v3(operator: BaseOperator, ti_key: TaskInstanceKey) -> s
     return None
 
 
-if AIRFLOW_V_3_1_PLUS:
+if AIRFLOW_V_3_1_1_PLUS:
     from fastapi import Depends, FastAPI, HTTPException
     from fastapi.responses import HTMLResponse, RedirectResponse
     from markupsafe import escape
@@ -881,11 +890,11 @@ class DatabricksWorkflowPlugin(AirflowPlugin):
         WorkflowJobRunLink(),
     ]
 
-    if AIRFLOW_V_3_1_PLUS:
-        # Airflow 3.1+: repair is served by a FastAPI sub-application on the API server. Gated at
-        # 3.1 because a repair link clicked in the browser authenticates via the ``_token`` cookie,
-        # and the API server's ``get_user`` only honours that cookie from 3.1 onward; on 3.0.x the
-        # backend and its links are not registered.
+    if AIRFLOW_V_3_1_1_PLUS:
+        # Airflow 3.1.1+: repair is served by a FastAPI sub-application on the API server. Gated at
+        # 3.1.1 because a repair link clicked in the browser authenticates via the ``_token`` cookie,
+        # and the API server's ``get_user`` only honours that cookie from 3.1.1 onward (3.1.0 reads
+        # the bearer/oauth schemes only); below that the backend and its links are not registered.
         fastapi_apps = [
             {
                 "app": repair_app,
