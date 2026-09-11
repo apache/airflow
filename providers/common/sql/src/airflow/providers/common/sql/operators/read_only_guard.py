@@ -49,7 +49,7 @@ def _statement_write_node(stmt: exp.Expr):
 
 
 def scan_for_writes(sql: str | list[str]) -> tuple[bool, str]:
-    """Pre-defer check for write statements``."""
+    """Pre-defer check for write statements."""
     if not _SQLGLOT_AVAILABLE:
         return False, "sqlglot not installed; read-only transaction will enforce"
 
