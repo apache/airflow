@@ -33,6 +33,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
@@ -1536,7 +1537,7 @@ class TestMappedSetupTeardown:
         assert not op.is_setup
         assert not op.is_teardown
         assert not op.depends_on_past
-        assert op.ignore_first_depends_on_past == bool(SerializedBaseOperator.ignore_first_depends_on_past)
+        assert op.ignore_first_depends_on_past == DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST
         assert not op.wait_for_downstream
         assert op.retries == SerializedBaseOperator.retries
         assert op.queue == SerializedBaseOperator.queue
