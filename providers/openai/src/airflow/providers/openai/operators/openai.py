@@ -21,6 +21,8 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
+from pydantic import BaseModel, ValidationError
+
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
@@ -28,6 +30,30 @@ from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+
+def _get_structured_response_details(response: Any) -> str:
+    """Return API-reported context for a structured-response failure."""
+    details = [f"status={response.status!r}"]
+    if response.error is not None:
+        details.append(f"error={response.error!r}")
+    if response.incomplete_details is not None:
+        details.append(f"incomplete_details={response.incomplete_details!r}")
+
+    refusals = [
+        content.refusal
+        for output in response.output
+        if output.type == "message"
+        for content in output.content
+        if content.type == "refusal"
+    ]
+    if refusals:
+        details.append(f"refusal={'; '.join(refusals)!r}")
+    else:
+        output_types = [output.type for output in response.output]
+        if output_types:
+            details.append(f"output_types={output_types!r}")
+    return ", ".join(details)
 
 
 class OpenAIEmbeddingOperator(BaseOperator):
@@ -83,16 +109,21 @@ class OpenAIResponseOperator(BaseOperator):
     """
     Operator that generates a model response using the OpenAI Responses API.
 
-    The operator is synchronous and returns the response's aggregated output text. For
-    ``previous_response_id`` chaining, ``background=True`` responses, or access to the full
-    structured response, use :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
+    By default the operator is synchronous and returns the response's aggregated output text.
+    Pass ``text_format`` (a Pydantic ``BaseModel`` subclass) to request a structured output; the
+    operator then returns the parsed model as an XCom-safe ``dict``. For ``background=True`` responses, use
+    :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` directly.
 
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
         input items.
     :param model: The OpenAI model to use.
     :param response_kwargs: Additional keyword arguments to pass to the OpenAI ``create_response``
-        method (for example ``instructions``, ``tools``, ``conversation`` or ``previous_response_id``).
+        (or ``parse_response`` when ``text_format`` is set) method — for example ``instructions``,
+        ``tools``, ``conversation`` or ``previous_response_id``.
+    :param text_format: Optional. A Pydantic ``BaseModel`` subclass describing the expected
+        structured output. When set, the operator calls ``parse_response``; otherwise it calls
+        ``create_response`` and returns ``output_text``.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -109,6 +140,7 @@ class OpenAIResponseOperator(BaseOperator):
         input_text: str | list[Any],
         model: str = "gpt-4o-mini",
         response_kwargs: dict | None = None,
+        text_format: type[BaseModel] | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -116,13 +148,44 @@ class OpenAIResponseOperator(BaseOperator):
         self.input_text = input_text
         self.model = model
         self.response_kwargs = response_kwargs or {}
+        if text_format is not None and (
+            not isinstance(text_format, type) or not issubclass(text_format, BaseModel)
+        ):
+            raise TypeError("text_format must be a Pydantic BaseModel subclass.")
+        self.text_format = text_format
 
     @cached_property
     def hook(self) -> OpenAIHook:
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> str | dict[str, Any]:
+        if self.text_format is not None:
+            try:
+                parsed = self.hook.parse_response(
+                    input=self.input_text,
+                    model=self.model,
+                    text_format=self.text_format,
+                    **self.response_kwargs,
+                )
+            except ValidationError as exc:
+                # ``responses.parse`` raises ``ValidationError`` when the model's JSON output
+                # can't be coerced into ``text_format`` — most commonly because the response
+                # was truncated (e.g. ``max_output_tokens`` hit) mid-JSON. Convert to a clean
+                # ``ValueError`` so callers see a consistent shape across all parse failures.
+                raise ValueError(
+                    f"OpenAI Responses API returned a payload that does not match "
+                    f"{self.text_format.__name__!r}. The response may have been truncated because "
+                    f"max_output_tokens was reached: {exc}"
+                ) from exc
+
+            self.log.info("Generated response %s", parsed.id)
+            details = _get_structured_response_details(parsed)
+            if parsed.status != "completed":
+                raise ValueError(f"Response {parsed.id} did not complete ({details}).")
+            if parsed.output_parsed is None:
+                raise ValueError(f"Response {parsed.id} did not return a structured output ({details}).")
+            return parsed.output_parsed.model_dump(mode="json")
         response = self.hook.create_response(input=self.input_text, model=self.model, **self.response_kwargs)
         if response.status != "completed":
             self.log.warning(
