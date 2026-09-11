@@ -98,8 +98,6 @@ def test_openai_response_operator_execute():
     result = operator.execute(Context())
 
     assert result == "haiku text"
-    # Backward-compat lock: without max_output_tokens/max_tool_calls, create_response must be
-    # called with exactly the arguments it received before those parameters existed.
     mock_hook_instance.create_response.assert_called_once_with(
         input="Write a haiku.",
         model="test_model",
@@ -179,10 +177,10 @@ class TestOpenAIResponseOperatorTokenCeilings:
     )
     @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
     def test_ceiling_conflicting_with_response_kwargs_raises(self, param_name, operator_value):
-        # The conflict is a construction-time (Dag-parse) failure now: a blank operator_value
-        # (design decision C2's "unset" case) must not exempt the pair from the C3 check. If
-        # construction did not raise, pytest.raises itself fails the test with "DID NOT RAISE" --
-        # there is no operator instance afterwards to assert anything further against.
+        # A blank operator_value must still conflict with response_kwargs; that's checked at
+        # construction time, before rendering. pytest.raises() itself fails with "DID NOT RAISE"
+        # if construction succeeded, so there's no operator instance afterwards to assert
+        # anything further against.
         with pytest.raises(ValueError, match=param_name):
             OpenAIResponseOperator(
                 task_id=TASK_ID,
