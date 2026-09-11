@@ -21,6 +21,7 @@ import contextlib
 import logging
 import os
 import textwrap
+import threading
 import time
 from datetime import datetime as dt, timedelta, timezone as std_timezone
 from pathlib import Path
@@ -30,6 +31,7 @@ from unittest.mock import ANY, call
 import boto3
 import pendulum
 import pytest
+import structlog
 import time_machine
 from botocore.exceptions import ClientError
 from moto import mock_aws
@@ -385,6 +387,160 @@ class TestCloudRemoteLogIO:
 
             assert self.subject.handler is original
             assert self.subject.handler.shutting_down is True
+
+    def test_upload_releases_only_the_completed_stream_handler(self):
+        completed_path = "dag_id=a/completed.log"
+        active_path = "dag_id=a/active.log"
+        completed = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        active = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        completed.shutting_down = False
+        active.shutting_down = False
+        self.subject._streaming_by_path = True
+        self.subject._stream_handlers = {completed_path: completed, active_path: active}
+        self.subject._cached_handler = active
+        self.subject.delete_local_copy = False
+
+        self.subject.upload(completed_path, self.ti)
+        self.subject.upload(completed_path, self.ti)
+
+        completed.close.assert_called_once_with()
+        active.close.assert_not_called()
+        assert self.subject._stream_handlers == {active_path: active}
+        assert self.subject._cached_handler is active
+        with self.subject._stream_lock:
+            assert self.subject._get_stream_handler(active_path) is active
+
+    def test_completed_stream_path_can_be_reused(self):
+        stream_name = "dag_id=a/reused.log"
+        first = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        second = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        first.shutting_down = False
+        second.shutting_down = False
+        self.subject._cached_handler = None
+
+        with mock.patch.object(self.subject, "_build_handler", side_effect=[first, second]):
+            with self.subject._stream_lock:
+                assert self.subject._get_stream_handler(stream_name) is first
+            self.subject._close_stream(stream_name)
+            with self.subject._stream_lock:
+                assert self.subject._get_stream_handler(stream_name) is second
+
+        first.close.assert_called_once_with()
+        second.close.assert_not_called()
+
+    def test_many_completed_streams_do_not_accumulate_handlers(self):
+        handlers = []
+        processor = self.subject.processors[0]
+        if initial_handler := self.subject._cached_handler:
+            initial_handler.close()
+        self.subject._cached_handler = None
+        self.subject.delete_local_copy = False
+
+        def build_handler(_stream_name):
+            handler = mock.create_autospec(CloudWatchLogHandler, instance=True)
+            handler.shutting_down = False
+            handlers.append(handler)
+            return handler
+
+        with (
+            conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}),
+            mock.patch.object(self.subject, "_build_handler", side_effect=build_handler),
+        ):
+            for index in range(100):
+                stream_name = f"dag_id=a/trigger-{index}.log"
+                local_path = self.local_log_location / stream_name
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                with local_path.open("w") as log_file:
+                    processor(structlog.PrintLogger(log_file), "info", {"event": f"message-{index}"})
+                self.subject.upload(stream_name, self.ti)
+
+        assert self.subject._stream_handlers == {}
+        assert self.subject._cached_handler is None
+        assert all(handler.close.call_count == 1 for handler in handlers)
+        assert all(handler.handle.call_count == 1 for handler in handlers)
+
+    def test_record_arriving_while_stream_closes_is_dropped(self):
+        stream_name = "dag_id=a/closing.log"
+        local_path = self.local_log_location / stream_name
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.touch()
+        processor = self.subject.processors[0]
+        handler = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        handler.shutting_down = False
+        close_started = threading.Event()
+        finish_close = threading.Event()
+
+        def close_handler():
+            close_started.set()
+            assert finish_close.wait(timeout=5)
+
+        handler.close.side_effect = close_handler
+        self.subject._stream_handlers = {stream_name: handler}
+        self.subject._cached_handler = handler
+        self.subject.delete_local_copy = False
+
+        upload_thread = threading.Thread(target=self.subject.upload, args=(stream_name, self.ti))
+        upload_thread.start()
+        assert close_started.wait(timeout=5)
+        try:
+            with (
+                conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}),
+                mock.patch.object(self.subject, "_build_handler") as build_handler,
+                local_path.open("w") as log_file,
+            ):
+                processor(structlog.PrintLogger(log_file), "info", {"event": "late message"})
+                build_handler.assert_not_called()
+        finally:
+            finish_close.set()
+            upload_thread.join(timeout=5)
+
+        assert not upload_thread.is_alive()
+        handler.handle.assert_not_called()
+        assert self.subject._closing_streams == set()
+
+    def test_record_during_stream_handler_construction_is_dropped(self):
+        stream_name = "dag_id=a/building.log"
+        local_path = self.local_log_location / stream_name
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        processor = self.subject.processors[0]
+        if initial_handler := self.subject._cached_handler:
+            initial_handler.close()
+        self.subject._cached_handler = None
+        handler = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        handler.shutting_down = False
+
+        with (
+            conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}),
+            local_path.open("w") as log_file,
+        ):
+            logger = structlog.PrintLogger(log_file)
+
+            def build_handler(_stream_name):
+                processor(logger, "info", {"event": "record from handler construction"})
+                return handler
+
+            with mock.patch.object(self.subject, "_build_handler", side_effect=build_handler) as build:
+                processor(logger, "info", {"event": "task record"})
+
+        build.assert_called_once_with(stream_name)
+        handler.handle.assert_called_once_with(ANY)
+        assert self.subject._stream_handlers == {stream_name: handler}
+
+    def test_close_flushes_each_active_stream_handler_once(self):
+        first = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        second = mock.create_autospec(CloudWatchLogHandler, instance=True)
+        first.shutting_down = False
+        second.shutting_down = False
+        self.subject._stream_handlers = {"first.log": first, "second.log": second}
+        self.subject._cached_handler = second
+
+        self.subject.close()
+
+        first.flush.assert_called_once_with()
+        second.flush.assert_called_once_with()
+        first.close.assert_not_called()
+        second.close.assert_not_called()
+        assert self.subject._closed is True
 
 
 @pytest.mark.db_test
