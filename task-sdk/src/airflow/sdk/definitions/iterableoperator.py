@@ -23,6 +23,7 @@ import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from itertools import repeat
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 try:
     # Python 3.11+
@@ -32,21 +33,22 @@ except NameError:
 
 from airflow.sdk import BaseXCom, TaskInstanceState
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
+from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
-from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
+from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
     AirflowFailException,
     TaskDeferred,
 )
+from airflow.sdk.execution_time.context import context_update_for_unmapped
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
-from airflow.sdk.execution_time.task_runner import IndexedTaskInstance
+from airflow.sdk.execution_time.task_runner import IndexedTaskInstance, IndexedTaskState
 
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.sdk.bases.xcom import XComIterable
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
 
@@ -73,8 +75,11 @@ class IterableOperator(BaseOperator):
     ``os.cpu_count()`` and finally to ``1``.
 
     **Crash recovery:** When the worker crashes mid-iteration and the task is re-run (e.g. via a
-    manual clear), already-succeeded sub-tasks are skipped and pending/failed sub-tasks are recreated
-    with their accumulated ``try_number`` so that retries are not wasted.
+    manual clear), already-succeeded sub-tasks are skipped and only the pending/failed ones are
+    executed again. Every sub-task inherits its ``try_number`` from the IterableOperator's own task
+    instance, so the attempt count reported to a sub-task matches the attempt Airflow is currently
+    running. The checkpoint is only consulted from the second attempt onwards, and solely to decide
+    whether an index already succeeded.
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
@@ -96,10 +101,8 @@ class IterableOperator(BaseOperator):
         instance will propagate as an error rather than pausing and resuming the task.
 
         Reschedule-mode sensors (those that raise :class:`~airflow.sdk.exceptions.AirflowRescheduleException`)
-        are also not meaningfully supported: the exception is treated like any other sub-task failure and
-        counts towards the IterableOperator's own ``retries``, but the requested ``reschedule_date`` is not
-        honored — the worker is not released and the next attempt follows the IterableOperator's own
-        ``retry_delay`` instead of waiting until ``reschedule_date``.
+        are also not supported. A reschedule raised by an indexed task instance will fail the whole
+        IterableOperator immediately with a clear error rather than being silently mishandled.
 
     .. warning::
         **``execution_timeout`` is only enforced for async sub-tasks.**
@@ -230,8 +233,6 @@ class IterableOperator(BaseOperator):
     def _unmap_operator(
         self, context: Context, mapped_kwargs: Context, jinja_env: jinja2.Environment
     ) -> BaseOperator:
-        from airflow.sdk.execution_time.context import context_update_for_unmapped
-
         unmapped_task = self._operator.unmap(mapped_kwargs)
         # Make sure deferred operators will always raise a DeferredTask exception when executed
         unmapped_task.start_from_trigger = False
@@ -247,20 +248,7 @@ class IterableOperator(BaseOperator):
         return unmapped_task
 
     async def _xcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
-        if task.xcom_pushed:
-            self.log.debug(
-                "XCom already pushed for task_id %s with index %s",
-                task.task_id,
-                task.index,
-            )
-        else:
-            self.log.debug(
-                "Pushing XCom for task_id %s with index %s",
-                task.task_id,
-                task.index,
-            )
-
-            await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
+        await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
 
     def _run_tasks(
         self,
@@ -313,8 +301,6 @@ class IterableOperator(BaseOperator):
         if exceptions:
             raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
         if do_xcom_push:
-            from airflow.sdk.bases.xcom import XComIterable
-
             return XComIterable(
                 task_id=self.task_id,
                 dag_id=self.dag_id,
@@ -324,30 +310,27 @@ class IterableOperator(BaseOperator):
             )
         return None
 
-    def _checkpoint_key(self, index: int) -> str:
-        return f"{_ITERABLE_CHECKPOINT_KEY_PREFIX}{index}"
-
     async def _run_task(
         self,
         executor: AsyncAwareExecutor,
         context: Context,
         task: IndexedTaskInstance,
     ) -> tuple[IndexedTaskInstance, Any | None, BaseException | None]:
-        task_state_store = context["task_state_store"]
-        checkpoint = await task_state_store.aget(self._checkpoint_key(task.index))
-        if isinstance(checkpoint, dict):
-            try_number = checkpoint.get("try_number", 0)
-            if not isinstance(try_number, int):
-                try_number = 0
-            if checkpoint.get("status") == "succeeded":
-                self.log.info(
-                    "Skipping task instance %s for %s which already finished successfully after %s attempts",
-                    task.index,
-                    task.task_id,
-                    try_number + 1,
-                )
-                return task, None, None
-            task.try_number = try_number
+        indexed_task_state = await task.aget_state()
+        # We only rely on task state if it's not the first attempt
+        if (
+            indexed_task_state is not None
+            and task.try_number > 1
+            and indexed_task_state.status == TaskInstanceState.SUCCESS
+        ):
+            self.log.info(
+                "Skipping task instance %s for %s which already finished successfully after %s attempts",
+                task.index,
+                task.task_id,
+                indexed_task_state.try_number,
+            )
+            await self._xcom_push(task, indexed_task_state.result)
+            return task, None, None
 
         try:
             if task.is_async:
@@ -355,18 +338,18 @@ class IterableOperator(BaseOperator):
             else:
                 result = await executor.run_sync(self._run_operator, context, task)
 
+            indexed_task_state = IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=task.try_number)
             if result is not None and task.do_xcom_push:
-                await self._xcom_push(task, result)
-
-            await task_state_store.aset(
-                self._checkpoint_key(task.index),
-                {"status": "succeeded", "try_number": task.try_number},
-            )
+                indexed_task_state.result = result
+            await task.aset_state(indexed_task_state)
+            await self._xcom_push(task, indexed_task_state.result)
             return task, result, None
         except BaseException as e:
-            await task_state_store.aset(
-                self._checkpoint_key(task.index),
-                {"status": "pending", "try_number": task.try_number},
+            await task.aset_state(
+                IndexedTaskState(
+                    status=TaskInstanceState.UP_FOR_RETRY,
+                    try_number=task.try_number,
+                )
             )
             return task, None, e
 
@@ -400,19 +383,22 @@ class IterableOperator(BaseOperator):
         index: int,
         mapped_kwargs: Context,
         jinja_env: jinja2.Environment,
-        try_number: int = 0,
     ) -> IndexedTaskInstance:
-        run_id = context["ti"].run_id
-        map_index = context["ti"].map_index
         operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
         return self._create_mapped_task(
-            run_id=run_id, map_index=map_index, index=index, try_number=try_number, operator=operator
+            id=context["ti"].id,
+            run_id=context["ti"].run_id,
+            map_index=context["ti"].map_index,
+            try_number=context["ti"].try_number,
+            index=index,
+            operator=operator,
         )
 
     def _create_mapped_task(
-        self, run_id: str, map_index: int | None, index: int, try_number: int, operator: BaseOperator
+        self, id: UUID, run_id: str, map_index: int | None, index: int, try_number: int, operator: BaseOperator
     ) -> IndexedTaskInstance:
         return IndexedTaskInstance.model_construct(
+            id=id,
             task_id=operator.task_id,
             dag_id=operator.dag_id,
             run_id=run_id,

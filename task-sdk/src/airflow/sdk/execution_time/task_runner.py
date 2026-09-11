@@ -21,19 +21,18 @@ from __future__ import annotations
 
 import contextvars
 import functools
-import hashlib
 import inspect
-import math
 import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import ExitStack, contextmanager, nullcontext, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, ClassVar
 from urllib.parse import quote
 
 import attrs
@@ -64,7 +63,6 @@ from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -139,6 +137,7 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    airflow_context_vars_context,
     context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
@@ -305,6 +304,18 @@ class RuntimeTaskInstance(TaskInstance):
             return dag_run.logical_date
         return None
 
+    @cached_property
+    def task_state_store(self) -> TaskStateStoreAccessor:
+        return TaskStateStoreAccessor(
+            ti_id=self.id,
+            scope=TaskScope(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                task_id=self.task_id,
+                map_index=self.map_index if self.map_index is not None else -1,
+            ),
+        )
+
     @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -343,15 +354,7 @@ class RuntimeTaskInstance(TaskInstance):
                     "value": VariableAccessor(deserialize_json=False),
                 },
                 "conn": ConnectionAccessor(),
-                "task_state_store": TaskStateStoreAccessor(
-                    ti_id=self.id,
-                    scope=TaskScope(
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
-                    ),
-                ),
+                "task_state_store": self.task_state_store,
             }
             _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
             if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
@@ -903,11 +906,33 @@ class RuntimeTaskInstance(TaskInstance):
         return self.log_url
 
 
-class IndexedTaskInstance(RuntimeTaskInstance, LoggingMixin):
+@dataclass
+class IndexedTaskState:
+    status: TaskInstanceState
+    try_number: int
+    result: Any | None = None
+
+    def serialize(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"status": self.status.value, "try_number": self.try_number}
+        if self.result is not None:
+            data["result"] = self.result
+        return data
+
+    @classmethod
+    def deserialize(cls, raw: Any) -> IndexedTaskState | None:
+        if not isinstance(raw, Mapping):
+            return None
+        return cls(
+            status=TaskInstanceState(raw["status"]),
+            try_number=raw["try_number"],
+            result=raw.get("result"),
+        )
+
+
+class IndexedTaskInstance(RuntimeTaskInstance):
     """Indexed task instance to run a mapped operator."""
 
     index: int
-    xcom_pushed: bool = Field(default=False)
 
     def __init__(self, /, **data: Any):
         super().__init__(**data)
@@ -942,8 +967,6 @@ class IndexedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         value: Any,
     ):
         super().xcom_push(key=f"{key}_{self.index}", value=value)
-        if key == BaseXCom.XCOM_RETURN_KEY:
-            self.xcom_pushed = True
 
     async def axcom_push(
         self,
@@ -951,59 +974,12 @@ class IndexedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         value: Any,
     ):
         await super().axcom_push(key=f"{key}_{self.index}", value=value)
-        if key == BaseXCom.XCOM_RETURN_KEY:
-            self.xcom_pushed = True
 
-    def next_retry_datetime(self):
-        """
-        Get datetime of the next retry if the task instance fails.
+    async def aget_state(self) -> IndexedTaskState | None:
+        return IndexedTaskState.deserialize(await self.task_state_store.aget(self.xcom_key))
 
-        For exponential backoff, retry_delay is used as base and will be converted to seconds.
-        """
-        from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
-
-        delay = self.task.retry_delay
-        if self.task.retry_exponential_backoff:
-            try:
-                # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
-                # we must round up prior to converting to an int, otherwise a divide by zero error
-                # will occur in the modded_hash calculation.
-                # this probably gives unexpected results if a task instance has previously been cleared,
-                # because try_number can increase without bound
-                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
-            except OverflowError:
-                min_backoff = MAX_RETRY_DELAY
-                self.log.warning(
-                    "OverflowError occurred while calculating min_backoff, using MAX_RETRY_DELAY for min_backoff."
-                )
-
-            # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
-            # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
-            # the ceiling function unnecessary, but the ceiling function was retained to avoid
-            # introducing a breaking change.
-            if min_backoff < 1:
-                min_backoff = 1
-
-            # deterministic per task instance
-            ti_hash = int(
-                hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
-                    usedforsecurity=False,
-                ).hexdigest(),
-                16,
-            )
-            # between 1 and 1.0 * delay * (2^retry_number)
-            modded_hash = min_backoff + ti_hash % min_backoff
-            # timedelta has a maximum representable value. The exponentiation
-            # here means this value can be exceeded after a certain number
-            # of tries (around 50 if the initial delay is 1s, even fewer if
-            # the delay is larger). Cap the value here before creating a
-            # timedelta object so the operation doesn't fail with "OverflowError".
-            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
-            delay = timedelta(seconds=delay_backoff_in_seconds)
-            if self.task.max_retry_delay:
-                delay = min(self.task.max_retry_delay, delay)
-        return self.end_date + delay
+    async def aset_state(self, state: IndexedTaskState) -> None:
+        await self.task_state_store.aset(self.xcom_key, state.serialize())
 
     @property
     def is_async(self) -> bool:
@@ -2359,29 +2335,36 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    # IndexedTaskInstance should not update env variables as those run concurrently within the same process
-    if not isinstance(ti, IndexedTaskInstance):
+    # Indexed sub-tasks run concurrently (each in its own thread) within the same process via
+    # AsyncAwareExecutor, so mutating shared os.environ would race across tasks. Scope
+    # AIRFLOW_CTX_* to this thread instead via a context var; get_airflow_context_var() reads
+    # it back for callers that would otherwise read os.environ directly.
+    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    if isinstance(ti, IndexedTaskInstance):
+        env_context = airflow_context_vars_context(airflow_context_vars)
+    else:
         # Export context in os.environ to make it available for operators to use.
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         os.environ.update(airflow_context_vars)
+        env_context = nullcontext()
 
-    outlet_events = context_get_outlet_events(context)
+    with env_context:
+        outlet_events = context_get_outlet_events(context)
 
-    if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if (pre_execute_hook := task._pre_execute_hook) is not None:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    log.info("::endgroup::")
+        log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+        result = _run_execute_callable(context, execute, task)
 
-    if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+        if (post_execute_hook := task._post_execute_hook) is not None:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
     return result
 

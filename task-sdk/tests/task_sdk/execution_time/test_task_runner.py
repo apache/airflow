@@ -170,6 +170,7 @@ from airflow.sdk.execution_time.context import (
     _wrap_external_ref,
 )
 from airflow.sdk.execution_time.task_runner import (
+    IndexedTaskInstance,
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
@@ -2095,6 +2096,49 @@ def test_execute_task_exports_context_vars_thread_safely(create_runtime_ti, mock
     assert os.environ.get("AIRFLOW_CTX_DAG_ID") == "dag_with_ctx_vars"
 
 
+def test_execute_task_scopes_context_vars_for_indexed_task_instance(create_runtime_ti, mock_supervisor_comms):
+    """IndexedTaskInstance sub-tasks run concurrently within the same process (see
+    AsyncAwareExecutor), so _execute_task must not mutate the shared os.environ for them -- it
+    should scope AIRFLOW_CTX_* to the executing thread via airflow_context_vars_context instead.
+    """
+    from airflow.sdk.execution_time.context import get_airflow_context_var
+
+    os.environ.pop("AIRFLOW_CTX_DAG_ID", None)
+
+    captured_vars = {}
+
+    def test_function():
+        captured_vars["dag_id"] = get_airflow_context_var("AIRFLOW_CTX_DAG_ID")
+        return "test function"
+
+    task = PythonOperator(task_id="test_task", python_callable=test_function)
+    ti = create_runtime_ti(task=task, dag_id="dag_with_indexed_ctx_vars")
+
+    indexed_ti = IndexedTaskInstance.model_construct(
+        id=ti.id,
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        index=0,
+        max_tries=ti.max_tries,
+        start_date=ti.start_date,
+        state=ti.state,
+        is_mapped=True,
+        task=ti.task,
+        bundle_instance=ti.bundle_instance,
+        try_number=ti.try_number,
+        xcom_pushed=False,
+    )
+
+    _execute_task(context=indexed_ti.get_template_context(), ti=indexed_ti, log=mock.MagicMock())
+
+    # The value was visible through get_airflow_context_var() inside the task...
+    assert captured_vars["dag_id"] == "dag_with_indexed_ctx_vars"
+    # ...but os.environ, shared across concurrently-running sub-tasks, was left untouched.
+    assert "AIRFLOW_CTX_DAG_ID" not in os.environ
+
+
 def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
     """Test that the map index is rendered in the task context."""
 
@@ -2194,21 +2238,6 @@ class TestIndexedTaskInstance:
             run_id=None,
         )
         assert result == "pulled_value"
-
-    def test_next_retry_datetime_without_exponential_backoff(self, make_indexed_ti):
-        ti = make_indexed_ti(retry_delay=timedelta(seconds=30), retry_exponential_backoff=False)
-
-        assert ti.next_retry_datetime() == timezone.datetime(2024, 12, 3, 10, 0, 30)
-
-    def test_next_retry_datetime_exponential_backoff_honors_max_retry_delay(self, make_indexed_ti):
-        ti = make_indexed_ti(
-            try_number=2,
-            retry_delay=timedelta(seconds=10),
-            retry_exponential_backoff=True,
-            max_retry_delay=timedelta(seconds=5),
-        )
-
-        assert ti.next_retry_datetime() == timezone.datetime(2024, 12, 3, 10, 0, 5)
 
     def test_properties(self, make_indexed_ti):
         ti = make_indexed_ti(index=7, try_number=4, is_async=True, do_xcom_push=False)
@@ -2486,6 +2515,49 @@ class TestRuntimeTaskInstance:
 
         assert runtime_ti.logical_date == dag_run.logical_date
         assert runtime_ti.logical_date == timezone.datetime(2024, 12, 1, 1, 0, 0)
+
+    def test_task_state_store_is_cached(self, create_runtime_ti):
+        """Repeated access must return the same instance, not rebuild a new accessor each time."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        first = runtime_ti.task_state_store
+        second = runtime_ti.task_state_store
+
+        assert first is second
+
+    def test_task_state_store_used_by_template_context_is_the_cached_instance(self, create_runtime_ti):
+        """``get_template_context()`` must wire in the same cached accessor, not a fresh one."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        context = runtime_ti.get_template_context()
+
+        assert context["task_state_store"] is runtime_ti.task_state_store
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected_scope_map_index"),
+        [
+            pytest.param(None, -1, id="explicit-none-map-index-falls-back-to-minus-one"),
+            pytest.param(0, 0, id="mapped-task-index-zero"),
+            pytest.param(3, 3, id="mapped-task-index-three"),
+        ],
+    )
+    def test_task_state_store_scope_reflects_map_index(
+        self, create_runtime_ti, map_index, expected_scope_map_index
+    ):
+        """The scope used to namespace task-state-store keys must match the TI's own map_index,
+        falling back to -1 when map_index is None (e.g. an unmapped task)."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task", map_index=map_index)
+        assert runtime_ti.map_index == map_index
+
+        scope = runtime_ti.task_state_store._scope
+
+        assert scope.map_index == expected_scope_map_index
+        assert scope.dag_id == runtime_ti.dag_id
+        assert scope.run_id == runtime_ti.run_id
+        assert scope.task_id == runtime_ti.task_id
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""
