@@ -79,7 +79,7 @@ jobs:
       disable-airflow-repo-cache: "false"
 
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       bucket: ${{ steps.destination.outputs.bucket }}

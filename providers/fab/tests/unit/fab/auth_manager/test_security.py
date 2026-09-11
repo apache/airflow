@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import logging
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -262,6 +263,59 @@ def security_manager(app_builder):
 @pytest.fixture(scope="module")
 def session(app_builder):
     return app_builder.session
+
+
+class TestDeclarativeCustomRoles:
+    @pytest.fixture(autouse=True)
+    def cleanup_configured_role(self, security_manager):
+        yield
+        security_manager.session.rollback()
+        if security_manager.find_role("ConfigAnalyst") is not None:
+            security_manager.delete_role("ConfigAnalyst")
+
+    @pytest.mark.parametrize("update_permissions", [True, False])
+    @mock.patch.object(FabAuthManager, "security_manager", new_callable=mock.PropertyMock)
+    def test_startup_creates_role_only_when_permission_updates_enabled(
+        self, mock_security_manager, security_manager, update_permissions
+    ):
+        mock_security_manager.return_value = security_manager
+        with conf_vars(
+            {
+                ("fab", "update_fab_perms"): str(update_permissions),
+                ("fab", "custom_roles"): json.dumps(
+                    {"ConfigAnalyst": [{"action": "can_read", "resource": "DAGs"}]}
+                ),
+            }
+        ):
+            FabAuthManager()._sync_appbuilder_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        if update_permissions:
+            assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+                ("can_read", "DAGs"),
+                ("can_read", "Website"),
+            }
+        else:
+            assert role is None
+
+    @conf_vars({("fab", "update_fab_perms"): "False", ("fab", "custom_roles"): '{"ConfigAnalyst": []}'})
+    def test_explicit_sync_creates_role_and_adds_homepage_permission(self, security_manager):
+        security_manager.sync_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+            ("can_read", "Website")
+        }
+
+    @conf_vars({("fab", "custom_roles"): '{"ConfigAnalyst": [{"action": "can_read", "resource": "DAGs"}]}'})
+    def test_sync_preserves_existing_role_without_adding_configured_permissions(self, security_manager):
+        role = security_manager.add_role("ConfigAnalyst")
+        permission = security_manager.create_permission("can_edit", "DAGs")
+        security_manager.add_permission_to_role(role, permission)
+        security_manager.sync_roles()
+        role = security_manager.find_role("ConfigAnalyst")
+        assert {(perm.action.name, perm.resource.name) for perm in role.permissions} == {
+            ("can_edit", "DAGs"),
+            ("can_read", "Website"),
+        }
 
 
 @pytest.fixture
