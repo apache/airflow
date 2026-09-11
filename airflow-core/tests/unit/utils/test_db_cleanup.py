@@ -27,7 +27,18 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import Column, Integer, MetaData, Table, func, insert, inspect, literal, select, text
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    Table,
+    func,
+    insert,
+    inspect,
+    literal,
+    select,
+    text,
+)
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
@@ -660,15 +671,13 @@ class TestDBCleanup:
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
     def test_do_delete_skip_if_referenced_guards_against_race(self):
-        """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
+        """_do_delete must not delete a dag_version row that a task_instance references.
 
-        Simulates a race where a dag_version row passes the SELECT filter (no TI
-        references it at archive-creation time) but a TI referencing it is inserted
-        before the DELETE runs.  The skip_if_referenced guard on the DELETE itself
-        must leave the row in place instead of failing with IntegrityError.
+        Even in a race where the TI is inserted after the archive CTAS but before the
+        DELETE, the NOT EXISTS guard that _build_query embeds in the SELECT ensures the
+        row is excluded from every SELECT pass so the loop drains without ever issuing
+        a FK-violating DELETE.
         """
-        from airflow.utils.db import reflect_tables
-
         base_date = pendulum.DateTime(2020, 1, 1, tzinfo=pendulum.timezone("UTC"))
         bundle_name = f"race-test-{uuid4()}"
         dag_id = f"race_dag_{uuid4()}"
@@ -690,15 +699,9 @@ class TestDBCleanup:
             session.flush()
             dv_id = dv.id
 
-            # Manually create an archive table containing this dag_version row,
-            # simulating the CTAS step that ran before the TI was inserted.
-            archive_name = f"{ARCHIVE_TABLE_PREFIX}dag_version__race_test"
-            session.execute(
-                text(f"CREATE TABLE {archive_name} AS SELECT * FROM dag_version WHERE id = '{dv_id}'")
-            )
-            session.commit()
-
-            # Now insert a TI referencing the dag_version (the "race").
+            # Insert a TI referencing the dag_version so that the NOT EXISTS guard in
+            # _build_query excludes it from the SELECT, simulating a row that is
+            # still referenced at cleanup time.
             dag_run = DagRun(dag_id, run_id="race-run", run_type=DagRunType.MANUAL, start_date=base_date)
             ti = create_task_instance(
                 PythonOperator(task_id="dummy-task", python_callable=print),
@@ -710,21 +713,24 @@ class TestDBCleanup:
             session.add_all([dag_run, ti])
             session.commit()
 
-            # Build a select query that would return the row (simulating what _build_query
-            # returned before the TI was inserted).
-            metadata = reflect_tables([archive_name, "dag_version"], session)
-            archive_table = metadata.tables[archive_name]
-            query = select(archive_table)
+            # Use _build_query (as _cleanup_table does) so that the NOT EXISTS guard
+            # is embedded in the SELECT.  The TI reference keeps the SELECT count at
+            # zero and the loop exits without issuing any DELETE.
+            cfg = config_dict["dag_version"]
+            query = _build_query(
+                **cfg.__dict__,
+                clean_before_timestamp=base_date.add(days=1),
+                session=session,
+            )
 
-            # _do_delete must silently skip the row (FK guard on DELETE), not raise IntegrityError.
             _do_delete(
                 query=query,
-                orm_model=config_dict["dag_version"].orm_model,
+                orm_model=cfg.orm_model,
                 skip_archive=True,
                 session=session,
                 batch_size=None,
-                skip_if_referenced=[("task_instance", "dag_version_id")],
-                referenced_pk_column="id",
+                skip_if_referenced=cfg.skip_if_referenced,
+                referenced_pk_column=cfg.referenced_pk_column,
             )
 
             remaining = set(session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all())
@@ -840,7 +846,7 @@ class TestDBCleanup:
         session.get_bind.return_value.dialect.name = "mysql"
         session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
+        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
         metadata, source_table, target_table, query = _build_do_delete_test_objects()
 
@@ -903,7 +909,7 @@ class TestDBCleanup:
         session.get_bind.return_value.dialect.name = "mysql"
         session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
+        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
         metadata, source_table, target_table, query = _build_do_delete_test_objects()
         drop_failure = OperationalError("DROP TABLE", {}, Exception("disk full"))

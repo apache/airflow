@@ -30,7 +30,7 @@ import os
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, column, func, inspect, literal, literal_column, or_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
@@ -52,6 +52,7 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Select
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.models import Base
@@ -476,8 +477,16 @@ def _do_delete(
                         .exists()
                     )
             logger.debug("delete statement:\n%s", delete.compile())
-            session.execute(delete)
+            deleted = cast("CursorResult", session.execute(delete)).rowcount
             session.commit()
+
+            # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
+            # found. That is fine: the SELECT already includes the same NOT EXISTS guard, so
+            # the skipped row is excluded on the next pass too, and the loop drains naturally.
+            # With --batch-size set, continuing here lets subsequent batches clean rows that
+            # were not affected by the race.
+            if deleted == 0:
+                continue
 
         except BaseException:
             error_raised = True
