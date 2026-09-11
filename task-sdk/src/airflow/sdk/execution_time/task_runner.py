@@ -26,7 +26,7 @@ import os
 import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from contextlib import ExitStack, contextmanager, nullcontext, suppress
+from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
@@ -2319,6 +2319,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     # AIRFLOW_CTX_* to this thread instead via a context var; get_airflow_context_var() reads
     # it back for callers that would otherwise read os.environ directly.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    env_context: AbstractContextManager[None]
     if isinstance(ti, IndexedTaskInstance):
         env_context = airflow_context_vars_context(airflow_context_vars)
     else:
