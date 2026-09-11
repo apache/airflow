@@ -20,7 +20,7 @@
 Dynamic Task Mapping vs Task Iteration
 ======================================
 
-.. versionadded:: 3.3.0
+.. versionadded:: 3.4.0
 
 Airflow provides two complementary ways to process collections of data:
 
@@ -179,7 +179,7 @@ To truly **multiplex** I/O-bound operations, use an async task with
 
     from datetime import datetime
 
-    from airflow.providers.http.hooks.http import HttpAsyncHook
+    from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
     from airflow.sdk import dag, task
 
 
@@ -312,7 +312,7 @@ Comparison
      - Strong (shared event loop, multiplexing)
    * - Retry behavior
      - Per item
-     - Entire task retries
+     - Whole task retries, but checkpointed items are skipped
    * - Observability
      - Per item in UI
      - Aggregated in a single task
@@ -365,13 +365,17 @@ Prefer TI when:
 - You are using async operators and want to leverage a shared event loop.
 - Workloads are I/O-bound and benefit from multiplexing.
 - Fine-grained observability per item is not required.
+- You want retries to skip already-succeeded items instead of reprocessing everything — completed
+  items are checkpointed in the task state store, so a retry only re-runs the pending/failed ones.
 
 When **not** to use TI
 -----------------------
 
 Avoid Task Iteration when:
 
-- You need per-item retries or failure isolation.
+- You need per-item failure isolation (a fatal error in one item still fails the whole task
+  instance for that attempt, even though a retry only re-runs the checkpointed pending/failed
+  items rather than everything).
 - Each item represents a long-running or heavy computation.
 - You require detailed visibility per item in the Airflow UI.
 - Work must be distributed across multiple worker nodes.
