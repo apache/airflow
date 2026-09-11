@@ -1073,6 +1073,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
+        # Cache the pre-replacement id so save_to_db can re-issue the cleanup
+        # after the listener window (see GH#71923).
+        self._old_ti_id_for_cleanup = self.id
         self.id = uuid7()
 
     @provide_session
@@ -1954,6 +1957,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @provide_session
     def save_to_db(ti: TaskInstance, *, session: Session = NEW_SESSION):
         ti.updated_at = timezone.utcnow()
+        # Re-issue the reschedule cleanup: the Execution API may have inserted
+        # task_reschedule rows referencing the previous ti.id while listener
+        # hooks were blocking this transaction (GH#71923).
+        old_ti_id = getattr(ti, "_old_ti_id_for_cleanup", None)
+        if old_ti_id is not None:
+            session.execute(delete(TaskReschedule).filter_by(ti_id=old_ti_id))
         session.merge(ti)
         session.flush()
         session.commit()
