@@ -633,6 +633,37 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.json()["description"] == "updated description"
         assert response.json()["key"] == TEST_VARIABLE_KEY
 
+    def test_patch_with_comma_joined_update_mask_rejects_unknown_field(self, test_client):
+        self.create_variables()
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY}",
+            json={
+                "key": TEST_VARIABLE_KEY,
+                "value": "new value",
+                "description": "new description",
+            },
+            params={"update_mask": ["value,description"]},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Unknown update_mask field(s): ['value,description']"
+        variable = Variable.get(TEST_VARIABLE_KEY)
+        assert variable.val == TEST_VARIABLE_VALUE
+        assert variable.description == TEST_VARIABLE_DESCRIPTION
+
+    def test_patch_with_update_mask_key_rejects_immutable_field(self, test_client):
+        self.create_variables()
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "new value", "description": None},
+            params={"update_mask": ["key"]},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "Update not allowed: the following fields are immutable and cannot be modified: {'key'}"
+        )
+
 
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact

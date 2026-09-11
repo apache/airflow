@@ -1676,11 +1676,11 @@ class TestPatchDagRun:
                 {"user_id": "test", "content": None},
             ),
             (
-                {"update_mask": ["random"]},
-                {"state": DagRunState.FAILED},
-                {"state": "success", "note": "test_note"},
+                {"update_mask": ["state", "note"]},
+                {"state": DagRunState.FAILED, "note": "updated note"},
+                {"state": "failed", "note": "updated note"},
                 200,
-                {"user_id": "not_test", "content": "test_note"},
+                {"user_id": "test", "content": "updated note"},
             ),
         ],
     )
@@ -1698,6 +1698,20 @@ class TestPatchDagRun:
         for key, value in response_body.items():
             assert response_json.get(key) == value
         _check_dag_run_note(session, DAG1_RUN1_ID, note_data)
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_with_unknown_update_mask_rejects_request(self, test_client, session):
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}",
+            params={"update_mask": ["random"]},
+            json={"state": DagRunState.FAILED, "note": "should not be saved"},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Unknown update_mask field(s): ['random']"
+        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        assert dag_run.state == DagRunState.SUCCESS
+        assert dag_run.note == "test_note"
 
     def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(

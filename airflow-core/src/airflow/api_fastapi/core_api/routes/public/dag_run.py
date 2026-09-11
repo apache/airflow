@@ -226,6 +226,12 @@ def patch_dag_run(
     fields_to_update = patch_body.model_fields_set
 
     if update_mask:
+        unknown_fields = set(update_mask) - set(DAGRunPatchBody.model_fields)
+        if unknown_fields:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Unknown update_mask field(s): {sorted(unknown_fields)}",
+            )
         fields_to_update = fields_to_update.intersection(update_mask)
     else:
         try:
