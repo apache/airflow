@@ -1,0 +1,42 @@
+Helm chart now reconciles the Airflow metadata DB bidirectionally on ``helm upgrade``
+
+The ``migrate-database-job`` is now run as a ``post-install,pre-upgrade`` hook
+(was ``post-install,post-upgrade``) and its default args run a reconciliation
+script that picks one of four actions depending on the relationship between
+the chart's ``airflowVersion`` and the alembic head currently in the database:
+
+* ``fresh install`` (no alembic row) — ``airflow db migrate``.
+* ``target == current`` — no-op.
+* ``target > current`` — ``airflow db migrate`` (existing behaviour).
+* ``target < current`` — ``airflow db downgrade --to-version <target>``
+  executed inside the still-running api-server pod (so reverse alembic
+  scripts that ship only in the source-version image are available),
+  followed by scaling every DB-touching workload of this release
+  (``api-server``, ``scheduler``, ``triggerer``, ``dag-processor``,
+  ``worker``) to ``0``. Helm then patches those workloads back to their
+  configured ``replicas`` with the TARGET image as the upgrade proceeds,
+  so the cluster comes back up cleanly on the target version without any
+  OLD code running against the now-downgraded schema. A downgrade is
+  therefore a brief outage rather than a zero-downtime rolling update —
+  this is unavoidable when the schema goes backwards.
+
+The action above is only decided once the metadata DB is reachable. If the DB
+is still unreachable after the connection-wait window
+(``DB_CONNECT_MAX_WAIT_SECONDS``, default ``120``), the job exits non-zero and
+is retried via the Job ``backoffLimit`` rather than proceeding with a migrate.
+
+A ``Role`` + ``RoleBinding`` granting ``pods`` (``get``, ``list``),
+``pods/exec`` (``get``, ``create``), ``deployments`` / ``statefulsets`` (``get``, ``list``)
+and ``deployments/scale`` / ``statefulsets/scale`` (``patch``) to the
+existing ``migrate-database-job`` ``ServiceAccount`` are now rendered when
+``rbac.create`` is true (default). The downgrade branch is the only consumer.
+
+A new ``migrateDatabaseJob.drainTimeoutSeconds`` value (default ``300``)
+controls how long the downgrade branch waits for DB-touching pods to
+terminate after scale-to-zero — raise this when workers may be in the
+middle of long-running tasks.
+
+Users who set ``migrateDatabaseJob.command`` or ``migrateDatabaseJob.args``
+explicitly are unaffected — those values continue to take precedence. An
+empty list (``args: []``) is now distinguished from an unset value
+(``args: ~``) and disables the embedded reconciler.
