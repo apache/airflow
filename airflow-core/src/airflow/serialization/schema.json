@@ -181,6 +181,7 @@
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
         "owner_links": { "type": "object" },
+        "outlets": { "type": "array", "default": [] },
         "timetable": {
           "type": "object",
           "properties": {
