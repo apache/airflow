@@ -41,5 +41,8 @@ class ParseImportError(Base):
         """Return the full file path of the dag."""
         if self.bundle_name is None or self.filename is None:
             raise ValueError("bundle_name and filename must not be None")
-        bundle = DagBundlesManager().get_bundle(self.bundle_name)
-        return "/".join([str(bundle.path), self.filename])
+        bundle_path = DagBundlesManager().get_bundle_path_safe(self.bundle_name)
+        if bundle_path:
+            return "/".join([str(bundle_path), self.filename])
+        # Bundle no longer exists, return a placeholder path
+        return f"[removed bundle: {self.bundle_name}]/{self.filename}"
