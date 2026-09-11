@@ -21,10 +21,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -35,7 +37,34 @@ func myTaskWithArgs(ctx context.Context, logger *slog.Logger, client sdk.Client)
 	}
 	return nil
 }
-func errorTask() error { return errors.New("fail") }
+func errorTask() error                { return errors.New("fail") }
+func resultTask() (string, error)     { return "result", nil }
+func nilResultTask() (*string, error) { return nil, nil }
+
+type recordingClient struct {
+	sdk.Client
+	values []any
+}
+
+func (c *recordingClient) PushXCom(
+	_ context.Context,
+	_ sdk.TaskInstance,
+	_ string,
+	value any,
+) error {
+	c.values = append(c.values, value)
+	return nil
+}
+
+func taskContext(client sdk.Client) context.Context {
+	ctx := context.WithValue(context.Background(), sdkcontext.SdkClientContextKey, client)
+	ti := sdk.TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "task1"}
+	runtimeContext := sdk.NewTIRunContext(context.Background(), ti, sdk.DagRun{
+		DagID: ti.DagID,
+		RunID: ti.RunID,
+	})
+	return context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
+}
 
 func NotErrorRet() int {
 	return 0
@@ -66,6 +95,18 @@ func (s *RegistrySuite) TestAddDag_DuplicatePanics() {
 	})
 }
 
+func (s *RegistrySuite) TestAddDag_ValidatesID() {
+	for name, id := range map[string]string{
+		"empty":         "",
+		"invalid-char":  "bad/id",
+		"over-max-size": strings.Repeat("a", maxIDLength+1),
+	} {
+		s.Run(name, func() {
+			s.Panics(func() { New().AddDag(id) })
+		})
+	}
+}
+
 func (s *RegistrySuite) TestAddTask_RegistersAndFindsTask() {
 	s.dag.AddTask(myTask)
 	task, exists := s.reg.LookupTask("dag1", "myTask")
@@ -82,6 +123,18 @@ func (s *RegistrySuite) TestAddTaskWithName_RegistersAndFindsTask() {
 	// Lets just make sure it didn't exist under the fn name
 	_, exists = s.reg.LookupTask("dag1", "myTask")
 	s.False(exists)
+}
+
+func (s *RegistrySuite) TestAddTaskWithName_ValidatesID() {
+	for name, id := range map[string]string{
+		"empty":         "",
+		"invalid-char":  "bad/id",
+		"over-max-size": strings.Repeat("a", maxIDLength+1),
+	} {
+		s.Run(name, func() {
+			s.Panics(func() { s.dag.AddTaskWithName(id, myTask) })
+		})
+	}
 }
 
 func (s *RegistrySuite) TestRegisterTaskWithName_DuplicatePanics() {
@@ -144,12 +197,209 @@ func (s *RegistrySuite) TestOrderedDags_PreservesRegistrationOrder() {
 	got := enum.OrderedDags()
 	s.Require().Len(got, 3)
 
+	taskIDs := func(tasks []TaskInfo) []string {
+		ids := make([]string, 0, len(tasks))
+		for _, t := range tasks {
+			ids = append(ids, t.ID)
+		}
+		return ids
+	}
+
 	s.Equal("zeta", got[0].DagID)
-	s.Equal([]TaskInfo{{ID: "z1"}, {ID: "z2"}}, got[0].Tasks)
+	s.Equal([]string{"z1", "z2"}, taskIDs(got[0].Tasks))
 
 	s.Equal("alpha", got[1].DagID)
-	s.Equal([]TaskInfo{{ID: "a1"}}, got[1].Tasks)
+	s.Equal([]string{"a1"}, taskIDs(got[1].Tasks))
 
 	s.Equal("mid", got[2].DagID)
 	s.Empty(got[2].Tasks)
+}
+
+func (s *RegistrySuite) TestAddTask_WithSpec() {
+	s.dag.AddTask(myTask, TaskSpec{Queue: "high_mem", Retries: 3, DoXComPush: Bool(false)})
+	enum, ok := s.reg.(EnumerableBundle)
+	s.Require().True(ok)
+	dags := enum.OrderedDags()
+	s.Require().Len(dags, 1)
+	s.Require().Len(dags[0].Tasks, 1)
+	got := dags[0].Tasks[0]
+	s.Equal("myTask", got.ID)
+	s.Equal("high_mem", got.Spec.Queue)
+	s.Equal(3, got.Spec.Retries)
+	s.Require().NotNil(got.Spec.DoXComPush)
+	s.False(*got.Spec.DoXComPush)
+}
+
+func (s *RegistrySuite) TestAddTask_HonorsDoXComPush() {
+	s.dag.AddTask(resultTask, TaskSpec{DoXComPush: Bool(false)})
+	task, exists := s.reg.LookupTask("dag1", "resultTask")
+	s.Require().True(exists)
+	client := &recordingClient{}
+	s.Require().NoError(task.Execute(taskContext(client), slog.Default(), nil))
+	s.Empty(client.values)
+}
+
+func (s *RegistrySuite) TestAddTask_PushesNilResult() {
+	s.dag.AddTask(nilResultTask)
+	task, exists := s.reg.LookupTask("dag1", "nilResultTask")
+	s.Require().True(exists)
+	client := &recordingClient{}
+	s.Require().NoError(task.Execute(taskContext(client), slog.Default(), nil))
+	s.Require().Len(client.values, 1)
+	s.Nil(client.values[0])
+}
+
+func (s *RegistrySuite) TestAddTaskWithName_WithSpec() {
+	s.dag.AddTaskWithName("special", myTask, TaskSpec{Queue: "gpu", Pool: "gpu_pool"})
+	enum, ok := s.reg.(EnumerableBundle)
+	s.Require().True(ok)
+	dags := enum.OrderedDags()
+	s.Require().Len(dags, 1)
+	s.Require().Len(dags[0].Tasks, 1)
+	got := dags[0].Tasks[0]
+	s.Equal("special", got.ID)
+	s.Equal("gpu", got.Spec.Queue)
+	s.Equal("gpu_pool", got.Spec.Pool)
+}
+
+func (s *RegistrySuite) TestAddTask_DependsRecordsDownstream() {
+	s.dag.AddTaskWithName("extract", myTask)
+	s.dag.AddTaskWithName("transform", myTask, []string{"extract"})
+	s.dag.AddTaskWithName("load", myTask, []string{"transform"})
+
+	enum := s.reg.(EnumerableBundle)
+	tasks := enum.OrderedDags()[0].Tasks
+	byID := make(map[string]TaskInfo, len(tasks))
+	for _, t := range tasks {
+		byID[t.ID] = t
+	}
+	s.Equal([]string{"transform"}, byID["extract"].Downstream)
+	s.Equal([]string{"load"}, byID["transform"].Downstream)
+	s.Nil(byID["load"].Downstream)
+}
+
+func (s *RegistrySuite) TestAddTask_FanOutFanIn() {
+	s.dag.AddTaskWithName("extract", myTask)
+	s.dag.AddTaskWithName("transform_a", myTask, []string{"extract"})
+	s.dag.AddTaskWithName("transform_b", myTask, []string{"extract"})
+	s.dag.AddTaskWithName("load", myTask, []string{"transform_a", "transform_b"})
+
+	enum := s.reg.(EnumerableBundle)
+	tasks := enum.OrderedDags()[0].Tasks
+	byID := make(map[string]TaskInfo, len(tasks))
+	for _, t := range tasks {
+		byID[t.ID] = t
+	}
+	s.ElementsMatch([]string{"transform_a", "transform_b"}, byID["extract"].Downstream)
+	s.Equal([]string{"load"}, byID["transform_a"].Downstream)
+	s.Equal([]string{"load"}, byID["transform_b"].Downstream)
+}
+
+func (s *RegistrySuite) TestAddTask_DependsDuplicatesIgnored() {
+	s.dag.AddTaskWithName("extract", myTask)
+	s.dag.AddTaskWithName("load", myTask, []string{"extract", "extract"})
+
+	enum := s.reg.(EnumerableBundle)
+	tasks := enum.OrderedDags()[0].Tasks
+	byID := make(map[string]TaskInfo, len(tasks))
+	for _, t := range tasks {
+		byID[t.ID] = t
+	}
+	s.Equal([]string{"load"}, byID["extract"].Downstream)
+}
+
+func (s *RegistrySuite) TestAddTask_DependsUnknownPanics() {
+	s.PanicsWithError(
+		`task "load" depends on unknown task "extract" in DAG "dag1"; register upstream tasks first`,
+		func() {
+			s.dag.AddTaskWithName("load", myTask, []string{"extract"})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTask_DependsOnSelfPanics() {
+	s.PanicsWithError(`task "self" cannot depend on itself in DAG "dag1"`, func() {
+		s.dag.AddTaskWithName("self", myTask, []string{"self"})
+	})
+}
+
+func (s *RegistrySuite) TestAddTask_TooManySpecsPanics() {
+	s.PanicsWithError(
+		"AddTask accepts at most two optional arguments: depends []string, then TaskSpec; got 3",
+		func() {
+			s.dag.AddTask(myTask, nil, TaskSpec{}, TaskSpec{})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTaskWithName_TooManySpecsPanics() {
+	s.PanicsWithError(
+		"AddTaskWithName accepts at most two optional arguments: depends []string, then TaskSpec; got 3",
+		func() {
+			s.dag.AddTaskWithName("special", myTask, nil, TaskSpec{}, TaskSpec{})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTask_RejectsSpecBeforeDepends() {
+	s.PanicsWithError(
+		"AddTask first optional argument must be depends []string, got bundlev1.TaskSpec",
+		func() {
+			s.dag.AddTask(myTask, TaskSpec{}, []string{"upstream"})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddTask_RejectsInvalidOptionalArgument() {
+	s.PanicsWithError(
+		"AddTask optional argument must be depends []string or TaskSpec, got string",
+		func() {
+			s.dag.AddTask(myTask, "upstream")
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddDag_WithSpec() {
+	dag2 := s.reg.AddDag(
+		"dag2",
+		DagSpec{Schedule: "@daily", Tags: []string{"etl"}, MaxActiveRuns: 4},
+	)
+	s.NotNil(dag2)
+	enum, ok := s.reg.(EnumerableBundle)
+	s.Require().True(ok)
+	dags := enum.OrderedDags()
+	s.Require().Len(dags, 2)
+	var got DagInfo
+	for _, d := range dags {
+		if d.DagID == "dag2" {
+			got = d
+			break
+		}
+	}
+	s.Equal("dag2", got.DagID)
+	s.Equal("@daily", got.Spec.Schedule)
+	s.Equal([]string{"etl"}, got.Spec.Tags)
+	s.Equal(4, got.Spec.MaxActiveRuns)
+}
+
+func (s *RegistrySuite) TestAddDag_ContinuousDefaultsToOneActiveRun() {
+	s.reg.AddDag("continuous", DagSpec{Schedule: "@continuous"})
+	dags := s.reg.(EnumerableBundle).OrderedDags()
+	s.Equal(1, dags[1].Spec.MaxActiveRuns)
+	s.Equal(1, dags[1].Spec.SchemaFields()["max_active_runs"])
+}
+
+func (s *RegistrySuite) TestAddDag_ContinuousRejectsConcurrentRuns() {
+	s.PanicsWithError(
+		`Dag "continuous" uses @continuous and requires MaxActiveRuns <= 1, got 2`,
+		func() {
+			s.reg.AddDag("continuous", DagSpec{Schedule: "@continuous", MaxActiveRuns: 2})
+		},
+	)
+}
+
+func (s *RegistrySuite) TestAddDag_TooManySpecsPanics() {
+	s.PanicsWithError("AddDag accepts at most one spec, got 2", func() {
+		s.reg.AddDag("dag3", DagSpec{}, DagSpec{})
+	})
 }

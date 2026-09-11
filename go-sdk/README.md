@@ -85,7 +85,7 @@ var _ v1.BundleProvider = (*myBundle)(nil)
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
     simpleDag := dagbag.AddDag("simple_dag")
     simpleDag.AddTask(extract)
-    simpleDag.AddTask(transform)
+    simpleDag.AddTask(transform, []string{"extract"})
     return nil
 }
 
