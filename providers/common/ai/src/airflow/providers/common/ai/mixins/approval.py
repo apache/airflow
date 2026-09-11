@@ -198,6 +198,13 @@ class LLMApprovalMixin:
             kwargs={"generated_output": output},
         )
 
+    @staticmethod
+    def _describe_responder(event: dict[str, Any]) -> str:
+        responded_by_user = event.get("responded_by_user")
+        if responded_by_user is None:
+            return "the approval timeout default"
+        return responded_by_user["name"]
+
     def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
         """
         Resume after human review.
@@ -226,7 +233,7 @@ class LLMApprovalMixin:
                 raise HITLTimeoutError(f"Approval timed out: {event['error']}")
             raise HITLTriggerEventError(event)
 
-        responded_by_user = event.get("responded_by_user")
+        responder = self._describe_responder(event)
         chosen = event["chosen_options"]
         if self.APPROVE not in chosen:
             if event.get("timedout"):
@@ -234,9 +241,9 @@ class LLMApprovalMixin:
                     "Output was rejected automatically: approval_timeout expired with "
                     "on_approval_timeout='reject'."
                 )
-            raise HITLRejectException(f"Output was rejected by the reviewer {responded_by_user}.")
+            raise HITLRejectException(f"Output was rejected by the reviewer {responder}.")
 
-        log.info("Output approved by %s.", responded_by_user or "the approval timeout default")
+        log.info("Output approved by %s.", responder)
         output = generated_output
         params_input: dict[str, Any] = {} if event.get("timedout") else event.get("params_input") or {}
 
@@ -276,7 +283,7 @@ class LLMApprovalMixin:
                     }
                 )
             if modified is not None and modified != generated_output:
-                log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
+                log.info("output=%s modified by the reviewer=%s ", modified, responder)
                 return modified
 
         return output

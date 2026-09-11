@@ -377,7 +377,7 @@ class TestLLMBranchOperatorApproval:
         mock_do_branch.return_value = "task_a"
         op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c")
         op.downstream_task_ids = {"task_a", "task_b"}
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
         ctx = _make_context()
 
         result = op.execute_complete(ctx, generated_output="task_a", event=event)
@@ -391,7 +391,7 @@ class TestLLMBranchOperatorApproval:
         mock_do_branch.return_value = ["task_a", "task_c"]
         op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", allow_multiple_branches=True)
         op.downstream_task_ids = {"task_a", "task_b", "task_c"}
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
         ctx = _make_context()
 
         result = op.execute_complete(ctx, generated_output='["task_a","task_c"]', event=event)
@@ -428,7 +428,7 @@ class TestLLMBranchOperatorApproval:
             if with_teardown:
                 op4.as_teardown()
             op1 >> op2 >> op3 >> op4
-        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}}
         ti = MagicMock()
         ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": op1, "ti": ti}[key]})
 
@@ -463,7 +463,7 @@ class TestLLMBranchOperatorApproval:
     def test_execute_complete_reject_fails_with_fail_on_reject(self, mock_do_branch):
         op = LLMBranchOperator(task_id="t", prompt="p", llm_conn_id="c", fail_on_reject=True)
         op.downstream_task_ids = {"task_a", "task_b"}
-        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         with pytest.raises(HITLRejectException, match="rejected"):
             op.execute_complete(_make_context(), generated_output="task_a", event=event)
@@ -478,7 +478,7 @@ class TestLLMBranchOperatorApproval:
         op.downstream_task_ids = {"task_a", "task_b"}
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": "task_b"},
         }
         ctx = _make_context()
@@ -502,7 +502,7 @@ class TestLLMBranchOperatorApproval:
         op.downstream_task_ids = {"task_a", "task_b", "task_c"}
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": ["task_b", "task_c"]},
         }
         ctx = _make_context()
@@ -519,7 +519,7 @@ class TestLLMBranchOperatorApproval:
         op.downstream_task_ids = {"task_a", "task_b"}
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": "task_x"},
         }
 
@@ -541,7 +541,7 @@ class TestLLMBranchOperatorApproval:
         op.downstream_task_ids = {"task_a", "task_b"}
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": "[]"},
         }
 
@@ -568,7 +568,7 @@ class TestLLMBranchOperatorApproval:
         op.downstream_task_ids = {"task_a", "task_b"}
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": modified},
         }
 

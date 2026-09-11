@@ -148,7 +148,8 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if on_approval_timeout != "fail" and not (require_approval and approval_timeout):
             raise ValueError(
                 f"on_approval_timeout={on_approval_timeout!r} has no effect without "
-                "require_approval=True and approval_timeout. Set both, or leave on_approval_timeout as 'fail'."
+                "require_approval=True and a positive approval_timeout. "
+                "Set both, or leave on_approval_timeout as 'fail'."
             )
         self.require_approval = require_approval
         self.approval_timeout = approval_timeout
