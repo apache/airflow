@@ -71,6 +71,19 @@ def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.terminated is not None
 
 
+def has_sidecar_containers(pod: V1Pod, base_container_name: str) -> bool:
+    """
+    Examine V1Pod ``pod`` to determine whether it declares containers besides ``base_container_name``.
+
+    A pod whose sidecars outlive the base container never leaves the ``Running`` phase, so its base
+    container rather than the pod phase determines when the task is finished. Init containers are
+    reported separately by ``spec.init_containers`` and so do not count here.
+    """
+    if not pod or not pod.spec or not pod.spec.containers:
+        return False
+    return any(container.name != base_container_name for container in pod.spec.containers)
+
+
 def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
