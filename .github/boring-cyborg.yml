@@ -615,6 +615,24 @@ labelPRBasedOnFilePath:
     - dev/breeze/tests/test_publish_registry_versions.py
     - .github/workflows/registry-*
 
+  # Applied only when EVERY file changed in the PR is a test file, and removed
+  # again if the PR later touches anything else (allFilesMatch rules are kept
+  # in sync on PR updates even with labelOnPRUpdates disabled).
+  kind:tests:
+    allFilesMatch: true
+    paths:
+      - airflow-core/tests/**
+      - task-sdk/tests/**
+      - airflow-ctl/tests/**
+      - devel-common/tests/**
+      - providers/**/tests/**
+      - shared/**/tests/**
+      - airflow-ctl-tests/**
+      - airflow-e2e-tests/**
+      - task-sdk-integration-tests/**
+      - kubernetes-tests/**
+      - docker-tests/**
+
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
   # If this flag is changed to 'false', labels would only be added when the PR is first created
