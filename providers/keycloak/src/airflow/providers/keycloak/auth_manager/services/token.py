@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import json
+from functools import cache
 
 import jwt
 from fastapi import HTTPException, status
 from jwt import PyJWKClient
-from keycloak import KeycloakAuthenticationError
+from keycloak import KeycloakAuthenticationError, KeycloakError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf
@@ -35,6 +36,12 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+
+
+@cache
+def _get_jwks_client(issuer: str) -> PyJWKClient:
+    """Return the cached JWK client for a Keycloak realm issuer."""
+    return PyJWKClient(f"{issuer}/protocol/openid-connect/certs")
 
 
 def create_token_for(
@@ -76,16 +83,18 @@ def create_jwt_federated_token(
     This authentication flow accepts an access token issued by Keycloak through any
     Keycloak-native mechanism (e.g. a "Signed JWT - Federated" client bound to an
     external OIDC identity provider such as a Kubernetes ServiceAccount issuer, or AWS
-    IAM outbound identity federation). Airflow never contacts Keycloak itself here; it
-    only verifies a token that was already issued, so the caller must have obtained it
-    directly from Keycloak's token endpoint.
+    IAM outbound identity federation). Airflow does not obtain the token on the caller's
+    behalf, the caller must obtain it directly from Keycloak's token endpoint. Airflow
+    verifies the token and calls Keycloak's UserInfo endpoint to validate it and retrieve
+    user information.
 
     The token's signature, issuer, and audience are verified against this realm's JWKS.
     The ``aud`` claim (a string or a list) must include this Airflow client's id, which
     requires an Audience mapper on the federated client's scope in Keycloak. The calling
     client (``azp``) must also appear in the ``jwt_federated_client_ids`` allow-list
     below -- an ``aud`` match alone only proves the token was meant for Airflow, not
-    that the issuing client has been vetted for machine auth.
+    that the issuing client has been vetted for machine auth. Any Keycloak validation
+    error is returned as a generic ``403 Invalid Keycloak assertion`` response.
     """
     realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
     server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
@@ -93,7 +102,7 @@ def create_jwt_federated_token(
     issuer = f"{server_url.rstrip('/')}/realms/{realm}"
 
     try:
-        jwks_client = PyJWKClient(f"{issuer}/protocol/openid-connect/certs")
+        jwks_client = _get_jwks_client(issuer)
         signing_key = jwks_client.get_signing_key_from_jwt(assertion)
         claims = jwt.decode(
             assertion,
@@ -126,7 +135,7 @@ def create_jwt_federated_token(
     client = KeycloakAuthManager.get_keycloak_client()
     try:
         userinfo_raw: dict | bytes = client.userinfo(assertion)
-    except KeycloakAuthenticationError:
+    except KeycloakError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid Keycloak assertion",

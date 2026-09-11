@@ -81,8 +81,9 @@ If a client already authenticated to Keycloak by some other means -- for example
 "Signed JWT - Federated" client bound to an external OIDC identity provider such as a
 Kubernetes ServiceAccount issuer or AWS IAM outbound identity federation -- it can
 exchange the resulting Keycloak access token for an Airflow token without
-re-authenticating to Keycloak through Airflow. Airflow only verifies the assertion; it
-never contacts Keycloak to obtain it.
+re-authenticating to Keycloak through Airflow. Airflow does not obtain the assertion on
+the client's behalf, it verifies the assertion and calls Keycloak's ``/userinfo``
+endpoint to validate it and retrieve user information.
 
 The assertion must be a valid, unexpired access token issued by this realm, and its
 ``aud`` claim must include Airflow's configured client id. The calling client (from the
@@ -92,10 +93,12 @@ is not sufficient, since it only proves the token was meant for Airflow, not tha
 issuing client has been vetted for machine authentication. An unset or empty allow-list
 denies every caller.
 
-Keycloak client requirements
-'''''''''''''''''''''''''''
+If the assertion fails JWT validation, is not allow-listed, or Keycloak rejects it at
+``/userinfo``, the endpoint returns ``403 Invalid Keycloak assertion``. This generic
+response does not reveal which assertion validation check failed.
 
-The federated client that obtains the assertion (not the ``airflow`` client itself) must
+**Keycloak client requirements:** The federated client that obtains the assertion (not
+the ``airflow`` client itself) must
 be configured with:
 
 - **Client authentication**: ON (confidential client), using whatever mechanism suits

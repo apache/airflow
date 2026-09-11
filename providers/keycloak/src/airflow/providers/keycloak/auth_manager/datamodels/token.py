@@ -64,7 +64,8 @@ class TokenClientCredentialsBody(StrictBaseModel):
 
 
 class TokenJwtFederatedBody(StrictBaseModel):
-    """JWT-bearer grant token serializer for post bodies.
+    """
+    JWT-bearer grant token serializer for post bodies.
 
     Accepts a Keycloak access token obtained via any Keycloak-native authentication
     method (e.g. a client federated to an external OIDC identity provider) instead of
