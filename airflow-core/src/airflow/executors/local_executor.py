@@ -320,6 +320,11 @@ class LocalExecutor(BaseExecutor):
             )
             if not removed:
                 raise KeyError(f"Workload {workload.key} was not found in any queue")
+            # The workload holds a parallelism slot from dispatch until a worker reports its
+            # result, at which point change_state() releases it. Without this the executor
+            # reports every slot free the moment it hands work off, and the scheduler keeps
+            # admitting more.
+            self.running.add(workload.key)
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()

@@ -239,6 +239,59 @@ class TestLocalExecutor:
             assert executor.event_buffer[ti.key][0] == State.SUCCESS
         assert executor.event_buffer[fail_ti.key][0] == State.FAILED
 
+    @mock.patch.object(LocalExecutor, "_check_workers", new=mock.MagicMock())
+    def test_dispatched_workloads_occupy_parallelism_slots(self):
+        """A dispatched workload holds a slot until its result comes back.
+
+        The scheduler admits work using ``slots_available`` and ``slots_occupied``, both of which
+        count ``running``. If dispatch does not record the workload there, every slot reads free
+        the moment the executor hands work off and ``core.parallelism`` stops capping anything.
+        """
+        parallelism = 2
+        executor = LocalExecutor(parallelism=parallelism)
+        executor.activity_queue = mock.MagicMock()
+        executor._unread_messages = mock.MagicMock()
+        executor._unread_messages.value = 0
+
+        keys = []
+        for i in range(parallelism):
+            ti = TaskInstanceDTO(
+                id=uuid7(),
+                task_id=f"task_{i}",
+                dag_id="test_dag",
+                run_id="run-1",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
+                executor_config={},
+                queued_dttm=timezone.utcnow(),
+                dag_version_id=uuid7(),
+            )
+            workload = workloads.ExecuteTask(
+                token="",
+                ti=ti,
+                dag_rel_path="some/path",
+                log_path=None,
+                bundle_info=dict(name="hi", version="hi"),
+            )
+            keys.append(workload.key)
+            executor.queue_workload(workload, session=mock.MagicMock(spec=Session))
+
+        executor._process_workloads(list(executor.queued_tasks.values()))
+
+        assert executor.slots_occupied == parallelism
+        assert executor.slots_available == 0
+        # The scheduler also uses this to tell "I already dispatched this" from a stale event.
+        assert executor.has_task(mock.Mock(id=keys[0], key=keys[0])) is True
+
+        executor.change_state(keys[0], State.SUCCESS)
+
+        assert executor.slots_occupied == parallelism - 1
+        assert executor.slots_available == 1
+        assert executor.has_task(mock.Mock(id=keys[0], key=keys[0])) is False
+
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.stats.gauge")
