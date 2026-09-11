@@ -1025,6 +1025,37 @@ class TestDagBag:
         self.validate_dags(test_dag, found_dags, dagbag, should_be_found=False)
         assert file_path in dagbag.import_errors
 
+    def test_skip_task_group_dependency_cycle_dags(self, tmp_path):
+        def task_group_dependency_cycle():
+            import datetime
+
+            from airflow.providers.standard.operators.empty import EmptyOperator
+            from airflow.sdk import DAG, TaskGroup
+
+            with DAG(
+                "task_group_dependency_cycle",
+                schedule=None,
+                start_date=datetime.datetime(2016, 1, 1),
+            ) as dag:
+                with TaskGroup("left"):
+                    left_source = EmptyOperator(task_id="left_source")
+                    left_sink = EmptyOperator(task_id="left_sink")
+                with TaskGroup("right"):
+                    right_source = EmptyOperator(task_id="right_source")
+                    right_sink = EmptyOperator(task_id="right_sink")
+
+                left_source >> right_sink
+                right_source >> left_sink
+
+            return dag
+
+        test_dag = task_group_dependency_cycle()
+
+        dagbag, found_dags, file_path = self.process_dag(task_group_dependency_cycle, tmp_path)
+
+        self.validate_dags(test_dag, found_dags, dagbag, should_be_found=False)
+        assert "TaskGroup dependency cycle detected" in dagbag.import_errors[file_path]
+
     def test_process_file_with_none(self, tmp_path):
         """
         test that process_file can handle Nones

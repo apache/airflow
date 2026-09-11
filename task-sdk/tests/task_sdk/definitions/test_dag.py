@@ -997,6 +997,40 @@ class TestCycleTester:
 
         assert not dag.check_cycle()
 
+    @pytest.mark.parametrize(
+        ("nested", "faulty_group"),
+        [
+            pytest.param(False, "<root>", id="root"),
+            pytest.param(True, "parent", id="nested"),
+        ],
+    )
+    def test_cycle_between_sibling_task_groups(self, nested, faulty_group):
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+
+        def add_groups():
+            with TaskGroup("left"):
+                left_source = DoNothingOperator(task_id="left_source")
+                left_sink = DoNothingOperator(task_id="left_sink")
+            with TaskGroup("right"):
+                right_source = DoNothingOperator(task_id="right_source")
+                right_sink = DoNothingOperator(task_id="right_sink")
+
+            left_source >> right_sink
+            right_source >> left_sink
+
+        with dag:
+            if nested:
+                with TaskGroup("parent"):
+                    add_groups()
+            else:
+                add_groups()
+
+        with pytest.raises(
+            AirflowDagCycleException,
+            match=rf"TaskGroup dependency cycle detected in Dag: dag\. Faulty TaskGroup: {faulty_group}",
+        ):
+            dag.check_cycle()
+
 
 class TestDagGetItem:
     def test_getitem_returns_task(self):

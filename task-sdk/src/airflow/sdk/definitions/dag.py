@@ -1138,7 +1138,7 @@ class DAG:
 
     def check_cycle(self) -> None:
         """
-        Check to see if there are any cycles in the Dag.
+        Check to see if there are any task or TaskGroup dependency cycles in the Dag.
 
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
@@ -1176,6 +1176,16 @@ class DAG:
                     path_stack.pop()
                 else:
                     path_stack.append(child_to_check)
+
+        task_group_dict = self.task_group.get_task_group_dict()
+        for task_group in task_group_dict.values():
+            try:
+                task_group.topological_sort(group_dict=task_group_dict)
+            except AirflowDagCycleException:
+                group_id = task_group.group_id or "<root>"
+                raise AirflowDagCycleException(
+                    f"TaskGroup dependency cycle detected in Dag: {self.dag_id}. Faulty TaskGroup: {group_id}"
+                ) from None
 
     def cli(self):
         """Exposes a CLI specific to this Dag."""
