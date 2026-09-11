@@ -46,7 +46,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_1_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.providers.databricks.plugins.databricks_workflow import (
@@ -352,7 +352,7 @@ def _patched_create_session(dag_run):
     return _factory
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow-3 repair backend requires 3.1+")
+@pytest.mark.skipif(not AIRFLOW_V_3_1_1_PLUS, reason="Airflow-3 repair backend requires 3.1.1+")
 class TestDatabricksWorkflowPluginAirflow3:
     """Test Databricks Workflow Plugin functionality specific to Airflow 3.1+."""
 
