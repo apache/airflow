@@ -513,25 +513,44 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Assume that spark-submit is present in the path to the executing user
         return [self._connection["spark_binary"]]
 
+    # Bounds for _mask_cmd's regex: keep matching close to O(n) instead of
+    # O(n^2) on long input, while staying generous for any realistic flag
+    # name or secret value.
+    _MASK_CMD_KEY_BOUND = 100
+    _MASK_CMD_VALUE_BOUND = 1024
+
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
+        cmd_str = " ".join(connection_cmd)
+
+        # Fast path / cheap pre-check: if neither trigger word is present at all,
+        # there is nothing to mask, so skip the (comparatively expensive) regex
+        # entirely. This also means arbitrarily long, attacker-controlled
+        # arguments (e.g. templated ``application_args``) that don't contain
+        # "secret" or "password" never reach the regex below.
+        lowered_cmd_str = cmd_str.lower()
+        if "secret" not in lowered_cmd_str and "password" not in lowered_cmd_str:
+            return cmd_str
+
         connection_cmd_masked = re.sub(
             r"("
-            r"\S*?"  # Match all non-whitespace characters before...
+            rf"\S{{0,{self._MASK_CMD_KEY_BOUND}}}?"  # Match a *bounded* number of non-whitespace
+            # characters before...
             r"(?:secret|password)"  # ...literally a "secret" or "password"
             # word (not capturing them).
-            r"\S*?"  # All non-whitespace characters before either...
+            rf"\S{{0,{self._MASK_CMD_KEY_BOUND}}}?"  # A *bounded* number of non-whitespace
+            # characters before either...
             r"(?:=|\s+)"  # ...an equal sign or whitespace characters
             # (not capturing them).
             r"(['\"]?)"  # An optional single or double quote.
             r")"  # This is the end of the first capturing group.
-            r"(?:(?!\2\s).)*"  # All characters between optional quotes
-            # (matched above); if the value is quoted,
+            rf"(?:(?!\2\s).){{0,{self._MASK_CMD_VALUE_BOUND}}}"  # A *bounded* number of characters
+            # between optional quotes (matched above); if the value is quoted,
             # it may contain whitespace.
             r"(\2)",  # Optional matching quote.
             r"\1******\3",
-            " ".join(connection_cmd),
+            cmd_str,
             flags=re.I,
         )
 
