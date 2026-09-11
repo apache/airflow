@@ -209,7 +209,7 @@ class TestHITLTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch.object(HITLTrigger, "log")
-    @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
+    @mock.patch("airflow.providers.standard.triggers.hitl.update_hitl_detail_response")
     async def test_run_replayed_after_timeout_fallback_has_no_responder(
         self, mock_update, mock_log, mock_supervisor_comms, default_trigger_args
     ):
@@ -243,9 +243,8 @@ class TestHITLTrigger:
         )
         mock_update.assert_not_called()
         assert mock_log.info.call_args == mock.call(
-            "[HITL] responded_by=%s (id=%s) options=%s at %s (timeout fallback skipped)",
-            None,
-            None,
+            "[HITL] resuming with the timeout default %s recorded at %s "
+            "(applied by an earlier run of this trigger)",
             ["1"],
             fallback_datetime,
         )
