@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 import collections
-import itertools
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Literal, cast
 
 import sqlalchemy as sa
 import structlog
-from croniter.croniter import croniter
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
@@ -216,17 +214,17 @@ class CalendarService:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
 
-        dates_iter: Iterator[datetime | None] = croniter(
-            cast("CronMixin", dag.timetable)._expression,
-            start_time=last_data_interval.end,
-            ret_type=datetime,
-        )
+        cron_timetable = cast("CronMixin", dag.timetable)
+        dt = last_data_interval.end
 
-        # Cap the iteration like _calculate_timetable_planned_runs does; a high-frequency
-        # expression (e.g. "* * * * *", or a seconds-resolution cron) would otherwise take
-        # hundreds of thousands of steps before hitting the year boundary.
-        for dt in itertools.islice(dates_iter, self.MAX_PLANNED_RUNS):
-            if dt is None or dt.year != year:
+        # Step with CronMixin._get_next so planned instants match the scheduler exactly,
+        # including its DST gap/fold handling. Cap the iteration like
+        # _calculate_timetable_planned_runs does; a high-frequency expression (e.g.
+        # "* * * * *", or a seconds-resolution cron) would otherwise take hundreds of
+        # thousands of steps before hitting the year boundary.
+        for _ in range(self.MAX_PLANNED_RUNS):
+            dt = cron_timetable._get_next(dt)
+            if dt.year != year:
                 break
             if dag.end_date and dt > dag.end_date:
                 break

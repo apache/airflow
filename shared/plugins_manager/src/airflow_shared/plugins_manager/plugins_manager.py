@@ -105,6 +105,7 @@ class AirflowPlugin:
     fastapi_root_middlewares: list[Any] = []
     external_views: list[Any] = []
     react_apps: list[Any] = []
+    ui_translations: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
