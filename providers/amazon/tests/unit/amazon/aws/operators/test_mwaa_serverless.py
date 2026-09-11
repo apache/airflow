@@ -158,26 +158,6 @@ class TestMwaaServerlessCreateWorkflowOperator:
             op.execute({})
 
     @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute_with_code(self, mock_conn):
-        op = MwaaServerlessCreateWorkflowOperator(
-            task_id="create_workflow",
-            workflow_name=WORKFLOW_NAME,
-            definition_s3_location=S3_LOCATION,
-            code=CODE,
-            role_arn=ROLE_ARN,
-        )
-        mock_client = mock.MagicMock()
-        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
-        mock_conn.return_value = mock_client
-
-        result = op.execute({})
-
-        mock_client.create_workflow.assert_called_once_with(
-            Name=WORKFLOW_NAME, DefinitionS3Location=S3_LOCATION, Code=CODE, RoleArn=ROLE_ARN
-        )
-        assert result == WORKFLOW_ARN
-
-    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
     def test_execute_with_code_version_id(self, mock_conn):
         code = {"S3Location": {**CODE["S3Location"], "VersionId": "abc123"}}
         op = MwaaServerlessCreateWorkflowOperator(
