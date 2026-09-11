@@ -234,42 +234,19 @@ class ZipImporter(AbstractDagImporter):
         return result
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        if isinstance(definition, ZipFileDagDefinition):
-            importer = self._get_internal_importer(definition.file_path)
-            if importer is not None:
-                return importer.get_source_code(definition)
-            raise ValueError(f"No internal importer registered for zip member {definition.file_path}")
+        """
+        Return the source of a single archive member.
 
-        # If definition is the zip archive itself, route to code member(s)
-        with definition.as_file() as local_zip_path:
-            with zipfile.ZipFile(local_zip_path) as z:
-                candidates = [
-                    name
-                    for name in z.namelist()
-                    if self._get_internal_importer(name) is not None
-                    and not name.startswith("__MACOSX")
-                    and ".." not in Path(name).parts
-                    and not Path(name).is_absolute()
-                ]
-            if not candidates:
-                raise ValueError(f"No code files found inside ZIP archive {definition}")
-            if len(candidates) == 1:
-                nested_def = ZipFileDagDefinition(zip_path=local_zip_path, file_path=candidates[0])
-                importer = self._get_internal_importer(candidates[0])
-                if importer is not None:
-                    return importer.get_source_code(nested_def)
-                raise ValueError(f"No internal importer registered for zip member {candidates[0]}")
-
-            parts = []
-            primary_language = "text"
-            for name in candidates:
-                nested_def = ZipFileDagDefinition(zip_path=local_zip_path, file_path=name)
-                importer = self._get_internal_importer(name)
-                if importer is not None:
-                    res = importer.get_source_code(nested_def)
-                    primary_language = res.language
-                    parts.append(f"# --- {name} ---\n{res.source_code}")
-            return DagSourceCode(source_code="\n\n".join(parts), language=primary_language)
+        A zip is treated as a directory of DAG files: each member is its own
+        source unit, so this renders exactly the member named by ``definition``
+        through its file-type internal importer. The archive as a whole has no
+        source, the same way a directory does not; passing an archive-level
+        definition here is a category error and raises.
+        """
+        importer = self._get_internal_importer(definition)
+        if importer is None:
+            raise ValueError(f"No internal importer to read source for {definition!r}")
+        return importer.get_source_code(definition)
 
     def _register_internal(self, importer: AbstractDagImporter, extensions: list[str] | None = None) -> None:
         if importer not in self._ordered_internal_importers:
@@ -283,11 +260,11 @@ class ZipImporter(AbstractDagImporter):
             for ext in normalized:
                 self._internal_extension_importers[ext] = importer
 
-    def _get_internal_importer(self, member_name: str) -> AbstractDagImporter | None:
-        suffix = get_file_suffix(member_name)
+    def _get_internal_importer(self, member: DagDefinition | str) -> AbstractDagImporter | None:
+        suffix = get_file_suffix(member)
         if suffix and suffix in self._internal_extension_importers:
             return self._internal_extension_importers[suffix]
         for importer in reversed(self._ordered_internal_importers):
-            if importer.can_handle(member_name):
+            if importer.can_handle(member):
                 return importer
         return None

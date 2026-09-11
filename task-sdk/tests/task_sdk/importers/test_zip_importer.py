@@ -105,20 +105,24 @@ class TestZipImporter:
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "zip_read_error"
 
-    def test_get_source_code_archive_and_member(self, tmp_path):
+    def test_get_source_code_reads_member_not_archive(self, tmp_path):
         zip_path = tmp_path / "source_dags.zip"
         dag_content = "from airflow.sdk import DAG\ndag = DAG('src_dag')\n"
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("my_dag.py", dag_content)
 
         importer = ZipImporter()
-        src_archive = importer.get_source_code(FileDagDefinition(path=zip_path))
-        assert src_archive.language == "python"
-        assert src_archive.source_code == dag_content
 
+        # A zip is a directory of DAG files: each member is its own source unit,
+        # rendered through its file-type importer (same single-member semantics as
+        # the legacy code view's open_maybe_zipped).
         src_member = importer.get_source_code(ZipFileDagDefinition(zip_path=zip_path, file_path="my_dag.py"))
         assert src_member.language == "python"
         assert src_member.source_code == dag_content
+
+        # The archive as a whole has no source, the same way a directory does not.
+        with pytest.raises(ValueError, match="No internal importer"):
+            importer.get_source_code(FileDagDefinition(path=zip_path))
 
     def test_zip_dag_definition_freshness_token(self, tmp_path):
         zip_path = tmp_path / "fresh_bundle.zip"
