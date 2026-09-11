@@ -418,6 +418,191 @@ class TestGitSyncSchedulerTest:
             "spec.template.spec.containers[1].env", docs[0]
         )
 
+    def test_env_override_replaces_hardcoded_value(self):
+        """User-provided env should replace the hardcoded default without duplicates."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "repo": "https://default.example.com/repo.git",
+                        "env": [
+                            {"name": "GIT_SYNC_REPO", "value": "https://override.example.com/repo.git"},
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        git_sync_repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(git_sync_repo_entries) == 1, "Expected exactly one GIT_SYNC_REPO entry, no duplicates"
+        assert git_sync_repo_entries[0]["value"] == "https://override.example.com/repo.git"
+
+    def test_env_override_with_secret_ref(self):
+        """User-provided env with valueFrom.secretKeyRef should replace the hardcoded default."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "repo": "https://default.example.com/repo.git",
+                        "env": [
+                            {
+                                "name": "GIT_SYNC_REPO",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "my-git-secret",
+                                        "key": "repo-url",
+                                    }
+                                },
+                            },
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        git_sync_repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(git_sync_repo_entries) == 1, "Expected exactly one GIT_SYNC_REPO entry, no duplicates"
+        assert git_sync_repo_entries[0]["valueFrom"]["secretKeyRef"]["name"] == "my-git-secret"
+        assert git_sync_repo_entries[0]["valueFrom"]["secretKeyRef"]["key"] == "repo-url"
+
+    def test_env_override_multiple_vars_no_duplicates(self):
+        """Multiple user overrides should each replace their hardcoded counterpart."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "repo": "https://default.example.com/repo.git",
+                        "depth": 1,
+                        "env": [
+                            {"name": "GIT_SYNC_REPO", "value": "https://override.example.com/repo.git"},
+                            {"name": "GITSYNC_REPO", "value": "https://override.example.com/repo.git"},
+                            {"name": "GIT_SYNC_DEPTH", "value": "0"},
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        for var_name in ["GIT_SYNC_REPO", "GITSYNC_REPO", "GIT_SYNC_DEPTH"]:
+            entries = [e for e in env if e["name"] == var_name]
+            assert len(entries) == 1, f"Expected exactly one {var_name} entry, got {len(entries)}"
+
+    def test_env_override_does_not_affect_other_vars(self):
+        """Overriding one env var should not remove other hardcoded env vars."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [
+                            {"name": "GIT_SYNC_REPO", "value": "https://override.example.com/repo.git"},
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        env_names = [e["name"] for e in env]
+        # These should still be present since they were not overridden
+        assert "GITSYNC_REPO" in env_names
+        assert "GIT_SYNC_REV" in env_names
+        assert "GIT_SYNC_DEPTH" in env_names
+        assert "GIT_SYNC_ROOT" in env_names
+
+    def test_env_vars_secret_loads_from_secret_key_ref(self):
+        """When envVarsSecret is set, main env vars should use valueFrom.secretKeyRef."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "envVarsSecret": "git-sync-env-secret",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(repo_entries) == 1
+        assert repo_entries[0]["valueFrom"]["secretKeyRef"]["name"] == "git-sync-env-secret"
+        assert repo_entries[0]["valueFrom"]["secretKeyRef"]["key"] == "GIT_SYNC_REPO"
+        assert repo_entries[0]["valueFrom"]["secretKeyRef"]["optional"] is True
+
+        # GITSYNC_REPO should also use the secret
+        gitsync_repo = [e for e in env if e["name"] == "GITSYNC_REPO"]
+        assert len(gitsync_repo) == 1
+        assert gitsync_repo[0]["valueFrom"]["secretKeyRef"]["name"] == "git-sync-env-secret"
+
+        # GIT_SYNC_REV should also use the secret
+        rev_entries = [e for e in env if e["name"] == "GIT_SYNC_REV"]
+        assert len(rev_entries) == 1
+        assert rev_entries[0]["valueFrom"]["secretKeyRef"]["name"] == "git-sync-env-secret"
+
+    def test_env_vars_secret_does_not_affect_constants(self):
+        """Constants like GIT_SYNC_ROOT should keep their hardcoded values even with envVarsSecret."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "envVarsSecret": "git-sync-env-secret",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        root_entries = [e for e in env if e["name"] == "GIT_SYNC_ROOT"]
+        assert len(root_entries) == 1
+        assert root_entries[0]["value"] == "/git"
+
+        dest_entries = [e for e in env if e["name"] == "GIT_SYNC_DEST"]
+        assert len(dest_entries) == 1
+        assert dest_entries[0]["value"] == "repo"
+
+    def test_env_override_takes_precedence_over_env_vars_secret(self):
+        """dags.gitSync.env should override envVarsSecret (no duplicates)."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "envVarsSecret": "git-sync-env-secret",
+                        "env": [
+                            {"name": "GIT_SYNC_REPO", "value": "https://explicit.example.com/repo.git"},
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        repo_entries = [e for e in env if e["name"] == "GIT_SYNC_REPO"]
+        assert len(repo_entries) == 1, "Expected exactly one GIT_SYNC_REPO entry"
+        assert repo_entries[0]["value"] == "https://explicit.example.com/repo.git"
+
     def test_resources_are_configurable(self):
         docs = render_chart(
             values={
