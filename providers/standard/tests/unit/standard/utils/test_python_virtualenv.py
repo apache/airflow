@@ -17,13 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
+from airflow.providers.standard.exceptions import RequirementsResolutionError
+from airflow.providers.standard.utils.python_virtualenv import (
+    _generate_pip_conf,
+    _use_uv,
+    prepare_virtualenv,
+    resolve_requirements_versions,
+)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import remove_task_decorator
@@ -275,3 +283,137 @@ class TestPrepareVirtualenv:
 
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == expected_source
+
+
+PIP_INSTALL_REPORT = json.dumps(
+    {
+        "version": "1",
+        "install": [
+            {"metadata": {"name": "numpy", "version": "2.0.1"}},
+            {"metadata": {"name": "colormap", "version": "1.1.0"}},
+        ],
+    }
+)
+
+
+class TestResolveRequirementsVersions:
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.run", autospec=True)
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_resolve_with_uv_builds_pip_compile_command(self, mock_run):
+        captured = {}
+
+        def capture_run(cmd, **kwargs):
+            captured["requirements"] = Path(cmd[-1]).read_text()
+            return subprocess.CompletedProcess(cmd, 0, stdout="pkg==1.0\n", stderr="")
+
+        mock_run.side_effect = capture_run
+
+        result = resolve_requirements_versions(requirements=["pkg"], python_bin="pythonVER")
+
+        cmd = mock_run.call_args.args[0]
+        assert cmd[:-1] == [
+            "uv",
+            "pip",
+            "compile",
+            "--python",
+            "pythonVER",
+            "--no-header",
+            "--no-annotate",
+            "--quiet",
+        ]
+        assert captured["requirements"] == "pkg"
+        assert result == ["pkg==1.0"]
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.run", autospec=True)
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_resolve_with_uv_passes_index_urls_as_env_vars(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="pkg==1.0\n", stderr="")
+
+        resolve_requirements_versions(
+            requirements=["pkg"],
+            python_bin="pythonVER",
+            index_urls=["http://one", "http://two", "http://three"],
+        )
+
+        env = mock_run.call_args.kwargs["env"]
+        assert env["UV_DEFAULT_INDEX"] == "http://one"
+        assert env["UV_INDEX"] == "http://two http://three"
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.run", autospec=True)
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_resolve_with_uv_ignores_comments_and_sorts_output(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess(
+            [], 0, stdout="numpy==2.0.1\n\n# via pandas\ncolormap==1.1.0\n", stderr=""
+        )
+
+        result = resolve_requirements_versions(requirements=["pkg"], python_bin="python")
+
+        assert result == ["colormap==1.1.0", "numpy==2.0.1"]
+
+    @pytest.mark.parametrize(
+        ("index_urls", "expected_index_args"),
+        [
+            (None, []),
+            ([], ["--no-index"]),
+            (["http://one"], ["--index-url", "http://one"]),
+            (
+                ["http://one", "http://two", "http://three"],
+                [
+                    "--index-url",
+                    "http://one",
+                    "--extra-index-url",
+                    "http://two",
+                    "--extra-index-url",
+                    "http://three",
+                ],
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.run", autospec=True)
+    def test_resolve_with_pip_builds_dry_run_command(self, mock_run, index_urls, expected_index_args):
+        captured = {}
+
+        def capture_run(cmd, **kwargs):
+            captured["requirements"] = Path(cmd[cmd.index("-r") + 1]).read_text()
+            return subprocess.CompletedProcess(cmd, 0, stdout=PIP_INSTALL_REPORT, stderr="")
+
+        mock_run.side_effect = capture_run
+
+        with conf_vars({("standard", "venv_install_method"): "pip"}):
+            result = resolve_requirements_versions(
+                requirements=["colormap>=1.0", "numpy"], python_bin="pythonVER", index_urls=index_urls
+            )
+
+        cmd = mock_run.call_args.args[0]
+        assert cmd[:9] == [
+            "pythonVER",
+            "-m",
+            "pip",
+            "install",
+            "--dry-run",
+            "--ignore-installed",
+            "--quiet",
+            "--report",
+            "-",
+        ]
+        assert cmd[9] == "-r"
+        assert cmd[11:] == expected_index_args
+        assert captured["requirements"] == "colormap>=1.0\nnumpy"
+        assert result == ["colormap==1.1.0", "numpy==2.0.1"]
+
+    @pytest.mark.parametrize("install_method", ["uv", "pip"])
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.run", autospec=True)
+    def test_resolve_failure_raises_with_stderr(self, mock_run, install_method):
+        mock_run.return_value = subprocess.CompletedProcess([], 1, stdout="", stderr="resolution exploded")
+
+        with conf_vars({("standard", "venv_install_method"): install_method}):
+            with pytest.raises(RequirementsResolutionError, match="resolution exploded"):
+                resolve_requirements_versions(requirements=["pkg"], python_bin="python")
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.run", autospec=True)
+    @conf_vars({("standard", "venv_install_method"): "pip"})
+    def test_resolve_with_pip_invalid_report_raises(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="not json", stderr="")
+
+        with pytest.raises(RequirementsResolutionError, match="installation report"):
+            resolve_requirements_versions(requirements=["pkg"], python_bin="python")

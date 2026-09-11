@@ -67,3 +67,7 @@ class HITLTimeoutError(HITLTriggerEventError):
 
 class HITLRejectException(AirflowException):
     """Raised when an ApprovalOperator receives a "Reject" response when fail_on_reject is set to True."""
+
+
+class RequirementsResolutionError(Exception):
+    """Raised when resolving requirements to pinned package versions fails."""

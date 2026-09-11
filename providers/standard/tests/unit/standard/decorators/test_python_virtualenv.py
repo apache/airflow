@@ -393,3 +393,13 @@ class TestPythonVirtualenvDecorator:
         xcom = ti.xcom_pull(task_ids=ti.task_id, key="return_value")
         assert isinstance(xcom, str)
         assert xcom == unique_id
+
+    def test_hash_resolved_requirements_forwarded_to_operator(self, dag_maker):
+        @task.virtualenv(hash_resolved_requirements=True)
+        def f():
+            return 1
+
+        with dag_maker():
+            res = f()
+
+        assert res.operator.hash_resolved_requirements is True

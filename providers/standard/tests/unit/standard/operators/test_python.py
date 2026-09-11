@@ -2093,6 +2093,76 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
         pycache_cleanup_mock.assert_called_once_with(expected_cleanup_path)
 
 
+@mock.patch("airflow.providers.standard.operators.python.Variable", autospec=True)
+@mock.patch("airflow.providers.standard.operators.python.resolve_requirements_versions", autospec=True)
+class TestPythonVirtualenvOperatorResolvedRequirementsHash:
+    @staticmethod
+    def _build_operator(**kwargs):
+        def f():
+            return 42
+
+        return PythonVirtualenvOperator(
+            task_id="venv_op", python_callable=f, requirements=["colormap>=1.0"], **kwargs
+        )
+
+    def test_hash_does_not_resolve_requirements_by_default(self, mock_resolve, mock_variable):
+        mock_variable.get.return_value = ""
+        op = self._build_operator()
+
+        _, hash_text = op._calculate_cache_hash()
+
+        mock_resolve.assert_not_called()
+        assert "resolved_requirements" not in hash_text
+
+    def test_hash_includes_resolved_requirements_when_enabled(self, mock_resolve, mock_variable):
+        mock_variable.get.return_value = ""
+        mock_resolve.return_value = ["colormap==1.1.0", "numpy==2.0.1"]
+        op = self._build_operator(hash_resolved_requirements=True)
+
+        _, hash_text = op._calculate_cache_hash()
+
+        mock_resolve.assert_called_once_with(
+            requirements=["colormap>=1.0"], python_bin="python", index_urls=None
+        )
+        assert '"resolved_requirements": ["colormap==1.1.0", "numpy==2.0.1"]' in hash_text
+
+    def test_hash_changes_only_when_resolution_changes(self, mock_resolve, mock_variable):
+        mock_variable.get.return_value = ""
+        mock_resolve.side_effect = [["colormap==1.0.4"], ["colormap==1.0.4"], ["colormap==1.1.0"]]
+
+        hashes = [
+            self._build_operator(hash_resolved_requirements=True)._calculate_cache_hash()[0] for _ in range(3)
+        ]
+
+        assert hashes[0] == hashes[1]
+        assert hashes[0] != hashes[2]
+
+    def test_resolution_performed_once_per_operator(self, mock_resolve, mock_variable):
+        mock_variable.get.return_value = ""
+        mock_resolve.return_value = ["colormap==1.1.0"]
+        op = self._build_operator(hash_resolved_requirements=True)
+
+        op._calculate_cache_hash()
+        op._calculate_cache_hash()
+
+        mock_resolve.assert_called_once()
+
+    @mock.patch.object(PythonVirtualenvOperator, "_cleanup_python_pycache_dir", autospec=True)
+    @mock.patch.object(PythonVirtualenvOperator, "_execute_python_callable_in_subprocess", autospec=True)
+    @mock.patch.object(PythonVirtualenvOperator, "_prepare_venv", autospec=True)
+    def test_flag_without_cache_path_warns_and_skips_resolution(
+        self, mock_prepare_venv, mock_execute, mock_cleanup, mock_resolve, mock_variable
+    ):
+        op = self._build_operator(hash_resolved_requirements=True)
+
+        with mock.patch.object(op.log, "warning", autospec=True) as mock_warning:
+            op.execute_callable()
+
+        mock_resolve.assert_not_called()
+        mock_warning.assert_called_once()
+        mock_execute.assert_called_once()
+
+
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
 # therefore we have to extend timeouts for those tests
