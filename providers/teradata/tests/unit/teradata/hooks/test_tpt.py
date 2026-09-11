@@ -125,6 +125,23 @@ class TestTptHook:
         mock_ssh.assert_called_once()
 
     @patch("airflow.providers.teradata.hooks.tpt.SSHHook")
+    @patch("airflow.providers.teradata.hooks.tpt.TptHook._transfer_to_and_execute_tdload_on_remote")
+    @patch("airflow.providers.teradata.hooks.tpt.set_local_file_permissions")
+    @patch("airflow.providers.teradata.hooks.tpt.write_file")
+    def test_execute_tdload_via_ssh_sets_local_file_permissions(
+        self, mock_write_file, mock_set_local_permissions, mock_transfer, mock_ssh_hook
+    ):
+        mock_transfer.return_value = 0
+        hook = TptHook(ssh_conn_id="ssh_default")
+        hook.ssh_hook = MagicMock()
+
+        result = hook._execute_tdload_via_ssh("/tmp", "job var content", None, None)
+
+        assert result == 0
+        mock_write_file.assert_called_once()
+        mock_set_local_permissions.assert_called_once()
+
+    @patch("airflow.providers.teradata.hooks.tpt.SSHHook")
     @patch("airflow.providers.teradata.hooks.tpt.execute_remote_command")
     @patch("airflow.providers.teradata.hooks.tpt.remote_secure_delete")
     @patch("airflow.providers.teradata.hooks.tpt.secure_delete")
@@ -135,8 +152,10 @@ class TestTptHook:
     @patch("airflow.providers.teradata.hooks.tpt.generate_random_password")
     @patch("airflow.providers.teradata.hooks.tpt.verify_tpt_utility_on_remote_host")
     @patch("airflow.providers.teradata.hooks.tpt.write_file")
+    @patch("airflow.providers.teradata.hooks.tpt.set_local_file_permissions")
     def test_execute_tbuild_via_ssh_success(
         self,
+        mock_set_local_permissions,
         mock_write_file,
         mock_verify_tpt,
         mock_gen_password,
@@ -173,6 +192,7 @@ class TestTptHook:
             mock_ssh_client, "tbuild", logging.getLogger("airflow.providers.teradata.hooks.tpt")
         )
         mock_write_file.assert_called_once()
+        mock_set_local_permissions.assert_called_once()
         mock_gen_password.assert_called_once()
         mock_encrypt_file.assert_called_once()
         mock_transfer_file.assert_called_once()
@@ -193,8 +213,10 @@ class TestTptHook:
     @patch("airflow.providers.teradata.hooks.tpt.generate_random_password")
     @patch("airflow.providers.teradata.hooks.tpt.verify_tpt_utility_on_remote_host")
     @patch("airflow.providers.teradata.hooks.tpt.write_file")
+    @patch("airflow.providers.teradata.hooks.tpt.set_local_file_permissions")
     def test_execute_tbuild_via_ssh_failure(
         self,
+        mock_set_local_permissions,
         mock_write_file,
         mock_verify_tpt,
         mock_gen_password,
@@ -226,6 +248,8 @@ class TestTptHook:
         with pytest.raises(RuntimeError, match="tbuild command failed with exit code 1"):
             hook._execute_tbuild_via_ssh("CREATE TABLE test (id INT);", "/tmp")
 
+        # The credential-bearing script is restricted before the remote command runs
+        mock_set_local_permissions.assert_called_once()
         # Verify cleanup was called even on failure
         mock_remote_secure_delete.assert_called_once()
         mock_secure_delete.assert_called()

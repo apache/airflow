@@ -43,6 +43,7 @@ from airflow.providers.teradata.utils.encryption_utils import (
     generate_encrypted_file_with_openssl,
     generate_random_password,
 )
+from airflow.providers.teradata.utils.tpt_util import set_local_file_permissions
 
 
 class BteqHook(TtuHook):
@@ -131,6 +132,9 @@ class BteqHook(TtuHook):
             file_path = os.path.join(tmp_dir, "bteq_script.txt")
             with open(file_path, "w", encoding=str(temp_file_read_encoding or "UTF-8")) as f:
                 f.write(bteq_script)
+            # The script embeds the `.LOGON` credentials, so restrict it to the owner before
+            # it is encrypted and transferred.
+            set_local_file_permissions(file_path, self.log)
             return self._transfer_to_and_execute_bteq_on_remote(
                 file_path,
                 remote_working_dir,
