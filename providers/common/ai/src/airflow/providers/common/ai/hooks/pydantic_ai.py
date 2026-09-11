@@ -33,7 +33,7 @@ from pydantic_ai.providers import infer_provider_class
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHook
 
 # An Airflow task is never interactive, and pydantic-ai's first-run banner on stderr would
 # land in the task log as ERROR lines.
@@ -688,7 +688,16 @@ class PydanticAIHook(BaseHook):
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""
-        if self._get_configured_model_name():
+        if self.model_id:
+            return self.get_conn()
+
+        try:
+            conn = self._get_cached_connection(self.llm_conn_id)
+        except AirflowNotFoundException:
+            if self.llm_conn_id == self.default_conn_name and self.embed_conn_id != self.llm_conn_id:
+                return None
+            raise
+        if conn.extra_dejson.get("model"):
             return self.get_conn()
 
         if self._get_fallback_conn_ids():
