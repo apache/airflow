@@ -18,11 +18,20 @@ license: Apache-2.0
 /aip-user-stories <AIP-URL-or-pasted-content> [<PR-URL>...] [<file>...]
 ```
 
-If no arguments: print this usage synopsis and stop.
+If no AIP source is supplied in the arguments or conversation, ask the user for
+an AIP URL or pasted content. If they decline, print this usage synopsis and stop.
 
 ## Mode Detection
 
-An argument starting with `https://cwiki.apache.org/confluence/` is the AIP URL. Arguments starting with `https://github.com/apache/airflow/pull/` are PR URLs. Other arguments are local file paths.
+Classify inputs in this order:
+
+1. Content already pasted in the conversation is the AIP source.
+2. An argument starting with `https://cwiki.apache.org/confluence/` is the AIP URL.
+3. Arguments starting with `https://github.com/apache/airflow/pull/` are PR URLs.
+4. Remaining arguments that resolve to existing local files are file paths.
+
+Do not interpret unrecognized free-form text as a file path. Ask whether it is
+the AIP content or a path that needs correcting.
 
 - **PR URLs present → post-implementation mode**: generates verified recipe playbooks from actual code.
 - **No PR URLs → pre-implementation mode**: generates speculative user stories to help AIP authors validate design.
@@ -35,7 +44,9 @@ Extract the AIP number from the URL path (e.g., `AIP-76` from a URL containing `
 
 ## Output Path
 
-Write the final playbook to `.claude/aip-{number}.md` where `{number}` is the extracted AIP number. If the file already exists, ask the user before overwriting.
+Write the final playbook to `files/aip-{number}.md` where `{number}` is the
+extracted AIP number, creating `files/` if needed. If the file already exists,
+ask the user before overwriting.
 
 ---
 
@@ -69,6 +80,11 @@ Then use the PRs as **discovery seeds**: identify which modules, packages, and f
 - Follow imports, base classes, and related modules to find connected implementation code.
 - Search for related example Dags, test files, and documentation that may not appear in the PR diffs.
 - Grep for key class names, function names, and configuration keys from the AIP to find implementation spread across files the PRs didn't touch.
+- For every implementation area, identify the owning distribution from the
+   nearest `pyproject.toml` and inspect that distribution's source, tests,
+   examples, and documentation. Do not assume an AIP is implemented only in
+   `airflow-core`; implementations can span `airflow-ctl`, `task-sdk`, providers,
+   clients, and other workspace packages.
 
 The PRs are a starting point, not a boundary. Code may have been implemented in other PRs, refactored since the PR merged, or spread across modules the PR didn't directly modify.
 
@@ -80,9 +96,24 @@ Cross-reference AIP features against the **codebase** (not the PRs):
 - Which AIP features are NOT implemented (proposed in AIP but absent from the codebase)?
 - What patterns exist in tests and example Dags that demonstrate usage?
 
-### Version Detection
+### Package and Version Detection
 
-Search PR diffs for `versionadded::` or `.. versionadded::` directives. If found, use that version. If not found, ask the user for the target Airflow version.
+For each recipe, identify the distributions that users must install and any
+runtime or configuration prerequisites:
+
+- Read package names from the owning distribution's `pyproject.toml`; do not
+   infer an install name from its repository directory.
+- Derive runtime and configuration prerequisites from current documentation,
+   source, and tests.
+- Search current documentation and PR diffs for `versionadded::` or other
+   explicit release notes. Use a minimum version only when repository evidence
+   establishes it.
+- If the implementation exists in the current checkout but no released version
+   can be verified, record it as **unreleased on the current checkout** or
+   **release unknown**. Do not infer availability from a package's current
+   `__version__` or from the PR merge date.
+- Ask the user for a target Airflow version when it affects which recipes are
+   applicable; verify that target against the evidence above.
 
 ### Phase 4 — Propose
 
@@ -107,8 +138,12 @@ For each approved recipe, produce content following the template in `references/
 
 **Code block tiers:**
 
-1. **Verified** — the pattern exists in the codebase (source, example Dags, or tests). Use the code directly. No markers.
-2. **Adapted** — combines verified components in a new way (e.g., using a verified mapper with a different asset). Clean code, with a brief note below the block: *"Adapted from [source file path]"*.
+1. **Verified** — the complete pattern exists in the current codebase. Label it
+   `Verified` and cite the repository-relative source, example, or test path and
+   relevant symbol below the block.
+2. **Adapted** — combines verified components in a new way (e.g., using a
+   verified mapper with a different asset). Label it `Adapted` and cite every
+   repository-relative source path and symbol used to construct it.
 3. **Unverified** — no codebase evidence for this pattern. Use placeholders:
 
    ```python
@@ -117,11 +152,29 @@ For each approved recipe, produce content following the template in `references/
    ...
    ```
 
-Verification sources: source code under `airflow-core/src/`, example Dags, and test files.
+Label this tier `Unverified` and cite the AIP section or other source that
+motivated it. PRs are discovery and historical context, not proof that behavior
+still exists in the current checkout.
 
-### Phase 6 — Assemble
+### Phase 6 — Validate
 
-Combine the overview and recipes into a playbook following the template structure. Write to `.claude/aip-{number}.md`.
+Before writing the playbook, verify all of the following:
+
+- Every approved recipe is present, and no unapproved recipe was added.
+- Every code block has exactly one tier and the required evidence citations.
+- Imports and symbols used by Verified blocks, and the source components used
+   by Adapted blocks, exist in the current checkout.
+- Package names, minimum versions, and runtime prerequisites have repository
+   evidence. Unknown release availability is stated explicitly.
+- No template placeholders remain. TODO placeholders appear only in Unverified
+   blocks.
+- Every implemented or unimplemented claim agrees with the current checkout.
+
+If any check fails, report the unresolved item and do not write the playbook.
+
+### Phase 7 — Assemble
+
+Combine the overview and recipes into a playbook following the template structure. Write to `files/aip-{number}.md`.
 
 If the user chose to skip unimplemented AIP features during the Propose phase, add a brief "Not Yet Implemented" section at the end listing them with one-line descriptions. Omit this section if all features were covered.
 
@@ -148,7 +201,8 @@ Paste-based: /aip-user-stories (then paste AIP content when prompted)
 
 Retrieve AIP content from URL or accept pasted content. If a URL fetch returns empty or garbled content, ask the user to paste the AIP content.
 
-Ask the user for the target Airflow version (no PR to extract `versionadded` from).
+Ask the user for the proposed target Airflow version. Label it as a design
+target, not a released or verified minimum version.
 
 ### Phase 3 — Analyze
 
@@ -194,9 +248,24 @@ Each story must include **open design questions** that probe:
 
 Questions must be specific to the story's use case. Generic questions ("what about error handling?") do not count.
 
-### Phase 6 — Assemble
+### Phase 6 — Validate
 
-Combine the overview and user stories into a document following the template structure. Write to `.claude/aip-{number}.md`.
+Before writing the document, verify all of the following:
+
+- Every approved story is present, and no unapproved story was added.
+- Every code block contains the `PROPOSED API — not yet implemented` marker.
+- The document makes no claim that speculative APIs exist in the current
+   checkout.
+- Release availability is marked as proposed and not yet implemented.
+- Each story contains specific questions covering ergonomics, edge cases,
+   compatibility, and implementation feasibility.
+- No template placeholders remain outside intentionally speculative code.
+
+If any check fails, report the unresolved item and do not write the document.
+
+### Phase 7 — Assemble
+
+Combine the overview and user stories into a document following the template structure. Write to `files/aip-{number}.md`.
 
 ---
 
