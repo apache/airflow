@@ -448,15 +448,15 @@ class TestOtelMetrics:
             pytest.param(
                 {
                     "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234",
-                    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://localhost:2222",
+                    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://localhost:2222/custom/metrics",
                     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
-                    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "grpc",
+                    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "http/protobuf",
                 },
                 None,
                 None,
-                "localhost:2222",
-                "grpc",
-                id="type_specific_vars_take_precedence",
+                "http://localhost:2222/custom/metrics",
+                "http",
+                id="type_specific_http_endpoint_with_custom_path_takes_precedence",
             ),
             pytest.param(
                 {},
