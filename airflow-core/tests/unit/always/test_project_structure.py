@@ -138,7 +138,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_dataform.py",
             "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
             "providers/google/tests/unit/google/cloud/links/test_dataprep.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
             "providers/google/tests/unit/google/cloud/links/test_datastore.py",
             "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
             "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
