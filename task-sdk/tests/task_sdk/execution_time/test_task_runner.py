@@ -2111,6 +2111,30 @@ def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_su
     assert ti.rendered_map_index == "Hello! test_run"
 
 
+def test_execute_success_task_with_numeric_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
+    """Test that a numeric map index remains a string with native rendering enabled."""
+
+    def test_function():
+        return "test function"
+
+    with DAG(
+        dag_id="dag_with_native_map_index_template",
+        schedule=None,
+        render_template_as_native_obj=True,
+    ):
+        task = PythonOperator(
+            task_id="test_task",
+            python_callable=test_function,
+            map_index_template="123",
+        )
+
+    ti = create_runtime_ti(task)
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == "123"
+
+
 def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
     """Test that the map index is rendered in the task context."""
 
