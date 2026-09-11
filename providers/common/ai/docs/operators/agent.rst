@@ -484,15 +484,15 @@ Parameters
   See :ref:`capabilities-passthrough` for how to enable pydantic-ai capabilities
   such as ``Thinking``, ``WebSearch``, and ``ImageGeneration``.
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on every
-  agent run (initial run, durable replay, and HITL regeneration), or a ``dict``
-  of the same fields -- the dict form is templated via Jinja, then coerced per
-  field type, failing the task with a ``ValueError`` naming the field if a
-  rendered value doesn't parse. Use it to cap requests, tokens, or tool calls
-  per task -- agents are particularly prone to runaway tool loops, so
-  ``tool_calls_limit`` is a useful guardrail. It also supports a per-run USD
-  ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a hard
-  guarantee, silently inert for unpriced models) and an example. Default
-  ``None``.
+  agent run (initial run, durable replay, and HITL regeneration), or a
+  ``dict`` of the same fields -- the dict form is templated via Jinja, then
+  coerced per field type, failing the task with a ``ValueError`` naming the
+  field if a rendered value doesn't parse. Use it to cap requests, tokens, or
+  tool calls per task -- agents are particularly prone to runaway tool loops,
+  so ``tool_calls_limit`` is a useful guardrail. It also supports a per-run
+  USD ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a
+  hard guarantee, inert without halting execution for unpriced models) and an
+  example. Default ``None``.
 
   .. warning::
      With ``durable=True``, a task retry replays cached model steps instead of
