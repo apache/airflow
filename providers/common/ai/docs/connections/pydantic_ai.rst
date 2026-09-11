@@ -61,11 +61,20 @@ Embedding Model
     The embedding model and connection can also be overridden at the hook level
     via the ``embed_model_id`` and ``embed_conn_id`` parameters.
 
+    When the LLM and embedding model use different provider prefixes, configure
+    a separate ``embed_conn_id``. The hook does not reuse one provider's credentials
+    for another provider. Local ``sentence-transformers:`` embeddings are the exception:
+    they do not use provider credentials and can share the LLM connection.
+
 API Key (Password field)
     The API key for your model provider. Required for API-key-based providers
     (OpenAI, Anthropic, Groq, Mistral). Leave empty for providers using
     environment-based auth (Bedrock via ``AWS_PROFILE``, Vertex via
     ``GOOGLE_APPLICATION_CREDENTIALS``).
+
+    For Bedrock and Google models, provider-specific values from Extra are used
+    instead. A populated Password or Host is ignored for those model prefixes;
+    the hook emits a warning identifying the replacement Extra fields.
 
 Host (optional)
     Base URL for the model provider's API. Only needed for custom endpoints:
@@ -88,6 +97,13 @@ Extra (JSON, optional)
 
     When using the UI, the "Model" and "Embedding Model" fields above write to
     this same location automatically.
+
+    Bedrock-specific fields include ``api_key``, ``base_url``, ``region_name``,
+    AWS credentials and profile fields, and read/connect timeouts. ``google:``
+    accepts ``api_key`` and ``base_url``; ``google-cloud:`` additionally accepts
+    ``project``, ``location``, and ``service_account_info``. See the dedicated
+    :doc:`pydantic_ai_bedrock` and :doc:`pydantic_ai_vertex` connection pages for
+    the complete credential shapes and precedence rules.
 
 Examples
 --------
