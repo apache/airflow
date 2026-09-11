@@ -27,7 +27,20 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import Column, Integer, MetaData, Table, func, insert, inspect, literal, select, text
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    Table,
+    Uuid,
+    bindparam,
+    func,
+    insert,
+    inspect,
+    literal,
+    select,
+    text,
+)
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
@@ -688,10 +701,15 @@ class TestDBCleanup:
 
             # Manually create an archive table containing this dag_version row,
             # simulating the CTAS step that ran before the TI was inserted.
+            # Use SQLAlchemy's Uuid codec to insert so the id encoding matches how
+            # DagVersion.id was stored (hyphenated native uuid on Postgres, .hex on
+            # MySQL/SQLite); a raw f-string would use the hyphenated form everywhere
+            # and match nothing on MySQL/SQLite.
             archive_name = f"{ARCHIVE_TABLE_PREFIX}dag_version__race_test"
-            session.execute(
-                text(f"CREATE TABLE {archive_name} AS SELECT * FROM dag_version WHERE id = '{dv_id}'")
-            )
+            stmt = text(
+                f"CREATE TABLE {archive_name} AS SELECT * FROM dag_version WHERE id = :dv_id"
+            ).bindparams(bindparam("dv_id", value=dv_id, type_=Uuid()))
+            session.execute(stmt)
             session.commit()
 
             # Now insert a TI referencing the dag_version (the "race").
@@ -814,7 +832,7 @@ class TestDBCleanup:
         session.get_bind.return_value.dialect.name = "mysql"
         session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
+        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
         metadata, source_table, target_table, query = _build_do_delete_test_objects()
 
@@ -877,7 +895,7 @@ class TestDBCleanup:
         session.get_bind.return_value.dialect.name = "mysql"
         session.connection.return_value = object()
         session.scalars.return_value.one.side_effect = [1, 0]
-        session.execute.side_effect = [None, None, None]
+        session.execute.side_effect = [None, None, MagicMock(rowcount=1)]
 
         metadata, source_table, target_table, query = _build_do_delete_test_objects()
         drop_failure = OperationalError("DROP TABLE", {}, Exception("disk full"))

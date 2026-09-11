@@ -432,8 +432,15 @@ def _do_delete(
                         .exists()
                     )
             logger.debug("delete statement:\n%s", delete.compile())
-            session.execute(delete)
+            deleted = session.execute(delete).rowcount
             session.commit()
+
+            # A guarded DELETE (skip_if_referenced) may affect fewer rows than the SELECT
+            # saw. If it affects zero, the next SELECT would return the same rows and we
+            # would archive them forever, so break out. This also caps the loop in any
+            # edge case where the DELETE unexpectedly removes nothing.
+            if deleted == 0:
+                break
 
         except BaseException:
             error_raised = True
