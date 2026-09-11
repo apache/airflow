@@ -140,8 +140,11 @@ class DecoratedExpandInput(ExpandInput):
 
 class BatchedExpandInput(DecoratedExpandInput):
     """
-    ExpandInput that batches another ExpandInput into N chunks.
+    ExpandInput that partitions another ExpandInput's values across ``size`` task instances.
 
+    Items are distributed round-robin — item ``i`` is routed to task instance ``i % size`` — so
+    each task instance ends up with roughly ``len(values) / size`` items, but they are *not*
+    contiguous chunks of the original sequence (unlike ``itertools.batched(iterable, size)``).
     This affects mapping cardinality, NOT resolve-time behavior.
     """
 

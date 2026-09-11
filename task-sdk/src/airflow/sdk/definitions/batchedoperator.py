@@ -81,7 +81,9 @@ class BatchableOperator(Generic[T], metaclass=ABCMeta):
     of data and then iterate over the batched data.
 
     :param operator_partial: The partial operator to be batched.
-    :param size: The number of batches to create.
+    :param size: The number of task instances to create. The input is distributed across them
+        round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
+        contiguous chunks — this is *not* the same semantics as ``itertools.batched(iterable, size)``.
     """
 
     operator_partial: T
@@ -160,7 +162,9 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
     both direct expansion via keyword arguments and expansion via a list of dictionaries or XComArg.
 
     :param operator_partial: The OperatorPartial instance to be batched and expanded.
-    :param size: The number of batches to create for mapping.
+    :param size: The number of task instances to create for mapping. Items are distributed across
+        them round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
+        contiguous chunks.
     """
 
     @property
@@ -304,7 +308,9 @@ class DecoratedBatchedOperator(BatchableOperator[_TaskDecorator]):
     both direct expansion via keyword arguments and expansion via a list of dictionaries or XComArg.
 
     :param operator_partial: The _TaskDecorator instance to be batched and expanded.
-    :param size: The number of batches to create for mapping.
+    :param size: The number of task instances to create for mapping. Items are distributed across
+        them round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
+        contiguous chunks.
     """
 
     @property
