@@ -55,7 +55,7 @@ spec:
     {{- if .Values.workers.kubernetes.extraInitContainers }}
       {{- tpl (toYaml .Values.workers.kubernetes.extraInitContainers) . | nindent 4 }}
     {{- end }}
-    {{- if .Values.workers.kubernetes.kerberosInitContainer.enabled }}
+    {{- if and .Values.workers.kubernetes.kerberosInitContainer.enabled (not (and .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosSidecar.startupProbe.enabled)) }}
     - name: kerberos-init
       image: {{ template "airflow_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
