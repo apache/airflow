@@ -323,8 +323,6 @@ class PostgresHook(DbApiHook):
         # Use Any type for the connection args to avoid type conflicts
         connection = await AsyncConnection.connect(**cast("Any", conn_args))
 
-        # Register JSON handlers for both json and jsonb types
-        # This ensures JSON data is properly decoded from bytes to Python objects
         register_default_adapters(connection)
 
         if self.enable_log_db_messages and hasattr(connection, "add_notice_handler"):
