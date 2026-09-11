@@ -562,6 +562,114 @@ class TestDBCleanup:
                 # "id" intentionally omitted from extra_columns
             )
 
+    def test_dag_cleanup_skips_dags_with_pinned_dag_versions(self):
+        """db clean must skip dag rows whose deletion cascades to a pinned dag_version.
+
+        ``dag_version.dag_id`` is ``ON DELETE CASCADE``, so deleting a dag cascades
+        to its ``dag_version`` rows; ``task_instance.dag_version_id`` is ``ON DELETE
+        RESTRICT``, so that cascade fails the foreign key (and, on MySQL, can leave
+        the command blocked on metadata locks).  Cleaning the ``dag`` table must
+        therefore skip dags whose versions are still referenced by a task instance
+        while still pruning genuinely orphaned dags.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"testing-{uuid4()}"
+        pinned_dag_id = f"pinned_dag_{uuid4()}"
+        orphan_dag_id = f"orphan_dag_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add_all(
+                [
+                    DagModel(
+                        dag_id=pinned_dag_id,
+                        bundle_name=bundle_name,
+                        last_parsed_time=base_date,
+                    ),
+                    DagModel(
+                        dag_id=orphan_dag_id,
+                        bundle_name=bundle_name,
+                        last_parsed_time=base_date,
+                    ),
+                ]
+            )
+            session.flush()
+
+            pinned_version = DagVersion(
+                dag_id=pinned_dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            orphan_version = DagVersion(
+                dag_id=orphan_dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            session.add_all([pinned_version, orphan_version])
+            session.flush()
+
+            dag = DAG(dag_id=pinned_dag_id)
+            dag_run = DagRun(pinned_dag_id, run_id="run-1", run_type=DagRunType.MANUAL, start_date=base_date)
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=pinned_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = base_date
+            session.add_all([dag_run, ti])
+            session.commit()
+
+            # Previously this raised an IntegrityError on the FK (dag -> dag_version
+            # CASCADE blocked by task_instance.dag_version_id RESTRICT); with the
+            # cascade guard it must now succeed.
+            _cleanup_table(
+                **config_dict["dag"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["dag"],
+                skip_archive=True,
+            )
+
+            remaining = set(
+                session.scalars(
+                    select(DagModel.dag_id).where(DagModel.dag_id.in_([pinned_dag_id, orphan_dag_id]))
+                ).all()
+            )
+
+        assert pinned_dag_id in remaining  # dag_version still referenced -> dag skipped
+        assert orphan_dag_id not in remaining  # no references -> dag pruned
+
+    def test_dag_cleanup_cascade_guard_query(self):
+        """The dag cleanup query excludes rows whose dag_version cascade is blocked."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        dag_config = config_dict["dag"]
+        query = _build_query(
+            orm_model=dag_config.orm_model,
+            recency_column=dag_config.recency_column,
+            dag_id_column=dag_config.dag_id_column,
+            keep_last=dag_config.keep_last,
+            keep_last_filters=dag_config.keep_last_filters,
+            keep_last_group_by=dag_config.keep_last_group_by,
+            clean_before_timestamp=base_date.add(days=10),
+            extra_filters=dag_config.extra_filters,
+            skip_if_referenced=dag_config.skip_if_referenced,
+            skip_if_cascade_blocked=dag_config.skip_if_cascade_blocked,
+            referenced_pk_column=dag_config.referenced_pk_column,
+            session=MagicMock(),
+        )
+        sql = str(query.compile())
+        assert "dag_version" in sql
+        assert "task_instance" in sql
+        assert "EXISTS" in sql.upper()
+        assert "dag_version_id" in sql
+
     def test_do_delete_rolls_back_before_drop_on_failure(self):
         session = MagicMock(spec=Session)
         session.get_bind.return_value.dialect.name = "mysql"
