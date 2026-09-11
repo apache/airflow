@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 from itsdangerous import URLSafeSerializer
 from sqlalchemy import insert, update
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 from airflow.models import DagModel
@@ -61,11 +62,14 @@ UNREADABLE_FILE = "secret.py"
 
 GIT_VERSION = "8f0e5b1c9a2d4e6f8a0b1c2d3e4f5a6b7c8d9e0f"
 REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)
+PARSED_AT = datetime(2026, 9, 10, 12, 1, tzinfo=timezone.utc)
+PARSE_DURATION = 0.125
 GONE_REFRESHED_AT = datetime(2026, 9, 1, 8, 30, tzinfo=timezone.utc)
 
 WITH_DAGS = (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE, OTHER_TEAM_BUNDLE)
 # Everything except the Dag in OTHER_TEAM_BUNDLE.
-READABLE_DAG_IDS = {f"dag_in_{name}" for name in (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE)}
+REMOVED_DAG_ID = "removed_from_dag_0"
+READABLE_DAG_IDS = {f"dag_in_{name}" for name in (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE)} | {REMOVED_DAG_ID}
 # Sorted by name, which is the endpoint's default order.
 READABLE_BUNDLES = [GIT_BUNDLE, GONE_BUNDLE, LOCAL_BUNDLE]
 
@@ -148,8 +152,27 @@ def bundles() -> Generator[None, None, None]:
                     relative_fileloc=f"dag_{index}.py",
                     bundle_name=bundle_name,
                     is_paused=False,
+                    # ``is_stale`` defaults to True on the model, and a parsed Dag is not stale.
+                    is_stale=False,
+                    last_parsed_time=PARSED_AT,
+                    last_parse_duration=PARSE_DURATION,
                 )
             )
+        # Removed from REGISTERED_FILE but never deleted: stale, and frozen at an older parse
+        # that took far longer. An unrestricted MAX over the file would pair this duration with
+        # the live row's newer timestamp.
+        session.add(
+            DagModel(
+                dag_id=REMOVED_DAG_ID,
+                fileloc=REGISTERED_FILE,
+                relative_fileloc=REGISTERED_FILE,
+                bundle_name=GIT_BUNDLE,
+                is_paused=False,
+                is_stale=True,
+                last_parsed_time=PARSED_AT - timedelta(hours=1),
+                last_parse_duration=PARSE_DURATION * 100,
+            )
+        )
         # A co-located Dag in a visible bundle that the caller cannot read -- deliberately absent
         # from READABLE_DAG_IDS.
         session.add(
@@ -159,6 +182,7 @@ def bundles() -> Generator[None, None, None]:
                 relative_fileloc=UNREADABLE_FILE,
                 bundle_name=GIT_BUNDLE,
                 is_paused=False,
+                is_stale=False,
             )
         )
         session.add_all(
@@ -470,3 +494,229 @@ class TestGetDagBundles:
         assert by_name[GIT_BUNDLE]["team_name"] == TEAM_NAME
         # Bundles with no team mapping still report null rather than inheriting one.
         assert by_name[LOCAL_BUNDLE]["team_name"] is None
+
+
+class TestGetDagBundle:
+    def test_should_raise_401_unauthenticated(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get(f"/dagBundles/{GIT_BUNDLE}").status_code == 401
+
+    def test_should_raise_403_unauthorized(self, unauthorized_test_client):
+        assert unauthorized_test_client.get(f"/dagBundles/{GIT_BUNDLE}").status_code == 403
+
+    def test_returns_the_bundle(self, dag_scoped_client):
+        response = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["name"] == GIT_BUNDLE
+        assert body["version"] == GIT_VERSION
+        assert body["last_refreshed"] == "2026-09-10T12:00:00Z"
+        assert body["active"] is True
+        assert body["bundle_url"] == f"https://github.com/example/repo/tree/{GIT_VERSION}/dags"
+
+    def test_dag_count_excludes_dags_the_caller_may_not_read(self, dag_scoped_client):
+        """``GIT_BUNDLE`` holds two Dags, one of them absent from ``READABLE_DAG_IDS``."""
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
+
+        assert body["dag_count"] == 1
+
+    def test_404_for_a_bundle_whose_dags_are_not_readable(self, dag_scoped_client):
+        """A 404 rather than a 403, so the response does not confirm the bundle exists."""
+        assert dag_scoped_client.get(f"/dagBundles/{OTHER_TEAM_BUNDLE}").status_code == 404
+
+    def test_404_for_a_bundle_with_no_dags(self, dag_scoped_client):
+        assert dag_scoped_client.get(f"/dagBundles/{DAGLESS_BUNDLE}").status_code == 404
+
+    def test_404_for_an_unknown_bundle(self, dag_scoped_client):
+        assert dag_scoped_client.get("/dagBundles/no_such_bundle").status_code == 404
+
+    def test_import_error_count_is_gated_like_the_collection(self, dag_scoped_client, viewer_client):
+        """
+        The admin sees the unregistered-file error as well; the viewer sees only the registered one.
+
+        Same two-part authorization as ``GET /importErrors``, asserted here so the detail route
+        cannot drift from the collection route it shares a helper with.
+        """
+        assert dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["import_error_count"] == 2
+        assert viewer_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["import_error_count"] == 1
+
+    def test_import_error_count_is_withheld_without_permission(self, dag_scoped_client):
+        auth_manager = dag_scoped_client.app.state.auth_manager
+        with mock.patch.object(auth_manager, "authorize_view", autospec=True, return_value=False):
+            body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
+
+        assert body["import_error_count"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_reports_the_owning_team_in_multi_team_mode(self, dag_scoped_client, session):
+        """Without ``multi_team`` on -- the shipped default -- the team lookup is skipped entirely."""
+        session.add(Team(name=TEAM_NAME))
+        session.commit()
+        session.execute(
+            insert(dag_bundle_team_association_table).values(dag_bundle_name=GIT_BUNDLE, team_name=TEAM_NAME)
+        )
+        session.commit()
+
+        assert dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["team_name"] == TEAM_NAME
+
+    def test_bundle_url_is_withheld_without_dag_version_read(self, dag_scoped_client):
+        """
+        A rendered bundle url is otherwise only reachable through ``GET /dags/{dag_id}/dagVersions``.
+
+        That route additionally requires Dag *version* read, so a role that grants Dag read and
+        withholds version read must not get the repository address here instead.
+        """
+        auth_manager = dag_scoped_client.app.state.auth_manager
+        real = auth_manager.is_authorized_dag
+
+        def _deny_versions(*args, **kwargs):
+            if kwargs.get("access_entity") is DagAccessEntity.VERSION:
+                return False
+            return real(*args, **kwargs)
+
+        with mock.patch.object(auth_manager, "is_authorized_dag", autospec=True, side_effect=_deny_versions):
+            body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
+
+        assert body["version"] == GIT_VERSION
+        assert body["bundle_url"] is None
+
+    def test_dag_count_excludes_stale_dags(self, dag_scoped_client, session):
+        """``GIT_BUNDLE``'s Dags all go stale, so nothing live is left to count."""
+        session.execute(update(DagModel).where(DagModel.bundle_name == GIT_BUNDLE).values(is_stale=True))
+        session.commit()
+
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}").json()
+
+        assert body["dag_count"] == 0
+
+
+class TestGetDagBundleFiles:
+    def test_should_raise_401_unauthenticated(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").status_code == 401
+
+    def test_should_raise_403_unauthorized(self, unauthorized_test_client):
+        assert unauthorized_test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").status_code == 403
+
+    def test_lists_files_ordered_by_path(self, dag_scoped_client):
+        response = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [
+            UNREGISTERED_FILE,
+            REGISTERED_FILE,
+        ]
+        assert body["total_entries"] == 2
+
+    def test_reports_parse_time_and_duration(self, dag_scoped_client):
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
+        assert by_path[REGISTERED_FILE]["dag_count"] == 1
+        assert by_path[REGISTERED_FILE]["last_parsed_time"] == "2026-09-10T12:01:00Z"
+        assert by_path[REGISTERED_FILE]["last_parse_duration"] == PARSE_DURATION
+
+    def test_a_file_that_registered_no_dag_is_listed_with_its_error(self, dag_scoped_client):
+        """
+        The case the page most needs to show: a file that failed before defining a Dag.
+
+        It has no Dag to authorize on, so it is admin-gated, and without it a brand new broken
+        file would be invisible on the very page someone opens to find out why.
+        """
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
+        assert by_path[UNREGISTERED_FILE]["dag_count"] == 0
+        assert by_path[UNREGISTERED_FILE]["import_error_count"] == 1
+        assert by_path[UNREGISTERED_FILE]["last_parsed_time"] is None
+        assert by_path[UNREGISTERED_FILE]["last_parse_duration"] is None
+
+    def test_excludes_a_file_whose_dag_is_not_readable(self, dag_scoped_client, viewer_client):
+        """``UNREADABLE_FILE`` is registered, so only the readable-Dag filter keeps it out."""
+        for client in (dag_scoped_client, viewer_client):
+            body = client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+            assert UNREADABLE_FILE not in {file["relative_fileloc"] for file in body["dag_bundle_files"]}
+
+    def test_viewer_does_not_see_the_unregistered_file(self, viewer_client):
+        body = viewer_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [REGISTERED_FILE]
+        assert body["total_entries"] == 1
+
+    def test_import_error_count_is_withheld_without_permission(self, dag_scoped_client):
+        """``None``, not 0: "you may not see this" must not read as "nothing is wrong"."""
+        auth_manager = dag_scoped_client.app.state.auth_manager
+        with mock.patch.object(auth_manager, "authorize_view", autospec=True, return_value=False):
+            body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [REGISTERED_FILE]
+        assert body["dag_bundle_files"][0]["import_error_count"] is None
+
+    def test_a_file_whose_dags_went_stale_stays_listed_while_it_has_an_error(
+        self, dag_scoped_client, session
+    ):
+        """Marking a file's Dags stale must not hide the row that explains the breakage."""
+        session.execute(
+            update(DagModel)
+            .where(DagModel.relative_fileloc == REGISTERED_FILE, DagModel.bundle_name == GIT_BUNDLE)
+            .values(is_stale=True)
+        )
+        session.commit()
+
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
+        assert by_path[REGISTERED_FILE]["dag_count"] == 0
+        assert by_path[REGISTERED_FILE]["import_error_count"] == 1
+
+    def test_parse_duration_ignores_a_stale_dag_from_an_older_parse(self, dag_scoped_client):
+        """
+        A Dag removed from a file keeps its row, frozen at the parse it was last seen in.
+
+        Aggregating the two columns independently would pair that older, slower duration with the
+        newer timestamp and report a parse time that never happened.
+        """
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
+        assert by_path[REGISTERED_FILE]["last_parsed_time"] == "2026-09-10T12:01:00Z"
+        assert by_path[REGISTERED_FILE]["last_parse_duration"] == PARSE_DURATION
+
+    def test_a_file_with_no_live_dag_and_no_error_is_dropped(self, dag_scoped_client, session):
+        """A file whose Dags are all stale and which has no error is one the bundle no longer has."""
+        session.execute(update(DagModel).where(DagModel.bundle_name == LOCAL_BUNDLE).values(is_stale=True))
+        session.commit()
+
+        body = dag_scoped_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
+
+        assert body["dag_bundle_files"] == []
+        assert body["total_entries"] == 0
+
+    def test_a_file_with_no_error_reports_zero(self, dag_scoped_client):
+        body = dag_scoped_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
+
+        assert [file["import_error_count"] for file in body["dag_bundle_files"]] == [0]
+
+    @pytest.mark.parametrize(
+        ("params", "expected"),
+        [
+            pytest.param({"limit": 1}, [UNREGISTERED_FILE], id="limit"),
+            pytest.param({"offset": 1}, [REGISTERED_FILE], id="offset"),
+            pytest.param({"limit": 1, "offset": 1}, [REGISTERED_FILE], id="limit-and-offset"),
+            # ``limit`` is a non-negative int, and ``Select.limit(0)`` returns nothing, so zero
+            # has to mean nothing here too rather than being read as "unlimited".
+            pytest.param({"limit": 0}, [], id="limit-zero"),
+        ],
+    )
+    def test_pagination(self, dag_scoped_client, params, expected):
+        body = dag_scoped_client.get(f"/dagBundles/{GIT_BUNDLE}/files", params=params).json()
+
+        assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == expected
+        # The total is the whole file list, not the page.
+        assert body["total_entries"] == 2
+
+    def test_404_for_a_bundle_whose_dags_are_not_readable(self, dag_scoped_client):
+        assert dag_scoped_client.get(f"/dagBundles/{OTHER_TEAM_BUNDLE}/files").status_code == 404
+
+    def test_404_for_an_unknown_bundle(self, dag_scoped_client):
+        assert dag_scoped_client.get("/dagBundles/no_such_bundle/files").status_code == 404

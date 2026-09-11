@@ -64,3 +64,41 @@ class DagBundleCollectionResponse(BaseModel):
 
     dag_bundles: Iterable[DagBundleResponse]
     total_entries: int
+
+
+class DagBundleDetailResponse(DagBundleResponse):
+    """Dag bundle serializer for the single-bundle response."""
+
+    dag_count: int = Field(
+        description=(
+            "Number of live Dags recorded against the bundle that the caller is permitted to see, "
+            "counted on the same terms as ``GET /dags``."
+        )
+    )
+
+
+class DagBundleFileResponse(BaseModel):
+    """A file in a Dag bundle, as the Dag processor last saw it."""
+
+    relative_fileloc: str
+    dag_count: int = Field(description="Number of live Dags the file defines that the caller may read.")
+    last_parsed_time: datetime | None = Field(
+        description="When the file was last parsed, or null if it has never parsed successfully."
+    )
+    last_parse_duration: float | None = Field(
+        description="How long the last successful parse of the file took, in seconds."
+    )
+    import_error_count: int | None = Field(
+        description=(
+            "Number of import errors recorded against the file, which is at most one. Null when the "
+            "caller may not read import errors -- deliberately not zero, which would read as a "
+            "file with nothing wrong."
+        )
+    )
+
+
+class DagBundleFileCollectionResponse(BaseModel):
+    """Dag bundle file collection response."""
+
+    dag_bundle_files: Iterable[DagBundleFileResponse]
+    total_entries: int

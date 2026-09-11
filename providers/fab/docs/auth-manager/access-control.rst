@@ -302,6 +302,14 @@ Stable API Permissions
      - GET
      - DAGs.can_read
      - Viewer
+   * - ``/api/v2/dagBundles/{bundle_name}``
+     - GET
+     - DAGs.can_read
+     - Viewer
+   * - ``/api/v2/dagBundles/{bundle_name}/files``
+     - GET
+     - DAGs.can_read
+     - Viewer
    * - ``/api/v2/dagSources/{dag_id}``
      - GET
      - DAGs.can_read, DAG Code.can_read

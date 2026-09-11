@@ -582,6 +582,46 @@ export const ensureUseDagBundleServiceGetDagBundlesData = (queryClient: QueryCli
   orderBy?: string[];
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundlesKeyFn({ limit, offset, orderBy }), queryFn: () => DagBundleService.getDagBundles({ limit, offset, orderBy }) });
 /**
+* Get Dag Bundle
+* Get a Dag bundle.
+* @param data The data for the request.
+* @param data.bundleName
+* @returns DagBundleDetailResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundleData = (queryClient: QueryClient, { bundleName }: {
+  bundleName: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleKeyFn({ bundleName }), queryFn: () => DagBundleService.getDagBundle({ bundleName }) });
+/**
+* Get Dag Bundle Files
+* List the files in a Dag bundle, ordered by path.
+*
+* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
+* import error without registering any Dag is listed too, on the same admin-by-default terms as
+* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
+* and it is the case this page most needs to show.
+*
+* ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
+* has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
+* stays listed on the strength of a live Dag *or* an import error, so a file that has just broken
+* does not vanish from the page someone opened to find out why, while a file deleted long ago
+* drops out instead of lingering forever.
+*
+* Parse times come from the Dags in the file rather than the file itself, which is the only
+* record Airflow keeps: a file whose every Dag was removed keeps no parse time of its own.
+* @param data The data for the request.
+* @param data.bundleName
+* @param data.limit
+* @param data.offset
+* @returns DagBundleFileCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundleFilesData = (queryClient: QueryClient, { bundleName, limit, offset }: {
+  bundleName: string;
+  limit?: number;
+  offset?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) });
+/**
 * Get Dag Stats
 * Get Dag statistics.
 * @param data The data for the request.

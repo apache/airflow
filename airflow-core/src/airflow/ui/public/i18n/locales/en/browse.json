@@ -12,14 +12,27 @@
   },
   "dagBundles": {
     "active": "Active",
-    "bundle_one": "Dag Bundle",
-    "bundle_other": "Dag Bundles",
     "columns": {
       "active": "Active",
       "importErrors": "Import Errors",
       "lastRefreshed": "Last Refreshed",
       "name": "Name",
       "version": "Version"
+    },
+    "detail": {
+      "status": "Status"
+    },
+    "files": {
+      "columns": {
+        "file": "File",
+        "lastParsed": "Last Parsed",
+        "parseDuration": "Parse Duration"
+      },
+      "file_one": "File",
+      "file_other": "Files",
+      "importErrorGone": "This import error is no longer recorded. It was probably fixed by a reparse.",
+      "neverParsed": "Never",
+      "showImportError": "Show import error"
     },
     "inactive": "Inactive",
     "neverRefreshed": "Never",

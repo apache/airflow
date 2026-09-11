@@ -3408,6 +3408,152 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dagBundles/{bundle_name}:
+    get:
+      tags:
+      - Dag Bundle
+      summary: Get Dag Bundle
+      description: Get a Dag bundle.
+      operationId: get_dag_bundle
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: bundle_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Bundle Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagBundleDetailResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dagBundles/{bundle_name}/files:
+    get:
+      tags:
+      - Dag Bundle
+      summary: Get Dag Bundle Files
+      description: 'List the files in a Dag bundle, ordered by path.
+
+
+        A file is listed when the caller can read at least one Dag it defines. A file
+        that recorded an
+
+        import error without registering any Dag is listed too, on the same admin-by-default
+        terms as
+
+        ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag
+        to authorize on,
+
+        and it is the case this page most needs to show.
+
+
+        ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that
+        fails to import
+
+        has every Dag in it marked stale, and so does a file dropped from the bundle.
+        A file therefore
+
+        stays listed on the strength of a live Dag *or* an import error, so a file
+        that has just broken
+
+        does not vanish from the page someone opened to find out why, while a file
+        deleted long ago
+
+        drops out instead of lingering forever.
+
+
+        Parse times come from the Dags in the file rather than the file itself, which
+        is the only
+
+        record Airflow keeps: a file whose every Dag was removed keeps no parse time
+        of its own.'
+      operationId: get_dag_bundle_files
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: bundle_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Bundle Name
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagBundleFileCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dagStats:
     get:
       tags:
@@ -14031,6 +14177,128 @@ components:
       - total_entries
       title: DagBundleCollectionResponse
       description: Dag bundle collection response.
+    DagBundleDetailResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        active:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Active
+          description: Whether the bundle is still present in this deployment's configuration.
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+          description: The latest version Airflow has seen for the bundle. Null when
+            the bundle does not support versioning, or when no Dag processor has refreshed
+            it successfully yet.
+        last_refreshed:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Refreshed
+          description: When a Dag processor last successfully refreshed the bundle.
+            It advances even when the version did not change, and a failed refresh
+            leaves it untouched.
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          description: A link to view the bundle at ``version``, when one is configured
+            and the caller may read Dag versions.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: The team owning the bundle, in a multi-team deployment.
+        import_error_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Import Error Count
+          description: Number of Dag import errors recorded against this bundle that
+            the caller is permitted to see, counted on the same terms as ``GET /importErrors``.
+            Null when the caller may not read import errors.
+        dag_count:
+          type: integer
+          title: Dag Count
+          description: Number of live Dags recorded against the bundle that the caller
+            is permitted to see, counted on the same terms as ``GET /dags``.
+      type: object
+      required:
+      - name
+      - active
+      - version
+      - last_refreshed
+      - bundle_url
+      - team_name
+      - import_error_count
+      - dag_count
+      title: DagBundleDetailResponse
+      description: Dag bundle serializer for the single-bundle response.
+    DagBundleFileCollectionResponse:
+      properties:
+        dag_bundle_files:
+          items:
+            $ref: '#/components/schemas/DagBundleFileResponse'
+          type: array
+          title: Dag Bundle Files
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dag_bundle_files
+      - total_entries
+      title: DagBundleFileCollectionResponse
+      description: Dag bundle file collection response.
+    DagBundleFileResponse:
+      properties:
+        relative_fileloc:
+          type: string
+          title: Relative Fileloc
+        dag_count:
+          type: integer
+          title: Dag Count
+          description: Number of live Dags the file defines that the caller may read.
+        last_parsed_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Parsed Time
+          description: When the file was last parsed, or null if it has never parsed
+            successfully.
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
+          description: How long the last successful parse of the file took, in seconds.
+        import_error_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Import Error Count
+          description: Number of import errors recorded against the file, which is
+            at most one. Null when the caller may not read import errors -- deliberately
+            not zero, which would read as a file with nothing wrong.
+      type: object
+      required:
+      - relative_fileloc
+      - dag_count
+      - last_parsed_time
+      - last_parse_duration
+      - import_error_count
+      title: DagBundleFileResponse
+      description: A file in a Dag bundle, as the Dag processor last saw it.
     DagBundleResponse:
       properties:
         name:

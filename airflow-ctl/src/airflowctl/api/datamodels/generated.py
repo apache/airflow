@@ -507,6 +507,95 @@ class DAGTagCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DagBundleDetailResponse(BaseModel):
+    """
+    Dag bundle serializer for the single-bundle response.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    active: Annotated[
+        bool | None,
+        Field(
+            description="Whether the bundle is still present in this deployment's configuration.",
+            title="Active",
+        ),
+    ]
+    version: Annotated[
+        str | None,
+        Field(
+            description="The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.",
+            title="Version",
+        ),
+    ]
+    last_refreshed: Annotated[
+        datetime | None,
+        Field(
+            description="When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.",
+            title="Last Refreshed",
+        ),
+    ]
+    bundle_url: Annotated[
+        str | None,
+        Field(
+            description="A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.",
+            title="Bundle Url",
+        ),
+    ]
+    team_name: Annotated[
+        str | None,
+        Field(description="The team owning the bundle, in a multi-team deployment.", title="Team Name"),
+    ]
+    import_error_count: Annotated[
+        int | None,
+        Field(
+            description="Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.",
+            title="Import Error Count",
+        ),
+    ]
+    dag_count: Annotated[
+        int,
+        Field(
+            description="Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.",
+            title="Dag Count",
+        ),
+    ]
+
+
+class DagBundleFileResponse(BaseModel):
+    """
+    A file in a Dag bundle, as the Dag processor last saw it.
+    """
+
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    dag_count: Annotated[
+        int,
+        Field(
+            description="Number of live Dags the file defines that the caller may read.", title="Dag Count"
+        ),
+    ]
+    last_parsed_time: Annotated[
+        datetime | None,
+        Field(
+            description="When the file was last parsed, or null if it has never parsed successfully.",
+            title="Last Parsed Time",
+        ),
+    ]
+    last_parse_duration: Annotated[
+        float | None,
+        Field(
+            description="How long the last successful parse of the file took, in seconds.",
+            title="Last Parse Duration",
+        ),
+    ]
+    import_error_count: Annotated[
+        int | None,
+        Field(
+            description="Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.",
+            title="Import Error Count",
+        ),
+    ]
+
+
 class DagBundleResponse(BaseModel):
     """
     Dag bundle serializer for responses.
@@ -1986,6 +2075,15 @@ class DagBundleCollectionResponse(BaseModel):
     """
 
     dag_bundles: Annotated[list[DagBundleResponse], Field(title="Dag Bundles")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class DagBundleFileCollectionResponse(BaseModel):
+    """
+    Dag bundle file collection response.
+    """
+
+    dag_bundle_files: Annotated[list[DagBundleFileResponse], Field(title="Dag Bundle Files")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
