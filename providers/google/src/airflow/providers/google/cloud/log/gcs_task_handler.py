@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import gzip as gz
 import inspect
 import logging
 import os
@@ -44,6 +45,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from io import TextIOWrapper
+    from typing import IO
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -54,6 +56,8 @@ _DEFAULT_SCOPESS = frozenset(
         "https://www.googleapis.com/auth/devstorage.read_write",
     ]
 )
+
+_GZIP_SUFFIX = ".gz"
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +72,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
     gcp_key_path: str | None = None
     gcp_keyfile_dict: dict | None = None
     scopes: Collection[str] | None = _DEFAULT_SCOPESS
+    gzip: bool = False
 
     processors = ()
 
@@ -106,6 +111,11 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         else:
             local_loc = self.base_log_folder.joinpath(path)
             remote_loc = os.path.join(self.remote_base, path)
+
+        # The ``.gz`` suffix — not ``self.gzip`` — is what ``write`` and ``stream`` key off, so logs
+        # written before and after this setting was flipped both stay readable.
+        if self.gzip:
+            remote_loc += _GZIP_SUFFIX
 
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
@@ -160,9 +170,11 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         :param remote_log_location: the log's location in remote storage
         :return: whether the log is successfully written to remote location or not.
         """
+        compress = remote_log_location.endswith(_GZIP_SUFFIX)
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
-            old_log = blob.download_as_bytes().decode()
+            old_log_bytes = blob.download_as_bytes()
+            old_log = (gz.decompress(old_log_bytes) if compress else old_log_bytes).decode()
             log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
             if not self.no_log_found(e):
@@ -181,7 +193,10 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
                 return False
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
-            blob.upload_from_string(log, content_type="text/plain")
+            if compress:
+                blob.upload_from_string(gz.compress(log.encode()), content_type="application/gzip")
+            else:
+                blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error("Could not write logs to %s: %s", remote_log_location, e)
             return False
@@ -233,24 +248,31 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             for key in sorted(uris):
                 blob = storage.Blob.from_string(key, self.client)
-                stream = blob.open("r")
-                log_streams.append(self._get_log_stream(stream))
+                if key.endswith(_GZIP_SUFFIX):
+                    raw = blob.open("rb")
+                    log_streams.append(self._get_log_stream(gz.open(raw, "rt"), raw))
+                else:
+                    log_streams.append(self._get_log_stream(blob.open("r")))
         except Exception as e:
             if not AIRFLOW_V_3_0_PLUS:
                 messages.append(f"Unable to read remote log {e}")
         return messages, log_streams
 
-    def _get_log_stream(self, stream: TextIOWrapper) -> RawLogStream:
+    def _get_log_stream(self, stream: TextIOWrapper, raw: IO[bytes] | None = None) -> RawLogStream:
         """
         Yield lines from the given stream.
 
         :param stream: The opened stream to read from.
+        :param raw: Underlying binary stream to close alongside ``stream``. A ``gzip`` wrapper does
+            not close the file object it was handed, so the caller passes it in to be closed here.
         :yield: Lines of the log file.
         """
         try:
             yield from stream
         finally:
             stream.close()
+            if raw is not None:
+                raw.close()
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -275,6 +297,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         will be used.
     :param delete_local_copy: Whether local log files should be deleted after they are downloaded when using
         remote logging
+    :param gzip: Whether logs should be gzip compressed before being uploaded. Compressed logs are stored
+        with a ``.gz`` suffix; logs written while this was disabled stay readable.
     """
 
     trigger_should_wrap = True
@@ -291,6 +315,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         max_bytes: int = 0,
         backup_count: int = 0,
         delay: bool = False,
+        gzip: bool = False,
         **kwargs,
     ) -> None:
         # support log file size handling of FileTaskHandler
@@ -311,6 +336,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             gcp_keyfile_dict=gcp_keyfile_dict,
             scopes=gcp_scopes,
             project_id=project_id,
+            gzip=gzip,
         )
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
