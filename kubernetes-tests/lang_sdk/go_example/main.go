@@ -41,11 +41,11 @@ type combinedBundle struct{}
 var _ v1.BundleProvider = (*combinedBundle)(nil)
 
 func (m *combinedBundle) RegisterDags(dagbag v1.Registry) error {
-	dag := dagbag.AddDag(combinedDagID)
+	dag := dagbag.AddDag(v1.DagSpec{DagId: combinedDagID})
 	// Explicit task ids so the Go tasks are namespaced apart from the Java
 	// tasks that share this dag_id in the Python stub.
-	dag.AddTaskWithName("go_extract", goExtract)
-	dag.AddTaskWithName("go_transform", goTransform)
+	dag.Task(goExtract, v1.TaskSpec{TaskId: "go_extract"})
+	dag.Task(goTransform, v1.TaskSpec{TaskId: "go_transform"})
 	return nil
 }
 

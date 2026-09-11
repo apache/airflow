@@ -20,8 +20,7 @@
 // the Airflow supervisor (Python ExecutableCoordinator), bundlev1server.Serve
 // dispatches here.
 //
-// The first inbound frame on the comm socket is a StartupDetails message
-// that drives multi-round task execution.
+// The first frame is either DagFileParseRequest or StartupDetails.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution
@@ -163,6 +162,15 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	}
 
 	switch msg := body.(type) {
+	case *genmodels.DagFileParseRequest:
+		logger.Debug("DAG parsing mode", "file", msg.File)
+		result := ParseDags(bundle, msg)
+		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
+		if err := comm.SendRequest(frame.ID, result); err != nil {
+			return fmt.Errorf("sending parse result: %w", err)
+		}
+		logger.Debug("DAG parsing complete")
+
 	case *genmodels.StartupDetails:
 		logger.Debug("Task execution mode",
 			"dag_id", msg.TI.DagID,
