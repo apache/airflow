@@ -35,17 +35,25 @@ from airflow.providers.common.ai.toolsets.managed_agent import (
 class FakeManagedAgentToolset(BaseManagedAgentToolset):
     """Minimal implementation standing in for a provider's concrete toolset."""
 
-    def __init__(self, *, result: Any = "the answer", raises: Exception | None = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        result: Any = "the answer",
+        raises: Exception | None = None,
+        platform: str = "fake.cloud",
+        **kwargs,
+    ):
         kwargs.setdefault("tool_name", "ask_specialist")
         kwargs.setdefault("description", "Answers questions about the thing.")
         super().__init__(**kwargs)
         self._result = result
         self._raises = raises
+        self._platform = platform
         self.prompts: list[str] = []
 
     @property
     def agent_ref(self) -> dict[str, str]:
-        return {"platform": "fake.cloud", "name": "specialist-1"}
+        return {"platform": self._platform, "name": "specialist-1"}
 
     async def invoke(self, prompt: str) -> Any:
         self.prompts.append(prompt)
@@ -424,7 +432,8 @@ class TestFailoverMetrics:
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
     async def test_failover_emits_both_counters(self, mock_stats):
         primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
-        await self._group(primary, FakeManagedAgentToolset()).invoke("q")
+        standby = FakeManagedAgentToolset(platform="standby.cloud")
+        await self._group(primary, standby).invoke("q")
 
         assert mock_stats.incr.call_args_list == [
             mock.call(
@@ -432,14 +441,14 @@ class TestFailoverMetrics:
                 tags={
                     "tool": "ask_resilient",
                     "from_platform": "fake.cloud",
-                    "to_platform": "fake.cloud",
+                    "to_platform": "standby.cloud",
                 },
             ),
             mock.call(
                 "managed_agent.served",
                 tags={
                     "tool": "ask_resilient",
-                    "platform": "fake.cloud",
+                    "platform": "standby.cloud",
                     "role": "standby",
                     # The member that answered, not just that a standby did.
                     "position": "1",
@@ -540,7 +549,7 @@ class TestInvokedMetric:
     @mock.patch("airflow.providers.common.ai.toolsets.managed_agent.Stats")
     async def test_group_call_tool_emits_invoked_once_regardless_of_failover(self, mock_stats):
         primary = FakeManagedAgentToolset(raises=ManagedAgentInvocationError("down"))
-        standby = FakeManagedAgentToolset(result="from standby")
+        standby = FakeManagedAgentToolset(result="from standby", platform="standby.cloud")
         group = FailoverManagedAgentToolset(
             members=[primary, standby],
             tool_name="ask_resilient",
@@ -563,14 +572,14 @@ class TestInvokedMetric:
                 tags={
                     "tool": "ask_resilient",
                     "from_platform": "fake.cloud",
-                    "to_platform": "fake.cloud",
+                    "to_platform": "standby.cloud",
                 },
             ),
             mock.call(
                 "managed_agent.served",
                 tags={
                     "tool": "ask_resilient",
-                    "platform": "fake.cloud",
+                    "platform": "standby.cloud",
                     "role": "standby",
                     "position": "1",
                 },
