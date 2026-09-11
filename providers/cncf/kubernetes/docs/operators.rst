@@ -195,16 +195,21 @@ worker is preempted or crashes) and the task is retried, the operator can reatta
 that is already running instead of creating a duplicate. This is controlled by the ``durable``
 parameter, which defaults to ``True``.
 
-On Airflow 3.3+, ``durable=True`` persists the running pod's identity (name, namespace) to
+On Airflow 3.3+, ``durable=True`` persists the running pod's identity (name, namespace, uid) to
 :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before the operator starts
 waiting on it. On retry, the operator reads this identity back and reconnects directly to that
-specific pod -- the reconnect step uses this persisted identity instead of a label search.
+specific pod -- the reconnect step uses this persisted identity instead of a label search. The uid is
+compared on reconnect, so a name that an unrelated pod took over after the recorded one was deleted
+is treated as a pod that no longer exists rather than reattached to.
 
 If no identity has been persisted yet to the task state store - either because this is the first attempt, or because the
 worker crashed in the narrow window after the pod was created but before its identity could be
 persisted, the operator falls back to the same label search ``reattach_on_restart`` has always
 used, so a running pod from a prior attempt is still found and reattached to rather than
-duplicated. Once an identity is persisted, subsequent retries skip the label search entirely.
+duplicated. The label search is used again whenever the persisted identity cannot be trusted: the
+pod is gone, its uid no longer matches, a prior attempt already checked it, or the identity was
+written by a provider version that did not record a uid yet. A pod found that way is persisted
+again together with its uid.
 
 To always create a fresh pod on retry rather than reattaching, set ``durable=False``:
 
