@@ -48,6 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.assets import (
 )
 from airflow.api_fastapi.core_api.routes.public.assets import OnlyActiveFilter
 from airflow.api_fastapi.core_api.security import (
+    ReadableAssetsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
@@ -109,6 +110,7 @@ def get_assets(
             ).dynamic_depends(default="-last_asset_event_timestamp")
         ),
     ],
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets. Like the public endpoint, but also supports sorting by group and last asset event timestamp."""
@@ -125,6 +127,7 @@ def get_assets(
             group_prefix_pattern,
             dag_ids,
             last_asset_event_timestamp_range,
+            readable_assets_filter,
         ],
         order_by=order_by,
         offset=offset,

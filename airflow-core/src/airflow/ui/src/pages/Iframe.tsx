@@ -16,10 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useRef } from "react";
+
 import { useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset } from "openapi/queries";
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
+
+import { useIframeUrlSync } from "src/hooks/useIframeUrlSync";
 
 export const Iframe = ({
   externalView,
@@ -28,7 +32,8 @@ export const Iframe = ({
   readonly externalView: ExternalViewResponse;
   readonly sandbox?: string;
 }) => {
-  const { assetId, dagId, mapIndex, runId, taskId } = useParams();
+  const { assetId, dagId, mapIndex, page, runId, taskId } = useParams();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // The asset URI is not part of the route, so resolve it from the asset record. This is a
   // cache hit because the asset details page has already fetched it.
@@ -37,6 +42,10 @@ export const Iframe = ({
     undefined,
     { enabled: Boolean(assetId) },
   );
+
+  // Only standalone (nav) views are deep-linkable; context-scoped embeds (dashboard/overview) keep
+  // the placeholder-substituted src and are not synced.
+  const isNavView = externalView.destination === undefined || externalView.destination === "nav";
 
   // Build the href URL with context parameters if the view has a destination
   let src = externalView.href;
@@ -68,10 +77,18 @@ export const Iframe = ({
     src = new URL(src).toString();
   }
 
+  const { initialSrc } = useIframeUrlSync({
+    basePath: `/plugin/${page ?? ""}`,
+    enabled: isNavView,
+    entrySrc: src,
+    iframeRef,
+  });
+
   return (
     <iframe
+      ref={iframeRef}
       sandbox={sandbox}
-      src={src}
+      src={isNavView ? initialSrc : src}
       style={{
         border: "none",
         display: "block",

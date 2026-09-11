@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+.. note::
+  ``librdkafka`` callbacks given as dotted-path strings on a Kafka connection extra (``error_cb``,
+  ``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``) are no longer imported
+  unless the full importable path of the callback is listed in the new ``[apache_kafka]
+  callback_allowlist`` option, which is empty by default. A connection that relies on such a
+  callback now raises ``ValueError`` until its path is added to the allowlist. Callbacks passed as
+  actual callables, and managed authentication (Amazon MSK IAM, Google Managed Kafka), are unaffected.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Add an allowlist config option for Kafka connection string callbacks (#72208)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve documentation for the KafkaEventProducer plugin (#71085)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.16.0
 ......
 

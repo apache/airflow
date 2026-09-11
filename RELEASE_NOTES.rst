@@ -6441,6 +6441,17 @@ You can achieve it also by installing airflow with ``[celery]``, ``[cncf.kuberne
 Users who base their images on the ``apache/airflow`` reference image (not slim) should be unaffected - the base
 reference image comes with all the three providers installed.
 
+``DAG.test()`` now returns a ``DagRun`` and no longer stops at the first task failure (#32820)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+This was an undocumented side effect of adding support for setup/teardown tasks in mapped task
+groups. Previously, ``DAG.test()`` returned ``None``, and if any task raised an exception, the
+whole test run stopped immediately without running the DAG's other schedulable tasks. Now,
+``DAG.test()`` returns the ``DagRun`` it executed, and a failing task no longer aborts the run:
+the remaining tasks keep running according to their trigger rules, just like in a real scheduled
+run. This makes it possible to use ``DAG.test()`` to test DAGs where a task is expected to fail
+but downstream tasks with a different trigger rule (or a parallel mapped task group) should still
+run, without having to fall back to the ``DebugExecutor``.
+
 Improvement Changes
 ^^^^^^^^^^^^^^^^^^^
 

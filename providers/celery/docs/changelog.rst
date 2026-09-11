@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+3.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Parse additional Kafka, Redis & SQS options in 'broker_transport_options' (#70228)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mismatched AirflowConfigException in celery and edge3 (#72437)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 3.23.1
 ......
 
