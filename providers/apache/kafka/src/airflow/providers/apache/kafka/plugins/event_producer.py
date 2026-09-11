@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from fnmatch import fnmatch
 from functools import lru_cache
@@ -178,21 +179,34 @@ def _reset_state_after_fork() -> None:
 os.register_at_fork(after_in_child=_reset_state_after_fork)
 
 
+def _build_producer() -> Producer:
+    """Resolve the Kafka connection and build a producer from it."""
+    # Deferred import: KafkaProducerHook pulls in confluent_kafka.Producer, which is heavy
+    # and shouldn't be loaded by every Airflow process at plugin import time.
+    from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
+
+    hook_kwargs: dict[str, Any] = {}
+    if _get_kafka_config_id():
+        hook_kwargs["kafka_config_id"] = _get_kafka_config_id()
+    return KafkaProducerHook(**hook_kwargs).get_producer()
+
+
 def _get_producer() -> Producer | None:
     """Build (once) and return the plugin's Kafka producer, or ``None`` on init failure."""
     global _producer
     if _producer is not None:
         return _producer
 
-    # Deferred import: KafkaProducerHook pulls in confluent_kafka.Producer, which is heavy
-    # and shouldn't be loaded by every Airflow process at plugin import time.
-    from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
-
     try:
-        hook_kwargs: dict[str, Any] = {}
-        if _get_kafka_config_id():
-            hook_kwargs["kafka_config_id"] = _get_kafka_config_id()
-        producer = KafkaProducerHook(**hook_kwargs).get_producer()
+        # The connection lookup opens a DB session, so it runs on a thread of its own.
+        #
+        # settings.Session gives out one session per thread. MetastoreBackend.get_connection
+        # carries @provide_session, so on the caller's thread it reuses the session that
+        # thread already has, and closes it on the way out. The scheduler calls the listeners
+        # in this module while it is moving queued DagRuns to RUNNING. Closing its session
+        # detaches those DagRuns, and the scheduler crashes the next time it reads one.
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="kafka-event-producer") as pool:
+            producer = pool.submit(_build_producer).result()
     except Exception as exc:
         log.warning("Kafka event producer: failed to initialize producer (%s).", exc)
         return None

@@ -64,6 +64,8 @@ class TestEventProducer:
     dag_folder = os.path.join(test_dir, "dags")
 
     KAFKA_CONFIG_ID = "kafka_default"
+    # This config id lives in the metadata DB only.
+    DB_KAFKA_CONFIG_ID = "kafka_event_producer_db"
     # Use a unique topic per run to avoid errors on a re-run, in case
     # the previous teardown hasn't finished with the topic deletion.
     TOPIC = f"airflow.events.itest.{uuid.uuid4().hex[:8]}"
@@ -127,6 +129,75 @@ class TestEventProducer:
         finally:
             terminate_process(scheduler_process)
             terminate_process(apiserver_process)
+
+    @pytest.fixture
+    def kafka_connection_in_metadata_db(self):
+        """Give the plugin a Kafka connection that only the metadata DB has.
+
+        setup_class exports AIRFLOW_CONN_KAFKA_DEFAULT, and the environment secrets backend
+        answers from that variable without opening a DB session. This test needs the lookup
+        to reach the metastore backend instead, and that only happens for a connection the
+        environment does not have.
+
+        The topic is separate too. The other test counts the messages on the class topic,
+        and the runs here would add to that count.
+        """
+        topic = f"airflow.events.itest.{uuid.uuid4().hex[:8]}"
+        self._admin.create_topic([(topic, 1, 1)])
+
+        connection = Connection(
+            conn_id=self.DB_KAFKA_CONFIG_ID,
+            conn_type="kafka",
+            extra=json.dumps(client_config),
+        )
+        subprocess.run(
+            ["airflow", "connections", "add", self.DB_KAFKA_CONFIG_ID, "--conn-json", connection.as_json()],
+            check=True,
+            env=os.environ.copy(),
+        )
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__KAFKA_CONFIG_ID"] = self.DB_KAFKA_CONFIG_ID
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC"] = topic
+        try:
+            yield
+        finally:
+            os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC"] = self.TOPIC
+            os.environ.pop("AIRFLOW__KAFKA_EVENT_PRODUCER__KAFKA_CONFIG_ID", None)
+            subprocess.run(
+                ["airflow", "connections", "delete", self.DB_KAFKA_CONFIG_ID],
+                check=False,
+                env=os.environ.copy(),
+            )
+            try:
+                self._admin.delete_topic([topic])
+            except Exception as exc:
+                log.warning("teardown: failed to delete topic %r: %s", topic, exc)
+
+    @pytest.mark.execution_timeout(300)
+    def test_scheduler_starts_every_queued_dag_run(self, kafka_connection_in_metadata_db):
+        """The scheduler starts every queued Dag run, not only the first one.
+
+        Both runs are triggered before the scheduler starts, so a single pass of
+        _start_queued_dagruns has more than one row to get through. That pass is holding a
+        DB session. If building the Kafka producer closes it, the rows the pass has not
+        reached yet are detached, and the scheduler exits.
+        """
+        dag_id = "demo_dag"
+        run_ids = [unpause_trigger_dag_and_get_run_id(dag_id=dag_id) for _ in range(2)]
+
+        scheduler_process, apiserver_process = start_scheduler()
+        try:
+            states = [wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=60) for run_id in run_ids]
+            scheduler_exit_code = scheduler_process.poll()
+        finally:
+            terminate_process(scheduler_process)
+            terminate_process(apiserver_process)
+
+        assert scheduler_exit_code is None, (
+            f"the scheduler exited while starting queued Dag runs, exit code {scheduler_exit_code}"
+        )
+        assert states == [State.SUCCESS, State.SUCCESS], (
+            f"the scheduler did not finish both queued Dag runs, final states: {states}"
+        )
 
     @pytest.mark.execution_timeout(90)
     def test_dag_run_produces_event_messages(self, start_components):
