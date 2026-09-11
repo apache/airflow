@@ -36,6 +36,7 @@ from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     apply_regex_query_timeout,
+    build_upsert_stmt,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
     prohibit_commit,
@@ -443,3 +444,32 @@ class TestApplyRegexQueryTimeout:
             with apply_regex_query_timeout(session):
                 pass
         session.execute.assert_not_called()
+
+
+class TestBuildUpsertStmt:
+    @pytest.mark.parametrize("dialect", ["postgresql", "cockroachdb"])
+    def test_postgres_family_uses_on_conflict_do_update(self, dialect):
+        from sqlalchemy.dialects.postgresql.dml import Insert as PgInsert
+
+        from airflow.models.pool import Pool
+
+        stmt = build_upsert_stmt(
+            dialect=dialect,
+            model=Pool,
+            conflict_cols=["pool"],
+            values={"pool": "test_pool", "slots": 1},
+            update_fields={"slots": 1},
+        )
+        assert isinstance(stmt, PgInsert)
+
+    def test_unsupported_dialect_raises(self):
+        from airflow.models.pool import Pool
+
+        with pytest.raises(ValueError, match="Unsupported database dialect 'mssql'"):
+            build_upsert_stmt(
+                dialect="mssql",
+                model=Pool,
+                conflict_cols=["pool"],
+                values={"pool": "test_pool"},
+                update_fields={},
+            )
