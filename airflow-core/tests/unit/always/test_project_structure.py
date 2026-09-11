@@ -145,7 +145,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_spanner.py",
             "providers/google/tests/unit/google/cloud/links/test_stackdriver.py",
             "providers/google/tests/unit/google/cloud/links/test_workflows.py",
-            "providers/google/tests/unit/google/cloud/links/test_translate.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_auto_ml.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_custom_job.py",
