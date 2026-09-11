@@ -510,6 +510,23 @@ def get_otel_logger(
         )
         readers.append(export_to_console)
 
+    # Shut down the pipeline we are about to replace. Resetting the Once() guard below makes
+    # set_meter_provider() genuinely swap the global provider, but the outgoing provider owns a
+    # PeriodicExportingMetricReader whose constructor started a daemon export thread, and
+    # shutdown_on_exit=False means nothing ever reaps it. Left running it keeps exporting on its
+    # own interval while its instruments are no longer recorded to, so its cumulative totals
+    # freeze and are republished indefinitely under the same resource with a different
+    # start_time_unix_nano. Downstream that arrives as a second, conflicting stream for the same
+    # series. shutdown() force-flushes first, so the final datapoints are not lost.
+    previous_provider = metrics.get_meter_provider()
+    # Checked by capability rather than type: only the SDK provider can be shut down, while the
+    # API's no-op and proxy providers have no shutdown() to call.
+    if callable(getattr(previous_provider, "shutdown", None)):
+        try:
+            previous_provider.shutdown()
+        except Exception:
+            log.warning("Could not shut down the previous MeterProvider", exc_info=True)
+
     # Reset the OTel SDK's Once() guard so set_meter_provider() can succeed.
     # This is necessary when get_otel_logger() is called after a process fork:
     # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the child,
