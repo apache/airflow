@@ -232,15 +232,14 @@ class TestSnowparkContainerJobOperator:
         mock_error.assert_called_once_with("Logs for instance_id %d:\n%s", 0, "container output here")
 
     @mock.patch(MOCK_HOOK_PATH)
-    def test_log_container_output_no_logs_skips(self, mock_hook_cls):
+    def test_log_container_output_no_logs(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.return_value = [""]
         op = _make_operator()
         op.job_name = JOB_NAME
-        with mock.patch.object(op.log, "info") as mock_info, mock.patch.object(op.log, "error") as mock_error:
+        with mock.patch.object(op.log, "info") as mock_info:
             op._log_container_output("DONE")
-        mock_info.assert_not_called()
-        mock_error.assert_not_called()
+        mock_info.assert_called_once_with("No logs returned for instance_id %d", 0)
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_log_container_output_multiple_replicas(self, mock_hook_cls):
