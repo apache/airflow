@@ -39,7 +39,7 @@ uniquely identify a Dag run triggered by an asset event.
 
 The variables listed on this page are provided via Airflow's execution-time context.
 
-When using the Task SDK, the same execution-time context is also available programmatically via the :class:`airflow.sdk.Context` object.
+When using the Task SDK, the same execution-time context is also available programmatically via the ``airflow.sdk.Context`` object.
 
 The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a Dag level through the
@@ -63,31 +63,31 @@ Variable                                    Type                  Description
 ``{{ exception }}``                         None | str |          | Error occurred while running task instance.
                                             Exception             |
                                             KeyboardInterrupt     |
-``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
+``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful DagRun.
                                             | ``None``            | Added in version 2.2.
-``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
+``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful DagRun.
                                             | ``None``            | Added in version 2.2.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful DagRun (if available).
                                             | ``None``
-``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
+``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful DagRun (if available).
                                              | ``None``
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
 ``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
                                                                   | See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
-``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
-``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
+``{{ dag }}``                               DAG                   The currently running DAG. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
+``{{ task }}``                              BaseOperator          | The currently running BaseOperator. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ task_reschedule_count }}``             int                   How many times current task has been rescheduled. Relevant to ``mode="reschedule"`` sensors.
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
-``{{ task_instance }}``                     TaskInstance          The currently running :class:`~airflow.models.taskinstance.TaskInstance`.
+``{{ task_instance }}``                     TaskInstance          The currently running TaskInstance.
 ``{{ ti }}``                                TaskInstance          Same as ``{{ task_instance }}``.
 ``{{ params }}``                            dict[str, Any]        | The user-defined params. This can be overridden by the mapping
                                                                   | passed to ``trigger_dag -c`` if ``dag_run_conf_overrides_params``
                                                                   | is enabled in ``airflow.cfg``.
-``{{ partition_key }}``                     str | None            | The partition key from the current :class:`~airflow.models.dagrun.DagRun`.
+``{{ partition_key }}``                     str | None            | The partition key from the current DagRun.
                                                                   | Returns ``None`` if no partition key was set. Added in version 3.3.0.
-``{{ partition_date }}``                    datetime | None       | The partition datetime from the current :class:`~airflow.models.dagrun.DagRun`.
+``{{ partition_date }}``                    datetime | None       | The partition datetime from the current DagRun.
                                                                   | Use ``{{ partition_date | ds }}`` and related filters for formatting.
                                                                   | Returns ``None`` if no partition date was set. Added in version 3.3.0.
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
@@ -100,14 +100,14 @@ Variable                                    Type                  Description
                                                                   |
                                                                   | For asset-triggered DAGs, the format uses the DAG run identifier instead:
                                                                   | ``{dag_id}__{task_id}__{dag_run.run_id}``.
-``{{ run_id }}``                            str                   The currently running :class:`~airflow.models.dagrun.DagRun` run ID.
-``{{ dag_run }}``                           DagRun                The currently running :class:`~airflow.models.dagrun.DagRun`.
+``{{ run_id }}``                            str                   The currently running DagRun run ID.
+``{{ dag_run }}``                           DagRun                The currently running DagRun.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
 ``{{ map_index_template }}``                None | str            Template used to render the expanded task instance of a mapped task. Setting this value will be reflected in the rendered result.
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
-``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
+``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering AssetEvent
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.
                                                                   | Added in version 2.4.
