@@ -19,14 +19,21 @@ from __future__ import annotations
 from urllib.parse import urlencode
 
 import structlog
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials
 
 from airflow.api_fastapi.app import get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import AuthManagerDep, is_safe_url
+from airflow.api_fastapi.core_api.security import (
+    AuthManagerDep,
+    bearer_scheme,
+    collect_request_tokens,
+    is_safe_url,
+    oauth2_scheme,
+)
 from airflow.configuration import conf
 
 log = structlog.get_logger(logger_name=__name__)
@@ -57,11 +64,21 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
     "/logout",
     responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
 )
-def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
+def logout(
+    request: Request,
+    auth_manager: AuthManagerDep,
+    oauth_token: str | None = Depends(oauth2_scheme),
+    bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> RedirectResponse:
     """Logout the user."""
-    # Revoke the current token before any redirect or cookie deletion so the JWT
-    # is invalidated even when the auth manager redirects to an external logout URL.
-    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+    # Revoke every credential presented before any redirect or cookie deletion, so the
+    # JWT is invalidated even when the auth manager redirects to an external logout URL.
+    #
+    # This previously read only the `_token` cookie. A client that authenticates with an
+    # `Authorization: Bearer` header -- the documented way to call the API -- therefore
+    # got a successful logout response while its token was never revoked, and the token
+    # stayed valid until it expired.
+    for token_str in collect_request_tokens(request, oauth_token, bearer_credentials):
         auth_manager.revoke_token(token_str)
 
     logout_url = auth_manager.get_url_logout()
