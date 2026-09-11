@@ -599,6 +599,24 @@ class TestHttpHook:
         [
             pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
             pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),
+            pytest.param(
+                "https://example.org/",
+                "/v1/test",
+                "https://example.org/v1/test",
+                id="trailing-and-leading-slash",
+            ),
+            pytest.param(
+                "https://example.org/v1",
+                "/test",
+                "https://example.org/v1/test",
+                id="leading-slash-only",
+            ),
+            pytest.param(
+                "https://example.org/v1/",
+                "test",
+                "https://example.org/v1/test",
+                id="trailing-slash-only",
+            ),
         ],
     )
     def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):
