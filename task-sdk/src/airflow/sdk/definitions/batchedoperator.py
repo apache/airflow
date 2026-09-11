@@ -84,6 +84,8 @@ class BatchableOperator(Generic[T], metaclass=ABCMeta):
     :param size: The number of task instances to create. The input is distributed across them
         round-robin (item ``i`` goes to task instance ``i % size``), not split into ``size``
         contiguous chunks — this is *not* the same semantics as ``itertools.batched(iterable, size)``.
+        See :class:`~airflow.sdk.definitions._internal.expandinput.BatchedExpandInput` for why
+        round-robin is used instead of contiguous chunking.
     """
 
     operator_partial: T

@@ -391,18 +391,33 @@ Combining DTM and TI (Dynamic Task Batching)
 ---------------------------------------------
 
 DTM and TI are not mutually exclusive in principle. The *Dynamic Task Batching*
-pattern could use DTM to split a large dataset into coarse-grained chunks,
-where each mapped task processes it's batch using TI.
+pattern uses DTM to fan a large dataset out across ``size`` task instances,
+where each mapped task instance then iterates over its share using TI.
 
-For example, downloading 17,000 files could be split into 17 batches of
-1,000 files each. DTM would create one task per batch, and TI would iterate
-within each batch using a shared event loop for concurrent I/O.
+For example, downloading 17,000 files with ``.batch(size=17).iterate(url=urls)``
+creates 17 task instances via DTM. Each task instance streams the *same*
+underlying iterable but only keeps the items routed to it round-robin (item
+``i`` goes to task instance ``i % 17``), then iterates over those ~1,000 files
+using a shared event loop for concurrent I/O.
+
+.. note::
+
+   ``size`` is the number of task instances to create, **not** a chunk length —
+   items are distributed round-robin, not split into ``size`` contiguous
+   chunks (this differs from :func:`itertools.batched`). The distinction
+   matters because the task instance count must be fixed *before* the
+   underlying iterable is consumed: with round-robin, that count is simply
+   ``size`` itself, a constant chosen independently of how many items the
+   iterable actually yields. A contiguous-chunk scheme would instead need
+   ``ceil(total_items / size)`` task instances, which is unknowable until the
+   iterable — potentially an unbounded or paginated stream — has been fully
+   drained, defeating the purpose of iterating over it lazily.
 
 This pattern would provide:
 
-- **Coarse-grained retry**: if a batch fails, only that batch is retried — not all 17,000 items.
-- **Reduced scheduler load**: the scheduler manages chunks (e.g., 17 tasks) instead of individual items (17,000 tasks).
-- **High throughput within each chunk**: async I/O processes items concurrently inside each task.
+- **Coarse-grained retry**: if a task instance fails, only its share is retried — not all 17,000 items.
+- **Reduced scheduler load**: the scheduler manages task instances (e.g., 17) instead of individual items (17,000 tasks).
+- **High throughput within each task instance**: async I/O processes items concurrently inside each task.
 
 Relationship with Async Operators
 ----------------------------------
