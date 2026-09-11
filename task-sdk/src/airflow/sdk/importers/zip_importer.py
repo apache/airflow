@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-_sys_path_lock = threading.Lock()
+_sys_path_lock = threading.RLock()
 
 
 @contextlib.contextmanager
@@ -170,7 +170,7 @@ class ZipImporter(AbstractDagImporter):
         safe_mode: bool = True,
     ) -> Iterator[DagDefinition]:
         """List zip archive DAG definitions in a bundle matching supported extensions."""
-        yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
+        yield from find_file_dag_definitions(bundle.path, self.supported_extensions, safe_mode=safe_mode)
 
     def import_definition(
         self,

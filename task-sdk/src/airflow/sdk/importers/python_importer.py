@@ -64,7 +64,7 @@ class PythonDagImporter(AbstractDagImporter):
     .py files containing Python DAGs.
     """
 
-    supported_extensions = [".py"]
+    supported_extensions = [".py", ".pyc"]
 
     def __init__(self, extensions: list[str] | None = None) -> None:
         if extensions is not None:
@@ -82,7 +82,7 @@ class PythonDagImporter(AbstractDagImporter):
         safe_mode: bool = True,
     ) -> Iterator[DagDefinition]:
         """List Python DAG definitions in a bundle matching supported extensions."""
-        yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
+        yield from find_file_dag_definitions(bundle.path, self.supported_extensions, safe_mode=safe_mode)
 
     def import_definition(
         self,
@@ -150,6 +150,11 @@ class PythonDagImporter(AbstractDagImporter):
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """Retrieve the raw source code for the Python definition."""
+        if get_file_suffix(definition) == ".pyc":
+            return DagSourceCode(
+                source_code="# Sourceless bytecode (.pyc) — source code not available\n",
+                language="python",
+            )
         return DagSourceCode(
             source_code=definition.read_text(encoding="utf-8"),
             language="python",
@@ -170,6 +175,24 @@ class PythonDagImporter(AbstractDagImporter):
     ) -> list[ModuleType]:
         definition = result.definition
 
+        import signal
+
+        def sigsegv_handler(signum, frame):
+            msg = f"Received SIGSEGV signal while processing {filepath}."
+            log.error(msg)
+            result.errors.append(
+                DagImportError(
+                    source_reference=repr(definition),
+                    message=msg,
+                    error_type="segfault",
+                )
+            )
+
+        try:
+            signal.signal(signal.SIGSEGV, sigsegv_handler)
+        except (ValueError, AttributeError):
+            log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
+
         if not self.might_contain_dag(filepath, safe_mode):
             log.debug("File %s assumed to contain no DAGs. Skipping.", filepath)
             if definition is not None:
@@ -186,7 +209,11 @@ class PythonDagImporter(AbstractDagImporter):
 
         def parse(mod_name: str, filepath: str) -> list[ModuleType]:
             try:
-                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                loader: importlib.machinery.SourceFileLoader | importlib.machinery.SourcelessFileLoader
+                if Path(filepath).suffix.lower() == ".pyc":
+                    loader = importlib.machinery.SourcelessFileLoader(mod_name, filepath)
+                else:
+                    loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
                 new_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
                 sys.modules[spec.name] = new_module  # type: ignore[union-attr]

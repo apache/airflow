@@ -17,6 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+from unittest import mock
+
+import pytest
+
 from airflow_shared.module_loading import (
     MODIFIED_DAG_MODULE_NAME,
     UNUSUAL_MODULE_PREFIX,
@@ -46,3 +51,42 @@ def test_might_contain_dag(tmp_path) -> None:
     non_dag_file.write_text("def add(x, y): return x + y")
     assert might_contain_dag(str(non_dag_file), safe_mode=True) is False
     assert might_contain_dag(str(non_dag_file), safe_mode=False) is True
+
+
+def test_might_contain_dag_with_explicit_conf() -> None:
+    mock_conf = mock.MagicMock()
+    mock_conf.getimport.return_value = lambda file_path, zip_file=None: False
+
+    assert might_contain_dag("dummy.py", safe_mode=True, conf=mock_conf) is False
+    mock_conf.getimport.assert_called_once_with("core", "might_contain_dag_callable", fallback=None)
+
+
+def test_might_contain_dag_logs_warning_on_broken_config(tmp_path, caplog) -> None:
+    dag_file = tmp_path / "test_dag.py"
+    dag_file.write_text("from airflow import DAG\ndag = DAG('test')")
+
+    mock_conf = mock.MagicMock()
+    mock_conf.getimport.side_effect = ImportError("No module named 'broken_module'")
+
+    with caplog.at_level(logging.WARNING):
+        result = might_contain_dag(str(dag_file), safe_mode=True, conf=mock_conf)
+
+    assert result is True
+    assert "Failed to load might_contain_dag_callable from config" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("caller_module", "expected_config_module"),
+    [
+        ("airflow.sdk.importers.python_importer", "airflow.sdk.configuration"),
+        ("airflow.utils.file", "airflow.configuration"),
+    ],
+)
+def test_might_contain_dag_caller_aware(caller_module: str, expected_config_module: str) -> None:
+    frame = mock.MagicMock(f_globals={"__name__": caller_module}, f_back=None)
+    with (
+        mock.patch("sys._getframe", return_value=mock.MagicMock(f_back=frame)),
+        mock.patch("importlib.import_module") as mock_import,
+    ):
+        might_contain_dag("dummy.py", safe_mode=True)
+        mock_import.assert_called_once_with(expected_config_module)

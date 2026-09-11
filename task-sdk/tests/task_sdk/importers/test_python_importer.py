@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+import logging
+import py_compile
+import signal
 import sys
 from types import SimpleNamespace
 from unittest import mock
@@ -78,24 +81,53 @@ class TestPythonDagImporter:
         assert len(result.errors) == 0
         assert result.skipped_definitions == [definition]
 
-    def test_list_dag_definitions(self, mock_bundle):
+    @pytest.mark.parametrize(
+        ("safe_mode", "expected_files"),
+        [
+            (True, {"sample_dag.py"}),
+            (False, {"sample_dag.py", "helper.py"}),
+        ],
+    )
+    def test_list_dag_definitions(self, mock_bundle, safe_mode, expected_files):
         dag_file = mock_bundle.path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag_1')\n")
+        (mock_bundle.path / "helper.py").write_text("def helper():\n    return 42\n")
         (mock_bundle.path / "notes.txt").write_text("hello")
 
         importer = PythonDagImporter()
-        defs = list(importer.list_dag_definitions(mock_bundle))
-        assert len(defs) == 1
-        assert defs[0].path == dag_file
+        defs = list(importer.list_dag_definitions(mock_bundle, safe_mode=safe_mode))
+        assert {d.path.name for d in defs} == expected_files
 
-    def test_get_source_code(self, tmp_path):
-        dag_file = tmp_path / "source_dag.py"
-        content = "# My DAG\nfrom airflow.sdk import DAG\n"
-        dag_file.write_text(content)
+    @pytest.mark.parametrize(
+        ("filename", "is_bytecode", "expected_content"),
+        [
+            ("source_dag.py", False, "# My DAG\nfrom airflow.sdk import DAG\n"),
+            ("source_dag.pyc", True, "# Sourceless bytecode (.pyc) — source code not available\n"),
+        ],
+    )
+    def test_get_source_code(self, tmp_path, filename, is_bytecode, expected_content):
+        dag_file = tmp_path / filename
+        if is_bytecode:
+            dag_file.write_bytes(b"\x00\x00\x00\x00bytecode")
+        else:
+            dag_file.write_text(expected_content)
 
         src = PythonDagImporter().get_source_code(FileDagDefinition(path=dag_file))
         assert src.language == "python"
-        assert src.source_code == content
+        assert src.source_code == expected_content
+
+    def test_import_pyc_file(self, mock_bundle, tmp_path):
+        source_file = tmp_path / "compiled_dag.py"
+        source_file.write_text("from airflow.sdk import DAG\ndag = DAG('compiled_dag')\n")
+        pyc_file = mock_bundle.path / "compiled_dag.pyc"
+        py_compile.compile(str(source_file), cfile=str(pyc_file))
+
+        importer = PythonDagImporter()
+        result = importer.import_definition(FileDagDefinition(path=pyc_file), bundle=mock_bundle)
+
+        assert len(result.dags) == 1
+        assert result.dags[0].dag_id == "compiled_dag"
+        assert len(result.errors) == 0
 
     def test_file_dag_definition_freshness_token(self, tmp_path):
         dag_file = tmp_path / "fresh_dag.py"
@@ -167,3 +199,38 @@ class TestPythonDagImporter:
         assert len(result.errors) == 1
         assert result.errors[0].error_type == "import"
         assert "unexpected None" in result.errors[0].message
+
+    def test_sigsegv_handler_registration_and_execution(self, mock_bundle):
+        dag_file = mock_bundle.path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag')\n")
+
+        importer = PythonDagImporter()
+        registered_handler = None
+
+        def mock_signal_func(signum, handler):
+            nonlocal registered_handler
+            if signum == signal.SIGSEGV:
+                registered_handler = handler
+
+        with mock.patch("signal.signal", side_effect=mock_signal_func):
+            result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+            assert callable(registered_handler)
+
+            registered_handler(signal.SIGSEGV, None)
+            assert len(result.errors) == 1
+            assert result.errors[0].error_type == "segfault"
+            assert "Received SIGSEGV signal while processing" in result.errors[0].message
+
+    def test_sigsegv_handler_registration_failure_logged(self, mock_bundle, caplog):
+        dag_file = mock_bundle.path / "sample_dag.py"
+        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag')\n")
+
+        importer = PythonDagImporter()
+        with (
+            mock.patch("signal.signal", side_effect=ValueError("signal only works in main thread")),
+            caplog.at_level(logging.WARNING),
+        ):
+            result = importer.import_definition(FileDagDefinition(path=dag_file), bundle=mock_bundle)
+
+        assert len(result.dags) == 1
+        assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text

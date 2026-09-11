@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import py_compile
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -63,14 +64,22 @@ class TestZipImporter:
     def mock_bundle(self, tmp_path):
         return SimpleNamespace(name="test_bundle", path=tmp_path)
 
-    def test_list_dag_definitions(self, mock_bundle):
+    @pytest.mark.parametrize(
+        ("safe_mode", "expected_count"),
+        [
+            (True, 1),
+            (False, 2),
+        ],
+    )
+    def test_list_dag_definitions(self, mock_bundle, safe_mode, expected_count):
         zip_path = mock_bundle.path / "sample.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
             z.writestr("dag.py", "from airflow.sdk import DAG\n")
+        (mock_bundle.path / "corrupt.zip").write_bytes(b"not a valid zip and no dag markers")
 
-        definitions = list(ZipImporter().list_dag_definitions(mock_bundle))
-        assert len(definitions) == 1
-        assert definitions[0].path == zip_path
+        definitions = list(ZipImporter().list_dag_definitions(mock_bundle, safe_mode=safe_mode))
+        assert len(definitions) == expected_count
+        assert any(d.path == zip_path for d in definitions)
 
     def test_import_zip_archive_with_dags(self, mock_bundle):
         zip_path = mock_bundle.path / "sample_dags.zip"
@@ -83,6 +92,26 @@ class TestZipImporter:
         assert result.dags[0].dag_id == "zip_dag_a"
         assert result.dags[0].bundle_name == "test_bundle"
         assert len(result.errors) == 0
+
+    def test_import_zip_archive_with_pyc_dag(self, mock_bundle, tmp_path):
+        source_file = tmp_path / "compiled_dag.py"
+        source_file.write_text("from airflow.sdk import DAG\ndag = DAG('zip_pyc_dag')\n")
+        pyc_file = tmp_path / "compiled_dag.pyc"
+        py_compile.compile(str(source_file), cfile=str(pyc_file))
+
+        zip_path = mock_bundle.path / "sample_pyc_dags.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.write(pyc_file, arcname="compiled_dag.pyc")
+
+        importer = ZipImporter()
+        result = importer.import_definition(FileDagDefinition(path=zip_path), bundle=mock_bundle)
+        assert len(result.dags) == 1
+        assert result.dags[0].dag_id == "zip_pyc_dag"
+        assert len(result.errors) == 0
+
+        src = importer.get_source_code(ZipFileDagDefinition(zip_path=zip_path, file_path="compiled_dag.pyc"))
+        assert src.language == "python"
+        assert "Sourceless bytecode" in src.source_code
 
     def test_zipslip_traversal_and_metadata_skipped(self, mock_bundle):
         zip_path = mock_bundle.path / "malicious.zip"

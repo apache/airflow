@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.sdk._shared.module_loading.dag_file import might_contain_dag
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
@@ -122,19 +123,20 @@ class DagImportError:
     stacktrace: str | None = None
 
     def format_message(self) -> str:
-        """Format the error as a human-readable string."""
-        parts = [f"Error in {self.source_reference}"]
+        """Format the error as a human-readable single-line string."""
+        loc_parts = []
         if self.line_number is not None:
-            loc = f"line {self.line_number}"
+            loc_parts.append(f"line {self.line_number}")
             if self.column_number is not None:
-                loc += f", column {self.column_number}"
-            parts.append(f"Location: {loc}")
-        parts.append(f"Error ({self.error_type}): {self.message}")
+                loc_parts.append(f"column {self.column_number}")
+        loc_str = f" ({', '.join(loc_parts)})" if loc_parts else ""
+
+        parts = [f"Error in {self.source_reference}{loc_str} [{self.error_type}]: {self.message.strip()}"]
         if self.context:
-            parts.append(f"Context:\n{self.context}")
+            parts.append(f"Context: {' '.join(self.context.split())}")
         if self.suggestion:
-            parts.append(f"Suggestion: {self.suggestion}")
-        return "\n".join(parts)
+            parts.append(f"Suggestion: {self.suggestion.strip()}")
+        return "; ".join(parts)
 
 
 @dataclass
@@ -178,7 +180,7 @@ def _normalize_extensions(extensions: Iterable[str]) -> list[str]:
     return [ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions]
 
 
-def _get_importer_extensions(importer: Any) -> list[str]:
+def _get_importer_extensions(importer: AbstractDagImporter) -> list[str]:
     """Extract supported extensions from an importer via duck typing."""
     exts = getattr(importer, "supported_extensions", None)
     if callable(exts):
@@ -232,6 +234,7 @@ def get_file_suffix(definition: DagDefinition | str | Path) -> str | None:
 def find_file_dag_definitions(
     bundle_path: Path,
     supported_extensions: Iterable[str],
+    safe_mode: bool = True,
 ) -> Iterator[DagDefinition]:
     """Find file DAG definitions in a bundle matching given extensions and respecting .airflowignore."""
     ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
@@ -246,6 +249,8 @@ def find_file_dag_definitions(
         if path.suffix.lower() not in supported_exts:
             continue
 
+        if safe_mode and not might_contain_dag(str(path), safe_mode):
+            continue
         yield FileDagDefinition(path=path)
 
 

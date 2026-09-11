@@ -29,12 +29,14 @@ from airflow.sdk.importers import (
     AbstractDagImporter,
     DagDefinition,
     DagImporterRegistry,
+    DagImportError,
     DagImportResult,
     DagSourceCode,
     FileDagDefinition,
     PythonDagImporter,
     ZipFileDagDefinition,
     ZipImporter,
+    find_file_dag_definitions,
     get_file_suffix,
     get_importer_registry,
     reset_importer_registry,
@@ -385,3 +387,46 @@ class TestDagImporterRegistry:
     )
     def test_get_file_suffix(self, input_val, expected):
         assert get_file_suffix(input_val) == expected
+
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            (
+                DagImportError(
+                    source_reference="dag.py",
+                    message="syntax error",
+                    error_type="syntax",
+                ),
+                "Error in dag.py [syntax]: syntax error",
+            ),
+            (
+                DagImportError(
+                    source_reference="dag.py",
+                    message="unexpected token",
+                    error_type="syntax",
+                    line_number=10,
+                    column_number=5,
+                    context="def broken(\n",
+                    suggestion="close the parenthesis",
+                ),
+                "Error in dag.py (line 10, column 5) [syntax]: unexpected token; Context: def broken(; Suggestion: close the parenthesis",
+            ),
+        ],
+    )
+    def test_dag_import_error_format_message(self, error, expected):
+        assert error.format_message() == expected
+
+    @pytest.mark.parametrize(
+        ("safe_mode", "expected_files"),
+        [
+            (True, {"workflow.py"}),
+            (False, {"workflow.py", "script.py"}),
+        ],
+    )
+    def test_find_file_dag_definitions_safe_mode(self, tmp_path, safe_mode, expected_files):
+        (tmp_path / "workflow.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "script.py").write_text("print('hello')\n")
+        (tmp_path / "data.csv").write_text("a,b,c\n")
+
+        definitions = list(find_file_dag_definitions(tmp_path, [".py"], safe_mode=safe_mode))
+        assert {d.path.name for d in definitions} == expected_files
