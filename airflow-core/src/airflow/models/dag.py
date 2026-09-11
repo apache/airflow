@@ -827,7 +827,7 @@ class DagModel(Base):
             self.next_dagrun_partition_key = next_dagrun_info.partition_key
             self.next_dagrun_partition_date = next_dagrun_info.partition_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
-        log.info(
+        log.debug(
             "setting next dagrun info",
             next_dagrun=str(self.next_dagrun),
             next_dagrun_create_after=str(self.next_dagrun_create_after),
