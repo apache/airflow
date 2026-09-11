@@ -230,12 +230,9 @@ class IterableOperator(BaseOperator):
     def _get_specified_expand_input(self) -> ExpandInput:
         return self.expand_input
 
-    def _unmap_operator(
-        self, context: Context, mapped_kwargs: Context, jinja_env: jinja2.Environment
-    ) -> BaseOperator:
-        unmapped_task = self._operator.unmap(mapped_kwargs)
-        # Make sure deferred operators will always raise a DeferredTask exception when executed
-        unmapped_task.start_from_trigger = False
+    def _render_unmapped_operator(
+        self, context: Context, unmapped_task: BaseOperator, jinja_env: jinja2.Environment
+    ) -> None:
         context_update_for_unmapped(context, unmapped_task)
 
         unmapped_task._do_render_template_fields(
@@ -245,7 +242,6 @@ class IterableOperator(BaseOperator):
             jinja_env=jinja_env,
             seen_oids=set(),
         )
-        return unmapped_task
 
     async def _xcom_push(self, task: IndexedTaskInstance, value: Any) -> None:
         await task.axcom_push(key=BaseXCom.XCOM_RETURN_KEY, value=value)
@@ -338,7 +334,9 @@ class IterableOperator(BaseOperator):
             else:
                 result = await executor.run_sync(self._run_operator, context, task)
 
-            indexed_task_state = IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=task.try_number)
+            indexed_task_state = IndexedTaskState(
+                status=TaskInstanceState.SUCCESS, try_number=task.try_number
+            )
             if result is not None and task.do_xcom_push:
                 indexed_task_state.result = result
             await task.aset_state(indexed_task_state)
@@ -384,18 +382,36 @@ class IterableOperator(BaseOperator):
         mapped_kwargs: Context,
         jinja_env: jinja2.Environment,
     ) -> IndexedTaskInstance:
-        operator = self._unmap_operator(context.copy(), mapped_kwargs, jinja_env)
-        return self._create_mapped_task(
+        unmapped_task = self._operator.unmap(mapped_kwargs)
+        # Make sure deferred operators will always raise a DeferredTask exception when executed
+        unmapped_task.start_from_trigger = False
+
+        indexed_ti = self._create_mapped_task(
             id=context["ti"].id,
             run_id=context["ti"].run_id,
             map_index=context["ti"].map_index,
             try_number=context["ti"].try_number,
             index=index,
-            operator=operator,
+            operator=unmapped_task,
         )
 
+        # Render against a copy of the context whose `ti`/`task_instance` are the new sub-task's
+        # IndexedTaskInstance, not the parent IterableOperator's own (shared) ti — otherwise
+        # context_update_for_unmapped() would mutate the parent's ti.task in place (context.copy()
+        # is only a shallow copy).
+        self._render_unmapped_operator(
+            {**context, "ti": indexed_ti, "task_instance": indexed_ti}, unmapped_task, jinja_env
+        )
+        return indexed_ti
+
     def _create_mapped_task(
-        self, id: UUID, run_id: str, map_index: int | None, index: int, try_number: int, operator: BaseOperator
+        self,
+        id: UUID,
+        run_id: str,
+        map_index: int | None,
+        index: int,
+        try_number: int,
+        operator: BaseOperator,
     ) -> IndexedTaskInstance:
         return IndexedTaskInstance.model_construct(
             id=id,
