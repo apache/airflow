@@ -413,15 +413,26 @@ def _get_method_source(cls: type, name: str) -> str | None:
         return None
 
 
-def _next_execute_in_mro(cls: type) -> tuple[type, str] | None:
-    """Find the class super().execute() would resolve to from within cls's own execute()."""
-    for base in cls.__mro__[1:]:
-        if "execute" in base.__dict__:
-            source = _get_method_source(base, "execute")
-            if source is not None:
-                return base, source
-            return None
+def _find_owner_of_execute(mro: tuple[type, ...], start_idx: int) -> type | None:
+    """Return the first class in `mro[start_idx:]` whose own `__dict__` defines `execute`."""
+    for cls in mro[start_idx:]:
+        if "execute" in cls.__dict__:
+            return cls
     return None
+
+
+def _next_execute_via_super(origin: type, current: type) -> type | None:
+    """Find what `super().execute()` resolves to from `current`, per `origin`'s MRO.
+
+    Must use `origin`'s MRO, not `current`'s own: with multiple inheritance (e.g. a
+    `@task.kubernetes`-built class) they diverge, and a mixin's own MRO may have no
+    relationship to the class the chain actually needs to reach.
+    """
+    try:
+        idx = origin.__mro__.index(current)
+    except ValueError:
+        return None
+    return _find_owner_of_execute(origin.__mro__, idx + 1)
 
 
 def _find_marker_declaring_class(cls: type) -> type | None:
@@ -439,51 +450,59 @@ def _find_marker_declaring_class(cls: type) -> type | None:
 
 
 def _delegates_execute_to(cls: type, target: type, depth: int) -> bool:
-    """Return True if `cls.execute` is, or resolves via `super().execute()` chains to, `target.execute`.
+    """Return True if `cls`'s resolved `execute()` chain reaches `target.execute`.
 
-    A class that never overrides `execute` inherits `target.execute` directly (e.g.
-    GKEStartPodOperator, which adds no `execute` method at all). A class whose own `execute`
-    ends in `return super().execute(context)` (e.g. EksPodOperator, SparkKubernetesOperator)
-    still runs `target`'s body once the chain is walked. Either way the reconnect behavior
-    `target` declared durable-capable for is preserved.
+    Covers both a class that never overrides `execute` (inherits `target.execute` directly,
+    e.g. GKEStartPodOperator) and one whose override ends in `super().execute(context)`
+    (e.g. EksPodOperator, SparkKubernetesOperator).
     """
-    if getattr(cls, "execute", None) is getattr(target, "execute", None):
-        return True
+    owner = _find_owner_of_execute(cls.__mro__, 0)
+    remaining = depth
+    while owner is not None:
+        if owner is target:
+            return True
+        if remaining <= 0:
+            return False
+        source = _get_method_source(owner, "execute")
+        if source is None or not _SUPER_EXECUTE_RE.search(source):
+            return False
+        owner = _next_execute_via_super(cls, owner)
+        remaining -= 1
+    return False
 
-    if depth <= 0 or "execute" not in cls.__dict__:
-        return False
 
-    source = _get_method_source(cls, "execute")
-    if source is None or not _SUPER_EXECUTE_RE.search(source):
-        return False
+def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
+    """Return True if some class along `cls`'s resolved `execute()` chain calls execute_resumable().
 
-    resolved = _next_execute_in_mro(cls)
-    if resolved is None:
-        return False
-    next_cls, _ = resolved
-    return _delegates_execute_to(next_cls, target, depth - 1)
+    Same walk as `_delegates_execute_to`: a delegating override's own source may not mention
+    `execute_resumable` even though the class it hands off to does.
+    """
+    owner = _find_owner_of_execute(cls.__mro__, 0)
+    remaining = depth
+    while owner is not None:
+        source = _get_method_source(owner, "execute")
+        if source is None:
+            return False
+        if "execute_resumable" in source:
+            return True
+        if remaining <= 0 or not _SUPER_EXECUTE_RE.search(source):
+            return False
+        owner = _next_execute_via_super(cls, owner)
+        remaining -= 1
+    return False
 
 
 def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     """Return True if a class implements durable/crash-safe execution.
 
     Two ways to qualify:
-    1. A class-level `__supports_durable_execution = True`
-    declaration (for operators that implement this directly against
-    task_state_store, without ResumableJobMixin, e.g. KubernetesPodOperator,
-    AgentOperator), inherited by any subclass that hasn't replaced the declaring
-    class's `execute()`, either by not overriding `execute` at all
-    (e.g. GKEStartPodOperator), or by overriding it with a chain of
-    `super().execute()` calls that still reaches the declaring class's `execute`
-    (e.g. EksPodOperator, SparkKubernetesOperator's non-deferrable path). A
-    subclass that overrides `execute()` and does *not* delegate back may not
-    preserve the parent's task_state_store reconnect behavior, so it doesn't
-    qualify this way.
-    2. Genuinely implementing ResumableJobMixin's contract.
-
-    Inheriting the mixin alone is not sufficient for the second path: a
-    complete override is inert unless execute() actually calls
-    execute_resumable().
+    1. A class-level `__supports_durable_execution = True` declaration (for operators like
+    KubernetesPodOperator/AgentOperator that implement this directly against
+    task_state_store, without ResumableJobMixin). Inherited by a subclass that hasn't
+    replaced the declaring class's `execute()`, whether by not overriding it at all, or by
+    delegating back via `super().execute()`.
+    2. Genuinely implementing ResumableJobMixin's contract, where `execute()` (or a class it
+    delegates to) calls `execute_resumable()`.
     """
     declaring_cls = _find_marker_declaring_class(cls)
     if declaring_cls is not None and _delegates_execute_to(cls, declaring_cls, _MAX_DEFERRAL_WALK_DEPTH):
@@ -495,40 +514,43 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     if inspect.isabstract(cls):
         return False
 
-    execute = getattr(cls, "execute", None)
-    if execute is None:
-        return False
-    try:
-        source = inspect.getsource(execute)
-    except (OSError, TypeError):
-        return False
-
-    return "execute_resumable" in source
+    return _execute_chain_calls_resumable(cls, _MAX_DEFERRAL_WALK_DEPTH)
 
 
-def _references_deferral(cls: type, source: str, visited: set[tuple[int, str]], depth: int) -> bool:
+def _references_deferral(
+    origin: type, current: type, source: str, visited: set[tuple[int, str]], depth: int
+) -> bool:
+    """Return True if `source` (the resolved `execute()` of `current`, called on `origin`) references deferral.
+
+    `origin` stays fixed across recursion so `super().execute()` hops resolve against its
+    real MRO, while `current` walks forward through the chain.
+    """
     if _DEFERRAL_TOKEN_RE.search(source):
         return True
     if depth <= 0:
         return False
 
     if _SUPER_EXECUTE_RE.search(source):
-        resolved = _next_execute_in_mro(cls)
-        if resolved is not None:
-            base, base_source = resolved
-            key = (id(base), "execute")
+        next_cls = _next_execute_via_super(origin, current)
+        if next_cls is not None:
+            key = (id(next_cls), "execute")
             if key not in visited:
                 visited.add(key)
-                if _references_deferral(base, base_source, visited, depth - 1):
+                next_source = _get_method_source(next_cls, "execute")
+                if next_source is not None and _references_deferral(
+                    origin, next_cls, next_source, visited, depth - 1
+                ):
                     return True
 
     for name in _SELF_CALL_RE.findall(source):
-        key = (id(cls), name)
+        key = (id(current), name)
         if key in visited:
             continue
         visited.add(key)
-        helper_source = _get_method_source(cls, name)
-        if helper_source is not None and _references_deferral(cls, helper_source, visited, depth - 1):
+        helper_source = _get_method_source(current, name)
+        if helper_source is not None and _references_deferral(
+            origin, current, helper_source, visited, depth - 1
+        ):
             return True
 
     return False
@@ -553,7 +575,7 @@ def supports_deferrable(cls: type) -> bool:
     except (OSError, TypeError):
         return False
 
-    return _references_deferral(cls, source, {(id(cls), "execute")}, _MAX_DEFERRAL_WALK_DEPTH)
+    return _references_deferral(cls, cls, source, {(id(cls), "execute")}, _MAX_DEFERRAL_WALK_DEPTH)
 
 
 def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:

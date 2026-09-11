@@ -273,6 +273,24 @@ class ManuallyDurableSubclassDelegatingMultiHop(ManuallyDurableSubclassDelegatin
         return super().execute(context)
 
 
+class DecoratorMixin:
+    """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to the marker class."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDurableSubclass(DecoratorMixin, ManuallyDurableOperator):
+    """Combines DecoratorMixin with the marker class via multiple inheritance (e.g. @task.kubernetes)."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDurableSubclassNoOwnExecute(DecoratorMixin, ManuallyDurableOperator):
+    """Same combined MRO as above, but inherits DecoratorMixin's execute() unchanged."""
+
+
 class TestIsDurableCapable:
     def test_fully_implemented_and_wired_qualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
@@ -303,6 +321,19 @@ class TestIsDurableCapable:
 
     def test_subclass_delegating_via_super_execute_multi_hop_qualifies(self):
         assert is_durable_capable(ManuallyDurableSubclassDelegatingMultiHop, FakeResumableJobMixin) is True
+
+    def test_multiple_inheritance_decorator_mixin_qualifies(self):
+        assert is_durable_capable(DecoratedDurableSubclass, FakeResumableJobMixin) is True
+
+    def test_multiple_inheritance_no_own_execute_qualifies(self):
+        assert is_durable_capable(DecoratedDurableSubclassNoOwnExecute, FakeResumableJobMixin) is True
+
+    def test_mixin_subclass_delegating_via_super_execute_qualifies(self):
+        class MixinSubclassDelegating(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return super().execute(context)
+
+        assert is_durable_capable(MixinSubclassDelegating, FakeResumableJobMixin) is True
 
 
 # ---------------------------------------------------------------------------
@@ -408,6 +439,20 @@ class SubclassDelegatingToSuperExecute(BaseWithDeferringExecute):
         return None
 
 
+class DeferringDecoratorMixin:
+    """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to BaseWithDeferringExecute."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
+class DecoratedDeferringSubclass(DeferringDecoratorMixin, BaseWithDeferringExecute):
+    """Combines DeferringDecoratorMixin with the deferring class via multiple inheritance."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
 class RaisesTaskDeferredDirectly:
     """Mirrors VespaIngestOperator: raises TaskDeferred directly, with no
     self.defer()/self.deferrable reference anywhere in the call chain."""
@@ -462,6 +507,10 @@ class TestSupportsDeferrable:
         """The EksPodOperator case: the override calls super().execute(), and the
         actual self.defer() call lives in the parent's execute()."""
         assert supports_deferrable(SubclassDelegatingToSuperExecute) is True
+
+    def test_defers_through_super_execute_with_multiple_inheritance_qualifies(self):
+        """A @task.kubernetes-shaped case: the chain must resolve against the subclass's MRO."""
+        assert supports_deferrable(DecoratedDeferringSubclass) is True
 
     def test_raises_task_deferred_directly_qualifies(self):
         """The VespaIngestOperator case: no self.defer()/self.deferrable anywhere,
