@@ -1307,30 +1307,48 @@ class TestPodTemplateFile:
         assert sidecar["restartPolicy"] == "Always"
         assert jmespath.search("spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
 
-    def test_kerberos_init_and_sidecar_coexistence(self):
+    @pytest.mark.parametrize(
+        ("init_enabled", "sidecar_enabled", "probe_enabled", "expected_names"),
+        [
+            (False, False, True, []),
+            (True, False, True, ["kerberos-init"]),
+            (False, True, True, ["worker-kerberos"]),
+            (True, True, True, ["worker-kerberos"]),
+            (False, True, False, ["worker-kerberos"]),
+            (True, True, False, ["kerberos-init", "worker-kerberos"]),
+        ],
+    )
+    def test_kerberos_initialization(self, init_enabled, sidecar_enabled, probe_enabled, expected_names):
         docs = render_chart(
             values={
                 "workers": {
                     "kubernetes": {
-                        "kerberosInitContainer": {"enabled": True},
-                        "kerberosSidecar": {"enabled": True},
+                        "kerberosInitContainer": {"enabled": init_enabled},
+                        "kerberosSidecar": {
+                            "enabled": sidecar_enabled,
+                            "startupProbe": {"enabled": probe_enabled},
+                        },
                     }
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        init_containers = jmespath.search("spec.initContainers", docs[0])
-        init_names = [c["name"] for c in init_containers]
-        assert "kerberos-init" in init_names
-        assert "worker-kerberos" in init_names
-        assert init_names.index("kerberos-init") < init_names.index("worker-kerberos")
-        assert init_containers[-1]["name"] == "worker-kerberos"
-
-        kerberos_init = jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-        worker_kerberos = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
-        assert "restartPolicy" not in kerberos_init
-        assert worker_kerberos.get("restartPolicy") == "Always"
+        assert (jmespath.search("spec.initContainers[].name", docs[0]) or []) == expected_names
+        if "kerberos-init" in expected_names:
+            assert jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].args", docs[0]) == [
+                "kerberos",
+                "-o",
+            ]
+            assert (
+                jmespath.search("spec.initContainers[?name=='kerberos-init'] | [0].restartPolicy", docs[0])
+                is None
+            )
+        if sidecar_enabled:
+            sidecar = jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+            assert sidecar["args"] == ["kerberos"]
+            assert sidecar["restartPolicy"] == "Always"
+            assert ("startupProbe" in sidecar) == probe_enabled
 
     def test_pod_override_reconciliation_with_kerberos_sidecar(self):
         docs = render_chart(
@@ -1347,16 +1365,20 @@ class TestPodTemplateFile:
                 ]
             )
         )
-        reconciled = PodGenerator.reconcile_pods(base_pod, override_pod)
+        reconciled = PodGenerator.serialize_pod(PodGenerator.reconcile_pods(base_pod, override_pod))
 
-        sidecars = [c for c in reconciled.spec.init_containers if c.name == "worker-kerberos"]
-        assert len(sidecars) == 1
-        assert sidecars[0].restart_policy == "Always"
+        assert jmespath.search("length(spec.initContainers[?name=='worker-kerberos'])", reconciled) == 1
+        assert (
+            jmespath.search("spec.initContainers[?name=='worker-kerberos'] | [0].restartPolicy", reconciled)
+            == "Always"
+        )
 
-        custom_containers = [c for c in reconciled.spec.containers if c.name == "custom-container"]
-        assert len(custom_containers) == 1
-        assert custom_containers[0].image == "custom-image:latest"
-        assert custom_containers[0].args is None
+        assert jmespath.search("length(spec.containers[?name=='custom-container'])", reconciled) == 1
+        assert (
+            jmespath.search("spec.containers[?name=='custom-container'] | [0].image", reconciled)
+            == "custom-image:latest"
+        )
+        assert jmespath.search("spec.containers[?name=='custom-container'] | [0].args", reconciled) is None
 
     def test_airflow_local_settings_kerberos_sidecar(self):
         docs = render_chart(
