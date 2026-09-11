@@ -837,6 +837,79 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     assert ti.task.dag.dag_id == "dag_name"
 
 
+@pytest.mark.parametrize(
+    ("use_startup", "expected_dag_id", "expected_task_id"),
+    [
+        pytest.param(True, "expected_dag", "my_task", id="startup"),
+        pytest.param(False, None, None, id="parse"),
+    ],
+)
+@mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
+@mock.patch("airflow.sdk.execution_time.task_runner.DagBundlesManager")
+def test_bundle_initialize_parsing_context(
+    mock_manager_cls,
+    mock_bag_cls,
+    mock_listener_manager,
+    use_startup,
+    expected_dag_id,
+    expected_task_id,
+    make_ti_context,
+    tmp_path: Path,
+    monkeypatch,
+):
+    from airflow.sdk import get_parsing_context
+    from airflow.sdk.definitions.context import (
+        _AIRFLOW_PARSING_CONTEXT_DAG_ID,
+        _AIRFLOW_PARSING_CONTEXT_TASK_ID,
+    )
+
+    captured: dict[str, str | None] = {}
+    mock_bundle = mock.Mock()
+    mock_bundle.path = tmp_path
+
+    def capture_parsing_context():
+        ctx = get_parsing_context()
+        captured["dag_id"] = ctx.dag_id
+        captured["task_id"] = ctx.task_id
+
+    mock_bundle.initialize.side_effect = capture_parsing_context
+    mock_manager = mock_manager_cls.return_value
+    mock_manager.get_bundle.return_value = mock_bundle
+
+    with DAG("expected_dag") as dag:
+        BaseOperator(task_id="my_task")
+    mock_bag_cls.return_value.dags = {"expected_dag": dag}
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="expected_dag",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="dag.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_DAG_ID, raising=False)
+    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_TASK_ID, raising=False)
+
+    if use_startup:
+        startup(what)
+    else:
+        parse(what, mock.Mock())
+
+    assert captured == {"dag_id": expected_dag_id, "task_id": expected_task_id}
+    mock_bundle.initialize.assert_called_once()
+
+
 def test_verify_bundle_access_raises_when_not_accessible(tmp_path: Path, make_ti_context):
     """Test that _verify_bundle_access raises AirflowException when bundle path is not accessible."""
     from airflow.sdk.execution_time.task_runner import _verify_bundle_access
@@ -6720,7 +6793,6 @@ class TestRegisterDeserializationAllowedClasses:
     """
 
     def test_registers_real_and_mapped_operators(self):
-
         with DAG("walker_dag") as dag:
             # Non-mapped producer: output_type is a plain attribute.
             _WalkerOperator(task_id="real", output_type=_WalkerModelA)
@@ -6736,7 +6808,6 @@ class TestRegisterDeserializationAllowedClasses:
         assert _WalkerModelB in registered, "mapped operator output_type not registered"
 
     def test_default_operator_registers_nothing(self):
-
         with DAG("walker_dag_plain") as dag:
             BaseOperator(task_id="plain")
 
