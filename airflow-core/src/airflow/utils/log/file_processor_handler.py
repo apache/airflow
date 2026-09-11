@@ -64,9 +64,10 @@ class FileProcessorHandler(logging.Handler):
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
 
-        if self._cur_date < timezone.utcnow().date():
+        current_date = timezone.utcnow().date()
+        if self._cur_date < current_date:
             self._symlink_latest_log_directory()
-            self._cur_date = timezone.utcnow().date()
+            self._cur_date = current_date
 
         return SetContextPropagate.DISABLE_PROPAGATE
 
