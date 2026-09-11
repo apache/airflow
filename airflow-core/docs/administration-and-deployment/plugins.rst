@@ -234,10 +234,11 @@ definitions in Airflow.
     **Airflow does not authenticate plugin FastAPI apps. Authenticating them is the
     plugin author's responsibility.**
 
-    Airflow authenticates the core API with a router-level dependency. A plugin app is
-    attached with ``app.mount()``, and a Starlette mount has its own route table and
-    inherits none of the parent's dependencies, so that dependency never reaches a
-    plugin's routes. No middleware in the API server authenticates them either.
+    Airflow authenticates the core API with authentication dependencies, declared at the
+    router level and, for some endpoints, per route. A plugin app is attached with
+    ``app.mount()``, and a Starlette mount has its own route table and inherits none of the
+    parent's dependencies, so those dependencies never reach a plugin's routes. No
+    middleware in the API server authenticates them either.
 
     Every route a plugin exposes is therefore reachable by **anonymous callers** unless
     the plugin authenticates it itself. The minimal ``app`` above is a structural
@@ -273,6 +274,23 @@ definitions in Airflow.
     whether that user may perform a given action remains the plugin's own decision. This
     applies to team scoping too — in a multi-team deployment, a plugin that does not check
     the caller's team serves every team's users the same data.
+
+    The core API's access helpers can enforce that decision for you. For example,
+    ``requires_access_dag`` restricts a route to callers allowed the requested action on a
+    Dag; it authenticates the caller and reads the ``dag_id`` from the request:
+
+    .. code-block:: python
+
+        from fastapi import Depends, FastAPI
+
+        from airflow.api_fastapi.core_api.security import requires_access_dag
+
+        app = FastAPI()
+
+
+        @app.get("/dags/{dag_id}", dependencies=[Depends(requires_access_dag(method="GET"))])
+        def dag_detail(dag_id: str):
+            return {"dag_id": dag_id}
 
 .. code-block:: python
 
