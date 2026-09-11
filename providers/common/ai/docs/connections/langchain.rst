@@ -72,10 +72,11 @@ Supported providers
 --------------------
 
 Only OpenAI-compatible providers work with this hook's ``api_key`` +
-optional ``base_url`` credential surface: OpenAI, Anthropic, Groq,
-Mistral AI, DeepSeek, Ollama, and vLLM. Providers with bespoke auth (AWS
+optional ``base_url`` credential surface. Providers with bespoke auth (AWS
 Bedrock, Google Vertex AI / GenAI, Azure OpenAI, Cohere, HuggingFace) reject
-these kwargs and are not usable through this connection type.
+these kwargs and are not usable through this connection type. See
+:doc:`../supported_services` for the current list of providers this
+connection type reaches.
 
 Model resolution order
 -----------------------

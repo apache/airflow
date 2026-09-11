@@ -153,15 +153,37 @@ connection-types:
     hook-name: "Pydantic AI"
     connection-type: pydanticai
     external-services:
-      - OpenAI
+      - Alibaba Cloud Model Studio
       - Anthropic
-      - Google
       - AWS Bedrock
-      - Groq
-      - Mistral AI
+      - AWS Bedrock Mantle
+      - Azure OpenAI
+      - Cerebras
+      - Cohere
+      - Crusoe
       - DeepSeek
+      - Fireworks AI
+      - Google Gemini
+      - Google Vertex AI
+      - Groq
+      - Heroku
+      - Hugging Face
+      - LiteLLM
+      - Mistral AI
+      - Moonshot AI
+      - Nebius
       - Ollama
+      - OpenAI
+      - OpenRouter
+      - OVHcloud
+      - Pydantic AI Gateway
+      - SambaNova
+      - Snowflake Cortex
+      - Together AI
+      - Vercel AI Gateway
       - vLLM
+      - xAI
+      - Z.AI
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -368,6 +390,8 @@ connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.mcp.MCPHook
     hook-name: "MCP Server"
     connection-type: mcp
+    external-services:
+      - Any MCP server (user-supplied endpoint)
     ui-field-behaviour:
       hidden-fields:
         - schema
@@ -503,6 +527,37 @@ toolsets:
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge
       - airflow.providers.common.ai.toolsets.managed_agent
+    external-services:
+      - module: airflow.providers.common.ai.toolsets.hook
+        services:
+          - Any Airflow connection, through its provider hook
+      - module: airflow.providers.common.ai.toolsets.sql
+        services:
+          - Any common.sql database connection (with table allowlists and AST validation)
+      - module: airflow.providers.common.ai.toolsets.datafusion
+        services:
+          - Object storage (S3, local filesystem, Apache Iceberg) via Apache DataFusion
+      - module: airflow.providers.common.ai.toolsets.logging
+        services:
+          - Airflow task logs
+      - module: airflow.providers.common.ai.toolsets.mcp
+        services:
+          - Any MCP server (user-supplied endpoint)
+      - module: airflow.providers.common.ai.toolsets.sandbox
+        services:
+          - Docker Sandboxes (the shipped sbx backend; other backends can be added via SandboxBackend)
+      - module: airflow.providers.common.ai.toolsets.skills
+        services:
+          - Agent skills from local paths and remote Git repositories
+      - module: airflow.providers.common.ai.toolsets.langchain_bridge
+        services:
+          - LangChain tools
+      - module: airflow.providers.common.ai.toolsets.managed_agent
+        services:
+          - Snowflake Cortex Agents
+          - Amazon Bedrock AgentCore
+          - Azure AI Foundry
+          - Vertex AI Agent Engine
 
 retry-policies:
   - integration-name: Common AI

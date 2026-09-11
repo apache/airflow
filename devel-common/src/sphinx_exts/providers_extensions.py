@@ -25,13 +25,12 @@ from pathlib import Path
 from typing import Any
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from provider_yaml_utils import load_package_data
-
 from sphinx_exts.operators_and_hooks_ref import (
     DEFAULT_HEADER_SEPARATOR,
     BaseJinjaReferenceDirective,
     _render_template,
 )
+from sphinx_exts.provider_yaml_utils import load_package_data
 
 
 def find_class_methods_with_specific_calls(
@@ -515,8 +514,93 @@ class OpenLineageSupportedClassesDirective(BaseJinjaReferenceDirective):
         return _render_openlineage_supported_classes_content()
 
 
+def _find_provider_package_data(package_name: str) -> dict[str, Any]:
+    for provider in load_package_data():
+        if provider["package-name"] == package_name:
+            return provider
+    raise ValueError(f"No provider.yaml found for package '{package_name}'")
+
+
+def _render_connection_services_content(package_name: str) -> str:
+    provider = _find_provider_package_data(package_name)
+    rows = [
+        {
+            "hook_name": conn["hook-name"],
+            "services": conn.get("external-services") or [],
+            "ref": f"howto/connection:{conn['connection-type']}",
+        }
+        for conn in provider.get("connection-types", [])
+    ]
+    return _render_template("provider_connection_services.rst.jinja2", rows=rows)
+
+
+# Display name for each toolset module: the class name for modules that map to one
+# (`toolsets.rst` documents each under a `` ``ClassName`` `` heading), or a short
+# descriptive name for the two that don't (`managed_agent` documents a family of
+# provider-specific subclasses under "Managed Agent Toolsets"; `langchain_bridge` is a
+# function, documented under "Working with LangChain"). Kept here rather than in
+# `provider.yaml` because it is presentation-only, not metadata the registry also needs.
+#
+# Deliberately no `.get(basename, default)` fallback below: every module in
+# `python-modules` must have an entry here, the same way `LABELS` and the anchor check
+# in `test_provider_metadata.py` require full coverage. A `KeyError` on a new toolset
+# module is the intended failure mode, not a silently rendered basename.
+_TOOLSET_DISPLAY_NAMES = {
+    "hook": "HookToolset",
+    "sql": "SQLToolset",
+    "datafusion": "DataFusionToolset",
+    "logging": "LoggingToolset",
+    "mcp": "MCPToolset",
+    "skills": "AgentSkillsToolset",
+    "sandbox": "SandboxToolset",
+    "langchain_bridge": "LangChain Bridge",
+    "managed_agent": "Managed Agent Toolsets",
+}
+
+
+def _render_toolset_services_content(package_name: str) -> str:
+    provider = _find_provider_package_data(package_name)
+    rows = []
+    for toolset in provider.get("toolsets", []):
+        services_by_module = {
+            entry["module"]: entry["services"] for entry in toolset.get("external-services") or []
+        }
+        for module in toolset.get("python-modules", []):
+            basename = module.rsplit(".", 1)[-1]
+            rows.append(
+                {
+                    "display_name": _TOOLSET_DISPLAY_NAMES[basename],
+                    "services": services_by_module.get(module, []),
+                    "ref": f"howto/toolset:{basename}",
+                }
+            )
+    return _render_template("provider_toolset_services.rst.jinja2", rows=rows)
+
+
+class ProviderConnectionServicesDirective(BaseJinjaReferenceDirective):
+    """Render a table of a provider's connection types and the external services each reaches."""
+
+    required_arguments = 1
+    optional_arguments = 0
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_connection_services_content(self.arguments[0])
+
+
+class ProviderToolsetServicesDirective(BaseJinjaReferenceDirective):
+    """Render a table of a provider's toolset modules and the external services each reaches."""
+
+    required_arguments = 1
+    optional_arguments = 0
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_toolset_services_content(self.arguments[0])
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("airflow-providers-openlineage-supported-classes", OpenLineageSupportedClassesDirective)
+    app.add_directive("provider-connection-services", ProviderConnectionServicesDirective)
+    app.add_directive("provider-toolset-services", ProviderToolsetServicesDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}

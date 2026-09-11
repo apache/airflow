@@ -90,6 +90,8 @@ the durable execution (step-level caching with retry replay), HITL review
 integration, and automatic tool call logging that ``AgentOperator`` provides.
 
 
+.. _howto/toolset:hook:
+
 ``HookToolset``
 ---------------
 
@@ -127,6 +129,8 @@ Parameters
 - ``tool_name_prefix``: Optional prefix prepended to each tool name
   (e.g. ``"s3_"`` produces ``"s3_list_keys"``).
 
+
+.. _howto/toolset:sql:
 
 ``SQLToolset``
 --------------
@@ -278,6 +282,8 @@ result several-fold, so results that fit before still fit. Lower ``max_result_by
 when an agent makes many queries in one run, since every result is re-paid on every
 later request.
 
+.. _howto/toolset:datafusion:
+
 ``DataFusionToolset``
 ---------------------
 
@@ -345,6 +351,8 @@ Parameters
 - ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
   See :ref:`bounded-query-results`.
 
+.. _howto/toolset:logging:
+
 ``LoggingToolset``
 ------------------
 
@@ -365,6 +373,8 @@ in real time. ``AgentOperator`` applies it automatically (see
 Each tool call produces two INFO log lines (name + timing) and optional
 DEBUG-level argument logging. Exceptions are logged and re-raised.
 
+
+.. _howto/toolset:mcp:
 
 ``MCPToolset``
 --------------
@@ -451,6 +461,7 @@ managed through Airflow connections and secret backends.
 
 
 .. _agent-skills:
+.. _howto/toolset:skills:
 
 ``AgentSkillsToolset``
 ----------------------
@@ -554,6 +565,8 @@ resolves sources to local ``SKILL.md`` directories that any loader accepts:
 ``resolve_skills`` needs the Git provider (for ``GitSkills``) but not pydantic-ai,
 and removes any cloned directories when the ``with`` block exits.
 
+
+.. _howto/toolset:sandbox:
 
 ``SandboxToolset``
 ------------------
@@ -877,6 +890,8 @@ Parameters
   more than one ``SandboxToolset``.
 
 
+.. _howto/toolset:langchain_bridge:
+
 Working with LangChain
 ----------------------
 
@@ -1194,6 +1209,7 @@ Before deploying an agent task to production:
    inputs before passing them to the agent.
 
 .. _managed-agent-toolsets:
+.. _howto/toolset:managed_agent:
 
 Managed Agent Toolsets
 ----------------------
