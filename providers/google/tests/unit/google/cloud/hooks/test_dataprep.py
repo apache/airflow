@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 import pytest
 from requests import HTTPError
+from requests.exceptions import JSONDecodeError
 from tenacity import RetryError
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
@@ -852,3 +853,53 @@ class TestGoogleDataprepFlowPathHooks:
             )
         assert "HTTPError" in str(ctx.value)
         assert mock_get_request.call_count == 5
+
+
+class TestGoogleDataprepHookRaiseForStatus:
+    """`_raise_for_status` must always re-raise the HTTPError.
+
+    The error body is only used to log a detail, so it must not be able to
+    replace the exception being reported.
+    """
+
+    def setup_method(self):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection") as conn:
+            conn.return_value.extra_dejson = EXTRA
+            self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")
+
+    @staticmethod
+    def _failing_response(**kwargs):
+        response = mock.MagicMock()
+        response.raise_for_status.side_effect = HTTPError()
+        for key, value in kwargs.items():
+            setattr(response, key, value)
+        return response
+
+    def test_raises_http_error_for_json_body(self):
+        response = self._failing_response()
+        response.json.return_value = {"exception": {"message": "boom"}}
+
+        with pytest.raises(HTTPError):
+            self.hook._raise_for_status(response)
+
+    def test_raises_http_error_when_body_is_not_json(self):
+        """A gateway can answer with HTML, which used to raise JSONDecodeError."""
+        response = self._failing_response(text="<html>502 Bad Gateway</html>")
+        response.json.side_effect = JSONDecodeError("Expecting value", "", 0)
+
+        with pytest.raises(HTTPError):
+            self.hook._raise_for_status(response)
+
+    def test_raises_http_error_when_body_is_not_an_object(self):
+        """A JSON array has no `get`, which used to raise AttributeError."""
+        response = self._failing_response(text='["boom"]')
+        response.json.return_value = ["boom"]
+
+        with pytest.raises(HTTPError):
+            self.hook._raise_for_status(response)
+
+    def test_does_not_raise_for_a_successful_response(self):
+        response = mock.MagicMock()
+        response.raise_for_status.return_value = None
+
+        assert self.hook._raise_for_status(response) is None
