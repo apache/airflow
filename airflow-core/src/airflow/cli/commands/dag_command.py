@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import ast
 import datetime
+import difflib
 import errno
 import json
 import logging
@@ -28,7 +29,7 @@ import operator
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, select
 
@@ -46,6 +47,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import clear_task_instances
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -78,6 +80,95 @@ log = logging.getLogger(__name__)
 
 # Chunk size for bulk delete.
 _RUN_CHUNK_SIZE = 500
+
+
+def _normalize_serialized_dag_for_stability_check(serialized_dag: dict[str, Any]) -> dict[str, Any]:
+    normalized = SerializedDagModel._sort_serialized_dag_dict(serialized_dag)
+    normalized["dag"].pop("fileloc", None)
+    normalized["dag"].pop("bundle_name", None)
+    return normalized
+
+
+def _serialize_dag_for_stability_check(dag: DAG) -> tuple[str, dict[str, Any]]:
+    serialized_dag = DagSerialization.to_dict(dag)
+    return SerializedDagModel.hash(serialized_dag), _normalize_serialized_dag_for_stability_check(
+        serialized_dag
+    )
+
+
+def _format_stability_diff(
+    dag_id: str,
+    first_serialized_dag: dict[str, Any],
+    second_serialized_dag: dict[str, Any],
+) -> str:
+    before = json.dumps(first_serialized_dag, indent=2, sort_keys=True).splitlines()
+    after = json.dumps(second_serialized_dag, indent=2, sort_keys=True).splitlines()
+    diff = difflib.unified_diff(
+        before,
+        after,
+        fromfile=f"parse 1: {dag_id} ",
+        tofile=f"parse 2: {dag_id} ",
+        lineterm="",
+    )
+    return "\n".join(diff)
+
+
+def _parse_dags_for_stability_check(dag_folder: str | None) -> DagBag:
+    return DagBag(dag_folder=dag_folder, load_op_links=False)
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def dag_stability_check(args) -> None:
+    dag_hashes_by_id: dict[str, list[str]] = {}
+    serialized_dags_by_id: dict[str, list[dict[str, Any]]] = {}
+    seen_dag_ids: set[str] = set()
+    nParse = (
+        2  # NOTE: Set parsing number 2, in most of the case twice parse should catch the stability issues.
+    )
+
+    for _iteration in range(1, nParse + 1):
+        dagbag = _parse_dags_for_stability_check(args.dag_folder)
+
+        dags = dagbag.dags
+        if args.dag_id is not None:
+            dags = {args.dag_id: dagbag.dags[args.dag_id]} if args.dag_id in dagbag.dags else {}
+
+        for _dag_id, dag in sorted(dags.items()):
+            dag_hash, serialized_dag = _serialize_dag_for_stability_check(dag)
+            dag_hashes_by_id.setdefault(_dag_id, []).append(dag_hash)
+            serialized_dags_by_id.setdefault(_dag_id, []).append(serialized_dag)
+            seen_dag_ids.add(_dag_id)
+
+        if args.fail_fast:
+            for _dag_id, dag_hashes in dag_hashes_by_id.items():
+                if len(set(dag_hashes)) > 1:
+                    break
+            else:
+                continue
+            break
+
+    if args.dag_id is not None and args.dag_id not in seen_dag_ids:
+        raise SystemExit(f"Dag {args.dag_id!r} was not found.")
+
+    unstable_dag_ids = [
+        dag_id for dag_id, dag_hashes in sorted(dag_hashes_by_id.items()) if len(set(dag_hashes)) > 1
+    ]
+    if unstable_dag_ids:
+        print("Dag stability check failed. The following Dags produced different serialized output:")
+        for dag_id in unstable_dag_ids:
+            print(f"\n{dag_id}:")
+            print()
+            print(
+                _format_stability_diff(
+                    dag_id,
+                    serialized_dags_by_id[dag_id][0],
+                    serialized_dags_by_id[dag_id][1],
+                )
+            )
+        raise SystemExit(1)
+
+    print(f"Dag stability check passed for {len(seen_dag_ids)} Dag(s).")
 
 
 @deprecated_for_airflowctl("airflowctl dags trigger")
