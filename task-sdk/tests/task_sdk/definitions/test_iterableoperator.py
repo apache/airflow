@@ -429,6 +429,32 @@ class TestIterableOperator:
             assert materialized == [(1, None, None), (2, None, None)]
 
     @pytest.mark.db_test
+    def test_execute_does_not_leak_unmapped_operator_into_parent_context(
+        self, dag_maker, session, mock_xcom_get_one
+    ):
+        """
+        Regression test: unmapping a sub-task must not mutate the parent context's own `ti`.
+
+        ``context_update_for_unmapped`` sets ``context["ti"].task = task`` in place. Since
+        ``context.copy()`` is only a shallow copy, ``context["ti"]`` in the copy is the *same*
+        object as the parent's. If ``_create_task`` rendered the unmapped sub-operator against a
+        context still carrying the parent's `ti`, the parent's `ti.task` would end up pointing at
+        whichever sub-task was unmapped last, corrupting anything the runner reads off `ti.task`
+        after `execute()` returns (e.g. `do_xcom_push`/`multiple_outputs` in `_push_xcom_if_needed`).
+        """
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
+            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_no_leak")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            result = iterable_op.execute(context=context)
+            list(result)
+
+            assert context["ti"].task is iterable_op
+            assert context["task"] is iterable_op
+
+    @pytest.mark.db_test
     def test_execute_dict_of_lists(self, dag_maker, session, mock_xcom_get_one):
         """Test executing IterableOperator with DictOfListsExpandInput."""
         with dag_maker(session=session) as dag:
