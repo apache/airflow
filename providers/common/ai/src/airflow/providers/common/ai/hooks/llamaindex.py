@@ -194,7 +194,7 @@ class LlamaIndexHook(BaseHook):
         supported_kwargs = set(inspect.signature(OpenAIEmbedding.__init__).parameters) | set(
             OpenAIEmbedding.model_fields
         )
-        unsupported_keys = self.embedding_kwargs.keys() - supported_kwargs
+        unsupported_keys = sorted(self.embedding_kwargs.keys() - supported_kwargs)
         if unsupported_keys:
             self.log.warning("OpenAIEmbedding ignores unsupported embedding_kwargs: %s", unsupported_keys)
         return OpenAIEmbedding(model=model_id, **kwargs)
