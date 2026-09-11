@@ -1,0 +1,20 @@
+The Task SDK now depends on ``httpx2`` instead of ``httpx``
+
+The Task SDK's Execution API client is now an ``httpx2.Client``. ``httpx2`` is a fork of
+``httpx`` 0.28.1 with the same public API, maintained at https://pydantic.dev/docs/httpx2/.
+
+Objects do not cross the ``httpx``/``httpx2`` boundary: the two packages define distinct
+``Client``, ``Request``, ``Response``, ``Timeout``, transport and exception classes. Code that
+interacts with the SDK client must switch to ``httpx2``:
+
+- ``except httpx.HTTPStatusError`` (or ``HTTPError``, ``RequestError``, ``ConnectError``) around
+  Execution API calls no longer catches anything. ``airflow.sdk.api.client.ServerResponseError``
+  now subclasses ``httpx2.HTTPStatusError``.
+- Custom transports passed to the client, including ``httpx.MockTransport`` in tests, must be
+  ``httpx2`` transports.
+- ``isinstance()`` checks against ``httpx`` classes fail for SDK client objects.
+
+``certifi`` is now a direct Task SDK dependency. It was previously installed as a transitive
+dependency of ``httpx``; ``httpx2`` depends on ``truststore`` instead. TLS verification behaviour
+is unchanged, because the client always builds and passes its own ``ssl.SSLContext`` — the
+``[api] client_use_public_certs``, ``ssl_ca_file`` and ``ssl_cert`` options work as before.
