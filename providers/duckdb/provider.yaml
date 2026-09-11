@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-duckdb
 name: DuckDB
 
-state: not-ready
+state: ready
 lifecycle: incubation
 source-date-epoch: 1788600000
 description: |
