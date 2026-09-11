@@ -988,6 +988,9 @@ def post_clear_task_instances(
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
         # After the clear has succeeded, so a failed clear cannot take the task state with it.
+        # This is the only clear path that discards task state today; Dag-run clear and
+        # mark-as-failed/success (which clear downstream tasks) still keep it unconditionally.
+        # It is tracked through https://github.com/apache/airflow/issues/72929
         if not body.keep_task_state:
             _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 

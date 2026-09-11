@@ -159,6 +159,10 @@ To resume from the checkpoint instead, set ``keep_task_state`` when clearing, or
 corresponding box in the clear dialog. That is the right choice when nothing about the inputs or the
 code changed and you only want the task to carry on where it stopped.
 
+This applies to clearing individual task instances. Clearing an entire Dag run, and marking a task
+as failed or success (which clears downstream tasks as a side effect), still keep task state
+unconditionally today; see `#72929 <https://github.com/apache/airflow/issues/72929>`_.
+
 **Clearing a task that submitted an external job**
 
 For an operator with durable execution the stored value is an external job id, so discarding it has
@@ -169,9 +173,11 @@ Whether that matters depends on what happened to the job:
 
 * Most operators cancel the external job in ``on_kill``, so clearing a *running* task stops the job
   and there is nothing left to reconnect to. Submitting a fresh one is the only option anyway.
-* An operator configured to leave the job running on kill (for example
-  ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"``) keeps it alive, so a fresh submission
-  runs alongside it. Check the operator's own docs.
+* An operator configured, or defaulting, to leave the job running on kill keeps it alive, so a
+  fresh submission runs alongside it. Check the operator's own docs — for example
+  ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"`` opts into this, while
+  ``GlueJobOperator`` defaults ``stop_job_run_on_kill`` to ``False`` and so leaves the job running
+  unless you turn it on.
 * Clearing a *failed* task never runs ``on_kill`` at all, so an external job that outlived the
   worker is still running.
 

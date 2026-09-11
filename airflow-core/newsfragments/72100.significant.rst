@@ -7,6 +7,13 @@ the attempt that was cleared.
 Retries are unaffected. They keep task state exactly as before, which is what crash recovery relies
 on. Only a deliberate clear discards.
 
+This only applies to clearing individual task instances (the task-instance clear endpoint / dialog,
+and ``airflowctl dags clear``, which clears every task instance in the matched Dag run(s) through
+the same endpoint). Clearing an entire Dag run through the "Clear Run" dialog/API, and marking a
+task as failed or success (which clears downstream tasks as a side effect), still keep task state
+unconditionally today; extending discard-by-default to those paths is tracked in
+`#72929 <https://github.com/apache/airflow/issues/72929>`_.
+
 **Why**
 
 Clearing means "run this again". A checkpoint records how far a task got, not what it got there
@@ -27,9 +34,11 @@ Operators with durable execution are worth particular attention. Clearing a *fai
 id means submitting a second one. The same applies to operators configured to leave their job alive
 on kill, such as ``KubernetesPodOperator`` with ``on_kill_action="keep_pod"``.
 
-On the CLI, ``airflowctl tasks clear --keep-task-state`` is the equivalent flag. ``airflow dags
-clear`` and ``airflow tasks clear`` (airflow-core) are unaffected: the former clears Dag runs and
-never touches task state, and the latter is deprecated in favor of ``airflowctl tasks clear``.
+On the CLI, ``airflowctl dags clear`` discards task state the same way, since it clears every task
+instance in the matched Dag run(s) through the same endpoint, but it has no ``--keep-task-state``
+equivalent yet to opt back in. ``airflow dags clear`` and ``airflow tasks clear`` (airflow-core,
+both deprecated in favor of their ``airflowctl`` equivalents) are unaffected: they call
+``clear_task_instances()`` directly and never touch task state.
 
 * Types of change
 

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
@@ -53,12 +53,6 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const { dagId = "", runId = "" } = useParams();
   const groupId = taskInstance.task_id;
 
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId: runId,
-    onSuccessConfirm: onClose,
-  });
-
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
@@ -69,6 +63,25 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const downstream = selectedOptions.includes("downstream");
   const [keepTaskState, setKeepTaskState] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+
+  const onCloseDialog = () => {
+    setNote(null);
+    setKeepTaskState(false);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (open) {
+      setNote(null);
+      setKeepTaskState(false);
+    }
+  }, [open]);
+
+  const { isPending, mutate } = useClearTaskInstances({
+    dagId,
+    dagRunId: runId,
+    onSuccessConfirm: onCloseDialog,
+  });
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
@@ -189,7 +202,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
         </>
       }
       lazyMount
-      onOpenChange={onClose}
+      onOpenChange={onCloseDialog}
       open={open}
       title={
         <>
