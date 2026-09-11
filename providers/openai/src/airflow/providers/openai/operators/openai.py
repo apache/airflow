@@ -104,9 +104,12 @@ class OpenAIResponseOperator(BaseOperator):
     :param max_output_tokens: Optional upper bound on the number of tokens generated for the
         response. Templated, so it renders to a string; accepts an ``int`` or a string containing one.
         Must be a positive integer -- an invalid value raises instead of silently disabling the
-        ceiling. A blank or whitespace-only rendered value (for example ``{{ params.tokens or '' }}``
-        rendering to ``''``) is treated as unset, disabling the ceiling; the literal strings
-        ``"None"``, ``"none"`` and ``"null"`` are **not** treated as blank and still raise. Mutually
+        ceiling. A literal (non-string) value is validated at task definition (Dag-parse) time; a
+        string value -- whether a template or a plain literal string -- is validated when the task
+        executes, after templating has resolved it. A blank or whitespace-only rendered value (for
+        example ``{{ params.tokens or '' }}`` rendering to ``''``) is treated as unset, disabling
+        the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not** treated
+        as blank and still raise. Mutually
         exclusive with ``max_output_tokens`` in ``response_kwargs`` -- this is checked at task
         definition (Dag-parse) time, regardless of what the templated value later renders to.
     :param max_tool_calls: Optional upper bound on the number of built-in tool calls the model may
@@ -143,6 +146,7 @@ class OpenAIResponseOperator(BaseOperator):
         self.max_output_tokens = max_output_tokens
         self.max_tool_calls = max_tool_calls
         self._validate_no_response_kwargs_conflict()
+        self._validate_literal_ceiling_values()
 
     def _validate_no_response_kwargs_conflict(self) -> None:
         """Reject a ceiling set both as an operator argument and in ``response_kwargs``."""
@@ -153,6 +157,21 @@ class OpenAIResponseOperator(BaseOperator):
                     f"Task {self.task_id!r}: {param_name!r} was set both as an operator argument "
                     "and in 'response_kwargs'; set it in only one place."
                 )
+
+    def _validate_literal_ceiling_values(self) -> None:
+        """
+        Eagerly validate a ceiling value that cannot possibly still be an unrendered template.
+
+        A ``str`` value might be a template awaiting ``render_template_fields()``, so it must wait
+        for ``_build_response_kwargs()`` at ``execute()`` time. Any other type (``int``, ``bool``,
+        ``float``) is already final at construction -- it only reaches here as a literal, never via
+        Jinja rendering -- so an invalid one is rejected at Dag-parse time instead of surfacing only
+        when the task runs.
+        """
+        for param_name in self._TOKEN_CEILING_PARAM_NAMES:
+            value = getattr(self, param_name)
+            if value is not None and not isinstance(value, str):
+                self._coerce_token_ceiling(param_name, value)
 
     @cached_property
     def hook(self) -> OpenAIHook:

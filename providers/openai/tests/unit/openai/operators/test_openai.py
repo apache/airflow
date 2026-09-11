@@ -146,12 +146,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         "invalid_value",
         [
             pytest.param("not-a-number", id="non-integer-string"),
-            pytest.param(0, id="zero"),
-            pytest.param(-1, id="negative"),
             pytest.param("-5", id="negative-string"),
-            pytest.param(10.5, id="float"),
-            pytest.param(True, id="bool-true"),
-            pytest.param(False, id="bool-false"),
             pytest.param("None", id="literal-none-string"),
         ],
     )
@@ -167,6 +162,26 @@ class TestOpenAIResponseOperatorTokenCeilings:
             operator.execute(Context())
 
         mock_hook_instance.create_response.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "invalid_value",
+        [
+            pytest.param(0, id="zero"),
+            pytest.param(-1, id="negative"),
+            pytest.param(10.5, id="float"),
+            pytest.param(True, id="bool-true"),
+            pytest.param(False, id="bool-false"),
+        ],
+    )
+    @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
+    def test_non_string_invalid_ceiling_raises_at_construction(self, param_name, invalid_value):
+        with pytest.raises(ValueError, match=param_name):
+            OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                **{param_name: invalid_value},
+            )
 
     @pytest.mark.parametrize(
         "operator_value",
@@ -188,6 +203,18 @@ class TestOpenAIResponseOperatorTokenCeilings:
                 input_text="Write a haiku.",
                 response_kwargs={param_name: 50},
                 **{param_name: operator_value},
+            )
+
+    def test_conflict_error_precedes_literal_type_error(self):
+        # 0 is both invalid on its own (not positive) and conflicting with response_kwargs; the
+        # conflict message must win, since fixing the duplicate is the actionable first step.
+        with pytest.raises(ValueError, match="was set both as an operator argument"):
+            OpenAIResponseOperator(
+                task_id=TASK_ID,
+                conn_id=CONN_ID,
+                input_text="Write a haiku.",
+                response_kwargs={"max_output_tokens": 50},
+                max_output_tokens=0,
             )
 
     @pytest.mark.parametrize(
