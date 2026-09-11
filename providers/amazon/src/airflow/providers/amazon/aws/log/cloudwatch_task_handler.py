@@ -24,11 +24,11 @@ import json
 import logging
 import os
 import shutil
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import attrs
@@ -40,6 +40,9 @@ from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
+
+T = TypeVar("T")
 
 if TYPE_CHECKING:
     import structlog.typing
@@ -271,7 +274,97 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         except Exception as e:
             messages.append(str(e))
 
+        def _read_trigger_stream(name: str) -> RawLogStream:
+            return (
+                self._parse_log_event_as_dumped_json(event) for event in self.get_cloudwatch_logs(name, ti)
+            )
+
+        extra_messages, extra_logs = self.merge_trigger_logs(relative_path, ti, _read_trigger_stream)
+        messages.extend(extra_messages)
+        logs.extend(extra_logs)
+
         return messages, logs
+
+    def get_trigger_stream_names(self, relative_path: str) -> list[str]:
+        """
+        Return the names of any trigger log streams associated with ``relative_path``.
+
+        A task instance can be deferred and resumed more than once -- even by different
+        triggerer processes -- so there may be more than one ``.trigger.<job id>.log``
+        stream for a single attempt. Sorted numerically by job id so multiple deferrals of
+        the same attempt read back in the order they actually happened (job ids are assigned
+        from a monotonically increasing DB sequence); anything that doesn't parse as an
+        integer job id sorts after, by name, rather than raising.
+        """
+        prefix = f"{relative_path.replace(':', '_')}.trigger."
+        streams = self.hook.describe_log_streams(log_group=self.log_group, log_stream_name_prefix=prefix)
+        names = [name for s in streams if (name := s.get("logStreamName"))]
+
+        def _sort_key(name: str) -> tuple[int, int | str]:
+            tail = name[len(prefix) :]
+            job_id_str = tail[: -len(".log")] if tail.endswith(".log") else tail
+            if job_id_str.isdigit():
+                return (0, int(job_id_str))
+            return (1, name)
+
+        return sorted(names, key=_sort_key)
+
+    def merge_trigger_logs(
+        self,
+        relative_path: str,
+        ti: RuntimeTI,
+        read_stream: Callable[[str], T],
+    ) -> tuple[list[str], list[T]]:
+        """
+        Discover trigger log streams for ``relative_path`` and read each with ``read_stream``.
+
+        Shared by :meth:`stream` and the legacy :meth:`CloudwatchTaskHandler._read_remote_logs`
+        so both read/format trigger-log content in their own way (raw JSON-line generators vs.
+        joined strings) while sharing the discovery/ordering/exclusion logic. See :meth:`stream`
+        for why this lookup exists at all -- CloudWatch has no glob() equivalent to find trigger
+        streams the way the local-file reader does.
+
+        While the task instance is actively DEFERRED, the stream for the *currently active*
+        triggerer job is excluded: the UI already tails that one live from the triggerer over
+        HTTP (``FileTaskHandler._read_from_logs_server``), so re-reading it here would just be
+        redundant, and on every UI poll during a long-running deferral. Streams from any
+        *earlier* deferral of the same attempt (a task deferred, resumed, and deferred again)
+        are still included -- the live HTTP tail only ever covers the current triggerer job, so
+        without this those earlier logs would otherwise be invisible while re-deferred.
+
+        :param relative_path: The task's own (base) log stream name.
+        :param ti: The task instance being read for.
+        :param read_stream: Called with each trigger stream's name; return its content in
+            whatever form the caller needs (e.g. a generator of parsed lines, or a joined str).
+        :return: (extra messages to append, one result per successfully-read trigger stream).
+        """
+        messages: list[str] = []
+        results: list[T] = []
+        try:
+            trigger_stream_names = self.get_trigger_stream_names(relative_path)
+        except Exception as e:
+            messages.append(f"Could not list trigger log streams for {relative_path}: {e}")
+            return messages, results
+
+        if getattr(ti, "state", None) == TaskInstanceState.DEFERRED:
+            current_job_id = getattr(getattr(ti, "triggerer_job", None), "id", None)
+            if current_job_id is not None:
+                live_suffix = f".trigger.{current_job_id}.log"
+                trigger_stream_names = [
+                    name for name in trigger_stream_names if not name.endswith(live_suffix)
+                ]
+
+        for trigger_stream_name in trigger_stream_names:
+            messages.append(
+                f"Reading remote log from Cloudwatch log_group: {self.log_group} "
+                f"log_stream: {trigger_stream_name}"
+            )
+            try:
+                results.append(read_stream(trigger_stream_name))
+            except Exception as e:
+                messages.append(str(e))
+
+        return messages, results
 
     def get_cloudwatch_logs(
         self, stream_name: str, task_instance: RuntimeTI
@@ -417,17 +510,26 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self, task_instance, try_number, metadata=None
     ) -> tuple[LogSourceInfo, LogMessages]:
         stream_name = self._render_filename(task_instance, try_number)
-        messages, logs = self.io.read(stream_name, task_instance)
 
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.io.log_group} log_stream: {stream_name}"
         ]
+        logs: LogMessages = []
         try:
             events = self.io.get_cloudwatch_logs(stream_name, task_instance)
-            logs = ["\n".join(self._event_to_str(event) for event in events)]
+            logs.append("\n".join(self._event_to_str(event) for event in events))
         except Exception as e:
-            logs = []
             messages.append(str(e))
+
+        def _read_trigger_stream(name: str) -> str:
+            events = self.io.get_cloudwatch_logs(name, task_instance)
+            return "\n".join(self._event_to_str(event) for event in events)
+
+        extra_messages, extra_logs = self.io.merge_trigger_logs(
+            stream_name, task_instance, _read_trigger_stream
+        )
+        messages.extend(extra_messages)
+        logs.extend(extra_logs)
 
         return messages, logs
 
