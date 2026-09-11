@@ -258,17 +258,7 @@ class GitDagBundle(BaseDagBundle):
                 self._log.info(
                     "Cloning repository", repo_path=self.repo_path, bare_repo_path=self.bare_repo_path
                 )
-                Repo.clone_from(
-                    url=self.bare_repo_path,
-                    to_path=self.repo_path,
-                    multi_options=["--sparse", "--no-checkout"] if self.sparse_dirs else None,
-                )
-                if self.sparse_dirs:
-                    self._log.info("Setting up sparse checkout")
-                    repo = Repo(self.repo_path)
-                    repo.git.sparse_checkout("init", "--cone")
-                    repo.git.sparse_checkout("set", *self.sparse_dirs)
-                    repo.git.checkout(self.tracking_ref)
+                self._clone_working_repo()
             else:
                 self._log.debug("repo exists", repo_path=self.repo_path)
             self.repo = Repo(self.repo_path)
@@ -284,6 +274,50 @@ class GitDagBundle(BaseDagBundle):
             if os.path.exists(self.repo_path):
                 shutil.rmtree(self.repo_path)
             raise
+
+    @property
+    def _staging_repo_path(self) -> Path:
+        """Where a working clone is assembled before it is moved onto ``repo_path``."""
+        return self.base_dir / f".staging-{self.repo_path.name}"
+
+    def _clone_working_repo(self) -> None:
+        """
+        Assemble the working clone in a staging directory and move it onto ``repo_path``.
+
+        ``Repo.clone_from`` writes into its target as it goes, so a process killed part way
+        through a clone leaves behind a directory that git can open but that cannot check out
+        the tracking ref, and nothing removes it. Cloning into a sibling directory and renaming
+        it means an interrupted clone never leaves a half-written ``repo_path``, so the next
+        initialization clones again rather than reusing a repository that can never recover.
+        """
+        staging_path = self._staging_repo_path
+        # Left behind by an attempt that did not survive long enough to clean up after itself.
+        if os.path.exists(staging_path):
+            self._log.info("Discarding staging directory from an earlier clone", path=staging_path)
+            shutil.rmtree(staging_path)
+        try:
+            Repo.clone_from(
+                url=self.bare_repo_path,
+                to_path=staging_path,
+                multi_options=["--sparse", "--no-checkout"] if self.sparse_dirs else None,
+            )
+            if self.sparse_dirs:
+                self._log.info("Setting up sparse checkout")
+                repo = Repo(staging_path)
+                try:
+                    repo.git.sparse_checkout("init", "--cone")
+                    repo.git.sparse_checkout("set", *self.sparse_dirs)
+                    repo.git.checkout(self.tracking_ref)
+                finally:
+                    # The rename below moves this repository's working directory, so let go of
+                    # the git processes it is holding open first.
+                    repo.close()
+            # git clone used to create this for us when it wrote straight into repo_path.
+            self.repo_path.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(staging_path, self.repo_path)
+        finally:
+            if os.path.exists(staging_path):
+                shutil.rmtree(staging_path, ignore_errors=True)
 
     @retry(
         retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
