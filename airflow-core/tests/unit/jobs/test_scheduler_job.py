@@ -5366,6 +5366,121 @@ class TestSchedulerJob:
             is not None
         )
 
+    def test_adopt_or_reset_resettable_tasks_preserves_execution_metadata_in_history(
+        self, dag_maker, session
+    ):
+        """Orphaned tasks that ran before being reset keep their hostname in history.
+
+        adopt_or_reset_orphaned_tasks() uses load_only() when querying TIs, which
+        means hostname, start_date, end_date, and duration are initially deferred.
+        This test checks that the history row written by prepare_db_for_next_try()
+        reflects the real values from the database rather than the Python-level
+        defaults (hostname="" and start_date/end_date=None).
+
+        It also verifies that a task which was killed before the task-sdk could
+        report back — leaving hostname as "" in the DB — stores NULL in history
+        rather than an empty string, so the log URL builder won't construct
+        a broken http://:8793/… URL for those failed attempts.
+        """
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        dag_id = "test_adopt_or_reset_preserves_metadata"
+        with dag_maker(dag_id=dag_id, schedule="@daily", session=session):
+            EmptyOperator(task_id="work")
+
+        old_job = Job()
+        session.add(old_job)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
+        ti = dr.get_task_instances(session=session)[0]
+
+        # Simulate a task that got as far as RUNNING and had its metadata
+        # populated by the task-sdk (via the execution API).
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = old_job.id
+        ti.hostname = "worker-node-7"
+        ti.start_date = timezone.utcnow()
+        old_ti_id = ti.id
+        old_try_number = ti.try_number
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        history = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == old_try_number,
+                TaskInstanceHistory.task_instance_id == old_ti_id,
+            )
+        )
+        assert history is not None
+        # The history row must carry the real hostname, not the empty-string default.
+        assert history.hostname == "worker-node-7"
+        # start_date should be preserved from the running attempt.
+        assert history.start_date is not None
+
+    def test_adopt_or_reset_resettable_tasks_keeps_default_hostname_when_never_reported(
+        self, dag_maker, session
+    ):
+        """Tasks killed before the task-sdk could report back keep the default hostname in history.
+
+        When a Kubernetes pod is killed before the task-sdk calls the execution
+        API, hostname stays as "" in the task_instance row (the Python-level
+        default).  The history row should carry that value through unchanged,
+        confirming the orphan-reset path does not lose or mangle fields that
+        were never populated.
+        """
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        dag_id = "test_adopt_or_reset_null_hostname"
+        with dag_maker(dag_id=dag_id, schedule="@daily", session=session):
+            EmptyOperator(task_id="work")
+
+        old_job = Job()
+        session.add(old_job)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
+        ti = dr.get_task_instances(session=session)[0]
+
+        # Simulate a task whose pod was killed before the task-sdk sent a
+        # RUNNING payload — hostname is still "" and start_date is still None.
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = old_job.id
+        # hostname and start_date intentionally left at their defaults ("" / None)
+        old_ti_id = ti.id
+        old_try_number = ti.try_number
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+        history = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == old_try_number,
+                TaskInstanceHistory.task_instance_id == old_ti_id,
+            )
+        )
+        assert history is not None
+        # hostname was never reported, so the Python-level default "" is
+        # carried through to history unchanged.
+        assert history.hostname == ""
+
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
         with dag_maker(dag_id=dag_id, schedule="@daily"):
