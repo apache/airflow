@@ -44,6 +44,7 @@ const buildDagsList = (isPaused: boolean): DAGWithLatestDagRunsCollectionRespons
       fileloc: "/dags/dag.py",
       has_import_errors: false,
       has_task_concurrency_limits: false,
+      has_unfinished_runs: false,
       is_favorite: false,
       is_paused: isPaused,
       is_stale: false,

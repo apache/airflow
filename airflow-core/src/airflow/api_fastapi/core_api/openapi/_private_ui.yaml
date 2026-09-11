@@ -3227,6 +3227,9 @@ components:
             $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        has_unfinished_runs:
+          type: boolean
+          title: Has Unfinished Runs
         pending_actions:
           items:
             $ref: '#/components/schemas/HITLDetail'
@@ -3282,6 +3285,7 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - has_unfinished_runs
       - pending_actions
       - is_favorite
       - is_backfillable

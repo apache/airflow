@@ -2462,6 +2462,7 @@ export type DAGWithLatestDagRunsResponse = {
     owners: Array<(string)>;
     asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
+    has_unfinished_runs: boolean;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     team_name?: string | null;

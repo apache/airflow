@@ -146,6 +146,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_backfillable: true,
   is_favorite: false,
   is_paused: false,
@@ -266,6 +267,14 @@ describe("DagCard", () => {
     fireEvent.focus(screen.getByTestId("dag-id"));
 
     expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
+  });
+
+  it("offers draining when the API reports an unfinished run outside the recent-run payload", async () => {
+    renderCard({ ...mockDag, has_unfinished_runs: true });
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    expect(await screen.findByTestId("drain-dag")).toBeInTheDocument();
   });
 
   it("DagCard should render without tags", () => {
