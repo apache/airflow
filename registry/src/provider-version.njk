@@ -399,7 +399,7 @@ eleventyComputed:
           </label>
           {% endif %}
           {% if deferrableCount > 0 %}
-          <label class="capability-filter-toggle" title="Frees the worker slot while waiting; the Triggerer polls instead. Requires deferrable=True.">
+          <label class="capability-filter-toggle" title="Frees the worker slot while waiting; the Triggerer polls instead. Pass deferrable=True where the operator exposes it; some defer unconditionally.">
             <input type="checkbox" id="deferrable-only-filter">
             <span>Deferrable only ({{ deferrableCount }})</span>
           </label>
@@ -428,7 +428,7 @@ eleventyComputed:
               <span class="durable-badge" title="Reconnects to an already-running job on retry instead of resubmitting. Requires durable=True (default) and depends on operator configuration.">Durable</span>
               {% endif %}
               {% if module.supports_deferrable %}
-              <span class="deferrable-badge" title="Frees the worker slot while waiting. If the Triggerer crashes, another one picks it up using the same trigger class and arguments. Requires deferrable=True.">Deferrable</span>
+              <span class="deferrable-badge" title="Frees the worker slot while waiting. If the Triggerer crashes, another one picks it up using the same trigger class and arguments. Pass deferrable=True where the operator exposes it; some defer unconditionally.">Deferrable</span>
               {% endif %}
             </h3>
             <p>{{ module.short_description }}</p>

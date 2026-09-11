@@ -323,6 +323,78 @@ class AlwaysDeferringOperator:
         return None
 
 
+class DefersThroughHelperMethod:
+    """Mirrors TriggerDagRunOperator: execute() delegates to a same class helper
+    that is the one actually calling self.defer()."""
+
+    def execute(self, context):
+        return self._trigger_dag_af_2(context)
+
+    def _trigger_dag_af_2(self, context):
+        return self.defer()
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class DefersThroughUnrelatedHelperMethod:
+    """The helper the walk follows doesn't defer at all."""
+
+    def execute(self, context):
+        return self._do_the_thing(context)
+
+    def _do_the_thing(self, context):
+        return None
+
+
+class BaseWithDeferringExecute:
+    """Mirrors KubernetesPodOperator: its own execute() calls self.defer()."""
+
+    def execute(self, context):
+        if self.pod is None:
+            self.defer()
+        return None
+
+    def defer(self, *args, **kwargs):
+        return None
+
+
+class SubclassDelegatingToSuperExecute(BaseWithDeferringExecute):
+    """Mirrors EksPodOperator: overrides execute() to do setup, then calls
+    super().execute(), which is where the actual self.defer() call lives."""
+
+    def execute(self, context):
+        self.setup(context)
+        return super().execute(context)
+
+    def setup(self, context):
+        return None
+
+
+class RaisesTaskDeferredDirectly:
+    """Mirrors VespaIngestOperator: raises TaskDeferred directly, with no
+    self.defer()/self.deferrable reference anywhere in the call chain."""
+
+    def execute(self, context):
+        raise TaskDeferred(trigger=None, method_name="execute_complete")
+
+
+class TaskDeferred(Exception):
+    """Placeholder for actual TaskDeferred exception."""
+
+    def __init__(self, *, trigger, method_name):
+        self.trigger = trigger
+        self.method_name = method_name
+
+
+class DefersForApprovalOnly:
+    def execute(self, context):
+        return self.defer_for_approval(context)
+
+    def defer_for_approval(self, context):
+        return None
+
+
 class TestSupportsDeferrable:
     def test_reads_deferrable_directly_qualifies(self):
         assert supports_deferrable(DeferrableOperator) is True
@@ -341,18 +413,28 @@ class TestSupportsDeferrable:
     def test_unconditional_defer_with_no_param_qualifies(self):
         assert supports_deferrable(AlwaysDeferringOperator) is True
 
-    def test_exception_list_entry_qualifies_despite_no_source_match(self):
-        class FakeTriggerDagRunOperator:
-            def execute(self, context):
-                return self._trigger_dag_af_2(context)
+    def test_defers_through_helper_method_qualifies(self):
+        """The TriggerDagRunOperator case: found by walking into the helper the
+        exception list used to hardcode, without needing a class-name lookup."""
+        assert supports_deferrable(DefersThroughHelperMethod) is True
 
-            def _trigger_dag_af_2(self, context):
-                return None
+    def test_helper_method_without_deferral_disqualifies(self):
+        assert supports_deferrable(DefersThroughUnrelatedHelperMethod) is False
 
-        FakeTriggerDagRunOperator.__module__ = "airflow.providers.standard.operators.trigger_dagrun"
-        FakeTriggerDagRunOperator.__qualname__ = "TriggerDagRunOperator"
+    def test_defers_through_super_execute_qualifies(self):
+        """The EksPodOperator case: the override calls super().execute(), and the
+        actual self.defer() call lives in the parent's execute()."""
+        assert supports_deferrable(SubclassDelegatingToSuperExecute) is True
 
-        assert supports_deferrable(FakeTriggerDagRunOperator) is True
+    def test_raises_task_deferred_directly_qualifies(self):
+        """The VespaIngestOperator case: no self.defer()/self.deferrable anywhere,
+        just a direct TaskDeferred raise."""
+        assert supports_deferrable(RaisesTaskDeferredDirectly) is True
+
+    def test_defer_for_approval_does_not_false_match(self):
+        """self.defer_for_approval(...) is HITL approval, not deferral; the old
+        substring check on "self.defer" matched it by accident."""
+        assert supports_deferrable(DefersForApprovalOnly) is False
 
 
 # ---------------------------------------------------------------------------
@@ -708,8 +790,8 @@ class TestDiscoverClassesFromProvider:
         operators = [r for r in result if r["type"] == "operator"]
         assert operators[0]["short_description"] == "Copy objects in S3."
 
-    def test_all_11_fields_present(self, provider_yaml_path, base_classes):
-        """Every discovered entry has all 11 Module fields."""
+    def test_all_13_fields_present(self, provider_yaml_path, base_classes):
+        """Every discovered entry has all 13 Module fields."""
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
             patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
@@ -728,6 +810,8 @@ class TestDiscoverClassesFromProvider:
             "category",
             "provider_id",
             "provider_name",
+            "supports_durable_execution",
+            "supports_deferrable",
         ]
         for entry in result:
             missing = [f for f in required_fields if f not in entry]

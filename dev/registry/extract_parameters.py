@@ -433,13 +433,64 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     return "execute_resumable" in source
 
 
-# Hand verified set that contains classes where self.defer()/self.deferrable is reachable only
-# through a helper method one call away from execute() (e.g. TriggerDagRunOperator
-# delegates to _trigger_dag_af_2()), so the source grep below can't find it.
-# Add an entry only after confirming self.defer() is genuinely reachable.
-_DEFERRABLE_EXCEPTIONS = {
-    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator",
-}
+# Matches an actual self.defer() call or self.deferrable attribute read, but not
+# self.defer_for_approval(). TaskDeferred catches operators that raise it directly instead of
+# calling self.defer() (e.g. VespaIngestOperator).
+_DEFERRAL_TOKEN_RE = re.compile(r"self\.defer\(|self\.deferrable\b|TaskDeferred\b")
+_SELF_CALL_RE = re.compile(r"self\.([A-Za-z_][A-Za-z0-9_]*)\(")
+_SUPER_EXECUTE_RE = re.compile(r"super\(\)\.execute\(")
+
+# To prevent infinite looping, most cases in the repo are 1-2 hops away.
+_MAX_DEFERRAL_WALK_DEPTH = 6
+
+
+def _get_method_source(cls: type, name: str) -> str | None:
+    method = getattr(cls, name, None)
+    if method is None:
+        return None
+    try:
+        return inspect.getsource(method)
+    except (OSError, TypeError):
+        return None
+
+
+def _next_execute_in_mro(cls: type) -> tuple[type, str] | None:
+    """Find the class super().execute() would resolve to from within cls's own execute()."""
+    for base in cls.__mro__[1:]:
+        if "execute" in base.__dict__:
+            source = _get_method_source(base, "execute")
+            if source is not None:
+                return base, source
+            return None
+    return None
+
+
+def _references_deferral(cls: type, source: str, visited: set[tuple[int, str]], depth: int) -> bool:
+    if _DEFERRAL_TOKEN_RE.search(source):
+        return True
+    if depth <= 0:
+        return False
+
+    if _SUPER_EXECUTE_RE.search(source):
+        resolved = _next_execute_in_mro(cls)
+        if resolved is not None:
+            base, base_source = resolved
+            key = (id(base), "execute")
+            if key not in visited:
+                visited.add(key)
+                if _references_deferral(base, base_source, visited, depth - 1):
+                    return True
+
+    for name in _SELF_CALL_RE.findall(source):
+        key = (id(cls), name)
+        if key in visited:
+            continue
+        visited.add(key)
+        helper_source = _get_method_source(cls, name)
+        if helper_source is not None and _references_deferral(cls, helper_source, visited, depth - 1):
+            return True
+
+    return False
 
 
 def supports_deferrable(cls: type) -> bool:
@@ -447,16 +498,12 @@ def supports_deferrable(cls: type) -> bool:
 
     Checking for a `deferrable` constructor parameter isn't enough: a subclass can
     inherit the parameter while overriding execute() with code that never reads it,
-    and an operator that always defers unconditionally has no parameter
-    to find at all. Resolving execute() via getattr and checking its own source for
-    self.deferrable or self.defer answers "does this code path use deferral"
-    directly, instead of proxying through whether a setting merely exists somewhere
-    in the class hierarchy.
+    and an operator that always defers unconditionally has no parameter to find at
+    all. This walks outward from execute() into helper methods it calls via
+    `self.<name>(...)`, and up the MRO through `super().execute(...)` looking for
+    an actual `self.defer(...)` call, a `self.deferrable` read, or a `TaskDeferred`
+    raise, rather than only checking execute()'s own source text.
     """
-    qualified_name = f"{cls.__module__}.{cls.__qualname__}"
-    if qualified_name in _DEFERRABLE_EXCEPTIONS:
-        return True
-
     execute = getattr(cls, "execute", None)
     if execute is None:
         return False
@@ -465,7 +512,7 @@ def supports_deferrable(cls: type) -> bool:
     except (OSError, TypeError):
         return False
 
-    return "self.deferrable" in source or "self.defer" in source
+    return _references_deferral(cls, source, {(id(cls), "execute")}, _MAX_DEFERRAL_WALK_DEPTH)
 
 
 def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
