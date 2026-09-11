@@ -299,7 +299,7 @@ class BaseDagBundle(ABC):
     supports_versioning: bool = False
 
     is_initialized: bool = False
-    """Whether :meth:`initialize` has run. ``path`` is only guaranteed usable once it has."""
+    """Set by ``super().initialize()``; overrides must call it last."""
 
     _locked: bool = False
 

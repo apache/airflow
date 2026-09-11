@@ -713,12 +713,23 @@ class DagFileProcessorManager(LoggingMixin):
         *,
         session: Session = NEW_SESSION,
     ) -> list[CallbackRequest]:
-        """Fetch callbacks from database and add them to the internal queue for execution."""
+        """Claim callbacks for ready bundles, leaving the rest pending."""
         self.log.debug("Fetching callbacks from the database.")
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
-            bundle_names = [bundle.name for bundle in self._dag_bundles]
+            # Claiming deletes rows, so defer unavailable bundles before applying the limit.
+            bundle_names = [
+                bundle.name
+                for bundle in self._dag_bundles
+                if not bundle.supports_versioning or bundle.is_initialized
+            ]
+            if unready_bundles := [
+                bundle.name
+                for bundle in self._dag_bundles
+                if bundle.supports_versioning and not bundle.is_initialized
+            ]:
+                self.log.debug("Skipping callback fetch for uninitialized bundles: %s", unready_bundles)
             query: Select[tuple[DbCallbackRequest]] = with_row_locks(
                 select(DbCallbackRequest)
                 .where(DbCallbackRequest.bundle_name.in_(bundle_names))
@@ -743,20 +754,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     def prepare_callback_bundle(self, request: CallbackRequest) -> BaseDagBundle | None:
         """
-        Return the bundle to run the callback against, or ``None`` to skip the callback.
+        Return a usable bundle or ``None`` to skip; override for API-backed bundles.
 
-        An unversioned request is served from this processor's own bundles; a pinned one is
-        looked up via :class:`DagBundlesManager` and initialized when it supports versioning.
-        Override to source the bundle from an API.
-
-        A returned bundle that supports versioning must be initialized: ``bundle.path`` is only
-        guaranteed usable once ``initialize()`` has succeeded for such bundles.
+        Reuse loaded bundles for unversioned requests; versioning bundles must be initialized.
         """
         if request.bundle_version is None:
-            # An unversioned request runs against the bundle's current contents, which is what
-            # this processor's own instance tracks. Reusing it keeps the path identical to the
-            # one the file scan queues, and keeps a fresh initialize() -- for a versioned
-            # bundle, a fetch/checkout under the bundle lock -- out of the parsing loop.
+            # Reuse the scan path without fetching or checking out per callback.
             loaded = next((b for b in self._dag_bundles if b.name == request.bundle_name), None)
             if loaded is None:
                 self.log.error(
@@ -764,11 +767,6 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 return None
             if loaded.supports_versioning and not loaded.is_initialized:
-                # :meth:`_refresh_dag_bundles` runs before callbacks are fetched and initializes
-                # what it can, so an uninitialized instance here means it just failed. Retrying
-                # per callback would block the loop on the same failure up to
-                # ``max_callbacks_per_loop`` times, so leave the retry to the refresh loop and
-                # its check interval.
                 self.log.error("Bundle %s is not initialized, skipping callback", request.bundle_name)
                 return None
             return loaded
@@ -797,13 +795,6 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
-            return
-        if bundle.supports_versioning and not bundle.is_initialized:
-            # Queueing an unresolved path would spawn a processor against a file that isn't there,
-            # and callback-only runs record no import error, so the callback would be lost silently.
-            self.log.error(
-                "Bundle %s for callback was not initialized, skipping callback", request.bundle_name
-            )
             return
 
         file_info = DagFileInfo(
