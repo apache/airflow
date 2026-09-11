@@ -220,6 +220,9 @@ class HttpSensorTrigger(BaseTrigger):
     :param extra_options: Additional kwargs to pass when creating a request.
         For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
     :param poke_interval: Time to sleep using asyncio
+    :param initial_delay: Time to sleep before the first request. Used when the
+        sensor re-defers after evaluating ``response_check`` on the worker, so
+        consecutive attempts keep the ``poke_interval`` pacing.
     """
 
     def __init__(
@@ -231,6 +234,7 @@ class HttpSensorTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
+        initial_delay: float = 0.0,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -240,6 +244,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
+        self.initial_delay = initial_delay
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -253,23 +258,32 @@ class HttpSensorTrigger(BaseTrigger):
                 "extra_options": self.extra_options,
                 "http_conn_id": self.http_conn_id,
                 "poke_interval": self.poke_interval,
+                "initial_delay": self.initial_delay,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via an http hook."""
         hook = self._get_async_hook()
+        if self.initial_delay > 0:
+            await asyncio.sleep(self.initial_delay)
         while True:
             try:
                 async with aiohttp.ClientSession() as session:
-                    await hook.run(
+                    client_response = await hook.run(
                         session=session,
                         endpoint=self.endpoint,
                         data=self.data,
                         headers=self.headers,
                         extra_options=self.extra_options,
                     )
-                yield TriggerEvent(True)
+                    response = await HttpTrigger._convert_response(client_response)
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "response": HttpResponseSerializer.serialize(response),
+                    }
+                )
                 return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
