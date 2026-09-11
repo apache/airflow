@@ -2227,7 +2227,7 @@
                             }
                         },
                         "kerberosInitContainer": {
-                            "description": "Kerberos init container for Airflow Celery workers.",
+                            "description": "Kerberos init container for Airflow Celery workers. Omitted when kerberosSidecar and its startupProbe are enabled; the native sidecar acquires the initial ticket using the kerberosSidecar settings. With the probe disabled, an enabled init container still waits for a ticket.",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
@@ -3011,7 +3011,7 @@
                             }
                         },
                         "kerberosInitContainer": {
-                            "description": "Kerberos init container for pods created with pod-template-file.",
+                            "description": "Kerberos init container for pods created with pod-template-file. Omitted when kerberosSidecar and its startupProbe are enabled; the native sidecar acquires the initial ticket using the kerberosSidecar settings. With the probe disabled, an enabled init container still waits for a ticket.",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
