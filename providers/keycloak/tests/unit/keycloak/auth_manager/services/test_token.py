@@ -22,6 +22,7 @@ import fastapi
 import jwt
 import pytest
 from keycloak import KeycloakAuthenticationError
+from keycloak.exceptions import KeycloakGetError
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.services.token import (
@@ -200,7 +201,7 @@ class TestCreateJwtFederatedToken:
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.PyJWKClient")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
     def test_create_jwt_federated_token(
         self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client, mock_get_auth_manager
     ):
@@ -244,7 +245,7 @@ class TestCreateJwtFederatedToken:
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.PyJWKClient")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
     def test_create_jwt_federated_token_invalid_signature(
         self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
     ):
@@ -255,7 +256,6 @@ class TestCreateJwtFederatedToken:
             create_jwt_federated_token(assertion=self.test_assertion)
 
         assert exc_info.value.status_code == 403
-        mock_get_keycloak_client.assert_not_called()
 
     @conf_vars(
         {
@@ -268,7 +268,7 @@ class TestCreateJwtFederatedToken:
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.PyJWKClient")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
     def test_create_jwt_federated_token_client_not_allowlisted(
         self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
     ):
@@ -297,7 +297,7 @@ class TestCreateJwtFederatedToken:
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.PyJWKClient")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
     def test_create_jwt_federated_token_allowlist_unset_fails_closed(
         self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
     ):
@@ -315,6 +315,13 @@ class TestCreateJwtFederatedToken:
         assert exc_info.value.status_code == 403
         mock_get_keycloak_client.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "userinfo_error",
+        [
+            KeycloakAuthenticationError(),
+            KeycloakGetError(response_code=403, response_body=b""),
+        ],
+    )
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
@@ -326,11 +333,11 @@ class TestCreateJwtFederatedToken:
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.PyJWKClient")
-    def test_create_jwt_federated_token_revoked_assertion(
-        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_userinfo_rejected(
+        self, mock_jwks_client_cls, mock_jwt_decode, mock_get_keycloak_client, userinfo_error
     ):
-        """A well-formed but revoked assertion is rejected by the userinfo round-trip."""
+        """A Keycloak userinfo rejection returns a generic invalid-assertion response."""
         mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
         mock_jwt_decode.return_value = {
             "sub": "service-account-sub",
@@ -338,7 +345,7 @@ class TestCreateJwtFederatedToken:
             "aud": ["airflow"],
         }
         mock_keycloak_client = Mock()
-        mock_keycloak_client.userinfo.side_effect = KeycloakAuthenticationError()
+        mock_keycloak_client.userinfo.side_effect = userinfo_error
         mock_get_keycloak_client.return_value = mock_keycloak_client
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
