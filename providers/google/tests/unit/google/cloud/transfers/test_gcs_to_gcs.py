@@ -563,7 +563,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
 
         expected_object = SOURCE_OBJECTS_SINGLE_FILE[0]
-        expected_message = f"Object {TEST_BUCKET}/{expected_object} already deleted (404 on move); continuing"
+        expected_message = f"Object {expected_object} does not exist in the source bucket {TEST_BUCKET}"
         assert any(expected_message in record.getMessage() for record in caplog.records)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
