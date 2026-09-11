@@ -37,7 +37,7 @@ from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils.retries import run_with_db_retries
+from airflow.utils.retries import retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -270,12 +270,20 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    @retry_db_transaction
     def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
         """
         Fire an event.
 
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
+
+        The per-task-instance UPDATE issued here contends with the scheduler's bulk
+        ``task_instance`` writes (e.g. ``check_trigger_timeouts``) and with other triggerer
+        replicas, so a transient MySQL/InnoDB deadlock (error 1213) is possible. Retrying the
+        transaction keeps a single deadlock from propagating up to ``handle_events`` and killing
+        the triggerer process. The retried body re-reads the still-deferred rows, so it is
+        idempotent. See https://github.com/apache/airflow/issues/65818.
         """
         # Resume deferred tasks
         for task_instance in session.scalars(
@@ -305,6 +313,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    @retry_db_transaction
     def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
@@ -316,6 +325,11 @@ class Trigger(Base):
         We use a special __fail__ value for next_method to achieve this that
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
+
+        Like :meth:`submit_event`, this mutates ``task_instance`` rows that the scheduler and
+        other triggerer replicas write concurrently, so the transaction is retried on a transient
+        deadlock instead of letting it take down the triggerer. See
+        https://github.com/apache/airflow/issues/65818.
         """
         for task_instance in session.scalars(
             select(TaskInstance).where(
