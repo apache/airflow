@@ -562,7 +562,10 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-                xcoms.append(None) if values is None else xcoms.extend(values)
+                if values is None:
+                    xcoms.append(default)
+                else:
+                    xcoms.extend(values)
             # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
@@ -611,7 +614,10 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     include_prior_dates=include_prior_dates,
                 )
-                xcoms.append(None) if values is None else xcoms.extend(values)
+                if values is None:
+                    xcoms.append(default)
+                else:
+                    xcoms.extend(values)
             # For a single task pulling from an unmapped task, return a single value
             if single_task_requested and len(xcoms) == 1:
                 return xcoms[0]
