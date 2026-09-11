@@ -245,6 +245,34 @@ class ManuallyDurableSubclass(ManuallyDurableOperator):
         return "something else entirely"
 
 
+class ManuallyDurableSubclassNoOverride(ManuallyDurableOperator):
+    """Adds no execute() override at all. Mirrors GKEStartPodOperator, which relies
+    entirely on KubernetesPodOperator.execute(). Must still qualify."""
+
+    def some_other_method(self):
+        return None
+
+
+class ManuallyDurableSubclassDelegating(ManuallyDurableOperator):
+    """Overrides execute() but delegates back via super().execute(). Mirrors
+    EksPodOperator/SparkKubernetesOperator's non-deferrable path. Must still qualify."""
+
+    def execute(self, context):
+        self.log_something()
+        return super().execute(context)
+
+    def log_something(self):
+        return None
+
+
+class ManuallyDurableSubclassDelegatingMultiHop(ManuallyDurableSubclassDelegating):
+    """A second layer of super().execute() delegation on top of ManuallyDurableSubclassDelegating.
+    Must still qualify."""
+
+    def execute(self, context):
+        return super().execute(context)
+
+
 class TestIsDurableCapable:
     def test_fully_implemented_and_wired_qualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
@@ -266,6 +294,15 @@ class TestIsDurableCapable:
 
     def test_subclass_not_redeclaring_marker_disqualifies(self):
         assert is_durable_capable(ManuallyDurableSubclass, FakeResumableJobMixin) is False
+
+    def test_subclass_with_no_execute_override_inherits_marker(self):
+        assert is_durable_capable(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin) is True
+
+    def test_subclass_delegating_via_super_execute_qualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclassDelegating, FakeResumableJobMixin) is True
+
+    def test_subclass_delegating_via_super_execute_multi_hop_qualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclassDelegatingMultiHop, FakeResumableJobMixin) is True
 
 
 # ---------------------------------------------------------------------------

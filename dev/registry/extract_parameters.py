@@ -392,47 +392,6 @@ def load_resumable_job_mixin() -> type | None:
         return None
 
 
-def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
-    """Return True if a class implements durable/crash-safe execution.
-
-    Two ways to qualify:
-    1. A class-level `__supports_durable_execution = True`
-    declaration (for operators that implement this directly against
-    task_state_store, without ResumableJobMixin -- e.g. KubernetesPodOperator,
-    AgentOperator).
-    2. Genuinely implementing ResumableJobMixin's contract.
-
-    The first path deliberately looks up the class prefixed attribute
-    (`_{ClassName}__supports_durable_execution`) rather than a fixed string.
-    A subclass that overrides execute() itself (e.g. SparkKubernetesOperator)
-    may not preserve the parent's task_state_store reconnect behavior, so the
-    declaration must not be inherited -- only the exact class that wrote
-    `__supports_durable_execution` in its own body qualifies this way.
-
-    Inheriting the mixin alone is not sufficient for the second path: a
-    complete override is inert unless execute() actually calls
-    execute_resumable().
-    """
-    if getattr(cls, f"_{cls.__name__}__supports_durable_execution", None) is True:
-        return True
-
-    if resumable_mixin is None or resumable_mixin not in cls.__mro__:
-        return False
-
-    if inspect.isabstract(cls):
-        return False
-
-    execute = getattr(cls, "execute", None)
-    if execute is None:
-        return False
-    try:
-        source = inspect.getsource(execute)
-    except (OSError, TypeError):
-        return False
-
-    return "execute_resumable" in source
-
-
 # Matches an actual self.defer() call or self.deferrable attribute read, but not
 # self.defer_for_approval(). TaskDeferred catches operators that raise it directly instead of
 # calling self.defer() (e.g. VespaIngestOperator).
@@ -463,6 +422,88 @@ def _next_execute_in_mro(cls: type) -> tuple[type, str] | None:
                 return base, source
             return None
     return None
+
+
+def _find_marker_declaring_class(cls: type) -> type | None:
+    """Return the class in `cls`'s MRO whose own body sets `__supports_durable_execution = True`.
+
+    The lookup is per-class (`_{base.__name__}__supports_durable_execution`), not a fixed
+    string, and only matches a class whose own `__dict__` carries the (mangled) name;
+    inheriting the attribute value from a base doesn't count, only writing it yourself does.
+    """
+    for base in cls.__mro__:
+        mangled = f"_{base.__name__}__supports_durable_execution"
+        if base.__dict__.get(mangled) is True:
+            return base
+    return None
+
+
+def _delegates_execute_to(cls: type, target: type, depth: int) -> bool:
+    """Return True if `cls.execute` is, or resolves via `super().execute()` chains to, `target.execute`.
+
+    A class that never overrides `execute` inherits `target.execute` directly (e.g.
+    GKEStartPodOperator, which adds no `execute` method at all). A class whose own `execute`
+    ends in `return super().execute(context)` (e.g. EksPodOperator, SparkKubernetesOperator)
+    still runs `target`'s body once the chain is walked. Either way the reconnect behavior
+    `target` declared durable-capable for is preserved.
+    """
+    if getattr(cls, "execute", None) is getattr(target, "execute", None):
+        return True
+
+    if depth <= 0 or "execute" not in cls.__dict__:
+        return False
+
+    source = _get_method_source(cls, "execute")
+    if source is None or not _SUPER_EXECUTE_RE.search(source):
+        return False
+
+    resolved = _next_execute_in_mro(cls)
+    if resolved is None:
+        return False
+    next_cls, _ = resolved
+    return _delegates_execute_to(next_cls, target, depth - 1)
+
+
+def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
+    """Return True if a class implements durable/crash-safe execution.
+
+    Two ways to qualify:
+    1. A class-level `__supports_durable_execution = True`
+    declaration (for operators that implement this directly against
+    task_state_store, without ResumableJobMixin, e.g. KubernetesPodOperator,
+    AgentOperator), inherited by any subclass that hasn't replaced the declaring
+    class's `execute()`, either by not overriding `execute` at all
+    (e.g. GKEStartPodOperator), or by overriding it with a chain of
+    `super().execute()` calls that still reaches the declaring class's `execute`
+    (e.g. EksPodOperator, SparkKubernetesOperator's non-deferrable path). A
+    subclass that overrides `execute()` and does *not* delegate back may not
+    preserve the parent's task_state_store reconnect behavior, so it doesn't
+    qualify this way.
+    2. Genuinely implementing ResumableJobMixin's contract.
+
+    Inheriting the mixin alone is not sufficient for the second path: a
+    complete override is inert unless execute() actually calls
+    execute_resumable().
+    """
+    declaring_cls = _find_marker_declaring_class(cls)
+    if declaring_cls is not None and _delegates_execute_to(cls, declaring_cls, _MAX_DEFERRAL_WALK_DEPTH):
+        return True
+
+    if resumable_mixin is None or resumable_mixin not in cls.__mro__:
+        return False
+
+    if inspect.isabstract(cls):
+        return False
+
+    execute = getattr(cls, "execute", None)
+    if execute is None:
+        return False
+    try:
+        source = inspect.getsource(execute)
+    except (OSError, TypeError):
+        return False
+
+    return "execute_resumable" in source
 
 
 def _references_deferral(cls: type, source: str, visited: set[tuple[int, str]], depth: int) -> bool:
