@@ -154,6 +154,50 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
     )
 
 
+# Execution-API routes that expose a {connection_test_id} path parameter but intentionally do NOT
+# enforce the ct:self scope. Add a route here only with a clear justification.
+CT_ID_ROUTES_WITHOUT_CT_SELF: set[str] = set()
+
+
+def test_routes_with_connection_test_id_param_enforce_ct_self(client):
+    """Dual of :func:`test_ct_self_routes_have_connection_test_id_param`.
+
+    Every operation that exposes a ``{connection_test_id}`` path parameter must require the
+    ``ct:self`` scope, so a caller can only act on its own connection test -- unless the path is
+    explicitly listed in ``CT_ID_ROUTES_WITHOUT_CT_SELF``. This mirrors
+    :func:`test_routes_with_task_instance_id_param_enforce_ti_self` for the connection-test scope:
+    without it, a new endpoint could accept a caller-supplied ``connection_test_id`` while silently
+    skipping the ownership check, and only the one-directional test above would run -- which passes
+    happily when a route has the path parameter but no scope at all. Checked against the served
+    OpenAPI spec of every API version, since the execution API assembles its routes per version.
+    """
+    http_methods = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
+    offenders = []
+    checked = 0
+    for version in bundle.versions:
+        spec = client.get(f"/execution/openapi.json?version={version.value}").json()
+        for path, operations in spec.get("paths", {}).items():
+            if "{connection_test_id}" not in path or path in CT_ID_ROUTES_WITHOUT_CT_SELF:
+                continue
+            for method, operation in operations.items():
+                if method.lower() not in http_methods or not isinstance(operation, dict):
+                    continue
+                checked += 1
+                requirements = operation.get("security") or []
+                has_ct_self = any(
+                    "ct:self" in scopes for requirement in requirements for scopes in requirement.values()
+                )
+                if not has_ct_self:
+                    offenders.append(f"[{version.value}] {method.upper()} {path}")
+
+    assert checked, "Found no {connection_test_id} operations in any API version -- the test is vacuous."
+    assert not offenders, (
+        "These execution-API operations expose a {connection_test_id} path parameter without the "
+        "ct:self scope. Add `Security(require_auth, scopes=['ct:self'])` to the router, or add the "
+        "path to CT_ID_ROUTES_WITHOUT_CT_SELF with a justification:\n" + "\n".join(sorted(offenders))
+    )
+
+
 @conf_vars({("api_auth", "jwt_secret"): None})
 def test_in_process_execution_api_runs_without_jwt_secret():
     """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
