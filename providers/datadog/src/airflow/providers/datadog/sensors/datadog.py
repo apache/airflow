@@ -17,13 +17,33 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from datadog import api
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    BaseSensorOperator,
+)
 from airflow.providers.datadog.hooks.datadog import DatadogHook
+from airflow.providers.datadog.triggers.datadog import DatadogMonitorTrigger
+
+try:
+    from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
+except ImportError:  # Airflow 2.x
+    from airflow.exceptions import TaskDeferralError
+
+    try:
+        from airflow.exceptions import TaskDeferralTimeout
+    except ImportError:
+
+        class TaskDeferralTimeout(TaskDeferralError):  # type: ignore[no-redef]
+            """Not raised before Airflow 3; timeouts arrive as TaskDeferralError."""
+
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -98,3 +118,71 @@ class DatadogSensor(BaseSensorOperator):
 
         # If no check was inserted, assume any event that matched yields true.
         return bool(response)
+
+
+class DatadogMonitorSensorAsync(BaseSensorOperator):
+    """
+    Waits for a Datadog monitor to reach one of the target states.
+
+    This sensor always runs deferred: it waits in the triggerer and never
+    occupies a worker slot while waiting.
+
+    :param monitor_id: The id of the Datadog monitor to watch.
+    :param target_states: Monitor overall states that complete the wait
+        (e.g. ``("OK",)`` or ``("Alert", "Warn")``).
+    :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
+    """
+
+    ui_color = "#66c3dd"
+    deferrable = True
+
+    def __init__(
+        self,
+        *,
+        monitor_id: int,
+        target_states: Sequence[str] = ("OK",),
+        datadog_conn_id: str = "datadog_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.monitor_id = monitor_id
+        self.target_states = target_states
+        self.datadog_conn_id = datadog_conn_id
+
+    def execute(self, context: Context) -> None:
+        self.defer(
+            trigger=DatadogMonitorTrigger(
+                monitor_id=self.monitor_id,
+                target_states=self.target_states,
+                datadog_conn_id=self.datadog_conn_id,
+                poke_interval=self.poke_interval,
+            ),
+            method_name="execute_complete",
+            timeout=timedelta(seconds=self.timeout),
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        if event.get("status") != "success":
+            raise AirflowException(f"DatadogMonitorTrigger failed: {event}")
+        self.log.info("Monitor %s reached state %s", self.monitor_id, event.get("state"))
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        """
+        Resume from deferral, applying ``soft_fail`` only to timeouts.
+
+        ``BaseSensorOperator.resume_execution`` converts any deferral-path failure into a skip when
+        ``soft_fail`` is set, including trigger crashes (e.g. a bad monitor id or auth failure),
+        which silently skips the downstream branch. This sensor instead keeps parity with poke and
+        reschedule modes, where only timeouts are skippable and other errors fail the task.
+        """
+        try:
+            return super(BaseSensorOperator, self).resume_execution(next_method, next_kwargs, context)
+        except TaskDeferralError as e:
+            timed_out = isinstance(e, TaskDeferralTimeout) or str(e) == "Trigger/execution timeout"
+            if timed_out and self.soft_fail:
+                raise AirflowSkipException(str(e)) from e
+            if getattr(self, "never_fail", False):
+                raise AirflowSkipException(str(e)) from e
+            if timed_out:
+                raise AirflowSensorTimeout(*e.args) from e
+            raise
