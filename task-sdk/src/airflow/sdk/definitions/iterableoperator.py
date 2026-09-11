@@ -56,8 +56,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
 
-_ITERABLE_CHECKPOINT_KEY_PREFIX = "_iterable_task_"
-
 
 class IterableOperator(BaseOperator):
     """
