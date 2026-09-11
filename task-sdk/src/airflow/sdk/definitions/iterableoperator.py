@@ -40,6 +40,9 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
     AirflowFailException,
+    AirflowSkipException,
+    DagRunTriggerException,
+    DownstreamTasksSkipped,
     TaskDeferred,
 )
 from airflow.sdk.execution_time.context import context_update_for_unmapped
@@ -103,6 +106,22 @@ class IterableOperator(BaseOperator):
         Reschedule-mode sensors (those that raise :class:`~airflow.sdk.exceptions.AirflowRescheduleException`)
         are also not supported. A reschedule raised by an indexed task instance will fail the whole
         IterableOperator immediately with a clear error rather than being silently mishandled.
+
+        Triggering DAG runs (:class:`~airflow.sdk.exceptions.DagRunTriggerException`, raised by
+        ``TriggerDagRunOperator``) and skipping downstream tasks
+        (:class:`~airflow.sdk.exceptions.DownstreamTasksSkipped`, raised e.g. by
+        ``ShortCircuitOperator``) are not supported either: a sub-task index has no DAG run or
+        downstream tasks of its own for the trigger/skip to apply to. Either exception raised by a
+        sub-task fails the whole IterableOperator immediately with a clear error rather than silently
+        doing nothing.
+
+        Sub-task outcomes are classified before being aggregated: if any sub-task raises
+        :class:`~airflow.sdk.exceptions.AirflowFailException`, that exception is re-raised directly so
+        the IterableOperator fails without retrying. If *every* sub-task raises
+        :class:`~airflow.sdk.exceptions.AirflowSkipException`, a single ``AirflowSkipException`` is
+        re-raised so the IterableOperator is marked ``SKIPPED`` instead of ``UP_FOR_RETRY``. Any other
+        mix of sub-task exceptions (including a partial skip alongside other failures) is aggregated
+        into a :class:`BaseExceptionGroup` and treated as a regular retryable failure.
 
     .. warning::
         **``execution_timeout`` is only enforced for async sub-tasks.**
@@ -252,6 +271,7 @@ class IterableOperator(BaseOperator):
         tasks: Iterable[IndexedTaskInstance],
     ) -> XComIterable | None:
         exceptions: list[Exception] = []
+        total = 0
         do_xcom_push = True
 
         self.log.info("Running tasks with %d workers", self.max_workers)
@@ -264,6 +284,7 @@ class IterableOperator(BaseOperator):
                     repeat(context),
                     tasks,
                 ):
+                    total += 1
                     do_xcom_push = task.do_xcom_push
 
                     if raised is None:
@@ -274,6 +295,16 @@ class IterableOperator(BaseOperator):
                             f"Sub-task {task.task_id}[{task.index}] attempted to defer. "
                             "Deferrable operators are not supported inside IterableOperator."
                         )
+
+                    if isinstance(raised, (DagRunTriggerException, DownstreamTasksSkipped)):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] raised "
+                            f"{type(raised).__name__}. Triggering DAG runs "
+                            "(TriggerDagRunOperator) and skipping downstream tasks "
+                            "(ShortCircuitOperator and similar) are not supported inside "
+                            "IterableOperator: the sub-task's index has no downstream "
+                            "tasks or DAG run of its own for the effect to apply to."
+                        ) from raised
 
                     # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
                     # KeyboardInterrupt, SystemExit) must never be swallowed: they
@@ -295,6 +326,16 @@ class IterableOperator(BaseOperator):
                     exceptions.append(raised)
 
         if exceptions:
+            # An AirflowFailException means the task must not be retried — propagate the first one
+            # directly rather than burying it in a BaseExceptionGroup, which _run_task_and_map_outcome
+            # would otherwise dispatch to the generic BaseException branch (i.e. eligible for retry).
+            for exc in exceptions:
+                if isinstance(exc, AirflowFailException):
+                    raise exc
+            # If every sub-task was skipped, propagate a single AirflowSkipException so the runner
+            # marks the whole IterableOperator SKIPPED instead of UP_FOR_RETRY.
+            if len(exceptions) == total and all(isinstance(exc, AirflowSkipException) for exc in exceptions):
+                raise exceptions[0]
             raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
         if do_xcom_push:
             return XComIterable(
