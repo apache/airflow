@@ -28,10 +28,13 @@ from airflow.logging_config import (
     _ActiveLoggingConfig,
     _get_logging_config,
     _load_logging_config,
+    _warn_if_missing_remote_task_log,
     get_default_remote_conn_id,
     get_remote_task_log,
     load_logging_config,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)
@@ -200,3 +203,63 @@ class TestGetDefaultRemoteConnId:
             mocked_conf.get.return_value = None
             assert get_default_remote_conn_id() == "cached_conn"
         mock_load.assert_not_called()
+
+
+class TestWarnIfMissingRemoteTaskLog:
+    @pytest.fixture(autouse=True)
+    def _reset_active_logging_config(self, monkeypatch):
+        monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", None, raising=False)
+        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", True, raising=False)
+
+    @pytest.mark.parametrize(
+        ("remote_logging", "logging_class_path", "remote_task_log_already_set", "expected_module"),
+        [
+            pytest.param(
+                True,
+                "my_pkg.custom_settings.LOGGING_CONFIG",
+                False,
+                "my_pkg.custom_settings",
+                id="user_module_missing_remote_task_log",
+            ),
+            pytest.param(True, DEFAULT_LOGGING_CONFIG_PATH, False, None, id="fallback_path"),
+            pytest.param(
+                False, "my_pkg.custom_settings.LOGGING_CONFIG", False, None, id="remote_logging_disabled"
+            ),
+            pytest.param(
+                True, "my_pkg.custom_settings.LOGGING_CONFIG", True, None, id="remote_task_log_already_set"
+            ),
+            pytest.param(True, "", False, None, id="empty_logging_class_path"),
+        ],
+    )
+    def test_warn_if_missing_remote_task_log(
+        self, monkeypatch, remote_logging, logging_class_path, remote_task_log_already_set, expected_module
+    ):
+        if remote_task_log_already_set:
+            monkeypatch.setattr(_ActiveLoggingConfig, "remote_task_log", object(), raising=False)
+        with conf_vars({("logging", "remote_logging"): str(remote_logging)}):
+            with mock.patch("airflow.logging_config.log") as mock_log:
+                _warn_if_missing_remote_task_log(logging_class_path)
+        if expected_module is None:
+            mock_log.warning.assert_not_called()
+        else:
+            mock_log.warning.assert_called_once()
+            assert expected_module in mock_log.warning.call_args.args
+
+    def test_skips_warning_when_resolved_lazily_via_provider_dispatch(self, monkeypatch):
+        """The cache may still be cold (no ES/OS handler self-registered during dictConfig),
+        but a working setup resolved through ProvidersManager dispatch must still suppress
+        the warning -- so the check has to trigger the real resolution via
+        get_remote_task_log() rather than only inspecting the cached field."""
+        monkeypatch.setattr(_ActiveLoggingConfig, "logging_config_loaded", False, raising=False)
+        sentinel_handler = object()
+        with (
+            conf_vars({("logging", "remote_logging"): "True"}),
+            mock.patch("airflow.logging_config.resolve_remote_task_log") as mock_resolve,
+            mock.patch("airflow.providers_manager.ProvidersManager"),
+            mock.patch("airflow.logging_config.log") as mock_log,
+        ):
+            mock_resolve.return_value = (sentinel_handler, None)
+            _warn_if_missing_remote_task_log("my_pkg.custom_settings.LOGGING_CONFIG")
+
+        mock_log.warning.assert_not_called()
+        assert _ActiveLoggingConfig.remote_task_log is sentinel_handler

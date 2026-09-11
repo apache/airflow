@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -38,6 +39,13 @@ const defaultProps = {
 
 const renderModal = (props: Partial<typeof defaultProps> = {}) =>
   render(<MarkdownModal {...defaultProps} {...props} />, { wrapper: Wrapper });
+
+// The modal is controlled, so drive mdContent from a stateful wrapper.
+const ControlledModal = () => {
+  const [value, setValue] = useState("");
+
+  return <MarkdownModal {...defaultProps} mdContent={value} setMdContent={setValue} />;
+};
 
 describe("MarkdownModal", () => {
   it("shows rendered markdown (read-only) with an edit toggle for an existing note", () => {
@@ -95,13 +103,6 @@ describe("MarkdownModal", () => {
   });
 
   it("toggles between the textarea and a rendered preview while editing", () => {
-    // The modal is controlled, so drive mdContent from a stateful wrapper.
-    const ControlledModal = () => {
-      const [value, setValue] = useState("");
-
-      return <MarkdownModal {...defaultProps} mdContent={value} setMdContent={setValue} />;
-    };
-
     render(<ControlledModal />, { wrapper: Wrapper });
 
     // Starts in the editor

@@ -18,14 +18,17 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
 
 import pytest
 from jwt import InvalidTokenError
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
+    AssetDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -34,6 +37,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -41,9 +45,7 @@ from tests_common.test_utils.config import conf_vars
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
-        AccessView,
         AssetAliasDetails,
-        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
@@ -132,7 +134,11 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         raise NotImplementedError()
 
     def is_authorized_view(
-        self, *, access_view: AccessView, user: BaseAuthManagerUserTest | None = None
+        self,
+        *,
+        access_view: AccessView,
+        user: BaseAuthManagerUserTest | None = None,
+        team_name: str | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -156,6 +162,67 @@ def auth_manager():
 class TestBaseAuthManager:
     def test_init_non_multi_team_mode(self, auth_manager):
         assert auth_manager.init() is None
+
+    @patch.object(EmptyAuthManager, "is_authorized_view")
+    def test_authorize_view_passes_team_name_to_team_aware_manager(
+        self, mock_is_authorized_view, auth_manager
+    ):
+        mock_is_authorized_view.return_value = True
+
+        result = auth_manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
+
+        assert result is True
+        mock_is_authorized_view.assert_called_once_with(
+            access_view=AccessView.DOCS, user=None, team_name="team_a"
+        )
+
+    def test_authorize_view_drops_team_name_and_warns_for_team_unaware_manager(self):
+        # A manager whose is_authorized_view predates team_name (out-of-tree, or a provider
+        # released before the argument existed) must keep working: authorize_view falls back
+        # to a global check and warns that some views are not team-restricted.
+        class TeamUnawareAuthManager(EmptyAuthManager):
+            def is_authorized_view(self, *, access_view, user=None):  # old signature, no team_name
+                return True
+
+        manager = TeamUnawareAuthManager()
+
+        with pytest.warns(RemovedInAirflow4Warning, match="not team-aware"):
+            result = manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
+
+        assert result is True
+
+    def test_authorize_view_denies_a_view_the_manager_cannot_map(self):
+        # AccessView members are added by core, but auth managers ship as separately
+        # released providers, so a core newer than the installed manager can name a view
+        # the manager has never heard of. Managers that translate the enum through a lookup
+        # table raise KeyError on such a member, which would surface as a 500 on the
+        # endpoint. authorize_view denies instead -- the endpoint keeps working and the
+        # records these views gate stay closed.
+        class LookupTableAuthManager(EmptyAuthManager):
+            def is_authorized_view(self, *, access_view, user=None, team_name=None):
+                return {AccessView.WEBSITE: True}[access_view]
+
+        manager = LookupTableAuthManager()
+
+        with pytest.warns(UserWarning, match="cannot map the 'DOCS' view"):
+            result = manager.authorize_view(access_view=AccessView.DOCS, user=None)
+
+        assert result is False
+        # A view the manager does map is unaffected.
+        assert manager.authorize_view(access_view=AccessView.WEBSITE, user=None) is True
+
+    def test_authorize_view_treats_kwargs_override_as_team_aware(self):
+        class KwargsAuthManager(EmptyAuthManager):
+            def is_authorized_view(self, *, access_view, user=None, **kwargs):
+                return kwargs.get("team_name") == "team_a"
+
+        manager = KwargsAuthManager()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # a warning here would fail the test
+            result = manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
+
+        assert result is True
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.parametrize(
@@ -731,6 +798,75 @@ class TestBaseAuthManager:
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_pools(user=user, session=session)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("authorized_uri_prefix", "rows", "expected"),
+        [
+            pytest.param(None, [(1, "a", "s3://team-a/a"), (2, "b", "s3://team-b/b")], set(), id="no-access"),
+            pytest.param(
+                "s3://team-a/",
+                [(1, "a", "s3://team-a/a"), (2, "b", "s3://team-b/b"), (3, "c", "s3://team-a/c")],
+                {1, 3},
+                id="access-by-uri-prefix",
+            ),
+        ],
+    )
+    def test_get_authorized_assets(self, auth_manager, authorized_uri_prefix, rows: list, expected: set):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            user: BaseAuthManagerUserTest,
+            details: AssetDetails | None = None,
+        ):
+            if not details or not details.uri or authorized_uri_prefix is None:
+                return False
+            return details.uri.startswith(authorized_uri_prefix)
+
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=side_effect_func
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
+        session.execute.return_value.all.return_value = rows
+        result = auth_manager.get_authorized_assets(user=user, session=session)
+        assert result == expected
+
+    def test_get_authorized_assets_passes_id_name_and_uri_to_filter(self, auth_manager):
+        auth_manager.filter_authorized_assets = create_autospec(
+            auth_manager.filter_authorized_assets, return_value={"2"}
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+        session = Mock(spec=Session)
+        session.execute.return_value.all.return_value = [(1, "a", "s3://a"), (2, "b", "s3://b")]
+
+        result = auth_manager.get_authorized_assets(user=user, method="PUT", session=session)
+
+        auth_manager.filter_authorized_assets.assert_called_once_with(
+            assets=[
+                AssetDetails(id="1", name="a", uri="s3://a"),
+                AssetDetails(id="2", name="b", uri="s3://b"),
+            ],
+            user=user,
+            method="PUT",
+        )
+        assert result == {2}
+
+    def test_filter_authorized_assets(self, auth_manager):
+        assets = [
+            AssetDetails(id="1", name="a", uri="s3://a"),
+            AssetDetails(id="2", name="b", uri="s3://b"),
+            AssetDetails(name="no-id", uri="s3://no-id"),
+        ]
+        auth_manager.is_authorized_asset = create_autospec(
+            auth_manager.is_authorized_asset, side_effect=lambda *, method, user, details: details.id != "2"
+        )
+        user = Mock(spec=BaseAuthManagerUserTest)
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="DELETE")
+
+        assert result == {"1"}
+        auth_manager.is_authorized_asset.assert_any_call(method="DELETE", details=assets[0], user=user)
+        auth_manager.is_authorized_asset.assert_any_call(method="DELETE", details=assets[1], user=user)
 
     @pytest.mark.parametrize(
         ("user_id", "assigned_users", "expected"),

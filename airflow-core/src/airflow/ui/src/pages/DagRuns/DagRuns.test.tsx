@@ -17,10 +17,18 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
+
+// Stand in for the Monaco-backed JSON viewer so the test can assert the collapse
+// state without loading the editor.
+vi.mock("src/components/RenderedJsonField", () => ({
+  default: ({ collapsed }: { readonly collapsed?: boolean }) => (
+    <div data-collapsed={collapsed} data-testid="rendered-json-field" />
+  ),
+}));
 
 // The dag_runs mock handler (see src/mocks/handlers/dag_runs.ts) returns:
 //   - run_before_filter (logical_date: 2024-12-31) — excluded when filtering Jan 2025
@@ -44,5 +52,46 @@ describe("DagRuns logical date filter", () => {
 
     await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
     expect(screen.queryByText("run_before_filter")).not.toBeInTheDocument();
+  });
+});
+
+describe("DagRuns conf expand/collapse", () => {
+  // Relies on the conf column being visible by default, which is what renders the JSON viewer.
+  // useTableURLState persists sorting to localStorage, so clear it between cases.
+  afterEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it("toggles conf JSON collapse state via the expand/collapse all buttons", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("rendered-json-field")).toBeInTheDocument());
+
+    expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true");
+
+    fireEvent.click(screen.getByTestId("expand-all-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "false"),
+    );
+
+    fireEvent.click(screen.getByTestId("collapse-all-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true"),
+    );
+  });
+
+  it("hides the expand/collapse buttons when no runs match the filter", async () => {
+    render(
+      <AppWrapper
+        initialEntries={[
+          "/dag_runs?logical_date_gte=2030-01-01T00%3A00%3A00Z&logical_date_lte=2030-01-31T23%3A59%3A59Z",
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("table-no-rows")).toBeInTheDocument());
+
+    expect(screen.queryByTestId("expand-all-button")).toBeNull();
+    expect(screen.queryByTestId("collapse-all-button")).toBeNull();
   });
 });

@@ -24,7 +24,7 @@ import pytest
 from openlineage.client.constants import __version__
 from packaging.version import parse
 
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import (
@@ -33,7 +33,6 @@ from airflow.providers.dbt.cloud.utils.openlineage import (
 )
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 TASK_ID = "dbt_test"

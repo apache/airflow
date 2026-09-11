@@ -66,6 +66,12 @@ def get_provider_info():
             {"integration-name": "WebHDFS", "python-modules": ["airflow.providers.apache.hdfs.hooks.webhdfs"]}
         ],
         "logging": ["airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsTaskHandler"],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO",
+                "scheme": "hdfs",
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook",

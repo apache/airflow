@@ -38,4 +38,9 @@ Airflow constantly monitors the state of an external resource and updates the as
 resource reaches a given state (if it does reach it). To achieve this, we leverage Airflow Triggers.
 Triggers are small, asynchronous pieces of Python code whose job is to poll an external resource state.
 
+Each queue provider accepts provider-specific keyword arguments that are forwarded to the underlying
+trigger. Refer to the provider's message queue documentation for the supported arguments. Because
+triggers run in the Triggerer, any user code referenced by these arguments (for example a function
+passed as a string in Python dot notation) must be importable there.
+
 The list of supported message queues is available in :doc:`apache-airflow-providers:core-extensions/message-queues`.

@@ -44,12 +44,17 @@ in a non-Python implementation.
      - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
      - None (native binary)
      - :doc:`go`
+   * - TypeScript
+     - :class:`task-sdk:airflow.sdk.coordinators.node.NodeCoordinator`
+     - Node.js 22
+     - :doc:`typescript`
 
 .. toctree::
    :hidden:
 
    java
    go
+   typescript
 
 How it works
 ------------
@@ -121,6 +126,13 @@ XCom values produced by a stub task are visible to downstream Python tasks and v
 XCom references should be defined inside the Python Dag (they are task dependencies), you still need to
 actually read the values out in the language implementation, and vice versa. See specific language SDK
 documentation on how to do this correctly.
+
+.. note::
+
+    For a Dag containing stub tasks, the **Code** view in the Airflow UI shows only the Python Dag
+    file — including the stub declarations — as the Dag's source. The non-Python implementation source
+    is not displayed anywhere in the UI; consult your project repository or the build artifact shipped
+    in the bundle to inspect it. This is an intentional architecture decision, not a bug.
 
 .. _language-sdks/coordinator-config:
 

@@ -30,7 +30,7 @@ const ti = {
     id: "019518f4-1adb-7223-a917-45fe08b78947",
     version_number: 1,
   },
-  duration: 0.203_977,
+  duration: 0.203977,
   end_date: "2025-02-18T12:19:56.467235Z",
   executor: null,
   executor_config: "{}",

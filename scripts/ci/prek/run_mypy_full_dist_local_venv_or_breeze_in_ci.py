@@ -40,6 +40,7 @@ from pathlib import Path
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
     check_uv_version,
+    is_hidden_within_root,
 )
 
 CI = os.environ.get("CI")
@@ -138,7 +139,7 @@ def get_all_files(folder: str) -> list[str]:
         if (
             file.name not in ("conftest.py",)
             and not any(x.match(file.as_posix()) for x in exclude_regexps)
-            and not any(part.startswith(".") for part in file.parts)
+            and not is_hidden_within_root(file, AIRFLOW_ROOT_PATH)
         ):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     return files_to_check
@@ -302,8 +303,8 @@ if CI:
         print("No files to test. Quitting")
         sys.exit(0)
 
-    write_file_list(all_files_to_check)
-    file_argument_ci = "@/files/mypy_files.txt"
+    mypy_file_list = write_file_list(all_files_to_check, suffix=mypy_folders[0].replace("/", "-"))
+    file_argument_ci = f"@/files/{mypy_file_list.name}"
 
     mypy_cmd = (
         f"TERM=ansi mypy --follow-imports=silent {shlex.quote(file_argument_ci)} {' '.join(mypy_extra_args)}"

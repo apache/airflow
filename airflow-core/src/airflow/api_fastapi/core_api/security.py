@@ -25,7 +25,9 @@ from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt, TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -68,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -141,9 +144,17 @@ USER_INJECTED_BY_TRUSTED_MIDDLEWARE = object()
 
 async def get_user(
     request: Request,
-    oauth_token: str | None = Depends(oauth2_scheme),
+    # Kept for the OpenAPI security spec so ``/docs`` still renders the OAuth2 password
+    # login form. It resolves to the same ``Authorization: Bearer`` header
+    # ``bearer_scheme`` reads, so the value is unused at runtime.
+    _oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
+    # An explicitly supplied credential always wins over the ambient session cookie.
+    if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
+        return await resolve_user_from_token(bearer_credentials.credentials)
+
+    # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
     # only `JWTRefreshMiddleware`); if so, it is stored in `request.state.user` AND
     # `request.state.user_authenticated_via` is set to the trust sentinel above.
@@ -153,16 +164,32 @@ async def get_user(
     trust_marker = getattr(request.state, "user_authenticated_via", None)
     if user and trust_marker is USER_INJECTED_BY_TRUSTED_MIDDLEWARE:
         return user
+    return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
-    token_str: str | None
+
+def collect_request_tokens(
+    request: Request,
+    bearer_credentials: HTTPAuthorizationCredentials | None,
+) -> list[str]:
+    """
+    Return every distinct credential presented on this request, in precedence order.
+
+    Logout uses this rather than reproducing the single-credential choice
+    :func:`get_user` makes. Revoking only the precedence-selected credential would leave
+    any other one the caller presented still valid after they asked to be logged out,
+    and which credential "wins" is a question about *authentication* that should not
+    decide what a logout terminates.
+    """
+    candidates: list[str | None] = []
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
-        token_str = bearer_credentials.credentials
-    elif oauth_token:
-        token_str = oauth_token
-    else:
-        token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
+        candidates.append(bearer_credentials.credentials)
+    candidates.append(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
-    return await resolve_user_from_token(token_str)
+    tokens: list[str] = []
+    for candidate in candidates:
+        if candidate and candidate not in tokens:
+            tokens.append(candidate)
+    return tokens
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
@@ -198,6 +225,49 @@ def requires_access_dag(
     return inner
 
 
+def requires_access_dag_from_file_token(
+    method: ResourceMethod,
+) -> Callable[[str, Request, BaseUser, Session], None]:
+    """
+    Authorize the caller against the DAGs referenced by a signed ``file_token``.
+
+    For ``file_token`` based endpoints (such as ``reparse``), the token is resolved to its referenced file, and authorization is performed against exactly the DAGs defined in that file, never against a request parameter.
+    """
+
+    def inner(
+        file_token: str,
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        try:
+            payload = URLSafeSerializer(request.app.state.secret_key).loads(file_token)
+        except BadSignature:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_ids = list(
+            session.scalars(
+                select(DagModel.dag_id).where(
+                    DagModel.bundle_name == payload["bundle_name"],
+                    DagModel.relative_fileloc == payload["relative_fileloc"],
+                )
+            )
+        )
+        if not dag_ids:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+        requests: list[IsAuthorizedDagRequest] = [
+            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
+            for dag_id in dag_ids
+        ]
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(requests, user=user),
+        )
+
+    return inner
+
+
 class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
@@ -221,12 +291,39 @@ class PermittedDagWarningFilter(PermittedDagFilter):
 
 
 class PermittedEventLogFilter(PermittedDagFilter):
-    """A parameter that filters the permitted even logs for the user."""
+    """A parameter that filters the permitted event logs for the user."""
+
+    def __init__(self, value: set[str] | None = None, *, include_non_dag_logs: bool = False):
+        super().__init__(value)
+        self.include_non_dag_logs = include_non_dag_logs
 
     def to_orm(self, select: Select) -> Select:
-        # Event Logs not related to Dags have dag_id as None and are always returned.
-        # return select.where(Log.dag_id.in_(self.value or set()) or Log.dag_id.is_(None))
-        return select.where(or_(Log.dag_id.in_(self.value or set()), Log.dag_id.is_(None)))
+        permitted_dag_logs = Log.dag_id.in_(self.value or set())
+        if not self.include_non_dag_logs:
+            return select.where(permitted_dag_logs)
+        # Event logs not related to a Dag have dag_id as None. They record Connection,
+        # Variable, Pool, … operations, so they carry no per-Dag key to authorize on and
+        # are gated on ``AccessView.AUDIT_LOGS_ALL`` instead of Dag-level audit access.
+        # Filtering here rather than after the fact keeps unauthorized rows out of the
+        # count and pagination too, so their existence does not leak either.
+        return select.where(or_(permitted_dag_logs, Log.dag_id.is_(None)))
+
+
+class PermittedAssetEventFilter(PermittedDagFilter):
+    """A parameter that filters asset events to those produced by Dags the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Asset events created through the API, or emitted by a watcher, have no source Dag.
+        # They carry no per-Dag key to authorize on, so they stay visible to any caller who
+        # may read assets; only events produced by a Dag's task are scoped to that Dag's
+        # readability. Filtering here rather than after the fact keeps unauthorized rows out
+        # of the count and pagination too, so their existence does not leak either.
+        return select.where(
+            or_(
+                AssetEvent.source_dag_id.in_(self.value or set()),
+                AssetEvent.source_dag_id.is_(None),
+            )
+        )
 
 
 class PermittedTIFilter(PermittedDagFilter):
@@ -289,15 +386,41 @@ ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filt
 ReadableDagRunsFilterDep = Annotated[
     PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
 ]
+ReadableAssetEventsFilterDep = Annotated[
+    PermittedAssetEventFilter, Depends(permitted_dag_filter_factory("GET", PermittedAssetEventFilter))
+]
 ReadableDagWarningsFilterDep = Annotated[
     PermittedDagWarningFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagWarningFilter))
 ]
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
 ]
-ReadableEventLogsFilterDep = Annotated[
-    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedEventLogFilter))
-]
+
+
+def readable_event_logs_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedEventLogFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns the event-log filter for the user.
+
+    Event logs need their own factory rather than ``permitted_dag_filter_factory``: besides
+    the readable Dag ids, the filter needs to know whether the user may read audit rows that
+    are not tied to a Dag, which is a separate authorization decision.
+    """
+
+    def depends_readable_event_logs_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedEventLogFilter:
+        return PermittedEventLogFilter(
+            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+            include_non_dag_logs=auth_manager.authorize_view(
+                access_view=AccessView.AUDIT_LOGS_ALL, user=user
+            ),
+        )
+
+    return depends_readable_event_logs_filter
+
+
+ReadableEventLogsFilterDep = Annotated[PermittedEventLogFilter, Depends(readable_event_logs_filter_factory())]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
 ]
@@ -313,6 +436,38 @@ ReadableBackfillsFilterDep = Annotated[
 ]
 
 
+# The type the backfill routes declare for the `backfill_id` path parameter. Shared with
+# `requires_access_backfill` so the authorization decision parses the id exactly as the handler
+# does; see the comment there for why any divergence is a cross-Dag authorization bypass.
+_BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
+
+# Shared with the backfill routes: for an id named in the path this dependency answers before
+# the handler does, so the two must not describe the same condition differently.
+BACKFILL_NOT_FOUND = "Backfill not found"
+
+
+def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user: BaseUser) -> None:
+    """Authorize a backfill named by the request path against that backfill's Dag alone."""
+    # ``dag_id`` is None when the id matched no row. Answering 404 there while a backfill on a Dag
+    # the caller may not read answers 403 would tell them which backfill ids exist across Dags.
+    if dag_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
+    details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id))
+    auth_manager = get_auth_manager()
+    if auth_manager.is_authorized_dag(
+        method=method, access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        return
+    # A caller who may read the Dag can already list its backfills, so the id is no secret from
+    # them: hiding it would only cost them the reason their request was refused.
+    if method != "GET" and auth_manager.is_authorized_dag(
+        method="GET", access_entity=DagAccessEntity.RUN, details=details, user=user
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
+
+
 def requires_access_backfill(
     method: ResourceMethod,
 ) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
@@ -323,32 +478,39 @@ def requires_access_backfill(
         user: GetUserDep,
         session: SessionDep,
     ) -> None:
-        dag_id = None
-
-        # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
-            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
-        except ValueError:
+            # Must parse exactly as the handler does (e.g. pydantic's lax mode coerces "1.0" to 1
+            # where int() raises), or the two can authorize and act on different backfills.
+            backfill_id = (
+                _BACKFILL_ID_ADAPTER.validate_python(backfill_id_raw) if backfill_id_raw is not None else None
+            )
+        except ValidationError:
+            # Rejected by the endpoint's parser too, so the handler cannot run: FastAPI answers
+            # 422 before it is reached. Left as None, preserving that response.
             backfill_id = None
 
         if backfill_id is not None:
-            backfill = session.scalars(select(Backfill).where(Backfill.id == backfill_id)).one_or_none()
-            dag_id = backfill.dag_id if backfill else None
+            # The path names the backfill, so its row is the only authorization subject: what the
+            # caller supplies alongside must not decide a decision the path already scoped.
+            dag_id = session.scalar(select(Backfill.dag_id).where(Backfill.id == backfill_id))
+            _authorize_backfill_in_path(method, dag_id, user)
+            return
 
-        # Try to retrieve the dag_id from the request body (POST backfill)
-        if dag_id is None:
-            # Not a json body, ignore
-            with suppress(JSONDecodeError):
-                body = await request.json()
-                if isinstance(body, dict):
-                    dag_id = body.get("dag_id")
-            if dag_id is not None and not isinstance(dag_id, str):
-                # Fail closed: reject non-string dag_id before authz decision.
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="'dag_id' must be a string",
-                )
+        # Left: the routes naming their Dag in the body (create, dry run) or in the query string
+        # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
+        dag_id = None
+        # Not a json body, ignore
+        with suppress(JSONDecodeError):
+            body = await request.json()
+            if isinstance(body, dict):
+                dag_id = body.get("dag_id")
+        if dag_id is not None and not isinstance(dag_id, str):
+            # Fail closed: reject non-string dag_id before authz decision.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="'dag_id' must be a string",
+            )
 
         requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
             request,
@@ -379,7 +541,22 @@ def requires_access_event_log(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="'event_log_id' must be an integer",
                 )
-            dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
+            # Select the id alongside dag_id: a NULL dag_id and a missing row both come back
+            # as None from a bare ``Log.dag_id`` scalar, and they authorize differently.
+            row = session.execute(select(Log.id, Log.dag_id).where(Log.id == event_log_id)).one_or_none()
+            if row is not None and row.dag_id is None:
+                # The row records an operation that is not tied to a Dag, so there is no
+                # per-Dag key to authorize on: gate it on ``AccessView.AUDIT_LOGS_ALL``,
+                # the same view the list endpoint's filter uses for these rows.
+                _requires_access(
+                    is_authorized_callback=lambda: get_auth_manager().authorize_view(
+                        access_view=AccessView.AUDIT_LOGS_ALL, user=user
+                    ),
+                )
+                return
+            # A missing row keeps the Dag-level check so the route can answer 404 rather
+            # than turning an unknown id into a permission error.
+            dag_id = row.dag_id if row is not None else None
 
         requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
             request,
@@ -838,16 +1015,83 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
     return inner
 
 
+class PermittedAssetFilter(OrmClause[set[int]]):
+    """A parameter that filters the permitted assets for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(AssetModel.id.in_(self.value or set()))
+
+
+# Uncorrelated on purpose: a correlated EXISTS would bind to the outer AssetModel join some
+# asset event queries add (e.g. for name filters) and produce an invalid statement.
+_existing_asset_ids = select(AssetModel.id)
+
+
+class PermittedAssetEventByAssetFilter(PermittedAssetFilter):
+    """A parameter that filters asset events to those of the assets the user may read."""
+
+    def to_orm(self, select: Select) -> Select:
+        # Events outlive their asset by design. Once the asset row is gone there is no name or
+        # uri left to authorize on, so such events stay visible to any caller who may read
+        # assets, the same way events with no source Dag do.
+        return select.where(
+            or_(
+                AssetEvent.asset_id.in_(self.value or set()),
+                AssetEvent.asset_id.not_in(_existing_asset_ids),
+            )
+        )
+
+
+def permitted_asset_filter_factory(
+    method: ResourceMethod,
+    filter_class: type[PermittedAssetFilter] = PermittedAssetFilter,
+) -> Callable[[BaseUser, BaseAuthManager], PermittedAssetFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted assets for the user.
+
+    :param method: whether filter readable or writable.
+    :param filter_class: the filter class to instantiate, defaulting to ``PermittedAssetFilter``.
+    """
+
+    def depends_permitted_assets_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedAssetFilter:
+        authorized_assets: set[int] = auth_manager.get_authorized_assets(user=user, method=method)
+        return filter_class(authorized_assets)
+
+    return depends_permitted_assets_filter
+
+
+ReadableAssetsFilterDep = Annotated[PermittedAssetFilter, Depends(permitted_asset_filter_factory("GET"))]
+ReadableAssetEventsByAssetFilterDep = Annotated[
+    PermittedAssetEventByAssetFilter,
+    Depends(permitted_asset_filter_factory("GET", PermittedAssetEventByAssetFilter)),
+]
+
+
+def _build_asset_details(asset_id: str | None) -> AssetDetails:
+    """Resolve the name and uri of the asset so an auth manager can authorize on more than the id."""
+    if asset_id is None or not asset_id.isdigit():
+        # A non-numeric id fails the route's own path validation; there is nothing to look up.
+        return AssetDetails(id=asset_id)
+    name_and_uri = AssetModel.get_name_and_uri(int(asset_id))
+    if name_and_uri is None:
+        return AssetDetails(id=asset_id)
+    name, uri = name_and_uri
+    return AssetDetails(id=asset_id, name=name, uri=uri)
+
+
 def requires_access_asset(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
         user: GetUserDep,
     ) -> None:
-        asset_id = request.path_params.get("asset_id")
+        details = _build_asset_details(request.path_params.get("asset_id"))
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
-                method=method, details=AssetDetails(id=asset_id), user=user
+                method=method, details=details, user=user
             ),
         )
 
@@ -963,12 +1207,13 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
 
     # According to WHATWG for http/https /// is interpreted as // whereas urllib doesnt
     # this leads to an inconsistency where python returns a target url with /// as a valid url
-    # The same thing also happens with \ where under WHATWG \ are translated to /
-    target_url = unquote(target_url).strip()
-    if target_url.startswith(("//", "/\\", "\\/", "\\\\")):
+    # The same thing also happens with \ where under WHATWG \ are translated to /, including
+    # after a scheme, so "https:\\host" is an authority for a browser but a path for urllib.
+    target_url = unquote(target_url).strip().replace("\\", "/")
+    if target_url.startswith("//"):
         return False
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
         base_path = parsed_base.path or "/"
         target_path = parsed_target.path or "/"

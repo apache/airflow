@@ -109,7 +109,7 @@ Here's what's happening:
 - Using ``ObjectStoragePath``, we write the data directly to cloud storage as Parquet
 
 This is a classic TaskFlow pattern. The object key changes each day, allowing us to run this daily and build a dataset
-over time. We return the final object path to be used in the next task.
+over time. We return the final object path to be used in the downstream task.
 
 Why this is cool: No boto3, no GCS client setup, no credentials juggling. Just simple file semantics that work across
 storage backends.
@@ -133,7 +133,7 @@ A few key things to note:
 - We use ``path.fs`` to grab the right filesystem object and register it with DuckDB
 - Finally, we query the Parquet file using SQL and return a pandas DataFrame
 
-Notice that the function doesn't recreate the path manually -- it gets the full path from the previous task using Xcom.
+Notice that the function doesn't recreate the path manually -- it gets the full path from the upstream task using Xcom.
 This makes the task portable and decoupled from earlier logic.
 
 Bringing It All Together

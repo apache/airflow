@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add new executor field to db.
+Add new executor field to db.
 
 Revision ID: 677fdbb7fc54
 Revises: 0fd0c178cbe8

@@ -19,6 +19,25 @@
 ``apache-airflow-providers-cohere``
 ======================================
 
+The ``cohere`` provider gives Dags direct access to Cohere's Embed and Rerank APIs — this page
+compares that choice against ``common.ai``.
+
+When to use this provider
+--------------------------
+
+Use ``cohere`` when a Dag needs Cohere's native embedding or reranking models:
+
+* ``CohereEmbeddingOperator`` — call Cohere's
+  `Embed API <https://docs.cohere.com/docs/embeddings>`__ directly via ``CohereHook``.
+* ``CohereRerankOperator`` — reorder documents with Cohere's
+  `Rerank API <https://docs.cohere.com/docs/rerank-overview>`__.
+
+Use :doc:`apache-airflow-providers-common-ai:index` instead when the embedding step should
+stay vendor-neutral:
+
+* Document-to-vector-store pipelines with its document loader, embedding, and retrieval
+  operators (see :doc:`apache-airflow-providers-common-ai:operators/index`), which are not
+  tied to Cohere's embedding models.
 
 .. toctree::
     :hidden:
@@ -36,6 +55,7 @@
 
     Connection types <connections>
     Operators <operators/embedding>
+    Rerank operator <operators/rerank>
 
 .. toctree::
     :hidden:
@@ -71,7 +91,7 @@ apache-airflow-providers-cohere package
 `Cohere <https://docs.cohere.com/docs>`__
 
 
-Release: 1.6.6
+Release: 1.7.0
 
 Provider package
 ----------------
@@ -107,5 +127,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-cohere 1.6.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6.tar.gz.sha512>`__)
-* `The apache-airflow-providers-cohere 1.6.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-cohere 1.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.7.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-cohere 1.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.7.0-py3-none-any.whl.sha512>`__)

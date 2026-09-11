@@ -464,6 +464,19 @@ def test_logger_respects_configured_level(structlog_config):
     assert "[my_logger] Debug message\n" in written
 
 
+def test_alembic_runtime_plugin_setup_logs_are_suppressed(structlog_config):
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="INFO",
+    ) as sio:
+        logger = logging.getLogger("alembic.runtime.plugins")
+        logger.info("Filtered plugin setup message")
+        logger.warning("Visible warning")
+
+    assert sio.getvalue() == "[alembic.runtime.plugins] Visible warning\n"
+
+
 def test_excepthook_installed_when_json_output_true(structlog_config):
     import sys
 

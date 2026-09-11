@@ -467,6 +467,12 @@ class TestAwsBaseHook:
             mock_supervisor_comms.send.return_value = ConnectionResult(
                 conn_id="aws_default",
                 conn_type="aws",
+                host=None,
+                schema=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
             )
         with mock.patch.dict(os.environ, env_var, clear=True):
             dag_run_key = self.fetch_tags()["DagRunKey"]

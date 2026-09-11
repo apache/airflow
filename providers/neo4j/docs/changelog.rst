@@ -29,6 +29,31 @@
 Changelog
 ---------
 
+3.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Show the deprecated Neo4jOperator sql query in Rendered Templates (#70373)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fail Neo4jOperator argument mistakes at Dag parse time (#70508)``
+   * ``Fix Neo4jOperator templated query validation (#70348)``
+
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Rename Neo4jOperator 'sql' parameter to 'cypher' (#68970)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.11.6
 ......
 

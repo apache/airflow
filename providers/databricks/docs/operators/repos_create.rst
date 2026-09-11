@@ -53,7 +53,7 @@ To use this operator you need to provide at least ``git_url`` parameter.
    * - databricks_retry_limit: integer
      - amount of times retry if the Databricks backend is unreachable.
    * - databricks_retry_delay: decimal
-     - number of seconds to wait between retries.
+     - minimum wait in seconds between retryable attempts (exponential backoff by default).
 
 Examples
 --------

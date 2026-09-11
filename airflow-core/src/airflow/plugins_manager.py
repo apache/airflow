@@ -20,9 +20,11 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 from collections.abc import Iterable
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
@@ -30,7 +32,13 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
+    ExternalViewDict as ExternalViewDict,
+    FastAPIAppDict as FastAPIAppDict,
+    FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
@@ -133,22 +141,114 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
         if not settings.LAZY_LOAD_PROVIDERS:
             __register_plugins(*_load_providers_plugins())
 
-    log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
+    if import_errors:
+        log.warning(
+            "Failed to load %d plugin file(s): %s",
+            len(import_errors),
+            sorted(import_errors.keys()),
+        )
+    elif not plugins:
+        log.debug("No plugins loaded (plugins folder is empty or contains no valid plugins)")
+    else:
+        log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
     return plugins, import_errors
 
 
+_DAG_APPLIES_TO_CRITERIA = frozenset({"dag_tags", "dag_ids"})
+_TASK_APPLIES_TO_CRITERIA = frozenset({"task_ids", "operators", "operator_names"})
+_APPLIES_TO_CRITERIA = _DAG_APPLIES_TO_CRITERIA | _TASK_APPLIES_TO_CRITERIA
+
+# Which `applies_to` criteria each destination can resolve a record for. A destination
+# missing from this mapping cannot evaluate any criterion. Kept in sync with the table in
+# docs/administration-and-deployment/plugins.rst.
+_EVALUABLE_CRITERIA_BY_DESTINATION: dict[str, frozenset[str]] = {
+    "dag": _DAG_APPLIES_TO_CRITERIA,
+    "dag_run": _DAG_APPLIES_TO_CRITERIA,
+    "dag_overview": _DAG_APPLIES_TO_CRITERIA,
+    "task": _APPLIES_TO_CRITERIA,
+    "task_overview": _APPLIES_TO_CRITERIA,
+    "task_instance": _APPLIES_TO_CRITERIA,
+    "nav": frozenset(),
+    "base": frozenset(),
+    "dashboard": frozenset(),
+    "asset": frozenset(),
+}
+
+
+def _describe_applies_to_error(applies_to: Any) -> str | None:
+    """Return a description of why ``applies_to`` is malformed, or ``None`` if it is valid."""
+    if not isinstance(applies_to, dict):
+        return f"expected a dictionary, got {type(applies_to).__name__}"
+    if non_string_keys := [key for key in applies_to if not isinstance(key, str)]:
+        return f"criterion names must be strings, got {sorted(non_string_keys, key=repr)!r}"
+    if unknown_keys := set(applies_to) - _APPLIES_TO_CRITERIA:
+        return f"unknown criteria {sorted(unknown_keys)}, expected any of {sorted(_APPLIES_TO_CRITERIA)}"
+    for criterion, values in applies_to.items():
+        if values is None:
+            continue
+        if not isinstance(values, (list, tuple)) or not all(isinstance(value, str) for value in values):
+            return f"'{criterion}' must be a list of strings, got {values!r}"
+    return None
+
+
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
+    """
+    Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
+
+    A malformed block is removed so the view still loads unscoped, matching the default for
+    a view that omits ``applies_to`` entirely. Criteria the destination cannot evaluate are
+    only warned about — they are skipped at match time by design, so that one block can be
+    shared across a plugin's Dag- and task-level destinations.
+    """
+    if "applies_to" not in view:
+        return
+
+    applies_to = view["applies_to"]
+    if applies_to is None:
+        return
+
+    if error := _describe_applies_to_error(applies_to):
+        log.warning(
+            "Plugin '%s' has %s '%s' with an invalid 'applies_to': %s. The scoping will be ignored.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            error,
+        )
+        del view["applies_to"]
+        return
+
+    destination = view.get("destination", "nav")
+    if destination not in _EVALUABLE_CRITERIA_BY_DESTINATION:
+        # An unrecognised destination already fails serialization; warning here too would
+        # only add noise pointing at the wrong problem.
+        return
+
+    configured = {criterion for criterion, values in applies_to.items() if values}
+    if unevaluable := configured - _EVALUABLE_CRITERIA_BY_DESTINATION[destination]:
+        log.warning(
+            "Plugin '%s' has %s '%s' with destination '%s', which cannot evaluate %s. "
+            "Those criteria will be ignored.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            destination,
+            sorted(unevaluable),
+        )
+
+
 @cache
-def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
+def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     """Collect extension points for the UI."""
     log.debug("Initialize UI plugin")
 
     seen_url_routes: dict[str, str | None] = {}
 
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
     for plugin in _get_plugins()[0]:
-        external_views_to_remove = []
-        react_apps_to_remove = []
+        external_views_to_remove: list[ExternalViewDict] = []
+        react_apps_to_remove: list[ReactAppDict] = []
         for external_view in plugin.external_views:
             if not isinstance(external_view, dict):
                 log.warning(
@@ -157,6 +257,7 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 external_views_to_remove.append(external_view)
                 continue
+            _validate_applies_to(plugin.name, external_view, "an external view")
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
@@ -181,6 +282,7 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 react_apps_to_remove.append(react_app)
                 continue
+            _validate_applies_to(plugin.name, react_app, "a React App")
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue
@@ -197,10 +299,10 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
             react_apps.append(react_app)
             seen_url_routes[url_route] = plugin.name
 
-        for item in external_views_to_remove:
-            plugin.external_views.remove(item)
-        for item in react_apps_to_remove:
-            plugin.react_apps.remove(item)
+        for external_view in external_views_to_remove:
+            plugin.external_views.remove(external_view)
+        for react_app in react_apps_to_remove:
+            plugin.react_apps.remove(react_app)
     return external_views, react_apps
 
 
@@ -230,15 +332,128 @@ def get_flask_plugins() -> tuple[list[Any], list[Any], list[Any]]:
 
 @cache
 def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
-    """Collect extension points for the API."""
+    """
+    Collect extension points for the API.
+
+    Each returned dict is a shallow copy of the plugin's own dict with the owning
+    plugin's ``team_name`` added, so the API server can authorize a team-scoped
+    plugin's app without re-deriving which plugin it came from. The plugin's dicts are
+    left untouched, so this does not alter what ``get_plugin_info`` reports.
+    """
     log.debug("Initialize FastAPI plugins")
+
+    # Validate here (the API-server, DB-available path) so callers cannot mount
+    # plugins without the team check running.
+    validate_plugin_teams()
 
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     for plugin in _get_plugins()[0]:
-        fastapi_apps.extend(plugin.fastapi_apps)
-        fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
+        fastapi_apps.extend({**app, "team_name": plugin.team_name} for app in plugin.fastapi_apps)
+        fastapi_root_middlewares.extend(
+            {**middleware, "team_name": plugin.team_name} for middleware in plugin.fastapi_root_middlewares
+        )
     return fastapi_apps, fastapi_root_middlewares
+
+
+PluginTranslations = dict[str, dict[str, dict[str, Any]]]
+
+
+def merge_translations(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Deep-merge ``override`` onto ``base`` (recursing into nested dicts) and return a new dict."""
+    merged = dict(base)
+    for key, value in override.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = merge_translations(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_translation_source(source: Any) -> PluginTranslations:
+    """Load one ``ui_translations`` entry (inline mapping or ``<language>/<namespace>.json`` tree)."""
+    result: PluginTranslations = {}
+
+    if isinstance(source, dict):
+        for language, namespaces in source.items():
+            for namespace, keys in namespaces.items():
+                if not isinstance(keys, dict):
+                    raise ValueError(f"translations for {language!r}/{namespace!r} must be a mapping")
+                result.setdefault(language, {})[namespace] = keys
+        return result
+
+    directory = Path(source)
+    if not directory.is_dir():
+        raise ValueError(f"translation source {source!r} is neither a directory nor an inline mapping")
+    for language_dir in sorted(directory.iterdir()):
+        if not language_dir.is_dir():
+            continue
+        for namespace_file in sorted(language_dir.glob("*.json")):
+            try:
+                content = json.loads(namespace_file.read_text("utf-8"))
+            except (OSError, ValueError):
+                log.warning("Skipping unreadable UI translation file %s", namespace_file)
+                continue
+            result.setdefault(language_dir.name, {})[namespace_file.stem] = content
+    return result
+
+
+@cache
+def get_ui_translations() -> PluginTranslations:
+    """
+    Collect and deep-merge the ``language -> namespace -> keys`` UI translations from all plugins.
+
+    Never raises: a broken source (unreadable file, bad ``ui_translations`` value) is skipped with a
+    warning so it cannot stop the API server starting or keep other plugins from loading.
+    """
+    plugin_translations: PluginTranslations = {}
+    for plugin in _get_plugins()[0]:
+        try:
+            for source in plugin.ui_translations:
+                contributed = _load_translation_source(source)
+                for language, namespaces in contributed.items():
+                    language_translations = plugin_translations.setdefault(language, {})
+                    for namespace, keys in namespaces.items():
+                        language_translations[namespace] = merge_translations(
+                            language_translations.get(namespace, {}), keys
+                        )
+        except Exception:
+            log.exception("Skipping invalid UI translations from plugin %s", plugin.name)
+            continue
+    return plugin_translations
+
+
+def warn_about_unknown_translation_keys(plugin_translations: PluginTranslations, reference_dir: Path) -> None:
+    """Warn about plugin keys absent from the English reference (likely stale). Only logs; never raises."""
+
+    def _warn(keys: dict[str, Any], reference: Any, language: str, namespace: str, prefix: str = "") -> None:
+        for key, value in keys.items():
+            in_reference = isinstance(reference, dict) and key in reference
+            if isinstance(value, dict):
+                _warn(
+                    value,
+                    reference.get(key) if in_reference else None,
+                    language,
+                    namespace,
+                    f"{prefix}{key}.",
+                )
+            elif not in_reference:
+                log.warning(
+                    "Plugin UI translation for %s/%s sets key %r, which is not in the English "
+                    "reference and may be stale.",
+                    language,
+                    namespace,
+                    f"{prefix}{key}",
+                )
+
+    for language, namespaces in plugin_translations.items():
+        for namespace, keys in namespaces.items():
+            try:
+                reference = json.loads((reference_dir / f"{namespace}.json").read_text("utf-8"))
+            except (OSError, ValueError):
+                reference = {}
+            _warn(keys, reference, language, namespace)
 
 
 @cache
@@ -366,7 +581,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
         }
     plugins_info = []
     for plugin in _get_plugins()[0]:
-        info: dict[str, Any] = {"name": plugin.name}
+        info: dict[str, Any] = {"name": plugin.name, "team_name": plugin.team_name}
         for attr in attrs_to_dump:
             if attr in ("global_operator_extra_links", "operator_extra_links"):
                 info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
@@ -422,3 +637,36 @@ def get_priority_weight_strategy_plugins() -> dict[str, type[PriorityWeightStrat
 def get_import_errors() -> dict[str, str]:
     """Get import errors encountered during plugin loading."""
     return _get_plugins()[1]
+
+
+def validate_plugin_teams() -> None:
+    """
+    Validate that every team-scoped plugin references a team that exists in the database.
+
+    Only enforced when multi-team mode is enabled. This must run in a context with
+    metadata database access (the API server) — never in the Dag processor, triggerer,
+    or workers, which reach the database only through the Execution API.
+
+    A plugin that declares a ``team_name`` not present in the database is recorded as a
+    plugin import error (surfaced like any other plugin load failure) and logged, rather
+    than raising, so a single misconfigured plugin does not stop the API server and every
+    other plugin from starting.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return
+
+    from airflow.models.team import Team
+
+    plugins, import_errors = _get_plugins()
+    known_teams = Team.get_all_team_names()
+    for plugin in plugins:
+        if plugin.team_name is None or plugin.team_name in known_teams:
+            continue
+        message = (
+            f"Plugin '{plugin.name}' is assigned to team '{plugin.team_name}', which does not exist. "
+            "Create a team with `airflow teams create <team_name>`, "
+            "or update the plugin to use an existing team."
+        )
+        log.warning(message)
+        source = str(plugin.source) if plugin.source else plugin.name or ""
+        import_errors[source] = message

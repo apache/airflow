@@ -21,8 +21,8 @@ Object Storage XCom Backend
 The default XCom backend is the :class:`~airflow.models.xcom.BaseXCom` class, which stores XComs in the Airflow database. This is fine for small values, but can be problematic for large values, or for large numbers of XComs.
 
 To enable storing XComs in an object store, you can set the ``xcom_backend`` configuration option to ``airflow.providers.common.io.xcom.backend.XComObjectStorageBackend``. You will also need to set ``xcom_objectstorage_path`` to the desired location. The connection
-id is obtained from the user part of the url the you will provide, e.g. ``xcom_objectstorage_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstorage_threshold`` is required
-to be something larger than -1. Any object smaller than the threshold in bytes will be stored in the database and anything larger will be be
+id is obtained from the user part of the url that you will provide, e.g. ``xcom_objectstorage_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstorage_threshold`` is required
+to be something larger than -1. Any object smaller than the threshold in bytes will be stored in the database and anything larger will be
 put in object storage. This will allow a hybrid setup. If an xcom is stored on object storage a reference will be
 saved in the database. Finally, you can set ``xcom_objectstorage_compression`` to fsspec supported compression methods like ``zip`` or ``snappy`` to
 compress the data before storing it in object storage.

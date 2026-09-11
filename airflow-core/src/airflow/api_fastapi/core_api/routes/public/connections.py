@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkResponse,
@@ -97,10 +98,41 @@ def _ensure_executor_is_configured(executor: str | None) -> None:
         executor in (name.alias, name.module_path, name.module_path.split(".")[-1]) for name in configured
     ):
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
             f"Executor '{executor}' is not configured. "
             f"Configured executors: {[name.alias or name.module_path for name in configured]}",
         )
+
+
+_MASKED_CREDENTIAL_SENTINEL = "***"
+
+
+def _same_endpoint(requested: str | int | None, stored: str | int | None) -> bool:
+    """
+    Return True when request and stored host/port refer to the same destination.
+
+    The UI sends empty string for hidden unused host/port fields; the ORM stores
+    those as NULL. Treat blank as unset so connection types that do not use
+    host/port still reuse stored credentials.
+    """
+
+    def _norm(value: str | int | None) -> str | int | None:
+        return None if value is None or value == "" else value
+
+    return _norm(requested) == _norm(stored)
+
+
+def _supplies_own_credentials(test_body: ConnectionBody) -> bool:
+    """
+    Return True when the request includes a real (non-masked) password.
+
+    The UI always posts the masked sentinel for unchanged secrets. That is not
+    a caller-supplied credential and must not skip restoring stored extras.
+    """
+    if "password" not in test_body.model_fields_set:
+        return False
+    password = test_body.password
+    return bool(password) and password != _MASKED_CREDENTIAL_SENTINEL
 
 
 @connections_router.delete(
@@ -349,6 +381,21 @@ def test_connection(
                 existing_conn = None
 
         if existing_conn is not None:
+            # Stored credentials are only reused to test the connection's own
+            # host/port; testing a different destination must supply its own.
+            fields_set = test_body.model_fields_set
+            host_changed = "host" in fields_set and not _same_endpoint(test_body.host, existing_conn.host)
+            port_changed = "port" in fields_set and not _same_endpoint(test_body.port, existing_conn.port)
+            if host_changed or port_changed:
+                if not _supplies_own_credentials(test_body):
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        "The host or port to test differs from the stored connection. "
+                        "Include the credentials to test in the request body.",
+                    )
+                existing_conn = None
+
+        if existing_conn is not None:
             existing_conn.conn_id = transient_conn_id
             update_orm_from_pydantic(existing_conn, test_body)
             conn = existing_conn
@@ -371,7 +418,7 @@ def test_connection(
         [
             status.HTTP_403_FORBIDDEN,
             status.HTTP_409_CONFLICT,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(action_logging())],

@@ -43,7 +43,6 @@ prek hooks.
 
 We have integrated the `prek <https://github.com/j178/prek>`__ framework
 in our development workflow. It can be installed in various ways and does not even need ``pip`` or
-
 ``python`` to be installed. It is a drop-in replacement for the legacy ``pre-commit`` tool, but it is
 much faster and more feature-rich. It is written in Rust and it is designed to install environments in parallel,
 so it is much faster than the ``pre-commit`` tool.
@@ -235,9 +234,9 @@ To check other usage types of the pre-commit framework, see `Pre-commit website 
      - "- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`"
      - "- **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`"
      - "- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`"
-     - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`"
+     - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)"
      - "- **Build docs:** `breeze build-docs`"
-     - "- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`"
+     - "- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`"
 .. AGENT-SKILL-END
 
 Disabling particular checks

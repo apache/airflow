@@ -72,6 +72,7 @@
     "expectedDuration": "अपेक्षित अवधि",
     "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
     "mappedPartitionKey": "मैप्ड पार्टीशन कुंजी",
+    "partitionDate": "पार्टीशन तिथि",
     "partitionKey": "पार्टीशन कुंजी",
     "queuedAt": "कतार में",
     "runAfter": "के बाद चलाएं",
@@ -179,9 +180,12 @@
   "note": {
     "add": "नोट जोड़ें",
     "dagRun": "डैग रन नोट",
+    "edit": "नोट संपादित करें",
     "label": "नोट",
     "placeholder": "नोट जोड़ें...",
-    "taskInstance": "टास्क इंस्टेंस नोट"
+    "preview": "पूर्वावलोकन",
+    "taskInstance": "टास्क इंस्टेंस नोट",
+    "write": "लिखें"
   },
   "overallStatus": "समग्र स्थिति",
   "partitionedDagRun_one": "विभाजित Dag रन",
@@ -191,6 +195,23 @@
   },
   "pendingDagRun_one": "{{count}} लंबित Dag रन",
   "pendingDagRun_other": "{{count}} लंबित Dag रन",
+  "presetFilters": {
+    "deleteTitle": "प्रीसेट फ़िल्टर हटाएं",
+    "deleteWarning": "प्रीसेट फ़िल्टर केवल इस ब्राउज़र में संग्रहीत होते हैं।",
+    "duplicate": "प्रीसेट फ़िल्टर \"{{name}}\" पहले से ही ठीक यही सेटअप सहेजता है।",
+    "empty": "अभी तक कोई प्रीसेट फ़िल्टर नहीं",
+    "info": {
+      "default": "किसी प्रीसेट फ़िल्टर को डिफ़ॉल्ट के रूप में पिन करें और जब आप बिना किसी फ़िल्टर के इस पृष्ठ पर आते हैं तो यह स्वचालित रूप से लागू हो जाता है।",
+      "save": "वर्तमान फ़िल्टर और सॉर्टिंग को नामित प्रीसेट फ़िल्टर के रूप में सहेजें, फिर किसी भी समय उस पर वापस स्विच करें।",
+      "storage": "प्रीसेट फ़िल्टर इस ब्राउज़र में संग्रहीत होते हैं।"
+    },
+    "namePlaceholder": "प्रीसेट फ़िल्टर का नाम",
+    "nothingToSave": "सहेजने के लिए कुछ नहीं। प्रीसेट फ़िल्टर सहेजने के लिए फ़िल्टर या सॉर्टिंग लागू करें।",
+    "save": "सहेजें",
+    "setDefault": "डिफ़ॉल्ट के रूप में सेट करें",
+    "title": "प्रीसेट फ़िल्टर",
+    "unsetDefault": "डिफ़ॉल्ट हटाएं"
+  },
   "reset": "रीसेट करें",
   "runId": "रन ID",
   "runTypes": {
@@ -222,6 +243,47 @@
   },
   "selectLanguage": "भाषा चुनें",
   "selected": "चयनित",
+  "shortcuts": {
+    "categories": {
+      "code": "कोड",
+      "dagView": "डैग व्यू",
+      "filters": "फ़िल्टर्स",
+      "global": "वैश्विक",
+      "logs": "लॉग्स",
+      "navigation": "नेविगेशन",
+      "runActions": "रन और टास्क क्रियाएं",
+      "search": "खोज"
+    },
+    "descriptions": {
+      "clearRun": "$t(dagRun_one) साफ़ करें",
+      "clearTaskInstance": "$t(taskInstance_one) साफ़ करें",
+      "downloadLogs": "लॉग्स डाउनलोड करें",
+      "focusFilterSearch": "फ़िल्टर खोज पर फ़ोकस करें",
+      "focusLogSearch": "लॉग्स खोजें",
+      "focusSearch": "खोज पर फ़ोकस करें",
+      "markRunFailed": "$t(dagRun_one) को विफल के रूप में चिह्नित करें",
+      "markRunSuccess": "$t(dagRun_one) को सफल के रूप में चिह्नित करें",
+      "markTaskFailed": "$t(task_one) को विफल के रूप में चिह्नित करें",
+      "markTaskGroupFailed": "$t(taskGroup_one) को विफल के रूप में चिह्नित करें",
+      "markTaskGroupSuccess": "$t(taskGroup_one) को सफल के रूप में चिह्नित करें",
+      "markTaskSuccess": "$t(task_one) को सफल के रूप में चिह्नित करें",
+      "navigateTasks": "$t(task_other) पर नेविगेट करें",
+      "openGraphFilters": "ग्राफ़ फ़िल्टर खोलें",
+      "scrollBottom": "नीचे तक स्क्रॉल करें",
+      "scrollTop": "ऊपर तक स्क्रॉल करें",
+      "searchDags": "$t(dag_other) खोजें",
+      "showHelp": "$t(shortcuts.title) दिखाएं",
+      "toggleExpand": "सभी ग्रुप्स को विस्तृत या संकुचित करें",
+      "toggleFullscreen": "फ़ुलस्क्रीन टॉगल करें",
+      "toggleGraphGrid": "ग्राफ़ / ग्रिड व्यू टॉगल करें",
+      "toggleSource": "स्रोत टॉगल करें",
+      "toggleTaskGroup": "$t(taskGroup_one) को विस्तृत या संकुचित करें",
+      "toggleTimestamp": "टाइमस्टैम्प टॉगल करें",
+      "toggleWrap": "$t(wrap.wrap) टॉगल करें"
+    },
+    "empty": "इस पेज पर कोई कीबोर्ड शॉर्टकट उपलब्ध नहीं है।",
+    "title": "कीबोर्ड शॉर्टकट"
+  },
   "showDetailsPanel": "विवरण पैनल दिखाएं",
   "signedInAs": "के रूप में लॉग इन",
   "source": {

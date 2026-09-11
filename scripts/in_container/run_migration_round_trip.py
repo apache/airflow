@@ -126,7 +126,6 @@ SEED_VALUES: dict[str, dict[str, str]] = {
         "state": "'success'",
         "log_template_id": "1",
         "run_after": "'2024-01-01 00:00:00+00:00'",
-        "span_status": "'not_started'",
         "clear_number": "0",
     },
     "task_instance": {

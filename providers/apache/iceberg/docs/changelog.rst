@@ -26,6 +26,34 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Use the common.compat alias for BaseEventTrigger (#72140)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Iceberg watcher crash by reverting to the sync state store (#72312)``
+   * ``Reduce Iceberg snapshot watcher thread use (#72173)``
+   * ``Fix flaky Iceberg snapshot trigger tests under CI thread-pool latency (#71825)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add IcebergTableSnapshotTrigger for event-driven scheduling (#71387)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 2.0.3
 .....
 

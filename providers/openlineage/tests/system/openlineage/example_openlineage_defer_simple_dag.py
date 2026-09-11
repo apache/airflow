@@ -24,17 +24,20 @@ It checks:
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_defer_simple_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,
@@ -43,7 +46,12 @@ with DAG(
 ) as dag:
     # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
     # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
-    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=180), poke_interval=10, deferrable=True)
+    wait = TimeDeltaSensor(
+        task_id="wait",
+        delta=timedelta(seconds=int(os.getenv("SYSTEM_TESTS_OL_TIMEDELTA", "180"))),
+        poke_interval=10,
+        deferrable=True,
+    )
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",

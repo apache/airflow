@@ -21,8 +21,10 @@ import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
 import { useDashboardServiceDagStats } from "openapi/queries";
+
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { StatsCard } from "src/components/StatsCard";
+
 import { useAutoRefresh } from "src/utils";
 
 import { DagImportErrors } from "./DagImportErrors";
@@ -75,7 +77,7 @@ export const Stats = () => {
             isLoading={isStatsLoading}
             isRTL={isRTL}
             label={translate("stats.queuedDags")}
-            link="dags?last_dag_run_state=queued"
+            link="dags?dag_run_state=queued"
             state="queued"
           />
         ) : undefined}
@@ -86,7 +88,7 @@ export const Stats = () => {
           isLoading={isStatsLoading}
           isRTL={isRTL}
           label={translate("stats.runningDags")}
-          link="dags?last_dag_run_state=running"
+          link="dags?dag_run_state=running"
           state="running"
         />
 

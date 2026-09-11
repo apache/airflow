@@ -33,6 +33,8 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-snowflake/operators/snowflake.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark.rst",
+                    "/docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst",
+                    "/docs/apache-airflow-providers-snowflake/operators/snowflake_cortex_agent.rst",
                 ],
                 "logo": "/docs/integration-logos/Snowflake.png",
                 "tags": ["service"],
@@ -44,6 +46,8 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.snowflake.operators.snowflake",
                     "airflow.providers.snowflake.operators.snowpark",
+                    "airflow.providers.snowflake.operators.snowpark_containers",
+                    "airflow.providers.snowflake.operators.snowflake_cortex_agent",
                 ],
             }
         ],
@@ -75,6 +79,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.snowflake.hooks.snowflake",
                     "airflow.providers.snowflake.hooks.snowflake_sql_api",
+                    "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
                 ],
             }
         ],
@@ -107,7 +112,7 @@ def get_provider_info():
                     "hidden-fields": ["port", "host"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{\n  "authenticator": "snowflake oauth",\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
+                        "extra": '{\n  "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
                         "schema": "snowflake schema",
                         "login": "snowflake username",
                         "password": "snowflake password",
@@ -118,6 +123,7 @@ def get_provider_info():
                         "role": "snowflake role",
                         "private_key_file": "Path of snowflake private key (PEM Format)",
                         "private_key_content": "Content to snowflake private key (PEM format)",
+                        "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
                         "insecure_mode": "insecure mode",
                         "proxy_host": "Proxy server hostname",
                         "proxy_port": "Proxy server port",
@@ -139,6 +145,10 @@ def get_provider_info():
                         "label": "Private key (Text)",
                         "schema": {"type": ["string", "null"], "format": "password"},
                     },
+                    "workload_identity_provider": {
+                        "label": "Workload Identity Provider",
+                        "schema": {"type": ["string", "null"]},
+                    },
                     "insecure_mode": {
                         "label": "Insecure Mode",
                         "schema": {"type": ["boolean", "null"]},
@@ -157,7 +167,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Snowflake",
-                "python-modules": ["airflow.providers.snowflake.triggers.snowflake_trigger"],
+                "python-modules": [
+                    "airflow.providers.snowflake.triggers.snowflake_trigger",
+                    "airflow.providers.snowflake.triggers.snowpark_containers",
+                ],
             }
         ],
         "config": {

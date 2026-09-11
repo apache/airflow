@@ -213,6 +213,20 @@ These visual references show the full command syntax, options, and parameters fo
   :width: 60%
   :alt: airflowctl Providers Command
 
+**Task Instances**
+''''''''''''''''''
+.. image:: ../images/output_taskinstances.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_taskinstances.svg
+  :width: 60%
+  :alt: airflowctl Task Instances Command
+
+**Tasks**
+'''''''''
+.. image:: ../images/output_tasks.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_tasks.svg
+  :width: 60%
+  :alt: airflowctl Tasks Command
+
 **Variables**
 '''''''''''''
 .. image:: ../images/output_variables.svg

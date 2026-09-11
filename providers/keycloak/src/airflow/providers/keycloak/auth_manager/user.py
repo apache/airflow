@@ -16,17 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from pydantic import BaseModel
+
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
 
-class KeycloakAuthManagerUser(BaseUser):
+class KeycloakAuthManagerUser(BaseModel, BaseUser):
     """User model for users managed by Keycloak auth manager."""
 
-    def __init__(self, *, user_id: str, name: str, access_token: str, refresh_token: str | None) -> None:
-        self.user_id = user_id
-        self.name = name
-        self.access_token = access_token
-        self.refresh_token = refresh_token
+    user_id: str
+    name: str
+    access_token: str
+    refresh_token: str | None
 
     def get_id(self) -> str:
         return self.user_id

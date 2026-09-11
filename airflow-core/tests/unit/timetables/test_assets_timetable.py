@@ -295,7 +295,10 @@ class TestAssetConditionWithTimetable:
 
         # Add AssetDagRunQueue entries to simulate asset event processing
         for am in asset_models:
-            session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id))
+            event = AssetEvent(asset_id=am.id)
+            session.add(event)
+            session.flush()
+            session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id, asset_event_id=event.id))
         session.commit()
 
         # Fetch and evaluate asset triggers for all DAGs affected by asset events

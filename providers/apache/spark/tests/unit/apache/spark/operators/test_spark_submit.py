@@ -28,8 +28,12 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils import timezone
+from airflow.providers.apache.spark.operators.spark_submit import (
+    _DURABLE_UNSET,
+    SparkSubmitOperator,
+    _warn_and_disable_durable_pre_3_3,
+)
+from airflow.providers.common.compat.sdk import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -598,7 +602,14 @@ class TestSparkSubmitOperatorResumable:
             operator = self._make_operator(reconnect_on_retry=False)
         assert len(w) == 1
         assert issubclass(w[0].category, AirflowProviderDeprecationWarning)
-        assert "reconnect_on_retry" in str(w[0].message)
+        assert str(w[0].message) == (
+            "`reconnect_on_retry` is deprecated and will be removed once this provider's "
+            "minimum supported Airflow version reaches 3.3. Use `durable` instead."
+        )
+        assert operator.durable is False
+
+    def test_default_args_durable_reaches_operator(self):
+        operator = self._make_operator(default_args={"durable": False})
         assert operator.durable is False
 
     def test_durable_false_submits_fresh_and_polls(self):
@@ -819,7 +830,10 @@ class TestSparkSubmitOperatorResumable:
         hook._conf = {"spark.yarn.submit.waitAppCompletion": "true"}
         operator._hook = hook
 
-        with pytest.raises(ValueError, match="waitAppCompletion=true"):
+        with pytest.raises(
+            ValueError,
+            match=r"spark\.yarn\.submit\.waitAppCompletion=true cannot be set for cluster mode as it conflicts with the need",
+        ):
             operator.submit_job(context={})
 
     def test_yarn_poll_tolerates_transient_resourcemanager_failures(self):
@@ -1122,3 +1136,18 @@ class TestSparkSubmitOperatorK8sTracking:
         operator.execute(context={"task_state_store": task_store})
 
         assert task_store.get("spark_job_id") is None
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False

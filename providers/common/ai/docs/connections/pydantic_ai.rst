@@ -38,8 +38,13 @@ Model
     dedicated input in the connection form (via ``conn-fields``) and stores its
     value in ``extra["model"]``.
 
-    Examples: ``openai:gpt-5.3``, ``anthropic:claude-sonnet-4-20250514``,
+    Examples: ``openai:gpt-5.6-sol``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.0-flash``
+
+    See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
+    for the current list of Claude model IDs across the Claude API, Amazon Bedrock, and Google Cloud.
+    See `OpenAI's models reference <https://developers.openai.com/api/docs/models/all>`__
+    for the current list of OpenAI model IDs.
 
     The model can also be overridden at the hook/operator level via the
     ``model_id`` parameter.
@@ -64,7 +69,7 @@ Extra (JSON, optional)
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5.3"}
+        {"model": "openai:gpt-5.6-sol"}
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
@@ -79,7 +84,7 @@ Examples
     {
         "conn_type": "pydanticai",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5.3\"}"
+        "extra": "{\"model\": \"openai:gpt-5.6-sol\"}"
     }
 
 **Anthropic**
@@ -113,9 +118,15 @@ Leave password empty and configure ``AWS_PROFILE`` or IAM role in the environmen
         "extra": "{\"model\": \"bedrock:us.anthropic.claude-opus-4-6-v1:0\"}"
     }
 
-**Google Vertex AI**
+This still works — the ``bedrock:`` model prefix and the environment-variable
+credential chain are unchanged. For AWS-specific fields with dedicated UI
+inputs (region, IAM keys, profile, bearer token, timeouts) instead of raw
+``extra`` JSON, use the :doc:`pydantic_ai_bedrock` connection type.
 
-Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the environment:
+**Google Vertex AI / Gemini API**
+
+Leave password empty and configure ``GOOGLE_API_KEY`` (or ``GEMINI_API_KEY``)
+in the environment:
 
 .. code-block:: json
 
@@ -123,6 +134,15 @@ Leave password empty and configure ``GOOGLE_APPLICATION_CREDENTIALS`` in the env
         "conn_type": "pydanticai",
         "extra": "{\"model\": \"google:gemini-2.0-flash\"}"
     }
+
+This connects to the Gemini API (Google AI Studio), not Vertex AI — pydantic-ai's
+plain ``google:`` provider only reads an API key
+(``GOOGLE_API_KEY``/``GEMINI_API_KEY``); it does not fall back to
+``GOOGLE_APPLICATION_CREDENTIALS`` or any other Application Default
+Credentials source. For project/location-scoped Vertex AI access — service
+account or Application Default Credentials — use the
+:doc:`pydantic_ai_vertex` connection type with a ``google-cloud:`` model
+prefix instead.
 
 Model Resolution Order
 ----------------------

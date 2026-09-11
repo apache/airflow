@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
-from functools import cache
+from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
@@ -30,6 +32,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -44,7 +47,9 @@ from airflow.api_fastapi.auth.tokens import (
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.models.asset import AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
@@ -69,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetAliasDetails,
-        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
@@ -187,6 +191,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
             self.serialize_user(user)
         )
+
+    def generate_api_jwt(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
+    ) -> str:
+        """
+        Return the JWT token for a client that authenticates with the ``Authorization`` header.
+
+        Such a client sends no cookies, so an auth manager that keeps part of its state in
+        cookies has to put that state in the token's claims instead for the request to be
+        authorized. Auth managers whose tokens are already self-contained need not override
+        this.
+
+        :param user: the user to generate the token for
+        :param expiration_time_in_seconds: expiration time in seconds of the token
+        """
+        return self.generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -357,13 +377,72 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         access_view: AccessView,
         user: T,
+        team_name: str | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to access a read-only state of the installation.
 
         :param access_view: the specific read-only view/state the authorization request is about.
         :param user: the user to performing the action
+        :param team_name: team the view is scoped to, if any. Managers without multi-team
+            support may accept and ignore it, which authorizes the view globally.
         """
+
+    @cached_property
+    def _is_authorized_view_team_aware(self) -> bool:
+        """Whether this manager's ``is_authorized_view`` override accepts ``team_name``."""
+        params = inspect.signature(self.is_authorized_view).parameters
+        return "team_name" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+    def authorize_view(self, *, access_view: AccessView, user: T, team_name: str | None = None) -> bool:
+        """
+        Authorize a read-only view, tolerating auth managers that predate ``team_name``.
+
+        Core calls this instead of :meth:`is_authorized_view` on team-scoped paths: an
+        override still on the old ``(access_view, user)`` signature would otherwise raise
+        ``TypeError``. Removed in Airflow 4.
+
+        A manager that does not recognise ``access_view`` at all is also tolerated, and
+        denied -- see :meth:`_authorize_view_unmapped_denied`.
+        """
+        try:
+            if self._is_authorized_view_team_aware:
+                return self.is_authorized_view(access_view=access_view, user=user, team_name=team_name)
+            warnings.warn(
+                f"The '{type(self).__name__}' auth manager is not team-aware, so team-scoped views are "
+                "authorized across all teams and may be visible to users of other teams. Add the "
+                "'team_name' argument to its is_authorized_view (or upgrade the provider). Airflow 4 "
+                "will require team-aware auth managers.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            return self.is_authorized_view(access_view=access_view, user=user)
+        except KeyError:
+            return self._authorize_view_unmapped_denied(access_view)
+
+    def _authorize_view_unmapped_denied(self, access_view: AccessView) -> bool:
+        """
+        Deny an ``AccessView`` the auth manager cannot map, instead of raising.
+
+        ``AccessView`` members are added by core, but auth managers ship as separately
+        released providers, so a core newer than the installed auth manager can name a
+        view the manager has never heard of. Managers that translate the enum through a
+        lookup table (the FAB auth manager, for one) raise ``KeyError`` on such a member,
+        which would surface as a 500 on the endpoint that consults it.
+
+        Denying keeps the endpoint working and fails closed: an unmappable view means the
+        manager cannot express who may see the records, and these views gate records with
+        no other authorization key. Upgrading the auth manager provider to a version that
+        maps the view restores access.
+        """
+        warnings.warn(
+            f"The '{type(self).__name__}' auth manager cannot map the '{access_view.name}' view, so "
+            "access to it is denied. This usually means the auth manager provider is older than "
+            "Airflow core; upgrade it to a version that supports this view.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return False
 
     @abstractmethod
     def is_authorized_custom_view(self, *, method: ResourceMethod, resource_name: str, user: T) -> bool:
@@ -395,10 +474,14 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Check if a user is allowed to approve/reject a HITL task.
 
+        Airflow only calls this method for tasks that have assigned users. When a task has none, Airflow
+        skips this method and any user allowed to update the task's HITL detail (``is_authorized_dag``
+        with ``DagAccessEntity.HITL_DETAIL``) can respond.
+
         By default, checks if the user's ID is in the assigned_users set.
         Auth managers can override this method to implement custom logic.
 
-        :param assigned_users: set of user IDs assigned to the task
+        :param assigned_users: set of user IDs assigned to the task, never empty
         :param user: the user to check authorization for
         """
         return user.get_id() in assigned_users
@@ -503,6 +586,52 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
             for request in requests
         )
+
+    @provide_session
+    def get_authorized_assets(
+        self,
+        *,
+        user: T,
+        method: ResourceMethod = "GET",
+        session: Session = NEW_SESSION,
+    ) -> set[int]:
+        """
+        Get the ids of the assets the user has access to.
+
+        :param user: the user
+        :param method: the method to filter on
+        :param session: the session
+        """
+        rows = session.execute(select(AssetModel.id, AssetModel.name, AssetModel.uri)).all()
+        assets = [AssetDetails(id=str(asset_id), name=name, uri=uri) for asset_id, name, uri in rows]
+        authorized_ids = self.filter_authorized_assets(assets=assets, user=user, method=method)
+        return {asset_id for asset_id, _, _ in rows if str(asset_id) in authorized_ids}
+
+    def filter_authorized_assets(
+        self,
+        *,
+        assets: Sequence[AssetDetails],
+        user: T,
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
+        """
+        Filter assets the user has access to, returning the ids of the authorized ones.
+
+        By default, check individually if the user has permissions to access the asset. An auth manager
+        whose ``is_authorized_asset`` performs a remote call must override this method: a deployment can
+        hold far more assets than connections or pools, and the default costs one round trip per asset on
+        every asset listing.
+
+        :param assets: the assets to filter. Each item carries the asset id, name and uri, so an auth
+            manager can authorize on any of them (e.g. restrict by uri prefix).
+        :param user: the user
+        :param method: the method to filter on
+        """
+        return {
+            details.id
+            for details in assets
+            if details.id is not None and self.is_authorized_asset(method=method, details=details, user=user)
+        }
 
     @provide_session
     def get_authorized_connections(
@@ -631,7 +760,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
                 method=method, details=DagDetails(id=dag_id, team_name=team_name), user=user
             )
 
-        return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(dag_id)}
+        if not dag_ids:
+            return set()
+
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(_is_authorized_dag_id, dag_ids)
+
+        return {dag_id for dag_id, authorized in zip(dag_ids, results) if authorized}
 
     @provide_session
     def get_authorized_pools(

@@ -22,6 +22,7 @@ from __future__ import annotations
 import base64
 import re
 import secrets
+import shlex
 import string
 from dataclasses import dataclass
 from typing import Literal
@@ -30,18 +31,22 @@ POSIX_DEFAULT_BASE_DIR = "/tmp/airflow-ssh-jobs"
 WINDOWS_DEFAULT_BASE_DIR = "$env:TEMP\\airflow-ssh-jobs"
 
 
-def _validate_job_dir(job_dir: str, remote_os: Literal["posix", "windows"]) -> None:
+def _validate_job_dir(
+    job_dir: str, remote_os: Literal["posix", "windows"], base_dir: str | None = None
+) -> None:
     """
     Validate that job_dir is under the expected base directory.
 
     :param job_dir: The job directory path to validate
     :param remote_os: Operating system type
+    :param base_dir: Base directory the job was created under (e.g. the operator's
+        ``remote_base_dir``). Falls back to the OS-specific default base directory.
     :raises ValueError: If job_dir doesn't start with the expected base path
     """
     if remote_os == "posix":
-        expected_prefix = POSIX_DEFAULT_BASE_DIR + "/"
+        expected_prefix = (base_dir or POSIX_DEFAULT_BASE_DIR) + "/"
     else:
-        expected_prefix = WINDOWS_DEFAULT_BASE_DIR + "\\"
+        expected_prefix = (base_dir or WINDOWS_DEFAULT_BASE_DIR) + "\\"
 
     if not job_dir.startswith(expected_prefix):
         raise ValueError(
@@ -184,24 +189,36 @@ def build_posix_wrapper_command(
     escaped_command = command.replace("'", "'\"'\"'")
 
     # Launch detached under ``setsid`` so the job is its own session/process-group
-    # leader. ``$!`` is then the leader PID *and* the PGID (verified: setsid does not
-    # fork when started as a background job), recorded synchronously just like before,
-    # so cancellation can signal the whole job tree instead of orphaning the user
-    # command. Without ``setsid`` (some macOS/BSD hosts) ``$!`` is just the wrapper PID
-    # and cancellation degrades to the previous single-process behaviour.
+    # leader, letting cancellation signal the whole job tree instead of orphaning the
+    # user command. We do NOT rely on the launcher's ``$!`` to identify that group:
+    # ``setsid(1)`` forks internally when the process about to exec into it is already
+    # a process-group leader (``setsid(2)`` cannot create a new session from a group
+    # leader), which happens whenever job control is on in the launching shell. When
+    # it forks, ``$!`` is the short-lived setsid parent, not the job's real PGID, and
+    # cancellation signals a dead group. Instead the job script reports its OWN pid:
+    # immediately after ``setsid(2)`` POSIX guarantees ``pid == pgid == sid`` for the
+    # caller, and that identity survives the following exec, so ``$$`` inside the job
+    # script is always the true PGID regardless of whether setsid forked to get there.
+    # The pid file is read only when cancelling (:func:`build_posix_kill_command`),
+    # which happens long after submission, so the job's asynchronous write lands well
+    # before any reader and the launcher does not wait for it (recording the launcher's
+    # ``$!`` would just reintroduce the wrong-pid bug on the fork path). Without
+    # ``setsid`` (some macOS/BSD hosts) ``$$`` is just the job's own PID and
+    # cancellation degrades to the previous single-process behaviour.
     wrapper = f"""set -euo pipefail
-job_dir='{paths.job_dir}'
-log_file='{paths.log_file}'
-exit_code_file='{paths.exit_code_file}'
-exit_code_tmp='{paths.exit_code_tmp_file}'
-pid_file='{paths.pid_file}'
-status_file='{paths.status_file}'
+job_dir={shlex.quote(paths.job_dir)}
+log_file={shlex.quote(paths.log_file)}
+exit_code_file={shlex.quote(paths.exit_code_file)}
+exit_code_tmp={shlex.quote(paths.exit_code_tmp_file)}
+pid_file={shlex.quote(paths.pid_file)}
+status_file={shlex.quote(paths.status_file)}
 
 mkdir -p "$job_dir"
 : > "$log_file"
 
 job_script='
 set +e
+echo -n "$$" > "'"$pid_file"'"
 export LOG_FILE="'"$log_file"'"
 export STATUS_FILE="'"$status_file"'"
 {env_exports}{escaped_command} >>"'"$log_file"'" 2>&1
@@ -211,13 +228,16 @@ mv "'"$exit_code_tmp"'" "'"$exit_code_file"'"
 exit 0
 '
 
+# Redirect stdin from /dev/null too, not just stdout/stderr: a fresh setsid session
+# leader that keeps the launching terminal on any fd re-acquires it as its controlling
+# terminal, so a hangup (SSH session with a PTY dropping) would SIGHUP the detached job
+# and defeat the whole point of running it in its own session.
 if command -v setsid >/dev/null 2>&1; then
-  setsid bash -c "$job_script" >/dev/null 2>&1 &
+  setsid bash -c "$job_script" </dev/null >/dev/null 2>&1 &
 else
-  nohup bash -c "$job_script" >/dev/null 2>&1 &
+  nohup bash -c "$job_script" </dev/null >/dev/null 2>&1 &
 fi
-echo -n $! > "$pid_file"
-echo "{paths.job_id}"
+echo {shlex.quote(paths.job_id)}
 """
     return wrapper
 
@@ -301,7 +321,7 @@ def build_posix_log_tail_command(log_file: str, offset: int, max_bytes: int) -> 
     """
     # tail -c +N is 1-indexed, so offset 0 means start at byte 1
     tail_offset = offset + 1
-    return f"tail -c +{tail_offset} '{log_file}' 2>/dev/null | head -c {max_bytes} || true"
+    return f"tail -c +{tail_offset} {shlex.quote(log_file)} 2>/dev/null | head -c {max_bytes} || true"
 
 
 def build_windows_log_tail_command(log_file: str, offset: int, max_bytes: int) -> str:
@@ -339,7 +359,8 @@ def build_posix_file_size_command(file_path: str) -> str:
     :param file_path: Path to the file
     :return: Shell command that outputs the file size
     """
-    return f"stat -c%s '{file_path}' 2>/dev/null || stat -f%z '{file_path}' 2>/dev/null || echo 0"
+    quoted = shlex.quote(file_path)
+    return f"stat -c%s {quoted} 2>/dev/null || stat -f%z {quoted} 2>/dev/null || echo 0"
 
 
 def build_windows_file_size_command(file_path: str) -> str:
@@ -368,7 +389,8 @@ def build_posix_completion_check_command(exit_code_file: str) -> str:
     :param exit_code_file: Path to the exit code file
     :return: Shell command that outputs exit code if done, empty otherwise
     """
-    return f"test -s '{exit_code_file}' && cat '{exit_code_file}' || true"
+    quoted = shlex.quote(exit_code_file)
+    return f"test -s {quoted} && cat {quoted} || true"
 
 
 def build_windows_completion_check_command(exit_code_file: str) -> str:
@@ -408,9 +430,10 @@ def build_posix_kill_command(pid_file: str) -> str:
     :param pid_file: Path to the PID file
     :return: Shell command to kill the process
     """
+    quoted = shlex.quote(pid_file)
     return (
-        f"if test -f '{pid_file}'; then "
-        f"p=\"$(cat '{pid_file}')\"; "
+        f"if test -f {quoted}; then "
+        f'p="$(cat {quoted})"; '
         f'if [ "$p" -gt 1 ] 2>/dev/null; then '
         f'kill -TERM -"$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; '
         "fi; fi"
@@ -441,27 +464,31 @@ if (Test-Path $path) {{
     return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded_script}"
 
 
-def build_posix_cleanup_command(job_dir: str) -> str:
+def build_posix_cleanup_command(job_dir: str, base_dir: str | None = None) -> str:
     """
     Build a POSIX command to clean up the job directory.
 
     :param job_dir: Path to the job directory
+    :param base_dir: Base directory the job was created under. Defaults to the
+        OS-specific default base directory.
     :return: Shell command to remove the directory
     :raises ValueError: If job_dir is not under the expected base directory
     """
-    _validate_job_dir(job_dir, "posix")
-    return f"rm -rf '{job_dir}'"
+    _validate_job_dir(job_dir, "posix", base_dir)
+    return f"rm -rf {shlex.quote(job_dir)}"
 
 
-def build_windows_cleanup_command(job_dir: str) -> str:
+def build_windows_cleanup_command(job_dir: str, base_dir: str | None = None) -> str:
     """
     Build a PowerShell command to clean up the job directory.
 
     :param job_dir: Path to the job directory
+    :param base_dir: Base directory the job was created under. Defaults to the
+        OS-specific default base directory.
     :return: PowerShell command to remove the directory
     :raises ValueError: If job_dir is not under the expected base directory
     """
-    _validate_job_dir(job_dir, "windows")
+    _validate_job_dir(job_dir, "windows", base_dir)
     escaped_path = job_dir.replace("'", "''")
     script = f"Remove-Item -Recurse -Force -Path '{escaped_path}' -ErrorAction SilentlyContinue"
     script_bytes = script.encode("utf-16-le")

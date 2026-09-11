@@ -69,6 +69,9 @@ REQUESTS_EXCEPTIONS_TYPES = (
 
 def check_http_error_is_retryable(exc: BaseException):
     try:
+        # Stays on httpx (not httpx2): ``exc`` is raised inside weaviate-client, which is built
+        # on httpx, so an httpx2.ConnectError would never match and retries would silently stop.
+        # Migrate once weaviate-client moves to httpx2; tracked at https://github.com/apache/airflow/issues/70522
         import httpx
 
         if isinstance(exc, httpx.ConnectError):

@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable perfectionist/sort-enums */
-
 /* eslint-disable perfectionist/sort-objects */
 import { createListCollection } from "@chakra-ui/react";
 
@@ -53,6 +51,11 @@ export const logLevelOptions = createListCollection<{
     { label: "dag:logs.critical", value: LogLevel.CRITICAL },
   ],
 });
+
+// A traceback frame is "user code" unless it lives in an installed-package directory
+// (site-packages / dist-packages). DAG bundle code, plugins, and local files are all user code.
+export const isUserCodeFrame = (filename: string): boolean =>
+  !/[/\\](?:site|dist)-packages[/\\]/u.test(filename);
 
 export const parseStreamingLogContent = (
   data: TaskInstancesLogResponse | undefined,

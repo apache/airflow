@@ -113,21 +113,30 @@ Docker Community Edition
 
 Colima
 ------
-If you use Colima as your container runtimes engine, please follow the next steps:
+If you use Colima as your container runtime, prefer Docker contexts / ``DOCKER_HOST`` over
+symlinking sockets into ``/var/run`` (that can break Docker Desktop or other engines).
 
-1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow its instructions
+1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ if your
+   Colima install does not already provide it, and follow its instructions.
 
-2. Link the Colima socket to the default socket path. Note that this may break other Docker servers
-
-.. code-block:: bash
-
-  sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
-
-3. Change docker context to use default
+2. Start Colima and select its Docker context (Colima creates a ``colima`` context for the
+   default profile):
 
 .. code-block:: bash
 
-  docker context use default
+  colima start
+  docker context use colima
+  docker info
+
+3. Optionally set ``DOCKER_HOST`` (or pass ``breeze --docker-host``) so tools pick Colima
+   even when another context is current:
+
+.. code-block:: bash
+
+  export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
+
+If you previously symlinked Colima into ``/var/run/docker.sock``, remove that symlink when
+you switch back to Docker Desktop or another engine.
 
 Docker Compose
 --------------
@@ -414,9 +423,10 @@ see in CI in your local environment.
    ``uv`` is the recommended general-purpose Python development environment for Airflow.
 
 2. Run ``./scripts/tools/setup_breeze`` in your checked-out repository. This installs a small shim
-   at ``~/.local/bin/breeze`` that runs Breeze via ``uvx`` from the current git worktree's
-   ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding agents) gets
-   its own Breeze tied to that worktree's sources. See
+   at ``~/.local/bin/breeze`` that runs Breeze via ``uv run --locked`` from the current git
+   worktree's ``dev/breeze`` folder, so each worktree (including ephemeral ones used by coding
+   agents) gets its own Breeze, tied to that worktree's sources and to the dependency versions
+   pinned in ``dev/breeze/uv.lock``. See
    `ADR 0017 <../dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md>`_ for the
    rationale.
 
@@ -629,13 +639,22 @@ Using Breeze
              alt="Connecting to postgresql">
       </div>
 
-4. Stopping breeze
+4. Stopping Breeze
 
-If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
+If Breeze was started with ``breeze start-airflow``, first exit the terminal multiplexer so that the
+Breeze container stops and releases its forwarded ports:
+
+* With mprocs (the default), press ``q`` in the mprocs interface.
+* With tmux, run ``stop_airflow`` from the main shell pane:
 
 .. code-block:: bash
 
   [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
+
+After returning to the host shell, stop the remaining Docker Compose services:
+
+.. code-block:: bash
+
   breeze down
 
 If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
@@ -646,7 +665,8 @@ If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or s
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze start-airflow`` uses tmux. Use ``q`` to quit
+    the default mprocs interface.
 
 Using tmux Instead of mprocs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -669,10 +689,10 @@ You can also switch terminal multiplexer via breeze config:
 
 .. code-block:: bash
 
-  breeze setup config --terminal_multiplexer tmux
-  breeze setup config --terminal_multiplexer mprocs
+  breeze setup config --terminal-multiplexer tmux
+  breeze setup config --terminal-multiplexer mprocs
 
-** Benefits of using tmux:**
+**Benefits of using tmux:**
 
 * Familiar terminal multiplexer for many developers
 * More control over panes and windows

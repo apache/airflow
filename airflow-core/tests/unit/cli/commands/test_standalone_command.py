@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from collections import deque
 from importlib import reload
 from unittest import mock
@@ -303,6 +304,18 @@ class TestStandaloneCommand:
         cmd.stop()
 
         fake_process.terminate.assert_called_once()
+
+    def test_subcommand_stop_does_not_block_siblings_when_a_process_never_started(self):
+        """Shutdown stops each component in turn, so one that never spawned must not abort the loop."""
+        never_started = SubCommand(mock.Mock(spec=StandaloneCommand), "scheduler", ["scheduler"], {})
+        running = SubCommand(mock.Mock(spec=StandaloneCommand), "triggerer", ["triggerer"], {})
+        running.process = mock.Mock(spec=subprocess.Popen)
+
+        assert never_started.process is None
+        for command in (never_started, running):
+            command.stop()
+
+        running.process.terminate.assert_called_once()
 
     @mock.patch("airflow.cli.commands.standalone_command.ExecutorLoader.import_default_executor_cls")
     @mock.patch("airflow.cli.commands.standalone_command.conf.get")

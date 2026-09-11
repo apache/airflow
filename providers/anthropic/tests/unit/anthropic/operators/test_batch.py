@@ -21,7 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
+from airflow.providers.anthropic.exceptions import (
+    AnthropicBatchJobError,
+    AnthropicBatchTimeout,
+    AnthropicTriggerEventError,
+)
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
 from airflow.providers.anthropic.operators.batch import AnthropicBatchOperator
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
@@ -137,6 +141,18 @@ class TestAnthropicBatchOperatorExecute:
         hook.cancel_batch.assert_called_once_with("batch_1")
 
     @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
+    def test_execute_forwards_model_to_hook(self, mock_hook_prop):
+        hook = mock.MagicMock(spec=AnthropicHook)
+        hook.create_batch.return_value.id = "batch_1"
+        mock_hook_prop.return_value = hook
+
+        op = AnthropicBatchOperator(
+            task_id="t", requests=REQUESTS, model="claude-haiku-4-5", wait_for_completion=False
+        )
+        op.execute(_context())
+        hook.create_batch.assert_called_once_with(REQUESTS, model="claude-haiku-4-5")
+
+    @mock.patch.object(AnthropicBatchOperator, "hook", new_callable=mock.PropertyMock)
     def test_empty_requests_raises_before_any_api_call(self, mock_hook_prop):
         hook = mock.MagicMock(spec=AnthropicHook)
         mock_hook_prop.return_value = hook
@@ -186,6 +202,18 @@ class TestExecuteComplete:
         op = AnthropicBatchOperator(task_id="t", requests=REQUESTS, fail_on_partial_error=True)
         event = {"status": "success", "batch_id": "b", "request_counts": {"succeeded": 9, "errored": 1}}
         with pytest.raises(AnthropicBatchJobError, match="failed request"):
+            op.execute_complete(_context(), event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({"status": "ended", "batch_id": "b"}, id="unknown-status"),
+        ],
+    )
+    def test_invalid_event_raises_instead_of_succeeding(self, event):
+        op = AnthropicBatchOperator(task_id="t", requests=REQUESTS)
+        with pytest.raises(AnthropicTriggerEventError):
             op.execute_complete(_context(), event)
 
 

@@ -24,10 +24,13 @@ import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useTaskServiceGetTask } from "openapi/queries";
+
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { useDocumentTitle } from "src/utils";
 import { getGroupTask } from "src/utils/groupTask";
 
 import { GroupTaskHeader } from "./GroupTaskHeader";
@@ -36,6 +39,8 @@ import { Header } from "./Header";
 export const Task = () => {
   const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", groupId, runId, taskId } = useParams();
+
+  useDocumentTitle(groupId ?? taskId);
 
   // Get external views with task destination
   const externalTabs = usePluginTabs("task");

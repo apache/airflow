@@ -181,7 +181,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
             start_from_failure=self.start_from_failure,
             parameters=self.parameters,
         )
-        self.run_id = vars(response)["run_id"]
+        self.run_id = response.run_id
         # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
         # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
         # asynchronous wait.

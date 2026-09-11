@@ -79,6 +79,7 @@ class TestPluginsCommand:
         assert info == [
             {
                 "name": "test_plugin",
+                "team_name": None,
                 "admin_views": [],
                 "macros": ["unit.plugins.test_plugin.plugin_macro"],
                 "menu_links": [],
@@ -100,12 +101,16 @@ class TestPluginsCommand:
                 ],
                 "external_views": [
                     {
-                        "destination": "nav",
+                        "destination": "dag",
                         "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
                         "name": "Test IFrame Airflow Docs",
                         "href": "https://airflow.apache.org/",
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
+                        "applies_to": {
+                            "dag_tags": ["ml", "production"],
+                            "dag_ids": ["example_dag"],
+                        },
                     },
                 ],
                 "react_apps": [

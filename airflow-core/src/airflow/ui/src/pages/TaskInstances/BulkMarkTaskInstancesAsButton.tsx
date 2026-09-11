@@ -16,19 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Button, Flex, Heading, HStack, VStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Badge, Box, Button, Flex, HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { Modal, Menu, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
 import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
-import { Dialog, Menu } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
+
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
@@ -119,85 +122,80 @@ const BulkMarkTaskInstancesAsButton = ({ deselectKeys, selectedTaskInstances }: 
         </Menu.Content>
       </Menu.Root>
 
-      <Dialog.Root onOpenChange={onClose} open={open}>
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">
-                {translate("dags:runAndTaskActions.markAs.title", {
-                  state,
-                  type: translate("taskInstance_other"),
-                })}{" "}
-                <StateBadge state={state} />
-              </Heading>
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-          <Dialog.Body width="full">
-            <Flex justifyContent="center" mb={4}>
-              <SegmentedControl
-                defaultValues={[]}
-                multiple
-                onChange={setSelectedOptions}
-                options={[
+      <Modal
+        footerActions={
+          <Button
+            disabled={affectedTasks.total_entries === 0}
+            loading={isPending || isFetching}
+            onClick={() => {
+              bulkAction({
+                actions: [
                   {
-                    disabled: !hasLogicalDate,
-                    label: translate("dags:runAndTaskActions.options.past"),
-                    value: "past",
+                    action: "update" as const,
+                    action_on_non_existence: "skip",
+                    entities: directlyAffected.map((ti) => ({
+                      dag_id: ti.dag_id,
+                      dag_run_id: ti.dag_run_id,
+                      include_downstream: downstream,
+                      include_future: future,
+                      include_past: past,
+                      include_upstream: upstream,
+                      map_index: ti.map_index,
+                      new_state: state,
+                      note,
+                      task_id: ti.task_id,
+                    })),
+                    update_mask: note === null ? ["new_state"] : ["new_state", "note"],
                   },
-                  {
-                    disabled: !hasLogicalDate,
-                    label: translate("dags:runAndTaskActions.options.future"),
-                    value: "future",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.upstream"),
-                    value: "upstream",
-                  },
-                  {
-                    label: translate("dags:runAndTaskActions.options.downstream"),
-                    value: "downstream",
-                  },
-                ]}
-              />
-            </Flex>
-            <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
-            <ActionErrors actionResponse={data?.update} error={error} />
-            <Flex justifyContent="end" mt={3}>
-              <Button
-                disabled={affectedTasks.total_entries === 0}
-                loading={isPending || isFetching}
-                onClick={() => {
-                  bulkAction({
-                    actions: [
-                      {
-                        action: "update" as const,
-                        action_on_non_existence: "skip",
-                        entities: directlyAffected.map((ti) => ({
-                          dag_id: ti.dag_id,
-                          dag_run_id: ti.dag_run_id,
-                          include_downstream: downstream,
-                          include_future: future,
-                          include_past: past,
-                          include_upstream: upstream,
-                          map_index: ti.map_index,
-                          new_state: state,
-                          note,
-                          task_id: ti.task_id,
-                        })),
-                        update_mask: note === null ? ["new_state"] : ["new_state", "note"],
-                      },
-                    ],
-                  });
-                }}
-              >
-                {translate("modal.confirm")}
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
+                ],
+              });
+            }}
+          >
+            {translate("modal.confirm")}
+          </Button>
+        }
+        onOpenChange={onClose}
+        open={open}
+        title={
+          <>
+            {translate("dags:runAndTaskActions.markAs.title", {
+              state,
+              type: translate("taskInstance_other"),
+            })}{" "}
+            <StateBadge state={state} />
+          </>
+        }
+      >
+        <Flex justifyContent="center" mb={4}>
+          <SegmentedControl
+            defaultValues={[]}
+            multiple
+            onChange={setSelectedOptions}
+            options={[
+              {
+                disabled: !hasLogicalDate,
+                label: translate("dags:runAndTaskActions.options.past"),
+                value: "past",
+              },
+              {
+                disabled: !hasLogicalDate,
+                label: translate("dags:runAndTaskActions.options.future"),
+                value: "future",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.upstream"),
+                value: "upstream",
+              },
+              {
+                label: translate("dags:runAndTaskActions.options.downstream"),
+                value: "downstream",
+              },
+            ]}
+          />
+        </Flex>
+        <ActionAccordion affectedTasks={affectedTasks} groupByRunId note={note} setNote={setNote} />
+        <ActionErrors actionResponse={data?.update} error={error} />
+      </Modal>
     </Box>
   );
 };

@@ -57,9 +57,8 @@ Client Secret (optional)
     Leave blank for Airbyte OSS deployments without auth enabled.
 
 Extra (optional)
-    Specify custom proxies in JSON format.
-    Following default requests parameters are taken into account:
+    Specify the ``proxies`` key in JSON format to route traffic through an HTTP proxy.
 
     * ``proxies``
 
-    Example: ``{"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8080"}``
+    Example: ``{"proxies": {"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8080"}}``

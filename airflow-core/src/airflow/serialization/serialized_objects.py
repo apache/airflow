@@ -31,7 +31,7 @@ import sys
 import weakref
 from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
-from inspect import signature
+from inspect import Parameter, signature
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast, overload
 
@@ -41,7 +41,7 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
@@ -112,8 +112,6 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.sqlalchemy import deserialize_pod_dict
 
 if TYPE_CHECKING:
-    from inspect import Parameter
-
     from kubernetes.client import models as k8s  # noqa: TC004
     from kubernetes.client.api_client import ApiClient  # noqa: TC004
 
@@ -240,6 +238,31 @@ def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     if priority_weight_strategy_class is None:
         raise _PriorityWeightStrategyNotRegistered(var)
     return priority_weight_strategy_class()
+
+
+# Builtin exceptions a BASE_EXC_SER node can rebuild into. A user defined subclass
+# (e.g. a custom KeyError) serializes to a name absent here and won't round-trip --
+# unchanged from before, since builtins never held it either.
+_DESERIALIZABLE_BUILTIN_EXCEPTIONS: dict[str, type[BaseException]] = {
+    "KeyError": KeyError,
+    "AttributeError": AttributeError,
+}
+
+
+def _resolve_airflow_exception(exc_cls_name: str) -> type[AirflowException]:
+    """
+    Resolve a stored ``AirflowException`` name without importing it.
+
+    Read via ``vars()`` rather than ``getattr`` -- a module's deprecation-shim
+    ``__getattr__`` can still import on access -- which also lets pre-3.2.0 blobs
+    naming the old ``airflow.exceptions`` path keep resolving.
+    """
+    module_name, _, attr_name = exc_cls_name.rpartition(".")
+    module = sys.modules.get(module_name)
+    exc_cls = vars(module).get(attr_name) if module is not None else None
+    if not (isinstance(exc_cls, type) and issubclass(exc_cls, AirflowException)):
+        raise DeserializationError(f"Refusing to deserialize unknown exception class {exc_cls_name!r}")
+    return exc_cls
 
 
 def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
@@ -664,9 +687,14 @@ class BaseSerialization:
             kwargs = deser["kwargs"]
             del deser
             if type_ == DAT.AIRFLOW_EXC_SER:
-                exc_cls = import_string(exc_cls_name)
+                exc_cls: type[BaseException] = _resolve_airflow_exception(exc_cls_name)
             else:
-                exc_cls = import_string(f"builtins.{exc_cls_name}")
+                builtin_exc_cls = _DESERIALIZABLE_BUILTIN_EXCEPTIONS.get(exc_cls_name)
+                if builtin_exc_cls is None:
+                    raise DeserializationError(
+                        f"Refusing to deserialize unsupported builtin exception {exc_cls_name!r}"
+                    )
+                exc_cls = builtin_exc_cls
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
@@ -1033,6 +1061,20 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if op.inherits_from_skipmixin:
             serialize_op["_can_skip_downstream"] = True
 
+        if op.is_stub:
+            # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
+            # which only lang-SDK (non-Python) workloads ever need.
+            from airflow.sdk.bases.decorator import DecoratedOperator
+            from airflow.serialization.stub_arg_bindings import build_arg_bindings
+
+            serialize_op["is_stub"] = True
+            if (
+                not op.is_mapped
+                and isinstance(op, DecoratedOperator)
+                and (arg_bindings := build_arg_bindings(op))
+            ):
+                serialize_op["_arg_bindings"] = arg_bindings
+
         if op.start_trigger_args:
             serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)
 
@@ -1147,6 +1189,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
+            elif k in ("is_stub", "_arg_bindings"):
+                # Both are restored unconditionally below: is_stub must fail closed rather than go
+                # through generic decoding, and _arg_bindings is plain JSON, not {__type, __var}.
+                continue
             elif (
                 k in cls._decorated_fields
                 or k not in op.get_serialized_fields()
@@ -1204,6 +1250,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
 
         # Used to determine if an Operator is inherited from SkipMixin
         setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
+
+        # Fails closed like the Dag-level flag: a non-Python producer's blob is never schema-validated
+        # on this path, so anything that is not JSON ``true`` means "not a stub".
+        setattr(op, "is_stub", encoded_op.get("is_stub") is True)
+        setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)

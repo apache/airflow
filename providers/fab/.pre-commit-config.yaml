@@ -55,6 +55,7 @@ repos:
         name: Update migration ref doc for FAB
         language: python
         entry: ../../scripts/ci/prek/migration_reference.py
+        args: ["--app", "fab"]
         pass_filenames: false
         files: >
           (?x)

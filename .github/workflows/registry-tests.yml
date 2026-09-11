@@ -26,6 +26,10 @@ on:  # yamllint disable-line rule:truthy
       - 'providers/*/provider.yaml'
       - 'providers/*/*/provider.yaml'
       - '.github/workflows/registry-tests.yml'
+      # test_derive_wave_providers.py pins NON_PROVIDER_TOKENS to the copies in
+      # these two files, so a PR touching only them still has to run the guard.
+      - '.github/workflows/publish-docs-to-s3.yml'
+      - 'dev/breeze/src/airflow_breeze/global_constants.py'
   push:
     branches: [main]
     paths:
@@ -41,16 +45,18 @@ concurrency:
 jobs:
   registry-tests:
     name: "Registry extraction tests"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-slim
+    # ubuntu-slim is single-core, so the uv sync plus the suite need more headroom than
+    # the 5 minutes that sufficed on a 2-core runner.
+    timeout-minutes: 10
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
 
       - name: "Install uv"
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           python-version: "3.12"
 

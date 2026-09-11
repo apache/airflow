@@ -107,7 +107,7 @@ class TestCloudBathHook:
     def test_wait_job_does_not_succeed(self, mock_batch_service_client, state, cloud_batch_hook):
         mock_job = self._mock_job_with_status(state)
         mock_batch_service_client.return_value.get_job.return_value = mock_job
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match="job1"):
             cloud_batch_hook.wait_for_job("job1")
 
     @mock.patch(

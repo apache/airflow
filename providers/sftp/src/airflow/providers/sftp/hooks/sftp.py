@@ -786,8 +786,10 @@ class SFTPHookAsync(BaseHook):
             self.key_file = extra_options["key_file"]
         if "known_hosts" in extra_options and self.known_hosts != self.default_known_hosts:
             self.known_hosts = extra_options["known_hosts"]
-        if ("passphrase" or "private_key_passphrase") in extra_options:
-            self.passphrase = extra_options["passphrase"]
+        if "passphrase" in extra_options or "private_key_passphrase" in extra_options:
+            self.passphrase = extra_options.get("passphrase") or extra_options.get(
+                "private_key_passphrase", ""
+            )
         if "private_key" in extra_options:
             self.private_key = extra_options["private_key"]
 
@@ -802,6 +804,15 @@ class SFTPHookAsync(BaseHook):
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
             self.known_hosts = "none"
         elif host_key is not None:
+            host_key = host_key.strip()
+            host_key_parts = host_key.split()
+            if host_key_parts and host_key_parts[0] == "ssh-dss":
+                raise ValueError(
+                    "DSA/DSS host keys are not supported. Paramiko 4.0 removed DSS support; "
+                    "use an RSA, ECDSA, or Ed25519 host key and update the connection `host_key`."
+                )
+            if len(host_key_parts) >= 2:
+                host_key = " ".join(host_key_parts[:2])
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self) -> asyncssh.SSHClientConnection:

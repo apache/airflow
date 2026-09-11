@@ -140,12 +140,51 @@ These authorization methods are:
 * ``is_authorized_asset_alias``: Return whether the user is authorized to access Airflow asset aliases. Some details about the asset alias can be provided (e.g. the asset alias ID).
 * ``is_authorized_pool``: Return whether the user is authorized to access Airflow pools. Some details about the pool can be provided (e.g. the pool name).
 * ``is_authorized_variable``: Return whether the user is authorized to access Airflow variables. Some details about the variable can be provided (e.g. the variable key).
-* ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``).
+* ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``). An optional ``team_name`` scopes the check to a team -- see :ref:`team-scoped-view-authorization` below.
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
+* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task.
+  This is an optional method: the default implementation returns whether the user's ID is in ``assigned_users``, the IDs of the users assigned to the task.
+  Airflow only calls this method for tasks that have assigned users. When a task has none, Airflow skips this method and any user allowed to
+  update the task's HITL detail (``is_authorized_dag`` with ``access_entity=DagAccessEntity.HITL_DETAIL``) can respond.
 
 It should be noted that the ``method`` parameter listed above may only have relevance for a specific subset of the auth manager's authorization methods.
 For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.
+
+.. _team-scoped-view-authorization:
+
+Team-scoped view authorization
+''''''''''''''''''''''''''''''
+
+.. versionadded:: 3.4.0
+   ``is_authorized_view`` accepts an optional ``team_name`` argument.
+
+In a multi-team deployment, access to a read-only view can be restricted to the users of a
+specific team. ``is_authorized_view`` accepts an optional ``team_name`` for that purpose. An
+auth manager that implements multi-team isolation honors it and only authorizes users who
+belong to ``team_name``; an auth manager without multi-team support accepts the argument and
+ignores it, which authorizes the view across all teams (the same behaviour it had before the
+argument existed).
+
+Core never calls ``is_authorized_view`` with ``team_name`` directly. It goes through
+``BaseAuthManager.authorize_view``, which first checks whether the auth manager's
+``is_authorized_view`` accepts ``team_name``. This keeps auth managers that predate the
+argument working: a custom or out-of-tree auth manager whose ``is_authorized_view`` still has
+the old ``(access_view, user)`` signature is called *without* ``team_name`` -- it does not
+raise -- and a ``RemovedInAirflow4Warning`` is emitted, warning that some views that should be
+restricted to a single team are instead authorized across all teams until the auth manager is
+upgraded.
+
+To make an auth manager team-aware, add ``team_name`` to the override (managers without
+multi-team support may accept and ignore it):
+
+.. code-block:: python
+
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: MyUser, team_name: str | None = None
+    ) -> bool: ...
+
+The fallback for the older signature is removed in Airflow 4, which requires ``team_name``.
 
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -200,11 +239,11 @@ The following methods aren't required to override to have a functional Airflow a
 * ``batch_is_authorized_dag``: Batch version of ``is_authorized_dag``. If not overridden, it calls ``is_authorized_dag`` for every single item.
 * ``batch_is_authorized_pool``: Batch version of ``is_authorized_pool``. If not overridden, it calls ``is_authorized_pool`` for every single item.
 * ``batch_is_authorized_variable``: Batch version of ``is_authorized_variable``. If not overridden, it calls ``is_authorized_variable`` for every single item.
+* ``filter_authorized_assets``: Given a list of assets (each carrying its id, name and uri), return the ids of the assets the user has access to.  If not overridden, it calls ``is_authorized_asset`` for every single asset passed as parameter.
 * ``filter_authorized_connections``: Given a list of connection IDs (``conn_id``), return the list of connection IDs the user has access to.  If not overridden, it calls ``is_authorized_connection`` for every single connection passed as parameter.
 * ``filter_authorized_dag_ids``: Given a list of Dag IDs, return the list of Dag IDs the user has access to.  If not overridden, it calls ``is_authorized_dag`` for every single Dag passes as parameter.
 * ``filter_authorized_pools``: Given a list of pool names, return the list of pool names the user has access to.  If not overridden, it calls ``is_authorized_pool`` for every single pool passed as parameter.
 * ``filter_authorized_variables``: Given a list of variable keys, return the list of variable keys the user has access to.  If not overridden, it calls ``is_authorized_variable`` for every single variable passed as parameter.
-* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task. Override this method to implement custom authorization logic for HITL tasks. If not overridden, it checks if the user's ID is in the assigned users list.
 
 CLI
 ^^^
@@ -257,8 +296,8 @@ Other optional methods
   Override this method if you need to make any action (e.g. create resources, API call) that the auth manager needs.
 * ``get_extra_menu_items``: Provide additional links to be added to the menu in the UI.
 * ``get_db_manager``: If your auth manager requires one or several database managers (see :class:`~airflow.utils.db_manager.BaseDBManager`),
-  their class paths need to be returned as part of this method. By doing so, they will be automatically added to the
-  config ``[database] external_db_managers``.
+  their class paths need to be returned as part of this method. By doing so, Airflow automatically loads the
+  respective database managers.
 
 
 Additional Caveats

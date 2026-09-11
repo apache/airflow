@@ -1,4 +1,10 @@
 {
+  "alerts": {
+    "seeLessContext": "कम दिखाएं",
+    "seeMoreContext": "अधिक दिखाएं",
+    "showMoreAlerts_one": "+{{count}} और अलर्ट",
+    "showMoreAlerts_other": "+{{count}} और अलर्ट्स"
+  },
   "deadlines": {
     "pending": {
       "empty": "कोई आगामी डेडलाइन नहीं",

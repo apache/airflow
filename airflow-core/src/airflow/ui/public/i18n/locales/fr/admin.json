@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "Section"
-    },
-    "title": "Configuration d'Airflow"
+    }
   },
   "connections": {
     "add": "Ajouter une connexion",
@@ -184,6 +183,7 @@
           "title": "Ignorer"
         }
       },
+      "parsingFile": "Analyse du fichier...",
       "title": "Importer des Variables",
       "upload": "Soumettre un Fichier JSON",
       "uploadPlaceholder": "Soumettre un fichier JSON contenant des variables (par exemple, {\"key\": \"value\", ...})"

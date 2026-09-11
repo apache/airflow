@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ButtonProps } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
+
 import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
-import { IconButton } from "src/components/ui";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 
@@ -40,9 +44,9 @@ type Props = {
   readonly onOpen?: (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => void;
   readonly taskId?: string;
   readonly taskInstance?: TaskInstanceResponse;
-};
+} & ButtonProps;
 
-const ClearTaskInstanceButton = ({
+export const ClearTaskInstanceButton = ({
   allMapped = false,
   dagId,
   dagRunId,
@@ -51,6 +55,7 @@ const ClearTaskInstanceButton = ({
   onOpen,
   taskId,
   taskInstance,
+  ...rest
 }: Props) => {
   const { onClose, onOpen: onOpenInternal, open } = useDisclosure();
   const { t: translate } = useTranslation();
@@ -82,6 +87,7 @@ const ClearTaskInstanceButton = ({
   return (
     <>
       <IconButton
+        {...rest}
         label={label}
         onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
       >
@@ -114,5 +120,3 @@ const ClearTaskInstanceButton = ({
     </>
   );
 };
-
-export default ClearTaskInstanceButton;

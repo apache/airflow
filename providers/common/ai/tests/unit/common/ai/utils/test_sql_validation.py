@@ -488,11 +488,121 @@ class TestCollectTableReferences:
         scan = collect_table_references(parse_sql(sql, dialect=dialect))
         assert scan.unverifiable_sources
 
-    def test_scalar_function_without_table_has_no_references(self):
-        """A scalar function call references no table -- the allow-list does not cover it."""
-        scan = collect_table_references(parse_sql("SELECT pg_read_file('/etc/passwd')", dialect="postgres"))
-        assert scan.tables == []
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            # File / large-object I/O.
+            ("SELECT pg_read_file('/etc/passwd')", "postgres"),
+            ("SELECT pg_read_binary_file('/etc/passwd')", "postgres"),
+            ("SELECT lo_export(0, '/tmp/x')", "postgres"),
+            ("SELECT lo_import('/etc/passwd')", "postgres"),
+            # Query-carrying function: the string argument reaches another table.
+            ("SELECT query_to_xml('SELECT * FROM secrets', true, false, '')", "postgres"),
+            # table_to_xml names an off-list table directly (only a read role needed).
+            ("SELECT table_to_xml('secrets', true, false, '')", "postgres"),
+            # MySQL server-side file read.
+            ("SELECT load_file('/etc/passwd')", "mysql"),
+            # Scalar dblink: reaches a remote database through a string.
+            ("SELECT dblink_exec('c', 'SELECT 1')", "postgres"),
+            # pg_ls_dir sibling that lists another server directory.
+            ("SELECT pg_ls_logdir()", "postgres"),
+            # Nested inside a projection over an allowed table -- still caught.
+            ("SELECT id, pg_read_file('/etc/passwd') FROM orders", "postgres"),
+            # Case-insensitive: uppercased name is folded before the comparison.
+            ("SELECT PG_READ_FILE('/etc/passwd')", "postgres"),
+            # Schema-qualified call: the bare name sits on the nested Anonymous, still reached.
+            ("SELECT pg_catalog.pg_read_file('/etc/passwd')", "postgres"),
+        ],
+        ids=[
+            "pg_read_file",
+            "pg_read_binary_file",
+            "lo_export",
+            "lo_import",
+            "query_to_xml",
+            "table_to_xml",
+            "load_file_mysql",
+            "dblink_exec",
+            "pg_ls_logdir",
+            "in_projection",
+            "uppercase",
+            "schema_qualified",
+        ],
+    )
+    def test_flags_data_reaching_function_as_unverifiable(self, sql, dialect):
+        """A function reaching a file/other table/program carries no table node and is
+        not a sqlglot-typed builtin, so the fail-closed scan reports it unverifiable."""
+        scan = collect_table_references(parse_sql(sql, dialect=dialect))
+        assert scan.unverifiable_sources
+
+    def test_typed_builtins_are_not_flagged(self):
+        """Built-in scalar functions parse to typed nodes, not Anonymous, so they pass."""
+        scan = collect_table_references(
+            parse_sql("SELECT count(*), lower(name), coalesce(x, 0) FROM orders", dialect="postgres")
+        )
+        assert scan.tables == [("", "", "orders")]
         assert scan.unverifiable_sources == []
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT my_udf(name) FROM orders",  # a bespoke UDF sqlglot cannot type
+            "SELECT json_build_object('id', id) FROM orders",  # a legit builtin sqlglot leaves Anonymous
+        ],
+        ids=["udf", "json_build_object"],
+    )
+    def test_unrecognized_function_flagged_by_default(self, sql):
+        """Fail-closed: any function sqlglot cannot type is rejected unless allow-listed."""
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert scan.unverifiable_sources
+
+    def test_allowed_functions_permits_named_function(self):
+        """A function named in allowed_functions passes, and its table is still checked."""
+        scan = collect_table_references(
+            parse_sql("SELECT json_build_object('id', id) FROM orders", dialect="postgres"),
+            allowed_functions=frozenset({"json_build_object"}),
+        )
+        assert scan.tables == [("", "", "orders")]
+        assert scan.unverifiable_sources == []
+
+    def test_allowed_functions_matched_case_insensitively(self):
+        """allowed_functions entries are compared case-folded, like the query's names."""
+        scan = collect_table_references(
+            parse_sql("SELECT JSON_BUILD_OBJECT('id', id) FROM orders", dialect="postgres"),
+            allowed_functions=frozenset({"json_build_object"}),
+        )
+        assert scan.unverifiable_sources == []
+
+    def test_allowed_functions_does_not_permit_a_different_function(self):
+        """Allow-listing one function does not let a second, unlisted one through."""
+        scan = collect_table_references(
+            parse_sql(
+                "SELECT json_build_object('x', pg_read_file('/etc/passwd')) FROM orders", dialect="postgres"
+            ),
+            allowed_functions=frozenset({"json_build_object"}),
+        )
+        assert scan.unverifiable_sources
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "COPY orders FROM PROGRAM 'id > /tmp/x'",
+            "COPY orders FROM '/tmp/data.csv'",
+            "COPY orders TO '/tmp/orders.csv'",
+            "COPY orders TO PROGRAM 'cat > /tmp/x'",
+        ],
+        ids=["from_program", "from_file", "to_file", "to_program"],
+    )
+    def test_flags_copy_as_unverifiable(self, sql):
+        """COPY moves data through a file/program channel the allow-list cannot describe."""
+        scan = collect_table_references(parse_sql(sql, dialect="postgres"))
+        assert scan.unverifiable_sources
+
+    @pytest.mark.parametrize("sql", ["LIST @mystage", "LS @mystage"], ids=["list", "ls"])
+    def test_flags_snowflake_stage_listing_as_unverifiable(self, sql):
+        """Snowflake LIST/LS @stage mis-parse to a bare aliased expression (Column AS
+        Parameter); reject it so it cannot list stage files past the allow-list."""
+        scan = collect_table_references(parse_sql(sql, dialect="snowflake"))
+        assert scan.unverifiable_sources
 
     @pytest.mark.parametrize(
         ("sql", "dialect"),

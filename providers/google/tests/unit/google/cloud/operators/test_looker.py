@@ -22,12 +22,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.models import DAG, DagBag
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.google.cloud.operators.looker import (
     DataStudioStartPdtBuildOperator,
     LookerStartPdtBuildOperator,
 )
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
@@ -39,7 +38,7 @@ MODEL = "test_model"
 VIEW = "test_view"
 
 TEST_DAG_ID = "test-looker-operators"
-DEFAULT_DATE = datetime(2020, 1, 1)
+DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 TEST_JOB_ID = "123"
 
 

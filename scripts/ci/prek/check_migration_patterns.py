@@ -148,14 +148,36 @@ a NOT NULL constraint, deleting rows before dropping a table, etc.  The DML is
 considered a safe prerequisite for the DDL.
 
 
-Known Limitation -- Future MIG004 Candidate
+MIG004 -- Migration description style
+--------------------------------------
+
+**What it does:**
+Checks the first paragraph of the migration module docstring -- the description
+Alembic exposes as ``Script.doc``. It must start with a capital letter, use the
+imperative mood ("Add", not "Added"/"Adding"), and end with a period.
+
+**Why is this bad:**
+The description is user-facing: it is rendered into the ``migrations-ref.rst``
+documentation table (by the ``update-migration-references`` hook) and printed by
+``alembic history``.  Inconsistent capitalization and verb tense make those
+listings needlessly messy.
+
+**Example (bad):** a migration docstring starting with
+``Added DagPriorityParsingRequest table.`` or
+``add timetable_type to dag table for filtering.``
+
+**Use instead:** ``Add DagPriorityParsingRequest table.`` and
+``Add timetable_type to dag table for filtering.``
+
+
+Known Limitation -- Future MIG005 Candidate
 ---------------------------------------------
 
 Migrations that perform DML and use ``batch_alter_table`` but never call
 ``disable_sqlite_fkeys`` at all are NOT detected by MIG001/MIG002.  These migrations
 may silently break SQLite foreign key handling.  Detecting this pattern requires
 understanding whether foreign key relationships exist on the affected tables, which
-is beyond AST-level analysis.  This is tracked as a future MIG004 candidate.
+is beyond AST-level analysis.  This is tracked as a future MIG005 candidate.
 
 
 Suppression
@@ -484,6 +506,30 @@ def check_mig003(mf: MigrationFile) -> list[str]:
     return errors
 
 
+def check_mig004(mf: MigrationFile) -> list[str]:
+    """MIG004: description must be capitalized, imperative, and end with a period."""
+    if mf.path.name == "__init__.py":
+        return []
+    doc = ast.get_docstring(mf.tree)
+    # Same extraction as alembic's Script.doc.
+    description = re.split(r"\n\n", doc.strip())[0].strip() if doc else ""
+    if not description:
+        return ["MIG004 module docstring must start with a migration description"]
+
+    errors: list[str] = []
+    if not description[0].isupper():
+        errors.append(f"MIG004 description {description!r} must start with a capital letter")
+    first_word = re.match(r"[A-Za-z]+", description)
+    if first_word and first_word.group().lower().endswith(("ed", "ing")):
+        errors.append(
+            f"MIG004 description {description!r} must use the imperative mood "
+            f"('Add ...', not 'Added ...' or 'Adding ...')"
+        )
+    if not description.endswith("."):
+        errors.append(f"MIG004 description {description!r} must end with a period")
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
@@ -491,7 +537,7 @@ def check_mig003(mf: MigrationFile) -> list[str]:
 
 def main() -> int:
     """Check migration files for anti-patterns. Exit 0 if clean, 1 if violations found."""
-    check_fns = [check_mig001, check_mig002, check_mig003]
+    check_fns = [check_mig001, check_mig002, check_mig003, check_mig004]
     has_errors = False
 
     for filepath_str in sys.argv[1:]:

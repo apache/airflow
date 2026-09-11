@@ -90,7 +90,7 @@ class BaseAzureServiceBusHook(BaseHook):
             "relabeling": {"schema": "Connection String"},
             "placeholders": {
                 "fully_qualified_namespace": (
-                    "<Resource group>.servicebus.windows.net (for Azure AD authenticaltion)"
+                    "<Resource group>.servicebus.windows.net (for Azure AD authentication)"
                 ),
                 "credential": "credential",
                 "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",

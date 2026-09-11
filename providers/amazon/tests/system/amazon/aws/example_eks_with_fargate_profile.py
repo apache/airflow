@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pendulum import duration
-
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -141,14 +139,20 @@ with DAG(
         target_state=FargateProfileStates.ACTIVE,
     )
 
+    # The cluster can still report an update in progress after the fargate profile turns ACTIVE, and EKS
+    # rejects DeleteFargateProfile with ResourceInUseException while that update runs.
+    await_cluster_stable_before_profile_delete = EksClusterStateSensor(
+        task_id="await_cluster_stable_before_profile_delete",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        target_state=ClusterStates.ACTIVE,
+    )
+
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EksDeleteFargateProfileOperator(
         task_id="delete_eks_fargate_profile",
         cluster_name=cluster_name,
         fargate_profile_name=fargate_profile_name,
-        retries=4,
-        retry_delay=duration(seconds=30),
-        retry_exponential_backoff=True,
     )
     # [END howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile.trigger_rule = TriggerRule.ALL_DONE
@@ -195,6 +199,7 @@ with DAG(
         # TEARDOWN
         describe_pod,
         await_fargate_profile_stable,
+        await_cluster_stable_before_profile_delete,
         delete_fargate_profile,  # part of the test AND teardown
         await_delete_fargate_profile,
         await_cluster_stable,

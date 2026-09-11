@@ -75,11 +75,21 @@ class TestSSHHookAsync:
         """Test parsing host_key from connection extras."""
         hook = SSHHookAsync(ssh_conn_id="test_conn")
         mock_conn = mock.MagicMock()
-        mock_conn.extra_dejson = {"host_key": "ssh-rsa AAAAB3...", "no_host_key_check": "false"}
+        mock_conn.extra_dejson = {"host_key": " ssh-rsa AAAAB3... user@host ", "no_host_key_check": "false"}
         mock_conn.host = "test.host"
 
         hook._parse_extras(mock_conn)
         assert hook.known_hosts == b"test.host ssh-rsa AAAAB3..."
+
+    def test_parse_extras_dss_host_key_raises(self):
+        """Test that ssh-dss host_key is rejected."""
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+        mock_conn = mock.MagicMock()
+        mock_conn.extra_dejson = {"host_key": "ssh-dss\tAAAAB3...", "no_host_key_check": "false"}
+        mock_conn.host = "test.host"
+
+        with pytest.raises(ValueError, match="DSA/DSS host keys"):
+            hook._parse_extras(mock_conn)
 
     def test_parse_extras_host_key_with_no_check_raises(self):
         """Test that host_key with no_host_key_check raises error."""
@@ -125,9 +135,11 @@ class TestSSHHookAsync:
 
         mock_ssh_client = mock.AsyncMock()
 
-        with mock.patch("asgiref.sync.sync_to_async") as mock_sync:
-            mock_sync.return_value = mock.AsyncMock(return_value=mock_conn_obj)
-
+        with mock.patch(
+            "airflow.providers.ssh.hooks.ssh.get_async_connection",
+            new_callable=mock.AsyncMock,
+            return_value=mock_conn_obj,
+        ):
             with mock.patch("asyncssh.connect", new_callable=mock.AsyncMock) as mock_connect:
                 mock_connect.return_value = mock_ssh_client
                 result = await hook._get_conn()

@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.partitioned_dag_runs import (
     PartitionedDagRunDetailResponse,
     PartitionedDagRunResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     ReadableDagsFilterDep,
     requires_access_asset,
@@ -242,6 +243,7 @@ def _build_response(row, required_count: int, received_count: int) -> Partitione
 
 @partitioned_dag_runs_router.get(
     "/partitioned_dag_runs",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_partitioned_dag_runs(
@@ -283,8 +285,14 @@ def get_partitioned_dag_runs(
 
     if not (rows := session.execute(query).all()):
         if dag_id.value is not None and total_entries == 0:
-            dag_exists = session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value))
-            if dag_exists is None:
+            # An unreadable-but-existing Dag must return 404 too — otherwise the caller
+            # can probe by dag_id and learn which Dags exist outside their permitted set.
+            if readable_dag_ids is not None:
+                if dag_id.value not in readable_dag_ids:
+                    raise HTTPException(
+                        status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found"
+                    )
+            elif session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id.value)) is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id.value} was not found")
         return PartitionedDagRunCollectionResponse(partitioned_dag_runs=[], total=total_entries)
 
@@ -354,7 +362,7 @@ def get_partitioned_dag_runs(
 
 
 @partitioned_dag_runs_router.get(
-    "/pending_partitioned_dag_run/{dag_id}/{partition_key}",
+    "/pending_partitioned_dag_run/{dag_id}",
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_pending_partitioned_dag_run(
@@ -363,6 +371,9 @@ def get_pending_partitioned_dag_run(
     session: SessionDep,
 ) -> PartitionedDagRunDetailResponse:
     """Return full details for pending PartitionedDagRun."""
+    # partition_key is a query param, not a path segment: it is a free-form key
+    # (up to 250 chars) that may itself contain "/", which would otherwise be
+    # ambiguous (or mis-routed) as a path segment.
     partitioned_dag_run = session.execute(
         select(
             AssetPartitionDagRun.id,
@@ -378,7 +389,11 @@ def get_pending_partitioned_dag_run(
             AssetPartitionDagRun.partition_key == partition_key,
             AssetPartitionDagRun.created_dag_run_id.is_(None),
         )
-    ).one_or_none()
+        # Duplicate pending rows for the same (dag_id, partition_key) can exist
+        # after a crash; mirror _get_or_create_apdr and work on the latest one.
+        .order_by(AssetPartitionDagRun.id.desc())
+        .limit(1)
+    ).first()
 
     if partitioned_dag_run is None:
         raise HTTPException(
@@ -452,9 +467,15 @@ def get_pending_partitioned_dag_run(
             required_keys = []
             received_count = 0
             required_count = 1
-        else:
+        elif is_rollup:
             received_count = len(received_keys)
             required_count = len(required_keys)
+        else:
+            # Match the list route's _compute_received_count: a non-rollup asset is
+            # satisfied by any single received event, so credit caps at 1 even if
+            # several distinct upstream keys mapped onto this one target key.
+            required_count = len(required_keys)
+            received_count = 1 if received_keys else 0
         assets.append(
             PartitionedDagRunAssetResponse(
                 asset_id=asset_row.id,

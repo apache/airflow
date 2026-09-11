@@ -24,7 +24,6 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -43,27 +42,21 @@ from airflow.models.pool import Pool
 
 
 def update_orm_from_pydantic(
-    pool_name: str,
+    pool: Pool,
     patch_body: PoolBody | PoolPatchBody,
     update_mask: list[str] | None,
-    session: SessionDep,
 ) -> Pool:
     """
     Update an existing pool.
 
-    :param pool_name: The name of the existing Pool to be updated.
+    :param pool: The existing Pool ORM object to update.
     :param patch_body: Pydantic model containing the fields to update.
     :param update_mask: Specific fields to update. If None, all provided fields will be considered.
-    :param session: The database session dependency.
     :return: The updated Pool instance.
     :raises HTTPException: If attempting to update disallowed fields on ``default_pool``.
     """
     # Special restriction: default pool only allows limited fields to be patched
-    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
-    if not pool:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
-        )
+    pool_name = pool.pool
     if pool_name == Pool.DEFAULT_POOL_NAME:
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
             # Validate only slots/include_deferred
@@ -170,7 +163,9 @@ class BulkPoolService(BulkService[PoolBody]):
     def handle_bulk_update(self, action: BulkUpdateAction[PoolBody], results: BulkActionResponse) -> None:
         """Bulk Update pools."""
         to_update_pool_names = {pool.pool for pool in action.entities}
-        _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_update_pool_names)
+        existing_pools_dict, matched_pool_names, not_found_pool_names = self.categorize_pools(
+            to_update_pool_names
+        )
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
                 raise HTTPException(
@@ -185,7 +180,9 @@ class BulkPoolService(BulkService[PoolBody]):
                 if pool.pool not in update_pool_names:
                     continue
 
-                updated_pool = update_orm_from_pydantic(pool.pool, pool, action.update_mask, self.session)
+                updated_pool = update_orm_from_pydantic(
+                    existing_pools_dict[pool.pool], pool, action.update_mask
+                )
 
                 results.success.append(str(updated_pool.pool))  # use request field, always consistent
 

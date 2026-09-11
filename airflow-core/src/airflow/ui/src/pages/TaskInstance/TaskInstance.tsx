@@ -25,23 +25,35 @@ import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { getDefaultTaskInstanceTabPath } from "src/utils/links";
 
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+
+  useDocumentTitle(taskId);
+
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
+  // When another tab is the default, the index route redirects to it, so the Logs
+  // tab must point at the explicit /logs path to stay reachable.
+  const [defaultTab] = useDefaultTaskInstanceTab();
+  const logsTabValue = getDefaultTaskInstanceTabPath(defaultTab) === "" ? "" : "logs";
+
   const tabs = [
-    { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    { icon: <MdReorder />, label: translate("tabs.logs"), matchPaths: ["logs"], value: logsTabValue },
     { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     {
       icon: <PiBracketsCurlyBold />,
@@ -79,6 +91,7 @@ export const TaskInstance = () => {
     {
       enabled: !isNaN(parsedMapIndex),
       refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      staleTime: 0,
     },
   );
 
@@ -89,21 +102,20 @@ export const TaskInstance = () => {
   const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
-  let newTabs = tabs;
-
-  if (taskInstance && taskInstance.map_index > -1) {
-    newTabs = [
-      ...tabs.slice(0, 1),
-      {
-        icon: <MdOutlineTask />,
-        label: translate("tabs.mappedTaskInstances_other", {
-          count: Number(taskCount),
-        }),
-        value: "task_instances",
-      },
-      ...tabs.slice(1),
-    ];
-  }
+  const newTabs =
+    taskInstance && taskInstance.map_index > -1
+      ? [
+          ...tabs.slice(0, 1),
+          {
+            icon: <MdOutlineTask />,
+            label: translate("tabs.mappedTaskInstances_other", {
+              count: Number(taskCount),
+            }),
+            value: "task_instances",
+          },
+          ...tabs.slice(1),
+        ]
+      : tabs;
 
   const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
     autoRedirect: true,

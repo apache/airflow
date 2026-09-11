@@ -223,6 +223,12 @@ The ``db clean`` command works by deleting from each table the records older tha
 
 You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
 
+.. note::
+
+  Cleaning the ``asset_event`` table also drops any queued-but-not-yet-consumed asset events. This mainly
+  affects Dags waiting on a multi-asset condition, where a pending event can be purged before the condition
+  is met, meaning the Dag will not be triggered by it.
+
 You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list). These options allow you to target or avoid cleanup for particular DAGs.
 
 You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
@@ -333,6 +339,22 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
 
     It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
     This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
+
+.. _cli-reserialize-dags:
+
+Reserializing Dags
+------------------
+
+The ``dags reserialize`` command parses the Dag files visible to it and updates their
+serialized representation in the metadata database. It is a maintenance command, useful
+for example to refresh serialized Dags after upgrading or downgrading Airflow.
+
+.. note::
+
+    ``airflow dags reserialize`` serializes the Dag files visible to the process
+    running it. It does not deploy or synchronize Dag source files, and does not
+    replace normal Dag Processor bundle refreshes. In a distributed deployment,
+    run it from an environment that sees the same Dag bundle contents as the Dag Processor.
 
 .. _cli-export-connections:
 

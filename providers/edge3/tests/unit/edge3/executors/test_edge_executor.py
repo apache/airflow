@@ -67,9 +67,23 @@ class TestEdgeExecutor:
 
         return (executor, key)
 
+    @pytest.mark.parametrize(
+        ("executor_kwargs", "job_team_name", "expected_tags"),
+        [
+            ({}, None, {}),
+            pytest.param(
+                {"team_name": "team_a"},
+                "team_a",
+                {"team_name": "team_a"},
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_2_PLUS, reason="team_name is only available in Airflow 3.2+"
+                ),
+            ),
+        ],
+    )
     @patch(f"{Stats.__module__}.Stats.incr")
-    def test_sync_orphaned_tasks(self, mock_stats_incr):
-        executor = EdgeExecutor()
+    def test_sync_orphaned_tasks(self, mock_stats_incr, executor_kwargs, job_team_name, expected_tags):
+        executor = EdgeExecutor(**executor_kwargs)
 
         delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
         delta_to_orphaned_config_name = "task_instance_heartbeat_timeout"
@@ -97,20 +111,23 @@ class TestEdgeExecutor:
                         command="mock",
                         concurrency_slots=1,
                         last_update=last_update,
+                        team_name=job_team_name,
                     )
                 )
                 session.commit()
 
+        expected_tags = {
+            "dag_id": "test_dag",
+            "queue": "default",
+            "state": "failed",
+            "task_id": "started_running_orphaned",
+            **expected_tags,
+        }
         executor.sync()
 
         mock_stats_incr.assert_called_with(
             "edge_worker.ti.finish",
-            tags={
-                "dag_id": "test_dag",
-                "queue": "default",
-                "state": "failed",
-                "task_id": "started_running_orphaned",
-            },
+            tags=expected_tags,
         )
         assert mock_stats_incr.call_count == 1
 
@@ -549,9 +566,16 @@ class TestEdgeExecutorMultiTeam:
 
         with time_machine.travel(datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc), tick=False):
             with conf_vars({("edge", "heartbeat_interval"): "10"}):
-                with create_session() as session:
+                with (
+                    create_session() as session,
+                    patch(
+                        "airflow.providers.edge3.executors.edge_executor.reset_metrics"
+                    ) as mock_reset_metrics,
+                ):
                     executor_a._check_worker_liveness(session)
                     session.commit()
+
+        mock_reset_metrics.assert_called_once_with("worker_team_a", team_name="team_a")
 
         with create_session() as session:
             workers = {w.worker_name: w for w in session.scalars(select(EdgeWorkerModel)).all()}

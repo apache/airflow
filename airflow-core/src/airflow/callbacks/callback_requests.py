@@ -46,6 +46,8 @@ class BaseCallbackRequest(BaseModel):
     """File Path to use to run the callback"""
     bundle_name: str
     bundle_version: str | None
+    version_data: dict[str, Any] | None = None
+    """Optional structured metadata for the pinned bundle version (e.g. an S3 object manifest)."""
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/task heartbeat timeout"""
 

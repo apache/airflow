@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import stat
 import subprocess
 import tempfile
@@ -163,6 +164,19 @@ class TestTptUtil:
         ]
         assert mock_execute_cmd.call_args_list == expected_calls
         mock_logger.info.assert_called_with("Processed remote files: %s", "/remote/file1, /remote/file2")
+
+    @patch("airflow.providers.teradata.utils.tpt_util.get_remote_os")
+    @patch("airflow.providers.teradata.utils.tpt_util.execute_remote_command")
+    def test_remote_secure_delete_quotes_metacharacter_path(self, mock_execute_cmd, mock_get_remote_os):
+        """A remote path with spaces / shell metacharacters is shell-quoted in the shred command."""
+        mock_ssh = Mock()
+        mock_logger = Mock()
+        mock_get_remote_os.return_value = "unix"
+        mock_execute_cmd.side_effect = [(0, "/usr/bin/shred", ""), (0, "", "")]
+        evil = "/remote/a b; rm -rf ~"
+        remote_secure_delete(mock_ssh, [evil], mock_logger)
+        cmd = mock_execute_cmd.call_args_list[1].args[1]
+        assert cmd == f"shred --remove {shlex.quote(evil)}"
 
     @patch("airflow.providers.teradata.utils.tpt_util.get_remote_os")
     @patch("airflow.providers.teradata.utils.tpt_util.execute_remote_command")
@@ -569,6 +583,20 @@ class TestTptUtil:
 
         mock_get_remote_os.assert_called_once_with(mock_ssh, mock_logger)
         mock_execute_cmd.assert_called_once_with(mock_ssh, "chmod 400 /remote/file")
+
+    @patch("airflow.providers.teradata.utils.tpt_util.get_remote_os")
+    @patch("airflow.providers.teradata.utils.tpt_util.execute_remote_command")
+    def test_set_remote_file_permissions_unix_quotes_metacharacter_path(
+        self, mock_execute_cmd, mock_get_remote_os
+    ):
+        """The chmod command shell-quotes a path containing spaces / metacharacters."""
+        mock_ssh = Mock()
+        mock_logger = Mock()
+        mock_get_remote_os.return_value = "unix"
+        mock_execute_cmd.return_value = (0, "", "")
+        evil = "/remote/a b; touch pwned"
+        set_remote_file_permissions(mock_ssh, evil, mock_logger)
+        mock_execute_cmd.assert_called_once_with(mock_ssh, f"chmod 400 {shlex.quote(evil)}")
 
     @patch("airflow.providers.teradata.utils.tpt_util.get_remote_os")
     @patch("airflow.providers.teradata.utils.tpt_util.execute_remote_command")

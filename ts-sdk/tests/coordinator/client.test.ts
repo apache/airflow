@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { ConnectionNotFoundError } from "../../src/sdk/client.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskContext } from "../../src/sdk/task.js";
@@ -125,6 +126,29 @@ describe("client is bound to TaskContext", () => {
     });
   });
 
+  it("defaults getXCom locator fields from ctx with snake_case wire names", async () => {
+    const sent: Record<string, unknown>[] = [];
+    const recordingComm = {
+      request: async (b: Record<string, unknown>) => {
+        sent.push(b);
+        return { body: { type: "XComResult", key: b.key, value: null } };
+      },
+    } as unknown as CommChannel;
+    const c = createCoordinatorClient(recordingComm, FAKE_CTX);
+
+    await c.getXCom({ key: "k" });
+
+    expect(sent[0]).toEqual({
+      type: "GetXCom",
+      key: "k",
+      dag_id: "d",
+      task_id: "t",
+      run_id: "r",
+      map_index: null,
+      include_prior_dates: false,
+    });
+  });
+
   it("maps camelCase public XCom options to snake_case supervisor fields", async () => {
     const sent: Record<string, unknown>[] = [];
     const recordingComm = {
@@ -197,8 +221,50 @@ describe("getConnection", () => {
     });
   });
 
+  it("coerces absent optional wire fields to null public fields", async () => {
+    const c = client([
+      { body: { type: "ConnectionResult", conn_id: "bare", conn_type: "generic" } },
+    ]);
+
+    await expect(c.getConnection("bare")).resolves.toEqual({
+      id: "bare",
+      type: "generic",
+      host: null,
+      schema: null,
+      login: null,
+      password: null,
+      port: null,
+      extra: null,
+    });
+  });
+
   it("returns null for missing connections", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "CONNECTION_NOT_FOUND" } }]);
     expect(await c.getConnection("missing")).toBeNull();
+  });
+});
+
+describe("getConnectionOrThrow", () => {
+  it("returns the connection when present", async () => {
+    const c = client([
+      { body: { type: "ConnectionResult", conn_id: "warehouse", conn_type: "postgres" } },
+    ]);
+
+    await expect(c.getConnectionOrThrow("warehouse")).resolves.toMatchObject({
+      id: "warehouse",
+      type: "postgres",
+    });
+  });
+
+  it("throws ConnectionNotFoundError on a missing connection", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "CONNECTION_NOT_FOUND" } }]);
+    const result = c.getConnectionOrThrow("missing");
+    await expect(result).rejects.toThrow(ConnectionNotFoundError);
+    await expect(result).rejects.toThrow(/Connection not found: missing/);
+  });
+
+  it("propagates non-not-found errors instead of ConnectionNotFoundError", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }]);
+    await expect(c.getConnectionOrThrow("warehouse")).rejects.toThrow(/API_SERVER_ERROR/);
   });
 });

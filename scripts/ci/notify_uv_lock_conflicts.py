@@ -237,6 +237,15 @@ def resolve_source_pr(
         return None
 
 
+def avoid_backlink(url: str) -> str:
+    """Swap ``github.com`` for ``redirect.github.com`` so linking to the source
+    PR/commit doesn't generate an automatic backlink comment on it.
+
+    See: https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls#avoiding-backlinks-to-linked-references
+    """
+    return url.replace("https://github.com/", "https://redirect.github.com/", 1)
+
+
 def build_body(source_ref_md: str) -> str:
     return "\n".join(
         [
@@ -424,13 +433,16 @@ def main() -> int:
     with GitHubGraphQL(token) as client:
         source_pr = resolve_source_pr(client, owner, repo, sha, short_sha)
         if source_pr:
+            # Use redirect.github.com for both links: they point at the PR/commit
+            # that caused this notice, and a plain github.com link would generate
+            # an unwanted backlink comment there.
             source_ref_md = (
-                f"[#{source_pr['number']}]({source_pr['url']}) "
-                f'("{source_pr["title"]}"), commit [`{short_sha}`]({commit_url})'
+                f"[#{source_pr['number']}]({avoid_backlink(source_pr['url'])}) "
+                f'("{source_pr["title"]}"), commit [`{short_sha}`]({avoid_backlink(commit_url)})'
             )
             source_ref_plain = f"#{source_pr['number']} ({source_pr['url']}) — commit {short_sha}"
         else:
-            source_ref_md = f"commit [`{short_sha}`]({commit_url})"
+            source_ref_md = f"commit [`{short_sha}`]({avoid_backlink(commit_url)})"
             source_ref_plain = f"commit {short_sha}"
 
         log(f"Source of uv.lock change: {source_ref_plain}")

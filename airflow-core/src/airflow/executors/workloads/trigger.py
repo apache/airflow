@@ -49,3 +49,4 @@ class RunTrigger(BaseModel):
 
     # name: uri of all "watched" Assets
     watched_assets: dict[str, str] | None = None  # Set for BaseEventTrigger asset watchers only
+    queued_at: float | None = None

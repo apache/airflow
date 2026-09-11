@@ -219,7 +219,7 @@ class EdgeExecutor(BaseExecutor):
             sysinfo.pop("status_text", None)  # Remove old status text if exists
             worker.sysinfo = sysinfo
             self.log.warning("Worker %s is lifeless. Setting state to %s", worker.worker_name, worker.state)
-            reset_metrics(worker.worker_name)
+            reset_metrics(worker.worker_name, team_name=worker.team_name)
 
         return changed
 
@@ -254,8 +254,9 @@ class EdgeExecutor(BaseExecutor):
                     "task_id": job.task_id,
                     "queue": job.queue,
                     "state": str(TaskInstanceState.FAILED),
+                    "team_name": job.team_name,
                 }
-                Stats.incr("edge_worker.ti.finish", tags=tags)
+                Stats.incr("edge_worker.ti.finish", tags=prune_dict(tags))
 
         return bool(lifeless_jobs)
 

@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pendulum import duration
-
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -125,6 +123,15 @@ with DAG(
         target_state=FargateProfileStates.ACTIVE,
     )
 
+    # The cluster can still report an update in progress after the fargate profile turns ACTIVE, and EKS
+    # rejects the DeleteFargateProfile call below with ResourceInUseException while that update runs.
+    await_cluster_stable = EksClusterStateSensor(
+        task_id="await_cluster_stable",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        target_state=ClusterStates.ACTIVE,
+    )
+
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
     delete_cluster_and_fargate_profile = EksDeleteClusterOperator(
@@ -132,9 +139,6 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
         cluster_name=cluster_name,
         force_delete_compute=True,
-        retries=4,
-        retry_delay=duration(seconds=30),
-        retry_exponential_backoff=True,
     )
 
     await_delete_cluster = EksClusterStateSensor(
@@ -155,6 +159,7 @@ with DAG(
         # TEST TEARDOWN
         describe_pod,
         await_fargate_profile_stable,
+        await_cluster_stable,
         delete_cluster_and_fargate_profile,
         await_delete_cluster,
     )

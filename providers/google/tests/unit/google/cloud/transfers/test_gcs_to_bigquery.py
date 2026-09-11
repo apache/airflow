@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import json
+from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -27,6 +28,7 @@ from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 from sqlalchemy import select
 
+from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.trigger import Trigger
 from airflow.providers.common.compat.openlineage.facet import (
@@ -2092,6 +2094,35 @@ class TestGCSToBigQueryOperator:
         # extra_config wins for overlapping key
         assert config["load"]["skipLeadingRows"] == 5
         assert config["load"]["columnNameCharacterMap"] == "STRICT"
+
+    def test_schema_fields_is_templated(self):
+        """Regression test for #31481.
+
+        ``schema_fields`` must be a template field so a value supplied at runtime
+        (the issue used ``.expand()``) is resolved before the operator runs. Before
+        the fix the field was absent from ``template_fields``, so the value was never
+        rendered and reached BigQuery verbatim.
+        """
+        assert "schema_fields" in GCSToBigQueryOperator.template_fields
+        assert GCSToBigQueryOperator.template_fields_renderers["schema_fields"] == "json"
+
+        with DAG(
+            dag_id="test_gcs_to_bq_schema_fields_templating",
+            start_date=datetime(2024, 1, 1),
+            render_template_as_native_obj=True,
+        ) as dag:
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                schema_fields="{{ var.value.schema_fields }}",
+                dag=dag,
+            )
+
+        operator.render_template_fields({"var": {"value": {"schema_fields": SCHEMA_FIELDS}}})
+
+        assert operator.schema_fields == SCHEMA_FIELDS
 
 
 @pytest.fixture

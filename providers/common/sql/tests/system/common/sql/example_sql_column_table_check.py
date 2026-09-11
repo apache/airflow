@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 from airflow import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
-from airflow.utils import timezone
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
 connection_args = {

@@ -10,8 +10,12 @@
     "maxRuns": "Μέγιστες Ενεργές Εκτελέσεις",
     "missingAndErroredRuns": "Εκτελέσεις που λείπουν ή απέτυχαν",
     "missingRuns": "Εκτελέσεις που λείπουν",
+    "overrideExistingParams": "Αντικατάσταση παραμέτρων σε υπάρχουσες εκτελέσεις",
+    "permissionDenied": "Η Δοκιμαστική Εκτέλεση Απέτυχε: Ο χρήστης δεν έχει δικαίωμα δημιουργίας backfills.",
     "reprocessBehavior": "Συμπεριφορά Επανεπεξεργασίας",
     "run": "Εκτέλεση Backfill",
+    "scheduleNotBackfillable": "Ο προγραμματισμός αυτού του Dag δεν υποστηρίζει backfills",
+    "schedulerPriorityHint": "Οι backfill εκτελέσεις Dag κατατάσσονται μετά από τις non-backfill εκτελέσεις Dag σε κάθε κύκλο του προγραμματιστή. Οι backfill εκτελέσεις ενδέχεται να παραμείνουν σε ουρά περισσότερο, εάν υπάρχουν άλλες non-backfill εκτελέσεις.",
     "selectDescription": "Εκτελέστε αυτό το Dag για ένα εύρος ημερομηνιών",
     "selectLabel": "Backfill",
     "title": "Εκτέλεση Backfill",
@@ -44,10 +48,16 @@
   },
   "dagWarnings": {
     "error_one": "1 Σφάλμα",
-    "error_other": "{{count}} Σφάλματα",
     "errorAndWarning": "1 Σφάλμα και {{warningText}}",
     "warning_one": "1 Προειδοποίηση",
     "warning_other": "{{count}} Προειδοποιήσεις"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Μη έγκυρη μορφή ημερομηνίας.",
+      "invalidTimeFormat": "Μη έγκυρη μορφή ώρας.",
+      "startBeforeEnd": "Η ημερομηνία/ώρα έναρξης πρέπει να είναι πριν από την ημερομηνία/ώρα λήξης"
+    }
   },
   "durationChart": {
     "duration": "Διάρκεια (δευτερόλεπτα)",
@@ -55,6 +65,7 @@
     "lastDagRun_other": "Τελευταίες {{count}} Εκτελέσεις Dag",
     "lastTaskInstance_one": "Τελευταία Εκτέλεση Εργασίας",
     "lastTaskInstance_other": "Τελευταίες {{count}} Εκτελέσεις Εργασίας",
+    "medianTotalDuration": "Σύνολο: {{duration}}",
     "queuedDuration": "Διάρκεια σε Ουρά",
     "runAfter": "Εκτέλεση Μετά",
     "runDuration": "Διάρκεια Εκτέλεσης"
@@ -64,6 +75,7 @@
     "files_other": "{{count}} αρχεία"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Εισάγετε Διάρκεια σε μορφή ISO 8601",
     "placeholder": "Επιλέξτε Τιμή",
     "placeholderArray": "Εισάγετε κάθε συμβολοσειρά σε νέα γραμμή",
     "placeholderExamples": "Ξεκινήστε να πληκτρολογείτε για να δείτε επιλογές",
@@ -71,6 +83,7 @@
     "validationErrorArrayNotArray": "Η τιμή πρέπει να είναι πίνακας.",
     "validationErrorArrayNotNumbers": "Όλα τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.",
     "validationErrorArrayNotObject": "Όλα τα στοιχεία του πίνακα πρέπει να είναι αντικείμενα.",
+    "validationErrorDuration": "Μη έγκυρη διάρκεια μορφής ISO 8601",
     "validationErrorRequired": "Αυτό το πεδίο είναι υποχρεωτικό"
   },
   "graph": {
@@ -84,9 +97,18 @@
     "otherDagRuns": "+Άλλες Εκτελέσεις Dag",
     "taskCount_one": "{{count}} Εργασία",
     "taskCount_other": "{{count}} Εργασίες",
-    "taskGroup": "Ομάδα Εργασιών"
+    "taskGroup": "Ομάδα Εργασιών",
+    "zoomToTask": "Μεγέθυνση στην επιλεγμένη εργασία"
   },
   "limitedList": "+{{count}} ακόμα",
+  "limitedList.allItems": "Όλα τα {{count}} στοιχεία:",
+  "limitedList.allTags_one": "Όλες οι Ετικέτες (1)",
+  "limitedList.allTags_other": "Όλες οι Ετικέτες ({{count}})",
+  "limitedList.clickToInteract": "Κάντε κλικ σε μια ετικέτα για φιλτράρισμα των Dags",
+  "limitedList.clickToOpenFull": "Κάντε κλικ στο «+{{count}} ακόμα» για πλήρη προβολή",
+  "limitedList.copyPasteText": "Μπορείτε να αντιγράψετε και να επικολλήσετε το παραπάνω κείμενο",
+  "limitedList.showingItems_one": "Εμφάνιση 1 στοιχείου",
+  "limitedList.showingItems_other": "Εμφάνιση {{count}} στοιχείων",
   "logs": {
     "file": "Αρχείο",
     "location": "γραμμή {{line}} στο {{name}}"
@@ -96,22 +118,41 @@
   "sortedDescending": "φθίνουσα ταξινόμηση",
   "sortedUnsorted": "μη ταξινομημένο",
   "taskTries": "Προσπάθειες Εργασίας",
+  "taskTryPlaceholder": "Προσπάθεια Εργασίας",
+  "team": {
+    "selector": {
+      "helperText": "Προαιρετικό. Περιορισμός της χρήσης σε συγκεκριμένη ομάδα.",
+      "label": "Ομάδα",
+      "placeHolder": "Επιλέξτε ομάδα"
+    }
+  },
   "toggleCardView": "Εμφάνιση κάρτας",
   "toggleTableView": "Εμφάνιση πίνακα",
   "triggerDag": {
     "button": "Ενεργοποίηση",
+    "dataInterval": "Διάστημα Δεδομένων",
+    "dataIntervalAuto": "Συνάγεται από τη Λογική Ημερομηνία και το Χρονοδιάγραμμα",
+    "dataIntervalManual": "Χειροκίνητος Ορισμός",
+    "intervalEnd": "Λήξη",
+    "intervalStart": "Έναρξη",
     "loading": "Φόρτωση πληροφοριών Dag...",
     "loadingFailed": "Αποτυχία φόρτωσης πληροφοριών Dag. Παρακαλώ δοκιμάστε ξανά.",
+    "manualRunDenied": "Οι χειροκίνητες εκτελέσεις δεν επιτρέπονται για αυτό το Dag",
+    "partitionKeyHelp": "Προαιρετικό - ισχύει μόνο για Dags με κατατμήσεις",
     "runIdHelp": "Προαιρετικό - θα δημιουργηθεί αν δεν δοθεί",
     "selectDescription": "Ενεργοποιήστε μία εκτέλεση αυτού του Dag",
     "selectLabel": "Μονή Εκτέλεση",
     "title": "Ενεργοποίηση Dag",
     "toaster": {
+      "error": {
+        "title": "Αποτυχία Ενεργοποίησης Dag"
+      },
       "success": {
         "description": "Η εκτέλεση Dag ενεργοποιήθηκε με επιτυχία.",
         "title": "Η Εκτέλεση Dag Ενεργοποιήθηκε"
       }
     },
+    "triggerAgainWithConfig": "Ενεργοποίηση ξανά με αυτές τις ρυθμίσεις",
     "unpause": "Αναίρεση παύσης του {{dagDisplayName}} κατά την ενεργοποίηση"
   },
   "trimText": {
@@ -127,6 +168,7 @@
     "versionId": "ID Έκδοσης"
   },
   "versionSelect": {
+    "allVersions": "Όλες οι Εκδόσεις",
     "dagVersion": "Έκδοση Dag",
     "versionCode": "v{{versionCode}}"
   }

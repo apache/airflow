@@ -24,13 +24,14 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_tool_call
 
 if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
+    from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-    from airflow.providers.common.ai.durable.storage import DurableStorage
 
 log = structlog.get_logger(logger_name="task")
 
@@ -53,7 +54,7 @@ class CachingToolset(WrapperToolset[Any]):
     executing their synchronous preamble in creation order).
     """
 
-    storage: DurableStorage = field(repr=False)
+    storage: DurableStorageProtocol = field(repr=False)
     counter: DurableStepCounter = field(repr=False)
 
     async def call_tool(
@@ -66,7 +67,7 @@ class CachingToolset(WrapperToolset[Any]):
         # Grab step index BEFORE any await -- ensures deterministic ordering
         # even when multiple tool calls run concurrently via asyncio.gather.
         step = self.counter.next_step()
-        key = f"tool_step_{step}"
+        key = f"{DURABLE_KEY_PREFIX}tool_step_{step}"
         fingerprint = fingerprint_tool_call(name, tool_args, ctx.tool_call_id)
 
         found, cached, cached_fingerprint = self.storage.load_tool_result(key)

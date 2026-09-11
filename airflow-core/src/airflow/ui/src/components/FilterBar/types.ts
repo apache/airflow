@@ -16,33 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type React from "react";
+import type { ComponentType, ReactNode } from "react";
 
 export type DateRangeValue = {
   endDate?: string;
   startDate?: string;
 };
 
-export type FilterValue = Date | DateRangeValue | number | string | null | undefined;
+// A ``boolean`` filter's value is the string ``"true"``; absent means off. Keeping it a
+// string avoids ``isValidFilterValue`` treating ``false`` as a value worth writing to the URL.
+export type FilterValue = Array<string> | Date | DateRangeValue | number | string | null | undefined;
 
 export type FilterConfig = {
   readonly defaultValue?: FilterValue;
+  // Bespoke editor for filters a static ``options`` array cannot express, such as
+  // search-as-you-type over a paginated endpoint. Must be a component rather than a
+  // render callback so the editor can own its own hooks.
+  readonly EditorComponent?: ComponentType<FilterPluginProps>;
   readonly endKey?: string;
   readonly hotkeyDisabled?: boolean;
-  readonly icon?: React.ReactNode;
+  readonly icon?: ReactNode;
+  // Multiselect only: accept free-text values that are not in ``options``.
+  readonly isCreatable?: boolean;
   readonly key: string;
   readonly label: string;
+  // Multiselect only: URL param holding this filter's any/all match mode. Cleared
+  // alongside the filter, which ``useFiltersHandler`` would not otherwise manage.
+  readonly matchModeKey?: string;
   readonly max?: number;
   readonly min?: number;
-  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
+  readonly options?: Array<{ label: ReactNode | string; value: string }>;
   readonly placeholder?: string;
-  readonly required?: boolean;
   readonly startKey?: string;
   // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)
   // and ``*_prefix_pattern`` (prefix) variants. The pill renders a toggle that
   // controls which one the consuming page uses, via ``useAdvancedSearch``.
   readonly supportsAdvancedSearch?: boolean;
-  readonly type: "date" | "daterange" | "number" | "select" | "text";
+  readonly type: "boolean" | "date" | "daterange" | "multiselect" | "number" | "select" | "text";
 };
 
 export type FilterState = {
@@ -56,6 +66,8 @@ export type FilterBarProps = {
   readonly initialValues?: Record<string, FilterValue>;
   readonly maxVisibleFilters?: number;
   readonly onFiltersChange: (filters: Record<string, FilterValue>) => void;
+  // Hide the Preset Filters control where they aren't useful (e.g. a Dag run's per-run task instances).
+  readonly showPresetFilters?: boolean;
 };
 
 export type FilterPluginProps = {

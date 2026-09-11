@@ -51,7 +51,7 @@ so downstream tasks can type-hint the class directly
 
 The declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
-the worker when it loads the DAG, before any task runs -- so no edit to
+the worker when it loads the Dag, before any task runs -- so no edit to
 ``[core] allowed_deserialization_classes`` is needed. The Pydantic class must be
 defined at **module scope** and bound to an attribute matching its ``__name__``;
 classes nested inside a function or ``@dag``-decorated body, parameterized
@@ -69,9 +69,9 @@ warning at worker startup and the value fails to deserialize at the consumer.
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
 
-Registration covers downstream tasks in the **same DAG**: every worker walks the
-loaded DAG's tasks at startup and registers each declared class, so it also works
-for mapped producers (``.expand(...)``) and for workers that load DAGs from a
+Registration covers downstream tasks in the **same Dag**: every worker walks the
+loaded Dag's tasks at startup and registers each declared class, so it also works
+for mapped producers (``.expand(...)``) and for workers that load Dags from a
 cache that bypasses operator construction.
 
 The Airflow UI's XCom viewer renders Pydantic instances via the
@@ -80,8 +80,8 @@ The Airflow UI's XCom viewer renders Pydantic instances via the
 allow-list. It is not pretty (no field-by-field rendering today), but the value
 shows up; no configuration is required.
 
-The remaining gap is **cross-DAG** ``xcom_pull`` -- a task in a different DAG
-that pulls this XCom only parses its own DAG file, not the producer's, so the
+The remaining gap is **cross-Dag** ``xcom_pull`` -- a task in a different Dag
+that pulls this XCom only parses its own Dag file, not the producer's, so the
 class is not auto-registered. Add the class qualified name to
 ``[core] allowed_deserialization_classes`` (or a glob that matches it) to make
 that pattern work.
@@ -185,6 +185,11 @@ to process a list of items in parallel:
     :language: python
     :start-after: [START howto_decorator_llm_pipeline]
     :end-before: [END howto_decorator_llm_pipeline]
+
+.. seealso::
+    :ref:`Dynamic System Prompt <howto/operator:agent-dynamic-system-prompt>` --
+    ``system_prompt`` is templated identically on ``@task.llm``, so the same
+    upstream-XCom pattern applies here.
 
 Human-in-the-Loop Approval
 --------------------------

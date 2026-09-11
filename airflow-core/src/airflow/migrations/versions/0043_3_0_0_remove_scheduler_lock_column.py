@@ -17,7 +17,7 @@
 # under the License.
 
 """
-remove scheduler_lock column.
+Remove scheduler_lock column.
 
 Revision ID: 486ac7936b78
 Revises: d59cbbef95eb

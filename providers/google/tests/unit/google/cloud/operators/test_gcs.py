@@ -23,8 +23,10 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import RetryError
 from google.cloud.exceptions import GoogleCloudError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     LifecycleStateChange,
@@ -32,6 +34,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     PreviousIdentifier,
 )
 from airflow.providers.google.cloud.operators.gcs import (
+    GCSBucketAddIamBindingOperator,
     GCSBucketCreateAclEntryOperator,
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -116,6 +119,61 @@ class TestGoogleCloudStorageAcl:
             generation=42,
             role="test-role",
             user_project="test-user-project",
+        )
+
+
+class TestGoogleCloudStorageIam:
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_add_bucket_iam_binding(self, mock_hook):
+        operator = GCSBucketAddIamBindingOperator(
+            bucket="test-bucket",
+            role="roles/storage.objectViewer",
+            member="serviceAccount:test@example.com",
+            user_project="test-user-project",
+            task_id="id",
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.add_bucket_iam_binding.assert_called_once_with(
+            bucket_name="test-bucket",
+            role="roles/storage.objectViewer",
+            member="serviceAccount:test@example.com",
+            user_project="test-user-project",
+        )
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            GoogleCloudError("test API error"),
+            RetryError("retries exhausted", GoogleCloudError("last API error")),
+        ],
+        ids=["api-error", "retry-error"],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_add_bucket_iam_binding_reraises_api_error(self, mock_hook, error):
+        mock_hook.return_value.add_bucket_iam_binding.side_effect = error
+        operator = GCSBucketAddIamBindingOperator(
+            bucket="test-bucket",
+            role="roles/storage.objectViewer",
+            member="serviceAccount:test@example.com",
+            task_id="id",
+        )
+
+        with (
+            mock.patch.object(operator.log, "exception") as mock_log_exception,
+            pytest.raises(type(error)) as raised,
+        ):
+            operator.execute(context=mock.MagicMock())
+
+        assert raised.value is error
+        mock_log_exception.assert_called_once_with(
+            "Failed to add member %s to IAM role %s on bucket %s. Google Cloud API error (%s): %s",
+            "serviceAccount:test@example.com",
+            "roles/storage.objectViewer",
+            "test-bucket",
+            type(error).__name__,
+            error,
         )
 
 
@@ -255,7 +313,8 @@ class TestGoogleCloudStorageListOperator:
         operator = GCSListObjectsOperator(
             task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
-        files = operator.execute(context=mock.MagicMock())
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of 'delimiter' is deprecated"):
+            files = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list.assert_called_once_with(
             bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER, match_glob=None
         )

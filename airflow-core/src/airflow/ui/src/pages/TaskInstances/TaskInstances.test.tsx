@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+
+import { render, screen } from "@testing-library/react";
 import type * as ReactI18Next from "react-i18next";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { TaskInstances } from "./TaskInstances";
@@ -41,6 +43,7 @@ vi.mock("react-i18next", async (importOriginal) => {
   return {
     ...actual,
     useTranslation: () => ({
+      i18n: { language: "en" },
       // eslint-disable-next-line id-length
       t: (key: string) => key,
     }),

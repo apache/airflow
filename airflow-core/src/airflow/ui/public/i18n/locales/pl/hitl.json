@@ -28,6 +28,20 @@
     "success": "Odpowiedź dla {{taskId}} została pomyślnie wysłana",
     "title": "Instancja zadania wymagająca interwencji człowieka - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Wybierz wymaganą akcję, aby zobaczyć szczegóły"
+    },
+    "list": {
+      "completedRequiredActions": "Zakończone wymagane akcje ({{count}})",
+      "loadError": "Nie udało się załadować wymaganych akcji",
+      "loadingActions": "Ładowanie wymaganych akcji...",
+      "pendingRequiredActions": "Oczekujące wymagane akcje ({{count}})"
+    },
+    "openReviewDrawer": "Otwórz panel recenzji",
+    "pageLimitHint": "Wyświetlono tutaj tylko kilka pierwszych akcji. Użyj \"$t(review.viewAll)\", aby zobaczyć wszystkie.",
+    "viewAll": "Zobacz wszystkie wymagane akcje"
+  },
   "state": {
     "approvalReceived": "Zatwierdzenie otrzymane",
     "approvalRequired": "Wymagane zatwierdzenie",

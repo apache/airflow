@@ -352,6 +352,37 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
+    def test_cli_list_dags_with_multiple_dag_versions(self, dag_maker, stdout_capture, session):
+        clear_db_dags()
+
+        with dag_maker("test_dag_versions", schedule=None, start_date=DEFAULT_DATE):
+            EmptyOperator(task_id="task1")
+        # A version with task instances is kept rather than updated in place, so the next sync
+        # adds a second row for the same dag_id.
+        dag_maker.create_dagrun()
+
+        with DAG("test_dag_versions", schedule=None, start_date=DEFAULT_DATE) as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag)
+
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SerializedDagModel)
+                .where(SerializedDagModel.dag_id == "test_dag_versions")
+            )
+            == 2
+        )
+
+        args = self.parser.parse_args(["dags", "list", "--columns", "dag_id", "--output", "json"])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+            assert json.loads(temp_stdout.getvalue()) == [{"dag_id": "test_dag_versions"}]
+
+        # Rebuild Test DB for other tests
+        self.setup_class()
+
     def test_cli_list_local_dags(self, stdout_capture):
         # Clear the database
         clear_db_dags()
@@ -532,6 +563,34 @@ class TestCliDags:
         assert DagModel.get_dagmodel("example_bash_operator").is_paused
         dag_command.dag_unpause(args)
         assert not DagModel.get_dagmodel("example_bash_operator").is_paused
+
+    def test_pause_unpause_from_dag_cli(self):
+        """``DAG.cli()`` passes the Dag positionally and its parser drops ``--dag-id``."""
+        parser = cli_parser.get_parser(dag_parser=True)
+        dag = DAG("example_bash_operator")
+
+        dag_command.dag_pause(parser.parse_args(["dags", "pause"]), dag)
+        assert DagModel.get_dagmodel("example_bash_operator").is_paused
+
+        dag_command.dag_unpause(parser.parse_args(["dags", "unpause"]), dag)
+        assert not DagModel.get_dagmodel("example_bash_operator").is_paused
+
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
+    def test_pause_from_dag_cli_ignores_treat_dag_id_as_regex(self, mock_yesno):
+        """The Dag fixes the target, so its dag_id must not be read back as a pattern."""
+        target = DAG("dag.cli_regex_target")
+        sync_dag_to_db(target)
+        sync_dag_to_db(DAG("dagXcli_regex_target"))
+        parser = cli_parser.get_parser(dag_parser=True)
+
+        dag_command.dag_pause(parser.parse_args(["dags", "pause", "--treat-dag-id-as-regex"]), target)
+
+        mock_yesno.assert_not_called()
+        assert DagModel.get_dagmodel("dag.cli_regex_target").is_paused
+        assert not DagModel.get_dagmodel("dagXcli_regex_target").is_paused
+
+        clear_db_dags()
+        self.setup_class()
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):

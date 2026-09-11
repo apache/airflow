@@ -20,6 +20,7 @@ import copy
 import io
 import logging
 import os
+import pathlib
 from types import GeneratorType
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -27,10 +28,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowNotFoundException, timezone
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -47,6 +47,88 @@ def patch_mock_client_for_list_blobs(mock_client: MagicMock, blob_names: list[st
         mock_blob.name = name
         mock_blobs.append(mock_blob)
     mock_client.return_value.list_blobs.return_value = mock_blobs
+
+
+class TestGCSRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): "gs://bucket/remote/log/location",
+            ("logging", "delete_local_logs"): "True",
+            ("logging", "google_key_path"): "/tmp/gcs-logging-key.json",
+        }
+    )
+    def test_from_config(self):
+        subject = GCSRemoteLogIO.from_config()
+
+        assert subject.remote_base == "gs://bucket/remote/log/location"
+        assert subject.base_log_folder == pathlib.Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.gcp_key_path == "/tmp/gcs-logging-key.json"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): "gs://bucket/remote/log/location",
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true, "max_bytes": 1024}',
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = GCSRemoteLogIO.from_config()
+
+        assert subject.delete_local_copy is True
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            GCSRemoteLogIO.from_config()
+
+    def test_provider_registers_gs_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("gs")
+
+        assert info is not None
+        assert info.classpath == "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO"
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "gs://bucket/remote/log/location",
+            ("logging", "remote_log_conn_id"): "google_cloud_default",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with mock.patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, conn_id = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, GCSRemoteLogIO)
+        assert remote_task_log.remote_base == "gs://bucket/remote/log/location"
+        assert conn_id == "google_cloud_default"
+        legacy_discover.assert_not_called()
 
 
 @pytest.mark.db_test
@@ -300,7 +382,7 @@ class TestGCSTaskHandler:
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_gcs_task_handler",
             task_id="task_for_testing_gcs_task_handler",
-            logical_date=datetime(2020, 1, 1),
+            logical_date=timezone.datetime(2020, 1, 1),
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 1

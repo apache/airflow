@@ -171,6 +171,7 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 			fmt.Fprintf(stderr, "warning: dag %q has no tasks\n", dagID)
 		}
 	}
+	warnOnSuspiciousIDs(stderr, meta)
 
 	manifest, err := renderManifest(meta, filepath.Base(sourcePath))
 	if err != nil {

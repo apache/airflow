@@ -49,6 +49,8 @@ export type FormattedNode = {
   isOpen?: boolean;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   team?: string | null;
+  uiColor?: string | null;
+  uiFgcolor?: string | null;
 } & ElkShape &
   NodeResponse;
 
@@ -352,6 +354,8 @@ export const generateElkGraph = ({
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
           ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         },
+        uiColor: node.ui_color,
+        uiFgcolor: node.ui_fgcolor,
       };
     }
 
@@ -366,7 +370,7 @@ export const generateElkGraph = ({
     }
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
-    let width = getTextWidth(label, font);
+    let width = getTextWidth(label, font) + 16; // 16 for icons
     const hasStateBar = Boolean(node.is_mapped) || Boolean(node.children);
     let height = hasStateBar ? 90 : 80;
 
@@ -392,6 +396,8 @@ export const generateElkGraph = ({
       team: node.team,
       tooltip: node.tooltip,
       type: node.type,
+      uiColor: node.ui_color,
+      uiFgcolor: node.ui_fgcolor,
       width,
     };
   };

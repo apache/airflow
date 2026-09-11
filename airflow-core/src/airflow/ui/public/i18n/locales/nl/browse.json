@@ -8,8 +8,25 @@
     },
     "filters": {
       "eventType": "Gebeurtenis type"
+    }
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "Alertnaam",
+      "deadlineTime": "Deadline tijd",
+      "status": "Status"
     },
-    "title": "Audit Log"
+    "deadline_one": "Deadline",
+    "deadline_other": "Deadlines",
+    "filters": {
+      "status": "Status",
+      "statusOptions": {
+        "all": "Alles",
+        "missed": "Gemist",
+        "pending": "In afwachting"
+      }
+    },
+    "title": "Deadlines"
   },
   "xcom": {
     "add": {

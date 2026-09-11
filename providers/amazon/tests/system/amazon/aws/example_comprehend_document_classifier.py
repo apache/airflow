@@ -106,7 +106,6 @@ def document_classifier_workflow():
         document_classifier_kwargs=document_classifier_kwargs,
     )
     # [END howto_operator_create_document_classifier]
-    create_document_classifier.wait_for_completion = False
 
     # [START howto_sensor_create_document_classifier]
     await_create_document_classifier = ComprehendCreateDocumentClassifierCompletedSensor(

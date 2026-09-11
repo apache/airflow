@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+
 import { useGroups } from "src/context/groups";
-import { useHover } from "src/context/hover";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
@@ -41,20 +42,9 @@ const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
 export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { toggleGroupId } = useGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-
-  const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-    const { nodeId } = event.currentTarget.dataset;
-
-    if (nodeId !== undefined) {
-      setHoveredTaskId(nodeId);
-    }
-  };
-
-  const handleMouseLeave = () => setHoveredTaskId(undefined);
 
   const handleToggleGroup = (event: MouseEvent<HTMLSpanElement>) => {
     event.preventDefault();
@@ -98,23 +88,22 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
         }
 
         const isSelected = node.id === taskId || node.id === groupId;
-        const isHovered = hoveredTaskId === node.id;
 
         return (
           <Box
-            bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+            bg={isSelected ? "brand.emphasized" : undefined}
             borderBottomWidth={1}
             borderColor={node.isGroup ? "border.emphasized" : "border"}
             borderTopWidth={virtualItem.index === 0 ? 1 : 0}
             cursor="pointer"
             data-node-id={node.id}
+            data-selected={isSelected}
+            data-task-id={node.id}
             data-testid={`task-${node.id.replaceAll(".", "-")}`}
             height={`${ROW_HEIGHT}px`}
             id={`task-${node.id.replaceAll(".", "-")}`}
             key={node.id}
             left={0}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             position="absolute"
             right={0}
             top={0}
@@ -122,7 +111,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             transition="background-color 0.2s"
           >
             {node.isGroup ? (
-              <Link asChild data-testid={node.id} display="block" width="100%">
+              <Link
+                _hover={{ textDecoration: "none" }}
+                asChild
+                data-testid={node.id}
+                display="block"
+                width="100%"
+              >
                 <RouterLink
                   data-group-id={node.id}
                   onClick={onClick}
@@ -166,7 +161,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                 </RouterLink>
               </Link>
             ) : (
-              <Link asChild data-testid={node.id} display="inline">
+              <Link _hover={{ textDecoration: "none" }} asChild data-testid={node.id} display="inline">
                 <RouterLink
                   onClick={onRowClick}
                   replace

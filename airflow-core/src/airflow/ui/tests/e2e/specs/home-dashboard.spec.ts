@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect } from "tests/e2e/fixtures";
 import { test } from "tests/e2e/fixtures/dashboard-data";
 
@@ -64,7 +65,7 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.waitForDashboardLoad();
 
     await homePage.runningDagsCard.click();
-    await expect(homePage.page).toHaveURL(/last_dag_run_state=running/);
+    await expect(homePage.page).toHaveURL(/dag_run_state=running/);
   });
 
   test("should display welcome heading on dashboard", async ({ homePage }) => {

@@ -26,6 +26,11 @@ SQL queries from natural language using an LLM.
 The operator generates SQL but does not execute it. The generated query is returned
 as XCom and can be passed to ``SQLExecuteQueryOperator`` or used in downstream tasks.
 
+Install the ``sql`` extra, which adds ``apache-airflow-providers-common-sql`` and
+`sqlglot <https://github.com/tobymao/sqlglot>`__ (used to validate the generated SQL)::
+
+    pip install "apache-airflow-providers-common-ai[sql]"
+
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
 
@@ -59,6 +64,12 @@ Use ``datasource_config`` to generate queries for data stored in object storage
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
 to register the object storage source as a table so the LLM can include it in
 the schema context.
+
+.. note::
+
+    Object-storage schema introspection requires the ``datafusion`` extra of
+    ``apache-airflow-providers-common-sql``. Install it with
+    ``pip install "apache-airflow-providers-common-sql[datafusion]"``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python

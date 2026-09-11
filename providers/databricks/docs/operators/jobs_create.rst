@@ -56,6 +56,7 @@ Currently the named parameters that ``DatabricksCreateJobsOperator`` supports ar
   - ``max_concurrent_runs``
   - ``git_source``
   - ``access_control_list``
+  - ``performance_target``
 
 
 Forwarding Airflow Dag params as Databricks job parameters

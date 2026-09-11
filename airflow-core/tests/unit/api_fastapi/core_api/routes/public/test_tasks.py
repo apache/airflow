@@ -81,7 +81,6 @@ class TestTaskEndpoint:
 
     @pytest.fixture(autouse=True)
     def setup(self, test_client) -> None:
-        self.clear_db()
         self.create_dags(test_client)
 
     def teardown_method(self) -> None:

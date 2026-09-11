@@ -124,6 +124,21 @@ class TestBaseSecretsBackend:
         assert conn.conn_id == "test_conn"
         assert conn._kwargs["conn_type"] == "mysql"
 
+    def test_deserialize_connection_json_without_conn_type(self):
+        """
+        Guards the Airflow 2 -> 3 migration compatibility established in
+        https://github.com/apache/airflow/pull/61728.
+        """
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnection)
+
+        conn = backend.deserialize_connection(
+            "test_conn", '{"host": "example.com", "login": "admin", "password": "secret"}'
+        )
+        assert isinstance(conn, MockConnection)
+        assert conn.conn_id == "test_conn"
+        assert conn._kwargs == {"host": "example.com", "login": "admin", "password": "secret"}
+
     def test_deserialize_connection_uri(self, sample_conn_uri):
         """Test deserialize_connection with URI format through _TestBackend."""
         backend = _TestBackend()
@@ -135,7 +150,7 @@ class TestBaseSecretsBackend:
         assert conn.uri == sample_conn_uri
 
 
-class _LegacyConnValueBackend(BaseSecretsBackend):
+class _TeamUnawareConnValueBackend(BaseSecretsBackend):
     """Backend overriding ``get_conn_value`` with the pre-3.2 ``(self, conn_id)`` signature."""
 
     def __init__(self, conn_values: dict[str, str]):
@@ -188,8 +203,8 @@ class TestTeamNameBackwardCompat:
     """``get_connection`` must not forward ``team_name`` to overrides that predate it (issue #1333)."""
 
     @pytest.mark.parametrize("team_name", [None, "team_a"])
-    def test_legacy_get_conn_value_signature_does_not_break(self, sample_conn_uri, team_name):
-        backend = _LegacyConnValueBackend(conn_values={"test_conn": sample_conn_uri})
+    def test_team_unaware_get_conn_value_signature_does_not_break(self, sample_conn_uri, team_name):
+        backend = _TeamUnawareConnValueBackend(conn_values={"test_conn": sample_conn_uri})
 
         conn = backend.get_connection(conn_id="test_conn", team_name=team_name)
 
@@ -224,7 +239,7 @@ class TestTeamNameBackwardCompat:
         assert backend.call_count == 1
 
     @pytest.mark.parametrize("team_name", [None, "team_a"])
-    def test_legacy_backend_missing_conn_returns_none(self, team_name):
-        backend = _LegacyConnValueBackend(conn_values={})
+    def test_team_unaware_backend_missing_conn_returns_none(self, team_name):
+        backend = _TeamUnawareConnValueBackend(conn_values={})
 
         assert backend.get_connection(conn_id="missing", team_name=team_name) is None

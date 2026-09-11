@@ -524,15 +524,16 @@ def _is_sqlite_in_memory(url: str) -> bool:
 
 def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args."""
+    use_psycopg2_tuning = SQL_ALCHEMY_CONN.startswith("postgresql+psycopg2")
     DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
         "postgresql": (
             {
                 "insertmanyvalues_page_size": 10000,
             }
             | (
-                {}
-                if _USE_PSYCOPG3
-                else {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+                {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+                if use_psycopg2_tuning
+                else {}
             )
         )
     }
@@ -660,15 +661,7 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            try:
-                import MySQLdb.converters
-            except ImportError:
-                raise RuntimeError(
-                    "You do not have `mysqlclient` package installed. "
-                    "Please install it with `pip install mysqlclient` and make sure you have system "
-                    "mysql libraries installed, as well as well as `pkg-config` system package "
-                    "installed in case you see compilation error during installation."
-                )
+            import MySQLdb.converters
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -679,6 +672,13 @@ def configure_adapters():
             pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
         except ImportError:
             pass
+        if "MySQLdb.converters" not in sys.modules and "pymysql.converters" not in sys.modules:
+            raise RuntimeError(
+                "You have a MySQL connection string but neither `mysqlclient` nor `PyMySQL` is "
+                "installed. Install one of them, e.g. `pip install mysqlclient` (make sure the "
+                "system mysql libraries and `pkg-config` are present in case you see a compilation "
+                "error during installation) or `pip install PyMySQL`."
+            )
 
 
 def _configure_secrets_masker():

@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
-import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
+
 import type { TabItem } from "src/hooks/useRequiredActionTabs";
 
 const HITL_REVIEW_PLUGIN_TAB = "plugin/hitl-review";

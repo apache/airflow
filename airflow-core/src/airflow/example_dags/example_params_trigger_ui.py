@@ -52,16 +52,14 @@ with DAG(
 ) as dag:
 
     @task(task_id="get_names", task_display_name="Get names")
-    def get_names(**kwargs) -> list[str]:
-        params = kwargs["params"]
+    def get_names(params=None) -> list[str]:
         if "names" not in params:
             print("Uuups, no names given, was no UI used to trigger?")
             return []
         return params["names"]
 
     @task.branch(task_id="select_languages", task_display_name="Select languages")
-    def select_languages(**kwargs) -> list[str]:
-        params = kwargs["params"]
+    def select_languages(params=None) -> list[str]:
         selected_languages = []
         for lang in ["english", "german", "french"]:
             if params[lang]:

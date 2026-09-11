@@ -831,7 +831,7 @@ class S3Hook(AwsBaseHook):
             if current_num_objects >= min_objects:
                 success_message = (
                     f"SUCCESS: Sensor found {current_num_objects} objects at {path}. "
-                    "Waited at least {inactivity_period} seconds, with no new objects uploaded."
+                    f"Waited at least {inactivity_period} seconds, with no new objects uploaded."
                 )
                 self.log.info(success_message)
                 return {

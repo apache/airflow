@@ -17,74 +17,108 @@
  * under the License.
  */
 
+import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
+import { Dag, getDagTaskRecords, isDag, type TaskRef } from "./dag.js";
 import type { TaskHandler } from "./task.js";
 
-/** Identifies the Airflow task handled by a TypeScript function. */
-export interface TaskRegistration {
-  /** Identifier of the Dag containing this task. */
+// Assigned inside DagRegistry's static block, as Dag does for its tasks.
+let dagsOf: (registry: DagRegistry) => ReadonlyMap<string, Dag>;
+
+/** Internal: whether `value` is a DagRegistry built by any copy of this package. */
+export function isDagRegistry(value: unknown): value is DagRegistry {
+  return hasBrand(value, "DagRegistry");
+}
+
+/** Internal: a registered Dag with its task IDs, as {@link listRegistryDags} reports it.
+ *  A task-less Dag is included, so the bundle manifest keeps it visible. */
+export interface RegisteredDag {
+  /** Identifier of the registered Dag. */
   readonly dagId: string;
-  /** Airflow task ID, including any TaskGroup prefix. */
-  readonly taskId: string;
+  /** Airflow task IDs, including any TaskGroup prefix. */
+  readonly tasks: string[];
 }
 
-/** Registry of TypeScript task handlers keyed by Dag ID and task ID. */
-export class TaskRegistry {
-  readonly #tasks = new Map<string, Map<string, TaskHandler>>();
+/**
+ * The Dags a bundle process can execute, keyed by Dag ID.
+ *
+ * This is what a bundle entry point builds and hands to `serveDags(registry)`:
+ *
+ * ```ts
+ * const dag = new Dag("my_dag");
+ * dag.task("extract", extractFn);
+ * await serveDags(new DagRegistry(dag));
+ * ```
+ *
+ * It holds no sockets and starts nothing, so a test can build one and invoke a
+ * handler through {@link getTaskHandler} without any runtime in scope.
+ *
+ * Lookups delegate live to each Dag's task map, so tasks added to a Dag
+ * after registration are visible — the registry records Dag identity, not
+ * a snapshot of its tasks.
+ */
+export class DagRegistry {
+  readonly #dags = new Map<string, Dag>();
 
-  /**
-   * Register a TypeScript handler for an Airflow task.
+  static {
+    dagsOf = (registry) => registry.#dags;
+  }
+
+  /** Registers `dags`, on the same terms as {@link register}. */
+  constructor(...dags: Dag[]) {
+    brand(this, "DagRegistry");
+    this.register(...dags);
+  }
+
+  /** Register Dags. Registering an already-registered `dagId` throws,
+   *  and a call that throws registers none of its Dags.
    *
-   * `dagId` must match the Python Dag's `dag_id`. `taskId` must match the
-   * Dag-side operator's `task_id` exactly, including any TaskGroup prefix.
-   */
-  register<TReturn = unknown>(registration: TaskRegistration, handler: TaskHandler<TReturn>): void {
-    const { dagId, taskId } = registration;
-    if (!dagId || typeof dagId !== "string") {
-      throw new Error("dagId must be a non-empty string");
+   *  The constructor covers the common case; this is for a bundle that
+   *  collects its Dags across several modules. */
+  register(...dags: Dag[]): void {
+    const incoming = new Set<string>();
+    for (const dag of dags) {
+      // Typed as Dag, so narrowing it would collapse to never; these guard
+      // callers reaching this from plain JavaScript.
+      const candidate: unknown = dag;
+      // Another copy's Dag cannot be registered — lookups read a private task
+      // map keyed to this copy's class — so it is rejected, but by its cause.
+      if (!(candidate instanceof Dag)) {
+        throw new Error(
+          isDag(candidate)
+            ? `Dag "${candidate.dagId}" ${DUPLICATE_COPY_HINT}`
+            : "only Dag instances can be registered",
+        );
+      }
+      if (this.#dags.has(dag.dagId) || incoming.has(dag.dagId)) {
+        throw new Error(`Dag "${dag.dagId}" is already registered`);
+      }
+      incoming.add(dag.dagId);
     }
-    if (!taskId || typeof taskId !== "string") {
-      throw new Error("taskId must be a non-empty string");
+    for (const dag of dags) {
+      this.#dags.set(dag.dagId, dag);
     }
-    if (typeof handler !== "function") {
-      throw new Error(`handler for Dag "${dagId}" task "${taskId}" must be a function`);
-    }
-    const dagTasks = this.#tasks.get(dagId) ?? new Map<string, TaskHandler>();
-    if (dagTasks.has(taskId)) {
-      throw new Error(`Task "${taskId}" is already registered for Dag "${dagId}"`);
-    }
-    dagTasks.set(taskId, handler as TaskHandler);
-    this.#tasks.set(dagId, dagTasks);
   }
 
-  /** Look up a registered handler. Returns `undefined` when no handler exists. */
-  get(dagId: string, taskId: string): TaskHandler | undefined {
-    return this.#tasks.get(dagId)?.get(taskId);
-  }
-
-  /** List all registered tasks. */
-  list(): TaskRegistration[] {
-    return [...this.#tasks.entries()].flatMap(([dagId, tasks]) =>
-      [...tasks.keys()].map((taskId) => ({ dagId, taskId })),
-    );
+  /** Look up a registered handler, the way the runtime dispatches a task.
+   *  Returns `undefined` when no handler exists. */
+  getTaskHandler(dagId: string, taskId: string): TaskHandler | undefined {
+    const dag = this.#dags.get(dagId);
+    return dag ? getDagTaskRecords(dag).get(taskId)?.handler : undefined;
   }
 }
 
-const defaultRegistry = new TaskRegistry();
-
-/** Register a TypeScript handler in the default task registry. */
-export function registerTask<TReturn = unknown>(
-  registration: TaskRegistration,
-  handler: TaskHandler<TReturn>,
-): void {
-  defaultRegistry.register(registration, handler);
+/** Internal: the task handles across a registry's Dags. Not re-exported from the
+ *  package root — enumerating what the runtime dispatches is the runtime's job. */
+export function listRegistryTasks(registry: DagRegistry): TaskRef[] {
+  return [...dagsOf(registry).values()].flatMap((dag) =>
+    [...getDagTaskRecords(dag).values()].map((record) => record.task),
+  );
 }
 
-/** Look up a registered handler. Returns `undefined` when no handler exists. */
-export function getRegisteredTask(dagId: string, taskId: string): TaskHandler | undefined {
-  return defaultRegistry.get(dagId, taskId);
-}
-
-/** List all registered tasks. */
-export function listRegisteredTasks(): TaskRegistration[] {
-  return defaultRegistry.list();
+/** Internal: every registered Dag with its task IDs, empty Dags included. */
+export function listRegistryDags(registry: DagRegistry): RegisteredDag[] {
+  return [...dagsOf(registry).values()].map((dag) => ({
+    dagId: dag.dagId,
+    tasks: [...dag.taskIds],
+  }));
 }

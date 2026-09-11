@@ -35,7 +35,7 @@
                 "errorMessage": {
                     "message": "Intentional failure for OpenLineage on_failure testing",
                     "programmingLanguage": "python",
-                    "stackTrace": "{{ result.startswith('Traceback (most recent call last):\n') and result.endswith('example_openlineage_custom_operator_failure_dag.py\", line 48, in execute\n    raise ValueError(\"Intentional failure for OpenLineage on_failure testing\")\nValueError: Intentional failure for OpenLineage on_failure testing\n') }}"
+                    "stackTrace": "{{ result.startswith('Traceback (most recent call last):\n') and result.endswith('example_openlineage_custom_operator_failure_dag.py\", line 49, in execute\n    raise ValueError(\"Intentional failure for OpenLineage on_failure testing\")\nValueError: Intentional failure for OpenLineage on_failure testing\n') }}"
                 },
                 "parent": {
                     "job": {

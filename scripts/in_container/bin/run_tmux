@@ -165,18 +165,6 @@ if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
 fi
 fi
 
-if [[ ${GO_WORKER} == "true" ]]; then
-    tmux select-pane -t 2
-    tmux split-window -h
-    tmux set-option -p @airflow_component "Go worker"
-    tmux send-keys "cd go-sdk" C-m
-    tmux send-keys "export AIRFLOW__EDGE__API_URL=http://localhost:8080" C-m
-    tmux send-keys "export AIRFLOW__BUNDLES__FOLDER=./bin" C-m
-    tmux send-keys "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}" C-m
-    tmux send-keys "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}" C-m
-    tmux send-keys "go run ./cmd/airflow-go-edge-worker/main.go run" C-m
-fi
-
 # Attach Session, on the Main window
 tmux select-pane -t 0
 tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m

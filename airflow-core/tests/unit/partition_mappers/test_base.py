@@ -22,9 +22,10 @@ from datetime import datetime, timezone
 import pytest
 
 from airflow.partition_mappers.base import PartitionMapper, RollupMapper
+from airflow.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import StartOfDayMapper
-from airflow.partition_mappers.window import DayWindow
+from airflow.partition_mappers.window import DayWindow, SegmentWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
 from airflow.serialization.enums import Encoding
@@ -145,6 +146,69 @@ class TestRollupMapperInit:
 
         # Should not raise.
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
+
+    def test_accepts_decode_overriding_str_mapper_with_str_window(self):
+        """Overriding decode/encode while still decoding to str is a legal str-window pairing.
+
+        The guard must key off the declared ``expected_decoded_type`` (str by
+        default), not off whether ``decode_downstream`` is overridden.
+        """
+
+        class _CasefoldMapper(PartitionMapper):
+            def to_downstream(self, key):
+                return key.casefold()
+
+            def decode_downstream(self, downstream_key):
+                return downstream_key.casefold()
+
+            def encode_upstream(self, decoded_upstream):
+                return str(decoded_upstream)
+
+        # Should not raise.
+        RollupMapper(upstream_mapper=_CasefoldMapper(), window=SegmentWindow(["us", "eu"]))
+
+    @pytest.mark.parametrize(
+        ("upstream_mapper_factory", "window_factory", "match"),
+        [
+            pytest.param(
+                lambda: FixedKeyMapper("all"),
+                lambda: SegmentWindow(["us", "eu"]),
+                None,
+                id="str_mapper-str_window-valid",
+            ),
+            pytest.param(
+                StartOfDayMapper,
+                DayWindow,
+                None,
+                id="datetime_mapper-datetime_window-valid",
+            ),
+            pytest.param(
+                lambda: FixedKeyMapper("all"),
+                DayWindow,
+                "DayWindow expects decoded values of type 'datetime'",
+                id="str_mapper-datetime_window-invalid",
+            ),
+            pytest.param(
+                StartOfDayMapper,
+                lambda: SegmentWindow(["us"]),
+                "SegmentWindow expects decoded values of type 'str'",
+                id="datetime_mapper-str_window-invalid",
+            ),
+        ],
+    )
+    def test_upstream_mapper_window_type_pairing(self, upstream_mapper_factory, window_factory, match):
+        """RollupMapper's guard must catch a decoded-type mismatch in either direction.
+
+        Guards the ``datetime_mapper-str_window`` direction in particular: left
+        unchecked, that pairing survives construction and serialization, then
+        raises ``AttributeError`` inside ``to_upstream`` at scheduler tick time.
+        """
+        if match is None:
+            # Should not raise.
+            RollupMapper(upstream_mapper=upstream_mapper_factory(), window=window_factory())
+        else:
+            with pytest.raises(TypeError, match=match):
+                RollupMapper(upstream_mapper=upstream_mapper_factory(), window=window_factory())
 
 
 class TestPartitionMapperMaxDownstreamKeysValidator:

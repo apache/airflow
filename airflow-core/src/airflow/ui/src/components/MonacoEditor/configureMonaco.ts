@@ -27,14 +27,18 @@ type MonacoEnvironment = {
 let configurationPromise: Promise<void> | undefined;
 
 const loadMonacoModules = async () => {
-  // `editor.api` is API-only — the contribs/styles below must be side-effect imported
-  // to register their actions and render their glyphs. The CDN bundle pulled these in
-  // transitively; the local ESM build does not.
+  // The editor entry point is API-only; register the selected features and codicon styles
+  // explicitly to keep the local bundle small.
   const monacoApi = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.api"),
-    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding"),
-    import("monaco-editor/esm/vs/editor/contrib/find/browser/findController"),
-    import("monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles"),
+    import("monaco-editor/editor"),
+    import("monaco-editor/features/codeAction/register"),
+    import("monaco-editor/features/codelens/register"),
+    import("monaco-editor/features/dropOrPasteInto/register"),
+    import("monaco-editor/features/inlayHints/register"),
+    import("monaco-editor/features/suggest/register"),
+    import("monaco-editor/features/folding/register"),
+    import("monaco-editor/features/find/register"),
+    import("monaco-editor/features/codicon/register"),
   ]).then(([api]) => api);
 
   // Resolve the bundled worker URLs (`?worker&url` runs the worker through Vite's worker
@@ -48,17 +52,18 @@ const loadMonacoModules = async () => {
   // sidesteps the restriction (CORS still permits the inner import). In production the
   // worker is same-origin and the shim is harmless.
   const workerUrls = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.worker.js?worker&url").then((module) => module.default),
-    import("monaco-editor/esm/vs/language/json/json.worker.js?worker&url").then((module) => module.default),
+    import("monaco-editor/editor/editor.worker.js?worker&url").then((module) => module.default),
+    import("monaco-editor/languages/features/json/json.worker.js?worker&url").then(
+      (module) => module.default,
+    ),
   ]);
 
-  // The JSON contribution registers its language as a side effect. Python is registered
-  // manually below from its grammar module instead of importing `python.contribution`,
+  // The JSON feature registers its language as a side effect. Python is registered
+  // manually below from its grammar module instead of importing its register module,
   // whose lazy tokens provider would overwrite our patched grammar on first use.
-  // The grammar module is a private monaco internal (verified against monaco-editor
-  // 0.52.2); the runtime guard below fails loudly if its export shape changes.
-  const jsonContribution = import("monaco-editor/esm/vs/language/json/monaco.contribution");
-  const pythonGrammar = import("monaco-editor/esm/vs/basic-languages/python/python.js");
+  // The runtime guard below fails loudly if the grammar export shape changes.
+  const jsonContribution = import("monaco-editor/languages/features/json/register");
+  const pythonGrammar = import("monaco-editor/languages/definitions/python/python");
 
   const [monaco, [editorWorkerUrl, jsonWorkerUrl], { conf: pythonConf, language: pythonLanguage }] =
     await Promise.all([monacoApi, workerUrls, pythonGrammar, jsonContribution]);

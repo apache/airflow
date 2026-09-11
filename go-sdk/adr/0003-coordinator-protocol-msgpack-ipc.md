@@ -23,7 +23,11 @@ Date: 2026-04-30
 
 ## Status
 
-Accepted.
+Accepted. The dual-runtime portion of this ADR (go-plugin alongside
+coordinator) was superseded by
+[ADR 0005](0005-retire-go-edge-worker.md), which retired the
+go-plugin/Edge-Worker path. The coordinator protocol described here
+remains the sole execution mode.
 
 The references in this ADR to a "ZIP bundle" — the bundle-spec phrasing
 quoted in Context, and the `airflow-go-pack` output described in
@@ -43,22 +47,22 @@ A Go SDK bundle binary today (the artefact built from
 `bundlev1server.Serve`) speaks exactly one protocol: HashiCorp
 [`go-plugin`](https://github.com/hashicorp/go-plugin) gRPC over a
 stdio-negotiated socket, gated by the magic-cookie handshake declared in
-[`pkg/bundles/shared/handshake.go`](../pkg/bundles/shared/handshake.go).
+`pkg/bundles/shared/handshake.go` (removed).
 The Airflow Go *Edge Worker*
-([`cmd/airflow-go-edge-worker`](../cmd/airflow-go-edge-worker/main.go),
-[`edge/`](../edge)) is the consumer of that protocol — it execs the
+(`cmd/airflow-go-edge-worker` (removed),
+`edge/` (removed)) is the consumer of that protocol — it execs the
 bundle binary as a child process, completes the go-plugin handshake,
 opens the `DagBundle` gRPC client, and drives `GetMetadata`/`Execute`
-([`bundle/bundlev1/bundlev1server/impl/plugin.go`](../bundle/bundlev1/bundlev1server/impl/plugin.go)).
+(`bundle/bundlev1/bundlev1server/impl/plugin.go` (removed)).
 The bundle binary never listens on a public socket; the protocol is
 local-process only.
 
 Meanwhile, the Python side of Airflow has standardised on a different
 wire protocol for non-Python language runtimes — the *coordinator
 protocol* — pioneered by the Java SDK and described in
-[java-sdk ADR 0004](../../java-sdk/adr/0004-dag-parsing.md)
+[Lang-SDK ADR 0004](../../airflow-core/adr/lang-sdk/0004-dag-parsing.md)
 and
-[java-sdk ADR 0002](../../java-sdk/adr/0002-workload-execution.md).
+[Lang-SDK ADR 0002](../../airflow-core/adr/lang-sdk/0002-workload-execution.md).
 Its shape is:
 
 - The runtime is launched with `--comm=<host:port>` and
@@ -96,7 +100,7 @@ The two protocols target different deployment shapes:
   host (no Python in the data path). This is the path
   [`go-sdk/example/bundle/main.go`](../example/bundle/main.go) was
   written for and the path that
-  [`pkg/worker`](../pkg/worker) drives.
+  `pkg/worker` (removed) drives.
 - **Coordinator / `ExecutableCoordinator`.** The Python task
   runner forks a child that runs `<binary> --comm=… --logs=…`,
   bridges its socket to the Airflow supervisor's fd 0, and proxies
@@ -153,7 +157,7 @@ When `Serve` enters coordinator mode it:
 2. **Connects out** to the comm address, then to the logs address. Both
    are TCP. We dial; we do not listen. The launcher already has both
    listeners up before exec'ing the binary
-   ([java-sdk ADR 0004, "What the Base Class Handles Automatically"](../../java-sdk/adr/0004-dag-parsing.md#what-the-base-class-handles-automatically)).
+   ([Lang-SDK ADR 0004, "What the Base Class Handles Automatically"](../../airflow-core/adr/lang-sdk/0004-dag-parsing.md#what-the-base-class-handles-automatically)).
 
 3. **Routes structured logs to the logs socket.** A new
    `slog.Handler` writes JSON-line records (one record per line, UTF-8,
@@ -165,7 +169,7 @@ When `Serve` enters coordinator mode it:
 
 4. **Reads the first comm frame and dispatches by message type.** The
    first frame's body has a `type` field per the Java SDK's encoding
-   ([java-sdk ADR 0002, "Task SDK Protocol Messages"](../../java-sdk/adr/0002-workload-execution.md#task-sdk-protocol-messages)).
+   ([Lang-SDK ADR 0002, "Task SDK Protocol Messages"](../../airflow-core/adr/lang-sdk/0002-workload-execution.md#task-sdk-protocol-messages)).
    Two values are valid here:
 
    - `DagFileParseRequest` → DAG-parsing one-shot.
@@ -189,7 +193,7 @@ Supervisor                          Bundle binary (Go)
     │                                       ├── serialise(reg) →
     │                                       │   DagFileParsingResult
     │                                       │   in DagSerialization v3 JSON
-    │                                       │   (see java-sdk ADR-0004)
+    │                                       │   (see Lang-SDK ADR-0004)
     │                                       │
     │◄────────────────[4B len][msgpack: ────┤
     │       id, {type: "DagFileParsingResult",
@@ -203,7 +207,7 @@ The serialised DAG payload must match Python's `SerializedDAG.serialize_dag`
 output **exactly**, including the `__type` / `__var` wrapping rules,
 unwrapping of "non-decorated" fields (`start_date`, `end_date`, `tags`),
 and the timetable encoding listed in
-[java-sdk ADR 0004, "DagFileParsingResult Format"](../../java-sdk/adr/0004-dag-parsing.md#dagfileparsingresult-format).
+[Lang-SDK ADR 0004, "DagFileParsingResult Format"](../../airflow-core/adr/lang-sdk/0004-dag-parsing.md#dagfileparsingresult-format).
 The Go SDK gains a `serde` package that performs this encoding from
 `bundlev1.Bundle` / `bundlev1.Task`, validated against
 `validation/serialization/test_dags.yaml` (the same fixture set the Java
@@ -217,13 +221,23 @@ Supervisor                          Bundle binary (Go)
     │                                       │
     ├── StartupDetails ────────────────────►│
     │   (ti, dag_rel_path, bundle_info,     │
-    │    start_date, ti_context)            │
+    │    start_date, ti_context; the        │
+    │    ti_context carries arg_bindings,   │
+    │    the positional-argument spec       │
+    │    captured from the stub Dag's       │
+    │    TaskFlow call)                     │
     │                                       │
     │                                       ├── lookup task:
     │                                       │     bundle.dags[ti.dag_id]
     │                                       │     .tasks[ti.task_id]
     │                                       │   (returns TaskState{state:"removed"}
     │                                       │    if not found, mirroring Java)
+    │                                       │
+    │                                       ├── bind arg_bindings onto the task
+    │                                       │   fn's data parameters (literals
+    │                                       │   decode directly; xcom refs pull
+    │                                       │   below); arity/type mismatch
+    │                                       │   fails the task
     │                                       │
     │                                       ├── construct sdk.Client whose
     │                                       │   GetConnection / GetVariable /
@@ -251,7 +265,7 @@ Supervisor                          Bundle binary (Go)
 ```
 
 Concretely, this reuses
-[`pkg/worker.Worker`](../pkg/worker/runner.go) for task lookup and
+`pkg/worker.Worker` (removed) for task lookup and
 parameter injection — `extract(ctx, sdk.Client, *slog.Logger)`,
 `transform(ctx, sdk.VariableClient, *slog.Logger)`, and `load() error`
 in the example bundle work unchanged. The injected `sdk.Client`
@@ -269,7 +283,7 @@ this behaviour is identical in go-plugin mode and coordinator mode;
 it is not a coordinator-only invention.
 
 Frame correlation, error envelopes, and request `id` numbering follow
-java-sdk ADR 0002 verbatim. Re-implementing rather than reusing those
+Lang-SDK ADR 0002 verbatim. Re-implementing rather than reusing those
 is a deliberate cost of having a separate Go runtime; the validation
 fixtures keep the encoders honest.
 
@@ -290,7 +304,7 @@ The handshake env var (`AIRFLOW_BUNDLE_MAGIC_COOKIE`) gates the path
 the same way it does today, so an Edge Worker that execs the binary
 gets exactly the same protocol it gets today. The `DagBundle` gRPC
 service, the registry cache, and the worker injection in
-[`impl/plugin.go:178`](../bundle/bundlev1/bundlev1server/impl/plugin.go)
+`impl/plugin.go:178` (removed)
 are untouched. (`--airflow-metadata` itself is extended to emit the full
 bundle spec per ADR 0002, but the go-plugin path does not depend on its
 output.)
@@ -397,7 +411,7 @@ func main() { bundlev1server.Serve(&myBundle{}) }
   ids) is deferred until the Python supervisor side standardises one.
 - OTel context propagation. The `context_carrier` field on
   `TaskInstance` is still TODO in
-  [`impl/plugin.go:151`](../bundle/bundlev1/bundlev1server/impl/plugin.go#L151)
+  `impl/plugin.go:151` (removed)
   and remains TODO in coordinator mode for now.
 - A Go-side equivalent of the Java SDK's `Supervisor.kt` (the
   no-Python-in-the-loop execution path). The Edge Worker already fills

@@ -55,7 +55,7 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/iu), { target: { value: '{"enabled": true,' } });
 
-    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/variables\.form\.invalidJson/u)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /save/iu }));
@@ -73,7 +73,7 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/iu), { target: { value: "[DRAFT] plain string value" } });
 
-    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/variables\.form\.invalidJson/u)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /save/iu }));
@@ -91,7 +91,7 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/iu), { target: { value: "{{ var.value.x }}" } });
 
-    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/variables\.form\.invalidJson/u)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /save/iu }));

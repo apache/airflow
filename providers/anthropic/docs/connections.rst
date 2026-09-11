@@ -49,7 +49,8 @@ Extra (optional)
       ``model`` (e.g. ``hook.create_message(...)``, ``hook.create_agent(...)``). Set it here
       to change the model without editing Dags; falls back to the provider default
       (``claude-opus-4-8``).
-    * ``aws_region`` — AWS region for the ``bedrock`` platform.
+    * ``aws_region`` — AWS region for the ``bedrock`` and ``aws`` platforms. Required unless the
+      worker resolves a region from ``AWS_REGION`` / ``AWS_DEFAULT_REGION`` or its AWS profile.
     * ``project_id`` / ``region`` — GCP project and region for the ``vertex`` platform.
     * ``resource`` — Azure resource name for the ``foundry`` platform.
     * ``anthropic_client_kwargs`` — a nested dictionary forwarded verbatim to the client
@@ -100,7 +101,9 @@ Two ways:
 
 .. note::
 
-    The Message Batches API, token counting and the Models API are served only by the
-    first-party Anthropic API (``platform="anthropic"``) and Claude Platform on AWS
-    (``platform="aws"``). They are **not** available on Amazon Bedrock, Google Vertex AI
-    or Microsoft Foundry; the hook raises a clear error if you call them on those platforms.
+    The Message Batches API, token counting, the Models API and Managed Agents (including
+    :class:`~airflow.providers.anthropic.operators.agent.AnthropicAgentSessionOperator`) are
+    served only by the first-party Anthropic API (``platform="anthropic"``) and Claude
+    Platform on AWS (``platform="aws"``). They are **not** available on Amazon Bedrock,
+    Google Vertex AI or Microsoft Foundry; the hook raises a clear error if you call them on
+    those platforms.

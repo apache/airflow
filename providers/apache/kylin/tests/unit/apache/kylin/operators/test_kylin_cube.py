@@ -25,8 +25,8 @@ import pytest
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils import state, timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.utils import state
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db

@@ -54,8 +54,8 @@ import javax.tools.Diagnostic
  * containing:
  *
  * - One inner class per [Builder.Task]-annotated method, implementing [Task].
- * - A static `build()` method that constructs the [Dag] and registers those
- *   inner classes as tasks.
+ * - A static `build()` method that constructs the [DagDef] and registers those
+ *   inner classes as [TaskDef]s.
  *
  * [Builder.XCom]-annotated parameters are resolved via `client.getXCom` in the
  * generated `execute` body, with the result cast to the parameter's declared
@@ -102,8 +102,8 @@ class BuilderProcessor : AbstractProcessor() {
       MethodSpec
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(ClassName.get(Dag::class.java))
-        .addStatement($$"var dag = new $T($S)", ClassName.get(Dag::class.java), ann.id.ifBlank { el.simpleName })
+        .returns(ClassName.get(DagDef::class.java))
+        .addStatement($$"var dag = new $T($S)", ClassName.get(DagDef::class.java), ann.id.ifBlank { el.simpleName })
 
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
@@ -116,7 +116,8 @@ class BuilderProcessor : AbstractProcessor() {
       builderClass.addType(task.spec)
 
       buildMethod.addStatement(
-        $$"dag.addTask($S, $L.class)",
+        $$"dag.addTask(new $T($S, $L.class))",
+        ClassName.get(TaskDef::class.java),
         ann.id.ifBlank { inner.simpleName },
         innerName,
       )
@@ -216,21 +217,36 @@ private val NUMBER_ACCESSORS: Map<TypeName, String> =
   }
 
 private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
-  val call = CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
   val type = TypeName.get(xcom.paramType)
   val accessor = NUMBER_ACCESSORS[type]
   val number = ClassName.get(Number::class.java)
+  val optional = ClassName.get(Optional::class.java)
+  // A primitive parameter cannot hold null, so fail with a clear error instead of an
+  // opaque NullPointerException while unboxing when the XCom is absent.
+  val value =
+    if (type.isPrimitive) {
+      CodeBlock.of(
+        $$"$T.ofNullable(client.getXCom($S)).orElseThrow(() -> new $T($S, $S))",
+        optional,
+        xcom.taskId,
+        ClassName.get(MissingXComException::class.java),
+        xcom.taskId,
+        xcom.paramName,
+      )
+    } else {
+      CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
+    }
   // Wire integers decode to Long and floats to Double, so a direct (Integer)/(Float)
   // cast throws ClassCastException; widen via Number instead.
   return when {
-    accessor == null -> CodeBlock.of($$"($T) $L", if (type.isPrimitive) type.box() else type, call)
-    type.isPrimitive -> CodeBlock.of($$"(($T) $L).$L()", number, call, accessor)
+    accessor == null -> CodeBlock.of($$"($T) $L", if (type.isPrimitive) type.box() else type, value)
+    type.isPrimitive -> CodeBlock.of($$"(($T) $L).$L()", number, value, accessor)
     else ->
       CodeBlock.of(
         $$"$T.ofNullable(($T) $L).map($T::$L).orElse(null)",
-        ClassName.get(Optional::class.java),
+        optional,
         number,
-        call,
+        value,
         number,
         accessor,
       )

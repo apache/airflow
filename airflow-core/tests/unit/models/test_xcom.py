@@ -56,6 +56,7 @@ class CustomXCom(BaseXCom): ...
 @pytest.fixture(autouse=True)
 def reset_db():
     """Reset XCom entries."""
+    yield
     clear_db_dags()
     clear_db_runs()
     clear_db_xcom()

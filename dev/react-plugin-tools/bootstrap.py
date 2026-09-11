@@ -33,6 +33,8 @@ import shutil
 import sys
 from pathlib import Path
 
+AI_AGENT_RULES_DIR = "ai-agent-rules"
+
 
 def get_template_dir() -> Path:
     """Get the template directory path."""
@@ -44,6 +46,12 @@ def get_template_dir() -> Path:
         sys.exit(1)
 
     return template_dir
+
+
+def should_include_ai_agent_rules() -> bool:
+    """Ask whether AI agent coding rules should be included."""
+    answer = input("Include AI agent coding rules? [y/N]: ")
+    return answer.strip().casefold() in {"y", "yes"}
 
 
 def replace_template_variables(content: str, project_name: str) -> str:
@@ -66,11 +74,15 @@ def remove_apache_license_header(content: str, file_extension: str) -> str:
     return content
 
 
-def copy_template_files(template_dir: Path, project_path: Path, project_name: str) -> None:
+def copy_template_files(
+    template_dir: Path, project_path: Path, project_name: str, *, include_ai_agent_rules: bool
+) -> None:
     for item in template_dir.rglob("*"):
         if item.is_file():
             # Calculate relative path from template root
             rel_path = item.relative_to(template_dir)
+            if not include_ai_agent_rules and rel_path.parts[0] == AI_AGENT_RULES_DIR:
+                continue
             target_path = project_path / rel_path
 
             target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,6 +117,8 @@ def bootstrap_react_plugin(args) -> None:
         print("Error: Project name should only contain letters, numbers, hyphens, and underscores")
         sys.exit(1)
 
+    include_ai_agent_rules = should_include_ai_agent_rules()
+
     print(f"Creating React plugin project: {project_name}")
     print(f"Target directory: {project_path}")
     print(f"Template directory: {template_dir}")
@@ -114,7 +128,12 @@ def bootstrap_react_plugin(args) -> None:
     try:
         # Copy template files
         print("Copying template files...")
-        copy_template_files(template_dir, project_path, project_name)
+        copy_template_files(
+            template_dir,
+            project_path,
+            project_name,
+            include_ai_agent_rules=include_ai_agent_rules,
+        )
 
         print(f"\n✅ Successfully created {project_name}!")
         print("\nNext steps:")

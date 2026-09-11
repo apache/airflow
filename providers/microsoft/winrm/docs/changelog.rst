@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.14.4
+......
+
+Misc
+~~~~
+
+* ``Fix Microsoft WinRM provider import failure under lowest dependencies (#69333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.14.3
 ......
 
@@ -276,7 +288,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 3.8.0
 .....

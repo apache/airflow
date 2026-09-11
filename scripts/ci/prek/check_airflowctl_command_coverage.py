@@ -53,7 +53,7 @@ EXCLUDED_COMMANDS = {
     "assets delete-dag-queued-events",
     "assets delete-queued-event",
     "assets delete-queued-events",
-    "assets get-by-alias",
+    "assets get-alias",
     "assets get-dag-queued-event",
     "assets get-dag-queued-events",
     "assets get-queued-events",

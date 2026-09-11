@@ -36,7 +36,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
-    ALLOWED_WORKER_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
@@ -468,13 +467,6 @@ option_use_uv_default_depends_on_installation_method = click.option(
     "from sources and False for installing from packages).",
     envvar="USE_UV",
 )
-option_uv_http_timeout = click.option(
-    "--uv-http-timeout",
-    help="Deprecated: This option isn't exposed anymore",
-    type=click.IntRange(min=1),
-    default=30,
-    hidden=True,
-)
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
@@ -602,14 +594,6 @@ option_platform_single = click.option(
     envvar="PLATFORM",
     callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
-)
-
-option_worker_types = click.option(
-    "--worker-type",
-    help="Start a specific worker",
-    type=BetterChoice(ALLOWED_WORKER_TYPES),
-    multiple=True,
-    envvar="WORKER_TYPE",
 )
 
 option_sdk = click.option(

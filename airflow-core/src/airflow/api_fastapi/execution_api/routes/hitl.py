@@ -131,7 +131,6 @@ def update_hitl_detail(
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input
     session.add(hitl_detail_model)
-    session.commit()
     return HITLDetailResponse.from_hitl_detail_orm(hitl_detail_model)
 
 

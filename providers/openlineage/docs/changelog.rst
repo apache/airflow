@@ -26,6 +26,78 @@
 Changelog
 ---------
 
+2.20.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix incorrect availability versions for OpenLineage config options (#71449)``
+* ``Avoid lazy-loading the bundle when resolving 'team_name' for Dag run lineage (#70312)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+2.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``OpenLineage: add execute_in_thread to emit task events without forking (#68708)``
+* ``Add team_name tag to OpenLineage metrics (#69109)``
+* ``Fix openlineage team name handling, add dag_version_data and TI note (#70772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``OpenLineage: reuse per-process adapter in dag-state-change pool workers (#69283)``
+* ``Fix OpenLineage team_name access and other failing paths (#70626)``
+
+Misc
+~~~~
+
+* ``Bump openlineage libraries to 1.52 in openlineage provider (#70773)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
+* ``Document GlueJobOperator support for OpenLineage Spark injection (#69652)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add providers E2E tests framework and OpenLineage tests (#69212)``
+   * ``Raise the datamodel-code-generator floor for the codegen toolchain (#70670)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
+
+2.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add unified emission_policy config for OpenLineage provider (#66992)``
+
+Misc
+~~~~
+
+
+Doc-only
+~~~~~~~~
+
+* ``Add OpenLineage Spark conf injection to DatabricksSubmitRunOperator (#67894)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Fix hll import in openlineage system tests (#69196)``
+   * ``Add OpenLineage system tests for new emission_policy feature (#69181)``
+
 2.18.1
 ......
 

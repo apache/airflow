@@ -316,6 +316,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
 
     :param variables_file_path: File location with variables data.
     :param connections_file_path: File location with connection data.
+    :param configs_file_path: File location with configuration data.
     """
 
     def __init__(

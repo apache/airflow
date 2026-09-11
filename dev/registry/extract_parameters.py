@@ -54,7 +54,13 @@ from pathlib import Path
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
-from registry_tools.types import BASE_CLASS_IMPORTS, CLASS_LEVEL_SECTIONS, MODULE_LEVEL_SECTIONS
+from registry_tools.types import (
+    BASE_CLASS_IMPORTS,
+    CLASS_LEVEL_CATEGORY_OVERRIDES,
+    CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
+    MODULE_LEVEL_SECTIONS,
+)
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -88,6 +94,7 @@ class Module:
     category: str
     provider_id: str
     provider_name: str
+    supports_durable_execution: bool
 
 
 def get_category(integration_name: str) -> str:
@@ -353,9 +360,9 @@ def _should_skip_class(name: str) -> bool:
     return False
 
 
-def _get_first_docstring_line(cls: type) -> str | None:
+def _get_first_docstring_line(obj: object) -> str | None:
     """Return the first non-empty line of a class docstring, or None."""
-    doc = getattr(cls, "__doc__", None)
+    doc = getattr(obj, "__doc__", None)
     if not doc:
         return None
     for line in doc.strip().splitlines():
@@ -373,16 +380,90 @@ def _get_source_line(cls: type) -> int | None:
         return None
 
 
+def load_resumable_job_mixin() -> type | None:
+    """Import ResumableJobMixin for durable-execution capability checks, or None if unavailable."""
+    try:
+        from airflow.sdk import ResumableJobMixin
+
+        return ResumableJobMixin
+    except ImportError:
+        log.warning("Could not import ResumableJobMixin")
+        return None
+
+
+def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
+    """Return True if a class implements durable/crash-safe execution.
+
+    Two ways to qualify:
+    1. A class-level `__supports_durable_execution = True`
+    declaration (for operators that implement this directly against
+    task_state_store, without ResumableJobMixin -- e.g. KubernetesPodOperator,
+    AgentOperator).
+    2. Genuinely implementing ResumableJobMixin's contract.
+
+    The first path deliberately looks up the class prefixed attribute
+    (`_{ClassName}__supports_durable_execution`) rather than a fixed string.
+    A subclass that overrides execute() itself (e.g. SparkKubernetesOperator)
+    may not preserve the parent's task_state_store reconnect behavior, so the
+    declaration must not be inherited -- only the exact class that wrote
+    `__supports_durable_execution` in its own body qualifies this way.
+
+    Inheriting the mixin alone is not sufficient for the second path: a
+    complete override is inert unless execute() actually calls
+    execute_resumable().
+    """
+    if getattr(cls, f"_{cls.__name__}__supports_durable_execution", None) is True:
+        return True
+
+    if resumable_mixin is None or resumable_mixin not in cls.__mro__:
+        return False
+
+    if inspect.isabstract(cls):
+        return False
+
+    execute = getattr(cls, "execute", None)
+    if execute is None:
+        return False
+    try:
+        source = inspect.getsource(execute)
+    except (OSError, TypeError):
+        return False
+
+    return "execute_resumable" in source
+
+
+def _resolve_dotted_path(class_path: str) -> tuple[str, str, object] | None:
+    """Split a dotted ``module.name`` path and import ``name`` from that module.
+
+    Returns ``None`` (without logging) if ``class_path`` has no dot, or ``None``
+    (after logging a warning) if the module import fails. Otherwise returns
+    ``(module_path, name, obj)``, where ``obj`` may be ``None`` if the module
+    has no such attribute — callers decide how to treat a missing attribute.
+    """
+    parts = class_path.rsplit(".", 1)
+    if len(parts) != 2:
+        return None
+    module_path, name = parts
+    try:
+        mod = importlib.import_module(module_path)
+        obj = getattr(mod, name, None)
+    except Exception:
+        log.warning("Could not import %s", class_path)
+        return None
+    return module_path, name, obj
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
+    resumable_mixin: type | None = None,
     inventory: dict[str, str] | None = None,
     version: str = "",
 ) -> list[dict]:
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 11 Module fields.
+    and returns metadata for each discovered class with all 12 Module fields.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -431,7 +512,7 @@ def discover_classes_from_provider(
         category: str = "",
         transfer_desc: str | None = None,
     ) -> dict:
-        """Build a full module entry dict with all 11 fields."""
+        """Build a full module entry dict with all 12 fields."""
         module_name = module_path.split(".")[-1]
         docstring = _get_first_docstring_line(cls_or_obj)
         short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
@@ -448,6 +529,7 @@ def discover_classes_from_provider(
             "category": category or get_category(integration),
             "provider_id": provider_id,
             "provider_name": provider_name,
+            "supports_durable_execution": is_durable_capable(cls_or_obj, resumable_mixin),
         }
 
     discovered: list[dict] = []
@@ -528,28 +610,13 @@ def discover_classes_from_provider(
         for class_path in provider_yaml.get(section_name, []):
             if not class_path or not isinstance(class_path, str):
                 continue
-            parts = class_path.rsplit(".", 1)
-            if len(parts) != 2:
+            if (resolved := _resolve_dotted_path(class_path)) is None:
                 continue
-            module_path, class_name = parts
-            try:
-                mod = importlib.import_module(module_path)
-                candidate = getattr(mod, class_name, None)
-            except Exception:
-                log.warning("Could not import %s", class_path)
-                continue
+            module_path, class_name, candidate = resolved
             if candidate is None or not inspect.isclass(candidate):
                 log.warning("%s is not a class", class_path)
                 continue
             cls = candidate
-
-            # Use section name as category for class-level entries
-            category_map = {
-                "notifications": "notifications",
-                "secrets-backends": "secrets",
-                "logging": "logging",
-                "executors": "executors",
-            }
 
             discovered.append(
                 make_entry(
@@ -558,29 +625,52 @@ def discover_classes_from_provider(
                     module_type,
                     class_path,
                     module_path,
-                    category=category_map.get(section_name, section_name),
+                    category=CLASS_LEVEL_CATEGORY_OVERRIDES.get(section_name, section_name),
+                )
+            )
+
+    # --- Dict-shaped class-level sections (plugins, dialects; each entry is a
+    # dict carrying an integration-name field plus a class-path field, see types.py) ---
+    for section_name, (
+        module_type,
+        class_field,
+        integration_field,
+    ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+        for entry in provider_yaml.get(section_name, []):
+            if not isinstance(entry, dict):
+                continue
+            if not (class_path := entry.get(class_field, "")):
+                continue
+            if (resolved := _resolve_dotted_path(class_path)) is None:
+                continue
+            module_path, class_name, candidate = resolved
+            if candidate is None or not inspect.isclass(candidate):
+                log.warning("%s is not a class", class_path)
+                continue
+
+            discovered.append(
+                make_entry(
+                    candidate,
+                    class_name,
+                    module_type,
+                    class_path,
+                    module_path,
+                    integration=entry.get(integration_field, ""),
+                    category=CLASS_LEVEL_CATEGORY_OVERRIDES.get(section_name, section_name),
                 )
             )
 
     # --- Task decorators (class-name key in each entry) ---
     for decorator in provider_yaml.get("task-decorators", []):
-        class_path = decorator.get("class-name", "")
-        decorator_name = decorator.get("name", "")
-        if not class_path:
+        if not (class_path := decorator.get("class-name", "")):
             continue
-        parts = class_path.rsplit(".", 1)
-        if len(parts) != 2:
+        if (resolved := _resolve_dotted_path(class_path)) is None:
             continue
-        module_path, func_name = parts
-        try:
-            mod = importlib.import_module(module_path)
-            obj = getattr(mod, func_name, None)
-        except Exception:
-            log.warning("Could not import %s", class_path)
-            continue
+        module_path, func_name, obj = resolved
         if obj is None:
             continue
 
+        decorator_name = decorator.get("name", "")
         display_name = f"@task.{decorator_name}" if decorator_name else func_name
         docstring = _get_first_docstring_line(obj) if hasattr(obj, "__doc__") else None
         short_desc = docstring or f"Task decorator for {decorator_name or func_name}"
@@ -889,6 +979,8 @@ def _main_discover(
     base_classes = load_base_classes()
     print(f"Loaded {len(base_classes)} base classes: {', '.join(sorted(base_classes))}")
 
+    resumable_mixin = load_resumable_job_mixin()
+
     # Load all provider.yaml data and map provider_id -> yaml dict / path
     provider_yamls_by_id: dict[str, dict] = {}
     provider_paths_by_id: dict[str, Path] = {}
@@ -923,6 +1015,7 @@ def _main_discover(
         discovered = discover_classes_from_provider(
             yaml_path,
             base_classes,
+            resumable_mixin,
             inventory=inventories.get(pid),
             version=version,
         )

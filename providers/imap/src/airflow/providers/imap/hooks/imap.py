@@ -193,6 +193,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        overwrite: bool = True,
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -211,6 +212,8 @@ class ImapHook(BaseHook):
             If it is set to 'raise' it will raise an exception,
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
+        :param overwrite: If True (default), existing files are overwritten. If False, a unique
+            suffix is added to avoid overwriting.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, max_mails, mail_folder, mail_filter
@@ -219,7 +222,7 @@ class ImapHook(BaseHook):
         if not mail_attachments:
             self._handle_not_found_mode(not_found_mode)
 
-        self._create_files(mail_attachments, local_output_directory)
+        self._create_files(mail_attachments, local_output_directory, overwrite=overwrite)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
         if not_found_mode not in ("raise", "warn", "ignore"):
@@ -287,22 +290,57 @@ class ImapHook(BaseHook):
             return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
         return []
 
-    def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
+    def _create_files(
+        self, mail_attachments: list, local_output_directory: str, overwrite: bool = True
+    ) -> None:
         for name, payload in mail_attachments:
-            if self._is_symlink(name):
+            if self._is_symlink(name, local_output_directory):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
             else:
-                self._create_file(name, payload, local_output_directory)
+                self._create_file(name, payload, local_output_directory, overwrite=overwrite)
 
-    def _is_symlink(self, name: str) -> bool:
+    def _create_file(
+        self, name: str, payload: Any, local_output_directory: str, overwrite: bool = True
+    ) -> None:
+        file_path = self._correct_path(name, local_output_directory)
+
+        if not overwrite:
+            base, ext = os.path.splitext(file_path)
+            counter = 1
+            while os.path.exists(file_path):
+                file_path = f"{base}_{counter}{ext}"
+                counter += 1
+
+        # O_NOFOLLOW closes the check-then-open race: if a symlink is planted at
+        # file_path after the _is_symlink check but before this write, the open
+        # fails instead of following it. The flag is absent on some platforms
+        # (e.g. Windows), where it degrades to a no-op.
+        def opener(path: str, flags: int) -> int:
+            return os.open(path, flags | getattr(os, "O_NOFOLLOW", 0))
+
+        with open(file_path, "wb", opener=opener) as file:
+            file.write(payload)
+
+    def _is_symlink(self, name: str, local_output_directory: str) -> bool:
+        # Check the resolved destination, not the bare attachment name: an
+        # attacker-supplied name is written under local_output_directory, so a
+        # symlink planted there is what would be followed by the open() below.
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
         # See: https://stackoverflow.com/a/11068434
-        return os.path.islink(name)
+        return os.path.islink(self._correct_path(name, local_output_directory))
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        return f"..{os.sep}" in name
+        # On Windows os.altsep is "/", so a "../" attachment name traverses even
+        # though os.sep is a backslash and the old f"..{os.sep}" check missed it.
+        # Split on every separator the host recognises and reject any ".."
+        # component. Using os.altsep keeps backslashes as ordinary characters on
+        # POSIX, where they are legal in filenames.
+        normalised = name.replace(os.sep, "/")
+        if os.altsep:
+            normalised = normalised.replace(os.altsep, "/")
+        return any(part == ".." for part in normalised.split("/"))
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
@@ -310,12 +348,6 @@ class ImapHook(BaseHook):
             if local_output_directory.endswith(os.sep)
             else local_output_directory + os.sep + name
         )
-
-    def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
-        file_path = self._correct_path(name, local_output_directory)
-
-        with open(file_path, "wb") as file:
-            file.write(payload)
 
 
 class Mail(LoggingMixin):

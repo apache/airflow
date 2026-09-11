@@ -63,3 +63,12 @@ which is registered in an Airflow plugin.
 
 If no ``HookLineageReader`` is registered within Airflow, a default ``NoOpCollector`` is used instead.
 This collector does not create AIP-60 compliant assets or collect lineage information.
+
+Limiting collected lineage
+--------------------------
+
+A collector keeps at most :ref:`config:lineage__max_assets_per_collector` input assets and the
+same number of output assets, counted separately, along with
+:ref:`config:lineage__max_extras_per_collector` extra metadata entries. Entries beyond a limit are
+dropped, so a hook called in a long loop stops contributing lineage once its limit is reached.
+Setting a limit to ``0`` disables that kind of collection entirely.

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /* eslint-disable perfectionist/sort-objects */
 import type { JSX } from "react";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 
 export type Slots = Omit<

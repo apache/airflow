@@ -78,6 +78,14 @@ def test_get_task_log():
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
+def test_get_streaming_task_log_not_implemented():
+    executor = BaseExecutor()
+    ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
+
+    with pytest.raises(NotImplementedError):
+        executor.get_streaming_task_log(ti=ti, try_number=1)
+
+
 def test_serve_logs_default_value():
     assert not BaseExecutor.serve_logs
 
@@ -352,6 +360,29 @@ def test_trigger_running_tasks(dag_maker):
     executor._process_workloads.assert_called_once()
 
 
+@pytest.mark.db_test
+def test_trigger_tasks_schedules_highest_priority_first(dag_maker):
+    """When there are fewer open slots than queued tasks, the lowest priority ones wait."""
+    date = timezone.utcnow()
+
+    with dag_maker("test_trigger_tasks_priority_order"):
+        BaseOperator(task_id="low", priority_weight=1)
+        BaseOperator(task_id="medium", priority_weight=5)
+        BaseOperator(task_id="high", priority_weight=10)
+
+    dagrun = dag_maker.create_dagrun(logical_date=date)
+
+    executor = BaseExecutor()
+    executor._process_workloads = mock.Mock(spec=lambda workloads: None)
+    for task_instance in dagrun.task_instances:
+        executor.queued_tasks[task_instance.key] = workloads.ExecuteTask.make(task_instance)
+
+    executor.trigger_tasks(open_slots=2)
+
+    scheduled = [workload.ti.task_id for workload in executor._process_workloads.call_args[0][0]]
+    assert scheduled == ["high", "medium"]
+
+
 def test_debug_dump(caplog):
     executor = BaseExecutor()
     with caplog.at_level(logging.INFO):
@@ -489,10 +520,40 @@ def test_queue_connection_test_workload_accepted_when_supported():
         connection_test_id=uuid4(),
         connection_id="test_conn",
         timeout=60,
+        team_name="team_a",
     )
     executor.queue_workload(wl, session=mock.MagicMock(spec=Session))
     assert len(executor.queued_connection_tests) == 1
     assert executor.queued_connection_tests[wl.key] is wl
+    assert wl.team_name == "team_a"
+
+
+@mock.patch(
+    "airflow.sdk.execution_time.connection_test_supervisor.supervise_connection_test",
+    autospec=True,
+)
+def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_supervise):
+    """BaseExecutor.run_workload forwards TestConnection.team_name to the supervisor."""
+    mock_supervise.return_value = 0
+    test_id = uuid4()
+    wl = workloads.TestConnection.make(
+        connection_test_id=test_id,
+        connection_id="test_conn",
+        timeout=60,
+        team_name="team_a",
+    )
+    wl.token = "test-token"
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    mock_supervise.assert_called_once_with(
+        connection_test_id=test_id,
+        connection_id="test_conn",
+        timeout=60,
+        token="test-token",
+        server="http://localhost:8080/execution/",
+        team_name="team_a",
+    )
 
 
 def test_trigger_connection_tests_skipped_when_not_supported():

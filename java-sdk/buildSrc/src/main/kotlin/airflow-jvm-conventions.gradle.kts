@@ -26,10 +26,6 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint")
 }
 
-repositories {
-    mavenCentral()
-}
-
 // The versions below are kept in sync with the other build files by a pre-commit hook.
 // See: scripts/ci/prek/check_java_sdk_version_in_sync.py
 java {
@@ -52,4 +48,18 @@ configure<SpotlessExtension> {
         trimTrailingWhitespace()
         endWithNewline()
     }
+}
+
+tasks.withType<Jar>().configureEach {
+    metaInf {
+        from(rootProject.layout.projectDirectory.file("LICENSE"))
+        from(rootProject.layout.projectDirectory.file("NOTICE"))
+    }
+}
+
+tasks.withType<AbstractArchiveTask>().configureEach {
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    dirPermissions { unix("755") }
+    filePermissions { unix("644") }
 }

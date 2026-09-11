@@ -8,8 +8,26 @@
     },
     "filters": {
       "eventType": "Type d'événement"
+    }
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "Nom de l'alerte",
+      "deadlineTime": "Heure de l'échéance",
+      "status": "Statut"
     },
-    "title": "Journal d'Audit"
+    "deadline_many": "Échéances",
+    "deadline_one": "Échéance",
+    "deadline_other": "Échéances",
+    "filters": {
+      "status": "Statut",
+      "statusOptions": {
+        "all": "Toutes",
+        "missed": "Manquée",
+        "pending": "En attente"
+      }
+    },
+    "title": "Échéances"
   },
   "xcom": {
     "add": {

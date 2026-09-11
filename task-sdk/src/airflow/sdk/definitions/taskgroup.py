@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.sdk import TriggerRule
+from airflow.sdk._shared.dagnode.node import TaskGroupMixin
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
@@ -92,7 +93,7 @@ def _convert_doc_md(doc_md: str | None) -> str | None:
 
 
 @attrs.define(repr=False)
-class TaskGroup(DAGNode):
+class TaskGroup(TaskGroupMixin, DAGNode):
     """
     A collection of tasks.
 
@@ -117,8 +118,10 @@ class TaskGroup(DAGNode):
         `default_args`, the actual value will be `False`.
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
     :param doc_md: Markdown documentation for the TaskGroup displayed in the UI
-    :param ui_color: The fill color of the TaskGroup node when displayed in the UI
-    :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
+    :param ui_color: The fill color of the TaskGroup node in the graph view -- a raw color (hex code
+        or CSS name) or a Chakra palette or semantic token (e.g. ``blue.500`` or ``brand.solid``)
+    :param ui_fgcolor: The label color of the TaskGroup node in the graph view -- a raw color (hex
+        code or CSS name) or a Chakra palette or semantic token
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
     :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
@@ -149,8 +152,14 @@ class TaskGroup(DAGNode):
         on_setattr=attrs.setters.frozen,
     )
 
-    ui_color: str = attrs.field(default="CornflowerBlue", validator=attrs.validators.instance_of(str))
-    ui_fgcolor: str = attrs.field(default="#000", validator=attrs.validators.instance_of(str))
+    ui_color: str = attrs.field(
+        default="CornflowerBlue",
+        validator=attrs.validators.instance_of(str),
+    )
+    ui_fgcolor: str = attrs.field(
+        default="#000",
+        validator=attrs.validators.instance_of(str),
+    )
 
     add_suffix_on_collision: bool = False
 
@@ -540,7 +549,7 @@ class TaskGroup(DAGNode):
             key=lambda node: (not isinstance(node, TaskGroup), node.node_id),
         )
 
-    def topological_sort(self) -> list[DAGNode]:
+    def topological_sort(self, *, group_dict: dict[str, TaskGroup] | None = None) -> list[DAGNode]:
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
@@ -561,11 +570,13 @@ class TaskGroup(DAGNode):
         nodes = list(children.values())
         n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
+        if group_dict is None:
+            group_dict = self.dag.task_group.get_task_group_dict()
 
         projected: list[tuple[int, ...]] = [()] * n
         nodes_with_back_edge = 0
         for i, child in enumerate(nodes):
-            deps = self._project_child_deps(i, child, id_to_idx)
+            deps = self._project_child_deps(i, child, id_to_idx, group_dict)
             if deps:
                 projected[i] = deps
                 if any(d > i for d in deps):
@@ -578,9 +589,13 @@ class TaskGroup(DAGNode):
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
-        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+        self,
+        child_idx: int,
+        child: DAGNode,
+        id_to_idx: dict[str, int],
+        group_dict: dict[str, TaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child.upstream_task_ids
+        upstream_ids = child._topological_upstream_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -590,8 +605,10 @@ class TaskGroup(DAGNode):
                 if j != child_idx:
                     sib_deps.add(j)
                 continue
-            edge = self.dag.get_task(edge_id)
-            tg = edge.task_group
+            tg = group_dict.get(edge_id)
+            if tg is None:
+                edge = self.dag.get_task(edge_id)
+                tg = edge.task_group
             while tg is not None:
                 anc_idx = id_to_idx.get(tg.node_id)
                 if anc_idx is not None:

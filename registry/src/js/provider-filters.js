@@ -33,16 +33,40 @@
   let currentSearch = '';
   let debounceTimer;
 
+  // Kept in sync by hand with normalize() in src/_data/providerKeywordMatch.js:
+  // that module runs at build time under CommonJS and this file is a browser
+  // IIFE, so the two can't share it. If the two drift, a query like
+  // 'pydantic-ai' stops finding the integration named "Pydantic AI".
+  function normalize(text) {
+    return text.toLowerCase().replace(/[-_\s]+/g, ' ');
+  }
+
+  // The card prints the full distribution name under the title, so that string
+  // has to be a working query. Matching against it directly would make
+  // 'apache', 'airflow' and 'providers' match every card, so drop the shared
+  // prefix off the query instead and match the id alone.
+  const PACKAGE_PREFIX = normalize('apache-airflow-providers-');
+
+  function normalizeSearch(text) {
+    const search = normalize(text);
+    return search.startsWith(PACKAGE_PREFIX) ? search.slice(PACKAGE_PREFIX.length) : search;
+  }
+
   function filterProviders() {
     let visibleCount = 0;
+    const search = normalizeSearch(currentSearch);
 
     providerItems.forEach(item => {
       const lifecycle = item.dataset.lifecycle;
       const name = item.dataset.name || '';
+      const id = item.dataset.id || '';
       const categories = item.dataset.categories || '';
+      const integrations = item.dataset.integrations || '';
 
       const matchesLifecycle = currentLifecycle === 'all' || lifecycle === currentLifecycle;
-      const matchesSearch = name.includes(currentSearch.toLowerCase());
+      const matchesSearch = normalize(name).includes(search) ||
+        normalize(id).includes(search) ||
+        normalize(integrations).includes(search);
       const matchesCategory = currentCategory === 'all' ||
         categories.split(',').includes(currentCategory);
 

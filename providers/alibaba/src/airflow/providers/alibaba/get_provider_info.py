@@ -137,5 +137,11 @@ def get_provider_info():
             },
         ],
         "logging": ["airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler"],
+        "remote-logging": [
+            {
+                "classpath": "airflow.providers.alibaba.cloud.log.oss_task_handler.OSSRemoteLogIO",
+                "scheme": "oss",
+            }
+        ],
         "extra-links": ["airflow.providers.alibaba.cloud.links.maxcompute.MaxComputeLogViewLink"],
     }

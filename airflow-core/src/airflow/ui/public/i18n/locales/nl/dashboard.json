@@ -1,4 +1,18 @@
 {
+  "deadlines": {
+    "pending": {
+      "empty": "Geen aankomende deadlines",
+      "title": "Aankomende deadlines"
+    },
+    "recentlyMissed": {
+      "empty": "Geen gemiste deadlines",
+      "title": "Gemiste deadlines"
+    },
+    "showMore": "Toon meer",
+    "title": "Deadlines"
+  },
+  "deferredSlotsNotCounted": "Uitgestelde taken niet meegeteld als sloten: {{count}}",
+  "deferredSlotsNotCountedTooltip": "Uitgestelde taken die in de balk worden weergegeven, worden meegeteld in de poolsloten. Uitgestelde taken die onder de balk worden weergegeven, zijn afkomstig van pools die uitgestelde taken niet in de sloten meetellen.",
   "favorite": {
     "favoriteDags_one": "Eerste {{count}} favoriete Dags",
     "favoriteDags_other": "Eerste {{count}} favoriete Dags",

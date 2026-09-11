@@ -21,6 +21,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PoolSummary } from "./PoolSummary";
@@ -47,6 +48,7 @@ vi.mock("src/utils", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: (namespace: string) => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) => {
       if (namespace === "dashboard" && key === "deferredSlotsNotCounted") {

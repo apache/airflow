@@ -131,7 +131,7 @@ instance page. Use the **HITL Review** extra link on the task instance, or
 navigate to
 ``/dags/{dag_id}/runs/{run_id}/tasks/{task_id}/plugin/hitl-review``.
 
-**Example DAG**
+**Example Dag**
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
     :language: python
@@ -150,8 +150,8 @@ The plugin exposes a FastAPI app at ``/hitl-review``. Base URL:
 
 **Common query parameters** (where applicable):
 
-- ``dag_id`` — DAG ID.
-- ``run_id`` — DAG run ID.
+- ``dag_id`` — Dag ID.
+- ``run_id`` — Dag run ID.
 - ``task_id`` — Task ID.
 - ``map_index`` — Map index for mapped tasks. Use ``-1`` for non-mapped tasks or index for dynamic mapping.
 

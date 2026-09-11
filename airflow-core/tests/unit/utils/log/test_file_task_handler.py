@@ -21,6 +21,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.file_task_handler import convert_list_to_stream, extract_events
 
 
 class TestFileTaskHandlerLogServer:
@@ -220,3 +223,74 @@ class TestFileTaskHandlerReadFromLocal:
 
         assert len(sources) == 1
         assert "through-symlink content" in self._drain(streams[0])
+
+
+class TestFileTaskHandlerExecutorLogs:
+    """Tests for executor log retrieval selection."""
+
+    @staticmethod
+    def _running_ti(executor_name: str) -> MagicMock:
+        ti = MagicMock()
+        ti.executor = executor_name
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        return ti
+
+    def test_running_task_prefers_streaming_executor_logs(self):
+        """Use executor streaming logs when the executor implements streaming."""
+        handler = FileTaskHandler(base_log_folder="")
+        executor = MagicMock()
+        executor.get_streaming_task_log.return_value = (
+            ["streaming source"],
+            [convert_list_to_stream(["streaming log"])],
+        )
+        executor.get_task_log.return_value = (["legacy source"], ["legacy log"])
+        handler.executor_instances = {"StreamingExecutor": executor}
+        ti = self._running_ti("StreamingExecutor")
+
+        with (
+            patch.object(handler, "_render_filename", return_value="dag/run/task/1.log"),
+            patch.object(handler, "_read_remote_logs", side_effect=NotImplementedError),
+            patch.object(handler, "_read_from_local", return_value=([], [])),
+            patch.object(handler, "_read_from_logs_server", return_value=([], [])) as read_from_logs_server,
+        ):
+            logs, metadata = handler._read(ti=ti, try_number=1)
+
+        executor.get_streaming_task_log.assert_called_once_with(ti, 1)
+        executor.get_task_log.assert_not_called()
+        read_from_logs_server.assert_not_called()
+        assert extract_events(logs, skip_source_info=False) == [
+            "::group::Log message source details",
+            "streaming source",
+            "::endgroup::",
+            "streaming log",
+        ]
+        assert metadata == {"end_of_log": False, "log_pos": 1}
+
+    def test_running_task_falls_back_to_legacy_executor_logs(self):
+        """Use legacy executor logs when the executor doesn't implement streaming."""
+        handler = FileTaskHandler(base_log_folder="")
+        executor = MagicMock()
+        executor.get_streaming_task_log.side_effect = NotImplementedError
+        executor.get_task_log.return_value = (["legacy source"], ["legacy log"])
+        handler.executor_instances = {"LegacyExecutor": executor}
+        ti = self._running_ti("LegacyExecutor")
+
+        with (
+            patch.object(handler, "_render_filename", return_value="dag/run/task/1.log"),
+            patch.object(handler, "_read_remote_logs", side_effect=NotImplementedError),
+            patch.object(handler, "_read_from_local", return_value=([], [])),
+            patch.object(handler, "_read_from_logs_server", return_value=([], [])) as read_from_logs_server,
+        ):
+            logs, metadata = handler._read(ti=ti, try_number=1)
+
+        executor.get_streaming_task_log.assert_called_once_with(ti, 1)
+        executor.get_task_log.assert_called_once_with(ti, 1)
+        read_from_logs_server.assert_not_called()
+        assert extract_events(logs, skip_source_info=False) == [
+            "::group::Log message source details",
+            "legacy source",
+            "::endgroup::",
+            "legacy log",
+        ]
+        assert metadata == {"end_of_log": False, "log_pos": 1}

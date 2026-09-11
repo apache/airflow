@@ -174,10 +174,18 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
+        try:
+            parse_version(args.from_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
         from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
     if args.to_version:
+        try:
+            parse_version(args.to_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.to_version!r} supplied as `--to-version`.")
         to_revision = _get_version_revision(args.to_version, revision_heads_map=revision_heads_map)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
@@ -305,6 +313,12 @@ def shell(args):
     """Run a shell that allows to access metadata database."""
     url = settings.get_engine().url
     print(f"DB: {url!r}")
+
+    if not url.database:
+        raise ValueError(
+            "The metadata database name is missing from the connection URI. "
+            "Please check your AIRFLOW__DATABASE__SQL_ALCHEMY_CONN configuration."
+        )
 
     if url.get_backend_name() == "mysql":
         with NamedTemporaryFile(suffix="my.cnf") as f:

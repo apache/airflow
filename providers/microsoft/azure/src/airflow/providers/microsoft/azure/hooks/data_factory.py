@@ -34,11 +34,13 @@ Spelling exceptions.
 from __future__ import annotations
 
 import inspect
+import json
 import time
 from collections.abc import Callable
 from functools import wraps
 from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
+from azure.core import MatchConditions
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
     ClientSecretCredential as AsyncClientSecretCredential,
@@ -278,7 +280,12 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Factory {factory!r} does not exist.")
 
         return self.get_conn().factories.create_or_update(
-            resource_group_name, factory_name, factory, if_match, **config
+            resource_group_name,
+            factory_name,
+            factory,
+            etag=if_match,
+            match_condition=MatchConditions.IfNotModified if if_match else None,
+            **config,
         )
 
     @provide_targeted_factory
@@ -339,7 +346,12 @@ class AzureDataFactoryHook(BaseHook):
         :return: The linked service.
         """
         return self.get_conn().linked_services.get(
-            resource_group_name, factory_name, linked_service_name, if_none_match, **config
+            resource_group_name,
+            factory_name,
+            linked_service_name,
+            etag=if_none_match,
+            match_condition=MatchConditions.IfModified if if_none_match else None,
+            **config,
         )
 
     def _linked_service_exists(self, resource_group_name, factory_name, linked_service_name) -> bool:
@@ -549,7 +561,12 @@ class AzureDataFactoryHook(BaseHook):
         :return: The DataFlowResource.
         """
         return self.get_conn().data_flows.get(
-            resource_group_name, factory_name, dataflow_name, if_none_match, **config
+            resource_group_name,
+            factory_name,
+            dataflow_name,
+            etag=if_none_match,
+            match_condition=MatchConditions.IfModified if if_none_match else None,
+            **config,
         )
 
     def _dataflow_exists(
@@ -597,7 +614,13 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} does not exist.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
+            resource_group_name,
+            factory_name,
+            dataflow_name,
+            dataflow,
+            etag=if_match,
+            match_condition=MatchConditions.IfNotModified if if_match else None,
+            **config,
         )
 
     @provide_targeted_factory
@@ -627,7 +650,13 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Dataflow {dataflow_name!r} already exists.")
 
         return self.get_conn().data_flows.create_or_update(
-            resource_group_name, factory_name, dataflow_name, dataflow, if_match, **config
+            resource_group_name,
+            factory_name,
+            dataflow_name,
+            dataflow,
+            etag=if_match,
+            match_condition=MatchConditions.IfNotModified if if_match else None,
+            **config,
         )
 
     @provide_targeted_factory
@@ -923,7 +952,13 @@ class AzureDataFactoryHook(BaseHook):
             raise AirflowException(f"Trigger {trigger_name!r} does not exist.")
 
         return self.get_conn().triggers.create_or_update(
-            resource_group_name, factory_name, trigger_name, trigger, if_match, **config
+            resource_group_name,
+            factory_name,
+            trigger_name,
+            trigger,
+            etag=if_match,
+            match_condition=MatchConditions.IfNotModified if if_match else None,
+            **config,
         )
 
     @provide_targeted_factory
@@ -1090,7 +1125,8 @@ def provide_targeted_factory_async(func: T) -> T:
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
                 conn = await get_async_connection(self.conn_id)
-                extras = conn.extra_dejson
+                # extra_dejson can call mask_secret -> sync send on the triggerer loop.
+                extras = json.loads(conn.extra) if conn.extra else {}
                 default_value = extras.get(default_key) or extras.get(
                     f"extra__azure_data_factory__{default_key}"
                 )
@@ -1141,7 +1177,8 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
             return self._async_conn
 
         conn = await get_async_connection(self.conn_id)
-        extras = conn.extra_dejson
+        # extra_dejson can call mask_secret -> sync send on the triggerer loop.
+        extras = json.loads(conn.extra) if conn.extra else {}
         tenant = get_field(extras, "tenantId")
 
         try:
@@ -1174,6 +1211,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
 
     async def refresh_conn(self) -> AsyncDataFactoryManagementClient:  # type: ignore[override]
         self._conn = None
+        await self.close()
         return await self.get_async_conn()
 
     @provide_targeted_factory_async

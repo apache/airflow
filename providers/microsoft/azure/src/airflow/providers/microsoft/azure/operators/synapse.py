@@ -104,7 +104,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         self.log.info("Executing the Synapse spark job.")
         response = self.hook.run_spark_job(payload=self.payload)
         self.log.info(response)
-        self.job_id = vars(response)["id"]
+        self.job_id = response.id
         # Push the ``job_id`` value to XCom regardless of what happens during execution. This allows for
         # retrieval the executed job's ``id`` for downstream tasks especially if performing an
         # asynchronous wait.
@@ -257,7 +257,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
             start_activity_name=self.start_activity_name,
             parameters=self.parameters,
         )
-        self.run_id = vars(response)["run_id"]
+        self.run_id = response.run_id
         # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
         # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
         # asynchronous wait.
