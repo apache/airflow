@@ -34,5 +34,5 @@ class SmoothOperator(BaseOperator):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> None:
         self.log.info("Enjoy Sade - Smooth Operator: %s", self.yt_link)

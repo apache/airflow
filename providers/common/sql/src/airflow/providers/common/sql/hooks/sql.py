@@ -180,7 +180,7 @@ class DbApiHook(BaseHook):
     _dialects: MutableMapping[str, MutableMapping] = resolve_dialects()
     _resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=False)
 
-    def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
+    def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None:
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -1097,7 +1097,7 @@ class DbApiHook(BaseHook):
         """
         raise NotImplementedError()
 
-    def test_connection(self):
+    def test_connection(self) -> tuple[bool, str]:
         """Tests the connection using db-specific query."""
         status, message = False, ""
         try:

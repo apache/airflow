@@ -59,7 +59,7 @@ class FSHook(BaseHook):
             "placeholders": {},
         }
 
-    def __init__(self, fs_conn_id: str = default_conn_name, **kwargs):
+    def __init__(self, fs_conn_id: str = default_conn_name, **kwargs) -> None:
         super().__init__(**kwargs)
         conn = self.get_connection(fs_conn_id)
         self.basepath = conn.extra_dejson.get("path", "")
@@ -76,7 +76,7 @@ class FSHook(BaseHook):
         """
         return self.basepath
 
-    def test_connection(self):
+    def test_connection(self) -> tuple[bool, str]:
         """Test File connection."""
         try:
             p = self.get_path()

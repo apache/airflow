@@ -57,15 +57,21 @@ class BashSensor(BaseSensorOperator):
     template_fields: Sequence[str] = ("bash_command", "env")
 
     def __init__(
-        self, *, bash_command, env=None, output_encoding="utf-8", retry_exit_code: int | None = None, **kwargs
-    ):
+        self,
+        *,
+        bash_command: str,
+        env: dict[str, str] | None = None,
+        output_encoding: str = "utf-8",
+        retry_exit_code: int | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
         self.retry_exit_code = retry_exit_code
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         """Execute the bash command in a temporary directory."""
         bash_command = self.bash_command
         self.log.info("Tmp dir root location: %s", gettempdir())
