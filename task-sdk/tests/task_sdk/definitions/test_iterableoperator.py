@@ -34,7 +34,14 @@ from airflow.sdk import DAG, BaseAsyncOperator, BaseOperator, BaseXCom, get_curr
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
-from airflow.sdk.exceptions import AirflowFailException, AirflowRescheduleException, TaskDeferred
+from airflow.sdk.exceptions import (
+    AirflowFailException,
+    AirflowRescheduleException,
+    AirflowSkipException,
+    DagRunTriggerException,
+    DownstreamTasksSkipped,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context as _mock_context_base
@@ -585,6 +592,106 @@ class TestIterableOperator:
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
             with pytest.raises(BaseExceptionGroup):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_execute_all_sub_tasks_skipped_raises_single_skip_exception(
+        self, dag_maker, session, mock_xcom_get_one
+    ):
+        """When every sub-task raises AirflowSkipException, IterableOperator must re-raise a single
+        AirflowSkipException so the runner marks it SKIPPED instead of a retryable failure."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"raise_exception": AirflowSkipException("skip 1")},
+                    {"raise_exception": AirflowSkipException("skip 2")},
+                ]
+            )
+            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="all_skipped")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowSkipException):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_execute_partial_skip_still_raises_exception_group(self, dag_maker, session, mock_xcom_get_one):
+        """A partial skip (not every sub-task skipped) is not special-cased and is still aggregated
+        into a BaseExceptionGroup, since only some sub-tasks raised AirflowSkipException."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"raise_exception": AirflowSkipException("skip 1")},
+                    {"raise_exception": RuntimeError("boom")},
+                ]
+            )
+            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="partial_skip")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(BaseExceptionGroup):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_execute_fail_exception_re_raised_directly_without_retry(
+        self, dag_maker, session, mock_xcom_get_one
+    ):
+        """A sub-task that raises AirflowFailException must be re-raised directly (not wrapped in a
+        BaseExceptionGroup) so the IterableOperator fails without being retried."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput(
+                [
+                    {"arg1": 1},
+                    {"raise_exception": AirflowFailException("boom")},
+                ]
+            )
+            iterable_op = self.create_iterable_operator(
+                dag, expand_input, task_id="fail_exception", retries=3
+            )
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="boom"):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            DagRunTriggerException(
+                trigger_dag_id="triggered_dag",
+                dag_run_id="triggered_run",
+                conf={},
+                reset_dag_run=False,
+                skip_when_already_exists=False,
+                wait_for_completion=False,
+                allowed_states=["success"],
+                failed_states=["failed"],
+                poke_interval=1,
+                deferrable=False,
+            ),
+            DownstreamTasksSkipped(tasks=["downstream_task"]),
+        ],
+        ids=["DagRunTriggerException", "DownstreamTasksSkipped"],
+    )
+    def test_execute_rejects_trigger_and_downstream_skip_exceptions(
+        self, dag_maker, session, mock_xcom_get_one, raised_exception
+    ):
+        """TriggerDagRunOperator (DagRunTriggerException) and downstream-skip operators like
+        ShortCircuitOperator (DownstreamTasksSkipped) are not supported inside IterableOperator: a
+        sub-task index has no DAG run or downstream tasks of its own for the trigger/skip to apply
+        to, so this must fail the whole IterableOperator immediately with a clear error."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{"raise_exception": raised_exception}])
+            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="unsupported_exception")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="not supported inside IterableOperator"):
                 iterable_op.execute(context=context)
 
     @pytest.mark.db_test
