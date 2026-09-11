@@ -28,6 +28,8 @@ import operator
 import re
 import subprocess
 import sys
+from contextlib import nullcontext
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
@@ -55,6 +57,7 @@ from airflow.utils.cli import (
     validate_dag_bundle_arg,
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import ask_yesno, chunks
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -63,6 +66,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    from argparse import Namespace
     from collections.abc import Iterable, Iterator
 
     from graphviz.dot import Dot
@@ -871,7 +875,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
-def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
+def dag_reserialize(args: Namespace, *, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
     manager = DagBundlesManager()
     manager.sync_bundles_to_db(session=session)
@@ -884,12 +888,47 @@ def dag_reserialize(args, *, session: Session = NEW_SESSION) -> None:
     else:
         bundles_to_reserialize = {b.name for b in all_bundles}
 
+    failed_files = 0
     for bundle in all_bundles:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        paths: set[Path] = {bundle.path}
+        if args.only_missing:
+            with create_session(scoped=False) as query_session:
+                paths = {
+                    Path(correct_maybe_zipped(bundle.path / fileloc))
+                    for fileloc in query_session.scalars(
+                        select(DagModel.relative_fileloc)
+                        .where(
+                            DagModel.bundle_name == bundle.name,
+                            DagModel.is_stale.is_(False),
+                            DagModel.relative_fileloc.is_not(None),
+                            ~DagModel.dag_id.in_(select(SerializedDagModel.dag_id)),
+                        )
+                        .distinct()
+                    )
+                    if fileloc is not None
+                }
+            log.info(
+                "Found %s Dag files with missing serialized metadata in bundle %s", len(paths), bundle.name
+            )
         version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-        sync_bag_to_db(
-            dag_bag, bundle.name, bundle_version=version, version_data=version_data, session=session
-        )
+        for path in sorted(paths):
+            if args.only_missing and not path.is_file():
+                log.error("Dag file is unavailable: %s", path)
+                failed_files += 1
+                continue
+            dag_bag = BundleDagBag(dag_folder=path, bundle_path=bundle.path, bundle_name=bundle.name)
+            with create_session(scoped=False) if args.only_missing else nullcontext(session) as sync_session:
+                sync_bag_to_db(
+                    dagbag=dag_bag,
+                    bundle_name=bundle.name,
+                    bundle_version=version,
+                    version_data=version_data,
+                    session=sync_session,
+                )
+            if args.only_missing and dag_bag.import_errors:
+                failed_files += 1
+    if failed_files:
+        raise SystemExit(f"Failed to reserialize {failed_files} Dag file(s); see the errors above.")
