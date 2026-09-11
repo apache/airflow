@@ -149,6 +149,31 @@ class S3KeyTrigger(BaseTrigger):
 
 
 class S3KeyEventTrigger(BaseEventTrigger):
+    """
+    Watch an S3 prefix for new or updated keys and fire an event per matched key.
+
+    Intended for use as an :class:`~airflow.sdk.AssetWatcher` trigger: each poll lists keys under
+    ``prefix`` with a ``LastModified`` after the stored watermark, fires one ``TriggerEvent`` per
+    matched key, then advances the watermark to the latest ``LastModified`` seen.
+
+    :param bucket_name: name of the S3 bucket to watch.
+    :param prefix: key prefix to watch. Supports a trailing ``*`` wildcard when ``wildcard_match``
+        is ``True``.
+    :param wildcard_match: whether ``prefix`` should be interpreted as a wildcard pattern.
+    :param start_after_last_key: whether to additionally use the last matched key as S3's
+        ``StartAfter`` cursor on the next poll. Only safe when the bucket's key naming convention
+        is lexicographically sortable by upload time (e.g. date-prefixed paths); otherwise a new
+        key that sorts alphabetically before the last-seen key would be silently skipped.
+    :param aws_conn_id: reference to the S3 connection.
+    :param poke_interval: seconds to sleep between polls when no new keys are found.
+    :param region_name: AWS region name.
+    :param verify: whether to verify SSL certificates for the S3 connection.
+    :param botocore_config: additional botocore config to pass to the underlying S3 hook.
+    :param metadata_keys: list of S3 object attributes to include in each event's ``file`` payload.
+        Specify ``["*"]`` to include all available attributes. Defaults to ``["Size", "Key", "LastModified"]``.
+    :param hook_params: additional params to pass to the underlying S3 hook.
+    """
+
     def __init__(
         self,
         bucket_name: str,
@@ -157,8 +182,6 @@ class S3KeyEventTrigger(BaseEventTrigger):
         start_after_last_key: bool = False,
         aws_conn_id: str | None = "aws_default",
         poke_interval: float = 30.0,
-        should_check_fn: bool = False,
-        use_regex: bool = False,
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
@@ -173,8 +196,6 @@ class S3KeyEventTrigger(BaseEventTrigger):
         self.aws_conn_id = aws_conn_id
         self.hook_params = hook_params
         self.poke_interval = poke_interval
-        self.should_check_fn = should_check_fn
-        self.use_regex = use_regex
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
@@ -216,27 +237,21 @@ class S3KeyEventTrigger(BaseEventTrigger):
         return max(keys, key=lambda k: k["LastModified"])
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Fire TriggerEvent's if there are new files in the S3 bucket."""
         # Retrieve the Asset state to store and retrieve watermarking information
         asset_state_store = self.asset_state_store
-
-        # S3's LastModified is always tz-aware UTC, so the watermark must be too
         stored_from_datetime = asset_state_store.get("from_datetime")
-        from_datetime: datetime | None = None
+        from_datetime: datetime | None = None  # Look for files from this datetime onwards
 
-        self.log.info("***** stored_from_datetime: %s", stored_from_datetime)
-
+        # Assume that the last stored datetime is where we should be looking from
         if stored_from_datetime is not None:
             from_datetime = datetime.fromisoformat(stored_from_datetime)
 
             if from_datetime.tzinfo is None:
                 from_datetime = from_datetime.replace(tzinfo=timezone.utc)
 
-        self.log.info("***** from_datetime: %s", from_datetime)
-
-        to_datetime = None  # No reason for a cap, but explicitly setting
+        # This is the alphabetical key that would be the "starting point" for new files, if specified by user
         start_after_key = asset_state_store.get("start_after_key") if self.start_after_last_key else None
-
-        self.log.info("***** start_after_key: %s", start_after_key)
 
         while True:
             upserted_files = await self.hook.list_keys_async(
@@ -247,47 +262,34 @@ class S3KeyEventTrigger(BaseEventTrigger):
                 max_items=None,
                 start_after_key=start_after_key,
                 from_datetime=from_datetime,
-                to_datetime=to_datetime,
+                to_datetime=None,  # No cap, always looking up until the present
                 object_filter=None,
                 apply_wildcard=self.wildcard_match,
             )
 
-            self.log.info("***** upserted_files: %s", upserted_files)
-
             if upserted_files:
                 for f in upserted_files:
                     # Create the "file" payload that is going to be returned
-                    file_metadata = f if "*" in self.metadata_keys \
-                        else {k: f[k] for k in self.metadata_keys if k in f}
+                    file_metadata = (
+                        f if "*" in self.metadata_keys else {k: f[k] for k in self.metadata_keys if k in f}
+                    )
 
-                    self.log.info("***** file_metadata: %s", file_metadata)
-
-                    # TODO: Serialize these values
                     if "LastModified" in file_metadata:
-                        file_metadata["LastModified"] = file_metadata["LastModified"].astimezone(timezone.utc).isoformat()  # noqa
+                        file_metadata["LastModified"] = (
+                            file_metadata["LastModified"].astimezone(timezone.utc).isoformat()
+                        )
 
                     yield TriggerEvent({"status": "success", "file": file_metadata})
 
-                # Update the from_datetime value
+                # Update the from_datetime value to use next time around when filtering
                 max_key: dict = self.fix_max_key(upserted_files)
                 new_from_datetime: datetime = max_key["LastModified"]
-
-                self.log.info("***** new_from_datetime: %s", new_from_datetime)
-
-                asset_state_store.set(
-                    "from_datetime",
-                    new_from_datetime.astimezone(timezone.utc).isoformat()
-                )
-
-                self.log.info("***** Set the from_datetime key in Asset state store")
+                asset_state_store.set("from_datetime", new_from_datetime.astimezone(timezone.utc).isoformat())
 
                 # Update the start_after_key
                 if self.start_after_last_key:
                     new_start_after_key = max_key.get("Key")
                     asset_state_store.set("start_after_key", new_start_after_key)
-
-                    self.log.info("***** new_start_after_key: %s", new_start_after_key)
-                    self.log.info("***** Set the start_after_key key in Asset state store")
 
                 return
 

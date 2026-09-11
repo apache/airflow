@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 
 
 from boto3.s3.transfer import S3Transfer, TransferConfig
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookPathTraversalError, S3HookUriParseFailure
@@ -713,25 +713,21 @@ class S3Hook(AwsBaseHook):
             "Prefix": prefix,
             "Delimiter": delimiter,
             "PaginationConfig": config,
-            "StartAfter": start_after_key,
         }
 
-        self.log.info("***** (Hook) params: %s", params)
+        if start_after_key:
+            params["StartAfter"] = start_after_key
 
         if self._requester_pays:
             params["RequestPayer"] = "requester"
 
         response = paginator.paginate(**params)
 
-        self.log.info("***** (Hook) response: %s", response)
-
         keys = []
+
         async for page in response:
             if "Contents" in page:
                 for k in page["Contents"]:
-
-                    self.log.info("***** (Hook) key: %s", k)
-
                     keys.append(k)  # Handling additional fields (LastModified, etc.), like sync version
 
         return keys
@@ -766,8 +762,7 @@ class S3Hook(AwsBaseHook):
         apply_wildcard: bool = False,
     ) -> list[dict]:
         """
-        Mirror list_keys method in async fashion. This should be usable by things like a BaseEventTrigger to
-        return the list of keys (and other metadata) that are changed w.r.t. the specified filters.
+        Mirror list_keys method in async fashion, used by things like a BaseEventTrigger to.
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
@@ -782,29 +777,15 @@ class S3Hook(AwsBaseHook):
             to_datetime and returns the List of matched keys.
         :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
         """
-        # Create the client here (rather than passing in)
+        _original_prefix = prefix or ""
+        _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
+        _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
+        delimiter = delimiter or ""
+        start_after_key = start_after_key or ""
+        object_filter_usr = object_filter
+
         try:
             async with await self.get_async_conn() as client:
-                _original_prefix = prefix or ""
-                _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
-                _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
-                delimiter = delimiter or ""
-                start_after_key = start_after_key or ""
-                object_filter_usr = object_filter
-
-                self.log.info(
-                    """
-                    ***** list_keys_async params
-
-                        - bucket_name: %s
-                        - prefix: %s
-                        - start_after_key: %s
-                    """,
-                    bucket_name,
-                    _prefix,
-                    start_after_key,
-                )
-
                 keys: list[dict] = await self._list_keys_async(
                     client=client,
                     bucket_name=bucket_name,
@@ -815,20 +796,18 @@ class S3Hook(AwsBaseHook):
                     start_after_key=start_after_key,
                 )
 
-                self.log.info("***** (Hook) before _list_key_object_filter: %s", keys)
-
-                if _apply_wildcard:
-                    keys = [k for k in keys if fnmatch.fnmatch(k["Key"], _original_prefix)]
-
-                if object_filter_usr is not None:
-                    return object_filter_usr(keys, from_datetime, to_datetime)
-
-                return self._list_key_object_filter(keys, from_datetime, to_datetime)
-
-        except Exception as e:
-            message: str = f"Error occurred while listing keys: {e}"
+        except (ClientError, BotoCoreError) as e:
+            message = f"Error occurred while listing keys: {e}"
             self.log.error(message)
             raise RuntimeError(message) from e
+
+        if _apply_wildcard:
+            keys = [k for k in keys if fnmatch.fnmatch(k["Key"], _original_prefix)]
+
+        if object_filter_usr is not None:
+            return object_filter_usr(keys, from_datetime, to_datetime)
+
+        return self._list_key_object_filter(keys, from_datetime, to_datetime)
 
     async def is_keys_unchanged_async(
         self,
