@@ -222,8 +222,10 @@ ignored either way. The deprecated ``reattach_on_restart`` parameter (default ``
 only lever there, and it falls back to the same label-search reattach behavior this operator has
 always used -- unchanged from before this feature existed.
 
-The pod identity persisted in task state store isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+The pod identity persisted in task state store is deleted when someone runs
+``airflow state-store clean``, and also as soon as the task instance succeeds if
+``[state_store] clear_on_success`` is turned on, which it is not by default.
+If a task's ``retry_delay`` is longer than
 ``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
 pod identity won't be there for the next retry, and the operator falls back to the label-search
 bootstrap path instead of reconnecting directly. This isn't necessarily a duplicate, the label
