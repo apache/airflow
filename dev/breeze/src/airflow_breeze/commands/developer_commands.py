@@ -1357,6 +1357,7 @@ def doctor(ctx):
 @option_forward_credentials
 @option_forward_ports
 @option_github_repository
+@option_include_mypy_volume
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -1377,6 +1378,7 @@ def run(
     forward_credentials: bool,
     forward_ports: bool,
     github_repository: str,
+    include_mypy_volume: bool,
     mysql_version: str,
     platform: str | None,
     postgres_version: str,
@@ -1444,6 +1446,7 @@ def run(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
+        include_mypy_volume=include_mypy_volume,
         mysql_version=mysql_version,
         platform=platform,
         postgres_version=postgres_version,

@@ -32,10 +32,11 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "components"]);
+  const { formatElapsed, renderDuration } = useDurationFormat();
   const { dagId = "", runId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -99,7 +100,7 @@ export const Details = () => {
         ) : undefined}
         <Table.Row>
           <Table.Cell>{translate("duration")}</Table.Cell>
-          <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>
+          <Table.Cell>{formatElapsed(dagRun.start_date, dagRun.end_date)}</Table.Cell>
         </Table.Row>
         {dagRunStats?.duration ? (
           <Table.Row>

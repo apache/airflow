@@ -110,6 +110,10 @@
     "taskGroup": "Task Group",
     "zoomToTask": "Zoom to selected task"
   },
+  "jsonPreview": {
+    "items_one": "1 item",
+    "items_other": "{{count}} items"
+  },
   "limitedList": "+{{count}} more",
   "limitedList.allItems": "All {{count}} items:",
   "limitedList.allTags_one": "All Tags (1)",

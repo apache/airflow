@@ -70,7 +70,9 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
+    ReadableAssetEventsByAssetFilterDep,
     ReadableAssetEventsFilterDep,
+    ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
@@ -157,6 +159,7 @@ def get_assets(
         SortParam,
         Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
@@ -202,6 +205,7 @@ def get_assets(
             uri_pattern,
             uri_prefix_pattern,
             dag_ids,
+            readable_assets_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -343,6 +347,7 @@ def get_asset_events(
     extra_filter: QueryAssetEventExtraFilter,
     timestamp_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("timestamp", AssetEvent))],
     readable_asset_events_filter: ReadableAssetEventsFilterDep,
+    readable_asset_events_by_asset_filter: ReadableAssetEventsByAssetFilterDep,
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
@@ -367,6 +372,7 @@ def get_asset_events(
             extra_filter,
             timestamp_range,
             readable_asset_events_filter,
+            readable_asset_events_by_asset_filter,
         ],
         order_by=order_by,
         offset=offset,

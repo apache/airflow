@@ -34,6 +34,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
 from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
 from airflow.providers.fab.auth_manager.models import Permission, Role
 from airflow.providers.fab.www.utils import get_fab_auth_manager
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
@@ -87,20 +88,18 @@ class FABAuthManagerRoles:
 
     @classmethod
     def get_roles(cls, *, order_by: str, limit: int, offset: int) -> RoleCollectionResponse:
-        security_manager = get_fab_auth_manager().security_manager
-        session = security_manager.session
+        with create_session(scoped=False) as session:
+            total_entries = session.scalars(select(func.count(Role.id))).one()
 
-        total_entries = session.scalars(select(func.count(Role.id))).one()
+            ordering = build_ordering(order_by, allowed={"name": Role.name, "role_id": Role.id})
 
-        ordering = build_ordering(order_by, allowed={"name": Role.name, "role_id": Role.id})
+            stmt = select(Role).order_by(ordering).offset(offset).limit(limit)
+            roles = session.scalars(stmt).unique().all()
 
-        stmt = select(Role).order_by(ordering).offset(offset).limit(limit)
-        roles = session.scalars(stmt).unique().all()
-
-        return RoleCollectionResponse(
-            roles=[RoleResponse.model_validate(r) for r in roles],
-            total_entries=total_entries,
-        )
+            return RoleCollectionResponse(
+                roles=[RoleResponse.model_validate(r) for r in roles],
+                total_entries=total_entries,
+            )
 
     @classmethod
     def delete_role(cls, name: str) -> None:

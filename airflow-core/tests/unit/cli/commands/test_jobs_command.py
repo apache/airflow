@@ -94,6 +94,23 @@ class TestCliConfigList:
             )
         assert "Found 3 alive jobs." in temp_stdout.getvalue()
 
+    def test_should_report_success_for_ha_schedulers_with_limit_disabled(self, stdout_capture):
+        with create_session() as session:
+            for _ in range(3):
+                scheduler_job = Job()
+                job_runner = SchedulerJobRunner(job=scheduler_job)
+                scheduler_job.state = State.RUNNING
+                session.add(scheduler_job)
+            session.commit()
+            scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
+        with stdout_capture as temp_stdout:
+            jobs_command.check(
+                self.parser.parse_args(
+                    ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "0", "--allow-multiple"]
+                )
+            )
+        assert "Found 3 alive jobs." in temp_stdout.getvalue()
+
     def test_should_ignore_not_running_jobs(self):
         scheduler_jobs = []
         job_runners = []

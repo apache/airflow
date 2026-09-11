@@ -19,9 +19,11 @@
 import type { PropsWithChildren } from "react";
 
 import "@testing-library/jest-dom";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { StateBadge } from "src/components/StateBadge";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -104,6 +106,29 @@ describe("FilterBar boolean filters", () => {
 
     expect(screen.queryByTestId("needs_review-pill")).not.toBeInTheDocument();
     await waitFor(() => expect(onFiltersChange).toHaveBeenCalledWith({}));
+  });
+});
+
+describe("FilterBar select filters", () => {
+  it("keeps a selected rich option label fully visible", () => {
+    const selectConfig: FilterConfig = {
+      key: "state",
+      label: "State",
+      options: [{ label: <StateBadge state="failed">Failed</StateBadge>, value: "failed" }],
+      type: "select",
+    };
+
+    render(
+      <FilterBar configs={[selectConfig]} initialValues={{ state: "failed" }} onFiltersChange={vi.fn()} />,
+      { wrapper },
+    );
+
+    fireEvent.click(screen.getByTestId("state-pill"));
+
+    const valueText = within(screen.getByTestId("state-filter")).getByTestId("state-badge").parentElement;
+
+    expect(valueText).not.toBeNull();
+    expect(globalThis.getComputedStyle(valueText as HTMLElement).overflow).toBe("visible");
   });
 });
 
