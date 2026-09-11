@@ -143,7 +143,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
             "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
             "providers/google/tests/unit/google/cloud/links/test_spanner.py",
-            "providers/google/tests/unit/google/cloud/links/test_stackdriver.py",
             "providers/google/tests/unit/google/cloud/links/test_workflows.py",
             "providers/google/tests/unit/google/cloud/links/test_translate.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_auto_ml.py",
