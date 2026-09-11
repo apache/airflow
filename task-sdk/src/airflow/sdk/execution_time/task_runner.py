@@ -32,7 +32,7 @@ from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, ClassVar
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from urllib.parse import quote
 
 import attrs
@@ -939,27 +939,6 @@ class IndexedTaskInstance(RuntimeTaskInstance):
 
         if self.index is None or self.index < 0:
             raise ValueError("IndexedTaskInstance requires index >= 0")
-
-    def xcom_pull(
-        self,
-        task_ids: str | Iterable[str] | None = None,
-        dag_id: str | None = None,
-        key: str = BaseXCom.XCOM_RETURN_KEY,
-        include_prior_dates: bool = False,
-        *,
-        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
-        default: Any = None,
-        run_id: str | None = None,
-    ) -> Any:
-        return super().xcom_pull(
-            task_ids=task_ids,
-            dag_id=dag_id,
-            key=f"{key}_{self.index}",
-            include_prior_dates=include_prior_dates,
-            map_indexes=map_indexes,
-            default=default,
-            run_id=run_id,
-        )
 
     def xcom_push(
         self,

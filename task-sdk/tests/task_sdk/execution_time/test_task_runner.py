@@ -2215,30 +2215,6 @@ class TestIndexedTaskInstance:
         mock_push.assert_called_once_with(ti, expected_key, value)
         assert ti.xcom_pushed is expected_xcom_pushed
 
-    def test_xcom_pull_delegates_with_index_suffix(self, make_indexed_ti):
-        """xcom_pull delegates to RuntimeTaskInstance with key suffixed by _{index}."""
-        ti = make_indexed_ti(index=5)
-
-        with mock.patch.object(
-            ti.__class__.__bases__[0],
-            "xcom_pull",
-            autospec=True,
-            return_value="pulled_value",
-        ) as mock_pull:
-            result = ti.xcom_pull(key="result")
-
-        mock_pull.assert_called_once_with(
-            ti,
-            task_ids=None,
-            dag_id=None,
-            key="result_5",
-            include_prior_dates=False,
-            map_indexes=mock.ANY,
-            default=None,
-            run_id=None,
-        )
-        assert result == "pulled_value"
-
     def test_properties(self, make_indexed_ti):
         ti = make_indexed_ti(index=7, try_number=4, is_async=True, do_xcom_push=False)
 
