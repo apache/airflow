@@ -24,6 +24,7 @@ from pydantic import Field, RootModel, model_validator
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.providers.keycloak.auth_manager.services.token import (
     create_client_credentials_token,
+    create_jwt_federated_token,
     create_token_for,
 )
 
@@ -62,8 +63,26 @@ class TokenClientCredentialsBody(StrictBaseModel):
         )
 
 
+class TokenJwtFederatedBody(StrictBaseModel):
+    """JWT-bearer grant token serializer for post bodies.
+
+    Accepts a Keycloak access token obtained via any Keycloak-native authentication
+    method (e.g. a client federated to an external OIDC identity provider) instead of
+    Airflow re-authenticating to Keycloak itself.
+    """
+
+    grant_type: Literal["urn:ietf:params:oauth:grant-type:jwt-bearer"]
+    assertion: str = Field()
+
+    def create_token(self, expiration_time_in_seconds: int) -> str:
+        """Create token by validating a pre-obtained Keycloak assertion."""
+        return create_jwt_federated_token(
+            self.assertion, expiration_time_in_seconds=expiration_time_in_seconds
+        )
+
+
 TokenUnion = Annotated[
-    TokenPasswordBody | TokenClientCredentialsBody,
+    TokenPasswordBody | TokenClientCredentialsBody | TokenJwtFederatedBody,
     Field(discriminator="grant_type"),
 ]
 
