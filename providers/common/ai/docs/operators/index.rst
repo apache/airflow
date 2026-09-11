@@ -34,6 +34,9 @@ to pick the one that fits your use case:
    * - Single prompt → text or structured output
      - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - ``@task.llm``
+   * - Many prompts, ~half the cost, up to 24h turnaround (OpenAI/Anthropic batch APIs)
+     - :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
+     - ``@task.llm_batch``
    * - Analyze files, prefixes, images, or PDFs with one prompt
      - :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
      - ``@task.llm_file_analysis``
@@ -62,6 +65,12 @@ to pick the one that fits your use case:
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
 summarization, extraction, or any prompt that produces one response. Supports structured output
 via an ``output_type`` Pydantic model.
+
+**LLMBatchOperator / @task.llm_batch** — many prompts submitted as one provider batch job,
+at roughly half the per-token cost with up to a 24-hour turnaround. Unlike every other operator
+on this page, results are written to object storage, not XCom (see :doc:`llm_batch`) -- reach
+for this when you have too many prompts to run one-at-a-time economically and can tolerate an
+asynchronous turnaround.
 
 **LLMFileAnalysisOperator / @task.llm_file_analysis** — stateless, single-turn file analysis.
 Use this when the prompt should reason over file contents or multimodal attachments already chosen
