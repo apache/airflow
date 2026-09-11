@@ -141,8 +141,9 @@ def example_llm_operator_usage_limits():
             input_tokens_limit=4_000,
             output_tokens_limit=1_000,
             # Fail the task if the run's estimated USD cost exceeds $0.50.
-            # See docs/operators/llm.rst for caveats (not a hard guarantee,
-            # inert without halting execution for models pydantic-ai can't price).
+            # See docs/operators/llm.rst for caveats (not a hard guarantee;
+            # not enforced for models pydantic-ai can't price, which log a
+            # warning instead of failing the run).
             cost_limit=Decimal("0.50"),
         ),
     )

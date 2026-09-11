@@ -154,8 +154,8 @@ Common knobs on ``UsageLimits``:
   from the request that broke the budget; even a single-request run fails as soon as that
   request's cost pushes the total over the limit. For self-hosted or unknown
   models (e.g. Ollama, custom endpoints) pydantic-ai cannot price the response, so cost
-  is ``None`` and ``cost_limit`` has no effect without halting execution (a
-  ``CostNotFoundWarning`` is emitted instead of a failure). And like the other knobs
+  is ``None`` and ``cost_limit`` is not enforced -- a ``CostNotFoundWarning`` is
+  emitted instead of failing the run. And like the other knobs
   above, setting ``cost_limit``
   alone still inherits the ``request_limit=50`` default — see the ``request_limit`` note
   above. Note that ``cost_limit`` only caps the operator's own LLM calls --

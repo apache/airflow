@@ -491,8 +491,8 @@ Parameters
   tool calls per task -- agents are particularly prone to runaway tool loops,
   so ``tool_calls_limit`` is a useful guardrail. It also supports a per-run
   USD ``cost_limit``; see :ref:`howto/operator:llm` for the caveats (not a
-  hard guarantee, inert without halting execution for unpriced models) and an
-  example. Default ``None``.
+  hard guarantee; not enforced for models pydantic-ai can't price, which log
+  a warning instead of failing the run) and an example. Default ``None``.
 
   .. warning::
      With ``durable=True``, a task retry replays cached model steps instead of
