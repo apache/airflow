@@ -47,9 +47,18 @@ if TYPE_CHECKING:
 
 def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     """Combine base url with endpoint."""
-    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-        return f"{base_url}/{endpoint}"
-    return (base_url or "") + (endpoint or "")
+    if not base_url:
+        return endpoint or ""
+    if not endpoint:
+        return base_url
+    # Strip at most one slash from each side, not all of them: base_url can
+    # legitimately end in "//" (e.g. a bare "http://" with an empty host),
+    # and a full rstrip("/")/lstrip("/") would eat the scheme separator too.
+    if base_url.endswith("/"):
+        base_url = base_url[:-1]
+    if endpoint.startswith("/"):
+        endpoint = endpoint[1:]
+    return f"{base_url}/{endpoint}"
 
 
 def _process_extra_options_from_connection(
