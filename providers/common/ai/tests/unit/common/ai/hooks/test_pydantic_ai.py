@@ -21,11 +21,10 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 from unittest.mock import MagicMock, patch, sentinel
 
 import pytest
-import yaml
 from pydantic_ai import Embedder
 from pydantic_ai.embeddings import EmbeddingModel, EmbeddingSettings, infer_embedding_model
 from pydantic_ai.exceptions import UserError
@@ -34,6 +33,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
@@ -41,8 +41,6 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIVertexHook,
 )
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
-
-from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
@@ -66,9 +64,8 @@ def _assert_prefix_is_known_provider(prefix: str) -> None:
         pytest.fail(f"{prefix!r} is not a recognized pydantic-ai provider: {exc}")
 
 
-def _assert_model_supports_embeddings(model_name: str) -> None:
-    def create_provider(provider_name: str):
-        infer_provider_class(provider_name)
+def _assert_embedding_model_is_supported(model_name: str) -> None:
+    def create_provider(_: str) -> Any:
         return MagicMock()
 
     try:
@@ -76,12 +73,6 @@ def _assert_model_supports_embeddings(model_name: str) -> None:
             infer_embedding_model(model_name, provider_factory=create_provider)
     except (UserError, ValueError) as exc:
         pytest.fail(f"{model_name!r} is not a recognized pydantic-ai embedding model: {exc}")
-
-
-def _get_connection_types_from_provider_yaml() -> list[dict[str, Any]]:
-    provider_yaml = AIRFLOW_PROVIDERS_ROOT_PATH / "common" / "ai" / "provider.yaml"
-    provider_info = yaml.safe_load(provider_yaml.read_text())
-    return cast("list[dict[str, Any]]", provider_info["connection-types"])
 
 
 def _extract_google_cloud_prefix(text: str) -> str:
@@ -1598,7 +1589,7 @@ class TestPydanticAIVertexHook:
         since 3.2.0) — so this description, not the placeholder below, is what
         a user actually copies the model prefix from.
         """
-        connection_types = _get_connection_types_from_provider_yaml()
+        connection_types = get_provider_info()["connection-types"]
         vertex_conn_fields = next(
             c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai_vertex"
         )
@@ -1608,17 +1599,18 @@ class TestPydanticAIVertexHook:
 
     @pytest.mark.parametrize(
         "connection_type",
-        ["pydanticai", "pydanticai-azure", "pydanticai-bedrock", "pydanticai-vertex"],
+        ["pydanticai", "pydanticai_azure", "pydanticai_bedrock", "pydanticai_vertex"],
     )
-    def test_conn_fields_embedding_description_prefix_supports_embeddings(self, connection_type):
-        connection_types = _get_connection_types_from_provider_yaml()
+    def test_conn_fields_embed_model_example_is_supported(self, connection_type):
+        connection_types = get_provider_info()["connection-types"]
         conn_fields = next(
             item["conn-fields"] for item in connection_types if item["connection-type"] == connection_type
         )
         description = conn_fields["embed_model"]["description"]
-        model_name = description.split("e.g. ", maxsplit=1)[1].removesuffix(")")
+        match = re.search(r"\(e\.g\. ([^)]+)\)", description)
+        assert match, f"no example embedding model found in: {description!r}"
 
-        _assert_model_supports_embeddings(model_name)
+        _assert_embedding_model_is_supported(match.group(1))
 
     def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
         """
@@ -1630,7 +1622,7 @@ class TestPydanticAIVertexHook:
         ``ui-field-behaviour`` placeholders), but ``provider.yaml`` still carries its
         own independent copy of the model prefix here, and nothing was covering it.
         """
-        connection_types = _get_connection_types_from_provider_yaml()
+        connection_types = get_provider_info()["connection-types"]
         vertex_connection_type = next(
             c for c in connection_types if c["connection-type"] == "pydanticai_vertex"
         )
