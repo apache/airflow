@@ -146,6 +146,13 @@ class BatchedExpandInput(DecoratedExpandInput):
     each task instance ends up with roughly ``len(values) / size`` items, but they are *not*
     contiguous chunks of the original sequence (unlike ``itertools.batched(iterable, size)``).
     This affects mapping cardinality, NOT resolve-time behavior.
+
+    Round-robin is used instead of contiguous chunking because the number of task instances must be
+    fixed before the underlying iterable is consumed: with round-robin that count is ``size`` itself,
+    independent of how many items the iterable actually yields. Contiguous chunking would instead
+    need ``ceil(N / size)`` task instances, which is unknowable until the iterable — potentially an
+    unbounded or paginated stream — has been fully drained. See
+    :ref:`sdk-dynamic-task-mapping-vs-iteration` for the full rationale.
     """
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "batched"
