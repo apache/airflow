@@ -158,9 +158,12 @@ class KinesisTrigger(BaseEventTrigger):
             return {}
 
         try:
-            checkpoint = (
-                await asyncio.to_thread(store.get, self._asset_store_checkpoint_key, default={}) or {}
-            )
+            # aget/aset landed in Airflow 3.3.2; 3.3.0 and 3.3.1 only expose the blocking API.
+            if hasattr(store, "aget"):
+                checkpoint = await store.aget(self._asset_store_checkpoint_key, default={})
+            else:
+                checkpoint = await asyncio.to_thread(store.get, self._asset_store_checkpoint_key, default={})
+            checkpoint = checkpoint or {}
         except ValueError:
             self._log_checkpoint_warning_once(
                 "Kinesis checkpointing requires a single watched asset; using an in-memory cursor"
@@ -186,11 +189,14 @@ class KinesisTrigger(BaseEventTrigger):
             return
 
         try:
-            await asyncio.to_thread(
-                store.set,
-                self._asset_store_checkpoint_key,
-                dict(sequence_numbers),
-            )
+            if hasattr(store, "aset"):
+                await store.aset(self._asset_store_checkpoint_key, dict(sequence_numbers))
+            else:
+                await asyncio.to_thread(
+                    store.set,
+                    self._asset_store_checkpoint_key,
+                    dict(sequence_numbers),
+                )
         except ValueError:
             self._log_checkpoint_warning_once(
                 "Kinesis checkpointing requires a single watched asset; using an in-memory cursor"

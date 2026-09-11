@@ -111,9 +111,13 @@ def configure_hook(hook_property, client):
     return hook
 
 
-def configure_checkpoint_store(trigger, checkpoint):
-    store = mock.MagicMock(spec=["get", "set"])
+def configure_checkpoint_store(trigger, checkpoint, *, supports_async=False):
+    methods = ["get", "set", "aget", "aset"] if supports_async else ["get", "set"]
+    store = mock.MagicMock(spec=methods)
     store.get.return_value = checkpoint
+    if supports_async:
+        store.aget = AsyncMock(spec=["__call__"], return_value=checkpoint)
+        store.aset = AsyncMock(spec=["__call__"])
     trigger.asset_state_store = store
     return store
 
@@ -212,24 +216,33 @@ def test_checkpoint_key_is_cached(mock_sha256, trigger):
 
 
 @pytest.mark.asyncio
-@mock.patch(f"{MODULE}.asyncio.to_thread", new_callable=AsyncMock)
-async def test_load_and_save_checkpoint(mock_to_thread, trigger):
+@pytest.mark.parametrize("supports_async", [True, False], ids=["async", "sync_fallback"])
+@mock.patch(f"{MODULE}.asyncio.to_thread", autospec=True)
+async def test_load_and_save_checkpoint(mock_to_thread, trigger, supports_async):
     checkpoint = {SHARD_ID: "123"}
-    store = configure_checkpoint_store(trigger, checkpoint)
+    store = configure_checkpoint_store(trigger, checkpoint, supports_async=supports_async)
     mock_to_thread.side_effect = lambda func, *args, **kwargs: func(*args, **kwargs)
 
     assert await trigger._load_checkpoint() == checkpoint
     await trigger._save_checkpoint(checkpoint)
 
-    store.get.assert_called_once_with(trigger._asset_store_checkpoint_key, default={})
-    store.set.assert_called_once_with(trigger._asset_store_checkpoint_key, checkpoint)
-    assert mock_to_thread.await_args_list == [
-        mock.call(store.get, trigger._asset_store_checkpoint_key, default={}),
-        mock.call(store.set, trigger._asset_store_checkpoint_key, checkpoint),
-    ]
+    if supports_async:
+        store.aget.assert_awaited_once_with(trigger._asset_store_checkpoint_key, default={})
+        store.aset.assert_awaited_once_with(trigger._asset_store_checkpoint_key, checkpoint)
+        store.get.assert_not_called()
+        store.set.assert_not_called()
+        mock_to_thread.assert_not_called()
+    else:
+        store.get.assert_called_once_with(trigger._asset_store_checkpoint_key, default={})
+        store.set.assert_called_once_with(trigger._asset_store_checkpoint_key, checkpoint)
+        assert mock_to_thread.await_args_list == [
+            mock.call(store.get, trigger._asset_store_checkpoint_key, default={}),
+            mock.call(store.set, trigger._asset_store_checkpoint_key, checkpoint),
+        ]
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("supports_async", [True, False], ids=["async", "sync_fallback"])
 @pytest.mark.parametrize(
     "checkpoint",
     [
@@ -239,11 +252,16 @@ async def test_load_and_save_checkpoint(mock_to_thread, trigger):
     ],
 )
 @mock.patch.object(KinesisTrigger, "log", new_callable=mock.PropertyMock)
-async def test_invalid_checkpoint_falls_back_to_initial_position(mock_log, trigger, checkpoint):
-    configure_checkpoint_store(trigger, checkpoint)
+async def test_invalid_checkpoint_falls_back_to_initial_position(
+    mock_log, trigger, checkpoint, supports_async
+):
+    store = configure_checkpoint_store(trigger, checkpoint, supports_async=supports_async)
 
     assert await trigger._load_checkpoint() == {}
     mock_log.return_value.warning.assert_called_once()
+    if supports_async:
+        store.aget.assert_awaited_once_with(trigger._asset_store_checkpoint_key, default={})
+        store.get.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -262,18 +280,26 @@ async def test_checkpoint_falls_back_to_memory_without_store(mock_log, trigger, 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("supports_async", [True, False], ids=["async", "sync_fallback"])
 @mock.patch.object(KinesisTrigger, "log", new_callable=mock.PropertyMock)
-async def test_checkpoint_falls_back_to_memory_for_multiple_assets(mock_log, trigger):
-    store = configure_checkpoint_store(trigger, {})
-    store.get.side_effect = ValueError
+async def test_checkpoint_falls_back_to_memory_for_multiple_assets(mock_log, trigger, supports_async):
+    store = configure_checkpoint_store(trigger, {}, supports_async=supports_async)
+    get_method = store.aget if supports_async else store.get
+    set_method = store.aset if supports_async else store.set
+    get_method.side_effect = ValueError
 
     assert await trigger._load_checkpoint() == {}
 
-    store.get.side_effect = None
-    store.set.side_effect = ValueError
+    get_method.side_effect = None
+    set_method.side_effect = ValueError
     await trigger._save_checkpoint({SHARD_ID: "123"})
 
     mock_log.return_value.warning.assert_called_once()
+    if supports_async:
+        store.aget.assert_awaited_once_with(trigger._asset_store_checkpoint_key, default={})
+        store.aset.assert_awaited_once_with(trigger._asset_store_checkpoint_key, {SHARD_ID: "123"})
+        store.get.assert_not_called()
+        store.set.assert_not_called()
 
 
 @pytest.mark.asyncio
