@@ -23,6 +23,7 @@ import heapq
 import io
 import logging
 import os
+import re
 from collections.abc import Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
@@ -147,6 +148,14 @@ class LogType(str, Enum):
     WORKER = "worker"
 
 
+# The log server host is reported by the worker/triggerer over the Execution API and stored on the
+# task instance, so the api-server must treat it as untrusted when it later builds the log-fetch URL.
+# A bare hostname or IP only ever needs these characters; rejecting anything else stops a value
+# carrying URL syntax (a userinfo "@", a path, a scheme) from pointing the authenticated fetch, which
+# sends a signed task-instance-logs token, at an unintended host.
+_SAFE_LOG_SERVER_HOST = re.compile(r"\A[A-Za-z0-9._-]+\Z")
+
+
 def _set_task_deferred_context_var():
     """
     Tell task log handler that task exited with deferral.
@@ -189,6 +198,9 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
         timeout=timeout,
         headers={"Authorization": generator.generate({"filename": log_relative_path})},
         stream=True,
+        # A log server returns content directly and never redirects. Not following redirects keeps
+        # the signed token from being replayed to whatever host a redirect would point at.
+        allow_redirects=False,
     )
     response.encoding = "utf-8"
     return response
@@ -738,7 +750,7 @@ class FileTaskHandler(logging.Handler):
             config_key = "worker_log_server_port"
             config_default = 8793
 
-        if not hostname:
+        if not hostname or not _SAFE_LOG_SERVER_HOST.match(hostname):
             return None, None
 
         return (
