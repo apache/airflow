@@ -1191,7 +1191,6 @@ export type DagProcessorInfoResponse = {
  * Dag processor instance info serializer for responses.
  */
 export type DagProcessorInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_dag_processor_heartbeat: string | null;
     bundle_names: Array<(string)> | null;
@@ -1793,7 +1792,6 @@ export type SchedulerInfoResponse = {
  * Scheduler instance info serializer for responses.
  */
 export type SchedulerInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
@@ -2150,7 +2148,6 @@ export type TriggererInfoResponse = {
  * Triggerer instance info serializer for responses.
  */
 export type TriggererInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_triggerer_heartbeat: string | null;
     team_name: string | null;

@@ -4576,17 +4576,6 @@ export const $DagProcessorInfoResponse = {
 
 export const $DagProcessorInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -4625,7 +4614,7 @@ export const $DagProcessorInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
+    required: ['hostname', 'latest_dag_processor_heartbeat', 'bundle_names'],
     title: 'DagProcessorInstanceInfoResponse',
     description: 'Dag processor instance info serializer for responses.'
 } as const;
@@ -6883,17 +6872,6 @@ export const $SchedulerInfoResponse = {
 
 export const $SchedulerInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -6918,7 +6896,7 @@ export const $SchedulerInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_scheduler_heartbeat'],
+    required: ['hostname', 'latest_scheduler_heartbeat'],
     title: 'SchedulerInstanceInfoResponse',
     description: 'Scheduler instance info serializer for responses.'
 } as const;
@@ -8732,17 +8710,6 @@ export const $TriggererInfoResponse = {
 
 export const $TriggererInstanceInfoResponse = {
     properties: {
-        status: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Status'
-        },
         hostname: {
             anyOf: [
                 {
@@ -8778,7 +8745,7 @@ export const $TriggererInstanceInfoResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'hostname', 'latest_triggerer_heartbeat', 'team_name'],
+    required: ['hostname', 'latest_triggerer_heartbeat', 'team_name'],
     title: 'TriggererInstanceInfoResponse',
     description: 'Triggerer instance info serializer for responses.'
 } as const;

@@ -548,7 +548,6 @@ class DagProcessorInstanceInfoResponse(BaseModel):
     Dag processor instance info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_dag_processor_heartbeat: Annotated[str | None, Field(title="Latest Dag Processor Heartbeat")]
     bundle_names: Annotated[list[str] | None, Field(title="Bundle Names")]
@@ -1030,7 +1029,6 @@ class SchedulerInstanceInfoResponse(BaseModel):
     Scheduler instance info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_scheduler_heartbeat: Annotated[str | None, Field(title="Latest Scheduler Heartbeat")]
 
@@ -1244,7 +1242,6 @@ class TriggererInstanceInfoResponse(BaseModel):
     Triggerer instance info serializer for responses.
     """
 
-    status: Annotated[str | None, Field(title="Status")]
     hostname: Annotated[str | None, Field(title="Hostname")]
     latest_triggerer_heartbeat: Annotated[str | None, Field(title="Latest Triggerer Heartbeat")]
     team_name: Annotated[str | None, Field(title="Team Name")]

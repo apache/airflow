@@ -14146,11 +14146,6 @@ components:
       description: DagProcessor info serializer for responses.
     DagProcessorInstanceInfoResponse:
       properties:
-        status:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Status
         hostname:
           anyOf:
           - type: string
@@ -14170,7 +14165,6 @@ components:
           title: Bundle Names
       type: object
       required:
-      - status
       - hostname
       - latest_dag_processor_heartbeat
       - bundle_names
@@ -15732,11 +15726,6 @@ components:
       description: Scheduler info serializer for responses.
     SchedulerInstanceInfoResponse:
       properties:
-        status:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Status
         hostname:
           anyOf:
           - type: string
@@ -15749,7 +15738,6 @@ components:
           title: Latest Scheduler Heartbeat
       type: object
       required:
-      - status
       - hostname
       - latest_scheduler_heartbeat
       title: SchedulerInstanceInfoResponse
@@ -16900,11 +16888,6 @@ components:
       description: Triggerer info serializer for responses.
     TriggererInstanceInfoResponse:
       properties:
-        status:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Status
         hostname:
           anyOf:
           - type: string
@@ -16922,7 +16905,6 @@ components:
           title: Team Name
       type: object
       required:
-      - status
       - hostname
       - latest_triggerer_heartbeat
       - team_name

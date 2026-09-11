@@ -25,14 +25,16 @@ class BaseInfoResponse(BaseModel):
     status: str | None
 
 
-class SchedulerInstanceInfoResponse(BaseInfoResponse):
+# Instances carry no status of their own: only running replicas are listed, and how healthy the set
+# of them is together is what the component's ``status`` and ``detailed_status`` report.
+class SchedulerInstanceInfoResponse(BaseModel):
     """Scheduler instance info serializer for responses."""
 
     hostname: str | None
     latest_scheduler_heartbeat: str | None
 
 
-class TriggererInstanceInfoResponse(BaseInfoResponse):
+class TriggererInstanceInfoResponse(BaseModel):
     """Triggerer instance info serializer for responses."""
 
     hostname: str | None
@@ -40,7 +42,7 @@ class TriggererInstanceInfoResponse(BaseInfoResponse):
     team_name: str | None
 
 
-class DagProcessorInstanceInfoResponse(BaseInfoResponse):
+class DagProcessorInstanceInfoResponse(BaseModel):
     """Dag processor instance info serializer for responses."""
 
     hostname: str | None
