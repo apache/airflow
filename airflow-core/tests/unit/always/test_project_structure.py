@@ -127,7 +127,6 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/test_views.py",
             "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
             "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
