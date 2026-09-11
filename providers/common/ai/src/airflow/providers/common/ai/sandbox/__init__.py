@@ -26,9 +26,11 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxSpec,
     SandboxTerminalError,
 )
+from airflow.providers.common.ai.sandbox.opensandbox import OpenSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "OpenSandboxBackend",
     "SandboxBackend",
     "SandboxError",
     "SandboxExecResult",
