@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import sys
+import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
@@ -97,8 +98,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         'Background' - allow the garbage collector to delete the dependents in the background;
         'Foreground' - a cascading policy that deletes all dependents in the foreground.
         Default value is 'Foreground'.
-    :param discover_pods_retry_number: Number of time list_namespaced_pod will be performed to discover
-        already running pods.
+    :param discover_pods_retry_number: Deprecated and ignored. Pod discovery waits up to
+        ``schedule_timeout_seconds``, polling every ``startup_check_interval_seconds``.
     :param unwrap_single: Unwrap single result from the pod. For example, when set to `True` - if the XCom
         result should be `['res']`, the final result would be `'res'`. Default is True to support backward
         compatibility.
@@ -123,7 +124,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         job_poll_interval: float = 10,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         on_kill_propagation_policy: Literal["Foreground", "Background", "Orphan"] = "Foreground",
-        discover_pods_retry_number: int = 3,
+        discover_pods_retry_number: int | None = None,
         unwrap_single: bool = True,
         **kwargs,
     ) -> None:
@@ -145,7 +146,14 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.job_poll_interval = job_poll_interval
         self.deferrable = deferrable
         self.on_kill_propagation_policy = on_kill_propagation_policy
-        self.discover_pods_retry_number = discover_pods_retry_number
+        if discover_pods_retry_number is not None:
+            warnings.warn(
+                "`discover_pods_retry_number` is deprecated and has no effect. "
+                "Pod discovery waits up to `schedule_timeout_seconds`, polling every "
+                "`startup_check_interval_seconds`.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self.unwrap_single = unwrap_single
 
     @property
@@ -609,22 +617,27 @@ class KubernetesJobOperator(KubernetesPodOperator):
     def get_pods(
         self, pod_request_obj: k8s.V1Pod, context: Context, *, exclude_checked: bool = True
     ) -> Sequence[k8s.V1Pod]:
-        """Return an already-running pods if exists."""
+        """Return Job pods, waiting for the controller to create them if needed."""
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
+        deadline = time.monotonic() + self.schedule_timeout_seconds
         pod_list: Sequence[k8s.V1Pod] = []
-        retry_number: int = 0
 
-        while retry_number <= self.discover_pods_retry_number:
-            if len(pod_list) == self.parallelism:
-                break
+        while True:
             pod_list = self.client.list_namespaced_pod(
                 namespace=pod_request_obj.metadata.namespace,
                 label_selector=label_selector,
             ).items
-            retry_number += 1
+            if len(pod_list) >= self.parallelism:
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(self.startup_check_interval_seconds, remaining))
 
         if len(pod_list) == 0:
-            raise AirflowException(f"No pods running with labels {label_selector}")
+            raise AirflowException(
+                f"No pods found with labels {label_selector} within {self.schedule_timeout_seconds} seconds"
+            )
 
         for pod_instance in pod_list:
             self.log_matching_pod(pod=pod_instance, context=context)
