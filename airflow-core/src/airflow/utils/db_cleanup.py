@@ -432,8 +432,15 @@ def _do_delete(
                         .exists()
                     )
             logger.debug("delete statement:\n%s", delete.compile())
-            session.execute(delete)
+            deleted = session.execute(delete).rowcount
             session.commit()
+
+            # A guarded DELETE (skip_if_referenced) may affect fewer rows than the SELECT
+            # saw. The next SELECT re-applies the same NOT EXISTS guard, so rows the DELETE
+            # skipped are excluded on the next pass and the loop drains naturally; with
+            # --batch-size, continuing lets subsequent batches clean rows this one couldn't.
+            if deleted == 0:
+                continue
 
         except BaseException:
             error_raised = True
