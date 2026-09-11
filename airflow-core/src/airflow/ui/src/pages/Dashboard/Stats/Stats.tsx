@@ -99,7 +99,7 @@ export const Stats = () => {
           isLoading={isStatsLoading}
           isRTL={isRTL}
           label={translate("stats.activeDags")}
-          link="dags?paused=false"
+          link="dags?scheduling_state=active"
         />
       </Flex>
     </Box>

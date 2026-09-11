@@ -41,6 +41,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPrefixPatternSearch,
+    QueryDagSchedulingStateFilter,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -113,6 +114,7 @@ def get_dags(
     dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    scheduling_state: QueryDagSchedulingStateFilter,
     has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_run_state: QueryAnyDagRunStateFilter,
@@ -160,6 +162,7 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            scheduling_state,
             has_import_errors,
             dag_id_pattern,
             dag_id_prefix_pattern,

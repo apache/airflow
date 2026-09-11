@@ -23,7 +23,7 @@
     "lastRunStatePlaceholder": "Select last run state…",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
-      "active": "Active",
+      "active": "Not paused",
       "all": "All",
       "paused": "Paused"
     },
@@ -107,7 +107,9 @@
     "draining": "Draining",
     "drainingBadgeTooltip": "This Dag pauses once its running Dag runs finish.",
     "drainingTooltip": "Draining {{dagDisplayName}} — pauses once running Dag runs finish. Click to resume.",
-    "paused": "Paused"
+    "label": "Scheduling state",
+    "paused": "Paused",
+    "placeholder": "Select scheduling state…"
   },
   "search": {
     "advanced": "Advanced Search",

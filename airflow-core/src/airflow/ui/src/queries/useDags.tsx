@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
-import type { DagRunState } from "openapi/requests/types.gen";
+import type { DagRunState, DagSchedulingState } from "openapi/requests/types.gen";
 
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -36,6 +36,7 @@ export const useDags = ({
   owners,
   paused,
   pendingHitl,
+  schedulingState,
   tags,
   tagsMatchMode,
   teams,
@@ -55,6 +56,7 @@ export const useDags = ({
   owners?: Array<string>;
   paused?: boolean;
   pendingHitl?: boolean;
+  schedulingState?: DagSchedulingState;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
   teams?: Array<string>;
@@ -78,6 +80,7 @@ export const useDags = ({
       orderBy,
       owners,
       paused,
+      schedulingState,
       tags,
       tagsMatchMode,
       teams,

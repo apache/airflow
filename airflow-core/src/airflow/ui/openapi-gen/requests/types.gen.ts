@@ -3710,6 +3710,7 @@ export type GetDagsUiData = {
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
+    schedulingState?: DagSchedulingState | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;

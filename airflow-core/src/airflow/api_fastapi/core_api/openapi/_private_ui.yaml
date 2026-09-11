@@ -641,6 +641,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: scheduling_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagSchedulingState'
+          - type: 'null'
+          title: Scheduling State
       - name: has_import_errors
         in: query
         required: false

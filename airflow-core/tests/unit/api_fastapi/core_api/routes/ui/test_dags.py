@@ -136,6 +136,35 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_ids"),
+        [
+            ({"scheduling_state": "active"}, [DAG1_ID]),
+            ({"scheduling_state": "draining"}, [DAG2_ID]),
+            ({"scheduling_state": "paused"}, [DAG3_ID]),
+            ({"paused": False}, [DAG1_ID, DAG2_ID]),
+        ],
+    )
+    def test_scheduling_state_filter_preserves_paused_filter_semantics(
+        self, test_client, session, query_params, expected_ids
+    ):
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.is_draining = True
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={
+                "dag_ids": [DAG1_ID, DAG2_ID, DAG3_ID],
+                "exclude_stale": False,
+                **query_params,
+            },
+        )
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == expected_ids
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize("unfinished_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_has_unfinished_runs_ignores_recent_run_limit(self, test_client, session, unfinished_state):
         older_run_after = pendulum.datetime(2030, 1, 1, tz="UTC")

@@ -71,6 +71,14 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(pill).toHaveTextContent("filters.paused.active");
   });
 
+  it("does not add the default paused filter when a scheduling state is already selected", async () => {
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("scheduling_state-pill")).toBeInTheDocument());
+
+    expect(screen.queryByTestId("paused-pill")).not.toBeInTheDocument();
+  });
+
   it("shows all dags after removing the paused filter", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 

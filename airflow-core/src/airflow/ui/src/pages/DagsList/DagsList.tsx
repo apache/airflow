@@ -22,7 +22,11 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DagRunState,
+  DagSchedulingState,
+  DAGWithLatestDagRunsResponse,
+} from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
 
@@ -228,6 +232,7 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
+  SCHEDULING_STATE,
   TAGS,
   TAGS_MATCH_MODE,
   TEAMS,
@@ -260,6 +265,7 @@ export const DagsList = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const showPaused = searchParams.get(PAUSED);
+  const schedulingState = searchParams.get(SCHEDULING_STATE) as DagSchedulingState | null;
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
@@ -331,6 +337,7 @@ export const DagsList = () => {
     owners,
     paused,
     pendingHitl,
+    schedulingState: schedulingState ?? undefined,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,
