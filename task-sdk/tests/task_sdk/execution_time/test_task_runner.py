@@ -5406,6 +5406,37 @@ class TestTriggerDagRunOperator:
         assert state == TaskInstanceState.FAILED
         assert isinstance(error, _TriggerSendError)
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_error_response_fails_task(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that semantic trigger errors do not continue down the success path."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            reset_dag_run=True,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_error_response",
+            run_id="test_run",
+            task=task,
+        )
+
+        mock_supervisor_comms.send.return_value = ErrorResponse(
+            error=ErrorType.DAGRUN_CLEAR_FAILED,
+            detail={"dag_id": "test_dag", "run_id": "test_run_id", "status_code": 400},
+        )
+
+        log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+        state, msg, error = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(msg, TaskState)
+        assert msg.state == TaskInstanceState.FAILED
+        assert isinstance(error, AirflowRuntimeError)
+        assert error.error.error == ErrorType.DAGRUN_CLEAR_FAILED
+
     @pytest.mark.parametrize(
         ("should_retry", "expected_state"),
         [
