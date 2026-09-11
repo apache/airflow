@@ -1,0 +1,11 @@
+``airflow db clean`` no longer deletes ``trigger`` rows that are still in use
+
+Trigger rows were selected by age alone. ``task_instance.trigger_id`` and
+``asset_watcher.trigger_id`` are ``ON DELETE CASCADE``, so cleaning an old trigger deleted a
+running deferred task or an event-driven watcher with it, and neither reached an archive
+table. A trigger held by a callback failed the foreign key and stopped the command. Rows
+still referenced by any of the three are now skipped, so only orphaned triggers are purged.
+
+``trigger`` is also a reserved word on MySQL, and the archive statement did not quote it, so
+the table could never be cleaned there. It is quoted now, which means MySQL deployments will
+start purging orphaned trigger rows that earlier releases left in place.
