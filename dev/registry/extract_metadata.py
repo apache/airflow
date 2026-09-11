@@ -373,6 +373,7 @@ class Provider:
         default_factory=list
     )  # {conn_type, hook_class, docs_url, external_services}
     uri_schemes: list[dict] = field(default_factory=list)  # {scheme, filesystem?, asset?, remote_logging?}
+    toolset_services: list[dict] = field(default_factory=list)  # {module, services}
     requires_python: str = ""  # e.g., ">=3.11"
     dependencies: list[str] = field(default_factory=list)  # from pyproject.toml
     optional_extras: dict[str, list[str]] = field(default_factory=dict)  # {extra_name: [deps]}
@@ -804,6 +805,15 @@ def main():
                     }
                 )
 
+        toolset_services = [
+            {
+                "module": entry.get("module", ""),
+                "services": entry.get("services", []),
+            }
+            for toolset in provider_yaml.get("toolsets", [])
+            for entry in toolset.get("external-services", [])
+        ]
+
         # Pre-fetched in parallel before this loop; missing entries fall back
         # to zero-value defaults so a never-published provider doesn't crash.
         pypi_downloads, pypi_dates = pypi_data.get(
@@ -833,6 +843,7 @@ def main():
             categories=[asdict(c) for c in categories],
             connection_types=connection_types,
             uri_schemes=collect_uri_schemes(provider_yaml, module_source_reader(provider_path)),
+            toolset_services=toolset_services,
             requires_python=pyproject_data["requires_python"],
             dependencies=pyproject_data["dependencies"],
             optional_extras=pyproject_data.get("optional_extras", {}),
