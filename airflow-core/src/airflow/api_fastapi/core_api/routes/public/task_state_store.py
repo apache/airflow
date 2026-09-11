@@ -37,6 +37,7 @@ from airflow.api_fastapi.core_api.datamodels.task_state_store import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.configuration import conf
+from airflow.exceptions import DagRunNotFound
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state.metastore import _get_db_backend
@@ -234,7 +235,7 @@ def set_task_state_store(
     expires_at = _resolve_expires_at(body.expires_at)
     try:
         _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
-    except ValueError as e:
+    except DagRunNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 

@@ -26,8 +26,9 @@ import pendulum
 import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import Select, delete, event, select
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -215,22 +216,48 @@ class TestPutTaskState:
 
         assert response.status_code == 404
 
-    def test_put_missing_dagrun_returns_404(
+    def test_put_dagrun_deleted_after_scope_lookup_returns_404(
         self, client: TestClient, session: Session, create_task_instance: CreateTaskInstance
     ):
-        """A missing DagRun must surface as a clean 404, not an internal 500."""
         ti = create_task_instance()
+        dag_run_id = ti.dag_run.id
         session.commit()
+        deleted = False
 
-        with mock.patch("sqlalchemy.orm.Session.scalar", autospec=True) as mock_scalar:
-            mock_scalar.return_value = None
+        def delete_run_before_lookup(conn, statement, multiparams, params, execution_options):
+            nonlocal deleted
+            if (
+                deleted
+                or not isinstance(statement, Select)
+                or statement.column_descriptions[0]["expr"] is not DagRun.id
+            ):
+                return
+            deleted = True
+            with create_session(scoped=False) as cleanup_session:
+                cleanup_session.execute(delete(DagRun).where(DagRun.id == dag_run_id))
+
+        event.listen(settings.engine, "before_execute", delete_run_before_lookup)
+        try:
             response = client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})
+        finally:
+            event.remove(settings.engine, "before_execute", delete_run_before_lookup)
 
+        assert deleted
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
             "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
         }
+
+    @mock.patch("airflow.api_fastapi.execution_api.routes.task_state_store.get_state_backend", autospec=True)
+    def test_put_unrelated_backend_value_error_is_not_not_found(
+        self, mock_get_backend, client: TestClient, create_task_instance: CreateTaskInstance
+    ):
+        ti = create_task_instance()
+        mock_get_backend.return_value.set.side_effect = ValueError("Invalid backend configuration")
+
+        with pytest.raises(ValueError, match="Invalid backend configuration"):
+            client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})
 
     def test_put_key_with_slash(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()

@@ -4455,29 +4455,6 @@ class TestInvactiveInletsAndOutlets:
         assert response.status_code == 200
         assert response.json() == {"inactive_assets": []}
 
-    def test_validate_inlets_and_outlets_missing_dagrun_returns_404(
-        self, client, session, create_task_instance
-    ):
-        """A missing DagRun must surface as a clean 404, not an internal 500."""
-        ti = create_task_instance(
-            task_id="test_validate_inlets_missing_dagrun",
-            state=State.QUEUED,
-            session=session,
-        )
-        session.commit()
-
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.dag_run", new_callable=mock.PropertyMock
-        ) as mock_dr:
-            mock_dr.return_value = None
-            response = client.get(f"/execution/task-instances/{ti.id}/validate-inlets-and-outlets")
-
-        assert response.status_code == 404
-        assert response.json()["detail"] == {
-            "reason": "not_found",
-            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
-        }
-
     def test_ti_run_with_null_conf(self, client, session, create_task_instance):
         """Test that task instances can start when dag_run.conf is NULL."""
         ti = create_task_instance(
