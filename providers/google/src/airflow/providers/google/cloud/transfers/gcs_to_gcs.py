@@ -616,7 +616,7 @@ class GCSToGCSOperator(BaseOperator):
         # Handle case where the file has already been deleted and a NotFound exception is raised
         except NotFound:
             self.log.warning(
-                "Object %s does not exist in the source bucket %s", self.source_object, source_bucket
+                "Object %s does not exist in the source bucket %s", source_object, self.source_bucket
             )
 
         return f"gs://{dest_bucket}/{destination_object}"
