@@ -21,6 +21,7 @@ import json
 import os
 from contextlib import redirect_stdout
 from io import StringIO
+from unittest import mock
 
 import pytest
 import yaml
@@ -356,6 +357,22 @@ class TestCliVariables:
                     self.parser.parse_args(["variables", "import", file_path]), session=session
                 )
 
+    def test_variables_import_exits_with_error_on_failed_key(self, tmp_path):
+        """variables_import must exit non-zero when any key fails to be set, not just print a message."""
+        path = tmp_path / "variables.json"
+        path.write_text(json.dumps({"good_key": "good_value", "bad_key": "bad_value"}))
+
+        def fake_set(key, value, description=None, serialize_json=False):
+            if key == "bad_key":
+                raise ValueError("boom")
+
+        with mock.patch.object(Variable, "set", autospec=True, side_effect=fake_set):
+            with pytest.raises(SystemExit, match=r"1 variable\(s\) failed to be updated\."):
+                with create_session() as session:
+                    variable_command.variables_import(
+                        self.parser.parse_args(["variables", "import", os.fspath(path)]), session=session
+                    )
+
     def test_variables_export(self):
         """Test variables_export command"""
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.devnull]))
@@ -591,7 +608,7 @@ class TestCliVariables:
 
         # Test fail action - should fail when key1 already exists
         Variable.set("key1", "original_value")
-        with pytest.raises(SystemExit, match="already exists"):
+        with pytest.raises(SystemExit, match="already exist"):
             with create_session() as session:
                 variable_command.variables_import(
                     self.parser.parse_args(
