@@ -173,7 +173,7 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         elif next_start > current_time:  # Current time is between boundaries.
             new_start = self._get_prev(last_start)
         else:
-            raise AssertionError("next schedule shouldn't be earlier")
+            raise ValueError("next schedule shouldn't be earlier")
         if earliest is None:
             return new_start
         return max(new_start, self._align_to_next(earliest))
