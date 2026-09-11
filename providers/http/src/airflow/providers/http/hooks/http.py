@@ -44,6 +44,10 @@ if TYPE_CHECKING:
 
     from airflow.models import Connection
 
+# requests-only extra options with no aiohttp equivalent; aiohttp's request methods raise
+# TypeError on unexpected kwargs, so HttpAsyncHook must strip these before the request call.
+_AIOHTTP_UNSUPPORTED_EXTRA_OPTIONS = {"stream", "cert", "trust_env"}
+
 
 def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     """Combine base url with endpoint."""
@@ -513,6 +517,16 @@ class AsyncHttpSession(LoggingMixin):
         merged_headers = {**(self.headers or {}), **(headers or {})}
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
 
+        check_response = extra_options.pop("check_response", True)
+        unsupported_options = _AIOHTTP_UNSUPPORTED_EXTRA_OPTIONS & extra_options.keys()
+        if unsupported_options:
+            self.log.warning(
+                "Ignoring connection extra option(s) %s: not supported by HttpAsyncHook.",
+                ", ".join(sorted(unsupported_options)),
+            )
+            for option in unsupported_options:
+                extra_options.pop(option)
+
         async def request_func() -> ClientResponse:
             response = await self._request(
                 url,
@@ -523,7 +537,8 @@ class AsyncHttpSession(LoggingMixin):
                 auth=self.auth,
                 **extra_options,
             )
-            response.raise_for_status()
+            if check_response:
+                response.raise_for_status()
             return response
 
         async for attempt in AsyncRetrying(
