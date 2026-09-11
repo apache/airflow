@@ -113,10 +113,11 @@
 
   function renderConnectionForm(container, connType, data) {
     var connIdDefault = connType.replace(/[^a-zA-Z0-9]/g, "_");
+    var safeConnType = escapeAttr(connType);
     var html = '<div class="conn-field">';
-    html += '<label for="conn-id-' + connType + '">Connection ID</label>';
+    html += '<label for="conn-id-' + safeConnType + '">Connection ID</label>';
     html +=
-      '<input type="text" id="conn-id-' + connType +
+      '<input type="text" id="conn-id-' + safeConnType +
       '" data-field="conn_id" value="' + escapeAttr(connIdDefault) +
       '" placeholder="my_conn_id">';
     html += "</div>";
@@ -194,18 +195,20 @@
   function renderField(connType, key, field, isCustom) {
     var label = field.label || key;
     var id = "conn-" + connType + "-" + key;
+    var safeId = escapeAttr(id);
+    var safeKey = escapeAttr(key);
     var isSensitive =
       key === "password" || field.is_sensitive || field.format === "password";
     var fieldType = field.type || "string";
     var html = '<div class="conn-field">';
-    html += '<label for="' + id + '">' + escapeHTML(label);
+    html += '<label for="' + safeId + '">' + escapeHTML(label);
     if (isSensitive) {
       html += ' <span class="field-sensitive">sensitive</span>';
     }
     html += "</label>";
 
     if (field.enum && field.enum.length) {
-      html += '<select id="' + id + '" data-field="' + key + '"';
+      html += '<select id="' + safeId + '" data-field="' + safeKey + '"';
       if (isCustom) html += ' data-custom="true"';
       html += ">";
       html += '<option value="">-- Select --</option>';
@@ -216,17 +219,17 @@
       html += "</select>";
     } else if (fieldType === "boolean") {
       var checked = field.default === true || field.default === "true" ? " checked" : "";
-      html += '<label class="conn-checkbox"><input type="checkbox" id="' + id + '" data-field="' + key + '"';
+      html += '<label class="conn-checkbox"><input type="checkbox" id="' + safeId + '" data-field="' + safeKey + '"';
       if (isCustom) html += ' data-custom="true"';
       html += ' data-type="boolean"' + checked + ">";
       html += " " + escapeHTML(label) + "</label>";
     } else if (key === "extra" || fieldType === "object") {
-      html += '<textarea id="' + id + '" data-field="' + key + '" rows="3"';
+      html += '<textarea id="' + safeId + '" data-field="' + safeKey + '" rows="3"';
       if (isCustom) html += ' data-custom="true"';
       if (field.placeholder) html += ' placeholder="' + escapeAttr(field.placeholder) + '"';
       html += "></textarea>";
     } else if (fieldType === "integer" || fieldType === "number") {
-      html += '<input type="number" id="' + id + '" data-field="' + key + '"';
+      html += '<input type="number" id="' + safeId + '" data-field="' + safeKey + '"';
       if (isCustom) html += ' data-custom="true"';
       if (field.default != null) html += ' value="' + escapeAttr(String(field.default)) + '"';
       if (field.minimum != null) html += ' min="' + escapeAttr(String(field.minimum)) + '"';
@@ -234,7 +237,7 @@
       html += ">";
     } else {
       var inputType = isSensitive ? "password" : "text";
-      html += '<input type="' + inputType + '" id="' + id + '" data-field="' + key + '"';
+      html += '<input type="' + inputType + '" id="' + safeId + '" data-field="' + safeKey + '"';
       if (isCustom) html += ' data-custom="true"';
       if (field.default != null && fieldType !== "boolean") html += ' value="' + escapeAttr(String(field.default)) + '"';
       if (field.placeholder) html += ' placeholder="' + escapeAttr(field.placeholder) + '"';
