@@ -22,7 +22,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BeforeValidator, ConfigDict, Field, field_validator, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.plugins_manager import AirflowPluginSource
+from airflow.plugins_manager import AirflowPluginSource, BaseDestinationLiteral
 
 
 def coerce_to_string(data: Any) -> Any:
@@ -67,9 +67,6 @@ class AppBuilderMenuItemResponse(BaseModel):
     name: str
     href: str
     category: str | None = None
-
-
-BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
 
 
 class PluginAppliesToResponse(BaseModel):

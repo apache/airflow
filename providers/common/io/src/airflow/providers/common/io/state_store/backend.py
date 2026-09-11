@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 from functools import cache
 from typing import TYPE_CHECKING
@@ -187,8 +188,11 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
             case _:
                 raise TypeError(f"Unknown scope type: {type(scope)}")
 
+    # fsspec is synchronous even for filesystems whose transport is async underneath, so the
+    # a-prefixed methods offload to a worker thread to keep the caller's event loop free.
+    # ``session`` is unused throughout: this backend never touches the metastore.
     async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
-        raise NotImplementedError
+        return await asyncio.to_thread(self.get, scope, key)
 
     async def aset(
         self,
@@ -199,15 +203,15 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         expires_at: datetime | None = None,
         session: AsyncSession | None = None,
     ) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at)
 
     async def adelete(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.delete, scope, key)
 
     async def aclear(
         self, scope: StoreScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
     ) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
     def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         serialized = json.dumps(value)

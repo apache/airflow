@@ -131,6 +131,10 @@ looks like:
         # Note: React apps are only supported in Airflow 3.1 and later.
         # Note: The React app integration is experimental and interfaces might change in future versions. Particularly, dependency and state interactions between the UI and plugins may need to be refactored for more complex plugin apps.
         react_apps = []
+        # A list of UI translation sources to add languages to, or override translations in, the UI.
+        # Each entry is a path to a ``<language>/<namespace>.json`` directory tree or an inline
+        # ``{language: {namespace: {key: value}}}`` mapping. See the example below.
+        ui_translations = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
@@ -224,6 +228,53 @@ definitions in Airflow.
 
     app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
+
+.. warning::
+
+    **Airflow does not authenticate plugin FastAPI apps. Authenticating them is the
+    plugin author's responsibility.**
+
+    Airflow authenticates the core API with a router-level dependency. A plugin app is
+    attached with ``app.mount()``, and a Starlette mount has its own route table and
+    inherits none of the parent's dependencies, so that dependency never reaches a
+    plugin's routes. No middleware in the API server authenticates them either.
+
+    Every route a plugin exposes is therefore reachable by **anonymous callers** unless
+    the plugin authenticates it itself. The minimal ``app`` above is a structural
+    illustration, not a template to deploy as-is.
+
+    Depend on ``GetUserDep`` to require a caller Airflow has authenticated:
+
+    .. code-block:: python
+
+        from fastapi import FastAPI
+
+        from airflow.api_fastapi.core_api.security import GetUserDep
+
+        app = FastAPI()
+
+
+        @app.get("/dashboard")
+        def dashboard(user: GetUserDep):
+            return {"user": user.get_name()}
+
+    Prefer attaching the dependency once, at the application or router level, so that a
+    route added later does not silently ship unauthenticated:
+
+    .. code-block:: python
+
+        from fastapi import Depends, FastAPI
+
+        from airflow.api_fastapi.core_api.security import get_user
+
+        app = FastAPI(dependencies=[Depends(get_user)])
+
+    Authentication is not authorization. ``GetUserDep`` establishes *who* is calling;
+    whether that user may perform a given action remains the plugin's own decision. This
+    applies to team scoping too — in a multi-team deployment, a plugin that does not check
+    the caller's team serves every team's users the same data.
+
+.. code-block:: python
 
     # Creating a FastAPI middleware that will operates on all the server api requests.
     middleware_with_metadata = {
@@ -399,6 +450,47 @@ The props available depend on where the app is mounted (its ``destination`` and 
   is served from the UI's query cache the details page has already populated (no extra request).
   On routes or ``destination`` values without those identifiers (e.g. ``nav``, ``base``,
   ``dashboard``), the corresponding objects are ``undefined``.
+
+Adding or overriding UI translations
+------------------------------------
+
+The ``ui_translations`` attribute lets a plugin add a language the Airflow UI does not ship, or
+override individual strings in a language it does. Each entry is either a path to a
+``<language>/<namespace>.json`` directory tree (mirroring Airflow's own
+``airflow/ui/public/i18n/locales`` layout) or an inline
+``{language: {namespace: {key: value}}}`` mapping. Both forms can be mixed in the same list.
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    from airflow.plugins_manager import AirflowPlugin
+
+
+    class TranslationsPlugin(AirflowPlugin):
+        name = "translations"
+        ui_translations = [
+            # A directory tree, e.g. locales/eo/common.json, adding Esperanto as a new language.
+            Path(__file__).parent / "locales",
+            # Override individual keys in a language Airflow already ships.
+            {"en": {"dags": {"dag_one": "Pipeline"}}},
+        ]
+
+The plugin's values are deep-merged on top of the built-in translations, so an override replaces
+only the keys it names (at any nesting depth) and leaves the rest untouched. Keys a plugin does not
+provide fall back to the built-in language, and ultimately to English.
+
+Because translations are not versioned in lockstep with Airflow, robustness is built in:
+
+- A malformed or unreadable translation source is skipped with a warning in the API server log; it
+  never stops the API server from starting or keeps other plugins from loading.
+- English is the reference for which keys exist. When translations are consolidated at startup, any
+  plugin key that is **not** present in the English file for its namespace (likely renamed or removed
+  upstream) is logged as a warning in the API server log and otherwise ignored.
+
+Right-to-left languages are handled automatically: the UI derives text direction from the language
+code (via the browser's locale data, e.g. Persian ``fa`` or Urdu ``ur``), so a custom RTL language
+flips the whole UI to right-to-left without any extra configuration.
 
 Exclude views from CSRF protection
 ----------------------------------

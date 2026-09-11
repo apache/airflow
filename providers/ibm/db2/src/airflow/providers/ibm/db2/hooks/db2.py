@@ -99,6 +99,8 @@ class Db2Hook(DbApiHook):
             # Add all extra parameters to connection string
             # Parameter names are automatically converted to uppercase for Db2
             for key, value in extra.items():
+                if value is None:
+                    continue
                 # Convert boolean values to appropriate strings
                 if isinstance(value, bool):
                     converted_value = "true" if value else "false"
@@ -134,6 +136,8 @@ class Db2Hook(DbApiHook):
         if extra:
             query_params = {}
             for key, value in extra.items():
+                if value is None:
+                    continue
                 # Convert boolean values to appropriate strings
                 if isinstance(value, bool):
                     query_params[key.upper()] = "true" if value else "false"

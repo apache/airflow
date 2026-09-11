@@ -1,0 +1,1 @@
+The UI now configures the generated API client's base URL from ``<base href>`` in a module with no application dependencies, so a request issued while the app is still initializing -- the i18n version lookup that builds the translation cache buster -- is resolved against the configured path prefix instead of being sent to the origin root.

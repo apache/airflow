@@ -112,4 +112,56 @@ describe("getHITLParamsDict", () => {
     expect(paramsDict.objectParam?.schema.type).toBe("object");
     expect(paramsDict.objectParam?.value).toEqual({ key: "value", nested: { data: 123 } });
   });
+
+  it("resolves a serialized param whose default is null to null, not the wrapper object", () => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        freeze_until: {
+          description: null,
+          schema: { format: "date", title: "Code freeze until", type: ["string", "null"] },
+          value: null,
+        },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.freeze_until?.value).toBeNull();
+    expect(paramsDict.freeze_until?.schema.format).toBe("date");
+    expect(paramsDict.freeze_until?.schema.type).toEqual(["string", "null"]);
+  });
+
+  it("keeps a serialized param's non-null default", () => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        health_check_at: {
+          description: null,
+          schema: { format: "time", type: "string" },
+          value: "09:00:00",
+        },
+      },
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.health_check_at?.value).toBe("09:00:00");
+  });
+
+  it("prefers a submitted value over the serialized default", () => {
+    const hitlDetail = createMockHITLDetail({
+      params: {
+        freeze_until: {
+          description: null,
+          schema: { format: "date", type: ["string", "null"] },
+          value: null,
+        },
+      },
+      params_input: { freeze_until: "2026-09-03" },
+      response_received: true,
+    });
+
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, new URLSearchParams());
+
+    expect(paramsDict.freeze_until?.value).toBe("2026-09-03");
+  });
 });
