@@ -286,7 +286,7 @@ class DagRun(Base, LoggingMixin):
     # This is nullable because it's too costly to migrate dagruns created prior
     # to this column's addition (Airflow 3.2.0). If you want a reasonable
     # meaningful non-null value, use ``dr.created_at or dr.run_after``.
-    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
+    created_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
