@@ -759,9 +759,7 @@ class SerializedDAG:
             if not deadline_alert:
                 continue
 
-            # Deadline creation is best-effort: an alert we cannot decode or whose interval or
-            # reference will not resolve must not abort the DagRun. Catching per alert rather than
-            # around the loop keeps one bad alert from starving the others of their deadlines.
+            # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
             try:
                 deserialized_deadline_alert = decode_deadline_alert(
                     {
