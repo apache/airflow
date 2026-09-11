@@ -75,7 +75,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/triggers/test_sagemaker_unified_studio.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_rds.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_sagemaker.py",
-            "providers/amazon/tests/unit/amazon/aws/waiters/test_base_waiter.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/hooks/test_hdfs.py",
             "providers/apache/hdfs/tests/unit/apache/hdfs/sensors/test_hdfs.py",
             "providers/apache/hive/tests/unit/apache/hive/plugins/test_hive.py",

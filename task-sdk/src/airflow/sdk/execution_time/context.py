@@ -297,7 +297,16 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
 
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                # Use aget_uri if the returned connection object supports it (the SDK's own
+                # Connection class does); otherwise fall back to the sync get_uri, since backends
+                # can hand back other connection-shaped objects (e.g. MetastoreBackend returns
+                # airflow.models.Connection, which has no aget_uri).
+                aget_uri = getattr(conn, "aget_uri", None)
+                if aget_uri is not None:
+                    uri = await aget_uri()
+                else:
+                    uri = await sync_to_async(conn.get_uri)()
+                SecretCache.save_connection_uri(conn_id, uri)
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:

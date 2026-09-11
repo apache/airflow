@@ -27,12 +27,56 @@
 Changelog
 ---------
 
+22.5.0
+......
+
 .. note::
     This provider now depends on ``httpx2`` instead of ``httpx``, and ``httpx2`` verifies TLS
     against the operating system trust store rather than the ``certifi`` bundle. If
     ``CloudSqlProxyRunner`` downloads the ``cloud-sql-proxy`` binary through a proxy presenting
     a private CA, install that CA into the OS trust store or point ``SSL_CERT_FILE`` (or
     ``SSL_CERT_DIR``) at it -- adding it to ``certifi`` alone no longer has any effect.
+
+Features
+~~~~~~~~
+
+* ``Add reserved IP ranges to Vertex AI pipeline jobs (#72560)``
+* ``Add CreateCustomJobOperator for VertexAI service (#71875)``
+* ``Add destination_folder_id to GCSToGoogleDriveOperator template fields (#66930)``
+* ``Add drive_id to GoogleSheetsCreateSpreadsheetOperator for shared drives (#66929)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GoogleDriveHook.get_file_id parent query operand order (#72543)``
+* ``Keep Campaign Manager delete report provision check in __init__ (#70530)``
+* ``Honor gzip and mime_type on SFTPToGCS stream path (#72132)``
+* ``Fix multiple client creation inside of the deferrable operator for the google provider (#72143)``
+* ``Honor impersonation_chain in deferred Cloud Build tasks (#71644)``
+
+Misc
+~~~~
+
+* ``Depend on 'httpx2' instead of 'httpx' (#72111)``
+* ``Restore the apache.beam extra dropped while the Beam provider was suspended (#66952)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix the Cloud SQL IAM proxy connection documentation (#72141)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix models selection in genai tests (#72323)``
+   * ``Remove redundant ML Engine system test (#72321)``
+   * ``Add Google system test resource cleanup script (#68930)``
+   * ``Shorten Managed Kafka cluster ID in system tests (#72084)``
+   * ``Enable ruff B023 (function-uses-loop-variable) and fix violations (#70640)``
+   * ``Refactor bigquery_async_query test (#72193)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``Prepare providers release 2026-08-25 (#72069)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Collect the test classes pytest silently skipped (#71643)``
 
 22.4.0
 ......
