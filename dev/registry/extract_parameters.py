@@ -398,6 +398,9 @@ def load_resumable_job_mixin() -> type | None:
 _DEFERRAL_TOKEN_RE = re.compile(r"self\.defer\(|self\.deferrable\b|TaskDeferred\b")
 _SELF_CALL_RE = re.compile(r"self\.([A-Za-z_][A-Za-z0-9_]*)\(")
 _SUPER_EXECUTE_RE = re.compile(r"super\(\)\.execute\(")
+# Matches the @task.* decorator idiom of naming the parent class directly instead of using
+# super() (e.g. `AgentOperator.execute(self, context)` in common.ai's @task.agent).
+_EXPLICIT_EXECUTE_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.execute\(")
 
 # To prevent infinite looping, most cases in the repo are 1-2 hops away.
 _MAX_DEFERRAL_WALK_DEPTH = 6
@@ -435,15 +438,29 @@ def _next_execute_via_super(origin: type, current: type) -> type | None:
     return _find_owner_of_execute(origin.__mro__, idx + 1)
 
 
+def _next_execute_hop(origin: type, current: type, source: str) -> type | None:
+    """Find the next class in `source`'s delegation chain, via `super().execute()` or an
+    explicit `ParentClass.execute(...)` call."""
+    if _SUPER_EXECUTE_RE.search(source):
+        return _next_execute_via_super(origin, current)
+    match = _EXPLICIT_EXECUTE_RE.search(source)
+    if match is None:
+        return None
+    name = match.group(1)
+    return next((cls for cls in origin.__mro__ if cls.__name__ == name), None)
+
+
 def _find_marker_declaring_class(cls: type) -> type | None:
     """Return the class in `cls`'s MRO whose own body sets `__supports_durable_execution = True`.
 
     The lookup is per-class (`_{base.__name__}__supports_durable_execution`), not a fixed
     string, and only matches a class whose own `__dict__` carries the (mangled) name;
     inheriting the attribute value from a base doesn't count, only writing it yourself does.
+    Leading underscores in the class name are stripped first, matching Python's own name
+    mangling rule (`_Foo` mangles to `_Foo__x`, not `__Foo__x`).
     """
     for base in cls.__mro__:
-        mangled = f"_{base.__name__}__supports_durable_execution"
+        mangled = f"_{base.__name__.lstrip('_')}__supports_durable_execution"
         if base.__dict__.get(mangled) is True:
             return base
     return None
@@ -452,9 +469,10 @@ def _find_marker_declaring_class(cls: type) -> type | None:
 def _delegates_execute_to(cls: type, target: type, depth: int) -> bool:
     """Return True if `cls`'s resolved `execute()` chain reaches `target.execute`.
 
-    Covers both a class that never overrides `execute` (inherits `target.execute` directly,
-    e.g. GKEStartPodOperator) and one whose override ends in `super().execute(context)`
-    (e.g. EksPodOperator, SparkKubernetesOperator).
+    Covers a class that never overrides `execute` (inherits `target.execute` directly, e.g.
+    GKEStartPodOperator), one whose override ends in `super().execute(context)` (e.g.
+    EksPodOperator, SparkKubernetesOperator), and one that names the parent class directly
+    instead (e.g. `AgentOperator.execute(self, context)` in `@task.agent`).
     """
     owner = _find_owner_of_execute(cls.__mro__, 0)
     remaining = depth
@@ -464,9 +482,9 @@ def _delegates_execute_to(cls: type, target: type, depth: int) -> bool:
         if remaining <= 0:
             return False
         source = _get_method_source(owner, "execute")
-        if source is None or not _SUPER_EXECUTE_RE.search(source):
+        if source is None:
             return False
-        owner = _next_execute_via_super(cls, owner)
+        owner = _next_execute_hop(cls, owner, source)
         remaining -= 1
     return False
 
@@ -485,9 +503,9 @@ def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
             return False
         if "execute_resumable" in source:
             return True
-        if remaining <= 0 or not _SUPER_EXECUTE_RE.search(source):
+        if remaining <= 0:
             return False
-        owner = _next_execute_via_super(cls, owner)
+        owner = _next_execute_hop(cls, owner, source)
         remaining -= 1
     return False
 
@@ -530,17 +548,16 @@ def _references_deferral(
     if depth <= 0:
         return False
 
-    if _SUPER_EXECUTE_RE.search(source):
-        next_cls = _next_execute_via_super(origin, current)
-        if next_cls is not None:
-            key = (id(next_cls), "execute")
-            if key not in visited:
-                visited.add(key)
-                next_source = _get_method_source(next_cls, "execute")
-                if next_source is not None and _references_deferral(
-                    origin, next_cls, next_source, visited, depth - 1
-                ):
-                    return True
+    next_cls = _next_execute_hop(origin, current, source)
+    if next_cls is not None:
+        key = (id(next_cls), "execute")
+        if key not in visited:
+            visited.add(key)
+            next_source = _get_method_source(next_cls, "execute")
+            if next_source is not None and _references_deferral(
+                origin, next_cls, next_source, visited, depth - 1
+            ):
+                return True
 
     for name in _SELF_CALL_RE.findall(source):
         key = (id(current), name)

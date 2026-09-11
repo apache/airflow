@@ -291,6 +291,14 @@ class DecoratedDurableSubclassNoOwnExecute(DecoratorMixin, ManuallyDurableOperat
     """Same combined MRO as above, but inherits DecoratorMixin's execute() unchanged."""
 
 
+class ExplicitParentDelegatingSubclass(ManuallyDurableOperator):
+    """Mirrors @task.agent's _AgentDecoratedOperator: names the parent class directly instead
+    of using super(). Must still qualify."""
+
+    def execute(self, context):
+        return ManuallyDurableOperator.execute(self, context)
+
+
 class TestIsDurableCapable:
     def test_fully_implemented_and_wired_qualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
@@ -334,6 +342,28 @@ class TestIsDurableCapable:
                 return super().execute(context)
 
         assert is_durable_capable(MixinSubclassDelegating, FakeResumableJobMixin) is True
+
+    def test_explicit_parent_class_delegation_qualifies(self):
+        assert is_durable_capable(ExplicitParentDelegatingSubclass, FakeResumableJobMixin) is True
+
+    def test_mixin_subclass_delegating_via_explicit_parent_call_qualifies(self):
+        class MixinSubclassExplicitDelegating(FullyImplementedResumableOperator):
+            def execute(self, context):
+                return FullyImplementedResumableOperator.execute(self, context)
+
+        assert is_durable_capable(MixinSubclassExplicitDelegating, FakeResumableJobMixin) is True
+
+    def test_declaring_class_with_leading_underscore_is_found(self):
+        """Python strips leading underscores from the class name when mangling, so the
+        lookup must too, or a declaring class like `_FooOperator` is never found."""
+
+        class _UnderscoreOperator:
+            __supports_durable_execution = True
+
+            def execute(self, context):
+                return None
+
+        assert is_durable_capable(_UnderscoreOperator, FakeResumableJobMixin) is True
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +469,14 @@ class SubclassDelegatingToSuperExecute(BaseWithDeferringExecute):
         return None
 
 
+class SubclassDelegatingToExplicitParentExecute(BaseWithDeferringExecute):
+    """Mirrors @task.agent's _AgentDecoratedOperator: names the parent class directly
+    instead of using super()."""
+
+    def execute(self, context):
+        return BaseWithDeferringExecute.execute(self, context)
+
+
 class DeferringDecoratorMixin:
     """Mirrors DecoratedOperator: a mixin whose own MRO has no relationship to BaseWithDeferringExecute."""
 
@@ -511,6 +549,10 @@ class TestSupportsDeferrable:
     def test_defers_through_super_execute_with_multiple_inheritance_qualifies(self):
         """A @task.kubernetes-shaped case: the chain must resolve against the subclass's MRO."""
         assert supports_deferrable(DecoratedDeferringSubclass) is True
+
+    def test_defers_through_explicit_parent_class_call_qualifies(self):
+        """A @task.agent-shaped case: delegation names the parent class instead of super()."""
+        assert supports_deferrable(SubclassDelegatingToExplicitParentExecute) is True
 
     def test_raises_task_deferred_directly_qualifies(self):
         """The VespaIngestOperator case: no self.defer()/self.deferrable anywhere,
