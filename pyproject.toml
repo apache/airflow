@@ -225,6 +225,9 @@ apache-airflow = "airflow.__main__:main"
 "docker" = [
     "apache-airflow-providers-docker>=3.14.1"
 ]
+"duckdb" = [
+    "apache-airflow-providers-duckdb>=0.1.0"
+]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
 ]
@@ -456,6 +459,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
+    "apache-airflow-providers-duckdb>=0.1.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
