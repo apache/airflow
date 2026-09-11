@@ -78,6 +78,11 @@ class TestWorkerApiRoutes:
         assert _version("1.2.3rc1") == (1, 2, 3)
         assert _version("1.2.3.dev0") == (1, 2, 3)
 
+    def test_version_invalid_raises_http_400(self):
+        with pytest.raises(HTTPException) as exc_info:
+            _version("invalid-version-string")
+        assert exc_info.value.status_code == 400
+
     def test_assert_version(self):
         from airflow import __version__ as airflow_version
         from airflow.providers.edge3 import __version__ as edge_provider_version
@@ -108,6 +113,12 @@ class TestWorkerApiRoutes:
         with conf_vars({("edge", "minimum_acceptable_core_version_for_workers"): "3.1.0"}):
             with pytest.raises(HTTPException):
                 _assert_version({"airflow_version": "3.0.0", "edge_provider_version": edge_provider_version})
+
+            with pytest.raises(HTTPException) as exc_info:
+                _assert_version(
+                    {"airflow_version": "invalid-version", "edge_provider_version": edge_provider_version}
+                )
+            assert exc_info.value.status_code == 400
 
             _assert_version({"airflow_version": "3.1.0", "edge_provider_version": edge_provider_version})
             _assert_version({"airflow_version": "3.2.0rc3", "edge_provider_version": edge_provider_version})
