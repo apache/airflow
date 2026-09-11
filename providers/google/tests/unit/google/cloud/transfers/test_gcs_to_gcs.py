@@ -1204,3 +1204,25 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             DESTINATION_BUCKET,
             SOURCE_OBJECT_NO_WILDCARD,
         )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_move_object_idempotent_on_already_deleted_source(self, mock_hook):
+        """When move_object=True and source is already deleted (404), the operator should not raise."""
+        from google.api_core.exceptions import NotFound
+
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        mock_hook.return_value.delete.side_effect = NotFound("Object already deleted")
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            move_object=True,
+        )
+
+        # Should not raise — 404 is treated as a successful idempotent delete
+        operator.execute(None)
+
+        mock_hook.return_value.delete.assert_called_once_with(TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD)

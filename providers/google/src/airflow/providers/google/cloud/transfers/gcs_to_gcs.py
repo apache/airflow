@@ -608,7 +608,19 @@ class GCSToGCSOperator(BaseOperator):
         )
 
         if self.move_object:
-            hook.delete(self.source_bucket, source_object)
+            try:
+                hook.delete(self.source_bucket, source_object)
+            except Exception as e:
+                from google.api_core.exceptions import NotFound
+
+                if isinstance(e, NotFound):
+                    self.log.warning(
+                        "Object %s/%s already deleted (404 on move); skipping.",
+                        self.source_bucket,
+                        source_object,
+                    )
+                else:
+                    raise
 
         return f"gs://{dest_bucket}/{destination_object}"
 
