@@ -24,9 +24,12 @@ import pytest
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+
+pytestmark = pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 TASK_ID = "test-task-id"
 TEST_PROJECT = "test-project"
@@ -100,6 +103,26 @@ class TestPubSubPullSensor:
         assert generated_dicts == response
 
     @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
+    def test_execute_with_return_immediately_false(self, mock_hook):
+        operator = PubSubPullSensor(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            poke_interval=0,
+            return_immediately=False,
+        )
+
+        generated_messages = self._generate_messages(5)
+        generated_dicts = self._generate_dicts(5)
+        mock_hook.return_value.pull.return_value = generated_messages
+
+        response = operator.execute({})
+        mock_hook.return_value.pull.assert_called_once_with(
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=False
+        )
+        assert generated_dicts == response
+
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
     def test_execute_timeout(self, mock_hook):
         operator = PubSubPullSensor(
             task_id=TASK_ID,
@@ -167,6 +190,25 @@ class TestPubSubPullSensor:
         with pytest.raises(TaskDeferred) as exc:
             task.execute(context={})
         assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
+        assert exc.value.trigger.return_immediately is True
+
+    def test_pubsub_pull_sensor_async_with_return_immediately_false(self):
+        """
+        Asserts that a task is deferred and a PubsubPullTrigger will be fired
+        with custom return_immediately value.
+        """
+        task = PubSubPullSensor(
+            task_id="test_task_id",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+            return_immediately=False,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={})
+        assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
+        assert exc.value.trigger.return_immediately is False
 
     def test_pubsub_pull_sensor_async_execute_should_throw_exception(self):
         """Tests that an AirflowException is raised in case of error event"""
@@ -245,3 +287,12 @@ class TestPubSubPullSensor:
             resp = operator.execute_complete(context={}, event={"status": "success", "message": test_message})
         mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)
         assert resp == messages_callback_return_value
+
+    def test_pubsub_pull_sensor_deprecation_warning(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
+            PubSubPullSensor(
+                task_id=TASK_ID,
+                project_id=TEST_PROJECT,
+                subscription=TEST_SUBSCRIPTION,
+                return_immediately=False,
+            )

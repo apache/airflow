@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -26,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
@@ -113,7 +115,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
-        return_immediately: bool = True,
+        return_immediately: bool | None = None,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -127,13 +129,21 @@ class PubSubPullSensor(BaseSensorOperator):
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
-        self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self._return_value = None
+        if return_immediately is not None:
+            warnings.warn(
+                "The default value of `return_immediately` will be changed to `False` in a future major release.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.return_immediately = return_immediately
+        else:
+            self.return_immediately = True
 
     def poke(self, context: Context) -> bool:
         hook = PubSubHook(
@@ -176,6 +186,7 @@ class PubSubPullSensor(BaseSensorOperator):
                 poke_interval=self.poke_interval,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                return_immediately=self.return_immediately,
             ),
             method_name="execute_complete",
         )
