@@ -1666,6 +1666,44 @@ class TestDagRun:
             tags={"dag_id": scheduler_dag.dag_id, "team_name": "team_alpha"},
         )
 
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(Variable, "get")
+    def test_dagrun_deadline_failure_that_detaches_orm_objects_still_skips(
+        self, mock_variable_get, _, mock_stats_incr, session, deadline_test_dag
+    ):
+        """A failing interval resolution can roll back and close the caller's session underneath
+        the handler (``create_session`` reusing the scoped session does exactly that), detaching
+        every ORM instance. The skip path must still log and count without touching ORM state."""
+        scheduler_dag = deadline_test_dag(
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(
+                    datetime.datetime(2037, 1, 1, tzinfo=datetime.timezone.utc)
+                ),
+                interval=VariableInterval("missing_key"),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        # The alert rows must be persistent from an earlier transaction (as in the live
+        # scheduler, where the dag processor committed them) so the rollback below expires
+        # them and the close detaches them instead of returning them to transient.
+        session.commit()
+
+        def teardown_session_and_raise(*args, **kwargs):
+            session.rollback()
+            session.close()
+            raise KeyError("missing_key")
+
+        mock_variable_get.side_effect = teardown_session_and_raise
+
+        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert dag_run is not None
+        mock_stats_incr.assert_any_call(
+            "deadline_alerts.deadline_creation_failed",
+            tags={"dag_id": scheduler_dag.dag_id},
+        )
+
     @pytest.mark.parametrize(
         ("interval", "expect_deadline"),
         [

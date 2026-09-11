@@ -755,19 +755,29 @@ class SerializedDAG:
         )
         metrics_tags = prune_dict({"dag_id": self.dag_id, "team_name": team_name})
 
-        for deadline_alert in deadline_alert_records:
-            if not deadline_alert:
-                continue
+        # Read every value off the ORM up front. A failing alert can leave the session rolled back
+        # and its instances detached, so nothing after this point may touch ORM state -- otherwise
+        # the skip path raises DetachedInstanceError and takes the DagRun down anyway.
+        run_id = orm_dagrun.run_id
+        dagrun_id = orm_dagrun.id
+        dagrun_dag_id = orm_dagrun.dag_id
+        bundle_name = orm_dagrun.dag_model.bundle_name
+        stored_alerts = [
+            (alert.id, alert.reference, alert.interval, alert.callback_def)
+            for alert in deadline_alert_records
+            if alert
+        ]
 
+        for alert_id, alert_reference, alert_interval, alert_callback_def in stored_alerts:
             # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
             try:
                 deserialized_deadline_alert = decode_deadline_alert(
                     {
                         Encoding.TYPE: DAT.DEADLINE_ALERT,
                         Encoding.VAR: {
-                            DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                            DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                            DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+                            DeadlineAlertFields.REFERENCE: alert_reference,
+                            DeadlineAlertFields.INTERVAL: alert_interval,
+                            DeadlineAlertFields.CALLBACK: alert_callback_def,
                         },
                     }
                 )
@@ -783,7 +793,7 @@ class SerializedDAG:
                         interval=interval,
                         # TODO : Pretty sure we can drop these last two; verify after testing is complete
                         dag_id=self.dag_id,
-                        run_id=orm_dagrun.run_id,
+                        run_id=run_id,
                     )
 
                     if deadline_time is not None:
@@ -791,10 +801,10 @@ class SerializedDAG:
                             Deadline(
                                 deadline_time=deadline_time,
                                 callback=deserialized_deadline_alert.callback,
-                                dagrun_id=orm_dagrun.id,
-                                deadline_alert_id=deadline_alert.id,
-                                dag_id=orm_dagrun.dag_id,
-                                bundle_name=orm_dagrun.dag_model.bundle_name,
+                                dagrun_id=dagrun_id,
+                                deadline_alert_id=alert_id,
+                                dag_id=dagrun_dag_id,
+                                bundle_name=bundle_name,
                             )
                         )
                         stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
@@ -804,8 +814,8 @@ class SerializedDAG:
                         log.warning(
                             "skipping deadline alert because the deadline reference evaluated to None",
                             dag_id=self.dag_id,
-                            run_id=orm_dagrun.run_id,
-                            deadline_alert_id=deadline_alert.id,
+                            run_id=run_id,
+                            deadline_alert_id=alert_id,
                             reference_type=deserialized_deadline_alert.reference.reference_name,
                             required_dagrun_column=required_dagrun_column,
                         )
@@ -813,8 +823,8 @@ class SerializedDAG:
                 log.exception(
                     "skipping deadline alert because creating its deadline failed",
                     dag_id=self.dag_id,
-                    run_id=orm_dagrun.run_id,
-                    deadline_alert_id=deadline_alert.id,
+                    run_id=run_id,
+                    deadline_alert_id=alert_id,
                 )
                 stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
 
