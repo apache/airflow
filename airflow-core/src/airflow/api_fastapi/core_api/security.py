@@ -144,14 +144,15 @@ USER_INJECTED_BY_TRUSTED_MIDDLEWARE = object()
 
 async def get_user(
     request: Request,
-    oauth_token: str | None = Depends(oauth2_scheme),
+    # Kept for the OpenAPI security spec so ``/docs`` still renders the OAuth2 password
+    # login form. It resolves to the same ``Authorization: Bearer`` header
+    # ``bearer_scheme`` reads, so the value is unused at runtime.
+    _oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
     # An explicitly supplied credential always wins over the ambient session cookie.
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         return await resolve_user_from_token(bearer_credentials.credentials)
-    if oauth_token:
-        return await resolve_user_from_token(oauth_token)
 
     # No explicit credential on this request, so the cookie is the caller's identity.
     # A user might have been already built by a trusted in-tree middleware (currently
@@ -168,7 +169,6 @@ async def get_user(
 
 def collect_request_tokens(
     request: Request,
-    oauth_token: str | None,
     bearer_credentials: HTTPAuthorizationCredentials | None,
 ) -> list[str]:
     """
@@ -183,7 +183,6 @@ def collect_request_tokens(
     candidates: list[str | None] = []
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         candidates.append(bearer_credentials.credentials)
-    candidates.append(oauth_token)
     candidates.append(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
     tokens: list[str] = []
