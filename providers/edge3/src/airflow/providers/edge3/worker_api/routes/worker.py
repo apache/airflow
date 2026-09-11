@@ -75,8 +75,10 @@ def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> bool:
             minimum_acceptable_core_version_for_workers = conf.get(
                 "edge", "minimum_acceptable_core_version_for_workers", fallback=None
             )
-            if not minimum_acceptable_core_version_for_workers or _version(airflow_on_worker) < _version(
-                minimum_acceptable_core_version_for_workers
+            if (
+                not minimum_acceptable_core_version_for_workers
+                or _version(airflow_on_worker)
+                < Version(minimum_acceptable_core_version_for_workers).release[:3]
             ):
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,
@@ -95,8 +97,10 @@ def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> bool:
             minimum_acceptable_edge_version_for_workers = conf.get(
                 "edge", "minimum_acceptable_edge_version_for_workers", fallback=None
             )
-            if not minimum_acceptable_edge_version_for_workers or _version(provider_on_worker) < _version(
-                minimum_acceptable_edge_version_for_workers
+            if (
+                not minimum_acceptable_edge_version_for_workers
+                or _version(provider_on_worker)
+                < Version(minimum_acceptable_edge_version_for_workers).release[:3]
             ):
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST,
