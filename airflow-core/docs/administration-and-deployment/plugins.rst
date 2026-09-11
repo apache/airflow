@@ -229,6 +229,71 @@ definitions in Airflow.
     app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
+.. warning::
+
+    **Airflow does not authenticate plugin FastAPI apps. Authenticating them is the
+    plugin author's responsibility.**
+
+    Airflow authenticates the core API with authentication dependencies, declared at the
+    router level and, for some endpoints, per route. A plugin app is attached with
+    ``app.mount()``, and a Starlette mount has its own route table and inherits none of the
+    parent's dependencies, so those dependencies never reach a plugin's routes. No
+    middleware in the API server authenticates them either.
+
+    Every route a plugin exposes is therefore reachable by **anonymous callers** unless
+    the plugin authenticates it itself. The minimal ``app`` above is a structural
+    illustration, not a template to deploy as-is.
+
+    Depend on ``GetUserDep`` to require a caller Airflow has authenticated:
+
+    .. code-block:: python
+
+        from fastapi import FastAPI
+
+        from airflow.api_fastapi.core_api.security import GetUserDep
+
+        app = FastAPI()
+
+
+        @app.get("/dashboard")
+        def dashboard(user: GetUserDep):
+            return {"user": user.get_name()}
+
+    Prefer attaching the dependency once, at the application or router level, so that a
+    route added later does not silently ship unauthenticated:
+
+    .. code-block:: python
+
+        from fastapi import Depends, FastAPI
+
+        from airflow.api_fastapi.core_api.security import get_user
+
+        app = FastAPI(dependencies=[Depends(get_user)])
+
+    Authentication is not authorization. ``GetUserDep`` establishes *who* is calling;
+    whether that user may perform a given action remains the plugin's own decision. This
+    applies to team scoping too — in a multi-team deployment, a plugin that does not check
+    the caller's team serves every team's users the same data.
+
+    The core API's access helpers can enforce that decision for you. For example,
+    ``requires_access_dag`` restricts a route to callers allowed the requested action on a
+    Dag; it authenticates the caller and reads the ``dag_id`` from the request:
+
+    .. code-block:: python
+
+        from fastapi import Depends, FastAPI
+
+        from airflow.api_fastapi.core_api.security import requires_access_dag
+
+        app = FastAPI()
+
+
+        @app.get("/dags/{dag_id}", dependencies=[Depends(requires_access_dag(method="GET"))])
+        def dag_detail(dag_id: str):
+            return {"dag_id": dag_id}
+
+.. code-block:: python
+
     # Creating a FastAPI middleware that will operates on all the server api requests.
     middleware_with_metadata = {
         "middleware": TrustedHostMiddleware,
