@@ -7256,9 +7256,11 @@ class TestSchedulerJob:
         """
         Here we are going to create all the runs at the same time and see which
         ones are scheduled first.
-        On the first scheduler run, I expect that backfill runs would not be started
-        due to being outside the limit in the queued runs query.
-        """
+        I expect the dagruns to be set to running by the ordering, scheduling as
+        many dagruns as possible according to dagrun concurrency limits and
+        configuration query limits, this means that max backfill DR's should run
+        while also having the regular dagrun (non backfill) run with a higher priority
+         """
         dag1_dag_id = "test_dag1"
         with dag_maker(
             dag_id=dag1_dag_id,
@@ -7598,9 +7600,6 @@ class TestSchedulerJob:
         assert dag1_b_running == 3
 
         assert total_running == 14
-
-        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
-        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
         assert session.scalar(select(func.count()).select_from(DagRun)) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36

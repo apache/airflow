@@ -829,7 +829,6 @@ class DagRun(Base, LoggingMixin):
                         nulls_first(
                             cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session
                         ),
-                        nulls_first(running_drs.c.num_running, session=session),
                         DagRun.run_after,
                     ],
                 )
@@ -840,7 +839,7 @@ class DagRun(Base, LoggingMixin):
                 running_drs,
                 and_(
                     running_drs.c.dag_id == DagRun.dag_id,
-                    running_drs.c.backfill_id == DagRun.backfill_id,
+                    running_drs.c.backfill_id.is_not_distinct_from(DagRun.backfill_id),
                 ),
                 isouter=True,
             )
@@ -859,10 +858,7 @@ class DagRun(Base, LoggingMixin):
             select(cls)
             .join(
                 available_dagruns_rn,
-                and_(
-                    available_dagruns_rn.c.id == DagRun.id,
-                    available_dagruns_rn.c.dag_id == DagRun.dag_id,
-                ),
+                available_dagruns_rn.c.id == DagRun.id,
             )
             .join(
                 DagModel,
@@ -871,6 +867,13 @@ class DagRun(Base, LoggingMixin):
                     DagModel.is_paused == false(),
                     DagModel.is_stale == false(),
                 ),
+            )
+            .order_by(
+                nulls_first(
+                    cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session
+                ),
+                nulls_first(available_dagruns_rn.c.num_running, session=session),
+                DagRun.run_after,
             )
             .join(Backfill, isouter=True)
             .where(
