@@ -539,6 +539,14 @@ def extract_version_data(
     uri_schemes = collect_uri_schemes(
         provider_yaml, lambda module_path: git_show(tag, get_source_file_path(layout, dir_path, module_path))
     )
+    toolset_services = [
+        {
+            "module": entry.get("module", ""),
+            "services": entry.get("services", []),
+        }
+        for toolset in provider_yaml.get("toolsets", [])
+        for entry in toolset.get("external-services", [])
+    ]
 
     # Extract modules from source files
     modules = extract_modules_from_yaml(provider_yaml, tag, layout, dir_path, provider_id, version)
@@ -554,6 +562,7 @@ def extract_version_data(
             "optional_extras": pyproject_data["optional_extras"],
             "connection_types": connection_types,
             "uri_schemes": uri_schemes,
+            "toolset_services": toolset_services,
             "module_counts": module_counts,
             "modules": modules,
         }

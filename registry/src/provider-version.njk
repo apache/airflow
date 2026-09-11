@@ -19,6 +19,7 @@ eleventyComputed:
   {% set extras = pv.provider.optional_extras or {} %}
   {% set conns = pv.provider.connection_types or [] %}
   {% set uriSchemes = pv.provider.uri_schemes or [] %}
+  {% set toolsetServices = pv.provider.toolset_services or [] %}
   {% set providerModules = pv.modules %}
   {% set currentVersion = pv.provider.version %}
   {% set pythonVersion = pv.provider.requires_python %}
@@ -30,6 +31,7 @@ eleventyComputed:
   {% set extras = pv.versionData.optional_extras or {} %}
   {% set conns = pv.versionData.connection_types or [] %}
   {% set uriSchemes = pv.versionData.uri_schemes or [] %}
+  {% set toolsetServices = pv.versionData.toolset_services or [] %}
   {% set providerModules = pv.versionData.modules or [] %}
   {% set currentVersion = pv.version %}
   {% set pythonVersion = pv.versionData.requires_python %}
@@ -331,6 +333,33 @@ eleventyComputed:
       </div>
       {% endfor %}
     </dl>
+  </section>
+  {% endif %}
+
+  {% if toolsetServices.length > 0 %}
+  <section class="toolset-services-card card">
+    <h3>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+      </svg>
+      Toolsets ({{ toolsetServices.length }})
+    </h3>
+    <table class="conn-external-services-table">
+      <thead>
+        <tr class="conn-external-services-header">
+          <th>Toolset module</th>
+          <th>External services (examples)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in toolsetServices %}
+        <tr class="conn-external-services-row">
+          <td><code>{{ entry.module }}</code></td>
+          <td class="conn-external-services-list">{{ entry.services | join(", ") }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </section>
   {% endif %}
 

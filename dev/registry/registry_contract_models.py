@@ -87,6 +87,13 @@ class UriSchemeContract(BaseModel):
     )
 
 
+class ToolsetServicesContract(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    module: str
+    services: list[str] = Field(default_factory=list)
+
+
 class ProviderContract(BaseModel):
     """Top-level provider entry in providers.json."""
 
@@ -106,6 +113,7 @@ class ProviderContract(BaseModel):
     categories: list[CategoryContract] = Field(default_factory=list)
     connection_types: list[ConnectionTypeContract] = Field(default_factory=list)
     uri_schemes: list[UriSchemeContract] = Field(default_factory=list)
+    toolset_services: list[ToolsetServicesContract] = Field(default_factory=list)
     requires_python: str = ""
     dependencies: list[str] = Field(default_factory=list)
     optional_extras: dict[str, list[str]] = Field(default_factory=dict)
@@ -250,6 +258,7 @@ class ProviderVersionMetadataContract(BaseModel):
     optional_extras: dict[str, list[str]]
     connection_types: list[ConnectionTypeContract]
     uri_schemes: list[UriSchemeContract] = Field(default_factory=list)
+    toolset_services: list[ToolsetServicesContract] = Field(default_factory=list)
     module_counts: dict[str, int]
     modules: list[ModuleContract]
 
