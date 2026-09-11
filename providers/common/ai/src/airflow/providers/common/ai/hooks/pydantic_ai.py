@@ -27,7 +27,7 @@ from pydantic_ai.models import infer_model, parse_model_id
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHook
 
 OutputT = TypeVar("OutputT")
 
@@ -308,7 +308,12 @@ class PydanticAIHook(BaseHook):
         if self.model_id:
             return self.get_conn()
 
-        conn = self._get_cached_connection(self.llm_conn_id)
+        try:
+            conn = self._get_cached_connection(self.llm_conn_id)
+        except AirflowNotFoundException:
+            if self.llm_conn_id == self.default_conn_name and self.embed_conn_id != self.llm_conn_id:
+                return None
+            raise
         if conn.extra_dejson.get("model"):
             return self.get_conn()
 
