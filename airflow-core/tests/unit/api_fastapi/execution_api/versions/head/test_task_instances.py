@@ -163,6 +163,14 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
 
 class TestTIRunState:
+    RUN_PAYLOAD = {
+        "state": "running",
+        "hostname": "random-hostname",
+        "unixname": "random-unixname",
+        "pid": 100,
+        "start_date": "2024-10-31T12:00:00Z",
+    }
+
     def setup_method(self):
         clear_db_logs()
         clear_db_runs()
