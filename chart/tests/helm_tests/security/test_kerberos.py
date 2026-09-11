@@ -77,34 +77,60 @@ class TestKerberos:
             jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
         )
 
-    def test_kerberos_init_and_sidecar_coexistence(self):
+    @pytest.mark.parametrize(
+        ("init_enabled", "sidecar_enabled", "probe_enabled", "expected_names"),
+        [
+            (False, False, True, []),
+            (True, False, True, ["kerberos-init"]),
+            (False, True, True, ["worker-kerberos"]),
+            (True, True, True, ["worker-kerberos"]),
+            (False, True, False, ["worker-kerberos"]),
+            (True, True, False, ["kerberos-init", "worker-kerberos"]),
+        ],
+    )
+    def test_kerberos_initialization(self, init_enabled, sidecar_enabled, probe_enabled, expected_names):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
                     "celery": {
-                        "kerberosInitContainer": {"enabled": True},
-                        "kerberosSidecar": {"enabled": True},
+                        "persistence": {"enabled": True, "fixPermissions": True},
+                        "kerberosInitContainer": {"enabled": init_enabled},
+                        "kerberosSidecar": {
+                            "enabled": sidecar_enabled,
+                            "startupProbe": {"enabled": probe_enabled},
+                        },
+                        "extraInitContainers": [{"name": "custom-init", "image": "custom-image"}],
                     }
                 },
+                "dags": {"gitSync": {"enabled": True}},
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        init_containers = jmespath.search("spec.template.spec.initContainers", docs[0])
-        init_names = [c["name"] for c in init_containers]
-        assert "kerberos-init" in init_names
-        assert "worker-kerberos" in init_names
-        assert init_names.index("kerberos-init") < init_names.index("worker-kerberos")
-        assert init_containers[-1]["name"] == "worker-kerberos"
-
-        kerberos_init = jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0]
-        )
-        worker_kerberos = jmespath.search(
-            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
-        )
-        assert "restartPolicy" not in kerberos_init
-        assert worker_kerberos.get("restartPolicy") == "Always"
+        assert jmespath.search("spec.template.spec.initContainers[].name", docs[0]) == [
+            "volume-permissions",
+            *expected_names,
+            "wait-for-airflow-migrations",
+            "git-sync-init",
+            "custom-init",
+        ]
+        if "kerberos-init" in expected_names:
+            assert jmespath.search(
+                "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].args", docs[0]
+            ) == ["kerberos", "-o"]
+            assert (
+                jmespath.search(
+                    "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].restartPolicy", docs[0]
+                )
+                is None
+            )
+        if sidecar_enabled:
+            sidecar = jmespath.search(
+                "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+            )
+            assert sidecar["args"] == ["kerberos"]
+            assert sidecar["restartPolicy"] == "Always"
+            assert ("startupProbe" in sidecar) == probe_enabled
 
     def test_kerberos_sidecar_resources(self):
         docs = render_chart(

@@ -1577,6 +1577,35 @@ class TestWorkerSets:
             jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
         )
 
+    @pytest.mark.parametrize(
+        ("worker_set", "expected_names"),
+        [
+            ({"kerberosSidecar": {"enabled": False}}, ["kerberos-init"]),
+            (
+                {"kerberosSidecar": {"startupProbe": {"enabled": False}}},
+                ["kerberos-init", "worker-kerberos"],
+            ),
+            ({"kerberosInitContainer": {"enabled": False}}, ["worker-kerberos"]),
+        ],
+    )
+    def test_kerberos_initialization_overrides(self, worker_set, expected_names):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "kerberosInitContainer": {"enabled": True},
+                        "kerberosSidecar": {"enabled": True},
+                        "sets": [{"name": "test", **worker_set}],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        query = "spec.template.spec.initContainers[?name=='kerberos-init' || name=='worker-kerberos'].name"
+        assert jmespath.search(query, docs[0]) == ["worker-kerberos"]
+        assert jmespath.search(query, docs[1]) == expected_names
+
     def test_overwrite_kerberos_sidecar_disable(self):
         docs = render_chart(
             values={
