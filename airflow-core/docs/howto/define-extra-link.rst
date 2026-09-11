@@ -63,6 +63,20 @@ The following code shows how to add extra links to an operator via Plugins:
 The extra links defined via custom Airflow Provider or Airflow operators will be pushed as an xcom to the XCom table in
 metadata DB during task execution. During display in the grid view, this xcom is retrieved and displayed.
 
+.. note::
+
+    If your operator link always points to the same, constant URL — for example a link to
+    documentation — you can set the ``static_url`` attribute instead of implementing
+    :meth:`~airflow.sdk.BaseOperatorLink.get_link`. A static link is resolved directly at
+    render time and is **not** written to XCom, which avoids an unnecessary metadata-DB
+    write on every task run:
+
+    .. code-block:: python
+
+        class DocsLink(BaseOperatorLink):
+            name = "Docs"
+            static_url = "https://airflow.apache.org/docs/"
+
 You can also add a global operator extra link that will be available to
 all the operators through an Airflow plugin or through Airflow providers. You can learn more about it in the
 :ref:`plugin interface <plugins-interface>` and in :doc:`apache-airflow-providers:index`.
