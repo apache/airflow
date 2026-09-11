@@ -81,7 +81,9 @@ class IterableOperator(BaseOperator):
     executed again. Every sub-task inherits its ``try_number`` from the IterableOperator's own task
     instance, so the attempt count reported to a sub-task matches the attempt Airflow is currently
     running. The checkpoint is only consulted from the second attempt onwards, and solely to decide
-    whether an index already succeeded.
+    whether an index already succeeded. Once every index has succeeded, all checkpoints are dropped
+    so that a *subsequent* manual clear (which does not reset ``try_number``) re-runs every index
+    from scratch instead of replaying the previous run's stale results.
 
     :param operator: The :class:`MappedOperator` to unmap and execute for
         each element of ``expand_input``. Each indexed runtime receives a
@@ -360,6 +362,11 @@ class IterableOperator(BaseOperator):
             if len(exceptions) == total and all(isinstance(exc, AirflowSkipException) for exc in exceptions):
                 raise exceptions[0]
             raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
+        # Every index succeeded: drop the checkpoints. A manual clear does not reset try_number
+        # (models.taskinstance.clear_task_instances only raises max_tries), so leaving these behind
+        # would make the next attempt's try_number > 1, causing _run_task to treat every index as
+        # already-succeeded and replay stale results instead of re-running anything.
+        context["task_state_store"].clear()
         if do_xcom_push:
             return XComIterable(
                 task_id=self.task_id,

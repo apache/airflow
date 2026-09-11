@@ -30,7 +30,7 @@ except NameError:
 
 import pytest
 
-from airflow.sdk import DAG, BaseAsyncOperator, BaseOperator, BaseXCom, get_current_context
+from airflow.sdk import DAG, BaseAsyncOperator, BaseOperator, BaseXCom, TaskInstanceState, get_current_context
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
@@ -43,6 +43,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
+from airflow.sdk.execution_time.task_runner import IndexedTaskState
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context as _mock_context_base
@@ -57,7 +58,8 @@ if TYPE_CHECKING:
 class MockTaskStateStoreAccessor:
     """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
     ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint per-index sub-task
-    progress (see ``IterableOperator._run_task``)."""
+    progress (see ``IterableOperator._run_task``), plus ``clear`` used to drop all checkpoints
+    once every sub-task has succeeded (see ``IterableOperator._run_tasks``)."""
 
     def __init__(self):
         self._data: dict[str, Any] = {}
@@ -67,6 +69,9 @@ class MockTaskStateStoreAccessor:
 
     async def aset(self, key: str, value: Any, **kwargs) -> None:
         self._data[key] = value
+
+    def clear(self) -> None:
+        self._data.clear()
 
     def __contains__(self, key: str) -> bool:
         return key in self._data
@@ -420,6 +425,28 @@ class TestIterableOperator:
             materialized = list(result)
             assert materialized == [(1, None, None), (2, None, None)]
 
+    def test_execute_clears_checkpoints_once_every_index_succeeds(self, mock_xcom_get_one):
+        """
+        Regression test: once every sub-task index has succeeded, ``_run_tasks`` must drop all
+        per-index checkpoints from the task_state_store. A manual clear does not reset the parent
+        TI's ``try_number`` (see ``clear_task_instances``), so leftover ``SUCCESS`` checkpoints would
+        make the next attempt skip every index and replay the previous run's stale XCom results
+        instead of actually re-running anything.
+        """
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_clears_checkpoints")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+            store = context["task_state_store"]
+            # Simulate leftover checkpoints from a previous run.
+            store._data["stale_key"] = {"status": "success"}
+
+            list(iterable_op.execute(context=context))
+
+            assert store._data == {}
+
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self, mock_xcom_get_one):
         """
         Regression test: unmapping a sub-task must not mutate the parent context's own `ti`.
@@ -671,12 +698,14 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_skip")
 
             context = mock_context(task=iterable_op)
-            await context["task_state_store"].aset(
-                iterable_op._checkpoint_key(0), {"status": "succeeded", "try_number": 2}
-            )
             jinja_env = iterable_op.get_template_env(dag=dag)
             task = iterable_op._create_task(
                 context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
+            )
+            task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
+            await context["task_state_store"].aset(
+                task.xcom_key,
+                IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=2).serialize(),
             )
 
             executor = mock.MagicMock()
@@ -687,11 +716,12 @@ class TestIterableOperator:
             executor.run_sync.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_run_task_restores_try_number_from_pending_checkpoint(self, mock_xcom_get_one):
+    async def test_run_task_reruns_and_checkpoints_success_after_up_for_retry_state(self, mock_xcom_get_one):
         """
-        A sub-task with a 'pending' checkpoint (e.g. left behind by a previous failed or crashed
-        attempt) restores its ``try_number`` from the checkpoint before re-executing, and records a
-        'succeeded' checkpoint once it completes.
+        A sub-task whose checkpoint records ``UP_FOR_RETRY`` (left behind by a previous failed or
+        crashed attempt) is re-executed rather than skipped — only a ``SUCCESS`` checkpoint causes
+        ``_run_task`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
+        stored once it completes.
         """
         from airflow.sdk.bases.operator import event_loop
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
@@ -702,14 +732,15 @@ class TestIterableOperator:
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
-            await context["task_state_store"].aset(
-                iterable_op._checkpoint_key(0), {"status": "pending", "try_number": 2}
-            )
             jinja_env = iterable_op.get_template_env(dag=dag)
             task = iterable_op._create_task(
                 context=context, index=0, mapped_kwargs={"arg1": 1, "arg2": 10}, jinja_env=jinja_env
             )
-            assert task.try_number == 0
+            task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
+            await context["task_state_store"].aset(
+                task.xcom_key,
+                IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY, try_number=2).serialize(),
+            )
 
             with event_loop() as loop:
                 with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
@@ -717,11 +748,12 @@ class TestIterableOperator:
 
         assert raised is None
         assert result == (1, 10, None)
-        assert result_task.try_number == 2  # restored from the checkpoint, not reset to 0
+        assert result_task.try_number == 2  # try_number is inherited from the parent TI, never mutated
         store = context["task_state_store"]
-        checkpoint_key = iterable_op._checkpoint_key(0)
-        assert checkpoint_key in store
-        assert store[checkpoint_key] == {"status": "succeeded", "try_number": 2}
+        assert (
+            store[task.xcom_key]
+            == IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=2, result=result).serialize()
+        )
 
     def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self):
         """IterableOperator.execution_timeout is None (not propagated to the outer TI);
