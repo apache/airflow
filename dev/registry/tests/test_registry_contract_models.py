@@ -22,6 +22,7 @@ import pytest
 from pydantic import ValidationError
 from registry_contract_models import (
     ConnectionTypeContract,
+    ToolsetServicesContract,
     build_openapi_document,
     validate_modules_catalog,
     validate_provider_parameters,
@@ -117,6 +118,18 @@ def test_connection_type_contract_round_trips_external_services():
         }
     )
     assert validated.external_services == ["openai", "anthropic"]
+
+
+def test_toolset_services_contract_defaults_services_to_empty_list():
+    validated = ToolsetServicesContract.model_validate({"module": "airflow.providers.test.toolsets.hook"})
+    assert validated.services == []
+
+
+def test_toolset_services_contract_rejects_unknown_fields():
+    with pytest.raises(ValidationError):
+        ToolsetServicesContract.model_validate(
+            {"module": "airflow.providers.test.toolsets.hook", "services": [], "unexpected": "x"}
+        )
 
 
 def test_validate_version_metadata_accepts_legacy_version_modules_without_ids():

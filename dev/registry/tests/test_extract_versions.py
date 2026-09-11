@@ -210,3 +210,45 @@ class TestExtractVersionDataConnectionTypes:
 
         assert result is not None
         assert result["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestExtractVersionDataToolsetServices:
+    """Same drift-guard as `TestExtractVersionDataConnectionTypes`, for
+    `toolsets.external-services` -- this is the touchpoint memory
+    `reference_registry_connection_field_touchpoints` names as most-missed: skip it and the
+    toolsets table silently disappears once a version is no longer `pv.isLatest`.
+    """
+
+    PROVIDER_YAML = textwrap.dedent("""\
+        name: Test Provider
+        toolsets:
+          - integration-name: Test Provider
+            python-modules:
+              - airflow.providers.test.toolsets.hook
+            external-services:
+              - module: airflow.providers.test.toolsets.hook
+                services:
+                  - Any Airflow connection, through its provider hook
+        """)
+
+    @patch("extract_versions.extract_modules_from_yaml", autospec=True, return_value=[])
+    @patch("extract_versions.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_versions.git_show", autospec=True)
+    @patch("extract_versions.detect_layout", autospec=True, return_value="new")
+    @patch("extract_versions.git_tag_exists", autospec=True, return_value=True)
+    def test_toolset_external_services_propagates_to_version_metadata(
+        self, _tag_exists, _layout, mock_git_show, _inventory, _modules
+    ):
+        mock_git_show.side_effect = lambda tag, path: (
+            self.PROVIDER_YAML if path.endswith("provider.yaml") else None
+        )
+
+        result = extract_version_data("test", "1.0.0", "test")
+
+        assert result is not None
+        assert result["toolset_services"] == [
+            {
+                "module": "airflow.providers.test.toolsets.hook",
+                "services": ["Any Airflow connection, through its provider hook"],
+            }
+        ]
