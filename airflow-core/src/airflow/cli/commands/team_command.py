@@ -44,8 +44,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-NO_TEAMS_LIST_MSG = "No teams found."
-
 
 def _show_teams(teams, output):
     """Display teams in the specified output format."""
@@ -206,10 +204,7 @@ def team_delete(args, *, session=NEW_SESSION):
 def team_list(args, *, session=NEW_SESSION):
     """List all teams."""
     teams = session.scalars(select(Team).order_by(Team.name)).all()
-    if not teams:
-        print(NO_TEAMS_LIST_MSG)
-    else:
-        _show_teams(teams=teams, output=args.output)
+    _show_teams(teams=teams, output=args.output)
 
 
 @cli_utils.action_cli
