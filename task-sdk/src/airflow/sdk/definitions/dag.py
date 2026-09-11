@@ -147,7 +147,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     if interval == "@continuous":
         return ContinuousTimetable()
     if isinstance(interval, timedelta | relativedelta):
-        if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
+        if airflow_conf.getboolean("scheduler", "create_delta_data_intervals"):
             return DeltaDataIntervalTimetable(interval)
         return DeltaTriggerTimetable(interval)
     if isinstance(interval, str):
