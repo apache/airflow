@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, reconstructor
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
@@ -147,6 +147,12 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
     schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
     login: Mapped[str | None] = mapped_column(Text(), nullable=True)
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+
+    @validates("port")
+    def _validate_port(self, key, port):
+        if port is not None and not (0 <= port <= 65535):
+            raise ValueError(f"Invalid port number: {port}. Port must be between 0 and 65535.")
+        return port
     team_name: Mapped[str | None] = mapped_column(
         String(50),
         ForeignKey("team.name", ondelete="SET NULL"),
