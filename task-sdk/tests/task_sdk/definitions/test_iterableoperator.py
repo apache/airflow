@@ -191,65 +191,62 @@ def mock_xcom_get_one(monkeypatch: pytest.MonkeyPatch):
     return _mock_xcom
 
 
+def create_mapped_operator(
+    dag: DAG,
+    expand_input: ExpandInput,
+    task_id: str = "my_task",
+    retries: int = DEFAULT_RETRIES,
+    do_xcom_push: bool = True,
+    task_concurrency: int | None = None,
+    execution_timeout: timedelta | None = None,
+) -> MappedOperator:
+    """
+    Create a MappedOperator and assign it to a DAG.
+
+    :param expand_input: The input to expand
+    :param dag: The DAG to assign the operator to
+    :param task_id: Task ID for the operator
+    :param do_xcom_push: Whether to push XCom (default True)
+    """
+    return MockOperator.partial(
+        task_id=task_id,
+        dag=dag,
+        retries=retries,
+        task_concurrency=task_concurrency,
+        do_xcom_push=do_xcom_push,
+        execution_timeout=execution_timeout,
+    )._expand(
+        expand_input,
+        strict=True,
+        register_with_dag=False,
+    )
+
+
+def create_iterable_operator(
+    dag: DAG,
+    expand_input: ExpandInput,
+    task_id: str = "my_task",
+    task_concurrency: int | None = None,
+    retries: int = DEFAULT_RETRIES,
+    do_xcom_push: bool = True,
+) -> IterableOperator:
+    """Create an IterableOperator with a MappedOperator and ExpandInput."""
+    mapped_op = create_mapped_operator(
+        dag=dag,
+        expand_input=expand_input,
+        task_id=task_id,
+        retries=retries,
+        do_xcom_push=do_xcom_push,
+        task_concurrency=task_concurrency,
+    )
+    return IterableOperator(
+        operator=mapped_op,
+        expand_input=expand_input,
+        dag=dag,
+    )
+
+
 class TestIterableOperator:
-    @classmethod
-    def create_mapped_operator(
-        cls,
-        dag: DAG,
-        expand_input: ExpandInput,
-        task_id: str = "my_task",
-        retries: int = DEFAULT_RETRIES,
-        do_xcom_push: bool = True,
-        task_concurrency: int | None = None,
-        execution_timeout: timedelta | None = None,
-    ) -> MappedOperator:
-        """
-        Create a MappedOperator and assign it to a DAG.
-
-        :param expand_input: The input to expand
-        :param dag: The DAG to assign the operator to
-        :param task_id: Task ID for the operator
-        :param do_xcom_push: Whether to push XCom (default True)
-        """
-        return MockOperator.partial(
-            task_id=task_id,
-            dag=dag,
-            retries=retries,
-            task_concurrency=task_concurrency,
-            do_xcom_push=do_xcom_push,
-            execution_timeout=execution_timeout,
-        )._expand(
-            expand_input,
-            strict=True,
-            register_with_dag=False,
-        )
-
-    @classmethod
-    def create_iterable_operator(
-        cls,
-        dag: DAG,
-        expand_input: ExpandInput,
-        task_id: str = "my_task",
-        task_concurrency: int | None = None,
-        retries: int = DEFAULT_RETRIES,
-        do_xcom_push: bool = True,
-    ) -> IterableOperator:
-        """Create an IterableOperator with a MappedOperator and ExpandInput."""
-        mapped_op = cls.create_mapped_operator(
-            dag=dag,
-            expand_input=expand_input,
-            task_id=task_id,
-            retries=retries,
-            do_xcom_push=do_xcom_push,
-            task_concurrency=task_concurrency,
-        )
-        return IterableOperator(
-            operator=mapped_op,
-            expand_input=expand_input,
-            dag=dag,
-        )
-
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("actual", "expected"),
         [
@@ -258,29 +255,27 @@ class TestIterableOperator:
             ([], []),
         ],
     )
-    def test_list_of_dicts_expand_input_iter_values(self, dag_maker, session, actual, expected):
+    def test_list_of_dicts_expand_input_iter_values(self, actual, expected):
         """Test IterableOperator with ListOfDictsExpandInput expand_input."""
         if not actual:
             pytest.skip("Empty list case tested separately")
 
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(actual)
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
             result = list(iterable_op.expand_input.iter_values({}))
             assert result == expected
 
-    @pytest.mark.db_test
-    def test_list_of_dicts_empty(self, dag_maker, session):
+    def test_list_of_dicts_empty(self):
         """Test IterableOperator with empty list."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([])
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
             result = list(iterable_op.expand_input.iter_values({}))
             assert result == []
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("actual", "expected"),
         [
@@ -294,71 +289,65 @@ class TestIterableOperator:
             ({"a": [1, 2]}, [{"a": 1}, {"a": 2}]),
         ],
     )
-    def test_dict_of_lists_expand_input_iter_values(self, dag_maker, session, actual, expected):
+    def test_dict_of_lists_expand_input_iter_values(self, actual, expected):
         """Test IterableOperator with DictOfListsExpandInput expand_input."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = DictOfListsExpandInput(actual)
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
             result = list(iterable_op.expand_input.iter_values({}))
             assert result == expected
 
-    @pytest.mark.db_test
-    def test_task_type(self, dag_maker, session):
+    def test_task_type(self):
         """Test that IterableOperator correctly reports task_type."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
             assert isinstance(iterable_op, IterableOperator)
             assert iterable_op.task_type == "MappedOperator"
 
-    @pytest.mark.db_test
-    def test_task_retries(self, dag_maker, session):
+    def test_task_retries(self):
         """Test that IterableOperator inherits retries from the wrapped operator, since
         the whole IterableOperator is now retried via Airflow's standard retry mechanism."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, retries=3)
+            iterable_op = create_iterable_operator(dag, expand_input, retries=3)
 
             assert isinstance(iterable_op, IterableOperator)
             assert iterable_op.retries == 3
             assert iterable_op.task_retries == 3
 
-    @pytest.mark.db_test
-    def test_task_id(self, dag_maker, session):
+    def test_task_id(self):
         """Test that IterableOperator inherits task_id from operator."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             task_id = "my_task"
             expand_input = ListOfDictsExpandInput([{"a": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id=task_id)
+            iterable_op = create_iterable_operator(dag, expand_input, task_id=task_id)
 
             assert iterable_op.task_id == task_id
 
-    @pytest.mark.db_test
-    def test_with_task_concurrency(self, dag_maker, session):
+    def test_with_task_concurrency(self):
         """Test that IterableOperator respects task_concurrency parameter."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_concurrency=4)
+            iterable_op = create_iterable_operator(dag, expand_input, task_concurrency=4)
 
             assert iterable_op.max_workers == 4
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize("invalid_value", [0, -1, -10])
-    def test_task_concurrency_validation_rejects_non_positive_values(self, dag_maker, session, invalid_value):
+    def test_task_concurrency_validation_rejects_non_positive_values(self, invalid_value):
         """Test that IterableOperator raises ValueError for task_concurrency < 1."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             with pytest.raises(ValueError, match=f"task_concurrency must be at least 1, got {invalid_value}"):
-                self.create_iterable_operator(dag, expand_input, task_concurrency=invalid_value)
+                create_iterable_operator(dag, expand_input, task_concurrency=invalid_value)
 
-    @pytest.mark.db_test
-    def test_partial_kwargs_not_mutated(self, dag_maker, session):
+    def test_partial_kwargs_not_mutated(self):
         """Test that creating IterableOperator does not mutate the original MappedOperator's partial_kwargs."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
-            mapped_op = self.create_mapped_operator(dag, expand_input, task_concurrency=4)
+            mapped_op = create_mapped_operator(dag, expand_input, task_concurrency=4)
             original_partial_kwargs = mapped_op.partial_kwargs.copy()
 
             IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
@@ -367,34 +356,31 @@ class TestIterableOperator:
             assert mapped_op.partial_kwargs == original_partial_kwargs
             assert "task_concurrency" in mapped_op.partial_kwargs
 
-    @pytest.mark.db_test
-    def test_expand_input_stored(self, dag_maker, session):
+    def test_expand_input_stored(self):
         """Test that IterableOperator stores expand_input correctly."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input_data = ListOfDictsExpandInput([{"a": 1}, {"a": 2}])
-            iterable_op = self.create_iterable_operator(dag, expand_input_data)
+            iterable_op = create_iterable_operator(dag, expand_input_data)
 
             assert iterable_op.expand_input is expand_input_data
             assert isinstance(iterable_op.expand_input, (ListOfDictsExpandInput, DictOfListsExpandInput))
 
-    @pytest.mark.db_test
-    def test_partial_kwargs_stored(self, dag_maker, session):
+    def test_partial_kwargs_stored(self):
         """Test that IterableOperator stores partial_kwargs from operator."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
             assert hasattr(iterable_op, "partial_kwargs")
             assert isinstance(iterable_op.partial_kwargs, dict)
 
-    @pytest.mark.db_test
-    def test_xcom_push_delegates_to_task_when_not_pushed(self, dag_maker, session):
+    def test_xcom_push_delegates_to_task_when_not_pushed(self):
         """_xcom_push delegates to task.xcom_push only when xcom_pushed is False."""
         from unittest import mock
 
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
         task = mock.MagicMock()
         task.xcom_pushed = False
@@ -405,14 +391,13 @@ class TestIterableOperator:
 
         task.xcom_push.assert_called_once_with(key=BaseXCom.XCOM_RETURN_KEY, value="result_value")
 
-    @pytest.mark.db_test
-    def test_xcom_push_skips_when_already_pushed(self, dag_maker, session):
+    def test_xcom_push_skips_when_already_pushed(self):
         """_xcom_push skips pushing when xcom_pushed is already True."""
         from unittest import mock
 
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
-            iterable_op = self.create_iterable_operator(dag, expand_input)
+            iterable_op = create_iterable_operator(dag, expand_input)
 
         task = mock.MagicMock()
         task.xcom_pushed = True
@@ -423,12 +408,11 @@ class TestIterableOperator:
 
         task.xcom_push.assert_not_called()
 
-    @pytest.mark.db_test
-    def test_execute_list_of_dicts(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_list_of_dicts(self, mock_xcom_get_one):
         """Test executing IterableOperator with ListOfDictsExpandInput."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_list_of_dicts")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_list_of_dicts")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -436,10 +420,7 @@ class TestIterableOperator:
             materialized = list(result)
             assert materialized == [(1, None, None), (2, None, None)]
 
-    @pytest.mark.db_test
-    def test_execute_does_not_leak_unmapped_operator_into_parent_context(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
+    def test_execute_does_not_leak_unmapped_operator_into_parent_context(self, mock_xcom_get_one):
         """
         Regression test: unmapping a sub-task must not mutate the parent context's own `ti`.
 
@@ -450,9 +431,9 @@ class TestIterableOperator:
         whichever sub-task was unmapped last, corrupting anything the runner reads off `ti.task`
         after `execute()` returns (e.g. `do_xcom_push`/`multiple_outputs` in `_push_xcom_if_needed`).
         """
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_no_leak")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_no_leak")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -462,12 +443,11 @@ class TestIterableOperator:
             assert context["ti"].task is iterable_op
             assert context["task"] is iterable_op
 
-    @pytest.mark.db_test
-    def test_execute_dict_of_lists(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_dict_of_lists(self, mock_xcom_get_one):
         """Test executing IterableOperator with DictOfListsExpandInput."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = DictOfListsExpandInput({"arg1": [1, 2, 3]})
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_dict_of_lists")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_dict_of_lists")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -475,12 +455,11 @@ class TestIterableOperator:
             materialized = list(result)
             assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
 
-    @pytest.mark.db_test
-    def test_execute_empty_list_of_dicts(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_empty_list_of_dicts(self, mock_xcom_get_one):
         """Test executing IterableOperator with empty ListOfDictsExpandInput."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_empty")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_empty")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -488,12 +467,11 @@ class TestIterableOperator:
             materialized = list(result)
             assert materialized == []
 
-    @pytest.mark.db_test
-    def test_execute_multiple_key_dict_of_lists(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_multiple_key_dict_of_lists(self, mock_xcom_get_one):
         """Test executing IterableOperator with multiple keys in DictOfListsExpandInput."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = DictOfListsExpandInput({"arg1": [1, 2], "arg2": [10, 20], "arg3": ["x", "y"]})
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_multi_key")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_multi_key")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -513,12 +491,11 @@ class TestIterableOperator:
                 (2, 20, "y"),
             ]
 
-    @pytest.mark.db_test
-    def test_execute_with_task_concurrency_setting(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_with_task_concurrency_setting(self, mock_xcom_get_one):
         """Test executing IterableOperator with task_concurrency parameter."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}, {"arg1": 3}])
-            iterable_op = self.create_iterable_operator(
+            iterable_op = create_iterable_operator(
                 dag, expand_input, task_id="exec_concurrency", task_concurrency=2
             )
 
@@ -529,17 +506,16 @@ class TestIterableOperator:
             assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
             assert iterable_op.max_workers == 2
 
-    @pytest.mark.db_test
-    def test_execute_all_parameters(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_all_parameters(self, mock_xcom_get_one):
         """Test executing IterableOperator with all arg1, arg2, arg3 parameters."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [
                     {"arg1": 1, "arg2": 10, "arg3": 100},
                     {"arg1": 2, "arg2": 20, "arg3": 200},
                 ]
             )
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="exec_all_args")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="exec_all_args")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -547,12 +523,11 @@ class TestIterableOperator:
             materialized = list(result)
             assert materialized == [(1, 10, 100), (2, 20, 200)]
 
-    @pytest.mark.db_test
-    def test_execute_with_do_xcom_push_false(self, dag_maker, session):
+    def test_execute_with_do_xcom_push_false(self):
         """Test executing IterableOperator when do_xcom_push is False."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
-            iterable_op = self.create_iterable_operator(
+            iterable_op = create_iterable_operator(
                 dag, expand_input, task_id="no_xcom_push", do_xcom_push=False
             )
 
@@ -561,10 +536,7 @@ class TestIterableOperator:
 
             assert result is None
 
-    @pytest.mark.db_test
-    def test_execute_with_failed_tasks_raises_regardless_of_retries(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
+    def test_execute_with_failed_tasks_raises_regardless_of_retries(self, mock_xcom_get_one):
         """
         Test executing IterableOperator where a sub-task fails.
 
@@ -575,7 +547,7 @@ class TestIterableOperator:
         3. The BaseExceptionGroup is raised containing the task failure, regardless of whether the
            wrapped operator has retries configured
         """
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [
                     {"arg1": 1, "arg2": 10},
@@ -583,7 +555,7 @@ class TestIterableOperator:
                     {"arg1": 3, "arg2": 30},
                 ]
             )
-            iterable_op = self.create_iterable_operator(
+            iterable_op = create_iterable_operator(
                 dag,
                 expand_input,
                 task_id="exec_with_failures",
@@ -595,20 +567,17 @@ class TestIterableOperator:
             with pytest.raises(BaseExceptionGroup):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_execute_all_sub_tasks_skipped_raises_single_skip_exception(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
+    def test_execute_all_sub_tasks_skipped_raises_single_skip_exception(self, mock_xcom_get_one):
         """When every sub-task raises AirflowSkipException, IterableOperator must re-raise a single
         AirflowSkipException so the runner marks it SKIPPED instead of a retryable failure."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [
                     {"raise_exception": AirflowSkipException("skip 1")},
                     {"raise_exception": AirflowSkipException("skip 2")},
                 ]
             )
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="all_skipped")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="all_skipped")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -616,18 +585,17 @@ class TestIterableOperator:
             with pytest.raises(AirflowSkipException):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_execute_partial_skip_still_raises_exception_group(self, dag_maker, session, mock_xcom_get_one):
+    def test_execute_partial_skip_still_raises_exception_group(self, mock_xcom_get_one):
         """A partial skip (not every sub-task skipped) is not special-cased and is still aggregated
         into a BaseExceptionGroup, since only some sub-tasks raised AirflowSkipException."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [
                     {"raise_exception": AirflowSkipException("skip 1")},
                     {"raise_exception": RuntimeError("boom")},
                 ]
             )
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="partial_skip")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="partial_skip")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -635,22 +603,17 @@ class TestIterableOperator:
             with pytest.raises(BaseExceptionGroup):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_execute_fail_exception_re_raised_directly_without_retry(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
+    def test_execute_fail_exception_re_raised_directly_without_retry(self, mock_xcom_get_one):
         """A sub-task that raises AirflowFailException must be re-raised directly (not wrapped in a
         BaseExceptionGroup) so the IterableOperator fails without being retried."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [
                     {"arg1": 1},
                     {"raise_exception": AirflowFailException("boom")},
                 ]
             )
-            iterable_op = self.create_iterable_operator(
-                dag, expand_input, task_id="fail_exception", retries=3
-            )
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="fail_exception", retries=3)
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -658,7 +621,6 @@ class TestIterableOperator:
             with pytest.raises(AirflowFailException, match="boom"):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "raised_exception",
         [
@@ -679,15 +641,15 @@ class TestIterableOperator:
         ids=["DagRunTriggerException", "DownstreamTasksSkipped"],
     )
     def test_execute_rejects_trigger_and_downstream_skip_exceptions(
-        self, dag_maker, session, mock_xcom_get_one, raised_exception
+        self, mock_xcom_get_one, raised_exception
     ):
         """TriggerDagRunOperator (DagRunTriggerException) and downstream-skip operators like
         ShortCircuitOperator (DownstreamTasksSkipped) are not supported inside IterableOperator: a
         sub-task index has no DAG run or downstream tasks of its own for the trigger/skip to apply
         to, so this must fail the whole IterableOperator immediately with a clear error."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"raise_exception": raised_exception}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="unsupported_exception")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="unsupported_exception")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -695,9 +657,8 @@ class TestIterableOperator:
             with pytest.raises(AirflowFailException, match="not supported inside IterableOperator"):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_run_task_skips_sub_task_already_checkpointed_as_succeeded(self, dag_maker, session):
+    async def test_run_task_skips_sub_task_already_checkpointed_as_succeeded(self):
         """
         When the task_state_store already records a sub-task index as succeeded (e.g. because
         Airflow retried the whole IterableOperator after a previous partial failure), ``_run_task``
@@ -705,9 +666,9 @@ class TestIterableOperator:
         """
         from unittest import mock
 
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1, "arg2": 10}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="checkpoint_skip")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_skip")
 
             context = mock_context(task=iterable_op)
             await context["task_state_store"].aset(
@@ -725,11 +686,8 @@ class TestIterableOperator:
             assert raised is None
             executor.run_sync.assert_not_called()
 
-    @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_run_task_restores_try_number_from_pending_checkpoint(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
+    async def test_run_task_restores_try_number_from_pending_checkpoint(self, mock_xcom_get_one):
         """
         A sub-task with a 'pending' checkpoint (e.g. left behind by a previous failed or crashed
         attempt) restores its ``try_number`` from the checkpoint before re-executing, and records a
@@ -738,9 +696,9 @@ class TestIterableOperator:
         from airflow.sdk.bases.operator import event_loop
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1, "arg2": 10}])
-            iterable_op = self.create_iterable_operator(dag, expand_input, task_id="checkpoint_pending")
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="checkpoint_pending")
 
             context = mock_context(task=iterable_op)
             mock_xcom_get_one(context)
@@ -765,16 +723,15 @@ class TestIterableOperator:
         assert checkpoint_key in store
         assert store[checkpoint_key] == {"status": "succeeded", "try_number": 2}
 
-    @pytest.mark.db_test
-    def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self, dag_maker, session):
+    def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self):
         """IterableOperator.execution_timeout is None (not propagated to the outer TI);
         the wrapped operator retains its own execution_timeout for per-task enforcement.
         A UserWarning is emitted when the wrapped operator is sync, since TimeoutPosix won't fire
         in worker threads."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             execution_timeout = timedelta(seconds=7)
-            mapped_op = self.create_mapped_operator(
+            mapped_op = create_mapped_operator(
                 dag, expand_input, task_id="timeout_task", execution_timeout=execution_timeout
             )
 
@@ -784,7 +741,6 @@ class TestIterableOperator:
             assert iterable_op._operator.execution_timeout == execution_timeout
             assert iterable_op.execution_timeout is None
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "base_exception",
         [
@@ -795,14 +751,14 @@ class TestIterableOperator:
         ids=["SystemExit", "KeyboardInterrupt", "GeneratorExit"],
     )
     def test_base_exception_not_retried_raises_airflow_fail_exception(
-        self, dag_maker, session, mock_xcom_get_one, base_exception
+        self, mock_xcom_get_one, base_exception
     ):
         """
         BaseException subclasses (e.g., SystemExit, KeyboardInterrupt) must never
         be retried—they signal conditions where continuing iteration is meaningless.
         They should raise AirflowFailException immediately.
         """
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             # Create a mapped operator that raises a BaseException
             expand_input = ListOfDictsExpandInput([{"raise_exception": base_exception}])
             mapped_op = MockOperator.partial(
@@ -822,14 +778,11 @@ class TestIterableOperator:
             with pytest.raises(AirflowFailException):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_deadlock_imminent_error_raises_actionable_airflow_fail_exception(
-        self, dag_maker, session, mock_xcom_get_one
-    ):
+    def test_deadlock_imminent_error_raises_actionable_airflow_fail_exception(self, mock_xcom_get_one):
         """A sub-task that raises DeadlockImminentError (a sync SDK call made from an async
         sub-task) must never be retried and must surface an actionable error pointing at async-safe
         SDK alternatives, rather than the generic non-Exception BaseException message."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput(
                 [{"raise_exception": DeadlockImminentError("simulated sync SDK call")}]
             )
@@ -850,10 +803,9 @@ class TestIterableOperator:
             with pytest.raises(AirflowFailException, match="synchronous SDK call"):
                 iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_deferred_operator_raises_airflow_fail_exception(self, dag_maker, session, mock_xcom_get_one):
+    def test_deferred_operator_raises_airflow_fail_exception(self, mock_xcom_get_one):
         """A sub-task that raises TaskDeferred must cause IterableOperator to raise AirflowFailException."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}, {}])
             mapped_op = MockDeferredOperator.partial(task_id="deferred_task", dag=dag)._expand(
                 expand_input,
@@ -868,13 +820,12 @@ class TestIterableOperator:
         with pytest.raises(AirflowFailException, match="attempted to defer"):
             iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_reschedule_mode_sensor_raises_base_exception_group(self, dag_maker, session, mock_xcom_get_one):
+    def test_reschedule_mode_sensor_raises_base_exception_group(self, mock_xcom_get_one):
         """A sub-task that raises AirflowRescheduleException is no longer special-cased: it is treated
         like any other sub-task failure and surfaces via BaseExceptionGroup. The requested
         reschedule_date is not honored inside IterableOperator — Airflow's standard retry mechanism
         (via the IterableOperator's own retries/retry_delay) takes over instead."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}, {}])
             mapped_op = MockRescheduleSensor.partial(task_id="reschedule_sensor", dag=dag)._expand(
                 expand_input,
@@ -896,8 +847,7 @@ class TestIterableOperatorContextIsolation:
     context via get_current_context(), not the parent's.
     """
 
-    @pytest.mark.db_test
-    def test_subtask_sees_its_own_context(self, dag_maker, session, mock_xcom_get_one):
+    def test_subtask_sees_its_own_context(self, mock_xcom_get_one):
         """Each sub-task's get_current_context() must return its own indexed ti, not the parent's."""
         captured: dict[int, object] = {}
 
@@ -911,7 +861,7 @@ class TestIterableOperatorContextIsolation:
                 captured[self.index] = ctx["ti"]
                 return self.index
 
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"index": 0}, {"index": 1}, {"index": 2}])
             mapped_op = ContextCapturingOperator.partial(task_id="ctx_task", dag=dag)._expand(
                 expand_input, strict=True, register_with_dag=False
@@ -928,10 +878,9 @@ class TestIterableOperatorContextIsolation:
             assert sub_ti is not parent_ti, f"Sub-task {idx} observed the parent context"
             assert sub_ti.index == idx, f"Sub-task {idx} observed wrong index {sub_ti.index}"
 
-    @pytest.mark.db_test
-    def test_async_subtask_execution_timeout_is_enforced(self, dag_maker, session):
+    def test_async_subtask_execution_timeout_is_enforced(self):
         """execution_timeout is enforced for async sub-tasks via asyncio.wait_for."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
             mapped_op = MockSlowAsyncOperator.partial(
                 task_id="slow_async_task",
@@ -944,12 +893,11 @@ class TestIterableOperatorContextIsolation:
         with pytest.raises(BaseExceptionGroup, match="Multiple sub-task failures"):
             iterable_op.execute(context=context)
 
-    @pytest.mark.db_test
-    def test_sync_subtask_with_execution_timeout_emits_warning(self, dag_maker, session):
+    def test_sync_subtask_with_execution_timeout_emits_warning(self):
         """A sync operator with execution_timeout warns that the timeout won't be enforced."""
-        with dag_maker(session=session) as dag:
+        with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"arg1": 1}])
-            mapped_op = self.create_mapped_operator(
+            mapped_op = create_mapped_operator(
                 dag, expand_input, task_id="sync_timeout_task", execution_timeout=timedelta(seconds=5)
             )
             with pytest.warns(UserWarning, match="TimeoutPosix") as warning_list:
