@@ -3,6 +3,7 @@ abc
 AbstractFileSystem
 AbstractToolset
 accessor
+accessors
 AccessSecretVersionResponse
 aci
 Ack
@@ -44,6 +45,7 @@ akeyless
 aks
 AlertApi
 alertPolicies
+aliased
 Alibaba
 alibaba
 alibabacloud
@@ -204,6 +206,7 @@ bugfix
 bugfixes
 buildType
 burstable
+bytea
 bytestring
 cacert
 Cadwyn
@@ -268,6 +271,7 @@ cmake
 cmd
 cmdlet
 cmds
+CN
 cncf
 cnf
 cnt
@@ -775,6 +779,7 @@ hiveserver
 hmsclient
 hoc
 homebrew
+honoured
 hookimpl
 hookspec
 HostAliases
@@ -916,6 +921,7 @@ journald
 js
 Json
 json
+JSONB
 jsonl
 JsonValue
 juli
@@ -1009,6 +1015,7 @@ lodash
 logfile
 logformat
 loglevel
+logout
 Logstash
 logstash
 longblob
@@ -1765,6 +1772,7 @@ TTU
 Ttu
 TTY
 tunables
+TW
 twitterHandle
 txt
 TZ
@@ -1928,6 +1936,7 @@ Zendesk
 zendesk
 Zenpy
 zenpy
+zh
 Zhong
 Zsh
 zsh
