@@ -30,6 +30,9 @@ Using the Operator
 The OpenAIEmbeddingOperator requires the ``input_text`` as an input to embedding API. Use the ``conn_id`` parameter to specify the OpenAI connection to use to
 connect to your account.
 
+A single string or token array returns one embedding vector. A list of strings or token arrays returns
+one vector per input item in the same order.
+
 An example of using the operator:
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
