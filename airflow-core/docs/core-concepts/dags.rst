@@ -322,7 +322,7 @@ By default, a Dag will only run a Task when all the Tasks it depends on are succ
 Branching
 ~~~~~~~~~
 
-You can make use of branching in order to tell the Dag *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the ``@task.branch`` decorator come in.
+You can make use of branching in order to tell the Dag *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the ``@task.branch`` decorator comes in.
 
 The ``@task.branch`` decorator is much like ``@task``, except that it expects the decorated function to return an ID to a task (or a list of IDs). The specified task is followed, while all other paths are skipped. It can also return *None* to skip all downstream tasks.
 
@@ -839,7 +839,7 @@ it in three steps:
 Dag Auto-pausing (Experimental)
 -------------------------------
 Dags can be configured to be auto-paused as well.
-There is a Airflow configuration which allows for automatically disabling of a Dag
+There is an Airflow configuration which allows for automatically disabling of a Dag
 if it fails for ``N`` number of times consecutively.
 
 - :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`
