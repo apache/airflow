@@ -22,6 +22,8 @@ from unittest import mock
 
 import pytest
 
+from google.api_core.exceptions import Forbidden, NotFound
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.common.compat.sdk import DAG, AirflowException
@@ -1196,6 +1198,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             destination_object=SOURCE_OBJECT_NO_WILDCARD,
         )
 
+
         operator.execute(None)
         # When no retention is set, rewrite should be called without retention kwargs
         mock_hook.return_value.rewrite.assert_called_once_with(
@@ -1204,3 +1207,95 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             DESTINATION_BUCKET,
             SOURCE_OBJECT_NO_WILDCARD,
         )
+
+    # ---------------------------------------------------------------------------
+    # Regression tests for GCSToGCSOperator(move_object=True) idempotency
+    # See: https://github.com/apache/airflow/issues/<issue-number>
+    # When move_object=True, the operator copies then deletes the source object.
+    # If the task is retried after a successful copy+delete, the source object
+    # is already gone.  The delete step must not raise in that case.
+    # ---------------------------------------------------------------------------
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_move_object_deletes_source_on_success(self, mock_hook):
+        """move_object=True: hook.delete is called exactly once on a normal run."""
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            move_object=True,
+        )
+
+        operator.execute(None)
+
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            DESTINATION_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+        )
+        mock_hook.return_value.delete.assert_called_once_with(
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_move_object_idempotent_when_source_already_deleted(self, mock_hook):
+        """move_object=True: NotFound from hook.delete is treated as a no-op.
+
+        This covers the retry scenario where the copy+delete succeeded in a
+        previous attempt but the task was marked as failed due to a transient
+        issue.  On retry, the source is already gone; the operator should log a
+        warning and succeed rather than raising.
+        """
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        mock_hook.return_value.delete.side_effect = NotFound("Object not found")
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            move_object=True,
+        )
+
+        # Should not raise – NotFound is treated as idempotent success.
+        operator.execute(None)
+
+        # The copy step still happened.
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+            DESTINATION_BUCKET,
+            SOURCE_OBJECT_NO_WILDCARD,
+        )
+        # The delete was attempted (and swallowed).
+        mock_hook.return_value.delete.assert_called_once_with(
+            TEST_BUCKET, SOURCE_OBJECT_NO_WILDCARD
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_move_object_propagates_non_notfound_delete_errors(self, mock_hook):
+        """move_object=True: exceptions other than NotFound from hook.delete still propagate.
+
+        Only NotFound (object already gone) is treated as idempotent; any other
+        error (e.g. permission denied, server error) must still surface to fail
+        the task appropriately.
+        """
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        mock_hook.return_value.delete.side_effect = Forbidden("Access denied")
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            move_object=True,
+        )
+
+        with pytest.raises(Forbidden):
+            operator.execute(None)

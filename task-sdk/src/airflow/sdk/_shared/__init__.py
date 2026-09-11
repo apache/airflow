@@ -17,7 +17,7 @@
 
 from pathlib import Path
 
-_shared_root = Path(__file__).resolve().parents[4] / "shared"
+_shared_root = Path(__file__).resolve().parents[5] / "shared"
 if _shared_root.is_dir():
     for _sub in _shared_root.iterdir():
         _p = _sub / "src" / "airflow_shared"
