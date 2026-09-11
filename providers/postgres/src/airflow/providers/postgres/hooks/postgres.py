@@ -320,7 +320,6 @@ class PostgresHook(DbApiHook):
         if raw_cursor:
             conn_args["row_factory"] = self._get_cursor(raw_cursor)
 
-        # Use Any type for the connection args to avoid type conflicts
         connection = await AsyncConnection.connect(**cast("Any", conn_args))
 
         register_default_adapters(connection)
