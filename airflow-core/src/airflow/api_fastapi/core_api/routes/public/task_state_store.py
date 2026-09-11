@@ -272,7 +272,7 @@ def patch_task_state_store(
         _get_db_backend().set(
             scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session
         )
-    except ValueError as e:
+    except DagRunNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
