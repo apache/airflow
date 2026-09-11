@@ -327,7 +327,6 @@ class PostgresHook(DbApiHook):
         # This ensures JSON data is properly decoded from bytes to Python objects
         register_default_adapters(connection)
 
-        # Add the notice handler AFTER the connection is established
         if self.enable_log_db_messages and hasattr(connection, "add_notice_handler"):
             connection.add_notice_handler(self._notice_handler)
 
