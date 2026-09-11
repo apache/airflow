@@ -69,8 +69,8 @@ class LangChainHook(BaseHook):
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
         ``extra["embed_model"]`` on the connection.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
-        model constructor. Connection credentials and the base URL take precedence
-        over matching values.
+        model constructor. Connection ``api_key`` and ``base_url`` values take
+        precedence over matching values.
     """
 
     conn_name_attr = "llm_conn_id"

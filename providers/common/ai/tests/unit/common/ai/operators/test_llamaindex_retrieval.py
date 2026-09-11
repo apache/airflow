@@ -147,7 +147,7 @@ class TestRetrievalOperatorOutput:
             embedding_kwargs={"dimensions": 128},
         )
 
-    def test_byo_embed_model_bypasses_hook(self, _li, tmp_path):
+    def test_byo_embed_model_bypasses_hook(self, _li, tmp_path, caplog):
         (tmp_path / "idx").mkdir()
         byo = _byo_embedding()
         index = _li["load_index_from_storage"].return_value
@@ -158,11 +158,15 @@ class TestRetrievalOperatorOutput:
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
             embed_model=byo,
+            embedding_kwargs={"dimensions": 128},
         )
         op.execute(context=MagicMock())
 
         kwargs = _li["load_index_from_storage"].call_args.kwargs
         assert kwargs["embed_model"] is byo
+        assert (
+            "embedding_kwargs is ignored when embed_model is a pre-built embedding model" in caplog.messages
+        )
 
     def test_invalid_embed_model_raises_typeerror(self, _li, tmp_path):
         # An object that's neither None/str nor duck-types as BaseEmbedding

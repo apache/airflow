@@ -171,6 +171,10 @@ class LlamaIndexRetrievalOperator(BaseOperator):
         if hasattr(self.embed_model, "get_text_embedding") and hasattr(
             self.embed_model, "_get_query_embedding"
         ):
+            if self.embedding_kwargs:
+                self.log.warning(
+                    "embedding_kwargs is ignored when embed_model is a pre-built embedding model"
+                )
             return self.embed_model
 
         raise TypeError(

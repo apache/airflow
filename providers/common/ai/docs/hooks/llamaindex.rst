@@ -112,8 +112,8 @@ Parameters
    * - ``embedding_kwargs``
      - ``None``
      - Additional keyword arguments passed to ``OpenAIEmbedding``, for example
-       ``{"dimensions": 128}``. Connection credentials and the base URL take
-       precedence over matching values.
+       ``{"dimensions": 128}``. Connection ``api_key`` and ``api_base`` values
+       take precedence over matching values.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
      - LLM model name, e.g. ``gpt-4o``. Required when calling ``get_llm()``.

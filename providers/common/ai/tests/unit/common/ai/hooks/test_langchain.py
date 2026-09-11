@@ -237,7 +237,7 @@ class TestGetEmbeddingModel:
             dimensions=128,
             timeout=30,
         )
-        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")

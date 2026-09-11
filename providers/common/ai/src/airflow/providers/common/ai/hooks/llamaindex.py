@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import (
@@ -94,8 +95,8 @@ class LlamaIndexHook(BaseHook):
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
-            model constructor. Connection credentials and the base URL take precedence
-            over matching values.
+        model constructor. Connection ``api_key`` and ``api_base`` values take
+        precedence over matching values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -190,6 +191,12 @@ class LlamaIndexHook(BaseHook):
         if overridden_keys:
             self.log.warning("Connection parameters override embedding_kwargs values: %s", overridden_keys)
         kwargs = {**self.embedding_kwargs, **connection_kwargs}
+        supported_kwargs = set(inspect.signature(OpenAIEmbedding.__init__).parameters) | set(
+            OpenAIEmbedding.model_fields
+        )
+        unsupported_keys = self.embedding_kwargs.keys() - supported_kwargs
+        if unsupported_keys:
+            self.log.warning("OpenAIEmbedding ignores unsupported embedding_kwargs: %s", unsupported_keys)
         return OpenAIEmbedding(model=model_id, **kwargs)
 
     def get_llm(self) -> LLM:

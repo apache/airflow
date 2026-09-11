@@ -133,6 +133,7 @@ class TestGetEmbeddingModel:
     @patch.object(LlamaIndexHook, "get_connection")
     def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_cls, caplog):
         mock_get_conn.return_value = _conn(password="sk-test")
+        mock_cls.model_fields = {"api_key": None, "dimensions": None, "timeout": None}
         hook = LlamaIndexHook(
             embed_model="text-embedding-3-small",
             embedding_kwargs={"api_key": "from-kwargs", "dimensions": 128, "timeout": 30},
@@ -146,7 +147,24 @@ class TestGetEmbeddingModel:
             dimensions=128,
             timeout=30,
         )
-        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
+
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_warns_about_unsupported_embedding_kwargs(self, mock_get_conn, mock_cls, caplog):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        mock_cls.model_fields = {"api_key": None, "dimensions": None}
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"base_url": "http://vllm.internal/v1", "dimension": 128},
+        )
+
+        hook.get_embedding_model()
+
+        assert (
+            "OpenAIEmbedding ignores unsupported embedding_kwargs: ['base_url', 'dimension']"
+            in caplog.messages
+        )
 
     @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")

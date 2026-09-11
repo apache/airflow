@@ -160,8 +160,8 @@ Parameters
    * - ``embedding_kwargs``
      - ``None``
      - Additional keyword arguments passed to the embedding model constructor,
-       for example ``{"dimensions": 128}``. Connection credentials and the
-       base URL take precedence over matching values.
+       for example ``{"dimensions": 128}``. Connection ``api_key`` and
+       ``base_url`` values take precedence over matching values.
 
 Dependencies
 ------------
