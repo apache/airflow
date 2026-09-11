@@ -120,6 +120,8 @@ class GCSToBigQueryOperator(BaseOperator):
         If true, the extra values are ignored. If false, records with extra columns
         are treated as bad records, and if there are too many bad records, an
         invalid error is returned in the job result.
+        The values are compared against the schema the load job runs with, so this has no effect
+        when that schema is inferred from the source data itself - see ``autodetect``.
     :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
     :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
         The missing values are treated as nulls. If false, records with missing trailing
@@ -162,12 +164,10 @@ class GCSToBigQueryOperator(BaseOperator):
         by one or more columns. BigQuery supports clustering for both partitioned and
         non-partitioned tables. The order of columns given determines the sort order.
         Not applicable for external tables.
-    :param autodetect: [Optional] Indicates if we should automatically infer the
-        options and schema for CSV and JSON sources. (Default: ``True``).
-        Parameter must be set to True if 'schema_fields' and 'schema_object' are undefined.
-        It is suggested to set to True if table are create outside of Airflow.
-        If autodetect is None and no schema is provided (neither via schema_fields
-        nor a schema_object), assume the table already exists.
+    :param autodetect: [Optional] Whether to infer the schema from the source data for CSV and
+        JSON sources. If ``True``, the schema is inferred from the source data. If ``False``,
+        either ``schema_fields`` or ``schema_object`` must be provided. If ``None``, no schema is
+        supplied and the existing destination table's schema is used. (Default: ``True``).
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
 
         .. code-block:: python
@@ -239,7 +239,7 @@ class GCSToBigQueryOperator(BaseOperator):
         time_partitioning=None,
         range_partitioning=None,
         cluster_fields=None,
-        autodetect=True,
+        autodetect: bool | None = True,
         encryption_configuration=None,
         location=None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -764,6 +764,20 @@ class GCSToBigQueryOperator(BaseOperator):
 
         if self.extra_config:
             self.configuration["load"].update(self.extra_config)
+
+        # Checked against the assembled load config rather than the operator attributes, because
+        # src_fmt_configs and extra_config can still override any of these three keys.
+        load_config = self.configuration["load"]
+        if (
+            load_config.get("autodetect")
+            and load_config.get("ignoreUnknownValues")
+            and "schema" not in load_config
+        ):
+            self.log.warning(
+                "`ignore_unknown_values` has no effect when `autodetect=True` and no schema is "
+                "provided. Set `autodetect=None` to use the existing destination table's schema "
+                "instead."
+            )
 
         return self.configuration
 
