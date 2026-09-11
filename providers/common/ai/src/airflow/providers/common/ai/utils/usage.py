@@ -213,13 +213,42 @@ def _coerce_value(field: str, value: Any) -> Any:
                 "if it is templated, check the rendered value."
             )
         value = int(value)
+    elif field_type is int and isinstance(value, Decimal) and value.is_finite():
+        # Mirrors the float branch above: a native Decimal (e.g. Decimal("3.5"))
+        # can land on an int field the same way a native float can, and a
+        # non-integral one has the same truncation/rounding ambiguity. A
+        # non-finite Decimal deliberately falls through unchanged so the finite
+        # check in _validate_range below reports it, not this branch.
+        if value != value.to_integral_value():
+            raise ValueError(
+                f"usage_limits[{field!r}] must be an integer (got {value!r}); "
+                "if it is templated, check the rendered value."
+            )
+        value = int(value)
+    elif field_type is bool and not isinstance(value, bool):
+        # ``bool`` has no numeric range to validate, so it sits outside the
+        # ``field_type in (Decimal, int)`` gate below -- but that means a value
+        # that isn't a rendered string still needs its own shape check here, or
+        # any non-``str`` value (``[]``, ``{}``, ``0``, ``1.5``, ``Decimal("0")``,
+        # ...) would reach ``UsageLimits`` untouched and be read by truthiness,
+        # silently turning this pre-flight-check flag on or off against the Dag
+        # author's intent -- the exact outcome the comment above ``_TRUE_LIKE``
+        # says this module exists to prevent.
+        raise ValueError(
+            f"usage_limits[{field!r}] must be a bool (got "
+            f"{type(value).__name__}: {_truncated_repr(value)}); "
+            "if it is templated, check the rendered value."
+        )
 
     if field_type in (Decimal, int):
         # A value that reached here is neither a rendered string nor a bare
-        # int/float coerced above -- e.g. a Jinja template rendering to a list or
-        # dict. ``_validate_range`` -> ``_is_finite`` only handles Decimal/int/float
-        # and would otherwise raise an undocumented ``TypeError`` deep inside
-        # ``math.isfinite`` instead of this module's documented ``ValueError``.
+        # int/float/Decimal coerced above -- e.g. a Jinja template rendering to
+        # a list or dict. ``_validate_range`` -> ``_is_finite`` only handles
+        # Decimal/int/float and would otherwise raise an undocumented
+        # ``TypeError`` deep inside ``math.isfinite`` instead of this module's
+        # documented ``ValueError``. (``bool`` has its own shape check above --
+        # see the ``field_type is bool`` branch -- since it has no range to
+        # validate here.)
         if not isinstance(value, (Decimal, int, float)):
             raise ValueError(
                 f"usage_limits[{field!r}] must be a number (got "

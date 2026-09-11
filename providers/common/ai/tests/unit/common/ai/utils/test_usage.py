@@ -107,6 +107,25 @@ class TestCoerceUsageLimitsTemplatedDict:
         assert getattr(result, field) == int(value)
         assert isinstance(getattr(result, field), int)
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", Decimal("3")),
+            ("tool_calls_limit", Decimal("1")),
+        ],
+        ids=["request_limit-3-decimal", "tool_calls_limit-1-decimal"],
+    )
+    def test_integral_decimal_on_int_field_is_coerced_to_int(self, field, value):
+        """Mirrors ``test_integral_float_on_int_field_is_coerced_to_int`` above,
+        but for a native ``Decimal`` landing on an ``int`` field (e.g. under
+        ``render_template_as_native_obj=True``): an integral value like
+        ``Decimal("3")`` must be coerced to a plain ``int``, not merely accepted
+        as a Decimal that compares equal to one."""
+        result = coerce_usage_limits({field: value})
+        coerced = getattr(result, field)
+        assert coerced == int(value)
+        assert isinstance(coerced, int)
+
     def test_explicit_none_disables_the_limit(self):
         """None is the author's deliberate choice under the default (string)
         rendering, where Jinja never produces None from a string template --
@@ -233,6 +252,31 @@ class TestCoerceUsageLimitsInvalidValues:
         assert f"usage_limits[{field!r}]" in message
         assert repr(value) in message
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", Decimal("3.5")),
+            ("tool_calls_limit", Decimal("1.1")),
+        ],
+        ids=[
+            "request_limit-3.5-decimal",
+            "tool_calls_limit-1.1-decimal",
+        ],
+    )
+    def test_non_integral_decimal_on_int_field_raises(self, field, value):
+        """A native ``Decimal`` can land on an ``int`` field the same way a native
+        ``float`` can (e.g. under ``render_template_as_native_obj=True``), and a
+        non-integral one has the same truncation/rounding ambiguity as
+        ``test_non_integral_float_on_int_field_raises`` above. Without this check,
+        ``isinstance(value, (Decimal, int, float))`` in the container-shape gate
+        would accept it and ``_validate_range`` would let it through unchanged,
+        since 3.5 is finite and non-negative."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
+
     def test_signaling_nan_raises_naming_the_field(self):
         """``Decimal('sNaN')`` traps on unguarded comparison (``InvalidOperation``,
         not ``ValueError``) and ``math.isfinite`` raises outright on it rather than
@@ -307,6 +351,24 @@ class TestCoerceUsageLimitsInvalidValues:
             coerce_usage_limits({field: value})
         message = str(exc_info.value)
         assert f"usage_limits[{field!r}]" in message
+
+    @pytest.mark.parametrize(
+        "value",
+        [[], {}, 0, 1, 1.5, Decimal("0")],
+        ids=["list", "dict", "0-int", "1-int", "1.5-float", "0-decimal"],
+    )
+    def test_non_bool_value_on_bool_field_raises_value_error_not_type_error(self, value):
+        """``count_tokens_before_request`` is the one ``bool`` field and sits
+        outside the ``field_type in (Decimal, int)`` container-shape gate above --
+        without its own shape check, any of these values would reach
+        ``UsageLimits`` untouched and pydantic-ai would read it by truthiness,
+        silently turning the pre-flight token check on or off against the Dag
+        author's intent (the outcome ``_TRUE_LIKE``'s docstring says this module
+        exists to prevent)."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({"count_tokens_before_request": value})
+        message = str(exc_info.value)
+        assert "usage_limits['count_tokens_before_request']" in message
 
 
 class TestCoercersCompleteness:
