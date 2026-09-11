@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
@@ -122,6 +122,8 @@ class OpenAIResponseOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("input_text", "max_output_tokens", "max_tool_calls")
 
+    _TOKEN_CEILING_PARAM_NAMES: ClassVar[tuple[str, ...]] = ("max_output_tokens", "max_tool_calls")
+
     def __init__(
         self,
         conn_id: str,
@@ -144,10 +146,8 @@ class OpenAIResponseOperator(BaseOperator):
 
     def _validate_no_response_kwargs_conflict(self) -> None:
         """Reject a ceiling set both as an operator argument and in ``response_kwargs``."""
-        for param_name, value in (
-            ("max_output_tokens", self.max_output_tokens),
-            ("max_tool_calls", self.max_tool_calls),
-        ):
+        for param_name in self._TOKEN_CEILING_PARAM_NAMES:
+            value = getattr(self, param_name)
             if value is not None and param_name in self.response_kwargs:
                 raise ValueError(
                     f"Task {self.task_id!r}: {param_name!r} was set both as an operator argument "
@@ -179,13 +179,9 @@ class OpenAIResponseOperator(BaseOperator):
     def _build_response_kwargs(self) -> dict[str, Any]:
         """Merge the token-ceiling arguments into ``response_kwargs``, skipping unset ceilings."""
         response_kwargs = dict(self.response_kwargs)
-        for param_name, value in (
-            ("max_output_tokens", self.max_output_tokens),
-            ("max_tool_calls", self.max_tool_calls),
-        ):
-            # A blank or whitespace-only rendered template means "no ceiling this run"
-            # (e.g. `{{ params.tokens or '' }}`); the conflict with response_kwargs was already
-            # rejected in __init__ regardless of what this renders to.
+        for param_name in self._TOKEN_CEILING_PARAM_NAMES:
+            value = getattr(self, param_name)
+            # Blank means unset; the response_kwargs conflict was already rejected in __init__.
             if value is None or (isinstance(value, str) and value.strip() == ""):
                 continue
             response_kwargs[param_name] = self._coerce_token_ceiling(param_name, value)
