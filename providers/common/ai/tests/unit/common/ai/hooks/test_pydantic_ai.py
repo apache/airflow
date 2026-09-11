@@ -974,6 +974,20 @@ class TestPydanticAIHookTestConnection:
             ("embedding_conn",),
         ]
 
+    def test_failed_connection_when_explicit_llm_connection_is_missing(self):
+        hook = PydanticAIHook(llm_conn_id="missing_llm_conn", embed_conn_id="embedding_conn")
+
+        with patch.object(
+            hook,
+            "get_connection",
+            side_effect=AirflowNotFoundException("The conn_id `missing_llm_conn` isn't defined"),
+        ) as mock_get_connection:
+            success, message = hook.test_connection()
+
+        assert success is False
+        assert message == "The conn_id `missing_llm_conn` isn't defined"
+        mock_get_connection.assert_called_once_with("missing_llm_conn")
+
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_successful_connection_with_both_models(self, mock_infer_model, mock_infer_embedding_model):
