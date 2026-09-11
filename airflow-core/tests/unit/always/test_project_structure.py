@@ -135,7 +135,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
             "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataform.py",
             "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
             "providers/google/tests/unit/google/cloud/links/test_dataprep.py",
             "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
