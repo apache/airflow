@@ -36,6 +36,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -263,6 +264,43 @@ class TestDBDagBag:
         db.clear_db_serialized_dags()
         db.clear_db_dag_bundles()
 
+    def test_iter_all_latest_version_dags_yields_only_the_latest_version(self, dag_maker):
+        db.clear_db_runs()
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
+        db.clear_db_dag_bundles()
+
+        with dag_maker("versioned_dag", schedule=None):
+            EmptyOperator(task_id="a")
+        # A version with task instances is kept rather than updated in place, so the next
+        # write adds a second version instead of overwriting the first.
+        dag_maker.create_dagrun()
+
+        with DAG("versioned_dag", schedule=None) as dag:
+            EmptyOperator(task_id="a")
+            EmptyOperator(task_id="b")
+        sync_dag_to_db(dag)
+
+        # Left at version 1, below the highest version_number in the table.
+        with dag_maker("single_version_dag", schedule=None):
+            EmptyOperator(task_id="only")
+
+        with create_session() as session:
+            assert DagVersion.get_latest_version("versioned_dag", session=session).version_number == 2
+            assert DagVersion.get_latest_version("single_version_dag", session=session).version_number == 1
+            dags = list(DBDagBag().iter_all_latest_version_dags(session=session))
+
+        assert sorted(d.dag_id for d in dags) == ["single_version_dag", "versioned_dag"]
+        assert {d.dag_id: set(d.task_ids) for d in dags} == {
+            "versioned_dag": {"a", "b"},
+            "single_version_dag": {"only"},
+        }
+
+        db.clear_db_runs()
+        db.clear_db_dags()
+        db.clear_db_serialized_dags()
+        db.clear_db_dag_bundles()
+
 
 class TestDBDagBagCache:
     """Tests for plain and configured DBDagBag caching behavior."""
@@ -431,17 +469,17 @@ class TestDBDagBagCache:
         assert result == mock_sdm.dag
         assert "test_version" in dag_bag._dags
 
-    def test_iter_all_latest_version_dags_does_not_cache(self):
+    @patch.object(SerializedDagModel, "get_latest_serialized_dags")
+    def test_iter_all_latest_version_dags_does_not_cache(self, mock_get_latest_serialized_dags):
         """Test that iter_all_latest_version_dags does not cache to prevent thrashing."""
         dag_bag = _stub_dag_bag(cache_size=10, cache_ttl=60)
 
-        mock_session = MagicMock()
         mock_sdm = MagicMock()
         mock_sdm.dag = MagicMock()
         mock_sdm.dag_version_id = "test_version"
-        mock_session.scalars.return_value = [mock_sdm]
+        mock_get_latest_serialized_dags.return_value = [mock_sdm]
 
-        list(dag_bag.iter_all_latest_version_dags(session=mock_session))
+        list(dag_bag.iter_all_latest_version_dags(session=MagicMock()))
 
         # Cache should be empty -- iter doesn't cache to prevent thrashing
         assert len(dag_bag._dags) == 0
