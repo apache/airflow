@@ -176,11 +176,12 @@ class PydanticAIHook(BaseHook):
         ]
         if ignored_fields:
             self.log.warning(
-                "Connection fields are ignored for provider; configure provider-specific values in extra",
-                conn_id=conn.conn_id,
-                provider=provider_name,
-                ignored_fields=ignored_fields,
-                replacement_fields=list(replacement_fields),
+                "Connection fields are ignored for provider %r on connection %r; "
+                "ignored fields: %s; configure these provider-specific values in extra: %s",
+                provider_name,
+                conn.conn_id,
+                ignored_fields,
+                list(replacement_fields),
             )
 
     def _get_provider_factory_for_model(

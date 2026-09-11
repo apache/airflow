@@ -301,11 +301,12 @@ class TestPydanticAIHookGetConn:
             hook.get_conn()
 
         mock_warning.assert_called_once_with(
-            "Connection fields are ignored for provider; configure provider-specific values in extra",
-            conn_id="test_conn",
-            provider=provider_name,
-            ignored_fields=["password", "host"],
-            replacement_fields=replacement_fields,
+            "Connection fields are ignored for provider %r on connection %r; "
+            "ignored fields: %s; configure these provider-specific values in extra: %s",
+            provider_name,
+            "test_conn",
+            ["password", "host"],
+            replacement_fields,
         )
 
 
