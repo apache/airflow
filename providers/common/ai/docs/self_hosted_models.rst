@@ -318,8 +318,8 @@ its OpenAI provider, and there's no separate ``ollama`` extra.
 
    ``LiteLLMProvider`` is an exception: its constructor takes ``api_base``
    instead of ``base_url``, so passing ``host`` raises a ``TypeError`` that
-   the hook catches and silently falls back to environment-variable auth,
-   ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
+   the hook catches, logs a warning, and falls back to environment-variable
+   auth, ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
    endpoint via ``openai:<model>`` instead -- this is the same proxy role
    used in the gateway section above, just addressed through the working
    prefix rather than the rejected ``litellm:`` one.
