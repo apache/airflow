@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from configparser import ConfigParser
+from unittest import mock
+
 import pytest
 from opentelemetry import context, trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -32,7 +35,9 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from airflow_shared.observability.traces import (
     DEFAULT_TASK_SPAN_DETAIL_LEVEL,
     TASK_SPAN_DETAIL_LEVEL_KEY,
+    OverrideableRandomIdGenerator,
     build_trace_state_entries,
+    configure_otel,
     get_task_span_detail_level,
     new_dagrun_trace_carrier,
 )
@@ -360,3 +365,47 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+@mock.patch("opentelemetry.trace.set_tracer_provider", autospec=True)
+@mock.patch("opentelemetry.trace.get_tracer_provider", autospec=True)
+class TestConfigureOtelWithExistingProvider:
+    """
+    Somebody else (auto-instrumentation, a vendor distro) owns the global TracerProvider.
+
+    ``set_tracer_provider`` would refuse to replace it, so ``configure_otel`` has to adopt it.
+    """
+
+    @staticmethod
+    def _conf(otel_on: bool) -> ConfigParser:
+        conf = ConfigParser()
+        conf.add_section("traces")
+        conf.set("traces", "otel_on", str(otel_on))
+        return conf
+
+    @pytest.mark.parametrize("otel_on", [True, False])
+    def test_patches_id_generator_onto_existing_provider(self, get_provider, set_provider, otel_on):
+        provider = TracerProvider()
+        get_provider.return_value = provider
+
+        configure_otel(self._conf(otel_on))
+
+        assert isinstance(provider.id_generator, OverrideableRandomIdGenerator)
+        set_provider.assert_not_called()
+
+    def test_keeps_airflow_generator_already_in_place(self, get_provider, set_provider):
+        generator = OverrideableRandomIdGenerator()
+        provider = TracerProvider(id_generator=generator)
+        get_provider.return_value = provider
+
+        configure_otel(self._conf(otel_on=True))
+
+        assert provider.id_generator is generator
+        set_provider.assert_not_called()
+
+    def test_otel_off_without_a_provider_does_nothing(self, get_provider, set_provider):
+        get_provider.return_value = trace.ProxyTracerProvider()
+
+        configure_otel(self._conf(otel_on=False))
+
+        set_provider.assert_not_called()
