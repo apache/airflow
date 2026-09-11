@@ -1304,7 +1304,7 @@ class DbApiHook(BaseHook):
         """
         raise NotImplementedError(
             f"{type(self).__name__} does not implement read-only execution. Override "
-            "_aenter_read_only to support deferrable read-only queries for this database,"
+            "_aenter_read_only to support deferrable read-only queries for this database."
         )
 
     async def _arun_command(self, cur, sql_statement, parameters):
