@@ -21,9 +21,11 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import MagicMock, patch, sentinel
 
 import pytest
+import yaml
 from pydantic_ai import Embedder
 from pydantic_ai.embeddings import EmbeddingModel, EmbeddingSettings, infer_embedding_model
 from pydantic_ai.exceptions import UserError
@@ -32,13 +34,15 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
-from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
 )
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
+
+from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.0-flash".
@@ -62,16 +66,22 @@ def _assert_prefix_is_known_provider(prefix: str) -> None:
         pytest.fail(f"{prefix!r} is not a recognized pydantic-ai provider: {exc}")
 
 
-def _assert_prefix_supports_embeddings(prefix: str) -> None:
+def _assert_model_supports_embeddings(model_name: str) -> None:
     def create_provider(provider_name: str):
         infer_provider_class(provider_name)
         return MagicMock()
 
     try:
-        with contextlib.suppress(ImportError, UserError):
-            infer_embedding_model(f"{prefix}:test-model", provider_factory=create_provider)
-    except ValueError as exc:
-        pytest.fail(f"{prefix!r} is not a recognized pydantic-ai embedding provider: {exc}")
+        with contextlib.suppress(ImportError):
+            infer_embedding_model(model_name, provider_factory=create_provider)
+    except (UserError, ValueError) as exc:
+        pytest.fail(f"{model_name!r} is not a recognized pydantic-ai embedding model: {exc}")
+
+
+def _get_connection_types_from_provider_yaml() -> list[dict[str, Any]]:
+    provider_yaml = AIRFLOW_PROVIDERS_ROOT_PATH / "common" / "ai" / "provider.yaml"
+    provider_info = yaml.safe_load(provider_yaml.read_text())
+    return cast("list[dict[str, Any]]", provider_info["connection-types"])
 
 
 def _extract_google_cloud_prefix(text: str) -> str:
@@ -951,6 +961,29 @@ class TestPydanticAIHookTestConnection:
         assert message == "Embedding model resolved successfully."
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
+    def test_successful_embedding_only_connection_without_default_llm_connection(
+        self, mock_infer_embedding_model
+    ):
+        mock_infer_embedding_model.return_value = MagicMock(spec=EmbeddingModel)
+        hook = PydanticAIHook(embed_conn_id="embedding_conn", embed_model_id="openai:text-embedding-3-small")
+        embedding_conn = Connection(conn_id="embedding_conn", conn_type="pydanticai")
+
+        def get_connection(conn_id):
+            if conn_id == "pydanticai_default":
+                raise AirflowNotFoundException("missing default LLM connection")
+            return embedding_conn
+
+        with patch.object(hook, "get_connection", side_effect=get_connection) as mock_get_connection:
+            success, message = hook.test_connection()
+
+        assert success is True
+        assert message == "Embedding model resolved successfully."
+        assert [call.args for call in mock_get_connection.call_args_list] == [
+            ("pydanticai_default",),
+            ("embedding_conn",),
+        ]
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_embedding_model", autospec=True)
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_successful_connection_with_both_models(self, mock_infer_model, mock_infer_embedding_model):
         mock_infer_model.return_value = MagicMock(spec=Model)
@@ -1565,7 +1598,7 @@ class TestPydanticAIVertexHook:
         since 3.2.0) — so this description, not the placeholder below, is what
         a user actually copies the model prefix from.
         """
-        connection_types = get_provider_info()["connection-types"]
+        connection_types = _get_connection_types_from_provider_yaml()
         vertex_conn_fields = next(
             c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai_vertex"
         )
@@ -1578,14 +1611,14 @@ class TestPydanticAIVertexHook:
         ["pydanticai", "pydanticai-azure", "pydanticai-bedrock", "pydanticai-vertex"],
     )
     def test_conn_fields_embedding_description_prefix_supports_embeddings(self, connection_type):
-        connection_types = get_provider_info()["connection-types"]
+        connection_types = _get_connection_types_from_provider_yaml()
         conn_fields = next(
             item["conn-fields"] for item in connection_types if item["connection-type"] == connection_type
         )
         description = conn_fields["embed_model"]["description"]
-        prefix = description.split("e.g. ", maxsplit=1)[1].split(":", maxsplit=1)[0]
+        model_name = description.split("e.g. ", maxsplit=1)[1].removesuffix(")")
 
-        _assert_prefix_supports_embeddings(prefix)
+        _assert_model_supports_embeddings(model_name)
 
     def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
         """
@@ -1597,7 +1630,7 @@ class TestPydanticAIVertexHook:
         ``ui-field-behaviour`` placeholders), but ``provider.yaml`` still carries its
         own independent copy of the model prefix here, and nothing was covering it.
         """
-        connection_types = get_provider_info()["connection-types"]
+        connection_types = _get_connection_types_from_provider_yaml()
         vertex_connection_type = next(
             c for c in connection_types if c["connection-type"] == "pydanticai_vertex"
         )
