@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ast
+from textwrap import dedent
 
 import pytest
 
