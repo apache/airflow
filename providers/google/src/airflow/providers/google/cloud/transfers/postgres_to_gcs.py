@@ -61,10 +61,12 @@ class _PostgresServerSideCursorDecorator:
             if self.rows:
                 return self.rows.pop()
             self.initialized = True
-            row = self.cursor.fetchone()
-            if row is None:
+            rows = self.cursor.fetchmany(self.cursor.itersize)
+            if not rows:
                 raise StopIteration
-            return row
+            self.rows = list(rows)
+            self.rows.reverse()
+            return self.rows.pop()
         # psycopg2
         if self.rows:
             return self.rows.pop()
