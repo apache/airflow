@@ -24,6 +24,7 @@ import {
   MdCompress,
   MdExpand,
   MdOutlineFileDownload,
+  MdOutlineLabel,
   MdOutlineOpenInFull,
   MdSettings,
   MdWrapText,
@@ -222,7 +223,7 @@ export const TaskLogHeader = ({
                 <Menu.ItemCommand>{translate("timestamp.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
               <Menu.Item data-testid="log-settings-log-level" onClick={toggleLogLevel} value="log-level">
-                <MdCode /> {showLogLevel ? translate("logLevel.hide") : translate("logLevel.show")}
+                <MdOutlineLabel /> {showLogLevel ? translate("logLevel.hide") : translate("logLevel.show")}
                 <Menu.ItemCommand>{translate("logLevel.hotkey")}</Menu.ItemCommand>
               </Menu.Item>
               <Menu.Item data-testid="log-settings-expand" onClick={toggleExpanded} value="expand">
