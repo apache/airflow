@@ -151,6 +151,23 @@ class TestCustomRoleValidation:
 
 @pytest.mark.db_test
 class TestCustomRolePersistence:
+    @pytest.mark.parametrize("role_name", ["Analyst", "Admin", "Existing"])
+    @pytest.mark.parametrize("unknown", ["action", "resource"])
+    def test_rejects_unknown_names_before_creating_any_role(self, manager, role_name, unknown):
+        manager.create_permission("can_read", "DAGs")
+        manager.add_role("Existing")
+        item = {"action": "can_read", "resource": "DAGs"}
+        item[unknown] = "typo"
+        config = {"First": [], role_name: [item]}
+        with conf_vars({("fab", "custom_roles"): json.dumps(config)}):
+            with pytest.raises(AirflowConfigException, match=f"Unknown {unknown} 'typo'"):
+                manager.create_roles_from_config()
+        assert {role.name for role in manager.get_all_roles()} == {"Existing"}
+        assert manager.get_action("typo") is None
+        assert manager.get_resource("typo") is None
+        assert len(manager.session.scalars(select(Permission)).all()) == 1
+
+    @mock.patch.object(FabAirflowSecurityManagerOverride, "get_resource", autospec=True)
     @mock.patch.object(FabAirflowSecurityManagerOverride, "get_permission", autospec=True)
     @conf_vars(
         {
@@ -160,11 +177,14 @@ class TestCustomRolePersistence:
             ): '{"Analyst": [{"action": "can_read", "resource": "DAGs"}, {"action": "can_read", "resource": "dags"}]}'
         }
     )
-    def test_deduplicates_names_resolving_to_same_permission(self, mock_get_permission, manager):
+    def test_deduplicates_names_resolving_to_same_permission(
+        self, mock_get_permission, mock_get_resource, manager
+    ):
         permission = Permission(action=Action(name="can_read"), resource=Resource(name="DAGs"))
         manager.session.add(permission)
         manager.session.commit()
         mock_get_permission.return_value = permission
+        mock_get_resource.return_value = permission.resource
         manager.create_roles_from_config()
         assert get_role_permissions(manager.find_role("Analyst")) == {("can_read", "DAGs")}
         assert len(manager.session.execute(select(assoc_permission_role)).all()) == 1
@@ -179,17 +199,24 @@ class TestCustomRolePersistence:
         }
     )
     def test_creates_roles_and_reuses_permissions(self, manager, preexisting_permission):
+        manager.session.add_all([Action(name="can_read"), Resource(name="DAGs")])
+        manager.session.commit()
         if preexisting_permission:
             manager.create_permission("can_read", "DAGs")
+        else:
+            assert manager.get_permission("can_read", "DAGs") is None
         manager.create_roles_from_config()
         manager.create_roles_from_config()
         assert get_role_permissions(manager.find_role("Analyst")) == {("can_read", "DAGs")}
         assert manager.find_role("Empty").permissions == []
         assert len(manager.session.scalars(select(Permission)).all()) == 1
+        assert manager.session.scalars(select(Action.name)).all() == ["can_read"]
+        assert manager.session.scalars(select(Resource.name)).all() == ["DAGs"]
         assert len(manager.get_all_roles()) == 2
 
     @conf_vars({("fab", "custom_roles"): '{"Analyst": [{"action": "can_read", "resource": "DAGs"}]}'})
     def test_preserves_manual_permission_changes(self, manager):
+        manager.create_permission("can_read", "DAGs")
         manager.create_roles_from_config()
         role = manager.find_role("Analyst")
         replacement = manager.create_permission("can_edit", "Connections")
@@ -215,6 +242,9 @@ class TestCustomRolePersistence:
         }
     )
     def test_rolls_back_failed_role_and_new_permissions(self, manager, role_engine, failure_stage):
+        manager.session.add_all([Action(name="custom_action"), Resource(name="Custom resource")])
+        manager.session.commit()
+
         def fail_permission(session, flush_context, instances):
             if any(isinstance(item, Permission) for item in session.new):
                 raise RuntimeError("Permission storage failed")
@@ -236,8 +266,8 @@ class TestCustomRolePersistence:
             event.remove(manager.session, event_name, listener)
         with Session(role_engine) as observer:
             assert observer.scalars(select(Role.name)).all() == ["Completed"]
-            assert observer.scalars(select(Action)).all() == []
-            assert observer.scalars(select(Resource)).all() == []
+            assert observer.scalars(select(Action.name)).all() == ["custom_action"]
+            assert observer.scalars(select(Resource.name)).all() == ["Custom resource"]
             assert observer.scalars(select(Permission)).all() == []
             assert observer.execute(select(assoc_permission_role)).all() == []
         manager.create_roles_from_config()
@@ -262,6 +292,9 @@ class TestCustomRolePersistence:
 
     @pytest.mark.parametrize("iteration", range(5))
     def test_concurrent_role_creation_preserves_winner_permissions(self, role_engine, iteration):
+        with Session(role_engine) as session:
+            session.add_all([Action(name="can_read"), Action(name="can_edit"), Resource(name="DAGs")])
+            session.commit()
         barrier = Barrier(2, timeout=10)
         original_find_role = FabAirflowSecurityManagerOverride.find_role
 
@@ -291,18 +324,14 @@ class TestCustomRolePersistence:
             assert len(roles) == 1
             assert get_role_permissions(roles[0]) in ({("can_read", "DAGs")}, {("can_edit", "DAGs")})
 
-    @pytest.mark.parametrize("kind", ["action", "resource", "permission"])
-    def test_concurrent_roles_reuse_shared_permission(self, role_engine, kind):
+    def test_concurrent_roles_reuse_shared_permission(self, role_engine):
         if role_engine.dialect.name == "sqlite":
             pytest.skip("SQLite serializes writers before they can race on shared permissions")
         with Session(role_engine) as session:
-            if kind in {"resource", "permission"}:
-                session.add(Action(name="can_read"))
-            if kind == "permission":
-                session.add(Resource(name="DAGs"))
+            session.add_all([Action(name="can_read"), Resource(name="DAGs")])
             session.commit()
         barrier = Barrier(2, timeout=10)
-        method = f"get_{kind}"
+        method = "get_permission"
         original_lookup = getattr(FabAirflowSecurityManagerOverride, method)
 
         def create_role(name):
@@ -334,8 +363,7 @@ class TestCustomRolePersistence:
 
 
 class TestCustomRoleRetries:
-    @pytest.mark.parametrize("kind", ["action", "resource", "permission"])
-    def test_retries_shared_object_conflict(self, kind):
+    def test_retries_shared_permission_conflict(self):
         session = mock.Mock(spec=Session)
         manager = make_security_manager(session)
         error = IntegrityError("insert", {}, Exception("duplicate"))
@@ -349,21 +377,19 @@ class TestCustomRoleRetries:
                 manager,
                 "get_action",
                 autospec=True,
-                side_effect=[None, action] if kind == "action" else None,
                 return_value=action,
             ),
             mock.patch.object(
                 manager,
                 "get_resource",
                 autospec=True,
-                side_effect=[None, resource] if kind == "resource" else None,
                 return_value=resource,
             ),
             mock.patch.object(
                 manager,
                 "get_permission",
                 autospec=True,
-                side_effect=[None, permission, permission] if kind == "permission" else [None, permission],
+                side_effect=[None, permission, permission],
             ),
         ):
             manager._create_role_from_config("Analyst", [("can_read", "DAGs")])
@@ -382,13 +408,19 @@ class TestCustomRoleRetries:
         session.flush.side_effect = [None, error] * 3
         with (
             mock.patch.object(manager, "find_role", autospec=True, return_value=None),
-            mock.patch.object(manager, "get_permission", autospec=True, return_value=None),
+            mock.patch.object(
+                manager,
+                "get_permission",
+                autospec=True,
+                side_effect=[None, Permission() if shared_object_appeared else None] * 3,
+            ),
             mock.patch.object(
                 manager,
                 "get_action",
                 autospec=True,
-                side_effect=[None, Action(name="can_read") if shared_object_appeared else None] * 3,
+                return_value=Action(name="can_read"),
             ),
+            mock.patch.object(manager, "get_resource", autospec=True, return_value=Resource(name="DAGs")),
         ):
             with pytest.raises(IntegrityError) as raised:
                 manager._create_role_from_config("Analyst", [("can_read", "DAGs")])

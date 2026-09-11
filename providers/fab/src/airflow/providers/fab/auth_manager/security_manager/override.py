@@ -1278,16 +1278,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Create missing configured roles, preserving permissions on existing roles."""
         roles = self._get_custom_roles_config()
         for name, perms in roles.items():
+            for action_name, resource_name in perms:
+                self._get_configured_action_and_resource(name, action_name, resource_name)
+        for name, perms in roles.items():
             if name in EXISTING_ROLES:
                 log.warning("Skipping built-in role '%s' in [fab] custom_roles", name)
                 continue
             self._create_role_from_config(name, perms)
 
+    def _get_configured_action_and_resource(
+        self, role_name: str, action_name: str, resource_name: str
+    ) -> tuple[Action, Resource]:
+        action = self.get_action(action_name)
+        if action is None:
+            raise AirflowConfigException(
+                f"Unknown action {action_name!r} in [fab] custom_roles[{role_name!r}]"
+            )
+        resource = self.get_resource(resource_name)
+        if resource is None:
+            raise AirflowConfigException(
+                f"Unknown resource {resource_name!r} in [fab] custom_roles[{role_name!r}]"
+            )
+        return action, resource
+
     def _create_role_from_config(self, name: str, perms: list[tuple[str, str]]) -> None:
         # FAB's public creation helpers commit individually; a configured role must
         # become visible only after all its declared permissions have been attached.
         for attempt in range(3):
-            conflict: tuple[str, ...] | None = None
+            conflict: tuple[str, str] | None = None
             try:
                 if self.find_role(name) is not None:
                     return
@@ -1300,23 +1318,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 for action_name, resource_name in perms:
                     perm = self.get_permission(action_name, resource_name)
                     if perm is None:
-                        action = self.get_action(action_name)
-                        if action is None:
-                            conflict = ("action", action_name)
-                            action = self.action_model()
-                            action.name = action_name
-                            self.session.add(action)
-                            self.session.flush()
-                            conflict = None
-                        resource = self.get_resource(resource_name)
-                        if resource is None:
-                            conflict = ("resource", resource_name)
-                            resource = self.resource_model()
-                            resource.name = resource_name
-                            self.session.add(resource)
-                            self.session.flush()
-                            conflict = None
-                        conflict = ("permission", action_name, resource_name)
+                        action, resource = self._get_configured_action_and_resource(
+                            name, action_name, resource_name
+                        )
+                        conflict = (action_name, resource_name)
                         perm = self.permission_model()
                         perm.action = action
                         perm.resource = resource
@@ -1334,14 +1339,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     return
                 if conflict is None or attempt == 2:
                     raise
-                existing: Action | Resource | Permission | None
-                if conflict[0] == "action":
-                    existing = self.get_action(conflict[1])
-                elif conflict[0] == "resource":
-                    existing = self.get_resource(conflict[1])
-                else:
-                    existing = self.get_permission(conflict[1], conflict[2])
-                if existing is None:
+                if self.get_permission(*conflict) is None:
                     raise
             except Exception:
                 self.session.rollback()

@@ -104,6 +104,16 @@ containing exactly ``action`` and ``resource``. Use actual FAB names such as ``c
 Names must be non-empty strings: role names support up to 64 characters, actions up to 100,
 and resources up to 250. Repeated permission pairs are applied once.
 
+Action and resource names must already be registered in the FAB database when this
+configuration is applied. They are validated independently: a new permission pairing an
+existing action with an existing resource is allowed. This configuration does not create
+actions or resources. Unknown names raise a configuration error before any configured
+role is created.
+
+Default-role permissions are synchronized before this validation. Permissions supplied by
+plugins or individual Dags must have their action and resource names registered beforehand;
+names registered later during startup are not available to this initialization step.
+
 All entries are validated before any configured role is created, including entries for existing
 and built-in roles. Invalid JSON or an invalid structure raises a configuration error.
 After validation, built-in roles (``Admin``, ``Viewer``, ``User``, ``Op``, and ``Public``)
@@ -126,7 +136,7 @@ Startup initialization follows ``[fab] update_fab_perms``. When it is disabled, 
 not applied on startup. Running ``airflow sync-perm`` explicitly applies it regardless of that flag.
 This configuration does not create users or assign roles to them.
 
-Resource names are accepted as strings; this does not validate that a permission grants access to
+Registered names do not guarantee that every action-resource combination grants access to
 an existing feature. For access to individual Dags, prefer the Dag's ``DAG(access_control=...)``
 configuration rather than managing those permissions here.
 
