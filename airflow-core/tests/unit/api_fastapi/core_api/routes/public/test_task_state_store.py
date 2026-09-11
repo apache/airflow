@@ -370,6 +370,12 @@ class TestPatchTaskState(TestTaskStateEndpoint):
     def test_patch_missing_key_returns_404(self, test_client):
         assert test_client.patch(f"{BASE_URL}/nonexistent", json={"value": "v"}).status_code == 404
 
+    def test_patch_nonexistent_dag_run_returns_404(self, test_client):
+        """The patch endpoint surfaces a missing DagRun as a 404 response."""
+        bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/state-store/job_id"
+        response = test_client.patch(bad_url, json={"value": "v"})
+        assert response.status_code == 404
+
     def test_patch_empty_body_returns_422(self, test_client):
         _create_task_state_store_row(self._session, "job_id", "v", self.dag_run)
         self._session.commit()
