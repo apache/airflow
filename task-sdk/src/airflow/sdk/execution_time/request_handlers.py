@@ -62,6 +62,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -268,6 +269,14 @@ def handle_get_xcom_sequence_slice(
         msg.step,
         msg.include_prior_dates,
     )
+    if isinstance(xcoms, XComSequenceSliceResponse):
+        return XComSequenceSliceResult.from_response(xcoms), {}
+    return xcoms, {}
+
+
+def handle_get_xcom_by_keys(client: Client, msg: GetXComByKeys) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch multiple XCom values by key list in a single round-trip."""
+    xcoms = client.xcoms.get_by_keys(msg.dag_id, msg.run_id, msg.task_id, msg.keys, msg.map_index)
     if isinstance(xcoms, XComSequenceSliceResponse):
         return XComSequenceSliceResult.from_response(xcoms), {}
     return xcoms, {}

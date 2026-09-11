@@ -26,6 +26,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -33,7 +34,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
-from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence, XComIterable
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 
 from tests_common.test_utils.config import conf_vars
@@ -172,3 +173,95 @@ def test_getitem_slice(mock_supervisor_comms, lazy_sequence):
             step=None,
         ),
     )
+
+
+class TestXComIterable:
+    @pytest.fixture
+    def iterable(self):
+        return XComIterable(task_id="task", dag_id="dag", run_id="run", length=3)
+
+    def test_iter_sends_single_batch_request(self, mock_supervisor_comms, iterable):
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b", "c"])
+        assert list(iterable) == ["a", "b", "c"]
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetXComByKeys(
+                keys=["return_value_0", "return_value_1", "return_value_2"],
+                dag_id="dag",
+                run_id="run",
+                task_id="task",
+                map_index=-1,
+            )
+        )
+
+    def test_iter_empty_length_skips_supervisor_call(self, mock_supervisor_comms):
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=0)
+        assert list(iterable) == []
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_iter_is_lazy(self, mock_supervisor_comms, iterable):
+        """Deserialization happens on demand - breaking early skips remaining items."""
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b", "c"])
+        it = iter(iterable)
+        assert next(it) == "a"
+        # Only one send was made for the whole batch, but only one item consumed.
+        mock_supervisor_comms.send.assert_called_once()
+
+    def test_iter_uses_map_index(self, mock_supervisor_comms):
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=2, map_index=5)
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["x", "y"])
+        list(iterable)
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetXComByKeys(
+                keys=["return_value_0", "return_value_1"],
+                dag_id="dag",
+                run_id="run",
+                task_id="task",
+                map_index=5,
+            )
+        )
+
+    def test_iter_unexpected_response_raises(self, mock_supervisor_comms, iterable):
+        mock_supervisor_comms.send.return_value = XComSequenceIndexResult(root="oops")
+        with pytest.raises(TypeError, match="Got unexpected response to GetXComByKeys"):
+            list(iterable)
+
+    def test_getitem_integer(self, mock_supervisor_comms, iterable):
+        """Single-index access still uses XCom.get_one (one-item fetch)."""
+        from unittest.mock import patch
+
+        with patch("airflow.sdk.execution_time.lazy_sequence.XCom") as mock_xcom:
+            mock_xcom.get_one.return_value = "val"
+            assert iterable[1] == "val"
+            mock_xcom.get_one.assert_called_once_with(
+                key="return_value_1",
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                map_index=None,
+            )
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_getitem_integer_out_of_range(self, mock_supervisor_comms, iterable):
+        with pytest.raises(IndexError):
+            iterable[10]
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_getitem_slice_sends_batch(self, mock_supervisor_comms, iterable):
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "c"])
+        assert iterable[::2] == ["a", "c"]
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetXComByKeys(
+                keys=["return_value_0", "return_value_2"],
+                dag_id="dag",
+                run_id="run",
+                task_id="task",
+                map_index=-1,
+            )
+        )
+
+    def test_getitem_empty_slice_skips_supervisor_call(self, mock_supervisor_comms, iterable):
+        assert iterable[5:2] == []
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_len(self, iterable):
+        assert len(iterable) == 3
