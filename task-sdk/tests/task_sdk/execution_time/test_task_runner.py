@@ -22,6 +22,7 @@ import contextvars
 import functools
 import json
 import os
+import sys
 import textwrap
 import time
 from collections.abc import Iterable
@@ -199,6 +200,10 @@ from tests_common.test_utils.mock_operators import AirflowLink
 if TYPE_CHECKING:
     from kgb import SpyAgency
 import time_machine
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="Task runner uses POSIX-only process primitives"
+)
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
