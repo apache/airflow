@@ -41,6 +41,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
@@ -50,6 +51,8 @@ from airflow.sdk.execution_time.comms import (
     DeleteAssetStateStoreByUri,
     DeleteVariable,
     DeleteXCom,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     GetConnection,
@@ -215,6 +218,41 @@ def handle_get_dag_run_state(client: Client, msg: GetDagRunState) -> tuple[BaseM
     if isinstance(dr_resp, DagRunStateResponse):
         return DagRunStateResult.from_api_response(dr_resp), {}
     return dr_resp, {}
+
+
+def handle_get_asset_event_by_asset(
+    client: Client, msg: GetAssetEventByAsset
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch asset events for an asset, optionally filtered by partition key."""
+    resp = client.asset_events.get(
+        uri=msg.uri,
+        name=msg.name,
+        after=msg.after,
+        before=msg.before,
+        ascending=msg.ascending,
+        limit=msg.limit,
+        partition_key=msg.partition_key,
+        partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
+        extra=msg.extra,
+    )
+    return AssetEventsResult.from_asset_events_response(resp), {"exclude_unset": True}
+
+
+def handle_get_asset_event_by_asset_alias(
+    client: Client, msg: GetAssetEventByAssetAlias
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch asset events for an asset alias, optionally filtered by partition key."""
+    resp = client.asset_events.get(
+        alias_name=msg.alias_name,
+        after=msg.after,
+        before=msg.before,
+        ascending=msg.ascending,
+        limit=msg.limit,
+        partition_key=msg.partition_key,
+        partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
+        extra=msg.extra,
+    )
+    return AssetEventsResult.from_asset_events_response(resp), {"exclude_unset": True}
 
 
 def handle_get_previous_dag_run(
