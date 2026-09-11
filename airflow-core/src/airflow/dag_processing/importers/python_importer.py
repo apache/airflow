@@ -187,6 +187,8 @@ class PythonDagImporter(AbstractDagImporter):
                     message=str(warn_msg.message),
                     warning_type=category,
                     line_number=warn_msg.lineno,
+                    category=warn_msg.category,
+                    dag_file_path=relative_path,
                 )
             )
 

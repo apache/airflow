@@ -1214,6 +1214,44 @@ with airflow.DAG(
             assert dag_file not in dagbag.captured_warnings
             assert dagbag.dagbag_stats[0].warning_num == 0
 
+    @pytest.mark.parametrize("warning_from_dag_file", [True, False])
+    def test_dagbag_warning_includes_dag_file_when_warning_source_differs(
+        self, tmp_path, warning_from_dag_file
+    ):
+        dag_file = tmp_path / "test_dag_warning_from_internal_source.py"
+        warning_source = dag_file.as_posix() if warning_from_dag_file else "/provider/deprecated_operator.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                f"""\
+                import warnings
+                from datetime import datetime
+
+                from airflow.sdk import DAG
+
+                warnings.warn_explicit(
+                    "Deprecated provider behavior",
+                    category=DeprecationWarning,
+                    filename={warning_source!r},
+                    lineno=7,
+                )
+
+                with DAG("test_dag_warning_from_internal_source", start_date=datetime(2024, 1, 1)):
+                    pass
+                """
+            )
+        )
+        dagbag = DagBag(dag_folder=dag_file.as_posix(), include_examples=False, collect_dags=False)
+        expected_message = "Deprecated provider behavior"
+        if not warning_from_dag_file:
+            expected_message += f" (Dag file: {dag_file.as_posix()})"
+
+        with pytest.warns(DeprecationWarning, match=re.escape(expected_message)):
+            dagbag.collect_dags(dag_folder=dagbag.dag_folder, include_examples=False, only_if_updated=False)
+
+        assert dagbag.captured_warnings == {
+            dag_file.as_posix(): (f"{warning_source}:7: DeprecationWarning: {expected_message}",)
+        }
+
     @pytest.fixture
     def warning_zipped_dag_path(self, tmp_path: pathlib.Path) -> str:
         warnings_dag_file = TEST_DAGS_FOLDER / "test_dag_warnings.py"
