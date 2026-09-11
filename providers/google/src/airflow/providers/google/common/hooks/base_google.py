@@ -360,7 +360,11 @@ class GoogleBaseHook(BaseHook):
         idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
         client_id: str | None = self._get_field("client_id", None)
         client_secret: str | None = self._get_field("client_secret", None)
-        idp_extra_params: str | None = self._get_field("idp_extra_params", None)
+        # The connection form saves this field as ``idp_extra_parameters``; ``idp_extra_params`` is
+        # still accepted for extras that were written by hand against the previous field name.
+        idp_extra_params: str | None = self._get_field("idp_extra_parameters", None) or self._get_field(
+            "idp_extra_params", None
+        )
 
         idp_extra_params_dict: dict[str, str] | None = None
         if idp_extra_params:
