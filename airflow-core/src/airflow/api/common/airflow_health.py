@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
+from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -28,6 +31,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+log = logging.getLogger(__name__)
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
@@ -78,14 +83,65 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
     }
 
 
-def _aggregate_detailed_status(jobs: list[Job]) -> str:
-    """detailed_status: healthy (all alive), degraded (some alive), down (none alive)."""
-    alive_count = sum(1 for job in jobs if job.is_alive())
-    if alive_count == 0:
-        return DOWN
-    if alive_count == len(jobs):
+# ``detailed_status`` answers "is every part of this component's work being done", which needs a
+# denominator. Counting job rows cannot supply one: ``end_date`` is only written by a cooperative
+# shutdown, so a replica lost to SIGKILL, an OOM kill, or a node eviction leaves an unfinished row
+# behind forever and a restarted replica adds a second one. The denominator is therefore taken from
+# the declared work partition instead, which is unaffected by how replicas come and go:
+#
+# * Dag processor -- the bundles in ``[dag_processor] dag_bundle_config_list``.
+# * Triggerer -- the team scopes those bundles declare, since a triggerer only picks up triggers for
+#   its own team (see ``Trigger.ids_for_triggerer``).
+# * Scheduler -- schedulers are symmetric, so there is no partition and no partial state to report.
+
+
+def _configured_bundle_teams() -> dict[str, str | None]:
+    """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
+    try:
+        return get_configured_bundle_team_names()
+    except Exception:
+        # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
+        log.warning("Could not read the Dag bundle configuration", exc_info=True)
+        return {}
+
+
+def _liveness_status(jobs: list[Job]) -> str:
+    """Status for a component with no declared work partition: one live replica covers everything."""
+    return HEALTHY if any(job.is_alive() for job in jobs) else DOWN
+
+
+def _coverage_status(expected: set[Any], covered: set[Any]) -> str:
+    """Status from how much of a component's declared work partition its live replicas cover."""
+    if not expected - covered:
         return HEALTHY
-    return DEGRADED
+    if expected & covered:
+        return DEGRADED
+    return DOWN
+
+
+def _dag_processor_detailed_status(jobs: list[Job]) -> str:
+    expected = set(_configured_bundle_teams())
+    if not expected:
+        return _liveness_status(jobs)
+
+    covered: set[str] = set()
+    for job in jobs:
+        if job.is_alive():
+            # A processor started without ``--bundle-name`` parses every configured bundle.
+            covered |= expected if not job.bundle_names else expected & set(job.bundle_names)
+    return _coverage_status(expected, covered)
+
+
+def _triggerer_detailed_status(jobs: list[Job]) -> str:
+    if not conf.getboolean("core", "multi_team"):
+        # Outside multi-team mode no team filter is applied, so any live triggerer serves every trigger.
+        return _liveness_status(jobs)
+
+    expected = set(_configured_bundle_teams().values())
+    if not expected:
+        return _liveness_status(jobs)
+
+    return _coverage_status(expected, {job.team_name for job in jobs if job.is_alive()})
 
 
 def get_airflow_health() -> dict[str, Any]:
@@ -111,7 +167,7 @@ def get_airflow_health() -> dict[str, Any]:
     try:
         scheduler_jobs = get_jobs_health(SchedulerJobRunner)
         scheduler_status = _legacy_status(scheduler_jobs)
-        scheduler_detailed_status = _aggregate_detailed_status(scheduler_jobs)
+        scheduler_detailed_status = _liveness_status(scheduler_jobs)
         if scheduler_jobs:
             scheduler_instances = [
                 _job_instance_health(job, "latest_scheduler_heartbeat") for job in scheduler_jobs
@@ -125,7 +181,7 @@ def get_airflow_health() -> dict[str, Any]:
     try:
         triggerer_jobs = get_jobs_health(TriggererJobRunner)
         triggerer_status = _legacy_status(triggerer_jobs)
-        triggerer_detailed_status = _aggregate_detailed_status(triggerer_jobs)
+        triggerer_detailed_status = _triggerer_detailed_status(triggerer_jobs)
         if triggerer_jobs:
             triggerer_instances = [_triggerer_instance_health(job) for job in triggerer_jobs]
 
@@ -139,7 +195,7 @@ def get_airflow_health() -> dict[str, Any]:
     try:
         dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
         dag_processor_status = _legacy_status(dag_processor_jobs)
-        dag_processor_detailed_status = _aggregate_detailed_status(dag_processor_jobs)
+        dag_processor_detailed_status = _dag_processor_detailed_status(dag_processor_jobs)
         if dag_processor_jobs:
             dag_processor_instances = [_dag_processor_instance_health(job) for job in dag_processor_jobs]
 
