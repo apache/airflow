@@ -364,10 +364,10 @@ rows and versions are preserved. A selected file can define several Dags, which
 all follow the normal synchronization path.
 
 The option does not discover unregistered Dags or reconstruct missing historical
-versions. Use normal reserialization to refresh existing definitions. Unavailable
-or unparsable files produce an error exit after the remaining files are processed;
-successfully restored files remain committed. Normal Dag processing remains
-responsible for detecting removals.
+versions. Use ``dags reserialize`` without this option to refresh existing
+definitions. Files that are unavailable or fail to parse produce an error exit
+after the remaining files are processed; successfully restored files remain
+committed. Normal Dag processing remains responsible for detecting removals.
 
 .. note::
 
