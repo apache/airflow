@@ -323,6 +323,16 @@ class TestConfigLint:
                 "enable_task_context_logger",
                 "Remove TaskContextLogger: Replaced by the Log table for better handling of task log messages outside the execution context.",
             ),
+            (
+                "webserver",
+                "access_logfile",
+                "API server access logs are part of its regular log output. Do not move this value to the `log_config` setting in the `api` section. That setting expects a path to a uvicorn logging configuration file.",
+            ),
+            (
+                "api",
+                "access_logfile",
+                "API server access logs are part of its regular log output. Do not move this value to the `log_config` setting in the `api` section. That setting expects a path to a uvicorn logging configuration file.",
+            ),
         ],
     )
     def test_lint_with_specific_removed_configs(self, section, option, suggestion, stdout_capture):
