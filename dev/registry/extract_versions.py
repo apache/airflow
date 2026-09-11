@@ -59,6 +59,7 @@ except ImportError:
     sys.exit(1)
 
 from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
+from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors
 from registry_tools.types import (
     CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
@@ -129,6 +130,21 @@ def git_show(tag: str, path: str) -> str | None:
         return None
 
 
+def git_ls_tree(tag: str, prefix: str) -> list[str]:
+    """List the file paths under a prefix at a specific git tag."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", tag, "--", prefix],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        return []
+    return [line for line in result.stdout.splitlines() if line]
+
+
 def git_tag_exists(tag: str) -> bool:
     """Check if a git tag exists locally."""
     result = subprocess.run(
@@ -179,6 +195,27 @@ def get_source_file_path(layout: str, dir_path: str, module_path: str) -> str:
     if layout == "new":
         return f"providers/{dir_path}/src/{rel_file}"
     return f"providers/src/{rel_file}"
+
+
+def read_guide_docs(tag: str, layout: str, dir_path: str) -> dict[str, str]:
+    """Read a provider's authored reST docs at a tag, keyed by path relative to its docs dir.
+
+    Only the per-provider layout keeps docs beside the provider; under the old flat
+    layout they lived in a top-level ``docs/`` tree, so those tags get no guide
+    links rather than links guessed from a path that moved.
+    """
+    if layout != "new":
+        return {}
+
+    docs_prefix = f"providers/{dir_path}/docs/"
+    docs: dict[str, str] = {}
+    for path in git_ls_tree(tag, docs_prefix):
+        if not path.endswith(".rst"):
+            continue
+        content = git_show(tag, path)
+        if content:
+            docs[path[len(docs_prefix) :]] = content
+    return docs
 
 
 def parse_pyproject_toml_content(content: str, layout: str) -> dict[str, Any]:
@@ -381,6 +418,8 @@ def extract_modules_from_yaml(
                     "category": category,
                 }
             )
+
+    attach_guide_urls(modules, collect_guide_anchors(read_guide_docs(tag, layout, dir_path)), base_docs_url)
 
     return modules
 
