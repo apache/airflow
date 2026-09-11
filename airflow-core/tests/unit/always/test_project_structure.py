@@ -129,7 +129,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
