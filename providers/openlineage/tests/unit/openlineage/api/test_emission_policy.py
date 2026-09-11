@@ -279,3 +279,43 @@ class TestUnsupportedObjects:
         """Even with no flags, a wrong argument type fails loud rather than silently no-op."""
         with pytest.raises(TypeError):
             extend_global_openlineage_emission_policy(object())
+
+
+class TestExcludePatternValidation:
+    """Malformed exclusion patterns are rejected at authoring time, not at extraction time."""
+
+    FIELDS = ("exclude_hook_lineage_assets", "exclude_hook_lineage_hooks")
+
+    @pytest.mark.parametrize("field", FIELDS)
+    @pytest.mark.parametrize(
+        ("value", "message"),
+        [
+            pytest.param("s3://bucket/.*", "must be a list of strings", id="string-instead-of-list"),
+            pytest.param([123], "must contain only strings", id="non-string-element"),
+            pytest.param(["["], "is not a valid regex", id="unterminated-character-set"),
+            pytest.param(["ok.*", "(unclosed"], "is not a valid regex", id="second-pattern-invalid"),
+        ],
+    )
+    def test_invalid_patterns_raise_value_error(self, field, value, message):
+        _, task = _make_dag_and_task()
+        with pytest.raises(ValueError, match=message):
+            extend_global_openlineage_emission_policy(task, **{field: value})
+
+    @pytest.mark.parametrize("field", FIELDS)
+    def test_invalid_patterns_store_nothing(self, field):
+        _, task = _make_dag_and_task()
+        with pytest.raises(ValueError, match="is not a valid regex"):
+            extend_global_openlineage_emission_policy(task, **{field: ["["]})
+        assert _task_flags(task) == {}
+
+    @pytest.mark.parametrize("field", FIELDS)
+    def test_valid_patterns_are_stored(self, field):
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, **{field: ["s3://bucket/part_.*"]})
+        assert _task_flags(task)[field] == ["s3://bucket/part_.*"]
+
+    @pytest.mark.parametrize("field", FIELDS)
+    def test_empty_list_is_accepted(self, field):
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, **{field: []})
+        assert _task_flags(task)[field] == []

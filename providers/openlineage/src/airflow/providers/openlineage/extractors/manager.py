@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
@@ -137,7 +138,7 @@ class ExtractorManager(LoggingMixin):
                 # If no inputs and outputs are present - check Hook Lineage if enabled
                 if (not task_metadata.inputs) and (not task_metadata.outputs):
                     if controls.hook_lineage:
-                        hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
+                        hook_lineage = self.get_hook_lineage(task_instance, task_instance_state, controls)
                         if hook_lineage is not None:
                             task_metadata = task_metadata.merge(hook_lineage)
                         else:  # Last resort - check manual annotations
@@ -166,7 +167,7 @@ class ExtractorManager(LoggingMixin):
                 # internally. An uncaught exception here would propagate up to the listener's
                 # @print_warning decorator, silently suppressing the task-level event.
                 try:
-                    hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
+                    hook_lineage = self.get_hook_lineage(task_instance, task_instance_state, controls)
                 except Exception as e:
                     self.log.warning(
                         "Failed to extract OpenLineage hook lineage %s: %s. Task event will be emitted without lineage.",
@@ -243,10 +244,39 @@ class ExtractorManager(LoggingMixin):
                 task_metadata.outputs.append(ol)
                 seen.add((ol.namespace, ol.name))
 
+    def _is_excluded_asset(
+        self,
+        asset_info,
+        exclude_assets: tuple[str, ...],
+        exclude_hooks: tuple[str, ...],
+    ) -> bool:
+        """
+        Return ``True`` if *asset_info* matches any asset-URI or hook-class exclusion pattern.
+
+        Hooks are matched on their fully-qualified class name, mirroring how the ``operator``
+        scope key identifies operators, so two identically named classes from different modules
+        stay distinguishable.
+        """
+        if exclude_assets:
+            uri = getattr(asset_info.asset, "uri", None)
+            if uri and any(re.fullmatch(p, uri) for p in exclude_assets):
+                self.log.debug("Excluding hook-collected asset %r by asset pattern.", uri)
+                return True
+
+        if exclude_hooks:
+            hook_type = type(asset_info.context)
+            hook_name = f"{hook_type.__module__}.{hook_type.__name__}"
+            if any(re.fullmatch(p, hook_name) for p in exclude_hooks):
+                self.log.debug("Excluding hook-collected asset reported by hook %r.", hook_name)
+                return True
+
+        return False
+
     def get_hook_lineage(
         self,
         task_instance=None,
         task_instance_state: TaskInstanceState | None = None,
+        controls: EmissionPolicy | None = None,
     ) -> OperatorLineage | None:
         """
         Extract lineage from the Hook Lineage Collector.
@@ -259,8 +289,13 @@ class ExtractorManager(LoggingMixin):
           When ``task_instance`` is provided, each extra is parsed and separate per-query
           OpenLineage events are emitted.
 
+        Assets matching the ``exclude_hook_lineage_assets`` / ``exclude_hook_lineage_hooks``
+        patterns of *controls* are dropped. SQL-based lineage is not filtered.
+
         Returns ``None`` when nothing was collected.
         """
+        if controls is None:
+            controls = EmissionPolicy.defaults()
         try:
             from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
             from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
@@ -276,16 +311,22 @@ class ExtractorManager(LoggingMixin):
         self.log.debug("OpenLineage will extract lineage from Hook Lineage Collector.")
         collected = collector.collected_assets
 
-        # Asset-based inputs/outputs - keep only assets that can be translated to OL datasets
+        exclude_assets = controls.exclude_hook_lineage_assets
+        exclude_hooks = controls.exclude_hook_lineage_hooks
+
+        # Asset-based inputs/outputs - keep only assets that are not excluded by policy and
+        # that can be translated to OL datasets
         inputs = [
             asset
             for asset_info in collected.inputs
-            if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
+            if not self._is_excluded_asset(asset_info, exclude_assets, exclude_hooks)
+            and (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
         ]
         outputs = [
             asset
             for asset_info in collected.outputs
-            if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
+            if not self._is_excluded_asset(asset_info, exclude_assets, exclude_hooks)
+            and (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
         ]
 
         # SQL-based lineage - keep only SQL extra with query_text or job_id.

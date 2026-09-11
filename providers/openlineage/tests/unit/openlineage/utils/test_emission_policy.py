@@ -2412,3 +2412,154 @@ class TestSelectiveEnableWithLockedRule:
         # adds 'emit' to locked_fields but locked_fields only blocks AUTHORING, not other conf rules.
         # So the task-tier opt-in rule still applies.
         assert cfg.emit is True
+
+
+class TestHookLineageExclusionPatterns:
+    """Validation and tier resolution for the ``exclude_hook_lineage_*`` pattern lists."""
+
+    def test_defaults_are_empty(self):
+        cfg = EmissionPolicy.defaults()
+        assert cfg.exclude_hook_lineage_assets == ()
+        assert cfg.exclude_hook_lineage_hooks == ()
+
+    @pytest.mark.parametrize(
+        "control",
+        ["exclude_hook_lineage_assets", "exclude_hook_lineage_hooks"],
+    )
+    def test_patterns_resolved_as_tuple(self, control):
+        cfg = _resolve_task_controls(
+            [{"scope": {}, "controls": {control: ["a.*", "b.*"]}}],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert getattr(cfg, control) == ("a.*", "b.*")
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("s3://bucket/.*", id="string-instead-of-list"),
+            pytest.param([1], id="non-string-element"),
+            pytest.param(["["], id="invalid-regex"),
+            pytest.param(True, id="bool-instead-of-list"),
+        ],
+    )
+    def test_invalid_pattern_list_skips_rule(self, value):
+        """An invalid exclude list drops the whole rule, leaving defaults in place."""
+        cfg = _resolve_task_controls(
+            [{"scope": {}, "controls": {"exclude_hook_lineage_assets": value, "emit": False}}],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert cfg.exclude_hook_lineage_assets == ()
+        assert cfg.emit is True
+
+    def test_empty_list_is_valid(self):
+        cfg = _resolve_task_controls(
+            [{"scope": {}, "controls": {"exclude_hook_lineage_assets": []}}],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert cfg.exclude_hook_lineage_assets == ()
+
+    def test_patterns_validated_as_regex_under_exact_match_mode(self):
+        """Exclude patterns are always regex, so a bad one is rejected even in exact mode."""
+        cfg = _resolve_task_controls(
+            [{"scope": {}, "match_mode": "exact", "controls": {"exclude_hook_lineage_assets": ["("]}}],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert cfg.exclude_hook_lineage_assets == ()
+
+    def test_more_specific_tier_replaces_broader_list(self):
+        """Lists replace rather than merge, so a task rule fully overrides a global one."""
+        cfg = _resolve_task_controls(
+            [
+                {"scope": {}, "controls": {"exclude_hook_lineage_assets": ["s3://.*"]}},
+                {
+                    "scope": {"dag_id": "my_dag", "task_id": "my_task"},
+                    "controls": {"exclude_hook_lineage_assets": ["s3://bucket/part_.*"]},
+                },
+            ],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert cfg.exclude_hook_lineage_assets == ("s3://bucket/part_.*",)
+
+    def test_task_rule_can_clear_a_global_exclusion(self):
+        cfg = _resolve_task_controls(
+            [
+                {"scope": {}, "controls": {"exclude_hook_lineage_assets": ["s3://.*"]}},
+                {
+                    "scope": {"dag_id": "my_dag", "task_id": "my_task"},
+                    "controls": {"exclude_hook_lineage_assets": []},
+                },
+            ],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert cfg.exclude_hook_lineage_assets == ()
+
+    def test_last_rule_wins_within_a_tier(self):
+        cfg = _resolve_task_controls(
+            [
+                {"scope": {}, "controls": {"exclude_hook_lineage_hooks": ["FirstHook"]}},
+                {"scope": {}, "controls": {"exclude_hook_lineage_hooks": ["SecondHook"]}},
+            ],
+            operator=MockOperator(),
+            dag_id="my_dag",
+            task_id="my_task",
+        )
+        assert cfg.exclude_hook_lineage_hooks == ("SecondHook",)
+
+    def test_authoring_api_sets_patterns(self):
+        from airflow.providers.openlineage.api.emission_policy import (
+            extend_global_openlineage_emission_policy,
+        )
+
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_hook_lineage_assets=["s3://.*/part_.*"])
+
+        with conf_vars({("openlineage", "emission_policy"): "[]"}):
+            cfg = resolve_task_emission_policy(task, "test_dag", "test_task")
+
+        assert cfg.exclude_hook_lineage_assets == ("s3://.*/part_.*",)
+
+    def test_authoring_api_overrides_conf_patterns(self):
+        from airflow.providers.openlineage.api.emission_policy import (
+            extend_global_openlineage_emission_policy,
+        )
+
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_hook_lineage_assets=["gs://.*"])
+        rules = [{"scope": {}, "controls": {"exclude_hook_lineage_assets": ["s3://.*"]}}]
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            cfg = resolve_task_emission_policy(task, "test_dag", "test_task")
+
+        assert cfg.exclude_hook_lineage_assets == ("gs://.*",)
+
+    def test_locked_conf_rule_blocks_authoring_override(self):
+        from airflow.providers.openlineage.api.emission_policy import (
+            extend_global_openlineage_emission_policy,
+        )
+
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_hook_lineage_assets=[])
+        rules = [
+            {
+                "scope": {},
+                "locked": True,
+                "controls": {"exclude_hook_lineage_assets": ["s3://.*"]},
+            }
+        ]
+
+        with conf_vars({("openlineage", "emission_policy"): json.dumps(rules)}):
+            cfg = resolve_task_emission_policy(task, "test_dag", "test_task")
+
+        assert cfg.exclude_hook_lineage_assets == ("s3://.*",)

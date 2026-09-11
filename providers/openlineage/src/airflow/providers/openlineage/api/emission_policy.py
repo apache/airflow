@@ -91,12 +91,16 @@ from airflow.providers.openlineage.utils.emission_policy import (
     EMIT,
     EMIT_DAG_EVENTS,
     EMIT_TASK_EVENTS,
+    EXCLUDE_HOOK_LINEAGE_ASSETS,
+    EXCLUDE_HOOK_LINEAGE_HOOKS,
     EXTRACT_OPERATOR_METADATA,
     HOOK_LINEAGE,
     INCLUDE_FULL_TASK_INFO,
     INCLUDE_SOURCE_CODE,
     OL_EMISSION_POLICY_PARAM,
+    ControlValue,
     _merge_param,
+    find_invalid_pattern,
 )
 
 if TYPE_CHECKING:
@@ -120,6 +124,8 @@ def extend_global_openlineage_emission_policy(
     extract_operator_metadata: bool | None = None,
     include_source_code: bool | None = None,
     hook_lineage: bool | None = None,
+    exclude_hook_lineage_assets: list[str] | None = None,
+    exclude_hook_lineage_hooks: list[str] | None = None,
     include_full_task_info: bool | None = None,
 ) -> T:
     """
@@ -132,8 +138,9 @@ def extend_global_openlineage_emission_policy(
     When called on a **DAG**, flags are applied as follows:
 
     - Task-relevant flags (``emit``, ``emit_task_events``, ``extract_operator_metadata``,
-      ``include_source_code``, ``hook_lineage``, ``include_full_task_info``) are
-      **propagated to all tasks** in the Dag at the time of the call.
+      ``include_source_code``, ``hook_lineage``, ``exclude_hook_lineage_assets``,
+      ``exclude_hook_lineage_hooks``, ``include_full_task_info``) are **propagated to all
+      tasks** in the Dag at the time of the call.
     - DAG-run-level flags (``emit``, ``emit_dag_events``) are stored on the Dag itself.
     - ``emit_dag_events`` is meaningless on a task and logs a warning if provided.
 
@@ -179,7 +186,13 @@ def extend_global_openlineage_emission_policy(
     :param extract_operator_metadata: Whether to run operator-specific extractor-based metadata collection.
     :param include_source_code: Whether to include operator source code in Python/Bash operator events.
     :param hook_lineage: Whether to use ``HookLineageCollector`` as a fallback.
+    :param exclude_hook_lineage_assets: Regex patterns; hook-collected assets whose URI matches
+        any of them are dropped.  Has no effect when ``hook_lineage`` is disabled.
+    :param exclude_hook_lineage_hooks: Regex patterns; hook-collected assets reported by a hook
+        whose fully-qualified class name (``module.ClassName``) matches any of them are dropped.
+        Has no effect when ``hook_lineage`` is disabled.
     :param include_full_task_info: Whether to include the full serialized operator state.
+    :raises ValueError: If either exclusion argument is not a list of valid regex patterns.
     :return: The same *obj* — allows use as a decorator or in chained calls.
     """
     if isinstance(obj, XComArg):
@@ -191,6 +204,8 @@ def extend_global_openlineage_emission_policy(
             extract_operator_metadata=extract_operator_metadata,
             include_source_code=include_source_code,
             hook_lineage=hook_lineage,
+            exclude_hook_lineage_assets=exclude_hook_lineage_assets,
+            exclude_hook_lineage_hooks=exclude_hook_lineage_hooks,
             include_full_task_info=include_full_task_info,
         )
         return obj
@@ -206,7 +221,20 @@ def extend_global_openlineage_emission_policy(
             "configuration with a global rule ('scope': {}) instead."
         )
 
-    provided: dict[str, bool] = {
+    # Validate eagerly: a bad pattern stored here would otherwise surface much later as an
+    # re.error inside hook lineage extraction, which the extractor manager swallows — the Dag
+    # would silently lose all lineage instead of reporting the typo.
+    for field, patterns in (
+        (EXCLUDE_HOOK_LINEAGE_ASSETS, exclude_hook_lineage_assets),
+        (EXCLUDE_HOOK_LINEAGE_HOOKS, exclude_hook_lineage_hooks),
+    ):
+        if patterns is None:
+            continue
+        invalid = find_invalid_pattern(field, patterns)
+        if invalid:
+            raise ValueError(f"extend_global_openlineage_emission_policy(): {invalid}")
+
+    provided: dict[str, ControlValue] = {
         k: v
         for k, v in {
             EMIT: emit,
@@ -215,6 +243,8 @@ def extend_global_openlineage_emission_policy(
             EXTRACT_OPERATOR_METADATA: extract_operator_metadata,
             INCLUDE_SOURCE_CODE: include_source_code,
             HOOK_LINEAGE: hook_lineage,
+            EXCLUDE_HOOK_LINEAGE_ASSETS: exclude_hook_lineage_assets,
+            EXCLUDE_HOOK_LINEAGE_HOOKS: exclude_hook_lineage_hooks,
             INCLUDE_FULL_TASK_INFO: include_full_task_info,
         }.items()
         if v is not None
