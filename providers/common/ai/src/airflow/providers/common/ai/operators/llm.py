@@ -89,7 +89,8 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         before approving.  The modified value is returned as the task result.
         Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
-        reviewer is told about it.  Default ``None``.
+        reviewer is told about it.  Only takes effect with
+        ``require_approval=True``.  Default ``None``.
     :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
         ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
         ``model_dump()`` before being pushed to XCom. Default ``False`` --

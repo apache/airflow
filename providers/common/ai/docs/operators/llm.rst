@@ -205,12 +205,13 @@ approving with ``allow_modifications=True``, and set a deadline with
     :start-after: [START howto_operator_llm_approval]
     :end-before: [END howto_operator_llm_approval]
 
-A pending review is only visible on the Required Actions page.  Pass
+A pending review is not surfaced as a notification.  Pass
 ``approval_notifiers`` to tell the reviewers about it through any Airflow
 notifier (Slack, email, ...), the way
 :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
-``notifiers``.  The notifiers run once the review is open, and a notifier that
-raises fails the task before it starts waiting.
+``notifiers``.  The notifiers run once the review is open and can reference
+the review ``{{ subject }}`` and ``{{ body }}`` in their templates.  A
+notifier that raises is logged and the task still waits for the review.
 
 Parameters
 ----------

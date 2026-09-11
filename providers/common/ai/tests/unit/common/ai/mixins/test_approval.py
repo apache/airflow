@@ -81,7 +81,7 @@ def approval_op_with_modifications():
 def context():
     ti = MagicMock()
     ti.id = uuid4()
-    return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+    return {"task_instance": ti}
 
 
 # The legacy trigger path is taken on cores < 3.3; pin the flag so these tests keep
@@ -189,19 +189,30 @@ class TestDeferForApproval:
 
         op.defer_for_approval(context, "output")
 
-        notifier.assert_called_once_with(context)
+        notifier.assert_called_once_with(
+            {
+                **context,
+                "subject": "Review output for task `test_task`",
+                "body": "```\nPrompt: Summarize this\n\noutput\n```",
+            }
+        )
         assert [call[0] for call in order.mock_calls] == ["open_review", "notify"]
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_notifier_failure_stops_the_review(self, mock_upsert, mock_trigger_cls, context):
+    @patch("airflow.providers.common.ai.mixins.approval.log", autospec=True)
+    def test_notifier_failure_does_not_stop_the_review(
+        self, mock_log, mock_upsert, mock_trigger_cls, context
+    ):
         notifier = MagicMock(spec=BaseNotifier, side_effect=RuntimeError("smtp down"))
         op = FakeOperator(approval_notifiers=[notifier])
 
-        with pytest.raises(RuntimeError, match="smtp down"):
-            op.defer_for_approval(context, "output")
+        op.defer_for_approval(context, "output")
 
-        op.defer.assert_not_called()
+        mock_log.exception.assert_called_once_with(
+            "Approval notifier %s failed; the review stays open", notifier
+        )
+        op.defer.assert_called_once()
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -471,6 +482,16 @@ class TestAwaitInputForApproval:
         mock_upsert.assert_called_once()
         assert mock_upsert.call_args[1]["options"] == ["Approve", "Reject"]
         approval_op.defer.assert_not_called()
+
+    @patch(UPSERT_HITL_PATH)
+    def test_notifiers_fire_before_awaiting_input(self, mock_upsert, context):
+        notifier = MagicMock(spec=BaseNotifier)
+        op = FakeOperator(approval_notifiers=[notifier])
+
+        with pytest.raises(TaskAwaitingInput):
+            op.defer_for_approval(context, "output")
+
+        notifier.assert_called_once()
 
     @patch(UPSERT_HITL_PATH)
     def test_approval_timeout_carried_on_await(self, mock_upsert, context):
