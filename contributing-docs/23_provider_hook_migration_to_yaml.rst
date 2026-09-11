@@ -109,6 +109,33 @@ supported field options, see
           type: string
           default: "my-project"
 
+Toolset metadata is defined under the separate top-level ``toolsets`` key:
+
+toolsets.external-services
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Per-module list of external services each toolset reaches, added as a sibling of
+``python-modules`` inside a ``toolsets`` entry. Unlike the connection-type
+``external-services`` key above, this one is not surfaced on the registry's
+provider version page, and there is no built-in Sphinx rendering for it either --
+a provider that wants to show it must add its own docs page with the
+``provider-toolset-services`` directive, the way ``common.ai`` does in
+``providers/common/ai/docs/supported_services.rst`` (which also renders the
+connection-type list there via ``provider-connection-services``). As with the
+connection-type list, the entries are representative, not exhaustive. Every
+``module`` value must also appear in that entry's ``python-modules`` list.
+
+.. code-block:: yaml
+
+    toolsets:
+      - integration-name: Common AI
+        python-modules:
+          - airflow.providers.common.ai.toolsets.hook
+        external-services:
+          - module: airflow.providers.common.ai.toolsets.hook
+            services:
+              - Any Airflow connection, through its provider hook
+
 Migration Tool
 --------------
 
