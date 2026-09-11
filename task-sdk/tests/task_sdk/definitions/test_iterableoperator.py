@@ -42,6 +42,7 @@ from airflow.sdk.exceptions import (
     DownstreamTasksSkipped,
     TaskDeferred,
 )
+from airflow.sdk.execution_time.comms import DeadlockImminentError
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context as _mock_context_base
@@ -819,6 +820,34 @@ class TestIterableOperator:
             mock_xcom_get_one(context)
 
             with pytest.raises(AirflowFailException):
+                iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_deadlock_imminent_error_raises_actionable_airflow_fail_exception(
+        self, dag_maker, session, mock_xcom_get_one
+    ):
+        """A sub-task that raises DeadlockImminentError (a sync SDK call made from an async
+        sub-task) must never be retried and must surface an actionable error pointing at async-safe
+        SDK alternatives, rather than the generic non-Exception BaseException message."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput(
+                [{"raise_exception": DeadlockImminentError("simulated sync SDK call")}]
+            )
+            mapped_op = MockOperator.partial(
+                task_id="deadlock_task",
+                dag=dag,
+                retries=3,  # Has retries available, but should NOT use them
+            )._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="synchronous SDK call"):
                 iterable_op.execute(context=context)
 
     @pytest.mark.db_test

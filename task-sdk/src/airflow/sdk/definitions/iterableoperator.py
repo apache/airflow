@@ -45,6 +45,7 @@ from airflow.sdk.exceptions import (
     DownstreamTasksSkipped,
     TaskDeferred,
 )
+from airflow.sdk.execution_time.comms import DeadlockImminentError
 from airflow.sdk.execution_time.context import context_update_for_unmapped
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
 from airflow.sdk.execution_time.task_runner import IndexedTaskInstance, IndexedTaskState
@@ -122,6 +123,19 @@ class IterableOperator(BaseOperator):
         re-raised so the IterableOperator is marked ``SKIPPED`` instead of ``UP_FOR_RETRY``. Any other
         mix of sub-task exceptions (including a partial skip alongside other failures) is aggregated
         into a :class:`BaseExceptionGroup` and treated as a regular retryable failure.
+
+    .. warning::
+        **Async sub-tasks must only make async SDK calls.**
+
+        IterableOperator runs multiple async sub-tasks concurrently on the same event loop, each
+        making async SDK calls of its own (checkpointing, XCom push). If an async sub-task's
+        ``aexecute()`` — or a hook/callback it calls — issues a *synchronous* SDK call instead (e.g.
+        ``Variable.get``, ``BaseHook.get_connection``/``get_hook``, ``ti.xcom_pull``, or a sync
+        ``on_success_callback``/``pre_execute``), it can collide with another sub-task's async SDK
+        call that is concurrently holding the communication lock, which is detected and raised
+        eagerly as a non-retryable failure rather than silently deadlocking. Use the async-safe
+        equivalents inside async operators: :meth:`~airflow.sdk.bases.hook.BaseHook.aget_connection`/
+        ``aget_hook``, ``ti.axcom_pull``. ``Variable`` has no async equivalent yet.
 
     .. warning::
         **``execution_timeout`` is only enforced for async sub-tasks.**
@@ -311,6 +325,17 @@ class IterableOperator(BaseOperator):
                     # signal conditions where continuing iteration is meaningless
                     # because every subsequent task would fail for the same reason.
                     # Re-raise immediately to stop all task iteration.
+                    if isinstance(raised, DeadlockImminentError):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] made a synchronous SDK call "
+                            "(e.g. Variable.get, BaseHook.get_connection/get_hook, ti.xcom_pull, or a "
+                            "sync callback) from an async sub-task. Synchronous SDK calls are not safe "
+                            "inside an async operator's aexecute(): they can collide with another "
+                            "concurrently running sub-task's async SDK call and deadlock the event "
+                            "loop, so this is detected and raised eagerly instead. Use the async-safe "
+                            "equivalents (e.g. Variable.aget/aset, Hook.aget_connection/aget_hook, ti.axcom_pull) inside "
+                            "async operators."
+                        ) from raised
                     if not isinstance(raised, Exception):
                         raise AirflowFailException(
                             f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
