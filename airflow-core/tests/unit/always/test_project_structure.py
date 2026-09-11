@@ -132,7 +132,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
-            "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
             "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
             "providers/google/tests/unit/google/cloud/links/test_dataform.py",
