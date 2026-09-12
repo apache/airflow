@@ -206,6 +206,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.critical_section_conflict"
+    description: "Count of times a scheduler process hit a database serialization conflict (SQLSTATE 40001
+    or 40P01) in the critical section and deferred to the next loop iteration."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti.start"
     description: "Number of started task in a given Dag. Similar to {job_name}_start but for task.
     Metric with dag_id and task_id tagging."
