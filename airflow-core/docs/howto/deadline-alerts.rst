@@ -466,9 +466,9 @@ Place the reference classes and the plugin that registers them in your plugins f
     class MyCustomDecoratedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are created."""
 
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            # Add your business logic here
-            return your_datetime
+        def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+            my_datetime = my_business_logic(dagrun.logical_date)
+            return my_datetime
 
 
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
@@ -476,14 +476,9 @@ Place the reference classes and the plugin that registers them in your plugins f
     class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
-        # Ask for the Dag run context values supplied by Airflow; see notes below.
-        required_kwargs = {"dag_id", "run_id"}
-
-        def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-            dag_id = kwargs["dag_id"]
-            run_id = kwargs["run_id"]
-            # Use dag_id and run_id in your calculation
-            return your_datetime
+        def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+            my_datetime = my_business_logic(dagrun.queued_at)
+            return my_datetime
 
 
     # Register the classes so the scheduler can resolve them when it deserializes the Dag.
@@ -564,8 +559,8 @@ followed by a more urgent escalation if the Dag is still running.
 * **Plugin Registration**: Custom references must be listed in the ``deadline_references`` attribute
   of an ``AirflowPlugin``, so the plugins directory is the natural home for them.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
-* **Required Parameters**: ``required_kwargs`` declares which Dag run context values Airflow should
-  forward to ``_evaluate_with()``. Only ``dag_id`` and ``run_id`` are available; declaring anything
-  else raises a ``ValueError`` when the deadline is evaluated. To configure a reference itself, give
-  it constructor fields or read from an Airflow Variable.
+* **Dag run context**: Add a ``dagrun`` parameter to ``_evaluate_with()`` to use the Dag run being evaluated.
+* **Required Parameters** *(deprecated)*: ``required_kwargs`` declares which parameters your reference
+  needs. It still works but is deprecated and will be removed in Airflow 4.0 — declare the keyword-only
+  parameters your ``_evaluate_with()`` needs instead.
 * **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.
