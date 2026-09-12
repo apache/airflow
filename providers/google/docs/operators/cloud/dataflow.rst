@@ -402,6 +402,19 @@ When job is triggered asynchronously sensors may be used to run checks for speci
     :start-after: [START howto_sensor_wait_for_job_status]
     :end-before: [END howto_sensor_wait_for_job_status]
 
+When the job ID is not known upfront, for example because the job is launched outside of Airflow,
+the job can be identified by its name instead. Parameters ``job_id`` and ``job_name`` are mutually
+exclusive, and exactly one of them must be provided. Dataflow job names are not unique over time,
+so the sensor checks the most recently created job with that name, and keeps waiting if no job with
+that name exists yet::
+
+    wait_for_job_status = DataflowJobStatusSensor(
+        task_id="wait_for_job_status",
+        job_name="daily-etl-pipeline",
+        expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
+        location="europe-west3",
+    )
+
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_sensors_deferrable.py
