@@ -1404,6 +1404,17 @@ class TestPodManager:
         assert mock_sleep.call_count == 1
 
 
+def _fake_stream_logs(log_lines):
+    def stream_logs(**kwargs):
+        async def _stream():
+            for line in log_lines:
+                yield line
+
+        return _stream()
+
+    return stream_logs
+
+
 class TestAsyncPodManager:
     @pytest.fixture
     def mock_log_info(self):
@@ -1752,7 +1763,7 @@ class TestAsyncPodManager:
         container_name = "base"
         since_time = now.subtract(minutes=1)
         mock_async_hook = mock.AsyncMock()
-        mock_async_hook.read_logs.return_value = log_lines
+        mock_async_hook.stream_logs = _fake_stream_logs(log_lines)
 
         with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.pendulum.now", return_value=now):
             async_pod_manager = AsyncPodManager(
@@ -1779,34 +1790,51 @@ class TestAsyncPodManager:
         container_name = "base"
         since_time = pendulum.now().subtract(minutes=1)
 
-        async def fake_read_logs(**kwargs):
-            raise KubernetesApiError("error")
+        def failing_stream_logs(**kwargs):
+            async def _stream():
+                raise KubernetesApiError("error")
+                yield  # unreachable, but makes this an async generator
 
-        self.async_pod_manager._hook.read_logs = fake_read_logs
+            return _stream()
+
+        self.async_pod_manager._hook.stream_logs = failing_stream_logs
         with pytest.raises(KubernetesApiError):
             await self.async_pod_manager.fetch_container_logs_before_current_sec(
                 pod=pod, container_name=container_name, since_time=since_time
             )
 
     @pytest.mark.asyncio
-    @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
-    async def test_fetch_container_logs_offloads_parse_off_the_event_loop(self, mock_to_thread):
-        """The CPU-bound per-line parse/emit loop is offloaded to a worker thread, not run on the loop."""
+    async def test_fetch_container_logs_consumes_the_stream_incrementally(self):
+        """Lines are emitted as they arrive, so a large window is never held in memory at once."""
         now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
         pod = mock.MagicMock()
         container_name = "base"
-        log_lines = [f"{now.subtract(seconds=2).to_iso8601_string()} hello"]
-        self.mock_async_hook.read_logs.return_value = log_lines
+        stamp = now.subtract(seconds=2).to_iso8601_string()
+        log_lines = [f"{stamp} line {i}" for i in range(5)]
+
+        produced: list[str] = []
+        emitted_after: list[int] = []
+
+        async def stream_logs(**kwargs):
+            for line in log_lines:
+                produced.append(line)
+                yield line
+
+        self.async_pod_manager._hook.stream_logs = stream_logs
+
+        def record(level, fmt, container, message):
+            emitted_after.append(len(produced))
 
         with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.pendulum.now", return_value=now):
-            result = await self.async_pod_manager.fetch_container_logs_before_current_sec(
-                pod=pod, container_name=container_name, since_time=now.subtract(minutes=1)
-            )
+            with mock.patch.object(self.async_pod_manager.log, "log", side_effect=record):
+                result = await self.async_pod_manager.fetch_container_logs_before_current_sec(
+                    pod=pod, container_name=container_name, since_time=now.subtract(minutes=1)
+                )
 
         assert result == now
-        mock_to_thread.assert_awaited_once_with(
-            self.async_pod_manager._emit_container_logs, log_lines, now, container_name
-        )
+        # The first line reaches the sink well before the producer has finished: with a
+        # materialising implementation every emit would see all 5 lines already produced.
+        assert emitted_after[0] < len(log_lines)
 
 
 class TestPodLogsConsumer:
