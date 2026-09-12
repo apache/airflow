@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
 from openai.types.batch import Batch
-from openai.types.responses import Response
+from openai.types.responses import Response, ResponseUsage
 
-from airflow.providers.common.compat.sdk import Context, TaskDeferred
+from airflow.providers.common.compat.sdk import DAG, Context, TaskDeferred
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.operators.openai import (
@@ -89,13 +90,20 @@ def test_openai_response_operator_execute():
         response_kwargs={"instructions": "Be concise.", "previous_response_id": "resp_prev"},
     )
     mock_hook_instance = Mock(spec=OpenAIHook)
-    mock_hook_instance.create_response.return_value = Mock(
-        spec=Response, output_text="haiku text", id="resp_123", status="completed"
+    mock_usage = Mock(spec=ResponseUsage)
+    mock_usage.model_dump.return_value = {"input_tokens": 5, "output_tokens": 7}
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=mock_usage
     )
+    mock_hook_instance.create_response.return_value = mock_response
     operator.hook = mock_hook_instance
 
-    result = operator.execute(Context())
+    context = Context()
+    context["ti"] = Mock()
+    result = operator.execute(context)
 
+    # Backward compat: the return value is still the aggregated output text, unchanged
+    # by the new XCom pushes below.
     assert result == "haiku text"
     mock_hook_instance.create_response.assert_called_once_with(
         input="Write a haiku.",
@@ -103,6 +111,63 @@ def test_openai_response_operator_execute():
         instructions="Be concise.",
         previous_response_id="resp_prev",
     )
+    context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_123")
+    context["ti"].xcom_push.assert_any_call(key="usage", value={"input_tokens": 5, "output_tokens": 7})
+    mock_usage.model_dump.assert_called_once_with(mode="json")
+
+
+def test_openai_response_operator_execute_without_usage():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID, conn_id=CONN_ID, input_text="Write a haiku.", model="test_model"
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_response = Mock(
+        spec=Response, output_text="haiku text", id="resp_123", status="completed", usage=None
+    )
+    mock_hook_instance.create_response.return_value = mock_response
+    operator.hook = mock_hook_instance
+
+    context = Context()
+    context["ti"] = Mock()
+    result = operator.execute(context)
+
+    assert result == "haiku text"
+    context["ti"].xcom_push.assert_any_call(key="usage", value=None)
+
+
+def test_openai_response_operator_execute_skips_xcom_push_when_disabled():
+    operator = OpenAIResponseOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        input_text="Write a haiku.",
+        model="test_model",
+        do_xcom_push=False,
+    )
+    mock_hook_instance = Mock(spec=OpenAIHook)
+    mock_response = Mock(spec=Response, output_text="haiku text", id="resp_123", status="completed")
+    mock_hook_instance.create_response.return_value = mock_response
+    operator.hook = mock_hook_instance
+
+    context = Context()
+    context["ti"] = Mock()
+    result = operator.execute(context)
+
+    assert result == "haiku text"
+    context["ti"].xcom_push.assert_not_called()
+
+
+def test_openai_response_operator_templates_response_kwargs():
+    with DAG(dag_id="test_openai_response_kwargs_template", schedule=None, start_date=datetime(2021, 1, 1)):
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            response_kwargs={"previous_response_id": "{{ params.previous_response_id }}"},
+        )
+
+    operator.render_template_fields({"params": {"previous_response_id": "resp_prev_123"}})
+
+    assert operator.response_kwargs == {"previous_response_id": "resp_prev_123"}
 
 
 @pytest.mark.parametrize("wait_for_completion", [True, False])
