@@ -33,8 +33,10 @@ from google.cloud.dataflow_v1beta3.types import (
     MetricUpdate,
 )
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook, DataflowJobStatus
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
@@ -169,7 +171,9 @@ class DataflowJobStatusTrigger(BaseTrigger):
     """
     Trigger that monitors if a Dataflow job has reached any of the expected statuses.
 
-    :param job_id: Required. ID of the job.
+    :param job_id: ID of the job. Mutually exclusive with ``job_name``.
+    :param job_name: Name of the job. Mutually exclusive with ``job_id``. Since job names
+        are not globally unique, the newest matching job is targeted, re-resolved each poll.
     :param expected_statuses: The expected state(s) of the operation.
         See: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     :param project_id: Required. The Google Cloud project ID in which the job was started.
@@ -189,16 +193,21 @@ class DataflowJobStatusTrigger(BaseTrigger):
 
     def __init__(
         self,
-        job_id: str,
+        *,
         expected_statuses: set[str],
         project_id: str | None,
+        job_id: str | None = None,
+        job_name: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__()
+        if not exactly_one(job_id, job_name):
+            raise AirflowException("Exactly one of 'job_id' or 'job_name' must be provided.")
         self.job_id = job_id
+        self.job_name = job_name
         self.expected_statuses = expected_statuses
         self.project_id = project_id
         self.location = location
@@ -212,6 +221,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
             "airflow.providers.google.cloud.triggers.dataflow.DataflowJobStatusTrigger",
             {
                 "job_id": self.job_id,
+                "job_name": self.job_name,
                 "expected_statuses": self.expected_statuses,
                 "project_id": self.project_id,
                 "location": self.location,
@@ -235,11 +245,23 @@ class DataflowJobStatusTrigger(BaseTrigger):
         """
         try:
             while True:
-                job_status = await self.async_hook.get_job_status(
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location,
-                )
+                if self.job_name is not None and self.job_id is None:
+                    job = await self.async_hook.get_job_by_name(
+                        job_name=self.job_name,
+                        project_id=self.project_id,
+                        location=self.location,
+                    )
+                    if job is None:
+                        await asyncio.sleep(self.poll_sleep)
+                        continue
+                    self.job_id = job.id
+                    job_status = job.current_state
+                else:
+                    job_status = await self.async_hook.get_job_status(
+                        job_id=self.job_id,
+                        project_id=self.project_id,
+                        location=self.location,
+                    )
                 if job_status.name in self.expected_statuses:
                     yield TriggerEvent(
                         {

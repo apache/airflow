@@ -1174,6 +1174,33 @@ class DataflowHook(GoogleBaseHook):
         return jobs_controller.fetch_job_by_id(job_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def fetch_job_by_name(
+        self,
+        job_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> dict | None:
+        """
+        Fetch the most recently created job matching the given job name.
+
+        :param job_name: The exact name of the job to look up.
+        :param project_id: Optional, the Google Cloud project ID in which to look for the job.
+        :param location: The location of the Dataflow job (for example europe-west1).
+        :return: the most recent matching Job dict, or None if no job matches.
+        """
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        all_jobs = jobs_controller._fetch_all_jobs()
+        matching_jobs = [job for job in all_jobs if job.get("name") == job_name]
+        if not matching_jobs:
+            return None
+        matching_jobs.sort(key=lambda job: job.get("createTime", ""), reverse=True)
+        return matching_jobs[0]
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def fetch_job_metrics_by_id(
         self,
         job_id: str,
@@ -1548,6 +1575,27 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         )
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
         return page_result
+
+    async def get_job_by_name(
+        self,
+        job_name: str,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+    ) -> Job | None:
+        """
+        Fetch the most recently created job matching the given job name.
+
+        :param job_name: The exact name of the job to look up.
+        :param project_id: Optional. The Google Cloud project ID in which to look for the job.
+        :param location: Optional. The location of the Dataflow job (for example europe-west1).
+        :return: the most recent matching Job, or None if no job matches.
+        """
+        page_result = await self.list_jobs(project_id=project_id, location=location)
+        matching_jobs = [job async for job in page_result if job.name == job_name]
+        if not matching_jobs:
+            return None
+        matching_jobs.sort(key=lambda job: job.create_time, reverse=True)
+        return matching_jobs[0]
 
     async def list_job_messages(
         self,

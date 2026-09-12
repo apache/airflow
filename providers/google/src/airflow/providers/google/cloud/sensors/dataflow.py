@@ -36,6 +36,7 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobStatusTrigger,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -49,7 +50,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DataflowJobStatusSensor`
 
-    :param job_id: ID of the job to be checked.
+    :param job_id: ID of the job to be checked. Mutually exclusive with ``job_name``.
+    :param job_name: Name of the job to be checked. Mutually exclusive with ``job_id``.
+        Since job names are not globally unique, the most recently created matching job
+        within the given project/location is targeted.
     :param expected_statuses: The expected state(s) of the operation.
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
@@ -70,12 +74,13 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
     """
 
-    template_fields: Sequence[str] = ("job_id",)
+    template_fields: Sequence[str] = ("job_id", "job_name")
 
     def __init__(
         self,
         *,
-        job_id: str,
+        job_id: str | None = None,
+        job_name: str | None = None,
         expected_statuses: set[str] | str,
         project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
@@ -86,7 +91,10 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if not exactly_one(job_id, job_name):
+            raise AirflowException("Exactly one of 'job_id' or 'job_name' must be provided.")
         self.job_id = job_id
+        self.job_name = job_name
         self.expected_statuses = (
             {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
         )
@@ -100,15 +108,25 @@ class DataflowJobStatusSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         self.log.info(
             "Waiting for job %s to be in one of the states: %s.",
-            self.job_id,
+            self.job_id or self.job_name,
             ", ".join(self.expected_statuses),
         )
 
-        job = self.hook.get_job(
-            job_id=self.job_id,
-            project_id=self.project_id,
-            location=self.location,
-        )
+        if self.job_name is not None:
+            job = self.hook.fetch_job_by_name(
+                job_name=self.job_name,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            if job is None:
+                return False
+            self.job_id = job["id"]
+        else:
+            job = self.hook.get_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
 
         job_status = job["currentState"]
         self.log.debug("Current job status for job %s: %s.", self.job_id, job_status)
@@ -130,6 +148,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
                 timeout=self.execution_timeout,
                 trigger=DataflowJobStatusTrigger(
                     job_id=self.job_id,
+                    job_name=self.job_name if self.job_id is None else None,
                     expected_statuses=self.expected_statuses,
                     project_id=self.project_id,
                     location=self.location,
