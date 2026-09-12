@@ -148,10 +148,10 @@ Extra               Dependencies
 ``openlineage``     ``apache-airflow-providers-openlineage``
 ``polars``          ``polars>=1.26.0``
 ``sqlalchemy``      ``sqlalchemy>=1.4.54``
-``amazon``          ``apache-airflow-providers-amazon``
 ``datafusion``      ``datafusion>=50.0.0,<52.0.0``
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
 ``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
+``amazon``          ``apache-airflow-providers-amazon``
 ==================  =======================================================================================================================================================================
 
 Downloading official packages

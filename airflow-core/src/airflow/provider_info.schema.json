@@ -206,6 +206,23 @@
                 }
             }
         },
+        "object-storage-providers": {
+            "description": "List of object storage providers the provider provides",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "storage-type": {
+                        "description": "Type of object storage (e.g. s3, gcs, azure)",
+                        "type": "string"
+                    },
+                    "provider-class-name": {
+                        "description": "Class name that implements the ObjectStorageProvider",
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "transfers": {
             "description": "List of transfer operators the provider provides",
             "type": "array",
