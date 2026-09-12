@@ -29,13 +29,14 @@ import selectors
 import signal
 import sys
 import time
+import warnings
 import zipfile
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NamedTuple, cast
 
 import attrs
 import structlog
@@ -54,8 +55,12 @@ from airflow.dag_processing.bundles.base import (
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import (
+    _disable_dag_parsing_retries,
+    update_dag_parsing_results_in_db,
+)
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -74,7 +79,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
     kill_child_processes_by_pids,
 )
-from airflow.utils.retries import retry_db_transaction
+from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
@@ -94,6 +99,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 
 def _make_execution_api() -> InProcessExecutionAPI:
@@ -104,6 +110,10 @@ def _make_execution_api() -> InProcessExecutionAPI:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
     return InProcessExecutionAPI()
+
+
+class SerializationErrorInGroup(RuntimeError):
+    """A Dag failed to serialize within a persistence group."""
 
 
 class DagParsingStat(NamedTuple):
@@ -156,6 +166,18 @@ class DagFileInfo:
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
         return normalize_name_for_stats(str(self.rel_path), log_warning=False)
+
+
+class FileParseResult(NamedTuple):
+    """Parse output and bundle metadata captured at collection."""
+
+    file: DagFileInfo
+    parsing_result: DagFileParsingResult
+    run_duration: float
+    stat: DagFileStat
+    """Statistics to record after persistence."""
+    bundle_version: str | None
+    version_data: dict | None
 
 
 def _config_int_factory(section: str, key: str):
@@ -225,6 +247,9 @@ class DagFileProcessorManager(LoggingMixin):
     :param processor_timeout: How long to wait before timing out a DAG file processor
     """
 
+    allow_persistence_replay: ClassVar[bool] = False
+    """Opt overridden hooks into transaction retries and per-file replay."""
+
     max_runs: int
     bundle_names_to_parse: list[str] | None = None
     processor_timeout: float = attrs.field(
@@ -267,6 +292,11 @@ class DagFileProcessorManager(LoggingMixin):
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
+
+    _max_dags_per_group: int = attrs.field(
+        factory=_config_int_factory("dag_processor", "max_dags_per_persistence_group"), init=False
+    )
+    """Soft Dag limit per transaction; files are never split."""
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
@@ -313,9 +343,14 @@ class DagFileProcessorManager(LoggingMixin):
         # So that we ignore the debug dump signal, making it easier to send
         signal.signal(signal.SIGUSR2, signal.SIG_IGN)
 
-    def _get_team_names(self, bundle_names: Collection[str]) -> dict[str, str | None]:
+    def _get_team_names(
+        self, bundle_names: Collection[str], *, session: Session | None = None
+    ) -> dict[str, str | None]:
         if not self._multi_team or not bundle_names:
             return {}
+        if session is not None:
+            # A caller's uncommitted assignments must not populate the shared metrics cache.
+            return DagBundleModel.get_team_names(bundle_names, session=session)
         missing = [name for name in bundle_names if name not in self._bundle_name_to_team_name]
         if missing:
             queried = DagBundleModel.get_team_names(missing)
@@ -323,8 +358,8 @@ class DagFileProcessorManager(LoggingMixin):
                 self._bundle_name_to_team_name[name] = queried.get(name)
         return {name: self._bundle_name_to_team_name.get(name) for name in bundle_names}
 
-    def _get_team_name(self, bundle_name: str) -> str | None:
-        return self._get_team_names({bundle_name}).get(bundle_name)
+    def _get_team_name(self, bundle_name: str, *, session: Session | None = None) -> str | None:
+        return self._get_team_names({bundle_name}, session=session).get(bundle_name)
 
     def _exit_gracefully(self, signum, frame):
         """Clean up DAG file processors to avoid leaving orphan processes."""
@@ -372,6 +407,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.register_exit_signals()
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
+        self._warn_if_batching_is_disabled()
         self.prepare_bundles()
         self._symlink_latest_log_directory()
         # To prevent COW in forked process parsing dag file
@@ -1241,39 +1277,45 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.close()
                 self._file_stats.pop(file, None)
 
-    @provide_session
     def handle_parsing_result(
         self,
         file: DagFileInfo,
         proc: DagFileProcessorProcess,
         *,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """
-        Post-process a single finished parse result.
+        Handle one completion; overriding this disables batching.
 
-        Detects callback-only processing, updates file stats, emits metrics,
-        and persists DAGs/import-errors via :meth:`persist_parsing_result`.
-        Extracted from ``_collect_results`` to keep result handling and
-        persistence separate.
-
-        Owns its own DB session via ``@provide_session`` so subclasses that
-        forward results without touching the metadata DB (e.g. AIP-92 API-backed
-        deployments) can override this method without inheriting a session
-        created by the caller.
-
-        If persistence fails, the error is logged and the previous persisted
-        DAG/import-error counts are preserved while a minimal timestamp update
-        throttles immediate retries, so other files in the same
-        ``_collect_results`` cycle still run.
+        A supplied session leaves commit, rollback, and retries to the caller.
         """
+        result = self._build_parse_result(file, proc, session=session)
+        if result is None:
+            return
+
+        if session is None:
+            self._persist_single(result)
+            return
+
+        with _disable_dag_parsing_retries(session=session):
+            self.persist_parsing_results([result], session=session)
+
+        self._file_stats[file] = result.stat
+
+    def _build_parse_result(
+        self,
+        file: DagFileInfo,
+        proc: DagFileProcessorProcess,
+        *,
+        session: Session | None = None,
+    ) -> FileParseResult | None:
         is_callback_only = proc.had_callbacks and proc.parsing_result is None
         if is_callback_only:
             self.log.debug("Detected callback-only processing for %s", file)
 
         run_duration = time.monotonic() - proc.start_time
         finish_time = timezone.utcnow()
-        team_name = self._get_team_name(file.bundle_name)
+        team_name = self._get_team_name(file.bundle_name, session=session)
         next_stat = process_parse_results(
             run_duration=run_duration,
             finish_time=finish_time,
@@ -1285,37 +1327,18 @@ class DagFileProcessorManager(LoggingMixin):
             team_name=team_name,
         )
 
-        if proc.parsing_result is not None:
-            try:
-                self.persist_parsing_result(
-                    bundle_name=file.bundle_name,
-                    bundle_version=self._bundle_versions[file.bundle_name],
-                    version_data=self._bundle_version_data.get(file.bundle_name),
-                    parsing_result=proc.parsing_result,
-                    run_duration=run_duration,
-                    relative_fileloc=str(file.rel_path),
-                    session=session,
-                )
-            except Exception:
-                self.log.exception(
-                    "Failed to persist parsing result for %s in bundle %s; "
-                    "keeping previous persisted stats while throttling retries. "
-                    "Other files in this cycle are still processed.",
-                    str(file.rel_path),
-                    file.bundle_name,
-                )
-                current_stat = self._file_stats[file]
-                self._file_stats[file] = DagFileStat(
-                    num_dags=current_stat.num_dags,
-                    import_errors=current_stat.import_errors,
-                    last_finish_time=finish_time,
-                    last_duration=run_duration,
-                    run_count=current_stat.run_count + 1,
-                    last_num_of_db_queries=current_stat.last_num_of_db_queries,
-                )
-                return
+        if proc.parsing_result is None:
+            self._file_stats[file] = next_stat
+            return None
 
-        self._file_stats[file] = next_stat
+        return FileParseResult(
+            file=file,
+            parsing_result=proc.parsing_result,
+            run_duration=run_duration,
+            stat=next_stat,
+            bundle_version=self._bundle_versions[file.bundle_name],
+            version_data=self._bundle_version_data.get(file.bundle_name),
+        )
 
     def persist_parsing_result(
         self,
@@ -1328,7 +1351,12 @@ class DagFileProcessorManager(LoggingMixin):
         relative_fileloc: str | None,
         session: Session,
     ) -> None:
-        """Persist parsed DAG data to the metadata database."""
+        """
+        Persist one file.
+
+        .. deprecated:: 3.4.0
+            Use :meth:`persist_parsing_results`; this hook is removed in Airflow 4.0.
+        """
         import_errors: dict[tuple[str, str], str] = {}
         if parsing_result.import_errors:
             import_errors = {
@@ -1342,9 +1370,9 @@ class DagFileProcessorManager(LoggingMixin):
             files_parsed = {(bundle_name, relative_fileloc)}
             files_parsed.update(import_errors.keys())
 
-        warnings = parsing_result.warnings or []
-        if warnings and isinstance(warnings[0], dict):
-            warnings = [DagWarning(**warn) for warn in warnings]
+        dag_warnings = parsing_result.warnings or []
+        if dag_warnings and isinstance(dag_warnings[0], dict):
+            dag_warnings = [DagWarning(**warn) for warn in dag_warnings]
 
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
@@ -1353,23 +1381,326 @@ class DagFileProcessorManager(LoggingMixin):
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,
-            warnings=set(warnings),
+            warnings=set(dag_warnings),
             session=session,
             files_parsed=files_parsed,
         )
 
+    def _has_override_for(self, name: str) -> bool:
+        if name in getattr(self, "__dict__", ()):
+            return True
+        return getattr(type(self), name) is not getattr(DagFileProcessorManager, name)
+
+    def _has_per_file_persist_override(self) -> bool:
+        if self._has_override_for("persist_parsing_results"):
+            return False
+        return self._has_override_for("persist_parsing_result")
+
+    def _warn_if_batching_is_disabled(self) -> None:
+        if self._has_per_file_persist_override():
+            warnings.warn(
+                f"{type(self).__name__} overrides persist_parsing_result, which is deprecated "
+                "and will be removed in Airflow 4.0. "
+                "Override persist_parsing_results instead, which is handed a group of the files "
+                "that finished together.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+            self.log.warning(
+                "%s overrides persist_parsing_result, so parse results are persisted one file at "
+                "a time rather than a group at a time.",
+                type(self).__name__,
+            )
+        if self._has_handle_parsing_result_override():
+            self.log.warning(
+                "%s overrides handle_parsing_result, so parse results are persisted one file at a "
+                "time rather than a group at a time.",
+                type(self).__name__,
+            )
+
+    def _has_handle_parsing_result_override(self) -> bool:
+        return self._has_override_for("handle_parsing_result")
+
+    def persist_parsing_results(
+        self,
+        results: Sequence[FileParseResult],
+        *,
+        session: Session | None = None,
+    ) -> None:
+        """
+        Persist parse results, including files containing no Dags.
+
+        The caller owns a supplied session. Overrides must opt into safe replay
+        with ``allow_persistence_replay``. See the Dag file processing docs for details.
+        """
+        # FAB commits and listeners limit rollback: https://github.com/apache/airflow/issues/71911
+        if session is None:
+            self._run_persistence_transaction(
+                lambda owned_session: DagFileProcessorManager.persist_parsing_results(
+                    self, results, session=owned_session
+                ),
+                # A super() call retries this base operation, not the surrounding batch override.
+                replay_safe=self.allow_persistence_replay or not self._has_per_file_persist_override(),
+            )
+            return
+
+        per_file_override = self._has_per_file_persist_override()
+        groups = (
+            [[item] for item in results] if per_file_override else self._build_persistence_groups(results)
+        )
+        with _disable_dag_parsing_retries(session=session):
+            for group in groups:
+                if per_file_override:
+                    item = group[0]
+                    self.persist_parsing_result(
+                        bundle_name=item.file.bundle_name,
+                        bundle_version=item.bundle_version,
+                        version_data=item.version_data,
+                        parsing_result=item.parsing_result,
+                        run_duration=item.run_duration,
+                        relative_fileloc=str(item.file.rel_path),
+                        session=session,
+                    )
+                else:
+                    self._persist_bundle_group(group[0].file.bundle_name, group, session=session)
+
+    def _build_persistence_groups(self, results: Sequence[FileParseResult]) -> list[list[FileParseResult]]:
+        """Group compatible files within the Dag cap without reordering."""
+        groups: list[list[FileParseResult]] = []
+        bundles: list[tuple[str, str | None, dict | None]] = []
+        dag_counts: list[int] = []
+        claimed_dag_ids: list[set[str]] = []
+        dag_locs_claimed: list[set[str]] = []
+        file_locs_claimed: list[set[str]] = []
+        run_ended = False
+
+        for item in results:
+            dags = item.parsing_result.serialized_dags
+            dag_ids = {dag.dag_id for dag in dags}
+            dag_locs = {dag.relative_fileloc for dag in dags if dag.relative_fileloc}
+            file_locs = {str(item.file.rel_path), *(item.parsing_result.import_errors or ())}
+            bundle_name = item.file.bundle_name
+            bundle_key = (bundle_name, item.bundle_version, item.version_data)
+
+            joins_run = (
+                bool(groups)
+                and not run_ended
+                and bundles[-1] == bundle_key
+                and dag_counts[-1] + len(dags) <= self._max_dags_per_group
+                and claimed_dag_ids[-1].isdisjoint(dag_ids)
+                and dag_locs_claimed[-1].isdisjoint(file_locs)
+                and file_locs_claimed[-1].isdisjoint(dag_locs)
+                and dag_locs_claimed[-1].isdisjoint(dag_locs)
+            )
+            if not joins_run:
+                groups.append([])
+                bundles.append(bundle_key)
+                dag_counts.append(0)
+                claimed_dag_ids.append(set())
+                dag_locs_claimed.append(set())
+                file_locs_claimed.append(set())
+
+            groups[-1].append(item)
+            dag_counts[-1] += len(dags)
+            claimed_dag_ids[-1].update(dag_ids)
+            dag_locs_claimed[-1].update(dag_locs)
+            file_locs_claimed[-1].update(file_locs)
+            run_ended = bool(item.parsing_result.import_errors)
+        return groups
+
+    def _persist_bundle_group(
+        self,
+        bundle_name: str,
+        items: Sequence[FileParseResult],
+        *,
+        session: Session,
+    ) -> None:
+        dags: list[LazyDeserializedDAG] = []
+        import_errors: dict[tuple[str, str], str] = {}
+        files_parsed: set[tuple[str, str]] = set()
+        parse_durations: dict[str, float] = {}
+        dag_warnings: set[DagWarning] = set()
+
+        for item in items:
+            parsing_result = item.parsing_result
+            relative_fileloc = str(item.file.rel_path)
+
+            file_errors = {
+                (bundle_name, rel_path): error
+                for rel_path, error in (parsing_result.import_errors or {}).items()
+            }
+            # A file's own result supersedes errors reported by earlier files.
+            import_errors.pop((bundle_name, relative_fileloc), None)
+            import_errors.update(file_errors)
+            # Empty files still need their old import errors cleared.
+            files_parsed.add((bundle_name, relative_fileloc))
+            files_parsed.update(file_errors)
+
+            dags.extend(parsing_result.serialized_dags)
+            for dag in parsing_result.serialized_dags:
+                parse_durations[dag.dag_id] = item.run_duration
+
+            file_warnings = parsing_result.warnings or []
+            if file_warnings and isinstance(file_warnings[0], dict):
+                file_warnings = [DagWarning(**warn) for warn in file_warnings]
+            # Later definitions replace earlier warnings, including clearing them.
+            defined = {dag.dag_id for dag in parsing_result.serialized_dags}
+            dag_warnings = {warning for warning in dag_warnings if warning.dag_id not in defined}
+            dag_warnings.update(file_warnings)
+
+        reported_by_parsing = set(import_errors)
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=items[0].bundle_version,
+            version_data=items[0].version_data,
+            dags=dags,
+            import_errors=import_errors,
+            parse_duration=parse_durations,
+            warnings=dag_warnings,
+            session=session,
+            files_parsed=files_parsed,
+        )
+        if len(items) > 1 and set(import_errors) - reported_by_parsing:
+            # Neighbouring files used stale state; roll back before replaying separately.
+            raise SerializationErrorInGroup(
+                f"{len(set(import_errors) - reported_by_parsing)} Dag(s) in this group of "
+                f"{len(items)} files failed to serialize."
+            )
+
     def _collect_results(self):
         finished = []
-        for file, proc in self._processors.items():
-            if not proc.is_ready:
-                # This processor hasn't finished yet, or we haven't read all the output from it yet
-                continue
-            finished.append(file)
-            self.handle_parsing_result(file, proc)
+        to_persist: list[FileParseResult] = []
+        handles_each_file = self._has_handle_parsing_result_override()
+        try:
+            for file, proc in list(self._processors.items()):
+                if not proc.is_ready:
+                    # This processor hasn't finished yet, or we haven't read all the output from it yet
+                    continue
+                finished.append((file, proc))
+                if handles_each_file:
+                    self.handle_parsing_result(file, proc)
+                    continue
+                try:
+                    result = self._build_parse_result(file, proc)
+                except Exception:
+                    self.log.exception(
+                        "Failed to handle the parse result for %s in bundle %s; "
+                        "the rest of the sweep is still persisted.",
+                        str(file.rel_path),
+                        file.bundle_name,
+                    )
+                    # Callback-only failures must not advance parse timestamps and stale Dags.
+                    if not (proc.had_callbacks and proc.parsing_result is None):
+                        self._throttle_retry(file, timezone.utcnow(), time.monotonic() - proc.start_time)
+                    continue
+                if result is not None:
+                    to_persist.append(result)
 
-        for file in finished:
-            processor = self._processors.pop(file)
-            processor.close()
+            if to_persist:
+                self._persist_sweep(to_persist)
+        finally:
+            # Hooks may have removed processors without closing their sockets.
+            for file, processor in finished:
+                self._processors.pop(file, None)
+                processor.close()
+
+    def _persist_sweep(self, to_persist: list[FileParseResult]) -> None:
+        """Commit groups separately, replaying failed groups per file when safe."""
+        if self._has_per_file_persist_override():
+            groups = [[item] for item in to_persist]
+        else:
+            try:
+                groups = self._build_persistence_groups(to_persist)
+            except Exception:
+                # Per-file persistence isolates malformed results.
+                self.log.exception(
+                    "Failed to group %d parse results; persisting them a file at a time.",
+                    len(to_persist),
+                )
+                groups = [[item] for item in to_persist]
+
+        for group in groups:
+            if len(group) == 1:
+                self._persist_single(group[0])
+                continue
+            try:
+                self._dispatch_persist(group)
+            except Exception as error:
+                if not self._is_persistence_replay_safe():
+                    self.log.exception(
+                        "Failed to persist %d parse results as a group; the hook that took them "
+                        "may have kept some, so they are not sent again.",
+                        len(group),
+                    )
+                    for item in group:
+                        self._throttle_retry(item.file, item.stat.last_finish_time, item.stat.last_duration)
+                    continue
+                if isinstance(error, SerializationErrorInGroup):
+                    self.log.warning(
+                        "A Dag in this group of %d files will not serialize; writing them separately instead.",
+                        len(group),
+                    )
+                else:
+                    self.log.exception(
+                        "Failed to persist %d parse results as a group; retrying them individually.",
+                        len(group),
+                    )
+                for item in group:
+                    self._persist_single(item)
+            else:
+                for item in group:
+                    self._file_stats[item.file] = item.stat
+
+    def _is_persistence_replay_safe(self) -> bool:
+        return self.allow_persistence_replay or not (
+            self._has_override_for("persist_parsing_results") or self._has_per_file_persist_override()
+        )
+
+    def _run_persistence_transaction(self, write: Callable[[Session], None], *, replay_safe: bool) -> None:
+        max_retries = MAX_DB_RETRIES if replay_safe else 1
+        for attempt in run_with_db_retries(max_retries=max_retries, logger=self.log):
+            with attempt:
+                with create_session(scoped=False) as session:
+                    with _disable_dag_parsing_retries(session=session):
+                        write(session)
+
+    def _dispatch_persist(self, results: Sequence[FileParseResult]) -> None:
+        self._run_persistence_transaction(
+            lambda session: self.persist_parsing_results(results, session=session),
+            replay_safe=self._is_persistence_replay_safe(),
+        )
+
+    def _persist_single(self, item: FileParseResult) -> None:
+        try:
+            self._dispatch_persist([item])
+        except Exception:
+            self._throttle_after_failed_persist(item)
+        else:
+            self._file_stats[item.file] = item.stat
+
+    def _throttle_after_failed_persist(self, item: FileParseResult) -> None:
+        self.log.exception(
+            "Failed to persist parsing result for %s in bundle %s; "
+            "keeping previous persisted stats while throttling retries. "
+            "Other files in this cycle are still processed.",
+            str(item.file.rel_path),
+            item.file.bundle_name,
+        )
+        self._throttle_retry(item.file, item.stat.last_finish_time, item.stat.last_duration)
+
+    def _throttle_retry(
+        self, file: DagFileInfo, finish_time: datetime | None, run_duration: float | None
+    ) -> None:
+        """Advance retry timestamps without replacing persisted counts."""
+        current_stat = self._file_stats[file]
+        self._file_stats[file] = DagFileStat(
+            num_dags=current_stat.num_dags,
+            import_errors=current_stat.import_errors,
+            last_finish_time=finish_time,
+            last_duration=run_duration,
+            run_count=current_stat.run_count + 1,
+            last_num_of_db_queries=current_stat.last_num_of_db_queries,
+        )
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -1764,12 +2095,7 @@ def process_parse_results(
     relative_fileloc: str | None = None,
     team_name: str | None = None,
 ) -> DagFileStat:
-    """
-    Create a DagFileStat from parsing results and emit metrics.
-
-    This function handles stat creation and metrics only — database persistence
-    is handled separately by ``DagFileProcessorManager.persist_parsing_result``.
-    """
+    """Create a DagFileStat from parsing results and emit metrics."""
     if is_callback_only:
         # Callback-only processing - don't update timestamps to avoid stale DAG detection issues
         stat = DagFileStat(
