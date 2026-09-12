@@ -867,7 +867,7 @@ class TestCreateXComEntry(TestXComEndpoint):
     def test_create_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client, value):
         """A forbidden payload submitted as a JSON string literal is blocked too.
 
-        ``_check_forbidden_xcom_keys._walk`` previously descended dict/list/tuple but not
+        The reserved-key walk previously descended dict/list/tuple but not
         ``str``, so a value like ``json.dumps({"__classname__": ...})`` slipped past the
         filter and was reconstructed into a dict on a ``deserialize=true`` read.
         """

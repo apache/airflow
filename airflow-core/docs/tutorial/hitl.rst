@@ -223,6 +223,12 @@ calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
 
 .. note::
 
+    Keys in ``params_input`` must not be Airflow's reserved serialization keys (``__classname__``,
+    ``__version__``, ``__data__``, ``__id__``, ``__cache__``, ``__type``, ``__source``, ``__var``),
+    at any nesting depth. A response containing one is rejected with ``422`` at submission time.
+
+.. note::
+
     ``response_timeout`` and timeout defaults are enforced by the scheduler, which does not run
     under ``airflow dags test``. A parked task therefore waits indefinitely for a response; supply
     one through the UI or REST API to let the run finish.
