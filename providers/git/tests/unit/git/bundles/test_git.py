@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import types
 from pathlib import Path
 from unittest import mock
@@ -44,6 +45,12 @@ def _version_str(version_result):
     if AIRFLOW_V_3_3_PLUS:
         return version_result.version
     return version_result
+
+
+def _clone_from_creating_target(*_, to_path=None, **__):
+    """Stand in for ``Repo.clone_from``, which creates its target directory as a real clone does."""
+    if to_path is not None:
+        Path(to_path).mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture(autouse=True)
@@ -1013,6 +1020,7 @@ class TestGitDagBundle:
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_with_path_as_repo_url(self, mock_gitRepo, mock_githook):
+        mock_gitRepo.clone_from.side_effect = _clone_from_creating_target
         bundle = GitDagBundle(
             name="test",
             git_conn_id=CONN_ONLY_PATH,
@@ -1024,6 +1032,7 @@ class TestGitDagBundle:
 
     @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_refresh_with_git_connection(self, mock_gitRepo):
+        mock_gitRepo.clone_from.side_effect = _clone_from_creating_target
         bundle = GitDagBundle(
             name="test",
             git_conn_id="git_default",
@@ -1592,6 +1601,56 @@ class TestGitDagBundle:
 
             # Verify Repo was called twice (failed attempt + retry)
             assert mock_repo_class.call_count == 2
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_interrupted_clone_leaves_no_working_repo(self, mock_githook, git_repo):
+        """A clone killed part way through must not leave a repository behind at repo_path."""
+        repo_path, _ = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        # Get the bare mirror in place so only the working clone is interrupted below.
+        bundle.initialize()
+        shutil.rmtree(bundle.repo_path)
+
+        def clone_then_get_killed(*_, to_path=None, **__):
+            # git clone writes the .git skeleton before it writes refs or the working tree, so a
+            # process killed in that window leaves a directory git can open but cannot check out.
+            dot_git = Path(to_path) / ".git"
+            dot_git.mkdir(parents=True)
+            (dot_git / "HEAD").write_text(f"ref: refs/heads/{GIT_DEFAULT_BRANCH}\n")
+            raise KeyboardInterrupt("killed mid-clone")
+
+        with mock.patch(
+            "airflow.providers.git.bundles.git.Repo.clone_from", side_effect=clone_then_get_killed
+        ):
+            with pytest.raises(KeyboardInterrupt):
+                bundle._clone_repo_if_required()
+
+        assert not bundle.repo_path.exists()
+        assert not bundle._staging_repo_path.exists()
+
+        # The next initialization clones again instead of reusing a repository that can never
+        # check out the tracking ref.
+        bundle.initialize()
+        assert {f.name for f in bundle.path.iterdir() if f.is_file()} == {"test_dag.py"}
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_stale_staging_directory_is_discarded(self, mock_githook, git_repo):
+        """A staging directory left behind by a killed clone does not block the next one."""
+        repo_path, _ = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        staging_path = bundle._staging_repo_path
+        (staging_path / ".git").mkdir(parents=True)
+
+        bundle.initialize()
+
+        assert not staging_path.exists()
+        assert {f.name for f in bundle.path.iterdir() if f.is_file()} == {"test_dag.py"}
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
     @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
