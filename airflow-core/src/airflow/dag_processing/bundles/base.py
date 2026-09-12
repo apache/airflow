@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pendulum
+import structlog
 from pendulum.parsing import ParserError
 
 from airflow.configuration import conf
@@ -309,6 +310,7 @@ class BaseDagBundle(ABC):
         version_data: dict[str, Any] | None = None,
         view_url_template: str | None = None,
     ) -> None:
+        self.__log: Any = None
         self.name = name
         self.version = version
         self.version_data = version_data
@@ -349,6 +351,24 @@ class BaseDagBundle(ABC):
                 self.name,
                 bundle_path,
             )
+
+    def _get_log_context(self) -> dict[str, Any]:
+        """Return extra structlog context fields for this bundle. Override in subclasses."""
+        return {}
+
+    @property
+    def _log(self) -> Any:
+        """Lazy structlog logger bound with common bundle context plus subclass-specific fields."""
+        if self.__log is None:
+            self.__log = structlog.get_logger(type(self).__module__).bind(
+                bundle_name=self.name, version=self.version, **self._get_log_context()
+            )
+        return self.__log
+
+    @_log.setter
+    def _log(self, value) -> None:
+        """Allow subclasses to bind their own logger (kept for bundles released before the lazy property)."""
+        self.__log = value
 
     @property
     @abstractmethod
