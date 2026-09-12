@@ -27,6 +27,7 @@ from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import psutil
 import pytest
 
 from airflow.cli import cli_parser
@@ -73,23 +74,38 @@ class TestCeleryStopCommand:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
-    @mock.patch("airflow.providers.celery.cli.celery_command.psutil.Process")
-    def test_if_right_pid_is_read(self, mock_process, mock_setup_locations, tmp_path):
+    @pytest.mark.parametrize(
+        ("process_side_effect", "terminate_side_effect", "expected_terminate_calls"),
+        [
+            pytest.param(None, None, 1, id="worker-running"),
+            pytest.param(psutil.NoSuchProcess(123), None, 0, id="stale-pid-file"),
+            pytest.param(None, psutil.NoSuchProcess(123), 1, id="worker-exits-before-terminate"),
+        ],
+    )
+    @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations", autospec=True)
+    @mock.patch("airflow.providers.celery.cli.celery_command.psutil.Process", autospec=True)
+    def test_if_right_pid_is_read(
+        self,
+        mock_process,
+        mock_setup_locations,
+        process_side_effect,
+        terminate_side_effect,
+        expected_terminate_calls,
+        tmp_path,
+    ):
         args = self.parser.parse_args(["celery", "stop"])
-        pid = "123"
+        pid = 123
         path = tmp_path / "testfile"
-        # Create pid file
-        path.write_text(pid)
-        # Setup mock
+        path.write_text(str(pid))
         mock_setup_locations.return_value = (os.fspath(path), None, None, None)
+        mock_process.side_effect = process_side_effect
+        mock_process.return_value.terminate.side_effect = terminate_side_effect
 
-        # Calling stop_worker should delete the temporary pid file
         celery_command.stop_worker(args)
-        # Check if works as expected
+
         assert not path.exists()
-        mock_process.assert_called_once_with(int(pid))
-        mock_process.return_value.terminate.assert_called_once_with()
+        mock_process.assert_called_once_with(pid)
+        assert mock_process.return_value.terminate.call_count == expected_terminate_calls
 
     @mock.patch("airflow.providers.celery.cli.celery_command.read_pid_from_pidfile")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
