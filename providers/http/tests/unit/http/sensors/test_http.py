@@ -258,6 +258,16 @@ class TestHttpSensor:
         with pytest.raises(AirflowException, match="500:Internal Server Error"):
             task.execute(context={})
 
+    def test_http_conn_id_is_templated(self):
+        sensor = HttpSensor(
+            task_id="test_http_sensor",
+            endpoint="/health",
+            http_conn_id="{{ conn_id }}",
+        )
+        assert "http_conn_id" in sensor.template_fields
+        sensor.render_template_fields({"conn_id": "http_staging"})
+        assert sensor.http_conn_id == "http_staging"
+
 
 class FakeSession:
     def __init__(self):
