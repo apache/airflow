@@ -1789,6 +1789,33 @@ class TestDag:
         dag.test()
         mock_object.assert_called_once()
 
+    def test_dag_test_without_logical_date_keeps_other_runs_task_instances(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="test_dateless_dag_test", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            pass
+
+        with dag:
+            check_task()
+
+        _create_dagrun(
+            dag,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.SUCCESS,
+        )
+        run_id = session.scalar(select(DagRun.run_id).where(DagRun.dag_id == dag.dag_id))
+        session.execute(update(TI).where(TI.run_id == run_id).values(state=TaskInstanceState.SUCCESS))
+        session.commit()
+
+        dag.test(logical_date=None)
+
+        session.expire_all()
+        states = session.scalars(select(TI.state).where(TI.run_id == run_id)).all()
+        assert states == [TaskInstanceState.SUCCESS]
+
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         sync_dag_to_db(dag)
