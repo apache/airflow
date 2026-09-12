@@ -399,8 +399,11 @@ class BaseSessionFactory(LoggingMixin):
             )
             self.log.debug("idp_response.content= %s", idp_response.content)
             self.log.debug("xpath= %s", xpath)
-        # Extract SAML Assertion from the returned HTML / XML
-        xml = etree.fromstring(idp_response.content)
+        # Extract SAML Assertion from the returned HTML / XML. The response is remote
+        # content from the IdP endpoint, so parse it with external entity resolution and
+        # network access disabled to avoid XXE (local file disclosure, entity-expansion).
+        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+        xml = etree.fromstring(idp_response.content, parser=parser)
         saml_assertion = xml.xpath(xpath)
         if isinstance(saml_assertion, list):
             if len(saml_assertion) == 1:
