@@ -145,6 +145,30 @@ describe the variable value. The following is a sample file.
     VAR_A=some_value
     var_B=different_value
 
+Team-scoped Connections and Variables
+"""""""""""""""""""""""""""""""""""""
+
+.. versionadded:: 3.4.0
+
+In :doc:`multi-team mode </core-concepts/multi-team>`, a key of the form ``{TEAM}___{ID}`` (triple underscore
+between the team name and the connection ID or variable key) holds the value for that team only. When a task of
+``team_a`` asks for ``my_database``, the backend returns the ``team_a___my_database`` entry if the file has one
+and the plain ``my_database`` entry otherwise. Tasks of other teams, and lookups made without a team, only see
+the plain entry.
+
+.. code-block:: json
+
+    {
+        "my_database": "postgresql://shared-host/db",
+        "team_a___my_database": "postgresql://team-a-host/db"
+    }
+
+The variables file uses the same key format, and so do the ``YAML`` and ``.env`` formats.
+
+In multi-team mode a connection ID or variable key that itself contains ``___`` is ambiguous, so the backend
+never resolves it. This applies to every lookup, with or without a team, including the team that owns the
+entry. Outside multi-team mode the backend matches keys verbatim and ``___`` has no special meaning.
+
 Storing and Retrieving Configurations
 """""""""""""""""""""""""""""""""""""
 

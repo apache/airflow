@@ -34,7 +34,7 @@ from airflow.exceptions import (
 )
 from airflow.models import Variable
 from airflow.secrets import local_filesystem
-from airflow.secrets.local_filesystem import LocalFilesystemBackend
+from airflow.secrets.local_filesystem import TEAM_SEP, LocalFilesystemBackend
 
 from tests_common.test_utils.config import conf_vars
 
@@ -561,3 +561,79 @@ class TestLocalFileBackend:
         assert backend.get_connection("CONN_A") is None
         assert backend.get_variable("VAR_A") is None
         assert backend.get_config("CONF_A") is None
+
+
+# A team scoped secret lives under the ``<TEAM_NAME>___<SECRET_ID>`` key of the same file.
+TEAM_NAME = "team_a"
+OTHER_TEAM_NAME = "team_b"
+SECRET_ID = "dbconn"
+TEAM_VALUE = "mysql://team-scoped-host"
+GLOBAL_VALUE = "mysql://team-agnostic-host"
+
+# The two lookups that follow the team scoping rules.
+LOOKUPS = [pytest.param("connection", id="connection"), pytest.param("variable", id="variable")]
+
+
+def team_scoped_key(team_name: str, secret_id: str = SECRET_ID) -> str:
+    return f"{team_name}{TEAM_SEP}{secret_id}"
+
+
+def write_backend(tmp_path, kind: str, secrets: dict[str, str]) -> LocalFilesystemBackend:
+    path = tmp_path / f"{kind}s.json"
+    path.write_text(json.dumps(secrets))
+    if kind == "connection":
+        return LocalFilesystemBackend(connections_file_path=os.fspath(path))
+    return LocalFilesystemBackend(variables_file_path=os.fspath(path))
+
+
+def lookup(backend: LocalFilesystemBackend, kind: str, secret_id: str, team_name: str | None) -> str | None:
+    if kind == "connection":
+        conn = backend.get_connection(secret_id, team_name)
+        return conn.get_uri() if conn else None
+    return backend.get_variable(secret_id, team_name)
+
+
+class TestLocalFileBackendTeamScope:
+    """Only the team a key is stored for can resolve it."""
+
+    @pytest.fixture(autouse=True)
+    def _multi_team_enabled(self):
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield
+
+    @pytest.mark.parametrize("kind", LOOKUPS)
+    def test_team_scoped_secret_wins_over_the_team_agnostic_one(self, tmp_path, kind):
+        backend = write_backend(
+            tmp_path, kind, {SECRET_ID: GLOBAL_VALUE, team_scoped_key(TEAM_NAME): TEAM_VALUE}
+        )
+
+        assert lookup(backend, kind, SECRET_ID, TEAM_NAME) == TEAM_VALUE
+        assert lookup(backend, kind, SECRET_ID, OTHER_TEAM_NAME) == GLOBAL_VALUE
+        assert lookup(backend, kind, SECRET_ID, None) == GLOBAL_VALUE
+
+    @pytest.mark.parametrize("kind", LOOKUPS)
+    @pytest.mark.parametrize("team_name", [None, OTHER_TEAM_NAME])
+    def test_team_scoped_secret_is_only_resolved_for_its_own_team(self, tmp_path, kind, team_name):
+        backend = write_backend(tmp_path, kind, {team_scoped_key(TEAM_NAME): TEAM_VALUE})
+
+        assert lookup(backend, kind, SECRET_ID, TEAM_NAME) == TEAM_VALUE
+        assert lookup(backend, kind, SECRET_ID, team_name) is None
+
+    @pytest.mark.parametrize("kind", LOOKUPS)
+    @pytest.mark.parametrize("team_name", [None, TEAM_NAME, OTHER_TEAM_NAME])
+    def test_an_id_containing_the_separator_is_refused_in_every_scope(self, tmp_path, kind, team_name):
+        """Spelling the namespace out as the id never reaches the key, even for the team that owns it."""
+        backend = write_backend(tmp_path, kind, {team_scoped_key(TEAM_NAME): TEAM_VALUE})
+
+        assert lookup(backend, kind, team_scoped_key(TEAM_NAME), team_name) is None
+
+
+class TestLocalFileBackendMultiTeamDisabled:
+    """Without multi-team mode ``___`` means nothing, so the backend matches such a key verbatim."""
+
+    @conf_vars({("core", "multi_team"): "False"})
+    @pytest.mark.parametrize("kind", LOOKUPS)
+    def test_key_containing_the_separator_resolves_verbatim(self, tmp_path, kind):
+        backend = write_backend(tmp_path, kind, {team_scoped_key(TEAM_NAME): TEAM_VALUE})
+
+        assert lookup(backend, kind, team_scoped_key(TEAM_NAME), None) == TEAM_VALUE
