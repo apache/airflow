@@ -75,7 +75,7 @@ automatically falls back to the per-object sync of ``prefix``.
       }
     ]'
 
-Publishing the archive is the deployer's responsibility. The archive members must be laid out exactly as
+Publishing the archive is the responsibility of your deployment process. The archive members must be laid out exactly as
 the objects under ``prefix``, so both staging strategies produce the same local tree — for example, in the
 same CI job that syncs the Dags:
 
