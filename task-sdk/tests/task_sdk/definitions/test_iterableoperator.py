@@ -30,7 +30,15 @@ except NameError:
 
 import pytest
 
-from airflow.sdk import DAG, BaseAsyncOperator, BaseOperator, BaseXCom, TaskInstanceState, get_current_context
+from airflow.sdk import (
+    DAG,
+    Asset,
+    BaseAsyncOperator,
+    BaseOperator,
+    BaseXCom,
+    TaskInstanceState,
+    get_current_context,
+)
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
@@ -43,6 +51,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
+from airflow.sdk.execution_time.context import OutletEventAccessors
 from airflow.sdk.execution_time.task_runner import IndexedTaskState
 from airflow.sdk.execution_time.xcom import XCom
 
@@ -82,9 +91,12 @@ class MockTaskStateStoreAccessor:
 
 def mock_context(task, run_id: str | None = None) -> Context:
     """Wrap the shared ``mock_context`` helper with a ``task_state_store``, since
-    ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``."""
+    ``IterableOperator`` checkpoints per-index sub-task progress via ``context["task_state_store"]``,
+    and an ``outlet_events`` accessor, since successful sub-tasks merge their recorded outlet asset
+    events into it (see ``IterableOperator._run_task``)."""
     context = _mock_context_base(task=task, run_id=run_id)
     context["task_state_store"] = MockTaskStateStoreAccessor()  # type: ignore[typeddict-item]
+    context["outlet_events"] = OutletEventAccessors()
     return context
 
 
@@ -124,6 +136,38 @@ class MockOperator(BaseOperator):
 
         assert context == expected, "Context was unexpectedly mutated during task execution"
         return result
+
+
+class MockOutletEventOperator(BaseOperator):
+    """Operator that records an outlet asset event on execute, used to test that
+    IterableOperator merges/replays per-sub-task outlet events (see ``_run_task``)."""
+
+    template_fields = ()
+
+    def __init__(self, extra_value: str = "v", **kwargs):
+        super().__init__(**kwargs)
+        self.extra_value = extra_value
+
+    def execute(self, context):
+        context["outlet_events"][Asset(name="a", uri="s3://bucket/a")].extra["value"] = self.extra_value
+        return "done"
+
+
+class MockOnKillOperator(BaseOperator):
+    """Operator that records whether ``on_kill()`` was called on it, used to test that
+    IterableOperator.on_kill() propagates to currently in-flight sub-tasks (see ``on_kill``)."""
+
+    template_fields = ()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.killed = False
+
+    def execute(self, context):
+        return "done"
+
+    def on_kill(self):
+        self.killed = True
 
 
 class MockDeferredOperator(BaseOperator):
@@ -206,6 +250,7 @@ def create_mapped_operator(
     do_xcom_push: bool = True,
     task_concurrency: int | None = None,
     execution_timeout: timedelta | None = None,
+    operator_class: type[BaseOperator] = MockOperator,
 ) -> MappedOperator:
     """
     Create a MappedOperator and assign it to a DAG.
@@ -214,8 +259,9 @@ def create_mapped_operator(
     :param dag: The DAG to assign the operator to
     :param task_id: Task ID for the operator
     :param do_xcom_push: Whether to push XCom (default True)
+    :param operator_class: Operator class to wrap (default MockOperator)
     """
-    return MockOperator.partial(
+    return operator_class.partial(
         task_id=task_id,
         dag=dag,
         retries=retries,
@@ -236,6 +282,7 @@ def create_iterable_operator(
     task_concurrency: int | None = None,
     retries: int = DEFAULT_RETRIES,
     do_xcom_push: bool = True,
+    operator_class: type[BaseOperator] = MockOperator,
 ) -> IterableOperator:
     """Create an IterableOperator with a MappedOperator and ExpandInput."""
     mapped_op = create_mapped_operator(
@@ -245,6 +292,7 @@ def create_iterable_operator(
         retries=retries,
         do_xcom_push=do_xcom_push,
         task_concurrency=task_concurrency,
+        operator_class=operator_class,
     )
     return IterableOperator(
         operator=mapped_op,
@@ -860,6 +908,148 @@ class TestIterableOperator:
             store[task.xcom_key]
             == IndexedTaskState(status=TaskInstanceState.SUCCESS, try_number=2, result=result).serialize()
         )
+
+    @pytest.mark.asyncio
+    async def test_run_task_merges_outlet_events_into_shared_context_on_success(self):
+        """A sub-task's outlet asset events must be visible in the IterableOperator's own
+        ``context["outlet_events"]`` once it succeeds, so they get serialized along with the
+        parent task's own outlet events when the whole IterableOperator finishes (see kaxil's
+        comment on outlet-event handling in ``_run_task``)."""
+        from airflow.sdk.bases.operator import event_loop
+        from airflow.sdk.execution_time.executor import AsyncAwareExecutor
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="outlet_merge", operator_class=MockOutletEventOperator
+            )
+
+            context = mock_context(task=iterable_op)
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env)
+
+            with event_loop() as loop:
+                with AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
+                    _, result, raised = await iterable_op._run_task(executor, context, task)
+
+        assert raised is None
+        assert result == "done"
+        accessor = context["outlet_events"][Asset(name="a", uri="s3://bucket/a")]
+        assert accessor.extra == {"value": "v"}
+        store = context["task_state_store"]
+        checkpoint = IndexedTaskState.deserialize(store[task.xcom_key])
+        assert checkpoint.outlet_events == [
+            {
+                "kind": "asset",
+                "name": "a",
+                "uri": "s3://bucket/a",
+                "extra": {"value": "v"},
+                "partition_keys": [],
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_run_task_replays_outlet_events_when_skipping_already_succeeded_sub_task(self):
+        """A sub-task skipped on retry (because its checkpoint already records SUCCESS) never
+        re-executes, so it would otherwise never re-populate the fresh ``outlet_events`` accessor
+        created for the new attempt; ``_run_task`` must replay the events it recorded on its
+        earlier successful attempt instead of silently losing them."""
+        from unittest import mock
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="outlet_replay", operator_class=MockOutletEventOperator
+            )
+
+            context = mock_context(task=iterable_op)
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env)
+            task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
+            await context["task_state_store"].aset(
+                task.xcom_key,
+                IndexedTaskState(
+                    status=TaskInstanceState.SUCCESS,
+                    try_number=2,
+                    outlet_events=[
+                        {
+                            "kind": "asset",
+                            "name": "a",
+                            "uri": "s3://bucket/a",
+                            "extra": {"value": "v"},
+                            "partition_keys": [],
+                        }
+                    ],
+                ).serialize(),
+            )
+
+            executor = mock.MagicMock()
+            _, result, raised = await iterable_op._run_task(executor, context, task)
+
+        assert raised is None
+        assert result is None
+        executor.run_sync.assert_not_called()
+        accessor = context["outlet_events"][Asset(name="a", uri="s3://bucket/a")]
+        assert accessor.extra == {"value": "v"}
+
+    def test_on_kill_propagates_to_active_sub_operators(self):
+        """IterableOperator.on_kill() (SIGTERM or execution_timeout) must propagate the kill
+        signal to every sub-task currently in flight, since the default BaseOperator.on_kill()
+        no-op would otherwise leave running sub-tasks completely unaware of the kill."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="on_kill_test", operator_class=MockOnKillOperator
+            )
+
+        active_operator = MockOnKillOperator(task_id="active_sub_task")
+        iterable_op._active_sub_operators.add(active_operator)
+
+        iterable_op.on_kill()
+
+        assert active_operator.killed is True
+
+    def test_on_kill_is_noop_when_no_sub_operators_are_active(self):
+        """on_kill() must not raise when called with no in-flight sub-tasks (e.g. the
+        IterableOperator is killed before any sub-task has started, or after all finished)."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="on_kill_noop", operator_class=MockOnKillOperator
+            )
+
+        iterable_op.on_kill()  # should not raise
+
+    def test_run_operator_tracks_active_sub_operator_during_execution(self, monkeypatch: pytest.MonkeyPatch):
+        """``_run_operator`` must register the sub-task's unmapped operator in
+        ``_active_sub_operators`` only for the duration of its execution, so ``on_kill()``
+        propagates only to sub-tasks that are actually running."""
+        from airflow.sdk.execution_time.context import OutletEventAccessors as _OutletEventAccessors
+        from airflow.sdk.execution_time.executor import TaskExecutor
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{}])
+            iterable_op = create_iterable_operator(
+                dag, expand_input, task_id="on_kill_tracking", operator_class=MockOnKillOperator
+            )
+
+            context = mock_context(task=iterable_op)
+            jinja_env = iterable_op.get_template_env(dag=dag)
+            task = iterable_op._create_task(context=context, index=0, mapped_kwargs={}, jinja_env=jinja_env)
+
+            seen_active_during_run = []
+            original_run = TaskExecutor.run
+
+            def tracking_run(self, context):
+                seen_active_during_run.append(task.task in iterable_op._active_sub_operators)
+                return original_run(self, context)
+
+            monkeypatch.setattr(TaskExecutor, "run", tracking_run)
+
+            iterable_op._run_operator(context, task, _OutletEventAccessors())
+
+        assert seen_active_during_run == [True]
+        assert task.task not in iterable_op._active_sub_operators
 
     def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self):
         """IterableOperator.execution_timeout is None (not propagated to the outer TI);

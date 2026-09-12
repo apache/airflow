@@ -21,6 +21,7 @@ import contextvars
 import inspect
 import logging
 import os
+import threading
 import time
 from asyncio import (
     FIRST_COMPLETED,
@@ -265,12 +266,26 @@ class TaskExecutor(LoggingMixin):
     def __init__(
         self,
         task_instance: IndexedTaskInstance,
+        active_operators: set[BaseOperator] | None = None,
+        active_operators_lock: threading.Lock | None = None,
     ):
+        """
+        Run an operator or trigger for one sub-task instance.
+
+        :param active_operators: Optional shared set the caller wants this operator registered
+            into for the duration of its execution (e.g. so IterableOperator.on_kill() can
+            propagate to whichever sub-tasks are currently in flight). Registration happens in
+            __enter__/__exit__ so callers no longer need their own try/finally bookkeeping.
+        :param active_operators_lock: Lock guarding ``active_operators``, required whenever
+            ``active_operators`` is given since multiple sub-tasks may run concurrently.
+        """
         super().__init__()
         self.task_instance = task_instance
         self._result: Any | None = None
         self._start_time: float | None = None
         self._context: Context | None = None
+        self._active_operators = active_operators
+        self._active_operators_lock = active_operators_lock
 
     @property
     def dag_id(self) -> str:
@@ -309,6 +324,10 @@ class TaskExecutor(LoggingMixin):
     def __enter__(self):
         self._start_time = time.monotonic()
 
+        if self._active_operators is not None and self._active_operators_lock is not None:
+            with self._active_operators_lock:
+                self._active_operators.add(self.operator)
+
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
                 "Attempting running task %s of %s for %s with index %s in %s mode.",
@@ -321,6 +340,10 @@ class TaskExecutor(LoggingMixin):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if self._active_operators is not None and self._active_operators_lock is not None:
+            with self._active_operators_lock:
+                self._active_operators.discard(self.operator)
+
         elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
 
         if exc_value:

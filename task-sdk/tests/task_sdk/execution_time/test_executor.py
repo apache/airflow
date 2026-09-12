@@ -283,6 +283,53 @@ class TestTaskExecutor:
         with executor as ctx:
             assert ctx is executor
 
+    def test_enter_registers_operator_in_active_operators(self, make_indexed_ti):
+        """__enter__ registers the operator into the caller-supplied active_operators set, so
+        callers (e.g. IterableOperator) can track in-flight sub-tasks without their own
+        try/finally bookkeeping."""
+        ti = make_indexed_ti()
+        active_operators: set = set()
+        lock = threading.Lock()
+        executor = TaskExecutor(
+            task_instance=ti, active_operators=active_operators, active_operators_lock=lock
+        )
+
+        assert ti.task not in active_operators
+        executor.__enter__()
+        assert ti.task in active_operators
+
+    def test_exit_discards_operator_from_active_operators_on_success(self, make_indexed_ti):
+        ti = make_indexed_ti()
+        active_operators: set = set()
+        lock = threading.Lock()
+
+        with TaskExecutor(task_instance=ti, active_operators=active_operators, active_operators_lock=lock):
+            assert ti.task in active_operators
+
+        assert ti.task not in active_operators
+
+    def test_exit_discards_operator_from_active_operators_on_failure(self, make_indexed_ti):
+        """The operator must be discarded from active_operators even when the sub-task raises,
+        so on_kill() never propagates to a sub-task that has already stopped running."""
+        ti = make_indexed_ti(try_number=3, max_tries=3)
+        active_operators: set = set()
+        lock = threading.Lock()
+
+        with pytest.raises(ValueError, match="boom"):
+            with TaskExecutor(
+                task_instance=ti, active_operators=active_operators, active_operators_lock=lock
+            ):
+                raise ValueError("boom")
+
+        assert ti.task not in active_operators
+
+    def test_active_operators_tracking_is_optional(self, make_indexed_ti):
+        """When active_operators is not supplied (the default), __enter__/__exit__ must not
+        raise even though no tracking set is available."""
+        ti = make_indexed_ti()
+        with TaskExecutor(task_instance=ti):
+            pass  # should not raise
+
     def test_exit_success_sets_state(self, make_indexed_ti):
         """__exit__ without an exception marks the task instance as SUCCESS."""
         ti = make_indexed_ti()
