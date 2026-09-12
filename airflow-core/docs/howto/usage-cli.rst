@@ -349,6 +349,30 @@ The ``dags reserialize`` command parses the Dag files visible to it and updates 
 serialized representation in the metadata database. It is a maintenance command, useful
 for example to refresh serialized Dags after upgrading or downgrading Airflow.
 
+Use ``--only-missing`` to restore missing serialized metadata without parsing every
+file in a bundle:
+
+.. code-block:: bash
+
+    airflow dags reserialize --only-missing
+    airflow dags reserialize --only-missing --bundle-name dags-folder
+
+This option selects recorded source files for active Dags that have no serialized
+version and initializes only bundles that contain those files. It parses each
+selected file once. The first file containing Dags is committed immediately;
+remaining files are committed in batches of up to 32 files within each bundle.
+This makes initial recovery available quickly while reducing database round trips
+for larger recoveries. Existing serialized rows and versions are preserved. A
+selected file can define several Dags, which all follow the normal synchronization
+path.
+
+The option does not discover unregistered Dags or reconstruct missing historical
+versions. Use ``dags reserialize`` without this option to refresh existing
+definitions. Files that are unavailable or fail to parse produce an error exit
+after the remaining files are processed; successfully committed batches remain
+available. A database failure can roll back the current batch, but not earlier
+batches. Normal Dag processing remains responsible for detecting removals.
+
 .. note::
 
     ``airflow dags reserialize`` serializes the Dag files visible to the process

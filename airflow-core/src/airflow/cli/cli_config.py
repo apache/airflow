@@ -1445,6 +1445,11 @@ DAGS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_reserialize"),
         args=(
             ARG_BUNDLE_NAME,
+            Arg(
+                ("--only-missing",),
+                action="store_true",
+                help="Parse only files of active Dags without serialized metadata.",
+            ),
             ARG_VERBOSE,
         ),
     ),
