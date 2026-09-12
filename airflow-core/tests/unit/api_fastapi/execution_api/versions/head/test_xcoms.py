@@ -31,7 +31,6 @@ from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.dagrun import DagRun
-from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.serde import deserialize, serialize
@@ -449,10 +448,7 @@ class TestXComsSetEndpoint:
             )
         ).first()
         assert xcom.value == expected_value
-        task_map = session.scalars(
-            select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
-        ).one_or_none()
-        assert task_map is None, "Should not be mapped"
+        assert xcom.mapped_length is None, "Should not be mapped"
 
     @pytest.mark.parametrize(
         ("orig_value", "ser_value", "deser_value"),
@@ -542,15 +538,11 @@ class TestXComsSetEndpoint:
             )
         ).first()
         assert xcom.value == "value1"
-        task_map = session.scalars(
-            select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
-        ).one_or_none()
-        assert task_map is not None, "Should be mapped"
-        assert task_map.dag_id == "dag"
-        assert task_map.run_id == "test"
-        assert task_map.task_id == "op1"
-        assert task_map.map_index == -1
-        assert task_map.length == 3
+        assert xcom.dag_id == "dag"
+        assert xcom.run_id == "test"
+        assert xcom.task_id == "op1"
+        assert xcom.map_index == -1
+        assert xcom.mapped_length == 3
 
     @pytest.mark.parametrize(
         ("length", "expected_status"),
@@ -577,11 +569,17 @@ class TestXComsSetEndpoint:
         )
         assert response.status_code == expected_status
 
+        xcom = session.scalars(
+            select(XComModel).where(
+                XComModel.task_id == ti.task_id,
+                XComModel.dag_id == ti.dag_id,
+                XComModel.key == "xcom_1",
+            )
+        ).one_or_none()
         if expected_status < 400:
-            task_map = session.scalars(
-                select(TaskMap).where(TaskMap.task_id == ti.task_id, TaskMap.dag_id == ti.dag_id)
-            ).one_or_none()
-            assert task_map.length == length
+            assert xcom.mapped_length == length
+        else:
+            assert xcom is None, "Nothing should be written when the length is rejected"
 
     @pytest.mark.usefixtures("access_denied")
     def test_xcom_access_denied(self, client, caplog):

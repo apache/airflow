@@ -33,7 +33,6 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
@@ -397,7 +396,7 @@ def set_xcom(
     map_index: Annotated[int, Query()] = -1,
     dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
-        int | None, Query(description="Number of mapped tasks this value expands into")
+        int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
     ] = None,
 ):
     """Set an Airflow XCom."""
@@ -415,16 +414,8 @@ def set_xcom(
         )
 
     if mapped_length is not None:
-        task_map = TaskMap(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            length=mapped_length,
-            keys=None,
-        )
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if task_map.length > max_map_length:
+        if mapped_length > max_map_length:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -432,7 +423,6 @@ def set_xcom(
                     "message": "pushed value is too large to map as a downstream's dependency",
                 },
             )
-        session.merge(task_map)
 
     # else:
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
@@ -449,6 +439,7 @@ def set_xcom(
             map_index=map_index,
             serialize=False,
             dag_result=dag_result,
+            mapped_length=mapped_length,
             session=session,
         )
     except ValueError as e:

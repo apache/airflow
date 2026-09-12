@@ -18,12 +18,52 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models.taskmap import TaskMap
+from sqlalchemy import select
+
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 
 if TYPE_CHECKING:
+    from collections.abc import Collection, Sequence
+
     from sqlalchemy.orm import Session
 
     from airflow.serialization.definitions.mappedoperator import Operator
+
+
+def push_mapped_length(ti: TaskInstance, value: Collection, *, session: Session) -> None:
+    """Record ``value`` as ``ti``'s return value, usable as an expansion input."""
+    XComModel.set(
+        key=XCOM_RETURN_KEY,
+        value=list(value),
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        mapped_length=len(value),
+        session=session,
+    )
+
+
+def expand_mapped_task_instances(
+    mapped: Operator,
+    run_id: str,
+    *,
+    session: Session,
+) -> tuple[Sequence[TaskInstance], int]:
+    # map_index -1 sorts first, so the unmapped TI wins when it is still around; tests that
+    # already removed it drive expansion off an existing mapped index instead.
+    ti = session.scalars(
+        select(TaskInstance)
+        .where(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == run_id,
+        )
+        .order_by(TaskInstance.map_index)
+    ).first()
+    ti.task = mapped
+    return ti.expand_mapped_task(session=session)
 
 
 def expand_mapped_task(
@@ -33,16 +73,13 @@ def expand_mapped_task(
     length: int,
     session: Session,
 ):
-    session.add(
-        TaskMap(
-            dag_id=mapped.dag_id,
-            task_id=upstream_task_id,
-            run_id=run_id,
-            map_index=-1,
-            length=length,
-            keys=None,
+    upstream_ti = session.scalars(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == upstream_task_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.map_index == -1,
         )
-    )
-    session.flush()
-
-    TaskMap.expand_mapped_task(mapped, run_id, session=session)
+    ).one()
+    push_mapped_length(upstream_ti, range(length), session=session)
+    expand_mapped_task_instances(mapped, run_id, session=session)

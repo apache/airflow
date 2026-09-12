@@ -848,7 +848,6 @@ class TestDBCleanup:
             "asset_active",  # not good way to know if "stale"
             "asset",  # not good way to know if "stale"
             "asset_alias",  # not good way to know if "stale"
-            "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
             "dag_tag",  # not a significant source of data; age not indicative of staleness,
