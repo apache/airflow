@@ -73,6 +73,10 @@ BY_DESIGN_EXCLUSIONS: set[str] = {
     # `delta` is converted to an absolute `moment` in __init__ and the class deliberately serializes
     # as a DateTimeTrigger (see its docstring) -- there is no `delta` to reconstruct.
     "standard/src/airflow/providers/standard/triggers/temporal.py::TimeDeltaTrigger",
+    # `target_time` is an alternate constructor input (a possibly-unrendered Jinja template) that
+    # `_resolve_moment()` folds into `moment` before serialize() is called; serializing `moment` alone
+    # preserves the value without re-triggering template rendering. See DateTimeTrigger's docstring.
+    "standard/src/airflow/providers/standard/triggers/temporal.py::DateTimeTrigger",
     # `pod_name` is a deprecated alias folded into `pod_names` in __init__; serializing only
     # `pod_names` preserves the value and avoids re-triggering the deprecation path on restart.
     "google/src/airflow/providers/google/cloud/triggers/kubernetes_engine.py::GKEJobTrigger",
