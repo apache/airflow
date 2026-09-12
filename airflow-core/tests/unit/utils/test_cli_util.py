@@ -376,3 +376,13 @@ def test_should_enable_hot_reload(dev_flag, env_var, expected):
 
     with mock.patch.dict(os.environ, env, clear=True):
         assert cli.should_enable_hot_reload(args) is expected
+
+
+@pytest.mark.non_db_test_override
+@pytest.mark.parametrize("verbose", [True, False])
+def test_suppress_logs_and_warning_returns_wrapped_value(verbose):
+    @cli.suppress_logs_and_warning
+    def command(args):
+        return "result"
+
+    assert command(Namespace(verbose=verbose)) == "result"
