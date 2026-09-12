@@ -46,10 +46,19 @@ Setup and develop using GitHub Codespaces
    as Codespaces use Visual Studio Code as interface.
 
 
+.. _troubleshooting_docker_in_codespaces:
+
 Troubleshooting Docker in Codespaces
 -------------------------------------
 
-If you see a "Docker is not running" error when running Breeze commands, try these steps:
+If you see a "Docker is not running" error when running Breeze commands (for
+example during ``breeze start-airflow``), the Docker CLI may be installed while
+the daemon is still unreachable from your Codespace session. This is separate
+from checking whether ``systemctl status docker`` works: Codespaces do not run
+systemd, so that command failing with "System has not been booted with systemd"
+is expected and does **not** by itself mean Docker is unavailable.
+
+Try these steps:
 
 1. Verify that Docker is accessible by running:
 
