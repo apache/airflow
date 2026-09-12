@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.common.compat.sdk import AirflowException
@@ -107,6 +108,41 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+    def _event_from_exception(self, error: AirflowException) -> TriggerEvent:
+
+        if isinstance(error, WaiterMaxAttemptsError):
+            return TriggerEvent(
+                {
+                    "status": "timeout",
+                    "job_name": self.job_name,
+                    "message": str(error),
+                }
+            )
+
+        if isinstance(error, WaiterTerminalFailure):
+            response = error.last_response
+            status = response.get(self._get_response_status_key(self.job_type))
+
+            if status == "Failed":
+                return TriggerEvent(
+                    {
+                        "status": "failed",
+                        "job_name": self.job_name,
+                        "message": response.get("FailureReason") or str(error),
+                    }
+                )
+
+            if status == "Stopped":
+                return TriggerEvent(
+                    {
+                        "status": "stopped",
+                        "job_name": self.job_name,
+                        "message": str(error),
+                    }
+                )
+
+        return super()._event_from_exception(error)
 
     @staticmethod
     def _get_job_type_waiter(job_type: str) -> str:
