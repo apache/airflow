@@ -217,6 +217,11 @@ class BatchedOperator(BatchableOperator[OperatorPartial]):
     ) -> IterableOperator | MappedIterableOperator:
         from airflow.sdk.definitions.iterableoperator import IterableOperator, MappedIterableOperator
 
+        # Unlike .expand(), neither OperatorPartial.iterate()/.iterate_kwargs() nor this class's own
+        # iterate()/iterate_kwargs() set _expand_called, so OperatorPartial.__del__ would otherwise
+        # warn "Task ... was never mapped!" even though .iterate()/.batch().iterate() legitimately
+        # consumed the partial.
+        self._expand_called = True
         operator = self._expand(expand_input, strict=strict, register_with_dag=False)
 
         if self.size > 1:

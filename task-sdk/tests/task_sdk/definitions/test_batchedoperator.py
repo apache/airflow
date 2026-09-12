@@ -126,6 +126,25 @@ class TestBatchedOperator:
             else:
                 assert isinstance(iterable_op, IterableOperator)
 
+    @pytest.mark.parametrize("batch_size", [0, 3])
+    def test_iterate_marks_partial_as_expanded(self, batch_size, recwarn):
+        """Test that .iterate() (unlike .expand()'s dedicated OperatorPartial._expand(), which sets
+        _expand_called explicitly) also flags the OperatorPartial as consumed, so
+        OperatorPartial.__del__ does not spuriously warn "Task ... was never mapped!" once the
+        partial and its resulting operator are garbage collected."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
+
+        with DAG(dag_id=f"test_iterate_expand_called_{batch_size}"):
+            partial = EmptyOperator.partial(task_id="test_task")
+            expand_input = DictOfListsExpandInput({"retry_delay": [1, 2]})
+            partial.batch(size=batch_size)._iterate(expand_input, strict=False)
+
+            assert partial._expand_called is True
+
+        del partial
+        assert not any("was never mapped" in str(w.message) for w in recwarn.list)
+
     def test_mapped_iterable_operator_retries_preserved(self):
         """Ensure MappedIterableOperator delegates retries to and from the wrapped operator, so that
         Airflow's standard retry mechanism (applied to the whole IterableOperator) sees the same
