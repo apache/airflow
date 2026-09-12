@@ -59,6 +59,9 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import IndexedTaskInstance
 
 
+_log = logging.getLogger(__name__)
+
+
 class AsyncAwareExecutor(Executor):
     """
     Executes both sync and async functions concurrently.
@@ -68,9 +71,15 @@ class AsyncAwareExecutor(Executor):
 
     :param loop: Event loop used to schedule async tasks and coordinate mixed execution.
     :param max_workers: Maximum concurrent workers used by both thread pool and async semaphore.
+    :param shutdown_timeout: Maximum time to wait, in seconds, for in-flight async tasks and
+        thread-pool workers to finish during ``shutdown(wait=True)``. Python threads cannot be
+        forcibly stopped, so a worker stuck in blocking user code (slow HTTP call, blocked C
+        extension, a deadlocked DB driver, ...) would otherwise hang ``shutdown()`` forever.
     """
 
-    def __init__(self, loop: AbstractEventLoop, max_workers: int | None = None):
+    def __init__(
+        self, loop: AbstractEventLoop, max_workers: int | None = None, shutdown_timeout: float = 10.0
+    ):
         if max_workers is None:
             max_workers = os.cpu_count() or 1
         if max_workers <= 0:
@@ -78,6 +87,7 @@ class AsyncAwareExecutor(Executor):
 
         self._loop = loop
         self._max_workers = max_workers
+        self._shutdown_timeout = shutdown_timeout
         self._semaphore = Semaphore(max_workers)
         self._thread_pool = ThreadPoolExecutor(max_workers=max_workers)
         self._async_tasks: set[Task[Any]] = set()
@@ -112,11 +122,37 @@ class AsyncAwareExecutor(Executor):
                 self._loop.run_until_complete(
                     wait_for(
                         gather(*self._async_tasks, return_exceptions=True),
-                        timeout=10.0,
+                        timeout=self._shutdown_timeout,
                     )
                 )
 
-        self._thread_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
+        # ThreadPoolExecutor.shutdown(wait=True) blocks until every worker thread
+        # finishes its current work item, with no way to bound that wait or forcibly
+        # stop a thread stuck in blocking user code (slow HTTP call, blocked C
+        # extension, a deadlocked DB driver, ...). Ask the pool to stop accepting new
+        # work (and cancel anything not yet started) up front, then bound how long we
+        # personally wait on the worker threads instead of blocking indefinitely.
+        self._thread_pool.shutdown(wait=False, cancel_futures=cancel_futures)
+
+        if wait:
+            threads = list(getattr(self._thread_pool, "_threads", ()))
+            deadline = time.monotonic() + self._shutdown_timeout
+            for thread in threads:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                thread.join(timeout=remaining)
+
+            stuck = [thread.name for thread in threads if thread.is_alive()]
+            if stuck:
+                _log.error(
+                    "%d worker thread(s) still running %.1fs after shutdown was requested; "
+                    "giving up waiting to avoid blocking indefinitely. This may leak resources. "
+                    "Affected threads: %s",
+                    len(stuck),
+                    self._shutdown_timeout,
+                    stuck,
+                )
 
     def submit(self, func: Callable[..., Any] | Any, *args, **kwargs) -> Future[Any]:  # type: ignore[override]
         """
