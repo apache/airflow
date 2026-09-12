@@ -44,11 +44,10 @@ def __getattr__(name: str):
     # Imported on demand so the package stays importable without the 'modal' extra:
     # everything above needs no third-party dependency at all.
     if name == "ModalSandboxBackend":
-        try:
-            from airflow.providers.common.ai.sandbox.modal import ModalSandboxBackend
-        except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+        # The module raises AirflowOptionalProviderFeatureException itself when the extra
+        # is absent, so it is not re-wrapped here: catching ImportError around this would
+        # also swallow a genuine one raised from inside the module.
+        from airflow.providers.common.ai.sandbox.modal import ModalSandboxBackend
 
-            raise AirflowOptionalProviderFeatureException(e)
         return ModalSandboxBackend
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
