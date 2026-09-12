@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -82,3 +82,31 @@ class TestLogin:
         token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
         assert f"Path={SUBPATH}" in session_cookie
         assert f"Path={SUBPATH}" in token_cookie
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_auth_manager")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
+    def test_logout_revokes_token(self, mock_get_flask_app, mock_get_auth_manager, test_client):
+        mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
+        mock_auth_manager = MagicMock()
+        mock_auth_manager.get_url_login.return_value = "/auth/login"
+        mock_get_auth_manager.return_value = mock_auth_manager
+
+        response = test_client.get(
+            "/logout", cookies={COOKIE_NAME_JWT_TOKEN: "the-jwt-token"}, follow_redirects=False
+        )
+        assert response.status_code == 307
+        mock_auth_manager.revoke_token.assert_called_once_with("the-jwt-token")
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_auth_manager")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
+    def test_logout_without_token_cookie_does_not_revoke(
+        self, mock_get_flask_app, mock_get_auth_manager, test_client
+    ):
+        mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
+        mock_auth_manager = MagicMock()
+        mock_auth_manager.get_url_login.return_value = "/auth/login"
+        mock_get_auth_manager.return_value = mock_auth_manager
+
+        response = test_client.get("/logout", follow_redirects=False)
+        assert response.status_code == 307
+        mock_auth_manager.revoke_token.assert_not_called()

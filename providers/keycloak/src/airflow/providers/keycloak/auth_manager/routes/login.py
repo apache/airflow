@@ -160,6 +160,12 @@ def login_callback(request: Request):
 def logout(request: Request):
     """Log out the user from Keycloak."""
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+
+    # Revoke the current token before redirecting to Keycloak's end-session endpoint,
+    # matching the core /auth/logout route's behavior (see PR #67289).
+    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+        auth_manager.revoke_token(token_str)
+
     keycloak_config = auth_manager.get_keycloak_client().well_known()
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
