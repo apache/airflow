@@ -53,4 +53,26 @@ describe("DocsButton", () => {
 
     expect(await screen.findByText("docs.restApiReference")).toBeInTheDocument();
   });
+
+  it("uses version-specific docs for published releases", async () => {
+    render(<DocsButton externalViews={[]} version="3.3.1" />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByRole("button", { name: /nav.docs/iu }));
+
+    expect(await screen.findByLabelText("3.3.1")).toHaveAttribute(
+      "href",
+      "https://airflow.apache.org/docs/apache-airflow/3.3.1/index.html",
+    );
+  });
+
+  it("falls back to stable docs for unpublished versions", async () => {
+    render(<DocsButton externalViews={[]} version="3.4.0" />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByRole("button", { name: /nav.docs/iu }));
+
+    expect(await screen.findByLabelText("3.4.0")).toHaveAttribute(
+      "href",
+      "https://airflow.apache.org/docs/apache-airflow/stable/index.html",
+    );
+  });
 });
