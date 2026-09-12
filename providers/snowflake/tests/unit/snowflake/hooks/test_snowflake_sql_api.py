@@ -289,6 +289,7 @@ class TestSnowflakeSqlApiHook:
         mock_requests,
     ):
         """Test execute_query method, run query by mocking post request method and return the query ids"""
+        mock_conn_param.return_value = CONN_PARAMS
         mock_requests.codes.ok = 200
         mock_requests.request.side_effect = [
             create_successful_response_mock(expected_response),
@@ -318,6 +319,7 @@ class TestSnowflakeSqlApiHook:
         expected_query_ids,
         mock_requests,
     ):
+        mock_conn_param.return_value = CONN_PARAMS
         mock_requests.codes.ok = 200
         mock_requests.request.side_effect = [
             create_successful_response_mock(expected_response),
@@ -340,6 +342,7 @@ class TestSnowflakeSqlApiHook:
         self, mock_get_header, mock_conn_param, mock_requests
     ):
         """Test execute_query method, run query by mocking post request method and return the query ids"""
+        mock_conn_param.return_value = CONN_PARAMS
         sql, statement_count, expected_response, expected_query_ids = (
             SQL_MULTIPLE_STMTS,
             4,
@@ -393,6 +396,7 @@ class TestSnowflakeSqlApiHook:
         without statementHandle in the response
         """
         # status_code, json payload without statementHandle
+        mock_conn_param.return_value = CONN_PARAMS
         mock_make_api_call.return_value = (None, {"foo": "bar"})
         hook = SnowflakeSqlApiHook("mock_conn_id")
 
