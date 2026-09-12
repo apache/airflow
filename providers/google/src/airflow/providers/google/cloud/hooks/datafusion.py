@@ -133,8 +133,11 @@ class DataFusionHook(GoogleBaseHook):
                     namespace=namespace,
                 )
                 current_state = workflow["status"]
-            except KeyError:
-                pass  # Because the pipeline may not be visible in system yet
+            except (HTTPError, KeyError):
+                # A 404 is raised as HTTPError by _check_response_status_and_data, and a
+                # missing "status" key raises KeyError. Both mean the run is not visible
+                # in the system yet, so keep polling instead of failing the task.
+                pass
             if current_state in success_states:
                 return
             if current_state in failure_states:
