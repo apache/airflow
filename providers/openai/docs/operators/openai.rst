@@ -58,6 +58,54 @@ specify the OpenAI connection to use, and ``response_kwargs`` to pass through op
     :start-after: [START howto_operator_openai_response]
     :end-before: [END howto_operator_openai_response]
 
+Passing Responses API options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+See the `Responses API reference
+<https://platform.openai.com/docs/api-reference/responses/create>`__ for the authoritative list
+of parameters. ``response_kwargs`` passes straight through to the underlying ``create_response``
+call, so most keyword arguments the Responses API accepts can be set there, with the exceptions
+noted below. Options worth knowing about:
+
+- ``background``: run the response asynchronously on OpenAI's side. See the note below before
+  using this with ``OpenAIResponseOperator``.
+- ``stream``: return a stream of response events instead of a single completed response. Do not
+  set this on ``OpenAIResponseOperator``: ``execute`` reads ``response.status`` and
+  ``response.output_text``, neither of which exists on the streamed response object, so the task
+  raises ``AttributeError``. Stream responses from a ``@task`` using
+  :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` instead.
+- ``store``: whether the response is retained on OpenAI's side, for example so it can later be
+  used as a ``previous_response_id``.
+- ``reasoning``: reasoning configuration for reasoning models.
+- ``service_tier``: currently one of ``'auto'``, ``'default'``, ``'flex'``, ``'scale'`` or
+  ``'priority'``, selecting the processing tier the request is served from.
+- ``prompt_cache_key``: an identifier used to route requests to the same prompt cache.
+- ``safety_identifier``: a stable identifier for the end user, used for safety and abuse
+  detection.
+- ``truncation``: one of ``'auto'`` or ``'disabled'``, controlling whether the model truncates
+  context that exceeds its window.
+- ``include``: additional output fields to include in the response, such as encrypted reasoning
+  content.
+- ``metadata``: a mapping of key-value pairs attached to the response for your own bookkeeping.
+- ``max_output_tokens``: an upper bound on the number of tokens the model can generate.
+- ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make.
+
+.. note::
+
+    OpenAI does not expose a spend or cost ceiling parameter on the Responses API.
+    ``max_output_tokens`` and ``max_tool_calls`` are token and call-count limits, not a way to cap
+    the dollar cost of a run; controlling spend means bounding those counts yourself.
+
+.. note::
+
+    ``background=True`` starts the response running asynchronously on OpenAI's side and returns
+    before the response finishes. ``OpenAIResponseOperator`` is synchronous: it makes one
+    ``create_response`` call and returns ``response.output_text`` immediately, so a response
+    started with ``background=True`` comes back incomplete, and the operator logs its own warning
+    because ``response.status`` is not yet ``"completed"``. Do not set ``background=True`` on
+    ``OpenAIResponseOperator``. If you need a background response, create it from a ``@task``
+    using :class:`~airflow.providers.openai.hooks.openai.OpenAIHook`'s ``create_response`` directly.
+
 Using the OpenAIHook for Responses and Conversations
 =====================================================
 
