@@ -1136,6 +1136,45 @@ export type DAGWarningResponse = {
 };
 
 /**
+ * Dag bundle collection response.
+ */
+export type DagBundleCollectionResponse = {
+    dag_bundles: Array<DagBundleResponse>;
+    total_entries: number;
+};
+
+/**
+ * Dag bundle serializer for responses.
+ */
+export type DagBundleResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+};
+
+/**
  * DagProcessor info serializer for responses.
  */
 export type DagProcessorInfoResponse = {
@@ -2683,7 +2722,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Dag Bundles' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -3473,6 +3512,17 @@ export type GetDagSourceData = {
 };
 
 export type GetDagSourceResponse = DAGSourceResponse;
+
+export type GetDagBundlesData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name, version, last_refreshed, active`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagBundlesResponse = DagBundleCollectionResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -6209,6 +6259,29 @@ export type $OpenApiTs = {
                  * Not Acceptable
                  */
                 406: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles': {
+        get: {
+            req: GetDagBundlesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

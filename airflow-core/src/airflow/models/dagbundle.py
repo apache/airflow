@@ -113,12 +113,20 @@ class DagBundleModel(Base, LoggingMixin):
         if url_template is None:
             return None
 
-        params = dict(self.template_params or {})
-        params["version"] = version
+        # Nothing to interpolate before the first successful refresh, and formatting anyway would
+        # put the literal string "None" in the url.
+        if version is None and "{version" in url_template:
+            return None
 
         try:
+            params = dict(self.template_params or {})
+            params["version"] = version
             return url_template.format(**params)
-        except (KeyError, ValueError) as e:
+        except Exception as e:
+            # Broad on purpose: the template is deployment-supplied and its placeholders are never
+            # validated, so besides ``KeyError``/``ValueError`` a template like ``{0}`` or
+            # ``{version.foo}`` raises ``IndexError``/``AttributeError``. Callers render this into a
+            # response field, so a malformed template degrades to "no link" instead of erroring.
             self.log.warning("Failed to render URL template for bundle %s: %s", self.name, e)
             return None
 
