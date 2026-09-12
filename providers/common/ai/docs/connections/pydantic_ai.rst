@@ -60,7 +60,7 @@ Host (optional)
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
-    - Azure OpenAI: ``https://<resource>.openai.azure.com/openai/deployments/<deployment>``
+    - Azure OpenAI: ``https://<resource>.openai.azure.com``
     - Any OpenAI-compatible API: the base URL of that service
 
 Extra (JSON, optional)
