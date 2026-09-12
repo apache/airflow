@@ -226,3 +226,24 @@ class TestCliRoles:
             and permission.action.name == permissions.ACTION_CAN_ACCESS_MENU
             for permission in fakeTeamA.permissions
         )
+
+    def test_cli_import_roles_when_a_role_without_permissions_comes_first(self, tmp_path):
+        fn = tmp_path / "import_roles.json"
+        roles_list = [
+            {"name": "FakeTeamB", "resource": "", "action": ""},
+            {"name": "FakeTeamA", "resource": "Pools", "action": "can_edit,can_read"},
+        ]
+        fn.write_text(json.dumps(roles_list))
+        role_command.roles_import(self.parser.parse_args(["roles", "import", str(fn)]))
+
+        fakeTeamA: Role = self.appbuilder.sm.find_role("FakeTeamA")
+        fakeTeamB: Role = self.appbuilder.sm.find_role("FakeTeamB")
+
+        assert fakeTeamB is not None
+        assert len(fakeTeamB.permissions) == 0
+        assert {
+            (permission.resource.name, permission.action.name) for permission in fakeTeamA.permissions
+        } == {
+            (permissions.RESOURCE_POOL, permissions.ACTION_CAN_EDIT),
+            (permissions.RESOURCE_POOL, permissions.ACTION_CAN_READ),
+        }
