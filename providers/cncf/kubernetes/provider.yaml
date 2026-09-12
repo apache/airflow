@@ -438,14 +438,12 @@ config:
       client_factory:
         description: |
           Import path of a zero-argument callable returning the ``kubernetes.client.CoreV1Api``
-          the executor should use, for deployments that mint their own credentials. Only the
-          KubernetesExecutor consults this setting; other users of the Kubernetes client, such as
-          operators, are unaffected. When set it replaces the executor's default client
-          construction entirely, so ``in_cluster``, ``cluster_context``, ``config_file``,
-          ``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and
-          ``api_client_retry_configuration`` no longer apply to the executor. It is resolved in
-          every process that needs a client, including the pod watcher subprocess, so it must be
-          importable wherever the scheduler runs.
+          the executor should use, for deployments that mint their own credentials. When set it
+          replaces the default client construction entirely, so ``in_cluster``, ``cluster_context``,
+          ``config_file``, ``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and
+          ``api_client_retry_configuration`` no longer apply. It is resolved in every process that
+          needs a client, including the pod watcher subprocess, so it must be importable wherever
+          the scheduler runs.
         version_added: 10.23.0
         type: string
         example: "my_company.kubernetes.build_client"
