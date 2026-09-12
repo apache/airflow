@@ -304,6 +304,97 @@ class TestOtelMetrics:
 
         assert self.map[full_name(name)].value == 1
 
+    def test_observable_gauge_registers_callback(self, name):
+        def my_callback(timeout_millis):
+            yield (42.0, {"key": "value"})
+
+        self.stats.observable_gauge(name, my_callback, description="test gauge")
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once()
+        call_kwargs = self.meter.get_meter().create_observable_gauge.call_args
+        assert call_kwargs.kwargs["name"] == full_name(name)
+        assert call_kwargs.kwargs["description"] == "test gauge"
+        assert len(call_kwargs.kwargs["callbacks"]) == 1
+
+    def test_observable_gauge_callback_is_invoked(self, name):
+        """Verify the wrapper yields Observation objects when the callback is invoked."""
+        from opentelemetry.metrics import Observation
+
+        def my_callback(timeout_millis):
+            yield (10.0, {"pool": "default"})
+            yield (20.0, {"pool": "secondary"})
+
+        self.stats.observable_gauge(name, my_callback)
+
+        call_kwargs = self.meter.get_meter().create_observable_gauge.call_args
+        otel_callback = call_kwargs.kwargs["callbacks"][0]
+
+        results = list(otel_callback(mock.Mock(timeout_millis=5000.0)))
+        assert len(results) == 2
+        assert isinstance(results[0], Observation)
+        assert results[0].value == 10.0
+        assert results[0].attributes == {"pool": "default"}
+        assert results[1].value == 20.0
+        assert results[1].attributes == {"pool": "secondary"}
+
+    def test_observable_gauge_callback_exception_does_not_crash(self, name):
+        """OTel SDK catches callback exceptions; verify our wrapper propagates them cleanly."""
+
+        def bad_callback(timeout_millis):
+            raise ValueError("boom")
+
+        self.stats.observable_gauge(name, bad_callback)
+
+        call_kwargs = self.meter.get_meter().create_observable_gauge.call_args
+        otel_callback = call_kwargs.kwargs["callbacks"][0]
+
+        with pytest.raises(ValueError, match="boom"):
+            list(otel_callback(mock.Mock(timeout_millis=5000.0)))
+
+    def test_observable_gauge_invalid_stat_name_skipped(self):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        self.stats.observable_gauge("invalid/$tats", my_callback)
+
+        self.meter.get_meter().create_observable_gauge.assert_not_called()
+
+    def test_observable_gauge_empty_stat_name_skipped(self):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        self.stats.observable_gauge("", my_callback)
+
+        self.meter.get_meter().create_observable_gauge.assert_not_called()
+
+    def test_observable_gauge_empty_callback_yields_no_observations(self, name):
+        def empty_callback(timeout_millis):
+            return []
+
+        self.stats.observable_gauge(name, empty_callback)
+
+        call_kwargs = self.meter.get_meter().create_observable_gauge.call_args
+        otel_callback = call_kwargs.kwargs["callbacks"][0]
+
+        results = list(otel_callback(mock.Mock(timeout_millis=5000.0)))
+        assert results == []
+
+    def test_observable_gauge_timeout_millis_forwarded(self, name):
+        """Verify that the OTel CallbackOptions.timeout_millis is forwarded to the user callback."""
+        received_timeout = []
+
+        def my_callback(timeout_millis):
+            received_timeout.append(timeout_millis)
+            yield (1.0, None)
+
+        self.stats.observable_gauge(name, my_callback)
+
+        call_kwargs = self.meter.get_meter().create_observable_gauge.call_args
+        otel_callback = call_kwargs.kwargs["callbacks"][0]
+
+        list(otel_callback(mock.Mock(timeout_millis=3000.0)))
+        assert received_timeout == [3000.0]
+
     def test_timing_new_metric(self, name):
         import datetime
 

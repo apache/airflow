@@ -48,6 +48,7 @@ STATS_METHOD_TO_TYPE: dict[str, str] = {
     "incr": "counter",
     "decr": "counter",
     "gauge": "gauge",
+    "observable_gauge": "gauge",
     "timing": "timer",
     "timer": "timer",
 }

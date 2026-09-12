@@ -131,6 +131,14 @@ class TestStats:
         self.stats.gauge("empty", 123)
         self.statsd_client.gauge.assert_called_once_with("empty", 123, 1, False)
 
+    def test_observable_gauge_is_noop(self):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        self.stats.observable_gauge("some_metric", my_callback)
+        self.statsd_client.gauge.assert_not_called()
+        self.statsd_client.assert_not_called()
+
     def test_decr(self):
         self.stats.decr("empty")
         self.statsd_client.decr.assert_called_once_with("empty", 1, 1)
@@ -279,6 +287,14 @@ class TestDogStats:
     def test_gauge(self):
         self.dogstatsd.gauge("empty", 123)
         self.dogstatsd_client.gauge.assert_called_once_with(metric="empty", sample_rate=1, value=123, tags=[])
+
+    def test_observable_gauge_is_noop(self):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        self.dogstatsd.observable_gauge("some_metric", my_callback)
+        self.dogstatsd_client.gauge.assert_not_called()
+        self.dogstatsd_client.assert_not_called()
 
     def test_decr(self):
         self.dogstatsd.decr("empty")
@@ -765,6 +781,31 @@ class TestLegacyExport:
         assert mock_backend.timer.call_count == 2
         mock_backend.timer.assert_any_call("operator_failures_EmptyOperator")
         mock_backend.timer.assert_any_call("operator_failures", tags={"operator_name": "EmptyOperator"})
+
+    def test_observable_gauge_delegates_to_backend(self, mock_backend):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        airflow_shared.observability.metrics.stats.observable_gauge("some_metric", my_callback)
+        mock_backend.observable_gauge.assert_called_once_with("some_metric", my_callback, description="")
+
+    def test_observable_gauge_class_delegates_to_backend(self, mock_backend):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        airflow_shared.observability.metrics.stats.Stats.observable_gauge("some_metric", my_callback)
+        mock_backend.observable_gauge.assert_called_once_with("some_metric", my_callback, description="")
+
+    def test_observable_gauge_with_description(self, mock_backend):
+        def my_callback(timeout_millis):
+            yield (1.0, None)
+
+        airflow_shared.observability.metrics.stats.observable_gauge(
+            "some_metric", my_callback, description="A test gauge"
+        )
+        mock_backend.observable_gauge.assert_called_once_with(
+            "some_metric", my_callback, description="A test gauge"
+        )
 
 
 class TestCustomStatsName:
