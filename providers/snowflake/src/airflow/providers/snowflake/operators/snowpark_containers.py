@@ -225,6 +225,7 @@ class SnowparkContainerJobOperator(BaseOperator):
                 self.log.warning("Could not retrieve logs for instance_id %d: %s", instance_id, e)
                 continue
             if not response:
+                self.log.info("No logs returned for instance_id %d", instance_id)
                 continue
             if status != SnowparkContainerJobStatus.DONE:
                 self.log.error("Logs for instance_id %d:\n%s", instance_id, response)
