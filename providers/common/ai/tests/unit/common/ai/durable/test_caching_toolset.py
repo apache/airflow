@@ -147,6 +147,32 @@ class TestCachingToolsetReplayVerification:
         assert result == "fresh result"
         mock_toolset.call_tool.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_unverifiable_current_call_treated_as_miss(self, mock_toolset, mock_storage, counter):
+        mock_storage.load_tool_result.return_value = (True, "stale result", None)
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+        tool_args = {"value": object()}
+
+        result = await caching.call_tool("search", tool_args, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_called_once()
+        assert counter.replayed_tool == 0
+        mock_storage.save_tool_result.assert_not_called()
+        assert counter.cached_tool == 0
+
+    @pytest.mark.asyncio
+    async def test_unverifiable_call_is_not_cached(self, mock_toolset, mock_storage, counter):
+        """An entry stored without a fingerprint can never satisfy the replay guard, so none is written."""
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        result = await caching.call_tool("search", {"value": object()}, ctx_for("call_1"), MagicMock())
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_called_once()
+        mock_storage.save_tool_result.assert_not_called()
+        assert counter.cached_tool == 0
+
 
 class TestSharedCounter:
     @pytest.mark.asyncio
