@@ -75,6 +75,31 @@ def test_task_mapping_with_dag():
 # test_task_mapping_with_dag_and_list_of_pandas_dataframe
 
 
+@pytest.mark.parametrize(
+    ("bad_task_id", "match"),
+    [
+        ("bad*id", "has to be made of alphanumeric"),
+        ("with space", "has to be made of alphanumeric"),
+        ("a" * 251, "has to be less than 250 characters"),
+    ],
+)
+def test_mapped_task_id_is_validated(bad_task_id, match):
+    with DAG("test-dag"):
+        with pytest.raises(ValueError, match=match):
+            MockOperator.partial(task_id=bad_task_id).expand(arg2=["a"])
+
+
+def test_mapped_task_id_validated_after_group_prefix():
+    # A 50-char task id is valid on its own but is 251 chars once prefixed with the 200-char
+    # group id, so this only fails if the *final* prefixed id is what gets validated.
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+
+    with DAG("test-dag"):
+        with TaskGroup("g" * 200):
+            with pytest.raises(ValueError, match="has to be less than 250 characters"):
+                MockOperator.partial(task_id="t" * 50).expand(arg2=["a"])
+
+
 def test_task_mapping_without_dag_context():
     with DAG("test-dag") as dag:
         task1 = BaseOperator(task_id="op1")
