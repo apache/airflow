@@ -66,6 +66,9 @@ JOB_FINAL_STATUS_CONDITION_TYPES = {
 
 JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
 
+_LOG_STREAM_CHUNK_SIZE = 64 * 1024
+_LOG_STREAM_YIELD_EVERY_LINES = 256
+
 
 def _load_body_to_dict(body: str) -> dict:
     try:
@@ -814,10 +817,6 @@ def _get_bool(val) -> bool | None:
     return None
 
 
-def _split_log_bytes(raw_bytes: bytes) -> list[str]:
-    return raw_bytes.decode("utf-8", errors="replace").splitlines()
-
-
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
@@ -1093,30 +1092,73 @@ class AsyncKubernetesHook(KubernetesHook):
         :param container_name: Name of the container inside the pod.
         :param since_seconds: Only return logs newer than a relative duration in seconds.
         """
-        async with self.get_conn() as connection:
-            try:
-                v1_api = async_client.CoreV1Api(connection)
-                # Always retrieve raw bytes and decode with 'replace' to avoid
-                # UnicodeDecodeError when pod output contains non-UTF-8 bytes
-                # (e.g. binary data, truncated multi-byte sequences).
-                # kubernetes_asyncio's default decoding uses strict UTF-8 which
-                # crashes the task in those cases.
-                kwargs: dict[str, Any] = {
-                    "name": name,
-                    "namespace": namespace,
-                    "follow": False,
-                    "timestamps": True,
-                    "_preload_content": False,
-                }
-                if container_name is not None:
-                    kwargs["container"] = container_name
-                if since_seconds is not None:
-                    kwargs["since_seconds"] = since_seconds
+        return [
+            line
+            async for line in self.stream_logs(
+                name=name, namespace=namespace, container_name=container_name, since_seconds=since_seconds
+            )
+        ]
 
+    async def stream_logs(
+        self, name: str, namespace: str, container_name: str | None = None, since_seconds: int | None = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Yield pod log lines one at a time, without buffering the whole window.
+
+        :param name: Name of the pod.
+        :param namespace: Name of the pod's namespace.
+        :param container_name: Name of the container inside the pod.
+        :param since_seconds: Only return logs newer than a relative duration in seconds.
+        """
+        async with self.get_conn() as connection:
+            v1_api = async_client.CoreV1Api(connection)
+            kwargs: dict[str, Any] = {
+                "name": name,
+                "namespace": namespace,
+                "follow": False,
+                "timestamps": True,
+                "_preload_content": False,
+            }
+            if container_name is not None:
+                kwargs["container"] = container_name
+            if since_seconds is not None:
+                kwargs["since_seconds"] = since_seconds
+
+            try:
                 raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(**kwargs)  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
-                raw_bytes = await raw_resp.read()
-                # CPU-bound decode/split, offloaded so it can't block the triggerer event loop.
-                return await asyncio.to_thread(_split_log_bytes, raw_bytes)
+                try:
+                    pending: list[bytes] = []
+                    lines_since_yield = 0
+                    # Not ``async for line in raw_resp.content``: ``readline()`` raises
+                    # ``LineTooLong`` past the 4 MiB high-water mark.
+                    # Decoding below uses 'replace' because kubernetes_asyncio decodes with strict
+                    # UTF-8, which raises UnicodeDecodeError and crashes the task when pod output
+                    # contains binary data or truncated multi-byte sequences.
+                    async for chunk in raw_resp.content.iter_chunked(_LOG_STREAM_CHUNK_SIZE):
+                        if b"\n" in chunk:
+                            *lines, tail = chunk.split(b"\n")
+                            if pending:
+                                pending.append(lines[0])
+                                lines[0] = b"".join(pending)
+                                pending.clear()
+                            for line in lines:
+                                # Safe per line: ``\n`` never appears inside a multi-byte sequence.
+                                yield line.removesuffix(b"\r").decode("utf-8", errors="replace")
+                                lines_since_yield += 1
+                                if lines_since_yield >= _LOG_STREAM_YIELD_EVERY_LINES:
+                                    lines_since_yield = 0
+                                    await asyncio.sleep(0)
+                            if tail:
+                                pending.append(tail)
+                        else:
+                            # Appended whole: concatenating per chunk would recopy the line so far
+                            # every time, which is quadratic when a container emits no newline.
+                            pending.append(chunk)
+                        await asyncio.sleep(0)
+                    if pending:
+                        yield b"".join(pending).removesuffix(b"\r").decode("utf-8", errors="replace")
+                finally:
+                    raw_resp.close()
             except HTTPError as e:
                 raise KubernetesApiError from e
 
