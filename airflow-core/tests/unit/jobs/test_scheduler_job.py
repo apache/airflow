@@ -6487,19 +6487,7 @@ class TestSchedulerJob:
             )
 
     def test_schedule_all_dag_runs_does_not_crash_on_single_dag_run_error(self, dag_maker, caplog, session):
-        """Test that _schedule_all_dag_runs continues processing other DAG runs
-        when one DAG run raises an exception during scheduling.
-
-        Previously, _schedule_all_dag_runs used a list comprehension that would
-        abort entirely if any single _schedule_dag_run call raised, crashing
-        the entire scheduler and stopping scheduling for ALL DAGs.
-
-        While the specific scenario used to reproduce this (a TaskInstance with
-        state=UP_FOR_RETRY and end_date=NULL) is nearly impossible under normal
-        operation, the lack of per-dag-run fault isolation means ANY unexpected
-        exception from ANY dag run would have the same catastrophic effect.
-        """
-        # Create two DAGs with running DAG runs
+        """An unexpected error scheduling one Dag run does not prevent scheduling another."""
         with dag_maker(dag_id="good_dag", schedule="@once"):
             EmptyOperator(task_id="good_task")
         good_run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
@@ -6508,7 +6496,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id="bad_task")
         bad_run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
 
-        session.flush()
+        session.commit()
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
@@ -6526,10 +6514,7 @@ class TestSchedulerJob:
                 ],
             ) as mock_schedule,
         ):
-            from airflow.utils.sqlalchemy import prohibit_commit
-
-            with prohibit_commit(session) as guard:
-                result = self.job_runner._schedule_all_dag_runs(guard, [bad_run, good_run], session=session)
+            result = list(self.job_runner._schedule_all_dag_runs([bad_run, good_run], session=session))
 
             # The good DAG run should have been processed despite the bad one failing
             assert len(result) == 1
@@ -6538,17 +6523,10 @@ class TestSchedulerJob:
             # Both dag runs should have been attempted
             assert mock_schedule.call_count == 2
 
-            # The error should have been logged
-            error_messages = [r.message for r in caplog.records if r.levelno >= logging.ERROR]
-            assert any(
-                msg == f"Error scheduling DAG run {bad_run.run_id} of {bad_run.dag_id}"
-                for msg in error_messages
-            )
+            assert f"Error scheduling Dag run {bad_run.run_id} of {bad_run.dag_id}" in caplog
 
-    def test_schedule_all_dag_runs_reraises_db_errors(self, dag_maker, session):
-        """Test that _schedule_all_dag_runs does not catch DBAPIError, allowing
-        it to propagate to @retry_db_transaction for proper retry handling.
-        """
+    def test_schedule_dag_run_with_lock_reraises_db_errors(self, dag_maker, session):
+        """Database errors escape the scheduling transaction for retry handling."""
         from sqlalchemy.exc import DBAPIError
 
         with dag_maker(dag_id="db_error_dag", schedule="@once"):
@@ -6565,15 +6543,10 @@ class TestSchedulerJob:
             autospec=True,
             side_effect=DBAPIError("select 1", None, Exception("connection lost")),
         ) as mock_schedule:
-            from airflow.utils.sqlalchemy import prohibit_commit
-
-            with prohibit_commit(session) as guard:
-                # Bypass @retry_db_transaction to verify the exception escapes
-                # the inner function rather than being swallowed by except Exception.
-                with pytest.raises(DBAPIError):
-                    self.job_runner._schedule_all_dag_runs.__wrapped__(
-                        self.job_runner, guard, [run], session=session
-                    )
+            with pytest.raises(DBAPIError):
+                self.job_runner._schedule_dag_run_with_lock.__wrapped__(
+                    self.job_runner, run.id, run.last_scheduling_decision, session=session
+                )
 
             assert mock_schedule.call_count == 1
 
@@ -6783,8 +6756,7 @@ class TestSchedulerJob:
         assert num_queued == 1
 
         session.flush()
-        ti = run1.task_instances[0]
-        ti.refresh_from_db(session=session)
+        ti = run1.get_task_instance("dummy1", session=session)
         assert ti.state == State.QUEUED
 
     def test_more_runs_are_not_created_when_max_active_runs_is_reached(self, dag_maker, caplog, session):
@@ -11072,33 +11044,33 @@ class TestSchedulerJobQueriesCount:
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 1, 1, "1d", "None", "linear"),
-            ([24, 14, 14, 14], 1, 1, "1d", "@once", "no_structure"),
-            ([24, 14, 14, 14], 1, 1, "1d", "@once", "linear"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "no_structure"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "linear"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "binary_tree"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "star"),
-            ([24, 26, 29, 32], 1, 1, "1d", "30m", "grid"),
+            ([25, 14, 14, 14], 1, 1, "1d", "@once", "no_structure"),
+            ([25, 14, 14, 14], 1, 1, "1d", "@once", "linear"),
+            ([25, 26, 29, 32], 1, 1, "1d", "30m", "no_structure"),
+            ([25, 26, 29, 32], 1, 1, "1d", "30m", "linear"),
+            ([25, 26, 29, 32], 1, 1, "1d", "30m", "binary_tree"),
+            ([25, 26, 29, 32], 1, 1, "1d", "30m", "star"),
+            ([25, 26, 29, 32], 1, 1, "1d", "30m", "grid"),
             # One DAG with five tasks per DAG file.
             ([10, 10, 10, 10], 1, 5, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 1, 5, "1d", "None", "linear"),
-            ([24, 14, 14, 14], 1, 5, "1d", "@once", "no_structure"),
-            ([25, 15, 15, 15], 1, 5, "1d", "@once", "linear"),
-            ([24, 26, 29, 32], 1, 5, "1d", "30m", "no_structure"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "linear"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "binary_tree"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "star"),
-            ([25, 28, 32, 36], 1, 5, "1d", "30m", "grid"),
+            ([25, 14, 14, 14], 1, 5, "1d", "@once", "no_structure"),
+            ([26, 15, 15, 15], 1, 5, "1d", "@once", "linear"),
+            ([25, 26, 29, 32], 1, 5, "1d", "30m", "no_structure"),
+            ([26, 28, 32, 36], 1, 5, "1d", "30m", "linear"),
+            ([26, 28, 32, 36], 1, 5, "1d", "30m", "binary_tree"),
+            ([26, 28, 32, 36], 1, 5, "1d", "30m", "star"),
+            ([26, 28, 32, 36], 1, 5, "1d", "30m", "grid"),
             # 10 DAGs with 10 tasks per DAG file.
             ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
             ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
-            ([218, 69, 69, 69], 10, 10, "1d", "@once", "no_structure"),
-            ([228, 84, 84, 84], 10, 10, "1d", "@once", "linear"),
-            ([217, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
+            ([238, 86, 79, 79], 10, 10, "1d", "@once", "no_structure"),
+            ([248, 93, 93, 93], 10, 10, "1d", "@once", "linear"),
+            ([238, 119, 119, 119], 10, 10, "1d", "30m", "no_structure"),
             ([2227, 145, 145, 145], 10, 10, "1d", "30m", "linear"),
-            ([227, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
-            ([227, 139, 139, 139], 10, 10, "1d", "30m", "star"),
-            ([227, 259, 259, 259], 10, 10, "1d", "30m", "grid"),
+            ([248, 139, 139, 139], 10, 10, "1d", "30m", "binary_tree"),
+            ([248, 139, 139, 139], 10, 10, "1d", "30m", "star"),
+            ([248, 259, 259, 259], 10, 10, "1d", "30m", "grid"),
         ],
     )
     def test_process_dags_queries_count(

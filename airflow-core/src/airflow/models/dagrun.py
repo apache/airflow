@@ -745,7 +745,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @retry_db_transaction
     def get_running_dag_runs_to_examine(
-        cls, *, session: Session, eagerly_load_dag_tags: bool
+        cls, *, session: Session, eagerly_load_dag_tags: bool, lock_rows: bool = True
     ) -> ScalarResult[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
@@ -753,6 +753,8 @@ class DagRun(Base, LoggingMixin):
         This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
+
+        With ``lock_rows=False``, return candidates that must be locked and revalidated before scheduling.
 
         :meta private:
         """
@@ -785,7 +787,9 @@ class DagRun(Base, LoggingMixin):
 
         query = query.where(DagRun.run_after <= func.now())
 
-        result = session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique()
+        if lock_rows:
+            query = with_row_locks(query, of=cls, session=session, skip_locked=True)
+        result = session.scalars(query).unique()
         return result
 
     @classmethod
