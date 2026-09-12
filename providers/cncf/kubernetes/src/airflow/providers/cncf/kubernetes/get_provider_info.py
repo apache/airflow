@@ -273,7 +273,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "client_factory": {
-                        "description": "Import path of a zero-argument callable returning the ``kubernetes.client.CoreV1Api``\nthe executor should use, for deployments that mint their own credentials. When set it\nreplaces the default client construction entirely, so ``in_cluster``, ``cluster_context``,\n``config_file``, ``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and\n``api_client_retry_configuration`` no longer apply. It is resolved in every process that\nneeds a client, including the pod watcher subprocess, so it must be importable wherever\nthe scheduler runs.\n",
+                        "description": "Import path of a zero-argument callable returning the ``kubernetes.client.CoreV1Api``\nthe executor should use, for deployments that mint their own credentials. Only the\nKubernetesExecutor consults this setting; other users of the Kubernetes client, such as\noperators, are unaffected. When set it replaces the executor's default client\nconstruction entirely, so ``in_cluster``, ``cluster_context``, ``config_file``,\n``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and\n``api_client_retry_configuration`` no longer apply to the executor. It is resolved in\nevery process that needs a client, including the pod watcher subprocess, so it must be\nimportable wherever the scheduler runs.\n",
                         "version_added": "10.23.0",
                         "type": "string",
                         "example": "my_company.kubernetes.build_client",

@@ -168,6 +168,7 @@ def get_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
+    use_client_factory: bool = False,
 ) -> client.CoreV1Api:
     """
     Retrieve Kubernetes client.
@@ -175,11 +176,15 @@ def get_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
+    :param use_client_factory: whether to honour the ``client_factory`` setting; only the
+        KubernetesExecutor passes this, so other callers are unaffected by the setting
     :return: kubernetes client
     """
     # An import path rather than a callable, so that KubernetesJobWatcher can re-resolve it in
     # its own process, where the spawn start method would not carry a callable over.
-    if client_factory := conf.getimport("kubernetes_executor", "client_factory", fallback=None):
+    if use_client_factory and (
+        client_factory := conf.getimport("kubernetes_executor", "client_factory", fallback=None)
+    ):
         return client_factory()
 
     if in_cluster is None:

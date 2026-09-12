@@ -61,16 +61,31 @@ class TestKubeClientFactory:
     @mock.patch("kubernetes.config.load_incluster_config")
     def test_factory_replaces_default_client_construction(self, mock_incluster, mock_kube_config):
         with conf_vars({("kubernetes_executor", "client_factory"): f"{__name__}.build_fake_client"}):
-            client = get_kube_client()
+            client = get_kube_client(use_client_factory=True)
 
         assert client == FACTORY_MARKER
         mock_incluster.assert_not_called()
         mock_kube_config.assert_not_called()
 
+    def test_factory_is_ignored_unless_caller_opts_in(self):
+        with (
+            conf_vars(
+                {
+                    ("kubernetes_executor", "client_factory"): f"{__name__}.build_fake_client",
+                    ("kubernetes_executor", "enable_tcp_keepalive"): "False",
+                }
+            ),
+            mock.patch("kubernetes.config.load_incluster_config") as mock_loader,
+        ):
+            client = get_kube_client(in_cluster=True)
+
+        assert client != FACTORY_MARKER
+        mock_loader.assert_called_once()
+
     def test_unimportable_factory_raises(self):
         with conf_vars({("kubernetes_executor", "client_factory"): "no.such.module.build_client"}):
             with pytest.raises(AirflowConfigException):
-                get_kube_client()
+                get_kube_client(use_client_factory=True)
 
     def test_factory_is_resolved_from_config_in_a_separate_interpreter(self, tmp_path, monkeypatch):
         """
@@ -99,7 +114,7 @@ class TestKubeClientFactory:
                 sys.executable,
                 "-c",
                 "from airflow.providers.cncf.kubernetes.kube_client import get_kube_client;"
-                "print(get_kube_client())",
+                "print(get_kube_client(use_client_factory=True))",
             ],
             capture_output=True,
             text=True,
