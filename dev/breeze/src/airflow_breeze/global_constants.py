@@ -905,8 +905,27 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.11": "3.11.16",
     "3.12": "3.12.14",
     "3.13": "3.13.15",
-    "3.14": "3.14.3",
+    "3.14": "3.14.7",
 }
+
+# Airflow images are based on Docker Hardened Images (https://dhi.io). The "-dev" variant carries
+# apt, a shell and runs as root; the tags encode the Debian release rather than its codename.
+# Pulling from dhi.io requires a Docker Hub login, so the tags Airflow builds against are mirrored
+# to a public ghcr.io repository by the "Mirror hardened base images" workflow - building Airflow
+# images needs no registry credentials at all, which is what the default below points at.
+HARDENED_PYTHON_IMAGE_SOURCE = "dhi.io/python"
+HARDENED_PYTHON_IMAGE_MIRROR = "ghcr.io/apache/airflow/base/python"
+DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO = {"bookworm": "debian12"}
+
+
+def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    distro = DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO[debian_version]
+    return f"{ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python)}-{distro}-dev"
+
+
+def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    return f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_tag(python, debian_version)}"
+
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5

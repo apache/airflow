@@ -889,21 +889,18 @@ you want to follow that route.
 Build images in FIPS-compliant environments
 ...........................................
 
-If you are building images in a FIPS-compliant environment, you might encounter issues with the default
-build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
-building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
-during compilation, and MD5 is blocked in FIPS mode.
-
-In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
-and set it to ``false``.
+Airflow images are based on the `Docker Hardened Images <https://dhi.io>`_ for Python, and Docker
+publishes FIPS-validated variants of those images. Those variants are only available with a paid
+Docker subscription, so they cannot be the default, but you can point the build at one with the
+``BASE_IMAGE`` build argument.
 
 .. code-block:: bash
 
-    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+    docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.15-debian12-fips-dev" --tag my-image:my-tag
 
 .. note::
 
-   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   While building on a FIPS-validated base image is necessary for FIPS compliance, it is not sufficient
    to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
    (for example usage of non-FIPS compliant algorithms in the software installed in the image).
    You should verify the compliance of the image yourself.

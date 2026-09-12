@@ -50,23 +50,17 @@ ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 # latest released version here
 ARG AIRFLOW_VERSION="3.3.1"
 
-ARG BASE_IMAGE="debian:bookworm-slim"
+# BASE_IMAGE: the Docker Hardened Image that Python comes from. Both the build stage and the final
+# image are based on it, so Python is never compiled during the build.
+#
+# The default is Airflow's public mirror of the upstream "dhi.io/python" image, so building needs no
+# registry credentials. The upstream image itself requires a "docker login dhi.io".
+#
+# The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
+# default, but you can build a FIPS-compliant image by pointing the build at one:
+#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.15-debian12-fips-dev"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.15-debian12-dev"
 ARG AIRFLOW_PYTHON_VERSION="3.13.15"
-
-# PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
-#
-# Link-Time Optimization uses MD5 checksums during the compilation process to verify
-# object files and intermediate representations. In FIPS-compliant environments, MD5
-# is blocked as it's not an approved cryptographic algorithm (see FIPS 140-2/140-3).
-# This can cause Python builds with LTO to fail when FIPS mode is enabled.
-#
-# When building FIPS-compliant images, set this to "false" to disable LTO:
-#   docker build --build-arg PYTHON_LTO="false" ...
-#
-# Default: "true" (LTO enabled for better performance)
-#
-# Related: https://github.com/apache/airflow/issues/58337
-ARG PYTHON_LTO="true"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
@@ -119,15 +113,13 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
-PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
 PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
-COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
+PYTHON_HOME=${PYTHON_HOME:-/opt/python}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
@@ -154,38 +146,25 @@ freetds-dev \
 git \
 graphviz \
 graphviz-dev \
+gzip \
 krb5-user \
-lcov \
 ldap-utils \
-libbluetooth-dev \
-libbz2-dev \
 libc6-dev \
-libdb-dev \
 libev-dev \
 libev4 \
 libffi-dev \
-libgdbm-compat-dev \
-libgdbm-dev \
 libgeos-dev \
 libkrb5-dev \
 libldap2-dev \
 libleveldb-dev \
 libleveldb1d \
-liblzma-dev \
-libncurses5-dev \
-libreadline6-dev \
 libsasl2-2 \
 libsasl2-dev \
 libsasl2-modules \
-libsqlite3-dev \
 libssl-dev \
 libxmlsec1 \
 libxmlsec1-dev \
-libzstd-dev \
 locales \
-lsb-release \
-lzma \
-lzma-dev \
 openssh-client \
 openssl \
 pkg-config \
@@ -194,10 +173,8 @@ sasl2-bin \
 sqlite3 \
 sudo \
 tdsodbc \
-tk-dev \
 unixodbc \
 unixodbc-dev \
-uuid-dev \
 wget \
 xz-utils \
 zlib1g-dev \
@@ -224,6 +201,9 @@ netcat-openbsd\
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
+    # libxmlsec1-openssl was added because libxmlsec1 ships no crypto engine of its own - the engines
+    # are separate packages - so the "xmlsec" module (pulled in by python3-saml) imported with
+    # "libxmlsec1-openssl.so.1: cannot open shared object file" without it.
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="\
 ${debian_version_apt_deps} \
@@ -242,8 +222,8 @@ libgeos-dev \
 libsasl2-2 \
 libsasl2-modules \
 libxmlsec1 \
+libxmlsec1-openssl \
 locales \
-lsb-release \
 openssh-client \
 rsync \
 sasl2-bin \
@@ -272,10 +252,25 @@ function install_docker_cli() {
     apt-get install -y --no-install-recommends docker-ce-cli
 }
 
+function restore_debian_base_files() {
+    # The hardened base images ship a minimal /etc, but Debian maintainer scripts assume the files
+    # a stock Debian has: sasl2-bin chowns its run directory to the "sasl" group from base-passwd,
+    # and tmux registers its shell with add-shell, which reads /etc/shells. The base-passwd package
+    # only ships the master account files - update-passwd is what merges them into /etc.
+    # libpam-runtime generates the /etc/pam.d/common-* files that the PAM configs already in the
+    # image "@include" - without them "adduser --gecos" aborts with a PAM error from chfn.
+    apt-get install -y --no-install-recommends base-passwd libpam-runtime
+    update-passwd
+    if [[ ! -e /etc/shells ]]; then
+        printf '%s\n' "# /etc/shells: valid login shells" /bin/sh /bin/bash > /etc/shells
+    fi
+}
+
 function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
+    restore_debian_base_files
+    apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
@@ -305,14 +300,25 @@ function install_additional_dev_dependencies() {
 }
 
 function link_python() {
+    # Airflow images have always exposed Python under /usr/python - documentation, volume mounts and
+    # user customizations refer to that path - while the hardened base images ship it in /opt/python,
+    # so keep the historical location working as a symlink.
+    if [[ ! -e /usr/python ]]; then
+        ln -sv "${PYTHON_HOME}" /usr/python
+    fi
+    # The hardened base images have no /usr/local tree at all
+    mkdir -p /usr/local/bin /usr/local/lib
     # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
     # Links in /usr/local/bin are needed for tools that expect python to be there
     # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
     # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
     for dst in pip3 python3 python3-config; do
         src="$(echo "${dst}" | tr -d 3)"
+        if [[ ! -e "/usr/python/bin/${dst}" ]]; then
+            continue
+        fi
         echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
-        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        ln -sfv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
         for dir in /usr/local/bin /usr/python/bin; do
             if [[ ! -e "${dir}/${src}" ]]; then
                 echo "Creating ${src} - > ${dst} link in ${dir}"
@@ -332,10 +338,33 @@ function link_python() {
     ldconfig
 }
 
+function check_no_system_python() {
+    # Python comes from the hardened base image (in /opt/python) and must stay the only Python in the
+    # image. A system Python pulled in as a dependency of an apt package shares its shared libraries
+    # with ours and leads to errors such as:
+    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
+    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
+        echo
+        echo "ERROR! System python is installed by one of the previous steps"
+        echo
+        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython is installed:"
+        echo
+        apt-get install -yqq aptitude >/dev/null
+        aptitude why "$(dpkg -l | grep '^ii  libpython' | head -1 | awk '{print $2}')"
+        echo
+        exit 1
+    else
+        echo
+        echo "GOOD! System python is not installed - OK"
+        echo
+    fi
+}
+
 function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
+    restore_debian_base_files
+    apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_RUNTIME_APT_ENV?}
     if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
@@ -349,150 +378,9 @@ function install_debian_runtime_dependencies() {
     apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
     apt-get autoremove -yqq --purge
     apt-get clean
+    check_no_system_python
     link_python
     rm -rf /var/lib/apt/lists/* /var/log/*
-}
-
-function install_cosign() {
-    local arch
-    arch="$(dpkg --print-architecture)"
-    declare -A cosign_sha256s=(
-        # https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign_checksums.txt
-        [amd64]="db15cc99e6e4837daabab023742aaddc3841ce57f193d11b7c3e06c8003642b2"
-        [arm64]="d098f3168ae4b3aa70b4ca78947329b953272b487727d1722cb3cb098a1a20ab"
-    )
-    local cosign_sha256="${cosign_sha256s[${arch}]}"
-    if [[ -z "${cosign_sha256}" ]]; then
-        echo "Unsupported architecture for cosign: ${arch}"
-        exit 1
-    fi
-    curl -fsSL --retry 3 --retry-delay 5 \
-        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
-        -o /tmp/cosign
-    echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
-    chmod +x /tmp/cosign
-}
-
-function install_python() {
-    # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
-    # to fail and make sure that it is not there, because there can be strange interactions if we install
-    # newer version and system libraries are installed, because
-    # when you create a virtualenv part of the shared libraries of Python can be taken from the system
-    # Installation leading to weird errors when you want to install some modules - for example when you install ssl:
-    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
-    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
-        echo
-        echo "ERROR! System python is installed by one of the previous steps"
-        echo
-        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython3.11 is installed:"
-        echo
-        apt-get install -yqq aptitude >/dev/null
-        aptitude why libpython3.11
-        echo
-        exit 1
-    else
-        echo
-        echo "GOOD! System python is not installed - OK"
-        echo
-    fi
-    wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
-    local major_minor_version
-    major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
-    local major minor
-    major="${major_minor_version%.*}"
-    minor="${major_minor_version#*.}"
-    echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
-    if [[ "${major}" -gt 3 ]] || [[ "${major}" -eq 3 && "${minor}" -ge 11 ]]; then
-        # Sigstore verification for Python >= 3.11 (PEP 761)
-        declare -A sigstore_identities=(
-            # https://peps.python.org/pep-0664/#release-manager-and-crew
-            [3.11]="pablogsal@python.org"
-            # https://peps.python.org/pep-0693/#release-manager-and-crew
-            [3.12]="thomas@python.org"
-            # https://peps.python.org/pep-0719/#release-manager-and-crew
-            [3.13]="thomas@python.org"
-            # https://peps.python.org/pep-0745/#release-manager-and-crew
-            [3.14]="hugo@python.org"
-        )
-        declare -A sigstore_issuers=(
-            [3.11]="https://accounts.google.com"
-            [3.12]="https://accounts.google.com"
-            [3.13]="https://accounts.google.com"
-            [3.14]="https://github.com/login/oauth"
-        )
-        wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
-            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
-        install_cosign
-        local identity="${sigstore_identities[${major_minor_version}]}"
-        local issuer="${sigstore_issuers[${major_minor_version}]}"
-        /tmp/cosign verify-blob \
-            --bundle python.tar.xz.sigstore \
-            --certificate-identity "${identity}" \
-            --certificate-oidc-issuer "${issuer}" \
-            python.tar.xz
-        rm -f python.tar.xz.sigstore /tmp/cosign
-    else
-        # PGP verification for Python 3.10
-        declare -A keys=(
-            # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
-            # https://peps.python.org/pep-0619/#release-manager-and-crew
-            [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
-        )
-        wget --tries=3 --waitretry=5 -O python.tar.xz.asc \
-            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
-        GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
-        local gpg_key="${keys[${major_minor_version}]}"
-        echo "Using GPG key ${gpg_key}"
-        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
-        gpg --batch --verify python.tar.xz.asc python.tar.xz
-        gpgconf --kill all
-        rm -rf "${GNUPGHOME}" python.tar.xz.asc
-    fi
-    mkdir -p /usr/src/python
-    tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
-    rm python.tar.xz
-    cd /usr/src/python
-    arch="$(dpkg --print-architecture)"; arch="${arch##*-}"
-    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"
-    EXTRA_CFLAGS="$(dpkg-buildflags --get CFLAGS)"
-    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
-    LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
-    LDFLAGS="${LDFLAGS:--Wl},--strip-all"
-    # Link-Time Optimization (LTO) uses MD5 checksums for object file verification during
-    # compilation. In FIPS mode, MD5 is blocked as a non-approved algorithm, causing builds
-    # to fail. The PYTHON_LTO variable allows disabling LTO for FIPS-compliant builds.
-    # See: https://github.com/apache/airflow/issues/58337
-    local lto_option=""
-    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
-        lto_option="--with-lto"
-    fi
-    local build_log
-    build_log=$(mktemp)
-    echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
-    if ! (
-        ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
-            --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-                --enable-shared ${lto_option} && \
-        make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
-            "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
-        make -s -j "$(nproc)" install
-    ) > "${build_log}" 2>&1; then
-        echo
-        echo "ERROR! Python build failed. Build output:"
-        echo
-        cat "${build_log}"
-        rm -f "${build_log}"
-        exit 1
-    fi
-    rm -f "${build_log}"
-    cd /
-    rm -rf /usr/src/python
-    find /usr/python -depth \
-      \( \
-        \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
-        -o \( -type f -a \( -name 'libpython*.a' \) \) \
-    \) -exec rm -rf '{}' +
-    link_python
 }
 
 function install_golang() {
@@ -588,7 +476,8 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
-    install_python
+    check_no_system_python
+    link_python
     install_additional_dev_dependencies
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
@@ -692,7 +581,7 @@ install_mariadb_client() {
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
+    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(common::debian_codename) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
     printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb
@@ -736,7 +625,7 @@ function install_mssql_client() {
     echo "${COLOR_BLUE}Installing mssql client${COLOR_RESET}"
     echo
 
-    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(lsb_release -rs)/prod $(lsb_release -cs) main" > \
+    echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(common::debian_release)/prod $(common::debian_codename) main" > \
         /etc/apt/sources.list.d/mssql-release.list &&
     mkdir -p /opt/microsoft/msodbcsql18 &&
     touch /opt/microsoft/msodbcsql18/ACCEPT_EULA &&
@@ -780,7 +669,7 @@ install_postgres_client() {
 
     common::import_trusted_gpg "7FCC7D46ACCC4CF8" "postgres"
 
-    echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > \
+    echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(common::debian_codename)-pgdg main" > \
         /etc/apt/sources.list.d/pgdg.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
@@ -1006,6 +895,16 @@ function common::install_packaging_tools() {
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     fi
+}
+
+function common::debian_codename() {
+    # shellcheck disable=SC1091
+    (. /etc/os-release; printf '%s\n' "${VERSION_CODENAME}")
+}
+
+function common::debian_release() {
+    # shellcheck disable=SC1091
+    (. /etc/os-release; printf '%s\n' "${VERSION_ID}")
 }
 
 function common::import_trusted_gpg() {
@@ -1910,15 +1809,12 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
     AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
-ARG PYTHON_LTO
-
 ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/home/airflow/.cargo"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-COPY scripts/docker/keys/ /scripts/docker/keys/
-RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
+RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -1940,6 +1836,7 @@ COPY --from=scripts common.sh /scripts/docker/
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh dev && \
@@ -2170,9 +2067,6 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
-ARG PYTHON_LTO
-
-COPY --from=airflow-build-image "/usr/python/" "/usr/python/"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
