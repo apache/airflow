@@ -212,10 +212,6 @@ class GitDagBundle(BaseDagBundle):
                 raise RuntimeError("Error cloning repository") from e
             except InvalidGitRepositoryError as e:
                 raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
-            # If tracking_ref was just repointed to a SHA that predates this working clone's
-            # last fetch, this checkout fails until the clone is fetched or storage is cleared;
-            # tracked at https://github.com/apache/airflow/issues/71388
-            self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:
                 if not self._has_version(self.repo, self.version):
@@ -268,16 +264,19 @@ class GitDagBundle(BaseDagBundle):
                     repo = Repo(self.repo_path)
                     repo.git.sparse_checkout("init", "--cone")
                     repo.git.sparse_checkout("set", *self.sparse_dirs)
-                    repo.git.checkout(self.tracking_ref)
             else:
                 self._log.debug("repo exists", repo_path=self.repo_path)
             self.repo = Repo(self.repo_path)
+            # Checkout inside the clone so a repo that cannot resolve the tracking ref (for
+            # example one truncated by a killed `git clone`) is discarded and re-cloned from
+            # the healthy local bare mirror instead of failing forever.
+            self.repo.git.checkout(self.tracking_ref)
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
             raise FileNotFoundError(f"Repository path: {self.bare_repo_path} not found") from e
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
-                "Repository clone/open failed, cleaning up and retrying",
+                "Repository clone/open/checkout failed, cleaning up and retrying",
                 repo_path=self.repo_path,
                 exc=e,
             )
