@@ -27,9 +27,10 @@ from unittest import mock
 import pytest
 import yaml
 from aiohttp import ClientConnectionError
-from kubernetes.client import models as k8s
+from kubernetes.client import CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
 from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError
 from urllib3 import HTTPConnectionPool, HTTPResponse
 from urllib3.exceptions import MaxRetryError, ProtocolError
 
@@ -1992,6 +1993,232 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.db_test
+    @pytest.mark.parametrize("map_index", [-1, 3])
+    @pytest.mark.parametrize("state", [State.SUCCESS, None])
+    @pytest.mark.parametrize("already_deleted", [False, True])
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client", autospec=True)
+    @mock.patch.object(
+        KubernetesExecutor, "_get_task_instance_state", autospec=True, return_value=State.SUCCESS
+    )
+    def test_change_state_deletes_same_pod_once(
+        self,
+        mock_lookup,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        map_index,
+        state,
+        already_deleted,
+    ):
+        kube_client = mock.create_autospec(CoreV1Api, instance=True)
+        kube_client.delete_namespaced_pod.return_value = k8s.V1Status(status="Success")
+        if already_deleted:
+            kube_client.delete_namespaced_pod.side_effect = ApiException(status=404)
+        mock_get_kube_client.return_value = kube_client
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = TaskInstanceKey("dag_id", "task_id", "run_id", 1, map_index)
+            executor.running = {key}
+            result = KubernetesResults(key, state, "finished-pod", "default", "1", None, pod_uid="pod-uid")
+            annotations = {
+                "dag_id": key.dag_id,
+                "task_id": key.task_id,
+                "run_id": key.run_id,
+                "try_number": str(key.try_number),
+                "map_index": str(map_index),
+            }
+            for resource_version in ("1", "2", "3"):
+                executor.kube_scheduler.process_watcher_task(
+                    KubernetesWatch(
+                        "finished-pod",
+                        "default",
+                        state,
+                        annotations,
+                        resource_version,
+                        None,
+                        pod_uid="pod-uid",
+                    )
+                )
+                received = executor.result_queue.get(timeout=5)
+                executor.result_queue.task_done()
+                assert received == result._replace(resource_version=resource_version)
+                executor._change_state(received)
+
+            assert executor.event_buffer[key] == (State.SUCCESS, None)
+            assert executor.running == set()
+            kube_client.delete_namespaced_pod.assert_called_once_with(
+                "finished-pod", "default", body=k8s.V1DeleteOptions()
+            )
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("running", [False, True])
+    @pytest.mark.parametrize(
+        "other_pod",
+        [
+            {"pod_name": "other-pod", "pod_uid": "other-uid"},
+            {"namespace": "other-namespace", "pod_uid": "other-uid"},
+            {"pod_uid": "other-uid"},
+        ],
+        ids=["different-name", "different-namespace", "reused-name"],
+    )
+    def test_change_state_deletes_distinct_pods_for_same_key(self, running, other_pod):
+        executor = self.kubernetes_executor
+        executor.kube_scheduler = mock.create_autospec(AirflowKubernetesScheduler, instance=True)
+        key = TaskInstanceKey("dag", "task", "run", 1, 3)
+        executor.running = {key} if running else set()
+        first = KubernetesResults(key, State.SUCCESS, "pod", "default", "1", None, pod_uid="first-uid")
+        second = first._replace(**other_pod, resource_version="2")
+
+        for result in (first, second, first, second):
+            executor._change_state(result)
+
+        assert executor.kube_scheduler.delete_pod.call_args_list == [
+            mock.call(pod_name=first.pod_name, namespace=first.namespace),
+            mock.call(pod_name=second.pod_name, namespace=second.namespace),
+        ]
+        assert executor.running == set()
+        assert executor.event_buffer == ({key: (State.SUCCESS, None)} if running else {})
+
+    @pytest.mark.db_test
+    def test_change_state_tracks_pod_deletions_per_executor(self):
+        key = TaskInstanceKey("dag", "task", "run", 1, 3)
+        result = KubernetesResults(key, State.SUCCESS, "pod", "default", "1", None, pod_uid="pod-uid")
+        for executor in (self.kubernetes_executor, KubernetesExecutor()):
+            executor.kube_scheduler = mock.create_autospec(AirflowKubernetesScheduler, instance=True)
+            executor._change_state(result)
+            executor._change_state(result)
+            executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="pod", namespace="default")
+
+    @pytest.mark.db_test
+    def test_change_state_retries_unsuccessful_pod_deletion(self):
+        executor = self.kubernetes_executor
+        executor.kube_scheduler = mock.create_autospec(AirflowKubernetesScheduler, instance=True)
+        executor.kube_scheduler.delete_pod.side_effect = [ApiException(status=500), None]
+        key = TaskInstanceKey("dag", "task", "run", 1, 3)
+        executor.running = {key}
+        result = KubernetesResults(key, State.SUCCESS, "pod", "default", "1", None, pod_uid="pod-uid")
+
+        with pytest.raises(ApiException):
+            executor._change_state(result)
+        assert executor.running == {key}
+        assert executor.event_buffer == {}
+
+        executor._change_state(result)
+        executor._change_state(result)
+        assert executor.kube_scheduler.delete_pod.call_count == 2
+        assert executor.running == set()
+        assert executor.event_buffer == {key: (State.SUCCESS, None)}
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client", autospec=True)
+    def test_change_state_retries_processing_after_successful_pod_deletion(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, create_task_instance, dag_maker
+    ):
+        """A metadata lookup failure must not lose the retry after the pod was deleted."""
+        kube_client = mock.create_autospec(CoreV1Api, instance=True)
+        kube_client.delete_namespaced_pod.return_value = k8s.V1Status(status="Success")
+        mock_get_kube_client.return_value = kube_client
+        executor = self.kubernetes_executor
+        executor.kube_config.delete_worker_pods = True
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.pod_launch_failure_max_retries = 2
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            key = ti.key
+            # Persist the queued state before the simulated transaction failure.
+            dag_maker.session.commit()
+            job = KubernetesJob(key, ["airflow", "tasks", "run"], {}, None)
+            executor.running = {key}
+            executor.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
+            results = KubernetesResults(
+                key,
+                State.FAILED,
+                "pod_name",
+                "default",
+                "1",
+                {"container_reason": "ContainerStatusUnknown", "exit_code": 137},
+                pod_uid="pod-uid",
+            )
+            real_lookup = executor._get_task_instance_state
+            lookup_failed = False
+
+            def lookup_after_outage(key, *, session):
+                nonlocal lookup_failed
+                if not lookup_failed:
+                    lookup_failed = True
+                    raise OperationalError("SELECT state", {}, RuntimeError("temporary metadata failure"))
+                return real_lookup(key, session=session)
+
+            with mock.patch.object(
+                executor, "_get_task_instance_state", autospec=True, side_effect=lookup_after_outage
+            ) as lookup:
+                with pytest.raises(OperationalError):
+                    executor._change_state(results)
+                kube_client.delete_namespaced_pod.assert_called_once()
+                assert executor.task_queue.empty()
+                assert executor.running == {key}
+
+                executor._change_state(results._replace(resource_version="2"))
+
+                requeued_job = executor.task_queue.get(timeout=5)
+                executor.task_queue.task_done()
+                assert requeued_job == job
+                assert lookup.call_count == 2
+                kube_client.delete_namespaced_pod.assert_called_once_with(
+                    "pod_name", "default", body=k8s.V1DeleteOptions()
+                )
+                assert executor.running == {key}
+                assert key not in executor.event_buffer
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch.object(KubernetesExecutor, "_MAX_DELETED_PODS", 2)
+    def test_change_state_bounds_recent_pod_deletions(self):
+        executor = self.kubernetes_executor
+        executor.kube_scheduler = mock.create_autospec(AirflowKubernetesScheduler, instance=True)
+        key = TaskInstanceKey("dag", "task", "run", 1)
+        results = [KubernetesResults(key, State.SUCCESS, name, "default", "1", None) for name in "abc"]
+
+        for result in (results[0], results[1], results[0], results[2], results[0]):
+            executor._change_state(result)
+        assert executor.kube_scheduler.delete_pod.call_count == 3
+        assert len(executor._deleted_pods) == 2
+
+        executor._change_state(results[1])
+        assert executor.kube_scheduler.delete_pod.call_count == 4
+        assert len(executor._deleted_pods) == 2
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("adopted_first", [False, True])
+    @mock.patch.object(
+        KubernetesExecutor, "_get_task_instance_state", autospec=True, return_value=State.SUCCESS
+    )
+    def test_change_state_deduplicates_adopted_and_watched_pod(self, mock_lookup, adopted_first):
+        executor = self.kubernetes_executor
+        executor.kube_scheduler = mock.create_autospec(AirflowKubernetesScheduler, instance=True)
+        key = TaskInstanceKey("dag", "task", "run", 1, 3)
+        watched = KubernetesResults(key, None, "pod", "default", "1", None, pod_uid="pod-uid")
+        adopted = watched._replace(state="completed", resource_version="2")
+
+        for result in (adopted, watched) if adopted_first else (watched, adopted):
+            executor._change_state(result)
+
+        executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="pod", namespace="default")
+        assert executor.event_buffer == {}
+
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
@@ -2307,6 +2534,7 @@ class TestKubernetesExecutor:
     ):
         """Repeated Failed events for one pod requeue once; a new pod requeues again."""
         executor = self.kubernetes_executor
+        executor.kube_config.delete_worker_pods_on_failure = True
         executor.pod_launch_failure_max_retries = 5
         executor.start()
         try:
@@ -2330,11 +2558,13 @@ class TestKubernetesExecutor:
             executor._change_state(_failed("pod_a"))
             executor._change_state(_failed("pod_a"))
             executor._change_state(_failed("pod_a"))
+            mock_get_kube_client.return_value.delete_namespaced_pod.assert_called_once()
             assert executor.pod_launch_attempts[key].attempts == 1
             assert executor.pod_launch_attempts[key].requeued_for_pod == "pod_a"
 
             # A failure of the requeued (distinct) pod requeues again.
             executor._change_state(_failed("pod_b"))
+            assert mock_get_kube_client.return_value.delete_namespaced_pod.call_count == 2
             assert executor.pod_launch_attempts[key].attempts == 2
             assert executor.pod_launch_attempts[key].requeued_for_pod == "pod_b"
             assert key in executor.running
@@ -2728,6 +2958,7 @@ class TestKubernetesExecutor:
                     labels={"airflow-worker": pod_name},
                     annotations=get_annotations(pod_name),
                     namespace="somens",
+                    uid=f"uid-{pod_name}",
                 )
             )
             for pod_name in pod_names
@@ -2755,6 +2986,7 @@ class TestKubernetesExecutor:
             any_order=True,
         )
         assert {k8s_res.key for k8s_res in executor.completed.values()} == expected_running_ti_keys
+        assert {result.pod_uid for result in executor.completed.values()} == {"uid-one", "uid-two"}
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
@@ -3351,6 +3583,7 @@ class TestKubernetesJobWatcher:
                 annotations={"airflow-worker": "bar", **self.core_annotations},
                 namespace="airflow",
                 resource_version="456",
+                uid="pod-uid",
                 labels={},
             ),
             status=k8s.V1PodStatus(phase="Pending"),
@@ -3395,6 +3628,7 @@ class TestKubernetesJobWatcher:
                 self.core_annotations,
                 self.pod.metadata.resource_version,
                 mock.ANY,  # failure_details can be any value including None
+                pod_uid="pod-uid",
             )
         )
 
@@ -3652,6 +3886,7 @@ class TestKubernetesJobWatcher:
                 self.core_annotations,
                 self.pod.metadata.resource_version,
                 None,  # failure_details is None for ADOPTED state
+                pod_uid="pod-uid",
             )
         )
 

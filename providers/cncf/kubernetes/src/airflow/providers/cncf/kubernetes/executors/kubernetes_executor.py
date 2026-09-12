@@ -29,7 +29,7 @@ import json
 import logging
 import multiprocessing
 import time
-from collections import Counter, defaultdict
+from collections import Counter, OrderedDict, defaultdict
 from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -102,6 +102,7 @@ class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
     RUNNING_POD_LOG_LINES = 100
+    _MAX_DELETED_PODS = 10_000
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
 
@@ -170,6 +171,7 @@ class KubernetesExecutor(BaseExecutor):
                 f"got {self.RUNNING_POD_LOG_LINES}."
             )
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
+        self._deleted_pods: OrderedDict[tuple[str, str, str | None], None] = OrderedDict()
         self.create_pods_after: datetime | None = None
 
         # Maintain compatibility with older Airflow releases that do not define team_name.
@@ -740,13 +742,22 @@ class KubernetesExecutor(BaseExecutor):
 
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
-                self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
-                self.log.info(
-                    "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
-                    key,
-                    pod_name,
-                    namespace,
-                )
+                # A task key can have several pods (including pre-execution retries), so
+                # deduplicate successful deletions by pod rather than membership in running.
+                pod_key = (namespace, pod_name, results.pod_uid)
+                if pod_key in self._deleted_pods:
+                    self._deleted_pods.move_to_end(pod_key)
+                else:
+                    self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
+                    self._deleted_pods[pod_key] = None
+                    if len(self._deleted_pods) > self._MAX_DELETED_PODS:
+                        self._deleted_pods.popitem(last=False)
+                    self.log.info(
+                        "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
+                        key,
+                        pod_name,
+                        namespace,
+                    )
         else:
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
@@ -1196,6 +1207,7 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 resource_version=pod.metadata.resource_version,
                 failure_details=None,
+                pod_uid=pod.metadata.uid,
             )
 
     def _flush_task_queue(self) -> None:
