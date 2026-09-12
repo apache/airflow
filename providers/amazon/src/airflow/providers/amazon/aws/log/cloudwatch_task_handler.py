@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
@@ -97,6 +98,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     _cached_handler: watchtower.CloudWatchLogHandler | None = attrs.field(
         init=False, default=None, repr=False
     )
+    _stream_handlers: dict[str, watchtower.CloudWatchLogHandler] = attrs.field(
+        init=False, factory=dict, repr=False
+    )
+    _stream_lock: threading.RLock = attrs.field(init=False, factory=threading.RLock, repr=False)
+    _closing_streams: set[str] = attrs.field(init=False, factory=set, repr=False)
+    _building_stream_handler: bool = attrs.field(init=False, default=False, repr=False)
+    _streaming_by_path: bool = attrs.field(init=False, default=False, repr=False)
     _closed: bool = attrs.field(init=False, default=False, repr=False)
 
     @log_group.default
@@ -148,11 +156,11 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    def _build_handler(self) -> watchtower.CloudWatchLogHandler:
+    def _build_handler(self, stream_name: str | None = None) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
-            log_stream_name=self.log_stream_name,
+            log_stream_name=self.log_stream_name if stream_name is None else stream_name,
             use_queues=True,
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
@@ -168,9 +176,52 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         Rebuild only while the IO is live: once :meth:`close` has run, keep the closed handler
         so a late record is dropped instead of spawning an orphan handler and background thread.
         """
-        if self._cached_handler is None or (not self._closed and self._cached_handler.shutting_down):
-            self._cached_handler = self._build_handler()
-        return self._cached_handler
+        with self._stream_lock:
+            if self._cached_handler is None or (not self._closed and self._cached_handler.shutting_down):
+                self._cached_handler = self._build_handler()
+            return self._cached_handler
+
+    def _get_stream_handler(self, stream_name: str) -> watchtower.CloudWatchLogHandler | None:
+        """Return the live handler for ``stream_name`` while holding ``_stream_lock``."""
+        if self._closed or self._building_stream_handler or stream_name in self._closing_streams:
+            return None
+
+        handler = self._stream_handlers.get(stream_name)
+        if handler is not None and not handler.shutting_down:
+            return handler
+
+        self._stream_handlers.pop(stream_name, None)
+        if (
+            not self._stream_handlers
+            and self._cached_handler is not None
+            and not self._cached_handler.shutting_down
+        ):
+            handler = self._cached_handler
+            handler.log_stream_name = stream_name
+        else:
+            self._building_stream_handler = True
+            try:
+                handler = self._build_handler(stream_name)
+            finally:
+                self._building_stream_handler = False
+        self._stream_handlers[stream_name] = handler
+        self._cached_handler = handler
+        return handler
+
+    def _close_stream(self, stream_name: str) -> None:
+        with self._stream_lock:
+            handler = self._stream_handlers.pop(stream_name, None)
+            if handler is None:
+                return
+            self._closing_streams.add(stream_name)
+            if self._cached_handler is handler:
+                self._cached_handler = next(reversed(self._stream_handlers.values()), None)
+
+        try:
+            handler.close()
+        finally:
+            with self._stream_lock:
+                self._closing_streams.discard(stream_name)
 
     @cached_property
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
@@ -178,6 +229,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         import structlog.stdlib
 
+        self._streaming_by_path = True
         logRecordFactory = getLogRecordFactory()
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
@@ -185,15 +237,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
-            if not logger or not (stream_name := relative_path_from_logger(logger)):
+            if not logger or not (stream_path := relative_path_from_logger(logger)):
                 return event
-            # Resolve the handler on every record: configure_logging() may have
-            # closed the one built above, in which case ``handler`` rebuilds it.
-            handler = self.handler
-            # We can't set the log stream name in the above init handler because
-            # the log path isn't known at that stage.
-            # Instead, we should always rely on the path (log stream name) provided by the logger.
-            handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            stream_name = stream_path.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -208,7 +254,9 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            handler.handle(record)
+            with self._stream_lock:
+                if handler := self._get_stream_handler(stream_name):
+                    handler.handle(record)
             return event
 
         return (proc,)
@@ -217,21 +265,29 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         """
         Flush pending events one last time and mark the IO closed.
 
-        Only ever called from :meth:`upload`. Mark the IO closed first so ``handler`` stops
-        rebuilding: a record arriving after teardown must be dropped, not revive a fresh
-        handler. Read the cached handler directly so we never build one just to flush it.
+        Mark the IO closed first so ``handler`` stops rebuilding: a record arriving after
+        teardown must be dropped, not revive a fresh handler. Read the cached handlers
+        directly so we never build one just to flush it.
         """
-        self._closed = True
-        handler = self._cached_handler
-        if handler is None or handler.shutting_down:
-            return
-
-        handler.flush()
+        with self._stream_lock:
+            self._closed = True
+            handlers = {
+                id(handler): handler
+                for handler in (*self._stream_handlers.values(), self._cached_handler)
+                if handler is not None
+            }.values()
+        for handler in handlers:
+            if not handler.shutting_down:
+                handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
-        # No batch upload — logs stream in real-time. Flush pending events and clean up.
-        self.close()
+        # No batch upload — logs stream in real-time. Close the completed stream and clean up.
+        if self._streaming_by_path:
+            stream_name = Path(path).as_posix().replace(":", "_")
+            self._close_stream(stream_name)
+        else:
+            self.close()
         if self.delete_local_copy:
             base = self.base_log_folder.resolve()
             raw = Path(path)
