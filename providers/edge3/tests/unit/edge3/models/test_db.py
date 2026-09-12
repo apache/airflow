@@ -261,7 +261,7 @@ class TestEdgeDBManager:
             version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
             columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
 
-        assert version == "c6b3c3d093fd"
+        assert version in manager.get_script_object().get_heads()
         assert "concurrency" in columns
         assert "team_name" in columns
 
@@ -357,6 +357,40 @@ class TestEdgeDBManager:
 
         assert "concurrency" in columns, "Migration 0002 should have added the concurrency column"
         assert "team_name" in columns, "Migration 0003 should have added the team_name column"
+
+    def test_migration_adds_priority_weight_column(self, session):
+        """Test that upgrading from 3.5.0 adds priority_weight to the edge_job table and rj_order index."""
+        from alembic import command
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+        from sqlalchemy import inspect
+
+        from airflow import settings
+        from airflow.providers.edge3.models.db import EdgeDBManager
+
+        manager = EdgeDBManager(session)
+        config = manager.get_alembic_config()
+
+        with settings.engine.begin() as conn:
+            inspector = inspect(conn)
+            ops = Operations(MigrationContext.configure(conn, opts={"render_as_batch": True}))
+            if "rj_order" in {idx["name"] for idx in inspector.get_indexes("edge_job")}:
+                ops.drop_index("rj_order", table_name="edge_job")
+            if "priority_weight" in {col["name"] for col in inspector.get_columns("edge_job")}:
+                ops.drop_column("edge_job", "priority_weight")
+            ops.create_index("rj_order", "edge_job", ["state", "queued_dttm", "queue"])
+
+        command.stamp(config, "c6b3c3d093fd")
+
+        manager.upgradedb()
+
+        with settings.engine.connect() as conn:
+            inspector = inspect(conn)
+            columns = {col["name"] for col in inspector.get_columns("edge_job")}
+            rj_order = next(idx for idx in inspector.get_indexes("edge_job") if idx["name"] == "rj_order")
+
+        assert "priority_weight" in columns
+        assert "priority_weight" in rj_order["column_names"]
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""
