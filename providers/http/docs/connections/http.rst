@@ -47,11 +47,18 @@ Password (optional)
 Host (optional)
     Specify the entire url or the base of the url for the service.
 
+    If "Use DNS SRV Lookup" is enabled, specify the DNS SRV record name instead
+    (e.g. ``_http._tcp.example.com``) - Note the actual host and port are resolved from DNS at
+    request time and any value set in the Port field is ignored.
+
 Port (optional)
-    Specify a port number if applicable.
+    Specify a port number if applicable. Ignored when SRV lookup is enabled.
 
 Schema (optional)
     Specify the service type etc: http/https.
+
+Use DNS SRV Lookup (optional)
+    Treat the Host field as a DNS SRV record name and resolve the target host/port at request time.
 
 Extra (optional)
     Specify headers and default requests parameters in json format.
@@ -64,6 +71,10 @@ Extra (optional)
     * ``allow_redirects``
     * ``max_redirects``
 
+    "Use DNS SRV Lookup" above is stored as the ``srv_lookup`` key in this same Extra field, so it
+    can also be set directly in json here, e.g. when configuring the connection via an environment
+    variable.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -75,3 +86,10 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_HTTP_DEFAULT='http://username:password@service.com:80/https?headers=header'
+
+To enable SRV lookup via an environment variable, set ``srv_lookup`` in the Extra query
+parameter:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_HTTP_DEFAULT='https://_http._tcp.example.com/https?srv_lookup=true'

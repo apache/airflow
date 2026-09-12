@@ -71,6 +71,13 @@ dependencies = [
     "pydantic>=2.11.0",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"srv" = [
+    "dnspython>=2.0.0",
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
