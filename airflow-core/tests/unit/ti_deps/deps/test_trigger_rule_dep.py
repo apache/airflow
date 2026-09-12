@@ -2381,3 +2381,140 @@ class TestTriggerRuleUpstreamCountMemo:
         assert evolved.upstream_task_id_counts is dep_context.upstream_task_id_counts
         evolved.upstream_task_id_counts[("d", "r", frozenset({"u2"}))] = [("u2", 1)]
         assert ("d", "r", frozenset({"u2"})) in dep_context.upstream_task_id_counts
+
+
+class TestRemovedInferenceOnlyForOneToOneMapping:
+    """
+    A removed upstream instance may only remove downstream instances when the downstream
+    expands 1:1 over exactly that upstream and every upstream instance is done. The success
+    count says nothing about any other topology's expansion length.
+    """
+
+    def test_static_downstream_survives_upstream_shrink(self, dag_maker, session):
+        with dag_maker("test_static_downstream_shrink", serialized=True):
+
+            @task
+            def process(x):
+                return x
+
+            @task
+            def notify(channel):
+                return channel
+
+            processed = process.expand(x=[1, 2, 3, 4, 5])
+            alerts = notify.expand(channel=["email", "slack", "pagerduty"])
+            processed >> alerts
+
+        dr = dag_maker.create_dagrun()
+        dr.task_instance_scheduling_decisions(session=session)
+        session.flush()
+
+        for ti in dr.get_task_instances(session=session):
+            if ti.task_id == "process":
+                ti.set_state(
+                    TaskInstanceState.SUCCESS if ti.map_index < 2 else TaskInstanceState.REMOVED,
+                    session=session,
+                )
+        session.flush()
+
+        dr.task_instance_scheduling_decisions(session=session)
+        session.flush()
+        session.expire_all()
+
+        notify_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "notify"
+        }
+        assert notify_states == {0: None, 1: None, 2: None}
+
+    def test_indirect_setup_shrink_does_not_remove_literal_mapped_downstream(self, dag_maker, session):
+        with dag_maker("test_indirect_setup_shrink", serialized=True):
+
+            @task
+            def prepare(x):
+                return x
+
+            @task
+            def process(x):
+                return x
+
+            @task
+            def notify(channel):
+                return channel
+
+            prepared = prepare.expand(x=[1, 2, 3, 4, 5])
+            processed = process.expand(x=[1, 2, 3, 4, 5])
+            alerts = notify.expand(channel=["email", "slack", "pagerduty"])
+            prepared.as_setup() >> processed >> alerts
+
+        dr = dag_maker.create_dagrun()
+        dr.task_instance_scheduling_decisions(session=session)
+        session.flush()
+
+        for ti in dr.get_task_instances(session=session):
+            if ti.task_id == "prepare":
+                ti.set_state(
+                    TaskInstanceState.SUCCESS if ti.map_index < 2 else TaskInstanceState.REMOVED,
+                    session=session,
+                )
+            elif ti.task_id == "process":
+                ti.set_state(TaskInstanceState.SUCCESS, session=session)
+        session.flush()
+
+        dr.task_instance_scheduling_decisions(session=session)
+        session.flush()
+        session.expire_all()
+
+        notify_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "notify"
+        }
+        assert notify_states == {0: None, 1: None, 2: None}
+
+    def test_unmapped_upstream_removed_keeps_downstream_instances(self, dag_maker, session):
+        with dag_maker("test_unmapped_upstream_removed", serialized=True) as dag:
+
+            @task
+            def producer():
+                return [1, 2, 3]
+
+            @task
+            def work(arg):
+                return arg
+
+            work.expand(arg=producer())
+
+        dr = dag_maker.create_dagrun()
+        work_ti = dr.get_task_instance("work", session=session)
+        work_ti.map_index = 0
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        for map_index in range(1, 3):
+            expanded = TaskInstance(
+                work_ti.task, run_id=dr.run_id, map_index=map_index, dag_version_id=dag_version.id
+            )
+            session.add(expanded)
+            expanded.dag_run = dr
+        dr.get_task_instance("producer", session=session).set_state(
+            TaskInstanceState.REMOVED, session=session
+        )
+        session.flush()
+
+        ti = dr.get_task_instance("work", map_index=2, session=session)
+        ti.task = dag.get_task("work")
+        _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=True, expected_ti_state=None)
+
+    def test_one_to_one_downstream_not_removed_while_upstream_running(self, session, get_mapped_task_dagrun):
+        dr, task, _ = get_mapped_task_dagrun()
+
+        still_running = dr.get_task_instance(task_id="do_something", map_index=1, session=session)
+        still_running.state = TaskInstanceState.RUNNING
+        session.merge(still_running)
+        session.flush()
+
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=2, session=session)
+        ti.task = task
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=True,
+            expected_reason="requires all upstream tasks to have succeeded",
+            expected_ti_state=None,
+        )
