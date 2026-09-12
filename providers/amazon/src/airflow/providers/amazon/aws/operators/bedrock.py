@@ -669,12 +669,18 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         :ref:`howto/operator:BedrockCreateKnowledgeBaseOperator`
 
     :param name: The name of the knowledge base. (templated)
-    :param embedding_model_arn: ARN of the model used to create vector embeddings for the knowledge base. (templated)
+    :param embedding_model_arn: ARN of the model used to create vector embeddings for the knowledge base.
+        Required for self-managed VECTOR knowledge bases unless ``knowledge_base_configuration`` is provided. (templated)
     :param role_arn: The ARN of the IAM role with permissions to create the knowledge base. (templated)
-    :param storage_config: Configuration details of the vector database used for the knowledge base. (templated)
+    :param storage_config: Configuration details of the vector database used for the knowledge base.
+        Required for self-managed VECTOR knowledge bases. Omit for MANAGED knowledge bases. (templated)
+    :param knowledge_base_configuration: Complete configuration dictionary for the knowledge base.
+        Can be used for MANAGED knowledge bases or custom VECTOR/KENDRA/SQL configurations.
+        If not provided, a default VECTOR configuration using ``embedding_model_arn`` is created. (templated)
     :param wait_for_indexing: Vector indexing can take some time and there is no apparent way to check the state
         before trying to create the Knowledge Base.  If this is True, and creation fails due to the index not
-        being available, the operator will wait and retry.  (default: True) (templated)
+        being available, the operator will wait and retry.  Has no effect for MANAGED knowledge bases.
+        (default: True) (templated)
     :param indexing_error_retry_delay: Seconds between retries if an index error is encountered. (default 5) (templated)
     :param indexing_error_max_attempts: Maximum number of times to retry when encountering an index error. (default 20) (templated)
     :param create_knowledge_base_kwargs: Any additional optional parameters to pass to the API call. (templated)
@@ -703,6 +709,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         "embedding_model_arn",
         "role_arn",
         "storage_config",
+        "knowledge_base_configuration",
         "wait_for_indexing",
         "indexing_error_retry_delay",
         "indexing_error_max_attempts",
@@ -712,9 +719,10 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
     def __init__(
         self,
         name: str,
-        embedding_model_arn: str,
-        role_arn: str,
-        storage_config: dict[str, Any],
+        embedding_model_arn: str | None = None,
+        role_arn: str | None = None,
+        storage_config: dict[str, Any] | None = None,
+        knowledge_base_configuration: dict[str, Any] | None = None,
         create_knowledge_base_kwargs: dict[str, Any] | None = None,
         wait_for_indexing: bool = True,
         indexing_error_retry_delay: int = 5,  # seconds
@@ -725,12 +733,16 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
+        if knowledge_base_configuration is None and "knowledge_base_config" in kwargs:
+            knowledge_base_configuration = kwargs.pop("knowledge_base_config")
+
         super().__init__(**kwargs)
         self.name = name
         self.role_arn = role_arn
         self.storage_config = storage_config
         self.create_knowledge_base_kwargs = create_knowledge_base_kwargs or {}
         self.embedding_model_arn = embedding_model_arn
+        self.knowledge_base_configuration = knowledge_base_configuration
         self.wait_for_indexing = wait_for_indexing
         self.indexing_error_retry_delay = indexing_error_retry_delay
         self.indexing_error_max_attempts = indexing_error_max_attempts
@@ -739,6 +751,21 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+
+    @property
+    def knowledge_base_config(self) -> dict[str, Any] | None:
+        if self.knowledge_base_configuration is not None:
+            return self.knowledge_base_configuration
+        if self.embedding_model_arn:
+            return {
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+            }
+        return None
+
+    @knowledge_base_config.setter
+    def knowledge_base_config(self, value: dict[str, Any] | None) -> None:
+        self.knowledge_base_configuration = value
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         validated_event = validate_execute_complete_event(event)
@@ -750,10 +777,49 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         return validated_event["knowledge_base_id"]
 
     def execute(self, context: Context) -> str:
-        knowledge_base_config = {
-            "type": "VECTOR",
-            "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+        if not self.role_arn:
+            raise ValueError("`role_arn` must be specified to create a knowledge base.")
+
+        create_kwargs = self.create_knowledge_base_kwargs.copy()
+
+        if "knowledgeBaseConfiguration" in create_kwargs:
+            knowledge_base_config = create_kwargs.pop("knowledgeBaseConfiguration")
+        elif "knowledge_base_configuration" in create_kwargs:
+            knowledge_base_config = create_kwargs.pop("knowledge_base_configuration")
+        elif "knowledge_base_config" in create_kwargs:
+            knowledge_base_config = create_kwargs.pop("knowledge_base_config")
+        elif self.knowledge_base_configuration is not None:
+            knowledge_base_config = self.knowledge_base_configuration
+        elif self.embedding_model_arn is not None:
+            knowledge_base_config = {
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
+            }
+        else:
+            raise ValueError(
+                "Either `knowledge_base_configuration` or `embedding_model_arn` must be provided."
+            )
+
+        if "storageConfiguration" in create_kwargs:
+            storage_config = create_kwargs.pop("storageConfiguration")
+        elif "storage_config" in create_kwargs:
+            storage_config = create_kwargs.pop("storage_config")
+        else:
+            storage_config = self.storage_config
+
+        is_managed = knowledge_base_config.get("type") == "MANAGED"
+
+        if not is_managed and knowledge_base_config.get("type") == "VECTOR" and storage_config is None:
+            raise ValueError("`storage_config` is required when creating a VECTOR knowledge base.")
+
+        api_kwargs: dict[str, Any] = {
+            "name": self.name,
+            "roleArn": self.role_arn,
+            "knowledgeBaseConfiguration": knowledge_base_config,
+            **create_kwargs,
         }
+        if storage_config is not None:
+            api_kwargs["storageConfiguration"] = storage_config
 
         def _create_kb():
             # This API call will return the following if the index has not completed, but there is no apparent
@@ -762,13 +828,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
             #       when calling the CreateKnowledgeBase operation: The knowledge base storage configuration
             #       provided is invalid... no such index [bedrock-sample-rag-index-abc108]
             try:
-                return self.hook.conn.create_knowledge_base(
-                    name=self.name,
-                    roleArn=self.role_arn,
-                    knowledgeBaseConfiguration=knowledge_base_config,
-                    storageConfiguration=self.storage_config,
-                    **self.create_knowledge_base_kwargs,
-                )["knowledgeBase"]["knowledgeBaseId"]
+                return self.hook.conn.create_knowledge_base(**api_kwargs)["knowledgeBase"]["knowledgeBaseId"]
             except ClientError as error:
                 error_message = error.response["Error"]["Message"].lower()
                 is_known_retryable_message = (
@@ -784,6 +844,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                         error.response["Error"]["Code"] == "ValidationException",
                         is_known_retryable_message,
                         self.wait_for_indexing,
+                        not is_managed,
                         self.indexing_error_max_attempts > 0,
                     ]
                 ):

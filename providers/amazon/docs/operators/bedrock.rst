@@ -189,6 +189,23 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.ht
     :start-after: [START howto_operator_bedrock_create_knowledge_base]
     :end-before: [END howto_operator_bedrock_create_knowledge_base]
 
+You can also create a fully managed knowledge base where Bedrock handles the underlying vector store
+and infrastructure automatically:
+
+.. code-block:: python
+
+    BedrockCreateKnowledgeBaseOperator(
+        task_id="create_managed_knowledge_base",
+        name="my_managed_knowledge_base",
+        role_arn="arn:aws:iam::123456789012:role/BedrockExecutionRole",
+        knowledge_base_configuration={
+            "type": "MANAGED",
+            "managedKnowledgeBaseConfiguration": {
+                "embeddingModelType": "MANAGED",
+            },
+        },
+    )
+
 .. _howto/operator:BedrockDeleteKnowledgeBase:
 
 Delete an Amazon Bedrock Knowledge Base
