@@ -25,8 +25,8 @@ import logging
 import math
 import re
 import time
-from collections.abc import Callable, Generator, Iterable
-from contextlib import closing
+from collections.abc import AsyncIterator, Callable, Generator, Iterable
+from contextlib import aclosing, closing
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Literal, cast
@@ -1216,29 +1216,34 @@ class AsyncPodManager(LoggingMixin):
         """
         Asynchronously read the log file of the specified pod.
 
-        This method streams logs from the base container, skipping log lines from the current second to prevent duplicate entries on subsequent reads. It is designed to handle long-running containers and gracefully suppresses transient interruptions.
+        Lines are consumed one at a time as they arrive, so a large backlog is never held in memory.
+        Log lines from the current second are skipped to prevent duplicate entries on the next read.
 
         :param pod: The pod specification to monitor.
         :param container_name: The name of the container within the pod.
         :param since_time: The timestamp from which to start reading logs.
-        :return: The timestamp to use for the next log read, representing the start of the current second. Returns None if an exception occurred.
+        :return: The timestamp to use for the next log read, representing the start of the current second.
         """
         now = pendulum.now()
-        logs = await self._hook.read_logs(
+        log_lines = self._hook.stream_logs(
             name=pod.metadata.name,
             namespace=pod.metadata.namespace,
             container_name=container_name,
             since_seconds=(math.ceil((now - since_time).total_seconds()) if since_time else None),
         )
-        # CPU-bound per-line parse/emit, offloaded so it can't block the triggerer event loop.
-        await asyncio.to_thread(self._emit_container_logs, logs, now, container_name)
+        # ``aclosing`` so the early break below finalises the generator, and with it the HTTP
+        # response, deterministically rather than leaving it to the loop's asyncgen finaliser.
+        async with aclosing(log_lines) as lines:
+            await self._emit_container_logs(lines, now, container_name)
         return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.
 
-    def _emit_container_logs(self, logs: list[str], now: DateTime, container_name: str) -> None:
+    async def _emit_container_logs(
+        self, logs: AsyncIterator[str], now: DateTime, container_name: str
+    ) -> None:
         message_to_log = None
         try:
             now_seconds = now.replace(microsecond=0)
-            for line in logs:
+            async for line in logs:
                 line_timestamp, message = parse_log_line(line)
                 # Skip log lines from the current second to prevent duplicate entries on the next read.
                 # The API only allows specifying 'since_seconds', not an exact timestamp.
