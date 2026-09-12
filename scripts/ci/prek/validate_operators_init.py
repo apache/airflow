@@ -303,8 +303,8 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
     ``self.field = field``, ``self.field = field or <default>``, the equivalent
     value-preserving ternaries, the local rebind ``field = field or <default>``,
     tuple assignments pairing names one-to-one, forwarding via
-    ``super().__init__(field=field)``, and ``field is None`` / ``field is not None``
-    provision checks.
+    ``super().__init__(field=field)``, ``field is None`` / ``field is not None``
+    provision checks, and verbatim copies into ``start_trigger_args``.
 
     :param ctor: The constructor function node.
     :param template_fields: The template fields of the class.
@@ -342,7 +342,46 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
         elif isinstance(node, ast.Compare) and _is_none_check(node):
             # Reads whether the argument was passed, not its value — only __init__ can see that.
             sanctioned.add(id(node.left))
+        elif isinstance(node, ast.Call) and _is_start_trigger_args_call(node):
+            # start_from_trigger hands trigger_kwargs to the triggerer, which renders the template
+            # fields itself, so copying them un-rendered at construct time is the intended flow.
+            for value in _iter_direct_call_values(node):
+                if _target_name(value) in template_fields:
+                    sanctioned.add(id(value))
     return sanctioned
+
+
+def _is_start_trigger_args_call(node: ast.Call) -> bool:
+    """
+    Check whether a call builds the operator's ``start_trigger_args``.
+
+    Matches ``StartTriggerArgs(...)`` and ``dataclasses.replace(self.start_trigger_args, ...)``.
+
+    :param node: The call node.
+    :return: True if the call constructs or copies ``StartTriggerArgs``.
+    """
+    name = _resolve_base_name(node.func)
+    if name == "StartTriggerArgs":
+        return True
+    return name == "replace" and bool(node.args) and _target_name(node.args[0]) == "start_trigger_args"
+
+
+def _iter_direct_call_values(call: ast.Call) -> Iterator[ast.expr]:
+    """
+    Yield the keyword values of a call, descending one level into ``{...}`` and ``dict(...)``.
+
+    Only values passed through verbatim are yielded; anything nested deeper is a transformation
+    and stays subject to the regular check.
+
+    :param call: The call node.
+    :return: Iterator over the directly passed value expressions.
+    """
+    for keyword in call.keywords:
+        yield keyword.value
+        if isinstance(keyword.value, ast.Dict):
+            yield from keyword.value.values
+        elif isinstance(keyword.value, ast.Call) and _resolve_base_name(keyword.value.func) == "dict":
+            yield from (inner.value for inner in keyword.value.keywords)
 
 
 def _check_constructor_field_logic(
