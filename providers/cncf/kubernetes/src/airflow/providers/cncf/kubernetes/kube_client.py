@@ -23,7 +23,6 @@ from typing import Any
 
 import urllib3.util
 
-from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
@@ -180,9 +179,9 @@ def get_kube_client(
     """
     # An import path rather than a callable, so that KubernetesJobWatcher can re-resolve it in
     # its own process, where the spawn start method would not carry a callable over.
-    client_factory = conf.get("kubernetes_executor", "client_factory", fallback=None)
-    if client_factory:
-        return import_string(client_factory)()
+    if client_factory := conf.getimport("kubernetes_executor", "client_factory", fallback=None):
+        return client_factory()
+
     if in_cluster is None:
         in_cluster = conf.getboolean("kubernetes_executor", "in_cluster")
     if not has_kubernetes:

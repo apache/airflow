@@ -29,6 +29,7 @@ from airflow.providers.cncf.kubernetes.kube_client import (
     get_async_kube_client,
     get_kube_client,
 )
+from airflow.providers.common.compat.sdk import AirflowConfigException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -68,7 +69,7 @@ class TestKubeClientFactory:
 
     def test_unimportable_factory_raises(self):
         with conf_vars({("kubernetes_executor", "client_factory"): "no.such.module.build_client"}):
-            with pytest.raises(ImportError):
+            with pytest.raises(AirflowConfigException):
                 get_kube_client()
 
     def test_factory_is_resolved_from_config_in_a_separate_interpreter(self, tmp_path, monkeypatch):
