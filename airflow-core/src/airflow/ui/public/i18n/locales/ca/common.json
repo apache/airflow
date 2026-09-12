@@ -141,12 +141,15 @@
   "filter": "Filtre",
   "filters": {
     "addFilter": "Afegir filtre",
+    "completedAt": "Completat a",
     "date": "Data",
     "durationFrom": "Duració Des de",
     "durationTo": "Duració Fins a",
     "endTime": "Hora de finalització",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
+    "maxActiveRunsFrom": "Màxim d'execucions actives des de",
+    "maxActiveRunsTo": "Màxim d'execucions actives fins a",
     "removeFilter": "Eliminar filtre",
     "runAfterFrom": "Executar Després de",
     "runAfterTo": "Executar Després de",
@@ -383,7 +386,7 @@
     "up_for_retry": "A reintentar",
     "upstream_failed": "Fallit aigües amunt"
   },
-  "switchDag": "Canviar de $t(dag_one)",
+  "switchDag": "Canviar a $t(dag_one)",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",
@@ -438,7 +441,7 @@
     "queuedWhen": "Enviat a cua a les",
     "renderedMapIndex": "Índex del mapa renderitzat",
     "scheduledWhen": "Programat a les",
-    "trigger": "Disparador",
+    "trigger": "Trigger",
     "triggerer": {
       "assigned": "Triggerer assignat",
       "class": "Classe del trigger",

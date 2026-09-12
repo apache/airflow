@@ -91,7 +91,7 @@
   "runStateCounts": {
     "label": "Estats de les execucions",
     "loading": "Carregant el recompte d'estats de les execucions",
-    "tooltip": "{{state}}: {{formattedCount}} — feu clic per filtrar les execucions"
+    "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les execucions"
   },
   "search": {
     "advanced": "Cerca avançada",

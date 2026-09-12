@@ -111,6 +111,10 @@
     "taskGroup": "Grup de tasques",
     "zoomToTask": "Zoom a la tasca seleccionada"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} element",
+    "items_other": "{{count}} elements"
+  },
   "limitedList": "+{{count}} més",
   "limitedList.allItems": "Tots els {{count}} elements:",
   "limitedList.allTags_one": "Totes les etiquetes ({{count}})",
