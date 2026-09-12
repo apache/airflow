@@ -66,8 +66,8 @@ spec:
         {{- end }}
       annotations:
         checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
-        {{- with .Values.statsd.podAnnotations }}
-          {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- if .Values.statsd.podAnnotations }}
+          {{- tpl (toYaml .Values.statsd.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.statsd.priorityClassName }}
