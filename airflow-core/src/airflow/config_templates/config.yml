@@ -353,6 +353,14 @@ core:
       type: integer
       example: ~
       default: "0"
+    default_task_infra_retries:
+      description: |
+        The number of additional retries available when an executor reports a confirmed infrastructure
+        failure. Can be overridden at Dag or task level.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "0"
     default_task_retry_delay:
       description: |
         The number of seconds each task is going to wait by default between retries. Can be overridden at

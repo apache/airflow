@@ -245,6 +245,8 @@ export type NextKwargs1 =
 export type XcomKeysToClear = string[];
 export type ShouldRetry = boolean;
 export type StartDate2 = string | null;
+export type FailureKind = string | null;
+export type FailureReason = string | null;
 export type ArgBindings = TaskArgBinding[] | null;
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1031,6 +1033,8 @@ export interface TIRunContext {
   xcom_keys_to_clear?: XcomKeysToClear;
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
+  failure_kind?: FailureKind;
+  failure_reason?: FailureReason;
   arg_bindings?: ArgBindings;
 }
 /**

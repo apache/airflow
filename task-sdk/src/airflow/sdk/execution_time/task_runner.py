@@ -47,6 +47,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
+from airflow.sdk._shared.state import TaskFailureKind
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -358,6 +359,8 @@ class RuntimeTaskInstance(TaskInstance):
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "partition_key": dag_run.partition_key,
                 "partition_date": coerce_datetime(dag_run.partition_date),
+                "failure_kind": from_server.failure_kind,
+                "failure_reason": from_server.failure_reason,
                 "triggering_asset_events": TriggeringAssetEventsAccessor.build(
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
@@ -1879,6 +1882,9 @@ def _handle_current_task_failed(
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
+    failure_kind = (
+        TaskFailureKind.TIMEOUT if isinstance(exception, AirflowTaskTimeout) else TaskFailureKind.APPLICATION
+    )
     decision = _evaluate_retry_policy(ti, exception, log, context)
     if decision is not None and decision.action == RetryAction.FAIL:
         ti.end_date = datetime.now(tz=timezone.utc)
@@ -1892,15 +1898,19 @@ def _handle_current_task_failed(
         )
     if decision is not None and decision.action == RetryAction.RETRY:
         return _finalize_task_failure(
-            ti, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
+            ti,
+            retry_delay_override=decision.retry_delay,
+            retry_reason=decision.reason,
+            failure_kind=failure_kind,
         )
-    return _finalize_task_failure(ti)
+    return _finalize_task_failure(ti, failure_kind=failure_kind)
 
 
 def _finalize_task_failure(
     ti: RuntimeTaskInstance,
     retry_delay_override: timedelta | None = None,
     retry_reason: str | None = None,
+    failure_kind: TaskFailureKind | None = None,
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     """
     Record failure metrics and build the standard retry-or-fail outcome.
@@ -1919,6 +1929,8 @@ def _finalize_task_failure(
     if not ti._failure_metrics_emitted:
         operator = ti.task.__class__.__name__
         stats_tags = ti.stats_tags
+        if failure_kind is not None:
+            stats_tags = {**stats_tags, "failure_kind": failure_kind.value}
 
         stats.incr("operator_failures", tags={**stats_tags, "operator_name": operator})
         stats.incr("ti_failures", tags=stats_tags)
@@ -2346,6 +2358,12 @@ def finalize(
                 log.exception("Failed to set rendered fields during finalization", ti=ti, task=ti.task)
 
     log.debug("Running finalizers", ti=ti)
+    failure_kind = (
+        TaskFailureKind.TIMEOUT if isinstance(error, AirflowTaskTimeout) else TaskFailureKind.APPLICATION
+    )
+    if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+        context["failure_kind"] = failure_kind.value
+        context["failure_reason"] = None
     if state == TaskInstanceState.SUCCESS:
         _run_task_state_change_callbacks(task, "on_success_callback", context, log)
         try:
@@ -2366,7 +2384,11 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                failure_kind=failure_kind,
+                reason=None,
             )
         except Exception:
             log.exception("error calling listener")
@@ -2376,7 +2398,11 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                failure_kind=failure_kind,
+                reason=None,
             )
         except Exception:
             log.exception("error calling listener")

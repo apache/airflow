@@ -40,6 +40,7 @@ class FailureDetails(TypedDict, total=False):
     exit_code: int | None
     container_type: Literal["init", "main"] | None
     container_name: str | None
+    disruption_reason: str | None
 
 
 class KubernetesResults(NamedTuple):

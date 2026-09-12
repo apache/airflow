@@ -103,6 +103,24 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
     :start-after: [START howto_listen_ti_skipped_task]
     :end-before: [END howto_listen_ti_skipped_task]
 
+Failure cause
+"""""""""""""
+
+``on_task_instance_failed`` can receive a :class:`~airflow_shared.state.TaskFailureKind`:
+``INFRA``, ``APPLICATION``, ``TIMEOUT``, or ``MANUAL``. The value is ``None`` when Airflow
+cannot establish the cause. The optional ``reason`` is a short producer-owned token such as
+``Evicted`` or ``WorkerLost``. A reason can be present without a failure kind.
+
+.. code-block:: python
+
+    @hookimpl
+    def on_task_instance_failed(self, previous_state, task_instance, error, failure_kind, reason):
+        if failure_kind == "infra":
+            record_infrastructure_disruption(reason)
+
+The enum inherits from ``str`` and compares equal to its lower-case value. Existing listeners
+can omit both arguments because pluggy dispatches hook arguments by name.
+
 Asset Events
 --------------
 

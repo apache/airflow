@@ -8044,6 +8044,10 @@ export const $TaskResponse = {
             ],
             title: 'Retries'
         },
+        infra_retries: {
+            type: 'integer',
+            title: 'Infra Retries'
+        },
         queue: {
             anyOf: [
                 {
@@ -8241,7 +8245,7 @@ export const $TaskResponse = {
         }
     },
     type: 'object',
-    required: ['task_id', 'task_display_name', 'owner', 'start_date', 'end_date', 'trigger_rule', 'depends_on_past', 'wait_for_downstream', 'retries', 'queue', 'pool', 'pool_slots', 'execution_timeout', 'retry_delay', 'retry_exponential_backoff', 'priority_weight', 'weight_rule', 'ui_color', 'ui_fgcolor', 'template_fields', 'downstream_task_ids', 'doc_md', 'operator_name', 'params', 'class_ref', 'is_mapped', 'extra_links'],
+    required: ['task_id', 'task_display_name', 'owner', 'start_date', 'end_date', 'trigger_rule', 'depends_on_past', 'wait_for_downstream', 'retries', 'infra_retries', 'queue', 'pool', 'pool_slots', 'execution_timeout', 'retry_delay', 'retry_exponential_backoff', 'priority_weight', 'weight_rule', 'ui_color', 'ui_fgcolor', 'template_fields', 'downstream_task_ids', 'doc_md', 'operator_name', 'params', 'class_ref', 'is_mapped', 'extra_links'],
     title: 'TaskResponse',
     description: 'Task serializer for responses.'
 } as const;

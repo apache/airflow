@@ -23,6 +23,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow._shared.state import INFRA_RETRIES_USED_STATE_KEY
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.task_state_store import (
     TaskStateStoreBody,
@@ -199,6 +200,14 @@ class TestSetTaskState(TestTaskStateEndpoint):
     def test_empty_body_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={}).status_code == 422
 
+    def test_rejects_airflow_owned_key(self, test_client):
+        response = test_client.put(
+            f"{BASE_URL}/{INFRA_RETRIES_USED_STATE_KEY}",
+            json={"value": 0},
+        )
+
+        assert response.status_code == 400
+
     def test_null_value_returns_422(self, test_client):
         assert test_client.put(f"{BASE_URL}/job_id", json={"value": None}).status_code == 422
 
@@ -342,6 +351,14 @@ class TestPatchTaskState(TestTaskStateEndpoint):
     def test_patch_missing_key_returns_404(self, test_client):
         assert test_client.patch(f"{BASE_URL}/nonexistent", json={"value": "v"}).status_code == 404
 
+    def test_rejects_airflow_owned_key(self, test_client):
+        response = test_client.patch(
+            f"{BASE_URL}/{INFRA_RETRIES_USED_STATE_KEY}",
+            json={"value": 0},
+        )
+
+        assert response.status_code == 400
+
     def test_patch_empty_body_returns_422(self, test_client):
         _create_task_state_store_row(self._session, "job_id", "v", self.dag_run)
         self._session.commit()
@@ -409,6 +426,11 @@ class TestDeleteTaskState(TestTaskStateEndpoint):
     def test_delete_noop_for_missing_key(self, test_client):
         assert test_client.delete(f"{BASE_URL}/nonexistent").status_code == 204
 
+    def test_rejects_airflow_owned_key(self, test_client):
+        response = test_client.delete(f"{BASE_URL}/{INFRA_RETRIES_USED_STATE_KEY}")
+
+        assert response.status_code == 400
+
     def test_only_deletes_target_key(self, test_client):
         _create_task_state_store_row(self._session, "job_id", "a", self.dag_run)
         _create_task_state_store_row(self._session, "checkpoint", "b", self.dag_run)
@@ -438,6 +460,27 @@ class TestClearTaskState(TestTaskStateEndpoint):
 
         assert test_client.delete(BASE_URL).status_code == 204
         assert test_client.get(BASE_URL).json()["total_entries"] == 0
+
+    def test_preserves_airflow_owned_key(self, test_client):
+        _create_task_state_store_row(self._session, "job_id", "a", self.dag_run)
+        _create_task_state_store_row(
+            self._session,
+            INFRA_RETRIES_USED_STATE_KEY,
+            1,
+            self.dag_run,
+        )
+        self._session.commit()
+
+        assert test_client.delete(BASE_URL).status_code == 204
+
+        remaining = self._session.scalars(
+            select(TaskStateStoreModel.key).where(
+                TaskStateStoreModel.dag_id == DAG_ID,
+                TaskStateStoreModel.run_id == RUN_ID,
+                TaskStateStoreModel.task_id == TASK_ID,
+            )
+        ).all()
+        assert remaining == [INFRA_RETRIES_USED_STATE_KEY]
 
     def test_all_map_indices_clears_across_mapped_instances(self, test_client):
         """all_map_indices=true wipes state for every map index of the task."""

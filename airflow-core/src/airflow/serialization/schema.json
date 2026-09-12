@@ -307,6 +307,7 @@
         "wait_for_past_depends_before_skipping": { "type": "boolean", "default": false },
         "wait_for_downstream": { "type": "boolean", "default": false },
         "retries": { "type": "number", "default": 0 },
+        "infra_retries": { "type": "number", "default": 0 },
         "queue": { "type": "string", "default": "default" },
         "pool": { "type": "string", "default": "default_pool" },
         "pool_slots": { "type": "number", "default": 1 },
