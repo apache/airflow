@@ -31,6 +31,7 @@ import pytest
 
 from airflow_shared.secrets_masker.secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
+    KNOWN_SECRET_PATTERNS,
     RedactedIO,
     SecretsMasker,
     mask_secret,
@@ -1611,3 +1612,184 @@ class TestKubernetesImportAvoidance:
         # Should be redacted since "password" is a sensitive field name
         assert redacted["value"] == "***"
         assert redacted["name"] == "password"
+
+
+class TestContentPatternMasking:
+    """Value-content pattern masking for well-known credential formats."""
+
+    @pytest.fixture
+    def masker(self):
+        m = SecretsMasker()
+        configure_secrets_masker_for_test(m)
+        return m
+
+    @pytest.mark.parametrize(
+        ("label", "sample"),
+        [
+            ("aws_access_key", "AKIAIOSFODNN7EXAMPLE"),
+            ("aws_session_key", "ASIAY34FZKBOKMUTVV7A"),
+            ("github_pat", "ghp_" + "a" * 40),
+            ("github_oauth", "gho_" + "b" * 40),
+            ("slack_bot", "xoxb-1234567890-abcdefghij"),
+            ("slack_user", "xoxp-1234567890-0987654321-abcdefghij"),
+            ("google_api_key", "AIza" + "A" * 35),
+            ("stripe_live_key", "sk_live_" + "0" * 24),
+            (
+                "jwt",
+                "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+            ),
+        ],
+    )
+    def test_known_pattern_is_redacted_when_enabled(self, masker, label, sample):
+        masker.enable_content_pattern_masking()
+        try:
+            text = f"prefix {sample} suffix"
+            assert masker.redact(text) == "prefix *** suffix"
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_pem_private_key_block_is_redacted_when_enabled(self, masker):
+        masker.enable_content_pattern_masking()
+        try:
+            pem = (
+                "-----BEGIN RSA " + "PRIVATE KEY-----\n"
+                "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu\n"
+                "-----END RSA " + "PRIVATE KEY-----"
+            )
+            redacted = masker.redact(f"key: {pem} end")
+            assert redacted == "key: *** end"
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_off_by_default(self, masker):
+        # By default, with a fresh masker and no explicit enable, an AWS-shaped
+        # value must pass through unchanged.
+        assert not masker.is_content_pattern_masking_enabled()
+        aws = "AKIAIOSFODNN7EXAMPLE"
+        assert masker.redact(aws) == aws
+
+    def test_disable_restores_passthrough(self, masker):
+        masker.enable_content_pattern_masking()
+        aws = "AKIAIOSFODNN7EXAMPLE"
+        assert masker.redact(aws) == "***"
+        masker.disable_content_pattern_masking()
+        assert masker.redact(aws) == aws
+
+    @pytest.mark.parametrize(
+        "benign",
+        [
+            "AKIA_LOOKS_LIKE_ONE",
+            "not-a-jwt.header.only",
+            "sk_live_short",
+            "gh_notatokentype_prefix",
+            "xox-not-a-slack-token",
+            "just some normal log line with no secrets in it at all",
+        ],
+    )
+    def test_benign_strings_are_not_redacted(self, masker, benign):
+        masker.enable_content_pattern_masking()
+        try:
+            assert masker.redact(benign) == benign
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_content_masking_composes_with_key_name_masking(self, masker):
+        # A dict whose key name is sensitive triggers the existing recursive
+        # redaction; content-pattern masking on top must not regress that path.
+        masker.enable_content_pattern_masking()
+        try:
+            data = {"password": "some_user_password", "log_line": "token=AKIAIOSFODNN7EXAMPLE end"}
+            redacted = masker.redact(data)
+            assert redacted["password"] == "***"
+            assert redacted["log_line"] == "token=*** end"
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_content_masking_composes_with_explicit_add_mask(self, masker):
+        # A secret registered via add_mask() must still be redacted alongside
+        # a same-string pattern-detected secret in the same value.
+        masker.enable_content_pattern_masking()
+        try:
+            masker.add_mask("my-custom-secret-1234")
+            text = "my-custom-secret-1234 and gh" + "p_" + "z" * 40
+            redacted = masker.redact(text)
+            assert "my-custom-secret-1234" not in redacted
+            assert "ghp_" not in redacted
+            assert redacted.count("***") == 2
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_add_content_patterns_registers_and_masks(self, masker):
+        masker.enable_content_pattern_masking()
+        try:
+            masker.add_content_patterns({"acme_key": r"\bACME-[A-Z0-9]{8}\b"})
+            assert masker.redact("id=ACME-ABCD1234 done") == "id=*** done"
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_add_content_patterns_ignores_invalid_regex(self, masker, caplog):
+        # Invalid regex must not raise or break the existing pattern set.
+        masker.enable_content_pattern_masking()
+        try:
+            masker.add_content_patterns({"broken": "([unterminated"})
+            # Known patterns still work after a bad entry was rejected.
+            assert masker.redact("AKIAIOSFODNN7EXAMPLE") == "***"
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_reset_masker_restores_default_content_patterns(self, masker):
+        masker.enable_content_pattern_masking()
+        try:
+            masker.add_content_patterns({"custom_x": r"\bCUSTOMX-[0-9]{4}\b"})
+            assert masker.redact("CUSTOMX-1234") == "***"
+            masker.reset_masker()
+            # Custom pattern gone.
+            assert masker.redact("CUSTOMX-1234") == "CUSTOMX-1234"
+            # Built-in defaults restored.
+            assert masker.redact("AKIAIOSFODNN7EXAMPLE") == "***"
+        finally:
+            masker.disable_content_pattern_masking()
+
+    def test_default_pattern_set_matches_known_secret_patterns_constant(self, masker):
+        # Guardrail so a rename of the module-level constant does not silently
+        # drop the default set from newly-constructed maskers.
+        assert set(masker._content_pattern_sources) == set(KNOWN_SECRET_PATTERNS)
+
+    def test_log_filter_masks_content_pattern_without_registered_secret(self, caplog):
+        # The log filter previously short-circuited when no explicit masks
+        # were registered; with content-pattern masking enabled it must run.
+        logging.config.dictConfig(
+            {
+                "version": 1,
+                "handlers": {
+                    __name__: {
+                        "class": "logging.StreamHandler",
+                        "stream": "ext://sys.stdout",
+                    }
+                },
+                "loggers": {
+                    __name__: {
+                        "handlers": [__name__],
+                        "level": logging.INFO,
+                        "propagate": False,
+                    }
+                },
+                "disable_existing_loggers": False,
+            }
+        )
+        formatter = logging.Formatter("%(levelname)s %(message)s")
+        logger = logging.getLogger(__name__)
+        caplog.handler.setFormatter(formatter)
+        logger.handlers = [caplog.handler]
+
+        filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
+        filt.enable_content_pattern_masking()
+        SecretsMasker.enable_log_masking()
+        logger.addFilter(filt)
+        try:
+            logger.info("token=AKIAIOSFODNN7EXAMPLE end")
+            assert caplog.text == "INFO token=*** end\n"
+        finally:
+            filt.disable_content_pattern_masking()
+            SecretsMasker.disable_log_masking()
