@@ -1348,6 +1348,107 @@ class TestAsyncKubernetesHook:
         assert hook._config_loaded is expected_cached
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kubeconfig_content", "extra_default_paths", "expected_cached"),
+        [
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    exec:\n      command: aws eks get-token\n"
+                ),
+                0,
+                False,
+                id="default_kubeconfig_with_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                0,
+                True,
+                id="default_kubeconfig_no_exec",
+            ),
+            pytest.param(
+                (
+                    "current-context: ctx1\n"
+                    "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+                    "users:\n- name: user1\n  user:\n    token: static-token\n"
+                ),
+                1,
+                False,
+                id="default_kubeconfig_merged_from_several_files",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_caching_behavior_default_kubeconfig(
+        self, mock_load_file, tmp_path, kubeconfig_content, extra_default_paths, expected_cached
+    ):
+        mock_load_file.return_value = None
+        kubeconfig_file = tmp_path / "config"
+        kubeconfig_file.write_text(kubeconfig_content)
+        extra_files = []
+        for index in range(extra_default_paths):
+            extra_file = tmp_path / f"extra{index}.yaml"
+            extra_file.write_text(kubeconfig_content)
+            extra_files.append(str(extra_file))
+        default_location = os.pathsep.join([str(kubeconfig_file), *extra_files])
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(return_value=None)
+        with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", default_location):
+            await hook._load_config()
+
+        mock_load_file.assert_awaited_once()
+        assert hook._config_loaded is expected_cached
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_default_kubeconfig_ignores_paths_that_do_not_exist(
+        self, mock_load_file, tmp_path
+    ):
+        mock_load_file.return_value = None
+        kubeconfig_file = tmp_path / "config"
+        kubeconfig_file.write_text(
+            "current-context: ctx1\n"
+            "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+            "users:\n- name: user1\n  user:\n    token: static-token\n"
+        )
+        default_location = os.pathsep.join([str(kubeconfig_file), str(tmp_path / "missing.yaml")])
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(return_value=None)
+        with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", default_location):
+            await hook._load_config()
+
+        assert hook._config_loaded is True
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
+    async def test_load_config_default_kubeconfig_expands_home_directory(
+        self, mock_load_file, tmp_path, monkeypatch
+    ):
+        mock_load_file.return_value = None
+        kube_dir = tmp_path / ".kube"
+        kube_dir.mkdir()
+        (kube_dir / "config").write_text(
+            "current-context: ctx1\n"
+            "contexts:\n- name: ctx1\n  context:\n    user: user1\n"
+            "users:\n- name: user1\n  user:\n    token: static-token\n"
+        )
+        monkeypatch.setenv("HOME", str(tmp_path))
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False)
+        hook._get_field = mock.AsyncMock(return_value=None)
+        with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", "~/.kube/config"):
+            await hook._load_config()
+
+        assert hook._config_loaded is True
+
+    @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))
     async def test_async_get_pod_events_with_resource_version(
         self, mock_list_namespaced_event, kube_config_loader
