@@ -23,7 +23,7 @@ import os
 import random
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
@@ -47,6 +47,8 @@ from .validators import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from opentelemetry.metrics import Instrument
     from opentelemetry.util.types import Attributes
 
@@ -432,13 +434,129 @@ class MetricsMap:
         self.histograms[name].record(value, tags)
 
 
+# Stamped on the MeterProvider this module builds, recording the pid that built it.
+#
+# It lives on the provider rather than in a module global because this package is imported twice --
+# once as ``airflow._shared.observability`` and once as ``airflow.sdk._shared.observability`` -- so
+# each copy has its own globals and neither can see the other's. A module global would only ever
+# deduplicate within one copy, and would leave the fork cleanup below working only in whichever
+# copy happened to build the pipeline. The OTel global provider registry is genuinely
+# process-wide, which makes the provider itself the only place both copies can agree on.
+#
+# The pid it records answers "did *this* process build it?". A fork hands the child the object
+# with the parent's pid still on it, along with the atexit hook and a live pipeline:
+# PeriodicExportingMetricReader registers its own after_in_child hook that restarts the export
+# thread, so the inherited readers resume exporting everything the parent accumulated. The child
+# owns none of it, and the stale pid is what says so. See
+# https://github.com/apache/airflow/issues/64690; the OTel SDK keys ``service.instance.id`` off
+# the pid for the same question.
+_OWNER_PID_ATTR = "_airflow_owner_pid"
+
+
+def _find_provider_built_by_this_process() -> MeterProvider | None:
+    """Return the globally registered MeterProvider if this module built it in this process."""
+    if getattr(provider := metrics.get_meter_provider(), _OWNER_PID_ATTR, None) == os.getpid():
+        # Only a provider built by get_otel_logger() carries the marker, so this is an SDK one.
+        return cast("MeterProvider", provider)
+    return None
+
+
+def _find_pipeline_inherited_across_fork() -> MeterProvider | None:
+    """Return the globally registered MeterProvider if this module built it in a parent process."""
+    owner_pid = getattr(provider := metrics.get_meter_provider(), _OWNER_PID_ATTR, None)
+    if owner_pid is not None and owner_pid != os.getpid():
+        return cast("MeterProvider", provider)
+    return None
+
+
 def flush_otel_metrics():
-    provider = metrics.get_meter_provider()
-    provider.force_flush()
+    if (provider := _find_provider_built_by_this_process()) is not None:
+        provider.force_flush()
 
 
-def atexit_register_metrics_flush():
-    atexit.register(flush_otel_metrics)
+def _find_own_readers(provider: MeterProvider) -> Sequence[Any] | None:
+    """
+    Return the readers belonging to *provider*, across opentelemetry-sdk versions.
+
+    ``_metric_readers`` exists from opentelemetry-sdk 1.44; before that the same list lives on
+    ``_sdk_config.metric_readers``. Airflow accepts ``opentelemetry-api>=1.27.0`` with no upper
+    bound, so reading only the newer attribute leaves the fix inert -- and silently so -- on a
+    supported install.
+
+    Both attributes are per-provider. ``_all_metric_readers`` is deliberately not among them: it
+    is a class attribute shared with every provider in the process, including ones Airflow did not
+    build.
+
+    Readers come back untyped because what the caller does with them -- replacing the collect
+    callback, setting the shutdown event -- reaches for private attributes the SDK does not
+    declare.
+    """
+    readers = getattr(provider, "_metric_readers", None)
+    if readers is not None:
+        return readers
+    return getattr(getattr(provider, "_sdk_config", None), "metric_readers", None)
+
+
+def _stop_inherited_pipeline(provider: MeterProvider) -> None:
+    """
+    Stop the readers a fork handed us without letting them export the parent's state.
+
+    The SDK's own ``after_in_child`` hook revives each reader's export thread, and the revived
+    ticker does one final collect on its way out, so telling a reader to stop is not enough by
+    itself: its collect callback has to stop producing the parent's measurements too.
+
+    Temporality does not change the need for this. Under cumulative the inherited readers
+    republish the parent's totals on every export; under delta they fall quiet, but their first
+    collect still emits the deltas the parent recorded before the fork -- which the parent
+    reports as well.
+    """
+    readers = _find_own_readers(provider)
+    if readers is None:
+        log.warning("Could not find the inherited metric readers; they may keep exporting.")
+        return
+
+    for reader in readers:
+        try:
+            reader._collect = lambda *args, **kwargs: None
+            reader._shutdown_event.set()
+        except (AttributeError, TypeError):
+            log.warning(
+                "Could not stop a metric reader inherited across fork; it may keep exporting "
+                "metrics recorded before the fork.",
+                exc_info=True,
+            )
+
+
+def _drop_inherited_exit_handler(provider: object) -> None:
+    """
+    Stop a provider this module did not build from flushing the parent's state at child exit.
+
+    A ``MeterProvider`` built by the SDK — from ``OTEL_CONFIG_FILE`` or by an instrumentation
+    agent — defaults to ``shutdown_on_exit=True`` and registers its own atexit shutdown, which a
+    fork hands to the child along with everything the parent had accumulated.
+    """
+    handler = getattr(provider, "_atexit_handler", None)
+    if handler is None:
+        return
+    try:
+        atexit.unregister(handler)
+        provider._atexit_handler = None  # type: ignore[attr-defined]
+    except (AttributeError, TypeError):
+        log.warning(
+            "Could not drop the inherited shutdown hook of a MeterProvider this process did not "
+            "build; it may export metrics recorded before the fork.",
+            exc_info=True,
+        )
+
+
+def _reset_provider_after_fork() -> None:
+    atexit.unregister(flush_otel_metrics)
+    _drop_inherited_exit_handler(metrics.get_meter_provider())
+    if (inherited := _find_pipeline_inherited_across_fork()) is not None:
+        _stop_inherited_pipeline(inherited)
+
+
+os.register_at_fork(after_in_child=_reset_provider_after_fork)
 
 
 def get_otel_logger(
@@ -465,7 +583,19 @@ def get_otel_logger(
     scales (milliseconds to hours).
 
     A ``MeterProvider`` already built from ``OTEL_CONFIG_FILE`` is used as-is: the declarative
-    configuration spec makes that file the sole source of SDK construction.
+    configuration spec makes that file the sole source of SDK construction. Its lifecycle stays
+    the deployment's — no flush hook is registered for it here, since the SDK builds it with its
+    own atexit shutdown, and ``shutdown_on_exit=False`` is a deliberate opt-out to respect. Across
+    a fork the child only drops the inherited copy of that hook, so it cannot export what the
+    parent accumulated; the readers the SDK revives in the child are left running, because on this
+    path they are the only pipeline the child has.
+
+    The process builds at most one pipeline: later calls return a logger over the provider it
+    already built rather than leaving a second one exporting alongside it. That holds across both
+    copies of this package, since ownership is recorded on the provider rather than in module
+    state. Each caller still gets its own :class:`SafeOtelLogger`, so the prefix, allow/block
+    lists, name handler and InfluxDB flag stay per-caller; only the pipeline is shared. A forked
+    child stops the pipeline it inherited and builds its own.
     """
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     validator = get_validator(metrics_allow_list, metrics_block_list)
@@ -473,9 +603,14 @@ def get_otel_logger(
     configured_provider = metrics.get_meter_provider()
     if os.environ.get(OTEL_CONFIG_FILE) and isinstance(configured_provider, MeterProvider):
         log.info("%s is set; using the MeterProvider it built.", OTEL_CONFIG_FILE)
-        atexit_register_metrics_flush()
         return SafeOtelLogger(
             configured_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
+        )
+
+    own_provider = _find_provider_built_by_this_process()
+    if own_provider is not None:
+        return SafeOtelLogger(
+            own_provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
         )
 
     otel_env_config = load_metrics_env_config()
@@ -514,8 +649,8 @@ def get_otel_logger(
     # This is necessary when get_otel_logger() is called after a process fork:
     # the parent's _METER_PROVIDER_SET_ONCE._done = True is inherited by the child,
     # causing set_meter_provider() to silently fail with "Overriding of current
-    # MeterProvider is not allowed". The child then uses the parent's stale provider
-    # whose PeriodicExportingMetricReader thread is dead after fork.
+    # MeterProvider is not allowed", leaving the parent's provider installed globally for
+    # anything that reads it — carrying the parent's accumulated state, not the child's.
     # On first call (no fork), _done is already False so this is a no-op.
     # See: https://github.com/apache/airflow/issues/64690
     try:
@@ -526,23 +661,21 @@ def get_otel_logger(
     except (ImportError, AttributeError):
         pass
 
-    metrics.set_meter_provider(
-        MeterProvider(
-            resource=resource,
-            metric_readers=readers,
-            views=[
-                View(
-                    instrument_type=metrics.Histogram,
-                    aggregation=ExponentialBucketHistogramAggregation(),
-                )
-            ],
-            shutdown_on_exit=False,
-        ),
+    provider = MeterProvider(
+        resource=resource,
+        metric_readers=readers,
+        views=[
+            View(
+                instrument_type=metrics.Histogram,
+                aggregation=ExponentialBucketHistogramAggregation(),
+            )
+        ],
+        shutdown_on_exit=False,
     )
+    setattr(provider, _OWNER_PID_ATTR, os.getpid())
+    metrics.set_meter_provider(provider)
 
     # Register a hook that flushes any in-memory metrics at shutdown.
-    atexit_register_metrics_flush()
+    atexit.register(flush_otel_metrics)
 
-    return SafeOtelLogger(
-        metrics.get_meter_provider(), effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled
-    )
+    return SafeOtelLogger(provider, effective_prefix, validator, stat_name_handler, statsd_influxdb_enabled)
