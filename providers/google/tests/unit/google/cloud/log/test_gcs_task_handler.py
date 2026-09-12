@@ -209,11 +209,72 @@ class TestGCSRemoteLogIO:
                 mock_write_method.assert_called_once()
                 if delete_local_copy and mock_write_method_result:
                     mock_rmtree.assert_called_once_with(tmp_path.as_posix())
-                else:
+                    # shutil.rmtree is mocked here, so it never actually removes the file from
+                    # disk; the assertion above already confirms the delete path was taken. We
+                    # don't assert on-disk deletion in this branch since it would be asserting
+                    # against a mock's real side effects, which don't exist.
+                elif mock_write_method_result:
+                    # Upload succeeded but delete_local_copy is False: the local file must be
+                    # truncated so a later lifecycle (e.g. the next poke of a reschedule-mode
+                    # sensor landing on the same worker) doesn't re-upload already-stored content.
                     mock_rmtree.assert_not_called()
+                    assert (tmp_path / "existing.log").read_text() == ""
+                else:
+                    # Upload failed: keep the local content untouched so a retry can still send it.
+                    mock_rmtree.assert_not_called()
+                    assert (tmp_path / "existing.log").read_text() == "log content"
             else:
                 mock_write_method.assert_not_called()
                 mock_rmtree.assert_not_called()
+
+    def test_upload_repeated_cycles_no_duplication(self, mock_creds, tmp_path: Path):
+        """Simulate reschedule-mode sensor: each cycle appends to the local log, then uploads.
+
+        Without truncation after upload, the GCS object accumulates duplicate lines and
+        grows O(N^2). The correct behavior is that each line appears in GCS exactly once.
+        """
+        remote_store: dict[str, str] = {}
+
+        class FakeBlob:
+            def __init__(self, remote_log_location):
+                self.remote_log_location = remote_log_location
+
+            def download_as_bytes(self):
+                if self.remote_log_location not in remote_store:
+                    raise Exception("No such object: fake-bucket")
+                return remote_store[self.remote_log_location].encode()
+
+            def upload_from_string(self, content, content_type=None):
+                remote_store[self.remote_log_location] = content
+
+        gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=tmp_path.as_posix(),
+            delete_local_copy=False,
+        )
+        local_log = tmp_path / "1.log"
+
+        with (
+            mock.patch("google.cloud.storage.Client"),
+            mock.patch("google.cloud.storage.Blob") as mock_blob,
+        ):
+            mock_blob.from_string.side_effect = lambda remote_log_location, client: FakeBlob(
+                remote_log_location
+            )
+
+            for cycle in range(1, 4):
+                with open(local_log, "a") as f:
+                    f.write(f"cycle {cycle}\n")
+                gcs_remote_log_io.upload(local_log, self.ti)
+
+        # GCSRemoteLogIO.write() joins old and new content with an unconditional "\n" separator
+        # (pre-existing behavior, not part of this fix), so each upload after the first adds a
+        # blank line. What matters here is that each cycle's line appears exactly once.
+        final_content = next(iter(remote_store.values()))
+        assert final_content == "cycle 1\n\ncycle 2\n\ncycle 3\n"
+        for cycle in range(1, 4):
+            assert final_content.count(f"cycle {cycle}") == 1
+        assert local_log.read_text() == ""
 
     @pytest.mark.parametrize(
         "upload_success",
