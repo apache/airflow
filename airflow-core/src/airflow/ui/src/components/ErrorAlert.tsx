@@ -22,6 +22,8 @@ import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/req
 
 import { Alert } from "src/system-components";
 
+import { getErrorDetail } from "src/utils/errorHandling";
+
 export type ExpandedApiError = {
   body: HTTPExceptionResponse | HTTPValidationError | undefined;
 } & ApiError;
@@ -37,18 +39,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
     return undefined;
   }
 
-  const details = error.body?.detail;
-  let detailMessage;
-
-  if (details !== undefined) {
-    if (typeof details === "string") {
-      detailMessage = details;
-    } else if (Array.isArray(details)) {
-      detailMessage = details.map((detail) => `${detail.loc.join(".")} ${detail.msg}`);
-    } else {
-      detailMessage = Object.keys(details).map((key) => `${key}: ${details[key] as string}`);
-    }
-  }
+  const detailMessage = getErrorDetail(error);
 
   return (
     <Alert data-testid="error-alert" status="error">
