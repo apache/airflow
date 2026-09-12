@@ -57,6 +57,7 @@ const handleDateRangeChange = (
 };
 
 export type FilterableSearchParamsKeys =
+  | SearchParamsKeys.ACTIVE
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
