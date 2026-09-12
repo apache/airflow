@@ -42,12 +42,7 @@ from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_ap
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.ctl.utils.yaml import safe_load
-from airflowctl.exceptions import (
-    AirflowCtlConnectionException,
-    AirflowCtlCredentialNotFoundException,
-    AirflowCtlKeyringException,
-    AirflowCtlNotFoundException,
-)
+from airflowctl.exceptions import AirflowCtlException
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -76,12 +71,8 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 
     try:
         function(args)
-    except (
-        AirflowCtlCredentialNotFoundException,
-        AirflowCtlConnectionException,
-        AirflowCtlKeyringException,
-        AirflowCtlNotFoundException,
-    ) as e:
+    except AirflowCtlException as e:
+        # The base class, so a new AirflowCtl error never regresses to a raw traceback.
         rich.print(f"command failed due to {e}")
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError) as e:
