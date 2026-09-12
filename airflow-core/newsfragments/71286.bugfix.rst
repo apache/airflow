@@ -1,0 +1,1 @@
+Exceptions logged by the triggerer about itself now appear as a stack trace rather than as the raw list of dicts ``structlog`` serialises them to. Per-trigger records written to the task log keep the structured payload, which is what the log view in the UI renders from.
