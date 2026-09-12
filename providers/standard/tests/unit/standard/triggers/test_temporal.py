@@ -24,7 +24,13 @@ import pendulum
 import pytest
 
 from airflow.providers.common.compat.sdk import timezone
-from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.providers.standard.triggers.temporal import (
+    DateTimeTrigger,
+    TimeDeltaTrigger,
+    TimeOfDayTrigger,
+    resolve_time_of_day_moment,
+    serializable_timezone,
+)
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -145,3 +151,98 @@ async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
     result = trigger_task.result()
     assert isinstance(result, TriggerEvent)
     assert result.payload == trigger_moment
+
+
+def test_time_of_day_trigger_serialization():
+    as_of = pendulum.datetime(2020, 7, 7, 8, 0, tz="UTC")
+    with mock.patch(
+        "airflow.providers.standard.triggers.temporal.timezone.utcnow",
+        return_value=as_of,
+    ):
+        trigger = TimeOfDayTrigger(
+            target_time=datetime.time(10, 30, 45),
+            tz="Asia/Singapore",
+            end_from_trigger=True,
+        )
+    classpath, kwargs = trigger.serialize()
+    assert classpath == "airflow.providers.standard.triggers.temporal.TimeOfDayTrigger"
+    expected_moment = pendulum.datetime(2020, 7, 7, 2, 30, 45, tz="UTC")  # 10:30:45 +08
+    assert kwargs == {
+        "target_time": "10:30:45",
+        "tz": "Asia/Singapore",
+        "end_from_trigger": True,
+        "moment": expected_moment,
+    }
+    restored = TimeOfDayTrigger(**kwargs)
+    assert restored.serialize() == (classpath, kwargs)
+
+
+def test_time_of_day_trigger_serialize_stable_across_midnight():
+    """Reconstruct from serialize() must keep the original moment after local midnight."""
+    as_of = pendulum.datetime(2020, 7, 7, 23, 0, tz="UTC")
+    with mock.patch(
+        "airflow.providers.standard.triggers.temporal.timezone.utcnow",
+        return_value=as_of,
+    ):
+        trigger = TimeOfDayTrigger(target_time=datetime.time(23, 30), tz="UTC")
+    classpath, kwargs = trigger.serialize()
+    assert classpath.endswith("TimeOfDayTrigger")
+    original_moment = kwargs["moment"]
+    assert original_moment == pendulum.datetime(2020, 7, 7, 23, 30, tz="UTC")
+
+    later = pendulum.datetime(2020, 7, 8, 0, 5, tz="UTC")
+    with mock.patch(
+        "airflow.providers.standard.triggers.temporal.timezone.utcnow",
+        return_value=later,
+    ):
+        restored = TimeOfDayTrigger(**kwargs)
+    assert restored.moment == original_moment
+
+
+def test_time_of_day_trigger_fixed_offset_tz():
+    trigger = TimeOfDayTrigger(target_time="07:00:00", tz=19800, end_from_trigger=False)
+    assert trigger.tz == 19800
+    assert trigger.target_time == "07:00:00"
+    _, kwargs = trigger.serialize()
+    assert kwargs["tz"] == 19800
+    assert kwargs["target_time"] == "07:00:00"
+    assert "moment" in kwargs
+
+
+def test_resolve_time_of_day_moment_already_passed():
+    as_of = pendulum.datetime(2020, 7, 7, 15, 0, tz="UTC")
+    moment = resolve_time_of_day_moment(datetime.time(10, 0), tz="UTC", as_of=as_of)
+    assert moment == pendulum.datetime(2020, 7, 7, 10, 0, tz="UTC")
+
+
+def test_resolve_time_of_day_moment_dst_spring_forward():
+    as_of = pendulum.datetime(2024, 3, 10, 12, 0, tz="UTC")
+    moment = resolve_time_of_day_moment(datetime.time(2, 30), tz="America/New_York", as_of=as_of)
+    # Gap → shift forward to 03:30 EDT = 07:30 UTC
+    assert moment == pendulum.datetime(2024, 3, 10, 7, 30, tz="UTC")
+
+
+def test_resolve_time_of_day_moment_dst_fall_back_fold_zero():
+    as_of = pendulum.datetime(2024, 11, 3, 12, 0, tz="UTC")
+    moment = resolve_time_of_day_moment(datetime.time(1, 30), tz="America/New_York", as_of=as_of)
+    # fold=0 → first occurrence (EDT, UTC-4) = 05:30 UTC
+    assert moment == pendulum.datetime(2024, 11, 3, 5, 30, tz="UTC")
+
+
+def test_serializable_timezone_named_and_fixed():
+    assert serializable_timezone(pendulum.timezone("UTC")) == "UTC"
+    assert serializable_timezone(pendulum.timezone("Asia/Singapore")) == "Asia/Singapore"
+    assert serializable_timezone(pendulum.tz.timezone.FixedTimezone(19800)) == 19800
+    assert serializable_timezone(None) == "UTC"
+
+
+@pytest.mark.asyncio
+async def test_time_of_day_trigger_fires_for_past_target():
+    """If today's target is already past, the trigger should fire immediately."""
+    past = (timezone.utcnow() - datetime.timedelta(hours=1)).time().replace(microsecond=0)
+    trigger = TimeOfDayTrigger(target_time=past, tz="UTC", end_from_trigger=False)
+    trigger_task = asyncio.create_task(trigger.run().__anext__())
+    await asyncio.sleep(0.5)
+    assert trigger_task.done() is True
+    result = trigger_task.result()
+    assert isinstance(result, TriggerEvent)
