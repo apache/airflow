@@ -684,6 +684,23 @@ class TestIterableOperator:
             with pytest.raises(AirflowFailException, match="not supported inside IterableOperator"):
                 iterable_op.execute(context=context)
 
+    def test_execute_rejects_reschedule_exception(self, mock_xcom_get_one):
+        """A reschedule-mode sensor (AirflowRescheduleException) is not supported inside
+        IterableOperator: the sub-task's index has no task instance of its own to reschedule, so this
+        must fail the whole IterableOperator immediately with a clear error rather than being silently
+        aggregated into a retryable BaseExceptionGroup."""
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput(
+                [{"raise_exception": AirflowRescheduleException(reschedule_date=None)}]
+            )
+            iterable_op = create_iterable_operator(dag, expand_input, task_id="reschedule_exception")
+
+            context = mock_context(task=iterable_op)
+            mock_xcom_get_one(context)
+
+            with pytest.raises(AirflowFailException, match="not supported inside IterableOperator"):
+                iterable_op.execute(context=context)
+
     @pytest.mark.asyncio
     async def test_run_task_skips_sub_task_already_checkpointed_as_succeeded(self):
         """

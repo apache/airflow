@@ -40,6 +40,7 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.exceptions import (
     AirflowFailException,
+    AirflowRescheduleException,
     AirflowSkipException,
     DagRunTriggerException,
     DownstreamTasksSkipped,
@@ -318,6 +319,14 @@ class IterableOperator(BaseOperator):
                             "(ShortCircuitOperator and similar) are not supported inside "
                             "IterableOperator: the sub-task's index has no downstream "
                             "tasks or DAG run of its own for the effect to apply to."
+                        ) from raised
+
+                    if isinstance(raised, AirflowRescheduleException):
+                        raise AirflowFailException(
+                            f"Sub-task {task.task_id}[{task.index}] attempted to reschedule "
+                            "(raised AirflowRescheduleException). Reschedule-mode sensors are not "
+                            "supported inside IterableOperator: the sub-task's index has no task "
+                            "instance of its own to reschedule."
                         ) from raised
 
                     # Non-Exception BaseExceptions (e.g. DeadlockImminentError,
