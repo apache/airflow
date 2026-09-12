@@ -23,6 +23,7 @@ import json
 import operator
 import os
 import pathlib
+import re
 from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
@@ -112,7 +113,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -3560,6 +3561,27 @@ class TestMappedTaskInstanceReceiveValue:
         result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
         assert isinstance(result, dict), f"Expected dict for unmapped task, got {type(result)}"
         assert result == {"key": "value"}
+
+    def test_xcom_pull_single_value_query_is_bounded(self, dag_maker, session):
+        """Pulling one value from one task must ask the database for one row."""
+        with dag_maker(dag_id="test_xcom_pull_bounded", session=session):
+            upstream = PythonOperator(task_id="unmapped_task", python_callable=lambda: {"key": "value"})
+            downstream = PythonOperator(task_id="downstream", python_callable=lambda: None)
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        dag_maker.run_ti("unmapped_task", dag_run=dag_run, session=session)
+
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        with capture_orm_selects("xcom") as statements:
+            result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
+
+        assert result == {"key": "value"}
+        assert statements, "expected xcom_pull to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"xcom_pull is not bounded to one row: {sql}"
 
     def test_xcom_pull_returns_lazy_sequence_for_mapped_xcom(self, dag_maker, session):
         """

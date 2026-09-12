@@ -210,7 +210,7 @@ Two functions can be overridden:
 
 * ``create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args) -> Engine`` — called by
   ``configure_orm()`` to create the synchronous metadata engine.
-* ``create_async_metadata_engine(sql_alchemy_conn_async, *, connect_args) -> AsyncEngine`` — called by
+* ``create_async_metadata_engine(sql_alchemy_conn_async, *, connect_args, engine_args) -> AsyncEngine`` — called by
   ``_configure_async_session()`` to create the asynchronous metadata engine.
 
 The default implementations call ``sqlalchemy.create_engine`` / ``sqlalchemy.ext.asyncio.create_async_engine``
@@ -231,7 +231,7 @@ Example: registering a ``do_connect`` handler that refreshes a JWT token before 
         dbapi_connection.execute(f"SET SESSION AUTHORIZATION '{token}'")
 
 
-    def create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args):
+    def create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args) -> Engine:
         engine = create_engine(
             sql_alchemy_conn,
             connect_args=connect_args,
@@ -239,4 +239,21 @@ Example: registering a ``do_connect`` handler that refreshes a JWT token before 
             future=True,
         )
         event.listen(engine, "do_connect", _refresh_jwt)
+        return engine
+
+
+    def create_async_metadata_engine(sql_alchemy_conn_async, *, connect_args, engine_args) -> AsyncEngine:
+        connect_args["ssl"] = "require"
+        engine = create_async_engine(
+            sql_alchemy_conn_async,
+            connect_args=connect_args,
+            **engine_args,
+            future=True,
+        )
+
+        @event.listens_for(engine.sync_engine, "do_connect")
+        def provide_token(dialect, conn_rec, cargs, cparams):
+            token = my_token_provider.get_token(user=cparams["user"], host=cparams["host"], port=cparams["port"])
+            cparams["password"] = token
+
         return engine

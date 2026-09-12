@@ -73,8 +73,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: >-
-            ${{ steps.breeze.outputs.host-python-version }}
           platform: "linux/amd64"
           save-cache: false
       - name: >-

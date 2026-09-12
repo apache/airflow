@@ -532,6 +532,22 @@ class TestConfigLint:
         assert "Invalid value" not in normalized_output
 
     @pytest.mark.parametrize(
+        ("expose_config", "expect_issue"),
+        [
+            pytest.param("non-sensitive-only", True, id="deprecated-value"),
+            pytest.param("True", False, id="boolean-value"),
+        ],
+    )
+    def test_lint_detects_deprecated_expose_config_value(self, expose_config, expect_issue, stdout_capture):
+        with conf_vars({("api", "expose_config"): expose_config}), stdout_capture as temp_stdout:
+            config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+        normalized_output = re.sub(r"\s+", " ", temp_stdout.getvalue().strip())
+        expected_message = "Invalid value `non-sensitive-only` set for `expose_config` configuration parameter in `api` section."
+
+        assert (expected_message in normalized_output) is expect_issue
+
+    @pytest.mark.parametrize(
         ("remove_if_equals", "config_value", "expect_issue"),
         [
             pytest.param("removed_value", "removed_value", True, id="match"),

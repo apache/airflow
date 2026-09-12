@@ -453,35 +453,34 @@ contributors can appeal a decision by emailing the PMC at
 
 ## Agent-assisted contribution (apache-magpie)
 
-This repo adopts the [`apache/magpie`](https://github.com/apache/magpie)
-framework via a snapshot mechanism. The framework provides
+This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
+framework, installed from its plugin marketplace. The framework provides
 maintainer-facing PR-management skills (`pr-management-triage`,
 `pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
 that are exposed as agent skills in agent harnesses such as Claude Code.
 
-The framework is **not** vendored — it lives as a gitignored snapshot
-under `.apache-magpie/`, fetched on demand from the version pinned in
-the committed [`.apache-magpie.lock`](.apache-magpie.lock). The only
-framework artefact committed to this repo is the `magpie-setup` skill
-at [`.github/skills/magpie-setup/`](.github/skills/magpie-setup/);
-everything else is a gitignored symlink the setup skill wires up.
-
-A fresh clone needs the snapshot populated before any framework skill
-is invocable. In your agent harness, run:
+Nothing framework-related is committed to this repo, and a fresh clone
+needs no setup step — the plugin is installed per-user in your own agent
+harness. In Claude Code:
 
 ```text
-/magpie-setup
+/plugin marketplace add apache/magpie
+/plugin install magpie-pr-management@apache-magpie
 ```
 
-(or follow [`.claude/skills/magpie-setup/`](.claude/skills/magpie-setup/))
-to fetch the snapshot per the committed lock, scaffold the gitignored
-symlinks, and install the post-checkout hook that re-creates them on
-each worktree checkout.
+Install `magpie@apache-magpie` instead to get every skill family at once,
+or add further families (`magpie-security`, `magpie-release-management`,
+…) one at a time. Pin a release rather than tracking `main` by adding the
+marketplace from a tag: `/plugin marketplace add apache/magpie@0.2.0`.
+Other harnesses — Codex CLI, Gemini CLI, Copilot, Cursor — are covered in
+the framework's [marketplace
+guide](https://github.com/apache/magpie/blob/main/docs/setup/marketplaces.md).
 
-Adopter-specific modifications to framework workflows live in
+Airflow-specific modifications to framework workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
-never edit the snapshot directly. Framework changes go via PR to
-[`apache/magpie`](https://github.com/apache/magpie).
+the installed plugin reads them at run time, so they apply to every
+contributor without anyone editing the framework. Framework changes go via
+PR to [`apache/magpie`](https://github.com/apache/magpie).
 
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 

@@ -27,6 +27,8 @@ from airflow.models import Connection
 # Import Hook
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook, error_callback
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestConsumerHook:
     """
@@ -68,6 +70,7 @@ class TestConsumerHook:
         assert consumer == mock_consumer.return_value
         mock_consumer.return_value.subscribe.assert_called_once_with(["test_1"])
 
+    @conf_vars({("apache_kafka", "callback_allowlist"): "json.loads"})
     @patch("airflow.providers.apache.kafka.hooks.consume.Consumer")
     def test_user_error_cb_from_connection_resolved_and_not_overridden_by_default(
         self, mock_consumer, create_connection_without_db
