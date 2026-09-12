@@ -454,13 +454,11 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             )
             if task_instance is None:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    ti.dag_id,
-                    ti.task_id,
-                    ti.run_id,
-                    ti.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_instance
 
     async def get_task_state(self):
@@ -485,13 +483,12 @@ class KubernetesPodTrigger(BaseTrigger):
             try:
                 return task_states_response[self.task_instance.run_id][ti_key]
             except KeyError:
-                raise AirflowException(
-                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                    self.task_instance.dag_id,
-                    self.task_instance.task_id,
-                    self.task_instance.run_id,
-                    self.task_instance.map_index,
+                msg = (
+                    f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
+                    f"task_id: {self.task_instance.task_id}, run_id: {self.task_instance.run_id} "
+                    f"and map_index: {self.task_instance.map_index} is not found"
                 )
+                raise AirflowException(msg)
         else:
             task_instance = await sync_to_async(self.get_task_instance)()  # type: ignore[call-arg]
             return task_instance.state
