@@ -50,6 +50,11 @@ export const presetFiltersKey = (pageName: string) =>
 export const presetFiltersDefaultKey = (pageName: string) =>
   `${pageName.replaceAll("/", "-").slice(1)}-preset-filters-default`;
 
+export const TIME_SCHEDULE_VIEW_MODE_KEY = "time-schedule-view-mode";
+export const TIME_SCHEDULE_AGGREGATION_MODE_KEY = "time-schedule-aggregation-mode";
+export const TIME_SCHEDULE_DAG_RUN_LIMIT_KEY = "time-schedule-dag-run-limit";
+export const TIME_SCHEDULE_SCHEDULED_ONLY_KEY = "time-schedule-scheduled-only";
+
 // SearchBar advanced (substring) toggle, scoped per searchbar via a caller-provided id.
 export const advancedSearchKey = (id: string) => `advanced_search-${id}`;
 
