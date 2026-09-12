@@ -29,6 +29,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
     JobRunInfo,
+    validate_execute_complete_event,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
@@ -283,8 +284,9 @@ class DbtCloudRunJobOperator(BaseOperator):
                 )
             return self.run_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> int:
         """Execute when the trigger fires - returns immediately."""
+        event = validate_execute_complete_event(event)
         self.run_id = event["run_id"]
         if event["status"] == "cancelled":
             raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")

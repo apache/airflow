@@ -24,7 +24,12 @@ import pytest
 
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.sdk import TaskDeferred, timezone
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+    DbtCloudTriggerEventException,
+)
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobRunsOperator,
@@ -374,6 +379,26 @@ class TestDbtCloudRunJobOperator:
             account_id=operator.account_id,
             run_id=RUN_ID,
         )
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({"status": "ended", "run_id": RUN_ID, "message": "m"}, id="unknown-status"),
+        ],
+    )
+    def test_execute_complete_invalid_event_raises_instead_of_succeeding(self, event):
+        """Verify a missing or unrecognized trigger event fails loudly instead of succeeding."""
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            job_id=JOB_ID,
+            dag=self.dag,
+            deferrable=True,
+        )
+
+        with pytest.raises(DbtCloudTriggerEventException):
+            operator.execute_complete(context=self.mock_context, event=event)
 
     @patch(
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_by_name",
