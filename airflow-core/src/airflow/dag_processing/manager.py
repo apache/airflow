@@ -1793,7 +1793,7 @@ def process_parse_results(
         normalized_bundle = normalize_name_for_stats(bundle_name)
         stats.timing(
             "dag_processing.last_duration",
-            stat.last_duration,
+            timedelta(seconds=stat.last_duration),
             tags=prune_dict(
                 {"bundle_name": normalized_bundle, "file_name": file_name, "team_name": team_name}
             ),
