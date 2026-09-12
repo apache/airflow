@@ -27,6 +27,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import tenacity
+from aiohttp import ClientError
 from asgiref.sync import sync_to_async
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
@@ -407,10 +408,25 @@ class KubernetesPodTrigger(BaseTrigger):
             now = datetime.datetime.now(tz=datetime.timezone.utc)
             if time_get_more_logs and now >= time_get_more_logs:
                 if self.get_logs and self.logging_interval:
-                    self.last_log_time = await self.pod_manager.fetch_container_logs_before_current_sec(
-                        pod, container_name=self.base_container_name, since_time=self.last_log_time
-                    )
+                    # Advance before fetching so a failed read waits a full interval rather than
+                    # being retried on the next poll.
                     time_get_more_logs = now + datetime.timedelta(seconds=self.logging_interval)
+                    try:
+                        self.last_log_time = await self.pod_manager.fetch_container_logs_before_current_sec(
+                            pod,
+                            container_name=self.base_container_name,
+                            since_time=self.last_log_time,
+                        )
+                    except ClientError as e:
+                        # Letting this escape re-defers the task, which fails once MAX_REDEFER_ATTEMPTS
+                        # is used up.
+                        self.log.warning(
+                            "Could not read logs of pod %s/%s: %s. Retrying in %s seconds.",
+                            self.pod_namespace,
+                            self.pod_name,
+                            e,
+                            self.logging_interval,
+                        )
 
             self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
