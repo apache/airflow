@@ -107,6 +107,18 @@ def context(mock_ti):
     return {"task_instance": mock_ti}
 
 
+class TestToString:
+    """Serialization itself is covered by ``dump_output_to_json``'s own tests."""
+
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [("plain text", "plain text"), (["tag-a", "tag-b"], '["tag-a","tag-b"]'), (True, "true")],
+        ids=["str", "list", "bool"],
+    )
+    def test_delegates_to_dump_output_to_json(self, output, expected):
+        assert HITLReviewMixin._to_string(output) == expected
+
+
 class TestHITLReviewMixin:
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
     def test_pushes_session_and_output_on_start(
