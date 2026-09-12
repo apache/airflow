@@ -860,11 +860,11 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.20",
-    "3.11": "3.11.15",
-    "3.12": "3.12.13",
-    "3.13": "3.13.14",
-    "3.14": "3.14.3",
+    "3.10": "3.10.21",
+    "3.11": "3.11.16",
+    "3.12": "3.12.14",
+    "3.13": "3.13.15",
+    "3.14": "3.14.7",
 }
 
 # Number of slices for low dep tests
