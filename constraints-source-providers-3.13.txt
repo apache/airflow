@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-10T13:54:56.315185
+# This constraints file was automatically generated on 2026-09-12T16:13:34.189369
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -20,7 +20,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Session==0.8.0
 Flask-WTF==1.3.0
 Flask==3.1.3
-GitPython==3.1.61
+GitPython==3.1.62
 Incremental==24.11.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
@@ -143,7 +143,7 @@ cadwyn==7.0.0
 caio==0.12.2
 capi_param_builder_python==1.3.0
 cassandra-driver==3.30.1
-cattrs==26.1.0
+cattrs==26.2.0
 celery==5.6.3
 certifi==2026.7.22
 cffi==2.1.1
@@ -208,7 +208,7 @@ facebook_business==26.0.1
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.2.21
+fastcore==2.2.22
 fasteners==0.20
 fastjsonschema==2.22.2
 fastmcp-slim==4.0.3
@@ -389,7 +389,7 @@ langgraph-checkpoint==4.2.0
 langgraph-prebuilt==1.1.0
 langgraph-sdk==0.4.4
 langgraph==1.2.11
-langsmith==0.12.1
+langsmith==0.12.2
 lazy-object-proxy==1.12.0
 libcst==1.9.0
 librt==0.15.0
@@ -445,11 +445,11 @@ mypy==2.3.1
 mypy_extensions==1.1.0
 mysql-connector-python==26.7.0
 mysqlclient==2.2.8
-nab-index==0.0.16
-nab-markersets==0.0.16
-nab-project==0.0.16
-nab-provider==0.0.16
-nab-resolver==0.0.16
+nab-index==0.0.17
+nab-markersets==0.0.17
+nab-project==0.0.17
+nab-provider==0.0.17
+nab-resolver==0.0.17
 narwhals==2.25.0
 natsort==8.4.0
 nbclient==0.11.0
@@ -625,7 +625,7 @@ retryhttp==1.5.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.8.0
-rich-click==1.9.8
+rich-click==1.9.9
 rich-toolkit==0.20.4
 rich==15.0.0
 roman-numerals==4.1.0
@@ -725,7 +725,7 @@ typer==0.27.2
 types-Deprecated==1.3.1.20260728
 types-Markdown==3.10.2.20260712
 types-PyMySQL==1.2.0.20260807
-types-PyYAML==6.0.12.20260815
+types-PyYAML==6.0.12.20260906
 types-aiofiles==25.1.0.20260518
 types-cachetools==7.0.0.20260713
 types-certifi==2021.10.8.3
@@ -733,13 +733,13 @@ types-cffi==2.1.0.20260827
 types-croniter==6.2.4.20260711
 types-docutils==0.23.0.20260827
 types-paramiko==5.0.0.20260724
-types-protobuf==7.35.1.20260827
+types-protobuf==7.35.1.20260906
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20260807
 types-python-slugify==8.0.2.20240310
 types-pytz==2026.3.1.20260727
 types-redis==4.6.0.20241004
-types-requests==2.33.0.20260712
+types-requests==2.33.0.20260906
 types-setuptools==84.0.0.20260812
 types-tabulate==0.10.0.20260508
 types-toml==0.10.8.20260518

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-09-10T14:06:07.640209
+# This constraints file was automatically generated on 2026-09-12T16:20:01.976426
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -41,7 +41,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Session==0.8.0
 Flask-WTF==1.3.0
 Flask==3.1.3
-GitPython==3.1.61
+GitPython==3.1.62
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.4.1
@@ -65,7 +65,7 @@ adal==1.2.7
 adbc-driver-manager==1.12.0
 adlfs==2026.8.0
 aenum==3.1.17
-aiobotocore==3.9.0
+aiobotocore==3.9.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.7.1
 aiohttp-cors==0.8.1
@@ -73,12 +73,12 @@ aiohttp==3.14.3
 aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
-aiosmtplib==5.1.2
+aiosmtplib==5.1.3
 aiosqlite==0.22.1
 airbyte-api==1.0.1
 akeyless==5.0.28
 alembic==1.19.2
-alibabacloud-adb20211201==4.1.4
+alibabacloud-adb20211201==4.2.0
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.12
 alibabacloud-gateway-spi==0.0.4
@@ -245,13 +245,13 @@ bitarray==3.11.0
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
-boto3==1.43.56
-botocore==1.43.56
+boto3==1.43.75
+botocore==1.43.75
 cachelib==0.17.0
 cachetools==7.1.8
 cadwyn==7.0.0
 capi_param_builder_python==1.3.0
-cattrs==26.1.0
+cattrs==26.2.0
 celery==5.6.3
 certifi==2026.7.22
 cffi==2.1.1
@@ -302,7 +302,7 @@ facebook_business==26.0.1
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.2.21
+fastcore==2.2.22
 fasteners==0.20
 fastjsonschema==2.22.2
 fastuuid==0.14.0
@@ -488,7 +488,7 @@ multidict==6.7.1
 mypy_extensions==1.1.0
 mysql-connector-python==26.7.0
 mysqlclient==2.2.8
-narwhals==2.25.0
+narwhals==2.26.0
 natsort==8.4.0
 nbclient==0.11.0
 nbconvert==7.17.1
@@ -568,9 +568,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.40.0
+pydantic-ai-slim==2.41.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.40.0
+pydantic-graph==2.41.0
 pydantic-settings==2.15.0
 pydantic==2.13.5
 pydantic_core==2.46.5
@@ -581,7 +581,7 @@ pygtrie==2.6.1
 pyiceberg==0.12.0
 pykerberos==1.2.4
 pymongo==4.18.0
-pymssql==2.4.0
+pymssql==2.4.1
 pyodbc==5.3.0
 pyodps==0.13.1
 pyparsing==3.3.2
@@ -621,7 +621,7 @@ requests==2.34.2
 requests_ntlm==1.3.0
 retryhttp==1.5.0
 rich-argparse==1.8.0
-rich-toolkit==0.20.4
+rich-toolkit==0.20.5
 rich==15.0.0
 rpds-py==2026.6.3
 rsa==4.9.1
@@ -635,7 +635,7 @@ scramp==1.4.17
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
-sentry-sdk==2.68.1
+sentry-sdk==2.69.1
 setproctitle==1.3.7
 setuptools==84.0.0
 shellingham==1.5.4
@@ -712,10 +712,10 @@ wirerope==1.0.0
 wrapt==2.4.0
 xmltodict==1.0.4
 yandex-query-client==0.1.4
-yandexcloud==0.405.0
+yandexcloud==0.406.0
 yarl==1.24.5
 ydb-dbapi==0.1.23
-ydb==3.31.4
+ydb==3.31.5
 zeep==4.3.3
 zenpy==2.0.57
 zipp==4.1.0
