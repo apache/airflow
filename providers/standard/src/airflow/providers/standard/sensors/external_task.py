@@ -21,6 +21,7 @@ import os
 import typing
 import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
+from http import HTTPStatus
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -168,9 +170,13 @@ class ExternalTaskSensor(BaseSensorOperator):
         Either execution_delta or execution_date_fn can be passed to ExternalTaskSensor,
         but not both.
     :param check_existence: Set to `True` to check if the external task exists (when
-        external_task_id is not None) or check if the DAG to wait for exists (when
+        external_task_id is not None) or check if the Dag to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task
-        or DAG does not exist (default value: False).
+        or Dag does not exist (default value: False).
+        On Airflow 3 a worker has no database access, so only the existence of the
+        external Dag is checked through the execution API. Task and task group
+        existence is not checked, and nothing is checked before Airflow 3.2, whose
+        execution API is the first to be able to look up a Dag.
     :param poke_interval: polling period in seconds to check for the status
     :param poll_interval: (DEPRECATED) use ``poke_interval`` instead
     :param deferrable: Run sensor in deferrable mode
@@ -351,8 +357,10 @@ class ExternalTaskSensor(BaseSensorOperator):
     def _poke_af3(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
 
-        self._has_checked_existence = True
         ti = context["ti"]
+
+        if self.check_existence and not self._has_checked_existence:
+            self._check_for_existence_af3(ti)
 
         def _get_count(states: list[str]) -> int:
             if self.external_task_ids:
@@ -474,6 +482,9 @@ class ExternalTaskSensor(BaseSensorOperator):
 
             dttm_filter = self._get_dttm_filter(context)
             if AIRFLOW_V_3_0_PLUS:
+                if self.check_existence and not self._has_checked_existence:
+                    self._check_for_existence_af3(context["ti"])
+
                 self.defer(
                     timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
                     trigger=WorkflowTrigger(
@@ -540,6 +551,46 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "Error occurred while trying to retrieve task status. Please, check the "
                 "name of executed task and Dag."
             )
+
+    def _check_for_existence_af3(self, ti: RuntimeTaskInstanceProtocol) -> None:
+        """
+        Check that the external Dag exists through the execution API.
+
+        A worker has no database access on Airflow 3, so unlike `_check_for_existence` this
+        can only check what the execution API exposes, which is whether the Dag is
+        registered. Task and task group existence cannot be checked.
+
+        :param ti: the task instance running this sensor, used to reach the execution API
+        """
+        if not AIRFLOW_V_3_2_PLUS:
+            self.log.warning(
+                "External Dag existence cannot be checked on this Airflow version",
+                dag_id=self.external_dag_id,
+                required_airflow_version="3.2",
+            )
+            self._has_checked_existence = True
+            return
+
+        from airflow.sdk.exceptions import AirflowRuntimeError
+
+        try:
+            ti.get_dag(self.external_dag_id)
+        except AirflowRuntimeError as e:
+            if (e.error.detail or {}).get("status_code") == HTTPStatus.NOT_FOUND:
+                raise ExternalDagNotFoundError(
+                    f"The external Dag {self.external_dag_id} does not exist."
+                ) from None
+            raise
+
+        # Task and task-group checks need Dag-version-aware API support;
+        # tracked at https://github.com/apache/airflow/issues/72514
+        if self.external_task_ids or self.external_task_group_id:
+            self.log.warning(
+                "Task and task group existence cannot be checked on Airflow 3",
+                dag_id=self.external_dag_id,
+            )
+
+        self._has_checked_existence = True
 
     def _check_for_existence(self, session: Session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session=session)
