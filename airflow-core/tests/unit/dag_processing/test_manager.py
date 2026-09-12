@@ -39,6 +39,7 @@ from unittest.mock import MagicMock
 
 import msgspec
 import pytest
+import structlog
 import time_machine
 from sqlalchemy import event, func, select
 from sqlalchemy.exc import OperationalError
@@ -46,7 +47,7 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
@@ -56,7 +57,12 @@ from airflow.dag_processing.manager import (
     DagFileProcessorManager,
     DagFileStat,
 )
-from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
+    DagFileProcessorProcess,
+    _parse_file,
+)
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
@@ -275,6 +281,24 @@ IMPORT_ERROR_PER_CALL = 5
 SWEEP_FILES = 4
 # Calls the manager takes for that sweep: one per file today, 1 if a sweep is ever batched.
 SWEEP_CALLS = 4
+
+
+class LateResolvingBundle(BaseDagBundle):
+    supports_versioning = True
+
+    def __init__(self, *, resolved_path: Path, **kwargs):
+        super().__init__(**kwargs)
+        self._resolved_path = resolved_path
+
+    @property
+    def path(self) -> Path:
+        return self._resolved_path if self.is_initialized else Path("/dev/null")
+
+    def get_current_version(self) -> BundleVersion:
+        return BundleVersion(version="some_commit_hash")
+
+    def refresh(self) -> None:
+        pass
 
 
 class TestDagFileProcessorManager:
@@ -2331,6 +2355,140 @@ class TestDagFileProcessorManager:
                     "other-bundle-b",
                 }
 
+    @mock.patch.object(LateResolvingBundle, "initialize", autospec=True)
+    def test_callback_executes_after_bundle_initialization_recovers(self, mock_initialize, tmp_path):
+        dag_file = tmp_path / "callback_recovery.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                from pathlib import Path
+                from airflow.sdk import DAG
+
+                def on_success(context):
+                    Path(__file__).with_suffix(".callback").write_text(context["run_id"])
+
+                dag = DAG("callback_recovery", schedule=None, on_success_callback=on_success)
+                """
+            )
+        )
+        bundle = LateResolvingBundle(name="testing", resolved_path=tmp_path)
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [bundle]
+        request = DagCallbackRequest(
+            dag_id="callback_recovery",
+            run_id="run1",
+            filepath=dag_file.name,
+            bundle_name=bundle.name,
+            bundle_version=None,
+            is_failure_callback=False,
+        )
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle.name))
+            session.add(DbCallbackRequest(callback=request, priority_weight=1))
+
+        mock_initialize.side_effect = RuntimeError("Bundle unavailable")
+        known_files: dict[str, set[DagFileInfo]] = {}
+        manager._refresh_dag_bundles(known_files)
+        for _ in range(3):
+            assert manager.fetch_callbacks() == []
+        mock_initialize.assert_called_once_with(bundle)
+        assert not manager._force_refresh_bundles
+        with create_session() as session:
+            [pending] = session.scalars(select(DbCallbackRequest)).all()
+            assert pending.get_callback_request() == request
+
+        mock_initialize.side_effect = BaseDagBundle.initialize
+        manager._bundles_last_refreshed = 0
+        manager._refresh_dag_bundles(known_files)
+        assert bundle.is_initialized
+        claimed = manager.fetch_callbacks()
+        assert claimed == [request]
+        for callback in claimed:
+            manager._add_callback_to_queue(callback)
+
+        [(file_info, callbacks)] = manager._callback_to_execute.items()
+        _parse_file(
+            DagFileParseRequest(
+                file=str(file_info.absolute_path),
+                bundle_path=file_info.bundle_path,
+                bundle_name=file_info.bundle_name,
+                callback_requests=callbacks,
+            ),
+            log=structlog.get_logger(),
+        )
+        assert dag_file.with_suffix(".callback").read_text() == request.run_id
+        assert manager.fetch_callbacks() == []
+        with create_session() as session:
+            assert session.scalars(select(DbCallbackRequest)).all() == []
+
+    @pytest.mark.parametrize("bundle_version", ["", "v1"])
+    def test_fetch_pinned_callbacks_waits_for_bundle_initialization(self, tmp_path, bundle_version):
+        bundle = LateResolvingBundle(name="testing", resolved_path=tmp_path)
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [bundle]
+        request = DagCallbackRequest(
+            dag_id="dag1",
+            run_id="run1",
+            filepath="dag.py",
+            bundle_name=bundle.name,
+            bundle_version=bundle_version,
+        )
+        with create_session() as session:
+            session.add(DbCallbackRequest(callback=request, priority_weight=1))
+
+        assert manager.fetch_callbacks() == []
+        with create_session() as session:
+            [pending] = session.scalars(select(DbCallbackRequest)).all()
+            assert pending.get_callback_request() == request
+
+        bundle.initialize()
+        assert manager.fetch_callbacks() == [request]
+        with create_session() as session:
+            assert session.scalars(select(DbCallbackRequest)).all() == []
+
+    @pytest.mark.parametrize("supports_versioning", [False, True])
+    @conf_vars({("dag_processor", "max_callbacks_per_loop"): "1"})
+    def test_fetch_callbacks_filters_uninitialized_bundles_before_limit(
+        self, tmp_path, supports_versioning, caplog
+    ):
+        unavailable = LateResolvingBundle(name="unavailable", resolved_path=tmp_path)
+        ready = MagicMock(spec=BaseDagBundle)
+        ready.name = "ready"
+        ready.supports_versioning = supports_versioning
+        ready.is_initialized = supports_versioning
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [unavailable, ready]
+        requests = [
+            DagCallbackRequest(
+                dag_id="dag1",
+                run_id="run1",
+                filepath="dag.py",
+                bundle_name=bundle.name,
+                bundle_version=None,
+            )
+            for bundle in (unavailable, ready)
+        ]
+        with create_session() as session:
+            session.add(DbCallbackRequest(callback=requests[0], priority_weight=100))
+            session.add(DbCallbackRequest(callback=requests[1], priority_weight=1))
+
+        with caplog.at_level(logging.DEBUG):
+            assert manager.fetch_callbacks() == [requests[1]]
+        diagnostic = "Skipping callback fetch for uninitialized bundles: ['unavailable']"
+        assert {"event": diagnostic, "log_level": "debug"} in caplog
+        with create_session() as session:
+            [pending] = session.scalars(select(DbCallbackRequest)).all()
+            assert pending.get_callback_request() == requests[0]
+
+        unavailable.initialize()
+        caplog.clear()
+        with caplog.at_level(logging.DEBUG):
+            assert manager.fetch_callbacks() == [requests[0]]
+        assert not any(
+            entry["event"].startswith("Skipping callback fetch for uninitialized bundles:")
+            for entry in caplog.entries
+        )
+
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
         mock_logger = MagicMock()
@@ -2486,12 +2644,23 @@ class TestDagFileProcessorManager:
             name="testing", version="some_commit_hash", version_data=version_data
         )
 
-    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
-    def test_prepare_callback_bundle_skips_initialize_for_unversioned_request(self, mock_bundle_manager):
+    @pytest.mark.parametrize(
+        ("supports_versioning", "is_initialized"),
+        [
+            pytest.param(True, True, id="versioned-and-initialized"),
+            pytest.param(False, False, id="non-versioning"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_prepare_callback_bundle_reuses_loaded_bundle_for_unversioned_request(
+        self, mock_bundle_manager, supports_versioning, is_initialized
+    ):
         manager = DagFileProcessorManager(max_runs=1)
-        bundle = MagicMock(spec=BaseDagBundle)
-        bundle.supports_versioning = True
-        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+        loaded = MagicMock(spec=BaseDagBundle)
+        loaded.name = "testing"
+        loaded.supports_versioning = supports_versioning
+        loaded.is_initialized = is_initialized
+        manager._dag_bundles = [loaded]
 
         request = DagCallbackRequest(
             filepath="file1.py",
@@ -2503,8 +2672,95 @@ class TestDagFileProcessorManager:
             msg=None,
         )
 
+        assert manager.prepare_callback_bundle(request) is loaded
+        loaded.initialize.assert_not_called()
+        mock_bundle_manager.return_value.get_bundle.assert_not_called()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_prepare_callback_bundle_does_not_retry_uninitialized_bundle(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        loaded = MagicMock(spec=BaseDagBundle)
+        loaded.name = "testing"
+        loaded.supports_versioning = True
+        loaded.is_initialized = False
+        manager._dag_bundles = [loaded]
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
+            msg=None,
+        )
+
+        for _ in range(3):
+            assert manager.prepare_callback_bundle(request) is None
+        loaded.initialize.assert_not_called()
+        mock_bundle_manager.return_value.get_bundle.assert_not_called()
+        assert not manager._force_refresh_bundles
+
+    @pytest.mark.parametrize(
+        "loaded_bundle_names",
+        [
+            pytest.param([], id="no-bundle-loaded"),
+            pytest.param(["other"], id="other-bundle-loaded"),
+        ],
+    )
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_prepare_callback_bundle_skips_unversioned_request_for_unparsed_bundle(
+        self, mock_bundle_manager, loaded_bundle_names
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        for name in loaded_bundle_names:
+            loaded = MagicMock(spec=BaseDagBundle)
+            loaded.name = name
+            loaded.supports_versioning = True
+            loaded.is_initialized = True
+            manager._dag_bundles.append(loaded)
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
+            msg=None,
+        )
+
+        assert manager.prepare_callback_bundle(request) is None
+        mock_bundle_manager.return_value.get_bundle.assert_not_called()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_prepare_callback_bundle_keeps_empty_string_version_pinned(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        loaded = MagicMock(spec=BaseDagBundle)
+        loaded.name = "testing"
+        loaded.supports_versioning = True
+        loaded.is_initialized = True
+        manager._dag_bundles = [loaded]
+
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="",
+            msg=None,
+        )
+
         assert manager.prepare_callback_bundle(request) is bundle
-        bundle.initialize.assert_not_called()
+        mock_bundle_manager.return_value.get_bundle.assert_called_once_with(
+            name="testing", version="", version_data=None
+        )
+        bundle.initialize.assert_called_once()
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_prepare_callback_bundle_skips_initialize_for_non_versioning_bundle(self, mock_bundle_manager):
@@ -2613,6 +2869,38 @@ class TestDagFileProcessorManager:
 
         bundle.initialize.assert_called_once()
         assert not manager._callback_to_execute
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_add_callback_reuses_loaded_bundle_path_for_unversioned_request(
+        self, mock_bundle_manager, tmp_path
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = LateResolvingBundle(name="testing", resolved_path=tmp_path)
+        bundle.initialize()
+        manager._dag_bundles = [bundle]
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        mock_bundle_manager.return_value.get_bundle.assert_not_called()
+        [(file_info, _)] = manager._callback_to_execute.items()
+        assert file_info.bundle_path == tmp_path
+        assert file_info in manager._file_queue
+
+    def test_render_log_filename_for_file_whose_bundle_is_not_loaded(self, tmp_path):
+        manager = DagFileProcessorManager(max_runs=1, base_log_dir=str(tmp_path))
+        dag_file = DagFileInfo(rel_path=Path("file1.py"), bundle_name="testing", bundle_path=tmp_path)
+
+        assert manager._render_log_filename(dag_file).endswith("/testing/file1.py.log")
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_add_callback_skips_when_bundle_unconfigured(self, mock_bundle_manager):
