@@ -42,6 +42,10 @@ log = logging.getLogger(__name__)
 alphanum_lower = string.ascii_lowercase + string.digits
 
 POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value minus 1.
+# Kubernetes Secret names follow the generic DNS subdomain naming convention (RFC 1123), which
+# allows up to 253 characters -- unlike pod names, they aren't also constrained by the shorter
+# Linux hostname limit.
+SECRET_NAME_MAX_LENGTH = 253
 
 
 class PodLaunchFailedException(AirflowException):

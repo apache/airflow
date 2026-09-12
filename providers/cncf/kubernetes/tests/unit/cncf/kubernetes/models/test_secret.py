@@ -23,7 +23,7 @@ from kubernetes.client import ApiClient, models as k8s
 
 from airflow.providers.cncf.kubernetes.k8s_model import append_to_pod
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.secret import KubernetesConnectionSecret, Secret
 
 
 class TestSecret:
@@ -123,3 +123,37 @@ class TestSecret:
                 ],
             },
         }
+
+
+class TestKubernetesConnectionSecret:
+    def test_init_defaults(self):
+        connection_secret = KubernetesConnectionSecret("env", "MY_CONN", "my_conn_id")
+        assert connection_secret.deploy_type == "env"
+        assert connection_secret.deploy_target == "MY_CONN"
+        assert connection_secret.conn_id == "my_conn_id"
+        assert connection_secret.key == "conn_uri"
+        assert connection_secret.secret is None
+
+    def test_init_custom_key(self):
+        connection_secret = KubernetesConnectionSecret("volume", "/etc/creds", "my_conn_id", key="my_uri_key")
+        assert connection_secret.key == "my_uri_key"
+
+    def test_repr(self):
+        connection_secret = KubernetesConnectionSecret("env", "MY_CONN", "my_conn_id")
+        assert repr(connection_secret) == "KubernetesConnectionSecret(env, MY_CONN, my_conn_id, conn_uri)"
+
+    def test_attach_to_pod_once_secret_is_materialized(self, data_file):
+        template_file = data_file("pods/generator_base.yaml").as_posix()
+        pod = PodGenerator(pod_template_file=template_file).ud_pod
+        connection_secret = KubernetesConnectionSecret("env", "TARGET", "my_conn_id", key="source_b")
+        # Simulates what KubernetesPodOperator does once the backing k8s Secret is created.
+        connection_secret.secret = "generated-secret-name"
+
+        pod = connection_secret.attach_to_pod(pod)
+
+        k8s_client = ApiClient()
+        result = k8s_client.sanitize_for_serialization(pod)
+        assert {
+            "name": "TARGET",
+            "valueFrom": {"secretKeyRef": {"key": "source_b", "name": "generated-secret-name"}},
+        } in result["spec"]["containers"][0]["env"]
