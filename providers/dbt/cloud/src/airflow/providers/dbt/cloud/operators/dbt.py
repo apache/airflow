@@ -209,6 +209,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             DbtCloudJobRunStatus.CANCELLED.value,
             DbtCloudJobRunStatus.ERROR.value,
         ):
+            self.hook.log_job_run_failure_details(run_id=self.run_id, account_id=self.account_id)
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
 
         return None
@@ -287,8 +288,10 @@ class DbtCloudRunJobOperator(BaseOperator):
         """Execute when the trigger fires - returns immediately."""
         self.run_id = event["run_id"]
         if event["status"] == "cancelled":
+            self.hook.log_job_run_failure_details(run_id=int(self.run_id), account_id=self.account_id)
             raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
         if event["status"] == "error":
+            self.hook.log_job_run_failure_details(run_id=int(self.run_id), account_id=self.account_id)
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
 
         # Enforce execution_timeout semantics in deferrable mode by cancelling the job.
