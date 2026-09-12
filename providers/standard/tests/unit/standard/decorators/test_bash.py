@@ -503,6 +503,9 @@ class TestBashDecorator:
             "uri": "s3://bucket/out",
         }
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="@task.bash only resolves to the provider's BashOperator on 3.0+"
+    )
     def test_xcom_dir_pushes_one_xcom_per_file(self, session):
         """Files written into $AIRFLOW_XCOM_DIR each become their own XCom."""
         with self.dag_maker:
@@ -522,6 +525,9 @@ class TestBashDecorator:
         assert ti.xcom_pull(task_ids=ti.task_id, key="message", session=session) == 'a b "c"'
         assert ti.xcom_pull(task_ids=ti.task_id, key="summary", session=session) == {"rows": 42}
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="@task.bash only resolves to the provider's BashOperator on 3.0+"
+    )
     def test_xcom_dir_pushes_when_the_command_fails(self, session):
         """A failing @task.bash still hands its XCom directory entries to downstream tasks."""
         with self.dag_maker:
