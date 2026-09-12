@@ -66,9 +66,11 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
 )
 
 try:
-    from airflow.sdk import TriggerRule
+    from airflow.sdk import TriggerRule, task
+
 except ImportError:
     # Compatibility for Airflow < 3.1
+    from airflow.decorators import task  # type: ignore[no-redef,attr-defined]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -88,27 +90,30 @@ GCP_DESCRIPTION = "description"
 GCP_TRANSFER_JOB_NAME = f"transferJobs/sampleJob-{DAG_ID}-{ENV_ID}".replace("-", "_")
 GCP_TRANSFER_JOB_2_NAME = f"transferJobs/sampleJob2-{DAG_ID}-{ENV_ID}".replace("-", "_")
 
-# [START howto_operator_gcp_transfer_create_job_body_aws]
-aws_to_gcs_transfer_body = {
-    DESCRIPTION: GCP_DESCRIPTION,
-    STATUS: GcpTransferJobsStatus.ENABLED,
-    PROJECT_ID: GCP_PROJECT_ID,
-    JOB_NAME: GCP_TRANSFER_JOB_NAME,
-    SCHEDULE: {
-        SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
-        SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.now(tz=timezone.utc) + timedelta(minutes=1)).time(),
-    },
-    TRANSFER_SPEC: {
-        AWS_S3_DATA_SOURCE: {BUCKET_NAME: BUCKET_SOURCE_AWS},
-        GCS_DATA_SINK: {BUCKET_NAME: BUCKET_TARGET_GCS},
-        TRANSFER_OPTIONS: {ALREADY_EXISTING_IN_SINK: True},
-    },
-}
-# [END howto_operator_gcp_transfer_create_job_body_aws]
 
-aws_to_gcs_transfer_body_2 = deepcopy(aws_to_gcs_transfer_body)
-aws_to_gcs_transfer_body_2[JOB_NAME] = GCP_TRANSFER_JOB_2_NAME
+# [START howto_operator_gcp_transfer_create_job_body_aws]
+def generate_base_transfer_body() -> dict:
+    """Helper function to generate a standard payload template dynamically at execution time."""
+    now = datetime.now(tz=timezone.utc) + timedelta(minutes=1)
+
+    return {
+        DESCRIPTION: GCP_DESCRIPTION,
+        STATUS: GcpTransferJobsStatus.ENABLED,
+        PROJECT_ID: GCP_PROJECT_ID,
+        SCHEDULE: {
+            SCHEDULE_START_DATE: {"year": 2015, "month": 1, "day": 1},
+            SCHEDULE_END_DATE: {"year": 2030, "month": 1, "day": 1},
+            START_TIME_OF_DAY: {"hours": now.hour, "minutes": now.minute, "seconds": now.second, "nanos": 0},
+        },
+        TRANSFER_SPEC: {
+            AWS_S3_DATA_SOURCE: {BUCKET_NAME: BUCKET_SOURCE_AWS},
+            GCS_DATA_SINK: {BUCKET_NAME: BUCKET_TARGET_GCS},
+            TRANSFER_OPTIONS: {ALREADY_EXISTING_IN_SINK: True},
+        },
+    }
+
+
+# [END howto_operator_gcp_transfer_create_job_body_aws]
 
 # [START howto_operator_gcp_transfer_update_job_body_aws]
 update_body = {
@@ -132,6 +137,18 @@ with DAG(
     catchup=False,
     tags=["example", "aws", "gcs", "transfer"],
 ) as dag:
+
+    @task
+    def prepare_transfer_payloads():
+        base_transfer_body = generate_base_transfer_body()
+        transfer_body_1 = deepcopy(base_transfer_body)
+        transfer_body_1[JOB_NAME] = GCP_TRANSFER_JOB_NAME
+        transfer_body_2 = deepcopy(base_transfer_body)
+        transfer_body_2[JOB_NAME] = GCP_TRANSFER_JOB_2_NAME
+        return {"body_1": transfer_body_1, "body_2": transfer_body_2}
+
+    transfer_payloads = prepare_transfer_payloads()
+
     create_bucket_s3 = S3CreateBucketOperator(
         task_id="create_bucket_s3", bucket_name=BUCKET_SOURCE_AWS, region_name="us-east-1"
     )
@@ -153,7 +170,8 @@ with DAG(
 
     # [START howto_operator_gcp_transfer_create_job]
     create_transfer_job_s3_to_gcs = CloudDataTransferServiceCreateJobOperator(
-        task_id="create_transfer_job_s3_to_gcs", body=aws_to_gcs_transfer_body
+        task_id="create_transfer_job_s3_to_gcs",
+        body=transfer_payloads["body_1"],
     )
     # [END howto_operator_gcp_transfer_create_job]
 
@@ -214,7 +232,8 @@ with DAG(
     # [END howto_operator_gcp_transfer_update_job]
 
     create_second_transfer_job_from_aws = CloudDataTransferServiceCreateJobOperator(
-        task_id="create_transfer_job_s3_to_gcs_2", body=aws_to_gcs_transfer_body_2
+        task_id="create_transfer_job_s3_to_gcs_2",
+        body=transfer_payloads["body_2"],
     )
 
     wait_for_operation_to_start_2 = CloudDataTransferServiceJobStatusSensor(
@@ -265,6 +284,7 @@ with DAG(
     (
         # TEST SETUP
         [create_bucket_s3 >> upload_file_to_s3, create_bucket_gcs]
+        >> transfer_payloads
         # TEST BODY
         >> create_transfer_job_s3_to_gcs
         >> wait_for_operation_to_start

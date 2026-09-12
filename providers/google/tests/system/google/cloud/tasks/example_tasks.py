@@ -23,7 +23,7 @@ runs and deletes Tasks in the Google Cloud Tasks service in the Google Cloud.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
@@ -58,7 +58,10 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "cloud_tasks_tasks"
 
 timestamp = timestamp_pb2.Timestamp()
-timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
+future_date = datetime.now(tz=timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(
+    days=25
+)
+timestamp.FromDatetime(future_date)
 
 LOCATION = "us-central1"
 # queue cannot use recent names even if queue was removed
