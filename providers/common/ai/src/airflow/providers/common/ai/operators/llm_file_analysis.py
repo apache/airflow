@@ -117,6 +117,12 @@ class LLMFileAnalysisOperator(LLMOperator):
         self.sample_rows = sample_rows
 
     def execute(self, context: Context) -> Any:
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__} requires a string prompt (got {type(self.prompt).__name__}). "
+                "Supply images or PDFs via file_path with multi_modal=True instead."
+            )
+
         request = build_file_analysis_request(
             file_path=self.file_path,
             file_conn_id=self.file_conn_id,

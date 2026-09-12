@@ -346,3 +346,26 @@ class TestLLMFileAnalysisOperatorApproval:
             op.execute(context=_make_context())
 
         assert exc_info.value.timeout == timeout
+
+
+class TestLLMFileAnalysisOperatorPromptTypeGuard:
+    @pytest.mark.parametrize("require_approval", [True, False])
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_rejects_non_string_prompt_before_reading_files(
+        self, mock_build_request, require_approval
+    ):
+        op = LLMFileAnalysisOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            file_path="/tmp/app.log",
+            require_approval=require_approval,
+        )
+        op.prompt = ["x", object()]  # simulate a native-templating render to a Sequence
+
+        with pytest.raises(TypeError, match="requires a string prompt"):
+            op.execute(context=_make_context())
+
+        mock_build_request.assert_not_called()
