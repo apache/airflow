@@ -200,6 +200,12 @@ function restore_debian_base_files() {
     # only ships the master account files - update-passwd is what merges them into /etc.
     # libpam-runtime generates the /etc/pam.d/common-* files that the PAM configs already in the
     # image "@include" - without them "adduser --gecos" aborts with a PAM error from chfn.
+    # Debian Policy lets a maintainer script rely on any essential package without declaring it, and
+    # libgcrypt20 takes that up: its postinst runs a helper with a "#!/bin/dash" shebang. The hardened
+    # images ship /bin/sh as a symlink to bash and no dash at all, so configuring the package aborts
+    # with exit 127 and takes the whole apt transaction with it. Installing it first restores the
+    # assumption, and hands /bin/sh back to dash the way a stock Debian has it.
+    apt-get install -y --no-install-recommends dash
     apt-get install -y --no-install-recommends base-passwd libpam-runtime
     update-passwd
     if [[ ! -e /etc/shells ]]; then
