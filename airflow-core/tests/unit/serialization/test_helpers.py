@@ -23,6 +23,7 @@ import pytest
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.helpers import serialize_template_field
+from airflow.utils.file import get_unique_dag_module_name
 
 
 def test_serialize_template_field_with_very_small_max_length(monkeypatch):
@@ -295,6 +296,28 @@ def test_serialize_template_field_plain_object_has_no_memory_address():
     assert isinstance(result, str)
     assert "at 0x" not in result
     assert "Opaque" in result
+
+
+def _clean_rows(rows):
+    return rows
+
+
+class _LoadSettings:
+    pass
+
+
+@pytest.mark.parametrize(
+    "dag_file", ["/opt/airflow/releases/41/dags/etl.py", "/opt/airflow/releases/42/dags/etl.py"]
+)
+def test_serialize_template_field_markers_leave_out_dag_file_module(monkeypatch, dag_file):
+    """Markers for callables and objects defined in a Dag file must not depend on the file path."""
+    module_name = get_unique_dag_module_name(dag_file)
+    monkeypatch.setattr(_clean_rows, "__module__", module_name)
+    monkeypatch.setattr(_LoadSettings, "__module__", module_name)
+
+    result = serialize_template_field({"transform": _clean_rows, "settings": _LoadSettings()}, "op_kwargs")
+
+    assert result == {"settings": "<_LoadSettings object>", "transform": "<callable _clean_rows>"}
 
 
 def test_serialize_template_field_plain_object_repr_preserved_when_custom():
