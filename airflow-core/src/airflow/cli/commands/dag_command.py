@@ -850,7 +850,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
     if show_dagrun or imgcat or filename:
         tis = session.scalars(
             select(TaskInstance).where(
-                TaskInstance.dag_id == args.dag_id,
+                TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == dr.run_id,
             )
         ).all()
