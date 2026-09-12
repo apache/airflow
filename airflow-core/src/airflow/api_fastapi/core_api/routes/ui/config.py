@@ -27,7 +27,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
 from airflow.configuration import conf
-from airflow.settings import DASHBOARD_UIALERTS
+from airflow.settings import DASHBOARD_UIALERTS, get_sensitive_variable_fields
 from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
@@ -62,6 +62,13 @@ def get_configs() -> ConfigResponse:
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
         "theme": loads(conf.get("api", "theme", fallback="{}")) or None,
         "multi_team": conf.getboolean("core", "multi_team"),
+        # Field *names* only, never values — lets the UI mask connection extra fields and Dag params
+        # whose key is sensitive, matching what the secrets masker hides server-side.
+        "sensitive_field_names": (
+            sorted(get_sensitive_variable_fields())
+            if conf.getboolean("core", "hide_sensitive_var_conn_fields")
+            else []
+        ),
         # Return None when the option isn't explicitly set so the UI hook can apply
         # its own fallback (False for clear/rerun, True for backfills).
         "rerun_with_latest_version": (
