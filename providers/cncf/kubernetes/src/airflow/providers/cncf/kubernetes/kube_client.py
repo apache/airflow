@@ -70,13 +70,16 @@ try:
             configuration: client.Configuration | None = None,
             *,
             disable_verify_ssl: bool = False,
+            ssl_ca_cert: str | None = None,
         ) -> None:
-            if disable_verify_ssl:
+            if disable_verify_ssl or ssl_ca_cert:
                 if configuration is None:
                     configuration = client.Configuration.get_default_copy()
-                configuration.verify_ssl = False
+                if disable_verify_ssl:
+                    configuration.verify_ssl = False
+                if ssl_ca_cert:
+                    configuration.ssl_ca_cert = ssl_ca_cert
             super().__init__(configuration=configuration)
-
         def call_api(self, *args: Any, **kwargs: Any) -> Any:
             timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
             # Use setdefault's intent but handle explicit None: generated kubernetes client methods always
