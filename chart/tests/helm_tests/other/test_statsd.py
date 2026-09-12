@@ -355,6 +355,29 @@ class TestStatsd:
             jmespath.search("spec.template.metadata.annotations", docs[0])["test_pod_annotation"]
             == "test_pod_annotation_value"
         )
+        assert "checksum/statsd-config" in jmespath.search("spec.template.metadata.annotations", docs[0])
+
+    @pytest.mark.parametrize(
+        "statsd_values",
+        [
+            pytest.param(
+                {"overrideMappings": [{"match": "foo.*", "name": "foo", "match_type": "regex"}]},
+                id="overrideMappings",
+            ),
+            pytest.param({"cache": {"ttl": "10m"}}, id="cache-ttl"),
+        ],
+    )
+    def test_configmap_checksum_should_change_with_configmap_data(self, statsd_values):
+        def get_checksum(values):
+            docs = render_chart(
+                values={"statsd": {"enabled": True, **values}},
+                show_only=["templates/statsd/statsd-deployment.yaml"],
+            )
+            annotations = jmespath.search("spec.template.metadata.annotations", docs[0]) or {}
+            assert "checksum/statsd-config" in annotations
+            return annotations["checksum/statsd-config"]
+
+        assert get_checksum(statsd_values) != get_checksum({})
 
     def test_should_add_custom_env_variables(self):
         env1 = {"name": "TEST_ENV_1", "value": "test_env_1"}
