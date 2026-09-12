@@ -234,7 +234,7 @@ def expected_secondary_component_response(asset2_id):
 class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component")
     def test_should_response_200(self, test_client, expected_primary_component_response):
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             response = test_client.get("/dependencies")
         assert response.status_code == 200
 
@@ -270,7 +270,7 @@ class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter(self, test_client, node_id, expected_response_fixture, request):
         expected_response = request.getfixturevalue(expected_response_fixture)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             response = test_client.get("/dependencies", params={"node_id": node_id})
         assert response.status_code == 200
 
@@ -288,7 +288,7 @@ class TestGetDependencies:
             (asset1_id, expected_primary_component_response),
             (asset2_id, expected_secondary_component_response),
         ):
-            with assert_queries_count(8):
+            with assert_queries_count(9):
                 response = test_client.get("/dependencies", params={"node_id": f"asset:{asset_id}"})
             assert response.status_code == 200
 
@@ -501,6 +501,145 @@ class TestGetDependencies:
             params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"},
         )
         assert response.status_code == 404
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+        return_value=set(),
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_scheduling_dependencies_hides_assets_the_caller_may_not_read(self, _, test_client, asset1_id):
+        """Reading the Dags around an asset must not expose the asset itself, nor its edges."""
+        response = test_client.get("/dependencies")
+
+        assert response.status_code == 200
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert f"asset:{asset1_id}" not in node_ids
+        assert {"dag:upstream", "dag:downstream"} <= node_ids
+        edge_endpoints = {edge["source_id"] for edge in result["edges"]} | {
+            edge["target_id"] for edge in result["edges"]
+        }
+        assert f"asset:{asset1_id}" not in edge_endpoints
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_scheduling_dependencies_hides_unreadable_gate_leaf(
+        self, mock_get_authorized_assets, dag_maker, test_client, session
+    ):
+        asset_a = Asset(uri="s3://gate-bucket/a", name="gate_asset_a")
+        asset_b = Asset(uri="s3://gate-bucket/b", name="gate_asset_b")
+        with dag_maker(
+            dag_id="gate_downstream", schedule=(asset_a & asset_b), serialized=True, session=session
+        ):
+            EmptyOperator(task_id="consume")
+        dag_maker.sync_dagbag_to_db()
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_a"))
+        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_b"))
+        mock_get_authorized_assets.return_value = {asset_a_id}
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:gate_downstream"})
+
+        assert response.status_code == 200
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert f"asset:{asset_a_id}" in node_ids
+        assert f"asset:{asset_b_id}" not in node_ids
+        assert "gate_asset_b" not in {node["label"] for node in result["nodes"]}
+        gate_node = next(node for node in result["nodes"] if node["type"] == "asset-condition")
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert (f"asset:{asset_a_id}", gate_node["id"]) in edge_tuples
+        assert (f"asset:{asset_b_id}", gate_node["id"]) not in edge_tuples
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+        return_value=set(),
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_scheduling_dependencies_with_unreadable_asset_node_id_responds_404(
+        self, _, test_client, asset1_id
+    ):
+        """Selecting an unreadable asset is served like a nonexistent node, so its existence does not leak."""
+        response = test_client.get("/dependencies", params={"node_id": f"asset:{asset1_id}"})
+
+        assert response.status_code == 404
+        assert "asset1" not in response.text
+
+    def test_scheduling_dependencies_hides_gate_leaf_without_id(self, dag_maker, test_client, session):
+        """A leaf the Dag processor has not enriched with an id yet cannot be authorized, so it is hidden."""
+        asset_a = Asset(uri="s3://gate-bucket/a", name="gate_asset_a")
+        asset_b = Asset(uri="s3://gate-bucket/b", name="gate_asset_b")
+        with dag_maker(
+            dag_id="gate_downstream", schedule=(asset_a & asset_b), serialized=True, session=session
+        ):
+            EmptyOperator(task_id="consume")
+        dag_maker.sync_dagbag_to_db()
+        dag_model = session.get(DagModel, "gate_downstream")
+        stale_expression = {
+            "all": [
+                {"asset": {"name": "gate_asset_a", "uri": "s3://gate-bucket/a", "id": None}},
+                {"asset": {"name": "gate_asset_b", "uri": "s3://gate-bucket/b"}},
+            ]
+        }
+        dag_model.asset_expression = stale_expression
+        session.commit()
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:gate_downstream"})
+
+        assert response.status_code == 200
+        result = response.json()
+        assert not any(node["type"] == "asset" for node in result["nodes"])
+        assert {"gate_asset_a", "gate_asset_b"}.isdisjoint(node["label"] for node in result["nodes"])
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+        return_value=set(),
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_data_dependencies_hides_asset_the_caller_may_not_read(self, _, test_client, asset1_id):
+        """An unreadable root asset is served like a nonexistent one, even when its Dags are readable."""
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"}
+        )
+
+        assert response.status_code == 404
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_data_dependencies_hides_unreadable_sibling_asset(
+        self, mock_get_authorized_assets, dag_maker, test_client, session
+    ):
+        """The BFS through a gate must neither name an unreadable sibling asset nor expand past it."""
+        asset_a = Asset(uri="s3://gate-bucket/a", name="gate_asset_a")
+        asset_b = Asset(uri="s3://gate-bucket/b", name="gate_asset_b")
+        with dag_maker(dag_id="gate_upstream_b", serialized=True, session=session):
+            EmptyOperator(task_id="produce_b", outlets=[asset_b])
+        with dag_maker(
+            dag_id="gate_downstream", schedule=(asset_a & asset_b), serialized=True, session=session
+        ):
+            EmptyOperator(task_id="consume")
+        dag_maker.sync_dagbag_to_db()
+        asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_a"))
+        asset_b_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "gate_asset_b"))
+        mock_get_authorized_assets.return_value = {asset_a_id}
+
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert f"asset:{asset_a_id}" in node_ids
+        assert f"asset:{asset_b_id}" not in node_ids
+        assert "gate_asset_b" not in {node["label"] for node in result["nodes"]}
+        assert not any(node_id.startswith("task:gate_upstream_b") for node_id in node_ids)
 
     def test_scheduling_dependencies_include_team_name(self, dag_maker, test_client, session):
         team = Team(name="my-team")
@@ -856,7 +995,7 @@ class TestGetDependencies:
 
         asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_batch_asset_a"))
 
-        with assert_queries_count(12):
+        with assert_queries_count(13):
             response = test_client.get(
                 "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
             )
@@ -891,7 +1030,7 @@ class TestGetDependencies:
             select(AssetModel.id).where(AssetModel.name == "data_dep_inlet_batch_asset_a")
         )
 
-        expected_query_count = 9
+        expected_query_count = 10
         with assert_queries_count(expected_query_count):
             response = test_client.get(
                 "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
@@ -927,7 +1066,7 @@ class TestGetDependencies:
             select(AssetModel.id).where(AssetModel.name == "data_dep_outlet_batch_asset_a")
         )
 
-        expected_query_count = 9
+        expected_query_count = 10
         with assert_queries_count(expected_query_count):
             response = test_client.get(
                 "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
