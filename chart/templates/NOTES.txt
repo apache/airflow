@@ -51,9 +51,12 @@ Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . 
 {{- end }}
 
 {{- if .Values.createUserJob.enabled }}
-Default user (Airflow UI) Login credentials:
+User created by the create-user job (Airflow UI):
     username: {{ .Values.createUserJob.defaultUser.username }}
-    password: {{ .Values.createUserJob.defaultUser.password }}
+{{- else }}
+No Airflow UI user has been created. Create one with:
+    kubectl exec -it deploy/{{ include "airflow.fullname" . }}-api-server --namespace {{ .Release.Namespace }} -- \
+      airflow users create -r Admin -u <username> -e <email> -f <first> -l <last> -p <password>
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}
