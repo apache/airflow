@@ -226,7 +226,7 @@ def test_resolve_oauth2_connection_auth(mock_get_connection):
     resolve_airflow_connection_auth(config)
 
     assert config["transport"]["auth"] == {
-        "type": "oauth2_client_credentials",
+        "type": "oauth2",
         "tokenEndpoint": OAUTH2_TOKEN_ENDPOINT,
         "clientId": "my-client-id",
         "clientSecret": "my-client-secret",
@@ -256,7 +256,7 @@ def test_resolve_oauth2_connection_auth_prefers_token_endpoint_from_config(
     resolve_airflow_connection_auth(config)
 
     assert config["transport"]["auth"] == {
-        "type": "oauth2_client_credentials",
+        "type": "oauth2",
         "tokenEndpoint": "https://other.example.com/token",
         "clientId": "my-client-id",
         "clientSecret": "my-client-secret",
@@ -338,7 +338,7 @@ def test_resolve_oauth2_connection_auth_ignores_client_credentials_from_auth_con
     resolve_airflow_connection_auth(config)
 
     assert config["transport"]["auth"] == {
-        "type": "oauth2_client_credentials",
+        "type": "oauth2",
         "tokenEndpoint": OAUTH2_TOKEN_ENDPOINT,
         "clientId": "my-client-id",
         "clientSecret": "my-client-secret",
@@ -380,7 +380,7 @@ def test_resolve_connection_auth_in_nested_composite_transport_with_mixed_auth_t
 
     assert config["transport"]["transports"][0]["auth"] == {"type": "api_key", "apiKey": "api-key"}
     assert config["transport"]["transports"][1]["transports"][0]["auth"] == {
-        "type": "oauth2_client_credentials",
+        "type": "oauth2",
         "tokenEndpoint": OAUTH2_TOKEN_ENDPOINT,
         "clientId": "my-client-id",
         "clientSecret": "my-client-secret",

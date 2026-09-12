@@ -21,7 +21,7 @@ from typing import Any
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE = "airflow_connection_api_key"
-AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE = "airflow_connection_oauth2_client_credentials"
+AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE = "airflow_connection_oauth2"
 _DEFAULT_EXTRA_KEYS = ("apiKey", "api_key", "apikey", "token", "access_token")
 # Supplied by the connection, so they are not passed through from the auth config
 _OAUTH2_CONNECTION_PROVIDED_KEYS = (
@@ -123,7 +123,7 @@ class AirflowConnectionOAuth2ClientCredentialsProvider:
     The client ID is read from the connection login and the client secret from the connection password.
     The token endpoint is read from ``tokenEndpoint`` in the auth config if set, otherwise from the
     connection host. Any other auth options are passed through to the OpenLineage client's
-    ``oauth2_client_credentials`` token provider unchanged.
+    ``oauth2`` token provider unchanged.
     """
 
     def __init__(self, config: dict[str, Any], default_conn_id: str | None = None) -> None:
@@ -155,7 +155,7 @@ class AirflowConnectionOAuth2ClientCredentialsProvider:
             key: value for key, value in self.config.items() if key not in _OAUTH2_CONNECTION_PROVIDED_KEYS
         }
         return {
-            "type": "oauth2_client_credentials",
+            "type": "oauth2",
             **options,
             "tokenEndpoint": token_endpoint,
             "clientId": connection.login,
@@ -172,8 +172,8 @@ def resolve_airflow_connection_auth(config: dict[str, Any] | None, config_conn_i
     ``auth`` block in place.
 
     This only makes sense for HTTP transports: ``airflow_connection_api_key`` is replaced with
-    ``{"type": "api_key", "apiKey": ...}`` and ``airflow_connection_oauth2_client_credentials`` with
-    ``{"type": "oauth2_client_credentials", "clientId": ..., "clientSecret": ..., ...}``.
+    ``{"type": "api_key", "apiKey": ...}`` and ``airflow_connection_oauth2`` with
+    ``{"type": "oauth2", "clientId": ..., "clientSecret": ..., ...}``.
     """
     if not isinstance(config, dict):
         return
