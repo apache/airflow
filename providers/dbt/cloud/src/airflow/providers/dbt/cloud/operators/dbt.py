@@ -31,7 +31,10 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     JobRunInfo,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.providers.dbt.cloud.utils.openlineage import (
+    generate_openlineage_events_from_dbt_cloud_run,
+    inject_parent_job_information_into_dbt_cloud_cause,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -85,6 +88,11 @@ class DbtCloudRunJobOperator(BaseOperator):
         https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
     :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
+    :param openlineage_inject_parent_job_info: If True, the triggered dbt Cloud run's ``cause`` field
+        is replaced with the OpenLineage parent job information of the Airflow task as JSON. A consumer
+        reading dbt Cloud runs can parse this to link the dbt Cloud run back to the Airflow task that
+        triggered it. Note this overwrites the ``trigger_reason``. Defaults to the
+        ``openlineage.spark_inject_parent_job_info`` config value.
     :param execution_timeout: Maximum time allowed for the task to run. If exceeded, the dbt Cloud
         job will be cancelled and the task will fail. When both ``execution_timeout`` and
         ``timeout`` are set, the earlier deadline takes precedence.
@@ -126,6 +134,11 @@ class DbtCloudRunJobOperator(BaseOperator):
         retry_from_failure: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         hook_params: dict[str, Any] | None = None,
+        # Defaults to the Spark flag until OpenLineage exposes a transport-agnostic
+        # ``openlineage.inject_parent_job_info`` config to migrate to.
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -147,6 +160,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.retry_from_failure = retry_from_failure
         self.deferrable = deferrable
         self.hook_params = hook_params or {}
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
 
     def _resolve_job_id(self) -> int:
         if self.job_id is not None:
@@ -217,6 +231,12 @@ class DbtCloudRunJobOperator(BaseOperator):
         if self.trigger_reason is None:
             self.trigger_reason = (
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
+            )
+
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Replacing dbt Cloud run cause with OpenLineage parent job information.")
+            self.trigger_reason = inject_parent_job_information_into_dbt_cloud_cause(
+                self.trigger_reason, context["ti"]
             )
 
         self.job_id = self._resolve_job_id()

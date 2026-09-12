@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
+from airflow.providers.dbt.cloud.hooks.dbt import DBT_CAUSE_MAX_LENGTH
 from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -95,6 +97,62 @@ def _get_parent_run_metadata(task_instance):
         root_parent_job_name=rot_parent_job_name,
         root_parent_job_namespace=root_parent_job_namespace,
     )
+
+
+def _get_openlineage_parent_facet_dict(task_instance) -> dict:
+    """Build the OpenLineage ``ParentRunFacet`` payload (parent and root) for a task instance."""
+    metadata = _get_parent_run_metadata(task_instance)
+    return {
+        "parent": {
+            "run": {"runId": metadata.run_id},
+            "job": {"namespace": metadata.job_namespace, "name": metadata.job_name},
+        },
+        "root": {
+            "run": {"runId": metadata.root_parent_run_id},
+            "job": {
+                "namespace": metadata.root_parent_job_namespace,
+                "name": metadata.root_parent_job_name,
+            },
+        },
+    }
+
+
+def inject_parent_job_information_into_dbt_cloud_cause(cause: str | None, task_instance) -> str | None:
+    """
+    Replace the dbt Cloud run ``cause`` with OpenLineage parent job information as JSON.
+
+    This serializes the Airflow task's OpenLineage parent (and root) run identifiers into the
+    triggered run's ``cause`` field. A consumer that reads dbt Cloud runs can parse this JSON and
+    attach a ``ParentRunFacet``, linking the dbt Cloud run back to the Airflow task that triggered it.
+
+    The dbt Cloud ``cause`` is limited to ``DBT_CAUSE_MAX_LENGTH`` characters. The essential ``parent``
+    link is always kept; the ``root`` block is dropped if the two together do not fit. If even the
+    parent-only payload does not fit, the original ``cause`` is returned unchanged.
+    """
+    try:
+        facet = _get_openlineage_parent_facet_dict(task_instance)
+    except ImportError:
+        log.warning(
+            "Could not import OpenLineage provider. Skipping the injection of OpenLineage "
+            "parent job information into the dbt Cloud run cause."
+        )
+        return cause
+
+    candidates = [
+        {"parent": facet["parent"], "root": facet["root"]},
+        {"parent": facet["parent"]},
+    ]
+    for payload in candidates:
+        serialized = json.dumps(payload, separators=(",", ":"))
+        if len(serialized) <= DBT_CAUSE_MAX_LENGTH:
+            return serialized
+
+    log.warning(
+        "OpenLineage parent job information exceeds the dbt Cloud cause limit of %s characters. "
+        "Skipping the injection of OpenLineage parent job information into the dbt Cloud run cause.",
+        DBT_CAUSE_MAX_LENGTH,
+    )
+    return cause
 
 
 @require_openlineage_version(provider_min_version="2.5.0")
