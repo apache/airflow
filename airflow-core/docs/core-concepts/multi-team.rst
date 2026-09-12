@@ -239,6 +239,7 @@ Variables can be associated with teams when created. Tasks belonging to a team c
 2. Global variables (no team association)
 
 When a task requests a variable, the system checks for a team-specific variable first.
+Top-level Dag code in a team's bundle resolves variables the same way while the Dag file is parsed.
 
 Team-scoped variables can be created and managed through the Airflow UI or via environment variables.
 

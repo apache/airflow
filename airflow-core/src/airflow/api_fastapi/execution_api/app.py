@@ -24,7 +24,7 @@ import time
 import weakref
 from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import attrs
 import svcs
@@ -383,6 +383,14 @@ class InProcessExecutionAPI:
 
     _app: FastAPI | None = None
 
+    bundle_name_header: ClassVar[str] = "airflow-dag-bundle-name"
+    """
+    Request header the in-process caller sets to identify the Dag bundle it acts for.
+
+    Only this in-process app reads it (see ``always_allow`` below); the real API server takes the
+    caller's identity from the signed token and ignores the header.
+    """
+
     @cached_property
     def app(self):
         if not self._app:
@@ -406,13 +414,19 @@ class InProcessExecutionAPI:
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
+            # Bind the header name here rather than closing over ``self``: a reference from the app back to
+            # this instance would keep ``.transport`` reachable from the app and defeat its finalizer.
+            bundle_name_header = self.bundle_name_header
+
             async def always_allow(request: Request):
                 from uuid import UUID
 
                 ti_id = UUID(
                     request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
                 )
-                claims = TIClaims(scope="execution")
+                claims = TIClaims(
+                    scope="execution", bundle_name=request.headers.get(bundle_name_header) or None
+                )
                 return TIToken(id=ti_id, claims=claims)
 
             self._app.dependency_overrides[_jwt_bearer] = always_allow

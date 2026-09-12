@@ -1419,13 +1419,14 @@ class DagFileProcessorManager(LoggingMixin):
             underlying_logger, processors=processors, logger_name="processor"
         ).bind(), logger_filehandle
 
-    @functools.cached_property
-    def client(self) -> Client:
+    def _make_client(self, bundle_name: str) -> Client:
+        """Return an API client whose requests identify the bundle the process parses."""
         from airflow.sdk.api.client import Client
 
         client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
+        client.headers[self._api_server.bundle_name_header] = bundle_name
         return client
 
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
@@ -1445,7 +1446,7 @@ class DagFileProcessorManager(LoggingMixin):
             logger=logger,
             logger_filehandle=logger_filehandle,
             subprocess_logs_to_stdout=conf.get("logging", "dag_processor_log_target") == "stdout",
-            client=self.client,
+            client=self._make_client(dag_file.bundle_name),
         )
 
     def _start_new_processes(self):
