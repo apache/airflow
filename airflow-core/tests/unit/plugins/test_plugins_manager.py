@@ -237,13 +237,15 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]  # type: ignore[typeddict-item, typeddict-unknown-key]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
 
-            external_views = [{"url_route": "/test_route"}]
-            react_apps = [{"url_route": "/test_route"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
+            react_apps = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
@@ -266,8 +268,9 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]
-            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[list-item, typeddict-item]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[list-item, typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA()]),
@@ -300,6 +303,24 @@ class TestPluginsManager:
                 "The React App will not be loaded.",
             ),
         ]
+
+    def test_loads_typed_external_views_and_react_apps(self):
+        class TypedPlugin(AirflowPlugin):
+            name = "typed_plugin"
+
+            # Recommended `ExternalViewDict` / `ReactAppDict` shapes — no `# type: ignore` needed here.
+            external_views = [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            react_apps = [{"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}]
+
+        with mock_plugin_manager(plugins=[TypedPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, react_apps = plugins_manager._get_ui_plugins()
+
+            assert external_views == [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            assert react_apps == [
+                {"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}
+            ]
 
     @pytest.mark.parametrize(
         ("applies_to", "error"),
@@ -337,7 +358,13 @@ class TestPluginsManager:
             name = "test_plugin"
 
             external_views = [
-                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag",
+                    "applies_to": applies_to,
+                }
             ]
 
         with (
@@ -348,7 +375,9 @@ class TestPluginsManager:
 
             external_views, _ = plugins_manager._get_ui_plugins()
 
-            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+            assert external_views == [
+                {"name": "Scoped", "href": "/scoped", "url_route": "/scoped", "destination": "dag"}
+            ]
 
         assert caplog.record_tuples == [
             (
@@ -366,6 +395,7 @@ class TestPluginsManager:
             react_apps = [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -385,6 +415,7 @@ class TestPluginsManager:
             assert react_apps == [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -407,6 +438,7 @@ class TestPluginsManager:
             external_views = [
                 {
                     "name": "Scoped",
+                    "href": "/scoped",
                     "url_route": "/scoped",
                     "destination": "task",
                     "applies_to": {

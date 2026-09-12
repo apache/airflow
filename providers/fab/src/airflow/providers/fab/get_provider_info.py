@@ -107,6 +107,13 @@ def get_provider_info():
                         "example": None,
                         "default": "True",
                     },
+                    "custom_roles": {
+                        "description": "JSON object mapping custom role names to lists of objects with ``action`` and\n``resource`` keys, using FAB permission names such as ``can_read`` and ``DAGs``.\nMissing roles are created with their permissions during role initialization.\nExisting roles are skipped, preserving changes made through the UI or CLI.\nBuilt-in roles are ignored. Startup initialization requires ``update_fab_perms``.\nAn empty list declares no permissions; normal FAB initialization still grants\ncustom roles ``can_read`` on ``Website``.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": '{"PythonTester": [{"action": "can_read", "resource": "DAGs"}], "Analyst": []}',
+                        "default": "{{}}",
+                    },
                     "auth_backends": {
                         "description": "Comma separated list of auth backends to authenticate users of the API.\n",
                         "version_added": "2.0.0",
