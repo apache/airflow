@@ -1103,3 +1103,82 @@ class TestGetAssetEventByAssetAliasExtraFilter:
         )
         assert response.status_code == 200
         assert len(response.json()["asset_events"]) == expected_count
+
+
+def test_get_by_asset_resolves_event_relationships_once(client, session):
+    """by-asset must not lazy-load created_dagruns and asset once per event."""
+    from datetime import timedelta
+
+    from airflow.models.asset import AssetActive, AssetEvent, AssetModel
+
+    from tests_common.test_utils.asserts import CountQueries
+
+    def _measure(n):
+        asset = AssetModel(name=f"by_asset_{n}", uri=f"s3://by-asset/{n}", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        session.flush()
+        base = DEFAULT_DATE
+        for i in range(n):
+            event = AssetEvent(
+                asset_id=asset.id,
+                source_dag_id="src",
+                source_run_id=f"r{i}",
+                timestamp=base + timedelta(seconds=i),
+            )
+            event.created_dagruns.append(
+                DagRun(
+                    dag_id=f"by_asset_{n}_{i}",
+                    run_id=f"r{i}",
+                    logical_date=base + timedelta(days=i),
+                    state=DagRunState.QUEUED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    data_interval=(base, base),
+                )
+            )
+            session.add(event)
+        session.commit()
+        with CountQueries() as result:
+            response = client.get(
+                "/execution/asset-events/by-asset", params={"name": asset.name, "uri": asset.uri}
+            )
+        assert response.status_code == 200, response.text
+        assert len(response.json()["asset_events"]) == n
+        return sum(result.values())
+
+    assert _measure(12) == _measure(3)
+
+
+def test_get_by_asset_alias_resolves_a_different_asset_per_event_once(client, session):
+    """by-asset-alias must not lazy-load the asset once per event when every event has its own asset."""
+    from datetime import timedelta
+
+    from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+
+    from tests_common.test_utils.asserts import CountQueries
+
+    def _measure(n):
+        alias = AssetAliasModel(name=f"alias_{n}")
+        for i in range(n):
+            asset = AssetModel(
+                name=f"alias_{n}_asset_{i}", uri=f"s3://alias-{n}/{i}", group="asset", extra={}
+            )
+            session.add_all([asset, AssetActive.for_asset(asset)])
+            session.flush()
+            alias.asset_events.append(
+                AssetEvent(
+                    asset_id=asset.id,
+                    source_dag_id="src",
+                    source_run_id=f"r{i}",
+                    timestamp=DEFAULT_DATE + timedelta(seconds=i),
+                )
+            )
+        session.add(alias)
+        session.commit()
+        with CountQueries() as result:
+            response = client.get("/execution/asset-events/by-asset-alias", params={"name": alias.name})
+        assert response.status_code == 200, response.text
+        assert len(response.json()["asset_events"]) == n
+        assert len({event["asset"]["name"] for event in response.json()["asset_events"]}) == n
+        return sum(result.values())
+
+    assert _measure(12) == _measure(3)
