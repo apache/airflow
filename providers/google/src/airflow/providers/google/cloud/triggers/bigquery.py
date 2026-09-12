@@ -132,10 +132,11 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 )
             )
             if task_instance is None:
-                raise AirflowException(
+                msg = (
                     f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
                     f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_instance
 
         async def get_task_state(self):
@@ -153,10 +154,11 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             try:
                 task_state = task_states_response[ti.run_id][ti.task_id]
             except Exception:
-                raise AirflowException(
+                msg = (
                     f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "
                     f"run_id: {ti.run_id} and map_index: {ti.map_index} is not found"
                 )
+                raise AirflowException(msg)
             return task_state
 
         async def safe_to_cancel(self) -> bool:
