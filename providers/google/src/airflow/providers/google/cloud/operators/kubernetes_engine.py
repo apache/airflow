@@ -36,6 +36,7 @@ from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesStartKueueJobOperator,
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod_exec import KubernetesPodExecOperator
 from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
@@ -686,6 +687,110 @@ class GKEStartKueueInsideClusterOperator(GKEOperatorMixin, KubernetesInstallKueu
             self.log.info(
                 "Cluster doesn't have ability to autoscale, will not install Kueue inside. Aborting"
             )
+
+
+class GKEPodExecOperator(GKEOperatorMixin, KubernetesPodExecOperator):
+    """
+    Execute a command in a running container of an existing Pod on Google Kubernetes Engine.
+
+    The operator authenticates with Google Cloud and delegates command execution to
+    :class:`~airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator`.
+    It does not create, restart, or delete the target Pod.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEPodExecOperator`
+
+    :param location: The Google Kubernetes Engine zone or region in which the cluster resides.
+        (templated)
+    :param cluster_name: The name of the Google Kubernetes Engine cluster. (templated)
+    :param pod_name: Name of the existing Kubernetes Pod. (templated)
+    :param command: Command and arguments to execute in the container. (templated)
+    :param namespace: Namespace containing the Pod. Defaults to ``default``. (templated)
+    :param container_name: Name of the container in which to execute the command. When omitted, the
+        ``kubectl.kubernetes.io/default-container`` annotation or the first container is used.
+        Defaults to ``None``. (templated)
+    :param use_internal_ip: Use the internal IP address as the endpoint. Defaults to ``False``.
+        (templated)
+    :param use_dns_endpoint: Use the DNS address as the endpoint. Defaults to ``False``. This must be
+        set to ``True`` for Sovereign Cloud from Google. (templated)
+    :param project_id: The Google Cloud project ID. Defaults to the project inferred from the Google
+        Cloud connection. (templated)
+    :param gcp_conn_id: The Google Cloud connection ID to use. Defaults to ``google_cloud_default``.
+        (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials,
+        or a sequence of accounts required to impersonate the final account. Defaults to ``None``.
+        (templated)
+    :param do_xcom_push: Return standard output through XCom when ``True``. Defaults to ``False``.
+    :param max_xcom_output_size: Maximum UTF-8 byte size retained for XCom. Defaults to 49,344 bytes.
+    """
+
+    template_fields: Sequence[str] = tuple(
+        set(GKEOperatorMixin.template_fields)
+        | (
+            set(KubernetesPodExecOperator.template_fields)
+            - {"cluster_context", "config_file", "kubernetes_conn_id"}
+        )
+    )
+    operator_extra_links = (KubernetesEnginePodLink(),)
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        pod_name: str,
+        command: Sequence[str],
+        namespace: str = "default",
+        container_name: str | None = None,
+        use_internal_ip: bool = False,
+        use_dns_endpoint: bool = False,
+        project_id: str = PROVIDE_PROJECT_ID,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        config_file = kwargs.pop("config_file", None)
+        if config_file is not None:
+            raise ValueError(
+                "`config_file` is not allowed for GKEPodExecOperator because authentication is managed "
+                "through `gcp_conn_id`."
+            )
+        if gcp_conn_id is None:
+            raise ValueError(
+                "`gcp_conn_id` must not be None. To use Application Default Credentials, configure an "
+                "empty `google_cloud_default` connection."
+            )
+        super().__init__(
+            pod_name=pod_name,
+            command=command,
+            namespace=namespace,
+            container_name=container_name,
+            kubernetes_conn_id=None,
+            in_cluster=False,
+            cluster_context=None,
+            config_file=None,
+            **kwargs,
+        )
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.gcp_conn_id = gcp_conn_id
+        self.use_internal_ip = use_internal_ip
+        self.use_dns_endpoint = use_dns_endpoint
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> str | None:
+        namespace = self._resolve_namespace()
+        KubernetesEnginePodLink.persist(
+            context=context,
+            project_id=self.project_id,
+            location=self.location,
+            cluster_name=self.cluster_name,
+            namespace=namespace,
+            pod_name=self.pod_name,
+        )
+        return super().execute(context)
 
 
 class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
