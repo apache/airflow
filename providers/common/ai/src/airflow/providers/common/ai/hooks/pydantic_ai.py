@@ -180,6 +180,7 @@ class PydanticAIHook(BaseHook):
         self._conn_extra_dejson: dict[str, Any] = {}
         self._embedder_kwargs: dict[str, Any] | None = None
         self._connections: dict[str, Connection] = {}
+        self._connection_extra_dejson: dict[str, dict[str, Any]] = {}
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -229,13 +230,19 @@ class PydanticAIHook(BaseHook):
         """Return this hook's connection and its deserialized extra, fetching at most once."""
         if self._conn is None:
             self._conn = self._get_cached_connection(self.llm_conn_id)
-            self._conn_extra_dejson = self._conn.extra_dejson
+            self._conn_extra_dejson = self._get_cached_connection_extra_dejson(self.llm_conn_id)
         return self._conn, self._conn_extra_dejson
 
     def _get_cached_connection(self, conn_id: str) -> Connection:
         if conn_id not in self._connections:
             self._connections[conn_id] = self.get_connection(conn_id)
         return self._connections[conn_id]
+
+    def _get_cached_connection_extra_dejson(self, conn_id: str) -> dict[str, Any]:
+        if conn_id not in self._connection_extra_dejson:
+            conn = self._get_cached_connection(conn_id)
+            self._connection_extra_dejson[conn_id] = conn.extra_dejson
+        return self._connection_extra_dejson[conn_id]
 
     def _seed_connection(self, conn: Connection) -> None:
         """
@@ -250,6 +257,7 @@ class PydanticAIHook(BaseHook):
         self._conn = conn
         self._conn_extra_dejson = conn.extra_dejson
         self._connections[conn.conn_id] = conn
+        self._connection_extra_dejson[conn.conn_id] = conn.extra_dejson
 
     def _warn_if_vertexai_field_ignored(self, extra: dict[str, Any]) -> None:
         if extra.get("vertexai") is not None:
@@ -258,10 +266,11 @@ class PydanticAIHook(BaseHook):
                 "API mode is now selected via the model prefix ('google-cloud:' vs. 'google:')."
             )
 
-    def _get_provider_kwargs_for_model(self, conn: Connection, model_name: str) -> dict[str, Any]:
+    def _get_provider_kwargs_for_model(
+        self, conn: Connection, model_name: str, extra: dict[str, Any]
+    ) -> dict[str, Any]:
         provider_name, _ = parse_model_id(model_name)
         provider_config = _PROVIDER_CONNECTION_CONFIGS.get(provider_name)
-        extra = conn.extra_dejson
         self._warn_if_vertexai_field_ignored(extra)
         if provider_config is None:
             return PydanticAIHook._get_provider_kwargs(conn.password, conn.host, extra)
@@ -286,13 +295,13 @@ class PydanticAIHook(BaseHook):
             )
 
     def _get_provider_factory_for_model(
-        self, conn: Connection, model_name: str
+        self, conn: Connection, model_name: str, extra: dict[str, Any]
     ) -> Callable[[str], Any] | None:
         provider_name, _ = parse_model_id(model_name)
         if provider_name == "sentence-transformers":
             return None
 
-        provider_kwargs = self._get_provider_kwargs_for_model(conn, model_name)
+        provider_kwargs = self._get_provider_kwargs_for_model(conn, model_name, extra)
         if not provider_kwargs:
             return None
 
@@ -313,11 +322,11 @@ class PydanticAIHook(BaseHook):
 
         return create_provider
 
-    def _validate_embedding_connection_provider(self, conn: Connection, embed_model_name: str) -> None:
+    def _validate_embedding_connection_provider(self, embed_model_name: str, extra: dict[str, Any]) -> None:
         if self.embed_conn_id != self.llm_conn_id:
             return
 
-        llm_model_name = self.model_id or conn.extra_dejson.get("model", "")
+        llm_model_name = self.model_id or extra.get("model", "")
         if not llm_model_name:
             return
 
@@ -490,7 +499,7 @@ class PydanticAIHook(BaseHook):
             forwarded_from_conn_id=forwarded_from_conn_id if forwarded else None,
         )
 
-        provider_factory = self._get_provider_factory_for_model(conn, model_name)
+        provider_factory = self._get_provider_factory_for_model(conn, model_name, extra)
         if provider_factory is None:
             return infer_model(model_name)
         return infer_model(model_name, provider_factory=provider_factory)
@@ -605,7 +614,7 @@ class PydanticAIHook(BaseHook):
             return self._embedder
 
         conn = self._get_cached_connection(self.embed_conn_id)
-        extra: dict[str, Any] = conn.extra_dejson
+        extra = self._get_cached_connection_extra_dejson(self.embed_conn_id)
 
         embed_model_name: str = self.embed_model_id or extra.get("embed_model", "")
         if not embed_model_name:
@@ -614,8 +623,8 @@ class PydanticAIHook(BaseHook):
                 "on the connection."
             )
 
-        self._validate_embedding_connection_provider(conn, embed_model_name)
-        provider_factory = self._get_provider_factory_for_model(conn, embed_model_name)
+        self._validate_embedding_connection_provider(embed_model_name, extra)
+        provider_factory = self._get_provider_factory_for_model(conn, embed_model_name, extra)
         if provider_factory is None:
             embedding_model = infer_embedding_model(embed_model_name)
         else:
@@ -638,12 +647,12 @@ class PydanticAIHook(BaseHook):
             return self.get_conn()
 
         try:
-            conn = self._get_cached_connection(self.llm_conn_id)
+            extra = self._get_cached_connection_extra_dejson(self.llm_conn_id)
         except AirflowNotFoundException:
             if self.llm_conn_id == self.default_conn_name and self.embed_conn_id != self.llm_conn_id:
                 return None
             raise
-        if conn.extra_dejson.get("model"):
+        if extra.get("model"):
             return self.get_conn()
 
         if self._get_fallback_conn_ids():
@@ -660,8 +669,7 @@ class PydanticAIHook(BaseHook):
         if self.embed_model_id:
             return self.get_embedder()
 
-        conn = self._get_cached_connection(self.embed_conn_id)
-        if conn.extra_dejson.get("embed_model"):
+        if self._get_cached_connection_extra_dejson(self.embed_conn_id).get("embed_model"):
             return self.get_embedder()
 
         return None
