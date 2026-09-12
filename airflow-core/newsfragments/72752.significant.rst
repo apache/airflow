@@ -1,0 +1,47 @@
+Deprecate the per-scheme ``if/elif`` chain in ``airflow_local_settings.py``
+
+Every in-tree remote logging backend now ships a ``RemoteLogIO.from_config`` classmethod and
+registers its scheme in the provider yaml ``remote-logging:`` block, so ProvidersManager scheme
+dispatch (step 2 of ``resolve_remote_task_log``) can build the handler. The legacy per-scheme
+chain in ``airflow.config_templates.airflow_local_settings`` is therefore deprecated and will be
+removed in Airflow 4.
+
+The chain now emits ``RemovedInAirflow4Warning``, but only when provider dispatch cannot take
+over the branch, so deployments that are already resolved by ProvidersManager stay quiet. A
+warning means one of two things:
+
+* **The installed provider predates ``from_config``** and so registers no scheme. Upgrade the
+  distribution to at least the version below.
+
+  ==============  ===============================================  ==============
+  Scheme          Distribution                                     Min version
+  ==============  ===============================================  ==============
+  s3              ``apache-airflow-providers-amazon``              9.33.0
+  cloudwatch      ``apache-airflow-providers-amazon``              9.33.0
+  gs              ``apache-airflow-providers-google``              22.3.0
+  stackdriver     ``apache-airflow-providers-google``              22.3.0
+  wasb            ``apache-airflow-providers-microsoft-azure``     14.1.0
+  oss             ``apache-airflow-providers-alibaba``             3.4.0
+  hdfs            ``apache-airflow-providers-apache-hdfs``         4.13.0
+  elasticsearch   ``apache-airflow-providers-elasticsearch``       6.9.0
+  opensearch      ``apache-airflow-providers-opensearch``          1.12.0
+  ==============  ===============================================  ==============
+
+* **``[logging] remote_base_log_folder`` carries no scheme to dispatch on.** Provider dispatch
+  keys off ``urlsplit(remote_base_log_folder).scheme``, so a bare path such as ``wasb-logs`` is
+  never dispatched; use ``wasb://logs`` instead. Likewise, Elasticsearch and OpenSearch were
+  selected by ``[elasticsearch] host`` / ``[opensearch] host`` rather than by a scheme; set
+  ``remote_base_log_folder`` to ``elasticsearch://...`` / ``opensearch://...`` so the scheme can
+  be dispatched on. Keep the existing ``host`` option set in both cases -- ``from_config()``
+  still reads it, along with the rest of the backend's own config section.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
