@@ -83,10 +83,17 @@ Parameters
    * - ``llm_conn_id``
      - Airflow connection ID used when ``embed_model`` is a string. Falls
        back to ``LlamaIndexHook.default_conn_name`` (``llamaindex_default``)
-       when ``None``.
+       when ``None``. Templated.
    * - ``embed_conn_id``
      - Optional separate connection ID for the embedding provider. Falls
-       back to ``llm_conn_id`` when ``None``.
+       back to ``llm_conn_id`` when ``None``. Templated.
+   * - ``embedding_kwargs``
+     - Additional keyword arguments passed to the embedding model constructor
+       when ``embed_model`` is a string or omitted. Options such as
+       ``dimensions`` must match those used to build the index. Supports
+       templating; set the Dag's ``render_template_as_native_obj=True`` when
+       templating typed values such as ``dimensions`` so they remain integers
+       instead of strings.
    * - ``top_k``
      - Number of top similarity results to return (default 5).
 

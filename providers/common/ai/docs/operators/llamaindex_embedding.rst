@@ -86,22 +86,28 @@ Parameters
        binding ``loader.output`` resolves to the native list before
        execute.
    * - ``embed_model``
-     - String model name OR pre-built ``BaseEmbedding`` instance.
+     - String model name OR pre-built ``BaseEmbedding`` instance. Templated.
    * - ``llm_conn_id``
      - Airflow connection ID used when ``embed_model`` is a string. Falls
        back to ``LlamaIndexHook.default_conn_name`` (``llamaindex_default``)
-       when ``None``.
+       when ``None``. Templated.
    * - ``embed_conn_id``
      - Optional separate connection ID for the embedding provider. Falls
-       back to ``llm_conn_id`` when ``None``.
+       back to ``llm_conn_id`` when ``None``. Templated.
+   * - ``embedding_kwargs``
+     - Additional keyword arguments passed to the embedding model constructor
+       when ``embed_model`` is a string or omitted, for example
+       ``{"dimensions": 128}``. Supports templating; set the Dag's
+       ``render_template_as_native_obj=True`` when templating typed values such
+       as ``dimensions`` so they remain integers instead of strings.
    * - ``chunk_size``
      - Sentence-splitter chunk size (default 512).
    * - ``chunk_overlap``
      - Overlap between chunks (default 50).
    * - ``persist_dir``
-     - Local path or storage URI to persist the LlamaIndex index.
+     - Local path or storage URI to persist the LlamaIndex index. Templated.
    * - ``persist_conn_id``
-     - Cloud credentials connection ID for ``persist_dir`` URIs.
+     - Cloud credentials connection ID for ``persist_dir`` URIs. Templated.
 
 Output
 ------
