@@ -487,7 +487,6 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                     BatchJobStatus.EXPIRED.value,
                     BatchJobStatus.CANCELLED.value,
                 ]:
-                    self.log.error("Job execution was not completed!")
                     break
                 self.log.info(
                     "Waiting for job execution, polling interval: %s seconds, current state: %s",
@@ -497,6 +496,8 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                 time.sleep(polling_interval)
         except Exception:
             raise AirflowException("Something went wrong during waiting of the batch job.")
+        if job.state.name != BatchJobStatus.SUCCEEDED.value:
+            raise RuntimeError(f"Job {job.name} execution was not completed! state: {job.state.name}")
         return job
 
     def _validate_results_folder(self):
@@ -937,7 +938,6 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
                     BatchJobStatus.EXPIRED.value,
                     BatchJobStatus.CANCELLED.value,
                 ]:
-                    self.log.error("Job execution was not completed!")
                     break
                 self.log.info(
                     "Waiting for job execution, polling interval: %s seconds, current state: %s",
@@ -947,6 +947,8 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
                 time.sleep(polling_interval)
         except Exception as e:
             raise AirflowException("Something went wrong during waiting of the batch job: %s", e)
+        if job.state.name != BatchJobStatus.SUCCEEDED.value:
+            raise RuntimeError(f"Job {job.name} execution was not completed! state: {job.state.name}")
         return job
 
     def _validate_results_folder(self):

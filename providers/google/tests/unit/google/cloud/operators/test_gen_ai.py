@@ -21,10 +21,12 @@ from unittest import mock
 import pytest
 from google.genai.errors import ClientError
 from google.genai.types import (
+    BatchJob,
     Content,
     CreateCachedContentConfig,
     GenerateContentConfig,
     GoogleSearch,
+    JobState,
     Part,
     Tool,
     TuningDataset,
@@ -500,6 +502,34 @@ class TestGenAIGeminiCreateBatchJobOperator:
         with pytest.raises(AirflowException):
             op._wait_until_complete(job=mock.MagicMock())
 
+    @pytest.mark.parametrize(
+        "job_state",
+        [JobState.JOB_STATE_FAILED, JobState.JOB_STATE_EXPIRED, JobState.JOB_STATE_CANCELLED],
+    )
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"), autospec=True)
+    def test_execute_wait_until_complete_unsuccessful_job_raises_runtime_error(self, mock_hook, job_state):
+        mock_hook.return_value.get_batch_job.return_value = BatchJob(
+            name=TEST_BATCH_JOB_NAME, state=job_state
+        )
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            wait_until_complete=True,
+            deferrable=False,
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match=f"Job {TEST_BATCH_JOB_NAME} execution was not completed! state: {job_state.name}",
+        ):
+            op.execute(context={"ti": mock.Mock(spec_set=["xcom_push"])})
+
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test_execute_exception_error_raises_airflow_exception(self, mock_hook):
         op = GenAIGeminiCreateBatchJobOperator(
@@ -899,6 +929,34 @@ class TestGenAIGeminiCreateEmbeddingsBatchJobOperator:
 
         with pytest.raises(AirflowException):
             op._wait_until_complete(job=mock.MagicMock())
+
+    @pytest.mark.parametrize(
+        "job_state",
+        [JobState.JOB_STATE_FAILED, JobState.JOB_STATE_EXPIRED, JobState.JOB_STATE_CANCELLED],
+    )
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"), autospec=True)
+    def test_execute_wait_until_complete_unsuccessful_job_raises_runtime_error(self, mock_hook, job_state):
+        mock_hook.return_value.get_batch_job.return_value = BatchJob(
+            name=TEST_BATCH_JOB_NAME, state=job_state
+        )
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            wait_until_complete=True,
+            deferrable=False,
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match=f"Job {TEST_BATCH_JOB_NAME} execution was not completed! state: {job_state.name}",
+        ):
+            op.execute(context={"ti": mock.Mock(spec_set=["xcom_push"])})
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test_execute_exception_error_raises_airflow_exception(self, mock_hook):
