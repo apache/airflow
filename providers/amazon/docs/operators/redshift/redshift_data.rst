@@ -99,11 +99,12 @@ the statement id won't be there for the next retry, and the operator will submit
 instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
 ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose
-statement already succeeded: clearing does not delete the stored statement id, so the next attempt
-reads it back and returns immediately without submitting the SQL again. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task now discards the stored statement id by default, so the next attempt submits the
+SQL again instead of reconnecting to the statement already run. To resume from the stored statement
+id instead, pass ``keep_task_state`` when clearing (or tick the corresponding box in the clear
+dialog). See :doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that discards the statement id automatically as soon as
+the task succeeds.
 
 This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
 polling synchronously can cancel the statement via ``on_kill`` before the next attempt gets a
