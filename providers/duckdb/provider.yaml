@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-duckdb
+name: DuckDB
+
+state: ready
+lifecycle: incubation
+source-date-epoch: 1788600000
+description: |
+  `DuckDB <https://duckdb.org/>`__ provider for Apache Airflow. Runs SQL against an in-process
+  DuckDB database — in memory, backed by a local file, or hosted by MotherDuck — and manages
+  extension loading and resource limits so Dag authors only supply the SQL.
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 0.1.0
+
+integrations:
+  - integration-name: DuckDB
+    external-doc-url: https://duckdb.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-duckdb/operators.rst
+    tags: [software]
+
+hooks:
+  - integration-name: DuckDB
+    python-modules:
+      - airflow.providers.duckdb.hooks.duckdb
+
+operators:
+  - integration-name: DuckDB
+    python-modules:
+      - airflow.providers.duckdb.operators.duckdb
+
+connection-types:
+  - hook-class-name: airflow.providers.duckdb.hooks.duckdb.DuckDBHook
+    hook-name: "DuckDB"
+    connection-type: duckdb
+    ui-field-behaviour:
+      hidden-fields:
+        - login
+        - port
+      relabeling:
+        host: Database path
+        schema: MotherDuck database
+        password: MotherDuck token
+      placeholders:
+        host: "/tmp/analytics.duckdb (leave empty for an in-memory database)"
+        extra: '{"extensions": ["httpfs"], "memory_limit": "2GB", "threads": 4}'
