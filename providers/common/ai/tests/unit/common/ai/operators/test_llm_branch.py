@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from decimal import Decimal
 from enum import Enum
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -40,16 +41,6 @@ else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
-
-
 class TestLLMBranchOperator:
     def test_inherits_from_skipmixin_is_true(self):
         assert LLMBranchOperator.inherits_from_skipmixin is True
@@ -71,12 +62,12 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_single_branch(self, mock_hook_cls, mock_do_branch):
+    def test_execute_single_branch(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """LLM returns a single enum member → do_branch receives a string."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "task_a"
 
@@ -96,14 +87,40 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_multi_branch(self, mock_hook_cls, mock_do_branch):
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
+        downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_do_branch.return_value = "task_a"
+
+        op = LLMBranchOperator(
+            task_id="test",
+            prompt="Pick a branch",
+            llm_conn_id="my_llm",
+            usage_limits={"cost_limit": "0.5"},
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+
+        op.execute(MagicMock())
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_multi_branch(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """allow_multiple_branches=True → LLM returns list of enums → do_branch receives list."""
         downstream_enum = Enum(
             "DownstreamTasks", {"task_a": "task_a", "task_b": "task_b", "task_c": "task_c"}
         )
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             [downstream_enum.task_a, downstream_enum.task_c]
         )
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -125,10 +142,12 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_rejects_empty_branch_selection(self, mock_hook_cls, mock_do_branch):
+    def test_execute_rejects_empty_branch_selection(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
         """LLM returning an empty list fails instead of skipping every downstream task."""
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result([])
+        mock_agent.run_sync.return_value = make_mock_run_result([])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
@@ -145,12 +164,12 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_system_prompt_forwarded(self, mock_hook_cls, mock_do_branch):
+    def test_system_prompt_forwarded(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """system_prompt is passed to create_agent(instructions=...)."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
@@ -168,14 +187,14 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_downstream_task_ids_used_for_enum(self, mock_hook_cls, mock_do_branch):
+    def test_downstream_task_ids_used_for_enum(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """The dynamic enum is built from self.downstream_task_ids."""
         downstream_enum = Enum(
             "DownstreamTasks", {"billing": "billing", "auth": "auth", "general": "general"}
         )
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.billing)
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.billing)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
@@ -222,13 +241,13 @@ class TestLLMBranchOperatorApproval:
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_pauses_before_branching(
-        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch, make_mock_run_result
     ):
         """When require_approval=True, execute() pauses after the LLM choice, before do_branch."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
@@ -252,13 +271,13 @@ class TestLLMBranchOperatorApproval:
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_serializes_multiple_branches(
-        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch, make_mock_run_result
     ):
         """With allow_multiple_branches=True the choice is deferred as a JSON list."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_c": "task_c"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             [downstream_enum.task_a, downstream_enum.task_c]
         )
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -283,13 +302,13 @@ class TestLLMBranchOperatorApproval:
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_review_form_lists_choices_and_renders_enum_dropdown(
-        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch, make_mock_run_result
     ):
         """The review body lists the valid branches and the editable param is an enum dropdown."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
+        mock_agent.run_sync.return_value = make_mock_run_result(downstream_enum.task_a)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
@@ -316,13 +335,13 @@ class TestLLMBranchOperatorApproval:
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_review_form_multi_branch_renders_multiselect(
-        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, mock_do_branch, make_mock_run_result
     ):
         """With allow_multiple_branches the editable param is an array enum (multi-select)."""
         downstream_enum = Enum("DownstreamTasks", {"task_a": "task_a", "task_b": "task_b"})
 
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result([downstream_enum.task_a])
+        mock_agent.run_sync.return_value = make_mock_run_result([downstream_enum.task_a])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(

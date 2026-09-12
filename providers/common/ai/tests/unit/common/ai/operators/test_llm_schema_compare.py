@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -45,16 +46,6 @@ def _make_context():
     ti = MagicMock()
     ti.id = uuid4()
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
-
-
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
 
 
 _BASE_KWARGS = dict(task_id="test_task", prompt="test prompt", llm_conn_id="llm_conn")
@@ -259,7 +250,7 @@ class TestLLMSchemaCompareOperator:
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
     )
-    def test_execute(self, mock_build_system_prompt, mock_build_schema_context):
+    def test_execute(self, mock_build_system_prompt, mock_build_schema_context, make_mock_run_result):
         mock_build_schema_context.return_value = "schema_context"
         mock_build_system_prompt.return_value = "system_prompt"
 
@@ -274,7 +265,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         )
         mock_llm_hook.create_agent.return_value = mock_agent
@@ -293,9 +284,44 @@ class TestLLMSchemaCompareOperator:
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
 
     @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
+    )
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_build_system_prompt, mock_build_schema_context, make_mock_run_result
+    ):
+        """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
+        mock_build_schema_context.return_value = "schema_context"
+        mock_build_system_prompt.return_value = "system_prompt"
+
+        op = LLMSchemaCompareOperator(
+            task_id="test",
+            prompt="user_prompt",
+            llm_conn_id="llm_conn",
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["orders"],
+            usage_limits={"cost_limit": "0.5"},
+        )
+
+        mock_llm_hook = mock.Mock()
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        mock_llm_hook.create_agent.return_value = mock_agent
+        op.llm_hook = mock_llm_hook
+
+        op.execute(context={})
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
+
+    @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._get_db_hook"
     )
-    def test_execute_schema_comparison_mixed_conn(self, mock_get_db_hook, db_hook):
+    def test_execute_schema_comparison_mixed_conn(self, mock_get_db_hook, db_hook, make_mock_run_result):
         """Test validates schema comparison for mixed connection types.
 
         An eg: files are in s3, and data is loading to the postgres table, so in this case
@@ -350,7 +376,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(
                 compatible=True, mismatches=[], summary="S3 and Postgres schemas are compatible"
             )
@@ -376,7 +402,7 @@ class TestLLMSchemaCompareOperator:
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._get_db_hook"
     )
-    def test_execute_schema_comparison_db_conn_ids_only(self, mock_get_db_hook):
+    def test_execute_schema_comparison_db_conn_ids_only(self, mock_get_db_hook, make_mock_run_result):
         """End-to-end execute using only db_conn_ids (no data_sources).
 
         Simulates comparing the same table across two database systems
@@ -429,7 +455,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(compatible=True, mismatches=[], summary="Schemas are compatible")
         )
         mock_llm_hook.create_agent.return_value = mock_agent
@@ -443,7 +469,7 @@ class TestLLMSchemaCompareOperator:
         assert "snowflake" in instructions
         assert result["compatible"] is True
 
-    def test_execute_schema_comparison_datasources_only(self):
+    def test_execute_schema_comparison_datasources_only(self, make_mock_run_result):
         """End-to-end execute using only data_sources (no db_conn_ids).
 
         Simulates comparing two object-storage sources, e.g. two S3 buckets
@@ -478,7 +504,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_llm_hook = mock.Mock()
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(
+        mock_agent.run_sync.return_value = make_mock_run_result(
             SchemaCompareResult(
                 compatible=False,
                 mismatches=[],
@@ -597,7 +623,13 @@ class TestLLMSchemaCompareOperatorApproval:
     @mock.patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @mock.patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     def test_execute_with_approval_pauses_with_summary_body(
-        self, mock_upsert, mock_trigger_cls, mock_build_system_prompt, mock_build_schema_context, caplog
+        self,
+        mock_upsert,
+        mock_trigger_cls,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        caplog,
+        make_mock_run_result,
     ):
         mock_build_schema_context.return_value = "schema_context"
         mock_build_system_prompt.return_value = "system_prompt"
@@ -621,7 +653,7 @@ class TestLLMSchemaCompareOperatorApproval:
 
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
         mock_agent = mock.Mock()
-        mock_agent.run_sync.return_value = _make_mock_run_result(result)
+        mock_agent.run_sync.return_value = make_mock_run_result(result)
         op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
 
         with pytest.raises(TaskAwaitingInput) as exc_info:

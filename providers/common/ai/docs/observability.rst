@@ -51,6 +51,9 @@ How it works
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
+* **Cost is already on the span.** pydantic-ai's own instrumentation sets a
+  best-effort ``operation.cost`` attribute on the model-call span whenever it
+  can price the response -- no provider configuration is needed for this.
 
 .. note::
 

@@ -28,16 +28,6 @@ from airflow.providers.common.ai.operators.llm_schema_compare import (
 )
 
 
-def _make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary."""
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
-
-
 def _make_compare_result():
     return SchemaCompareResult(
         mismatches=[],
@@ -46,9 +36,9 @@ def _make_compare_result():
     )
 
 
-def _make_mock_agent(output: SchemaCompareResult):
+def _make_mock_agent(output: SchemaCompareResult, make_mock_run_result):
     mock_agent = MagicMock(spec=["run_sync"])
-    mock_agent.run_sync.return_value = _make_mock_run_result(output)
+    mock_agent.run_sync.return_value = make_mock_run_result(output)
     return mock_agent
 
 
@@ -58,10 +48,12 @@ class TestLLMSchemaCompareDecoratedOperator:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
-    def test_execute_calls_callable_and_uses_result_as_prompt(self, mock_build_ctx, mock_hook_cls):
+    def test_execute_calls_callable_and_uses_result_as_prompt(
+        self, mock_build_ctx, mock_hook_cls, make_mock_run_result
+    ):
         """The user's callable return value becomes the LLM prompt."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            _make_compare_result()
+            _make_compare_result(), make_mock_run_result
         )
 
         def my_prompt_fn():
@@ -98,9 +90,9 @@ class TestLLMSchemaCompareDecoratedOperator:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
-    def test_execute_accepts_sequence_prompt(self, mock_build_ctx, mock_hook_cls):
+    def test_execute_accepts_sequence_prompt(self, mock_build_ctx, mock_hook_cls, make_mock_run_result):
         """A non-empty Sequence[UserContent] return value is forwarded to run_sync as-is."""
-        mock_agent = _make_mock_agent(_make_compare_result())
+        mock_agent = _make_mock_agent(_make_compare_result(), make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         image = ImageUrl(url="https://example.com/x.png")
@@ -125,9 +117,9 @@ class TestLLMSchemaCompareDecoratedOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
     def test_sequence_prompt_with_require_approval_raises_before_run_sync(
-        self, mock_build_ctx, mock_hook_cls
+        self, mock_build_ctx, mock_hook_cls, make_mock_run_result
     ):
-        mock_agent = _make_mock_agent(_make_compare_result())
+        mock_agent = _make_mock_agent(_make_compare_result(), make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = _LLMSchemaCompareDecoratedOperator(
@@ -145,10 +137,12 @@ class TestLLMSchemaCompareDecoratedOperator:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="mocked schema")
-    def test_execute_merges_op_kwargs_into_callable(self, mock_build_ctx, mock_hook_cls):
+    def test_execute_merges_op_kwargs_into_callable(
+        self, mock_build_ctx, mock_hook_cls, make_mock_run_result
+    ):
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            _make_compare_result()
+            _make_compare_result(), make_mock_run_result
         )
 
         def my_prompt_fn(target_env):

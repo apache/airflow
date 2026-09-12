@@ -515,9 +515,10 @@ class PydanticAIVertexHook(PydanticAIHook):
         # from GoogleCloudProvider (Vertex AI, which hardcodes vertexai=True internally and
         # accepts no such constructor kwarg) in pydantic/pydantic-ai#5336. Forwarding it would
         # raise TypeError, which the base hook's `except TypeError` in get_conn() would then
-        # swallow by falling back to env-var auth with *all* other kwargs discarded — silently
-        # authenticating as the wrong identity. Accept the field for backward compatibility but
-        # never forward it: which API is used is now controlled by the model prefix.
+        # catch: it logs a warning and falls back to env-var auth rather than raising --
+        # authenticating as the wrong identity (with *all* other kwargs discarded). Accept
+        # the field for backward compatibility but never forward it: which API is used is
+        # now controlled by the model prefix.
         if extra.get("vertexai") is not None:
             self.log.warning(
                 "The 'vertexai' connection field is ignored; Vertex AI vs. Generative Language "

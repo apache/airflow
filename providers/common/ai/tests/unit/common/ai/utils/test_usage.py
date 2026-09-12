@@ -1,0 +1,465 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import dataclasses
+from decimal import Decimal
+from typing import Literal
+
+import pytest
+from pydantic_ai.usage import UsageLimits
+
+from airflow.providers.common.ai.utils.usage import (
+    _COERCERS,
+    _FIELD_NAMES,
+    _field_hints,
+    _get_field_type,
+    _resolve_field_type,
+    coerce_usage_limits,
+)
+
+
+class TestCoerceUsageLimitsIdentity:
+    def test_none_returns_none(self):
+        assert coerce_usage_limits(None) is None
+
+    def test_usage_limits_instance_returned_unchanged(self):
+        """An author-built UsageLimits is returned by identity -- its field
+        values are never inspected or copied."""
+        limits = UsageLimits(request_limit=3)
+        assert coerce_usage_limits(limits) is limits
+
+
+class TestCoerceUsageLimitsNativeDict:
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("cost_limit", Decimal("0.5")),
+            ("request_limit", 5),
+            ("count_tokens_before_request", True),
+        ],
+    )
+    def test_native_value_matches_direct_construction(self, field, value):
+        result = coerce_usage_limits({field: value})
+        assert result == UsageLimits(**{field: value})
+
+
+class TestCoerceUsageLimitsTemplatedDict:
+    def test_cost_limit_string_coerced_to_decimal(self):
+        result = coerce_usage_limits({"cost_limit": "0.5"})
+        assert result.cost_limit == Decimal("0.5")
+
+    @pytest.mark.parametrize("value", ["0.1", 0.1], ids=["templated-str", "native-float"])
+    def test_cost_limit_uses_decimal_str_not_decimal_float(self, value):
+        """Decimal(str(x)) semantics apply whether the value is templated (a str)
+        or written literally (a native float): neither must pick up the
+        binary-float noise that Decimal(0.1) would."""
+        result = coerce_usage_limits({"cost_limit": value})
+        assert result.cost_limit == Decimal("0.1")
+        assert result.cost_limit != Decimal(0.1)
+
+    def test_int_field_string_coerced_to_int(self):
+        result = coerce_usage_limits({"request_limit": "5"})
+        assert result.request_limit == 5
+        assert isinstance(result.request_limit, int)
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("true", True),
+            ("Yes", True),
+            ("0", False),
+            ("off", False),
+        ],
+    )
+    def test_bool_field_string_coerced(self, value, expected):
+        result = coerce_usage_limits({"count_tokens_before_request": value})
+        assert result.count_tokens_before_request is expected
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", 2.0),
+            ("total_tokens_limit", 100.0),
+        ],
+        ids=["request_limit-2.0-float", "total_tokens_limit-100.0-float"],
+    )
+    def test_integral_float_on_int_field_is_coerced_to_int(self, field, value):
+        """``2.0`` is mathematically an integer with none of the ambiguity of
+        ``2.5`` -- e.g. Jinja can render an integer literal as a float under
+        ``render_template_as_native_obj=True``, and rejecting it would punish a
+        legitimate templated input."""
+        result = coerce_usage_limits({field: value})
+        assert getattr(result, field) == int(value)
+        assert isinstance(getattr(result, field), int)
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", Decimal("3")),
+            ("tool_calls_limit", Decimal("1")),
+        ],
+        ids=["request_limit-3-decimal", "tool_calls_limit-1-decimal"],
+    )
+    def test_integral_decimal_on_int_field_is_coerced_to_int(self, field, value):
+        """Mirrors ``test_integral_float_on_int_field_is_coerced_to_int`` above,
+        but for a native ``Decimal`` landing on an ``int`` field (e.g. under
+        ``render_template_as_native_obj=True``): an integral value like
+        ``Decimal("3")`` must be coerced to a plain ``int``, not merely accepted
+        as a Decimal that compares equal to one."""
+        result = coerce_usage_limits({field: value})
+        coerced = getattr(result, field)
+        assert coerced == int(value)
+        assert isinstance(coerced, int)
+
+    def test_explicit_none_disables_the_limit(self):
+        """None is the author's deliberate choice under the default (string)
+        rendering, where Jinja never produces None from a string template --
+        so it must pass through untouched. (Under
+        render_template_as_native_obj=True a None-valued param can also
+        render to a real None indistinguishable from this; see the comment
+        in _coerce_value -- not covered by this test.)"""
+        result = coerce_usage_limits({"request_limit": None})
+        assert result.request_limit is None
+
+
+class TestCoerceUsageLimitsInvalidValues:
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("cost_limit", ""),
+            ("cost_limit", "n/a"),
+            ("cost_limit", "$0.50"),
+            ("request_limit", "abc"),
+            ("cost_limit", True),
+            ("cost_limit", False),
+        ],
+    )
+    def test_unparsable_value_raises_naming_field_and_value(self, field, value):
+        """The error must name the field and the offending value -- a bare
+        ``decimal.InvalidOperation``/``ValueError`` traceback gives a Dag author
+        no clue which key (often a mistyped Variable name, or a Variable that
+        exists but is empty) broke.
+        Covers both the ``Decimal`` (``cost_limit``) and ``int`` (``request_limit``)
+        coercion error paths. ``cost_limit`` with a ``bool`` pins the existing
+        ``str(True)`` -> ``Decimal("True")`` -> ``InvalidOperation`` behavior --
+        this path is not changed by the ``int``-field bool guard below."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("cost_limit", "inf"),
+            ("cost_limit", "-inf"),
+            ("cost_limit", "nan"),
+            ("cost_limit", "Infinity"),
+            ("cost_limit", float("inf")),
+            ("cost_limit", float("-inf")),
+            ("cost_limit", float("nan")),
+            ("cost_limit", 1e400),
+            ("request_limit", float("inf")),
+            ("request_limit", float("nan")),
+            ("total_tokens_limit", 1e400),
+            ("tool_calls_limit", float("-inf")),
+        ],
+        ids=[
+            "cost_limit-inf-str",
+            "cost_limit--inf-str",
+            "cost_limit-nan-str",
+            "cost_limit-Infinity-str",
+            "cost_limit-inf-float",
+            "cost_limit--inf-float",
+            "cost_limit-nan-float",
+            "cost_limit-1e400-float",
+            "request_limit-inf-float",
+            "request_limit-nan-float",
+            "total_tokens_limit-1e400-float",
+            "tool_calls_limit--inf-float",
+        ],
+    )
+    def test_non_finite_value_raises_for_any_numeric_field(self, field, value):
+        """A non-finite value would compare as never-exceeded, silently disabling
+        the cap the Dag author thinks they configured -- for every numeric field,
+        not just ``cost_limit``. The finite check in ``_validate_range`` applies to
+        every numeric field, independent of the ``Decimal`` string-normalization
+        ``_coerce_value`` does for ``cost_limit`` specifically.
+        ``tool_calls_limit=-inf`` is included because ``-inf < 0`` is also true, so
+        the finite check must run (and raise) *before* the negative check, or this
+        case would be caught with a misleading "must not be negative" message."""
+        with pytest.raises(ValueError, match="finite"):
+            coerce_usage_limits({field: value})
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", True),
+            ("request_limit", False),
+            ("tool_calls_limit", True),
+            ("tool_calls_limit", False),
+        ],
+        ids=[
+            "request_limit-True-bool",
+            "request_limit-False-bool",
+            "tool_calls_limit-True-bool",
+            "tool_calls_limit-False-bool",
+        ],
+    )
+    def test_bool_value_on_int_field_raises(self, field, value):
+        """``bool`` is a subclass of ``int``, so an unguarded ``isinstance(value,
+        int)`` check would silently build e.g. ``UsageLimits(request_limit=False)``,
+        which only fails deep inside pydantic-ai with a confusing message."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", 2.5),
+            ("tool_calls_limit", 1.1),
+        ],
+        ids=[
+            "request_limit-2.5-float",
+            "tool_calls_limit-1.1-float",
+        ],
+    )
+    def test_non_integral_float_on_int_field_raises(self, field, value):
+        """A non-integral float has no single unambiguous truncation/rounding --
+        silently picking one would hide the ambiguity from the Dag author."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_limit", Decimal("3.5")),
+            ("tool_calls_limit", Decimal("1.1")),
+        ],
+        ids=[
+            "request_limit-3.5-decimal",
+            "tool_calls_limit-1.1-decimal",
+        ],
+    )
+    def test_non_integral_decimal_on_int_field_raises(self, field, value):
+        """A native ``Decimal`` can land on an ``int`` field the same way a native
+        ``float`` can (e.g. under ``render_template_as_native_obj=True``), and a
+        non-integral one has the same truncation/rounding ambiguity as
+        ``test_non_integral_float_on_int_field_raises`` above. Without this check,
+        ``isinstance(value, (Decimal, int, float))`` in the container-shape gate
+        would accept it and ``_validate_range`` would let it through unchanged,
+        since 3.5 is finite and non-negative."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+        assert repr(value) in message
+
+    def test_signaling_nan_raises_naming_the_field(self):
+        """``Decimal('sNaN')`` traps on unguarded comparison (``InvalidOperation``,
+        not ``ValueError``) and ``math.isfinite`` raises outright on it rather than
+        returning ``False`` -- the finite check must use ``Decimal.is_finite()`` for
+        ``Decimal`` values so this surfaces as a named ``ValueError`` like every
+        other bad value, not an unhandled crash. Covers both the native ``Decimal``
+        and the templated-string spelling."""
+        for value in (Decimal("snan"), "snan"):
+            with pytest.raises(ValueError, match="finite"):
+                coerce_usage_limits({"cost_limit": value})
+
+    def test_huge_but_finite_value_is_accepted(self):
+        """A value too large for ``float`` is still finite -- ``Decimal`` has no
+        float-sized exponent limit, and neither does Python's arbitrary-precision
+        ``int``. ``math.isfinite`` would overflow converting either to a ``float``;
+        the finite check must not go through ``float`` for these types."""
+        huge = "1" + "0" * 400
+        result = coerce_usage_limits({"total_tokens_limit": huge})
+        assert result.total_tokens_limit == int(huge)
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("cost_limit", "-1"),
+            ("cost_limit", -1),
+            ("cost_limit", -1.5),
+            ("request_limit", "-1"),
+            ("request_limit", -1),
+        ],
+    )
+    def test_negative_value_raises_for_field(self, field, value):
+        with pytest.raises(ValueError, match="must not be negative"):
+            coerce_usage_limits({field: value})
+
+    def test_zero_cost_limit_is_accepted(self):
+        """0 is a valid (if unusual) cap and must not be rejected as falsy or negative."""
+        result = coerce_usage_limits({"cost_limit": "0"})
+        assert result.cost_limit == Decimal("0")
+
+    def test_unknown_key_raises_naming_key_and_valid_fields(self):
+        with pytest.raises(ValueError, match="cost_limitt") as exc_info:
+            coerce_usage_limits({"cost_limitt": "1"})
+        message = str(exc_info.value)
+        assert "cost_limit" in message
+        assert "request_limit" in message
+
+    def test_unrecognized_bool_string_raises(self):
+        with pytest.raises(ValueError, match="count_tokens_before_request"):
+            coerce_usage_limits({"count_tokens_before_request": "maybe"})
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("cost_limit", []),
+            ("cost_limit", {}),
+            ("request_limit", {}),
+            ("request_limit", []),
+        ],
+        ids=[
+            "cost_limit-list",
+            "cost_limit-dict",
+            "request_limit-dict",
+            "request_limit-list",
+        ],
+    )
+    def test_non_numeric_container_raises_value_error_not_type_error(self, field, value):
+        """A templated field can render to any type -- a list or dict must be
+        rejected with this module's documented ``ValueError`` naming the field,
+        not an undocumented ``TypeError`` raised deep inside ``math.isfinite``
+        (which converts to ``float`` first and rejects non-numeric input)."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({field: value})
+        message = str(exc_info.value)
+        assert f"usage_limits[{field!r}]" in message
+
+    @pytest.mark.parametrize(
+        "value",
+        [[], {}, 0, 1, 1.5, Decimal("0")],
+        ids=["list", "dict", "0-int", "1-int", "1.5-float", "0-decimal"],
+    )
+    def test_non_bool_value_on_bool_field_raises_value_error_not_type_error(self, value):
+        """``count_tokens_before_request`` is the one ``bool`` field and sits
+        outside the ``field_type in (Decimal, int)`` container-shape gate above --
+        without its own shape check, any of these values would reach
+        ``UsageLimits`` untouched and pydantic-ai would read it by truthiness,
+        silently turning the pre-flight token check on or off against the Dag
+        author's intent (the outcome ``_TRUE_LIKE``'s docstring says this module
+        exists to prevent)."""
+        with pytest.raises(ValueError, match=r"usage_limits\[") as exc_info:
+            coerce_usage_limits({"count_tokens_before_request": value})
+        message = str(exc_info.value)
+        assert "usage_limits['count_tokens_before_request']" in message
+
+
+class TestCoercersCompleteness:
+    def test_every_field_type_has_a_coercer(self):
+        """
+        Guards against pydantic-ai adding a UsageLimits field whose type this
+        module doesn't know how to coerce from a templated string.
+
+        Field types are no longer resolved eagerly at import time (see
+        ``_get_field_type``'s per-field, lazy, cached resolution), so this test
+        drives the same full-field scan itself by calling ``_get_field_type``
+        for every name in ``_FIELD_NAMES`` -- the set of fields covered is
+        identical to before, only *when* each field's type gets resolved has
+        moved from import time into this test.
+
+        If this goes red after a pydantic-ai upgrade, it means a new field's
+        type has no entry in ``_COERCERS`` -- add a ``coerce_*`` function for
+        that type in ``airflow.providers.common.ai.utils.usage``.
+        """
+        missing = {}
+        for field in _FIELD_NAMES:
+            field_type = _get_field_type(field)
+            if field_type not in _COERCERS:
+                missing[field] = field_type
+        assert not missing, (
+            f"No coercer registered for {missing}; add a coerce_* function for that type "
+            "in airflow.providers.common.ai.utils.usage._COERCERS"
+        )
+
+
+class TestResolveFieldType:
+    """``_resolve_field_type`` must raise on any annotation shape it cannot
+    unambiguously resolve, rather than silently picking a member -- see
+    ``coerce_usage_limits``'s "loud, not silent" drift-detection design."""
+
+    def test_ambiguous_union_raises(self):
+        """A Union of two real types (not ``X | None``) has no single coercion
+        target; silently picking the first member would hide the ambiguity."""
+        with pytest.raises(TypeError, match="unsupported annotation"):
+            _resolve_field_type("some_field", int | str | None)
+
+    def test_parameterized_generic_raises(self):
+        with pytest.raises(TypeError, match="unsupported annotation"):
+            _resolve_field_type("some_field", dict[str, int])
+
+    def test_non_type_resolution_raises(self):
+        """A single-member ``Literal`` resolves to a value, not a type."""
+        with pytest.raises(TypeError, match="resolved to a non-type"):
+            _resolve_field_type("some_field", Literal["a"])
+
+
+class TestLazyFieldTypeResolution:
+    """Simulates a future pydantic-ai release adding a ``UsageLimits`` field
+    whose annotation ``_resolve_field_type`` cannot support, to prove type
+    resolution stays lazy and per-field: it must not break every import, only
+    Dags that actually set that specific field (see PR #71403 review
+    discussion)."""
+
+    def setup_method(self):
+        _get_field_type.cache_clear()
+        _field_hints.cache_clear()
+
+    def teardown_method(self):
+        _get_field_type.cache_clear()
+        _field_hints.cache_clear()
+
+    def test_unsupported_field_does_not_break_import_or_unrelated_fields(self, monkeypatch):
+        @dataclasses.dataclass
+        class FakeUsageLimits:
+            request_limit: int | None = None
+            weird_field: Literal["a", "b"] | None = None
+
+        monkeypatch.setattr("airflow.providers.common.ai.utils.usage.UsageLimits", FakeUsageLimits)
+        monkeypatch.setattr(
+            "airflow.providers.common.ai.utils.usage._FIELD_NAMES",
+            frozenset({"request_limit", "weird_field"}),
+        )
+
+        # (a) Resolving type hints for the whole class -- the operation that used
+        # to run eagerly at import time -- does not raise just because one field
+        # has an unsupported annotation. ``_field_hints`` only evaluates
+        # annotation strings into typing objects; it never judges whether a
+        # shape is supported.
+        _field_hints()
+
+        # (b) A call that never touches the unsupported field is unaffected.
+        result = coerce_usage_limits({"request_limit": "3"})
+        assert result.request_limit == 3
+
+        # (c) Actually using the unsupported field still raises loudly and
+        # names the field -- lazy, per-field resolution must not silently
+        # swallow an unsupported shape.
+        with pytest.raises(TypeError, match="weird_field"):
+            coerce_usage_limits({"weird_field": "a"})

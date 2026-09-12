@@ -28,12 +28,13 @@ def _make_mock_run_result(output):
     mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
     mock_result.usage = MagicMock(
-        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
+        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens", "cost"],
         requests=1,
         tool_calls=0,
         input_tokens=0,
         output_tokens=0,
         total_tokens=0,
+        cost=None,
     )
     mock_result.response = MagicMock(spec=["model_name"], model_name="test-model")
     mock_result.all_messages.return_value = []
