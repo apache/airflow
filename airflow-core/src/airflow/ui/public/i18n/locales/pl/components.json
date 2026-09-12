@@ -9,10 +9,22 @@
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
     "errorStartDateBeforeEndDate": "Data początkowa musi być wcześniejsza niż data końcowa",
+    "exceptionReason": {
+      "alreadyExists": "Już istnieje",
+      "inFlight": "W trakcie",
+      "unknown": "Nieznany"
+    },
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
     "missingAndErroredRuns": "Brakujące i błędne wykonania",
     "missingRuns": "Brakujące wykonania",
+    "notCreatedReason": "Powód nieutworzenia",
     "overrideExistingParams": "Nadpisz parametry istniejących wykonań",
+    "partitionRange": "Zakres partycji",
+    "partitionsAffected_few": "{{count}} partycje zostaną wypełnione wstecznie:",
+    "partitionsAffected_many": "{{count}} partycji zostanie wypełnionych wstecznie:",
+    "partitionsAffected_one": "{{count}} partycja zostanie wypełniona wstecznie:",
+    "partitionsAffected_other": "{{count}} partycji zostanie wypełnionych wstecznie:",
+    "partitionsNone": "Brak partycji pasujących do wybranego zakresu.",
     "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
@@ -31,7 +43,8 @@
     "validation": {
       "datesRequired": "Należy podać zarówno datę początkową, jak i końcową interwału danych.",
       "startBeforeEnd": "Data początkowa interwału danych musi być wcześniejsza lub równa dacie końcowej."
-    }
+    },
+    "viewSlots": "Zobacz sloty dla wypełnienia wstecznego #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Wypełnienie wsteczne w toku",
@@ -129,7 +142,15 @@
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Ukryj wartość",
+    "show": "Pokaż wartość"
+  },
   "reparseDag": "Ponowne przetworznie Daga",
+  "slowestTaskInstances": {
+    "empty": "Brak zakończonych instancji zadań w tym zakresie",
+    "title": "Najwolniejsze instancje zadań"
+  },
   "sortedAscending": "posortowane rosnąco",
   "sortedDescending": "posortowane malejąco",
   "sortedUnsorted": "nieposortowane",

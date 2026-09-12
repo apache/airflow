@@ -58,6 +58,10 @@
       "successTitle": "XCom zaktualizowany",
       "title": "Edytuj XCom"
     },
+    "entry_few": "Wpisy XCom",
+    "entry_many": "Wpisów XCom",
+    "entry_one": "Wpis XCom",
+    "entry_other": "Wpisy XCom",
     "key": "Klucz",
     "title": "XCom",
     "value": "Wartość"
