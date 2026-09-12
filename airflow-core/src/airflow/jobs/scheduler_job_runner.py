@@ -2970,9 +2970,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 key=lambda ti: ti.start_date or timezone.make_aware(datetime.min),
                 default=None,
             )
+            # Mirror TI.set_state inline so the whole batch flushes once instead of per task.
+            now = timezone.utcnow()
             for task_instance in unfinished_task_instances:
                 task_instance.state = TaskInstanceState.SKIPPED
-                session.merge(task_instance)
+                task_instance.start_date = task_instance.start_date or now
+                task_instance.end_date = task_instance.end_date or now
+                task_instance.duration = (task_instance.end_date - task_instance.start_date).total_seconds()
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
