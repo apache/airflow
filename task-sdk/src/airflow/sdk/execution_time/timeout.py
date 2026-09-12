@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 
 import structlog
@@ -35,7 +36,9 @@ class TimeoutPosix:
 
     def handle_timeout(self, signum, frame):
         """Log information and raises AirflowTaskTimeout."""
-        self.log.error("Process timed out", pid=os.getpid())
+        # Ensure the timeout isn't masked by a logging error
+        with contextlib.suppress(OSError):
+            self.log.error("Process timed out", pid=os.getpid())
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
