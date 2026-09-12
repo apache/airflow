@@ -94,7 +94,10 @@ class OpenAIResponseOperator(BaseOperator):
     :doc:`apache-airflow-providers-common-ai:index` instead. When ``max_output_tokens`` is hit, the
     request does not fail: the response comes back with ``status="incomplete"`` -- but
     ``output_text`` is not guaranteed to contain any content, since a reasoning model can spend
-    the entire ceiling on reasoning tokens without producing visible output.
+    the entire ceiling on reasoning tokens without producing visible output. Hitting
+    ``max_tool_calls`` is different: the OpenAI SDK documents it as silently dropping further
+    tool calls, with no ``status`` change and no ``incomplete_details`` -- a run truncated this
+    way looks identical to a clean one in both the logs and ``return_value``.
 
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
@@ -108,8 +111,8 @@ class OpenAIResponseOperator(BaseOperator):
         ceiling. A literal (non-string) value is validated at task definition (Dag-parse) time; a
         string value -- whether a template or a plain literal string -- is validated when the task
         executes, after templating has resolved it. A blank or whitespace-only rendered value (for
-        example ``{{ params.tokens or '' }}`` rendering to ``''``) is treated as unset, disabling
-        the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not** treated
+        example ``{{ params.tokens | default('', true) }}`` rendering to ``''``) is treated as unset,
+        disabling the ceiling; the literal strings ``"None"``, ``"none"`` and ``"null"`` are **not** treated
         as blank and still raise. Mutually
         exclusive with ``max_output_tokens`` in ``response_kwargs`` -- this is checked at task
         definition (Dag-parse) time, regardless of what the templated value later renders to.
