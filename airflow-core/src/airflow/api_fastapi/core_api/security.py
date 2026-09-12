@@ -75,6 +75,7 @@ from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
@@ -254,7 +255,27 @@ def requires_access_dag_from_file_token(
             )
         )
         if not dag_ids:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            # A file with an import error has no registered Dag to authorize per-Dag against. The
+            # only no-Dag caller is reparse (a write), so a write is allowed on general Dag access
+            # for its ``method`` -- the resource-less form of the same check the endpoint makes for
+            # files that do have Dags, never the read-only permission to view import errors (seeing
+            # an error must not grant reparse). A read (``GET``) reaching here -- e.g. a future
+            # endpoint reusing this generic dependency -- must not be silently granted viewer-level
+            # access to a no-Dag file, so it 404s as any unregistered file would.
+            if method == "GET":
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            has_import_error = session.scalar(
+                select(ParseImportError.id).where(
+                    ParseImportError.bundle_name == payload["bundle_name"],
+                    ParseImportError.filename == payload["relative_fileloc"],
+                )
+            )
+            if has_import_error is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(method=method, user=user),
+            )
+            return
 
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         requests: list[IsAuthorizedDagRequest] = [

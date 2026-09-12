@@ -770,6 +770,13 @@ class ImportErrorResponse(BaseModel):
     filename: Annotated[str, Field(title="Filename")]
     bundle_name: Annotated[str | None, Field(title="Bundle Name")]
     stack_trace: Annotated[str, Field(title="Stack Trace")]
+    file_token: Annotated[
+        str,
+        Field(
+            description="Return a signed token identifying the file, used to request its reparse.",
+            title="File Token",
+        ),
+    ]
 
 
 class JobResponse(BaseModel):

@@ -1134,6 +1134,7 @@ class TestDagOperations:
         filename="filename",
         bundle_name="bundle_name",
         stack_trace="stack_trace",
+        file_token="file_token",
     )
 
     import_error_collection_response = ImportErrorCollectionResponse(

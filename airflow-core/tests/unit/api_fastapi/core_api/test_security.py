@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request
+from itsdangerous import URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -55,6 +56,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_connection,
     requires_access_connection_bulk,
     requires_access_dag,
+    requires_access_dag_from_file_token,
     requires_access_event_log,
     requires_access_pool,
     requires_access_pool_bulk,
@@ -364,6 +366,30 @@ class TestFastApiSecurity:
             details=DagDetails(id=expected_dag_id, team_name=mock_get_team_name.return_value),
             user=user,
         )
+
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_from_file_token_get_on_no_dag_file_404s(self, mock_get_auth_manager):
+        # The dependency is generic over ``method``; reparse (a write) is its only no-Dag caller.
+        # A read reusing it must not be silently granted viewer-level access to a file with no
+        # registered Dag, so a GET on such a file 404s without ever consulting the auth manager.
+        auth_manager = Mock()
+        mock_get_auth_manager.return_value = auth_manager
+
+        secret_key = "secret"
+        request = Mock()
+        request.app.state.secret_key = secret_key
+        token = URLSafeSerializer(secret_key).dumps(
+            {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+        session = Mock()
+        session.scalars.return_value = []  # no registered Dags for the file
+
+        with pytest.raises(HTTPException) as exc_info:
+            requires_access_dag_from_file_token("GET")(token, request, Mock(), session)
+
+        assert exc_info.value.status_code == 404
+        auth_manager.is_authorized_dag.assert_not_called()
+        session.scalar.assert_not_called()
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
