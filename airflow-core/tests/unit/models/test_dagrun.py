@@ -84,7 +84,7 @@ from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import prohibit_commit
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
@@ -1100,6 +1100,12 @@ class TestDagRun:
 
         runs = fetch().all()
         assert runs == []
+
+        orm_dag.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.commit()
+
+        runs = fetch().all()
+        assert runs == [dr]
 
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):

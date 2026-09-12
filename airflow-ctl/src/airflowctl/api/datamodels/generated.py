@@ -449,17 +449,6 @@ class CreateAssetEventsBody(BaseModel):
     access_control: AssetEventAccessControl | None = None
 
 
-class DAGPatchBody(BaseModel):
-    """
-    Dag Serializer for updatable bodies.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    is_paused: Annotated[bool, Field(title="Is Paused")]
-
-
 class DAGRunClearBody(BaseModel):
     """
     Dag Run serializer for clear endpoint body.
@@ -609,6 +598,16 @@ class DagScheduleAssetReference(BaseModel):
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+
+
+class DagSchedulingState(str, Enum):
+    """
+    States controlling whether a Dag can create and schedule work.
+    """
+
+    ACTIVE = "active"
+    DRAINING = "draining"
+    PAUSED = "paused"
 
 
 class DagStatsStateResponse(BaseModel):
@@ -1793,6 +1792,18 @@ class ConnectionCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class DAGPatchBody(BaseModel):
+    """
+    Dag Serializer for updatable bodies.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    is_paused: Annotated[bool | None, Field(title="Is Paused")] = None
+    scheduling_state: DagSchedulingState | None = None
+
+
 class DAGResponse(BaseModel):
     """
     Dag serializer for responses.
@@ -1801,6 +1812,7 @@ class DAGResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     is_paused: Annotated[bool, Field(title="Is Paused")]
+    scheduling_state: DagSchedulingState | None = "active"
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")]
     last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")]
@@ -2672,6 +2684,7 @@ class DAGDetailsResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     is_paused: Annotated[bool, Field(title="Is Paused")]
+    scheduling_state: DagSchedulingState | None = "active"
     is_stale: Annotated[bool, Field(title="Is Stale")]
     last_parsed_time: Annotated[datetime | None, Field(title="Last Parsed Time")]
     last_parse_duration: Annotated[float | None, Field(title="Last Parse Duration")]

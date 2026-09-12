@@ -2831,6 +2831,10 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Is Paused'
         },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
+        },
         is_stale: {
             type: 'boolean',
             title: 'Is Stale'
@@ -3301,13 +3305,29 @@ Deprecated: Use max_active_tasks instead.`,
 export const $DAGPatchBody = {
     properties: {
         is_paused: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Is Paused'
+        },
+        scheduling_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagSchedulingState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     additionalProperties: false,
     type: 'object',
-    required: ['is_paused'],
     title: 'DAGPatchBody',
     description: 'Dag Serializer for updatable bodies.'
 } as const;
@@ -3325,6 +3345,10 @@ export const $DAGResponse = {
         is_paused: {
             type: 'boolean',
             title: 'Is Paused'
+        },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
         },
         is_stale: {
             type: 'boolean',
@@ -4663,6 +4687,13 @@ export const $DagScheduleAssetReference = {
     required: ['dag_id', 'created_at', 'updated_at'],
     title: 'DagScheduleAssetReference',
     description: 'Dag schedule reference serializer for assets.'
+} as const;
+
+export const $DagSchedulingState = {
+    type: 'string',
+    enum: ['active', 'draining', 'paused'],
+    title: 'DagSchedulingState',
+    description: 'States controlling whether a Dag can create and schedule work.'
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -9682,6 +9713,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'boolean',
             title: 'Is Paused'
         },
+        scheduling_state: {
+            '$ref': '#/components/schemas/DagSchedulingState',
+            default: 'active'
+        },
         is_stale: {
             type: 'boolean',
             title: 'Is Stale'
@@ -9943,6 +9978,10 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Latest Dag Runs'
         },
+        has_unfinished_runs: {
+            type: 'boolean',
+            title: 'Has Unfinished Runs'
+        },
         pending_actions: {
             items: {
                 '$ref': '#/components/schemas/HITLDetail'
@@ -9979,7 +10018,7 @@ export const $DAGWithLatestDagRunsResponse = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'asset_expression', 'latest_dag_runs', 'has_unfinished_runs', 'pending_actions', 'is_favorite', 'is_backfillable', 'file_token'],
     title: 'DAGWithLatestDagRunsResponse',
     description: 'DAG with latest dag runs response serializer.'
 } as const;

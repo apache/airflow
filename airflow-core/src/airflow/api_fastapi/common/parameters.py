@@ -36,7 +36,17 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, String, and_, func, not_, or_, select as sql_select, true as sql_true
+from sqlalchemy import (
+    Column,
+    String,
+    and_,
+    false as sql_false,
+    func,
+    not_,
+    or_,
+    select as sql_select,
+    true as sql_true,
+)
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import aliased
@@ -73,7 +83,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
 from airflow.utils.sqlalchemy import JsonContains, apply_regex_query_timeout
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -1300,6 +1310,43 @@ QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter.depends)]
 QueryPausedFilter = Annotated[
     FilterParam[bool | None],
     Depends(filter_param_factory(DagModel.is_paused, bool | None, filter_name="paused")),
+]
+
+
+class _DagSchedulingStateFilter(BaseParam[DagSchedulingState | None]):
+    """Filter Dags by their exact scheduling state."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None:
+            return select
+
+        state_filters = {
+            DagSchedulingState.ACTIVE: (
+                DagModel.is_paused == sql_false(),
+                DagModel.is_draining == sql_false(),
+            ),
+            DagSchedulingState.DRAINING: (
+                DagModel.is_paused == sql_false(),
+                DagModel.is_draining == sql_true(),
+            ),
+            DagSchedulingState.PAUSED: (
+                DagModel.is_paused == sql_true(),
+                DagModel.is_draining == sql_false(),
+            ),
+        }
+        return select.where(*state_filters[self.value])
+
+    @classmethod
+    def depends(
+        cls,
+        scheduling_state: DagSchedulingState | None = Query(None),
+    ) -> Self:
+        return cls().set_value(scheduling_state)
+
+
+QueryDagSchedulingStateFilter = Annotated[
+    _DagSchedulingStateFilter,
+    Depends(_DagSchedulingStateFilter.depends),
 ]
 QueryHasImportErrorsFilter = Annotated[
     FilterParam[bool | None],

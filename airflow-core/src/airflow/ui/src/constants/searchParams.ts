@@ -102,6 +102,7 @@ export enum SearchParamsKeys {
   RUN_ID = "run_id",
   RUN_ID_PATTERN = "run_id_pattern",
   RUN_TYPE = "run_type",
+  SCHEDULING_STATE = "scheduling_state",
   SORT = "sort",
   SOURCE = "log_source",
   START_DATE = "start_date",

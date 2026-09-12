@@ -40,6 +40,23 @@ afterEach(() => {
 afterAll(() => server.close());
 
 describe("Dag Filters", () => {
+  it("passes an exact scheduling state from the URL to the API", async () => {
+    let requestedSchedulingState: string | null = null;
+
+    server.use(
+      http.get("/ui/dags", ({ request }) => {
+        requestedSchedulingState = new URL(request.url).searchParams.get("scheduling_state");
+
+        return HttpResponse.json({ dags: [], total_entries: 0 });
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
+    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+  });
+
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 

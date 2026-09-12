@@ -2038,6 +2038,7 @@ export class DagService {
      * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.excludeStale
      * @param data.paused
+     * @param data.schedulingState
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.dagRunState Filter Dags that have any DagRun in the given state.
@@ -2071,6 +2072,7 @@ export class DagService {
                 dag_display_name_prefix_pattern: data.dagDisplayNamePrefixPattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                scheduling_state: data.schedulingState,
                 has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 dag_run_state: data.dagRunState,
