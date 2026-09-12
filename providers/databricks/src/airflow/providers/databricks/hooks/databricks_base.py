@@ -51,6 +51,7 @@ from tenacity import (
 )
 
 from airflow import __version__
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.exceptions import DatabricksApiError
@@ -197,6 +198,23 @@ class BaseDatabricksHook(BaseHook):
     def get_conn(self) -> Connection:
         return self.databricks_conn
 
+    async def a_databricks_conn(self) -> Connection:
+        """
+        Resolve and cache the Databricks connection (async).
+
+        Shares the ``databricks_conn`` cached_property's cache slot so a connection
+        fetched from either the sync or async path is not looked up twice on
+        the same hook instance, and so the async path never touches the sync
+        ``get_connection()`` path from inside a running event loop.
+        """
+        if "databricks_conn" not in self.__dict__:
+            self.__dict__["databricks_conn"] = await get_async_connection(self.databricks_conn_id, hook=self)
+        return self.__dict__["databricks_conn"]
+
+    async def a_get_conn(self) -> Connection:
+        """Async version of ``get_conn``."""
+        return await self.a_databricks_conn()
+
     @cached_property
     def user_agent_header(self) -> dict[str, str]:
         return {"user-agent": self.user_agent_value}
@@ -226,6 +244,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def __aenter__(self):
         self._session = aiohttp.ClientSession()
+        await self.a_databricks_conn()
         return self
 
     async def __aexit__(self, *err):
@@ -362,6 +381,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_sp_token(self, resource: str) -> str:
         """Async version of `_get_sp_token()`."""
+        await self.a_databricks_conn()
         sp_token = self.oauth_tokens.get(resource)
         if sp_token and self._is_oauth_token_valid(sp_token):
             return sp_token["access_token"]
@@ -464,6 +484,7 @@ class BaseDatabricksHook(BaseHook):
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
+        await self.a_databricks_conn()
         aad_token = self.oauth_tokens.get(resource)
         if aad_token and self._is_oauth_token_valid(aad_token):
             return aad_token["access_token"]
@@ -566,6 +587,7 @@ class BaseDatabricksHook(BaseHook):
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
+        await self.a_databricks_conn()
         aad_token = self.oauth_tokens.get(resource)
         if aad_token and self._is_oauth_token_valid(aad_token):
             return aad_token["access_token"]
@@ -626,6 +648,7 @@ class BaseDatabricksHook(BaseHook):
 
         :return: dictionary with filled AAD headers
         """
+        await self.a_databricks_conn()
         headers = {}
         if "azure_resource_id" in self.databricks_conn.extra_dejson:
             mgmt_token = await self._a_get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
@@ -668,6 +691,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_jwt_token(self) -> str:
         """Async version of _get_k8s_jwt_token()."""
+        await self.a_databricks_conn()
         if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
             self.log.info("Using Kubernetes projected volume token")
             return await self._a_get_k8s_projected_volume_token()
@@ -724,6 +748,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_projected_volume_token(self) -> str:
         """Async version of _get_k8s_projected_volume_token()."""
+        await self.a_databricks_conn()
         aiofiles = self._get_aiofiles()
 
         projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
@@ -835,6 +860,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_token_request_api(self) -> str:
         """Async version of _get_k8s_token_request_api()."""
+        await self.a_databricks_conn()
         aiofiles = self._get_aiofiles()
 
         audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
@@ -960,6 +986,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_federation_subject_token(self) -> tuple[str, str | None]:
         """Async version of :meth:`_get_federation_subject_token`."""
+        await self.a_databricks_conn()
         provider = self.databricks_conn.extra_dejson.get("federated_token_provider")
         if provider:
             # The provider is a synchronous callable that typically makes a blocking network call to
@@ -1102,6 +1129,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_federated_databricks_token(self, resource: str) -> str:
         """Async version of _get_federated_databricks_token()."""
+        await self.a_databricks_conn()
         federated_token = self.oauth_tokens.get(resource)
         if federated_token and self._is_oauth_token_valid(federated_token):
             return federated_token["access_token"]
@@ -1248,6 +1276,7 @@ class BaseDatabricksHook(BaseHook):
         return None
 
     async def _a_get_token(self, raise_error: bool = False) -> str | None:
+        await self.a_databricks_conn()
         if "token" in self.databricks_conn.extra_dejson:
             self.log.info(
                 "Using token auth. For security reasons, please set token in Password field instead of extra"
@@ -1393,6 +1422,7 @@ class BaseDatabricksHook(BaseHook):
         :return: If the api call returns a OK status code,
             this function returns the response in JSON. Otherwise, throw an AirflowException.
         """
+        await self.a_databricks_conn()
         method, endpoint = endpoint_info
 
         full_endpoint = f"api/{endpoint}"

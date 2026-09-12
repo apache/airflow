@@ -108,13 +108,11 @@ class DatabricksExecutionTrigger(BaseTrigger):
 
     async def on_kill(self) -> None:
         """Cancel the Databricks run when the trigger is cancelled by a user action."""
-        from asgiref.sync import sync_to_async
-
         run_id = self.run_id
         if self.workflow_run_id is not None and self.databricks_task_key is not None:
             # self.run_id may be an earlier, now-terminal attempt; cancel the task's latest attempt
             # so a retry/repair launched under the same task_key is not left running.
-            tasks = await sync_to_async(self.hook.get_run_tasks)(self.workflow_run_id)
+            tasks = await self.hook.a_get_run_tasks(self.workflow_run_id)
             attempt = {
                 task["task_key"]: task for task in sorted(tasks, key=lambda task: task["start_time"])
             }.get(self.databricks_task_key)
@@ -122,7 +120,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                 run_id = attempt["run_id"]
         if run_id:
             self.log.info("Cancelling Databricks run %s.", run_id)
-            await sync_to_async(self.hook.cancel_run)(run_id)
+            await self.hook.a_cancel_run(run_id)
 
     def _monitors_workflow_task(self) -> bool:
         """Whether this trigger follows one task inside a shared workflow run (see ``workflow_run_id``)."""
@@ -161,10 +159,8 @@ class DatabricksExecutionTrigger(BaseTrigger):
 
     async def _run_workflow_task(self):
         """Monitor one task in a workflow run, tolerating in-flight retries/repairs."""
-        from asgiref.sync import sync_to_async
-
         while True:
-            tasks = await sync_to_async(self.hook.get_run_tasks)(self.workflow_run_id)
+            tasks = await self.hook.a_get_run_tasks(self.workflow_run_id)
             sorted_task_runs = sorted(tasks, key=lambda task: task["start_time"])
             attempt = {task["task_key"]: task for task in sorted_task_runs}.get(self.databricks_task_key)
 
@@ -289,10 +285,8 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
     async def on_kill(self) -> None:
         """Cancel the Databricks SQL statement when the trigger is cancelled by a user action."""
         if self.statement_id:
-            from asgiref.sync import sync_to_async
-
             self.log.info("Cancelling Databricks SQL statement %s.", self.statement_id)
-            await sync_to_async(self.hook.cancel_sql_statement)(self.statement_id)
+            await self.hook.a_cancel_sql_statement(self.statement_id)
 
     async def run(self):
         async with self.hook:
@@ -324,7 +318,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
                 return
 
             # If we reach here, it means the statement should be timed out as per the end_time.
-            self.hook.cancel_sql_statement(self.statement_id)
+            await self.hook.a_cancel_sql_statement(self.statement_id)
             yield TriggerEvent(
                 {
                     "statement_id": self.statement_id,
