@@ -1029,6 +1029,33 @@ class TestBeamRunPythonPipelineOperatorAsync:
         )
         beam_hook_mock.return_value.start_python_pipeline.assert_called_once()
 
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner_passes_impersonation_chain_to_trigger(
+        self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock
+    ):
+        """The DataflowHook picks up impersonation_chain fine, but the trigger the
+        operator hands off to for the deferred wait was building its own kwargs
+        from scratch and dropping it, so a deferred run would poll Dataflow with
+        whatever credentials the worker itself has instead of the one configured
+        here."""
+        dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
+        op = BeamRunPythonPipelineOperator(
+            runner="DataflowRunner",
+            dataflow_config=dataflow_config,
+            **self.default_op_kwargs,
+        )
+        magic_mock = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(TaskDeferred) as exc:
+                op.execute(context=magic_mock)
+        else:
+            with pytest.raises(TaskDeferred) as exc, pytest.warns(AirflowProviderDeprecationWarning):
+                op.execute(context=magic_mock)
+
+        assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_ACCOUNT
+
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
@@ -1156,6 +1183,31 @@ class TestBeamRunJavaPipelineOperatorAsync:
             wait_until_finished=dataflow_config.wait_until_finished,
         )
         beam_hook_mock.return_value.start_python_pipeline.assert_not_called()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner_passes_impersonation_chain_to_trigger(
+        self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock
+    ):
+        """Same gap as on the Python operator: the DataflowHook gets
+        impersonation_chain but the trigger built for the deferred wait
+        doesn't, so it ends up polling the job status under whatever
+        credentials the worker happens to have."""
+        dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
+        op = BeamRunJavaPipelineOperator(
+            runner="DataflowRunner", dataflow_config=dataflow_config, **self.default_op_kwargs
+        )
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        magic_mock = mock.MagicMock()
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(TaskDeferred) as exc:
+                op.execute(context=magic_mock)
+        else:
+            with pytest.raises(TaskDeferred) as exc, pytest.warns(AirflowProviderDeprecationWarning):
+                op.execute(context=magic_mock)
+
+        assert exc.value.trigger.impersonation_chain == TEST_IMPERSONATION_ACCOUNT
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
