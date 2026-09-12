@@ -55,6 +55,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import (
@@ -63,6 +64,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     parse_and_sync_to_db,
 )
+from tests_common.test_utils.stream_capture_manager import StdoutCaptureManager
 from unit.models import TEST_DAGS_FOLDER
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
@@ -379,6 +381,48 @@ class TestCliDags:
         with stdout_capture as temp_stdout:
             dag_command.dag_list_dags(args)
             assert json.loads(temp_stdout.getvalue()) == [{"dag_id": "test_dag_versions"}]
+
+        # Rebuild Test DB for other tests
+        self.setup_class()
+
+    def test_cli_list_dags_does_not_query_per_dag(self):
+        def count_list_dags_queries(dag_count: int) -> int:
+            clear_db_dags()
+            for i in range(dag_count):
+                with DAG(
+                    f"test_query_count_{i}", schedule=None, start_date=DEFAULT_DATE, tags=["a", "b"]
+                ) as dag:
+                    EmptyOperator(task_id="task1")
+                sync_dag_to_db(dag)
+
+            args = self.parser.parse_args(["dags", "list", "--output", "json"])
+            with count_queries() as result, StdoutCaptureManager() as temp_stdout:
+                dag_command.dag_list_dags(args)
+            assert len(json.loads(temp_stdout.getvalue())) == dag_count
+            return sum(result.values())
+
+        assert count_list_dags_queries(2) == count_list_dags_queries(6)
+
+        # Rebuild Test DB for other tests
+        self.setup_class()
+
+    @mock.patch("airflow.cli.commands.dag_command._DAG_CHUNK_SIZE", 2)
+    def test_cli_list_dags_lists_every_dag_when_lookup_is_chunked(self, stdout_capture):
+        clear_db_dags()
+        for i in range(5):
+            with DAG(f"test_chunked_{i}", schedule=None, start_date=DEFAULT_DATE) as dag:
+                EmptyOperator(task_id="task1")
+            sync_dag_to_db(dag)
+
+        args = self.parser.parse_args(["dags", "list", "--columns", "dag_id,is_paused", "--output", "json"])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+
+        rows = json.loads(temp_stdout.getvalue())
+        assert [row["dag_id"] for row in rows] == [f"test_chunked_{i}" for i in range(5)]
+        # Only DagModel carries is_paused; the dagbag fallback leaves it None, so this catches a
+        # chunked lookup that drops Dags from the prefetch map.
+        assert all(row["is_paused"] is not None for row in rows)
 
         # Rebuild Test DB for other tests
         self.setup_class()

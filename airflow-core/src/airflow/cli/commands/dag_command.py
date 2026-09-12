@@ -31,6 +31,7 @@ import sys
 from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
@@ -78,6 +79,9 @@ log = logging.getLogger(__name__)
 
 # Chunk size for bulk delete.
 _RUN_CHUNK_SIZE = 500
+
+# Chunk size for looking up Dags by id.
+_DAG_CHUNK_SIZE = 500
 
 
 @deprecated_for_airflowctl("airflowctl dags trigger")
@@ -595,15 +599,6 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict:
-        if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
-            dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
-        else:
-            dag_detail = _get_dagbag_dag_details(dag)
-        if not cols:
-            return dag_detail
-        return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
-
     def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
@@ -615,11 +610,32 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
         )
         return (dag for dag in dags if dag.dag_id in selected_dag_ids)
 
+    dags_to_show = sorted(
+        filter_dags_by_bundle(dags_list, args.bundle_name if not args.local else None),
+        key=operator.attrgetter("dag_id"),
+    )
+    # Chunked so the IN clause stays under the backend's bind parameter cap on deployments
+    # with many Dags (SQLite allows 32766, PostgreSQL 65535).
+    dag_models: dict[str, DagModel] = {}
+    for dag_id_chunk in chunks([dag.dag_id for dag in dags_to_show], _DAG_CHUNK_SIZE):
+        dag_models.update(
+            (dag_model.dag_id, dag_model)
+            for dag_model in session.scalars(
+                select(DagModel).options(selectinload(DagModel.tags)).where(DagModel.dag_id.in_(dag_id_chunk))
+            )
+        )
+
+    def get_dag_detail(dag: DAG) -> dict:
+        if dag_model := dag_models.get(dag.dag_id):
+            dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
+        else:
+            dag_detail = _get_dagbag_dag_details(dag)
+        if not cols:
+            return dag_detail
+        return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
+
     AirflowConsole().print_as(
-        data=sorted(
-            filter_dags_by_bundle(dags_list, args.bundle_name if not args.local else None),
-            key=operator.attrgetter("dag_id"),
-        ),
+        data=dags_to_show,
         output=args.output,
         mapper=get_dag_detail,
     )
