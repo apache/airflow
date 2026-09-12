@@ -125,7 +125,7 @@ class HookLineageCollector(LoggingMixin):
         even if that means a less precise encoding.
         """
         value_str = json.dumps(value, sort_keys=True, default=str)
-        value_hash = hashlib.md5(value_str.encode()).hexdigest()
+        value_hash = hashlib.md5(value_str.encode(), usedforsecurity=False).hexdigest()
         return value_hash
 
     def _generate_asset_entry_id(self, asset: Asset, context: LineageContext) -> str:
