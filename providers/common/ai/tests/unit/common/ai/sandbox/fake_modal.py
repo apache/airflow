@@ -312,8 +312,11 @@ def build_fake_modal() -> types.ModuleType:
         setattr(exception, name, cls)
 
     module = types.ModuleType("modal")
-    module.exception = exception
-    module.Sandbox = FakeSandboxFactory()
-    module.App = FakeAppFactory()
-    module.Image = FakeImageFactory()
+    for name, attr in (
+        ("exception", exception),
+        ("Sandbox", FakeSandboxFactory()),
+        ("App", FakeAppFactory()),
+        ("Image", FakeImageFactory()),
+    ):
+        setattr(module, name, attr)
     return module

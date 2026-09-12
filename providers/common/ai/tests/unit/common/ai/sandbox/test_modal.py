@@ -16,16 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import builtins
+import importlib
 import sys
 import threading
 
 import pytest
 
+import airflow.providers.common.ai.sandbox as sandbox_package
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
     SandboxSpec,
     SandboxTerminalError,
 )
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 from unit.common.ai.sandbox.fake_modal import (
     FakeProcess,
@@ -133,6 +137,49 @@ class TestVendorContract:
             "a missing file must not be classified as a missing sandbox"
         )
         assert not issubclass(exception.PermissionDeniedError, exception.AuthError)
+
+
+class TestOptionalExtra:
+    """The module has to be importable without ``modal`` installed, not merely unusable."""
+
+    @staticmethod
+    def _without_modal(monkeypatch):
+        """Make ``import modal`` fail the way a missing extra does."""
+        for name in list(sys.modules):
+            if name == "modal" or name.startswith("modal."):
+                monkeypatch.delitem(sys.modules, name, raising=False)
+        monkeypatch.delitem(sys.modules, "airflow.providers.common.ai.sandbox.modal", raising=False)
+        real_import = builtins.__import__
+
+        def guarded(name, *args, **kwargs):
+            if name == "modal" or name.startswith("modal."):
+                raise ModuleNotFoundError(f"No module named {name!r}")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", guarded)
+
+    def test_importing_the_module_directly_raises_the_optional_feature_error(self, monkeypatch):
+        # The provider verifier walks every submodule of the distribution and imports it
+        # directly, so this path is not reached through the package's __getattr__.
+        self._without_modal(monkeypatch)
+        with pytest.raises(AirflowOptionalProviderFeatureException):
+            importlib.import_module("airflow.providers.common.ai.sandbox.modal")
+        sys.modules.pop("airflow.providers.common.ai.sandbox.modal", None)
+
+    def test_package_attribute_raises_the_optional_feature_error(self, monkeypatch):
+        self._without_modal(monkeypatch)
+        with pytest.raises(AirflowOptionalProviderFeatureException):
+            getattr(sandbox_package, "ModalSandboxBackend")
+        sys.modules.pop("airflow.providers.common.ai.sandbox.modal", None)
+
+    def test_package_still_exports_everything_that_needs_no_extra(self, monkeypatch):
+        self._without_modal(monkeypatch)
+        assert sandbox_package.SandboxSpec is SandboxSpec
+        assert sandbox_package.SbxSandboxBackend.__name__ == "SbxSandboxBackend"
+
+    def test_unknown_attribute_still_raises_attribute_error(self):
+        with pytest.raises(AttributeError):
+            getattr(sandbox_package, "NoSuchBackend")
 
 
 class TestInit:

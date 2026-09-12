@@ -28,7 +28,15 @@ import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Literal
 
-import modal
+try:
+    import modal
+except ModuleNotFoundError as e:
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+    # Importing this module directly without the extra installed is how the provider
+    # verifier walks every submodule, and how a Dag author reaching past the package
+    # __getattr__ gets here. Both want the optional-feature signal, not ImportError.
+    raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.sandbox.base import (
     SandboxBackend,

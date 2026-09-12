@@ -900,8 +900,8 @@ model carried it out through its own context: ``run_command`` keeps the last 50 
 A 200 MB parquet the agent just wrote cannot be collected this way, and raising
 ``max_read_bytes`` to try costs roughly three times the file size in worker memory. If a
 task has to produce an artifact, drive a backend directly from a ``@task`` instead of
-handing it to an agent -- create, run, read what you need, destroy -- which is the shape
-the playground example in the provider's test Dags uses.
+handing it to an agent: create the sandbox, run the work, read out what you need, then
+destroy it.
 
 One behavioral wrinkle worth knowing before pointing an agent at a tree of
 symlinks: because ``write_file`` goes through the native API, writing to a path that
