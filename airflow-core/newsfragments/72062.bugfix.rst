@@ -1,0 +1,1 @@
+Fixed a race in ``Trigger.clean_unused()`` on MySQL that could cascade-delete the task instance rows of tasks deferring during the cleanup sweep.

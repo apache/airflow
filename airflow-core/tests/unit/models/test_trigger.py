@@ -180,6 +180,48 @@ def test_clean_unused(session, dag_maker):
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
 
 
+def test_clean_unused_keeps_triggers_referenced_after_candidate_select(session, create_task_instance):
+    """
+    Tests that the MySQL two-step delete does not remove a trigger that a task
+    instance deferred onto after the candidate ids were selected -- that would
+    cascade-delete the task instance row itself. The dialect is pinned to
+    "mysql" so the two-step branch runs on every backend.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.SCHEDULED
+    )
+    session.flush()
+
+    real_scalars = session.scalars
+
+    def scalars_then_defer(*args, **kwargs):
+        # session.scalars() executes the SELECT eagerly, so the trigger is
+        # already on the kill list when the task instance defers onto it.
+        result = real_scalars(*args, **kwargs)
+        task_instance.state = State.DEFERRED
+        task_instance.trigger_id = trigger.id
+        session.flush()
+        return result
+
+    with (
+        patch("airflow.models.trigger.get_dialect_name", return_value="mysql"),
+        patch.object(session, "scalars", side_effect=scalars_then_defer),
+    ):
+        Trigger.clean_unused(session=session)
+
+    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.id == trigger.id)) == 1
+    assert (
+        session.scalar(
+            select(func.count()).select_from(TaskInstance).where(TaskInstance.id == task_instance.id)
+        )
+        == 1
+    )
+
+
 @patch.object(TriggererCallback, "handle_event")
 def test_submit_event(mock_callback_handle_event, session, create_task_instance):
     """
