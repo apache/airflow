@@ -1271,6 +1271,42 @@ def test_run_emits_post_execute_group_before_xcom_push(create_runtime_ti, mock_s
     assert call_order.index("::group::Post Execute") < call_order.index("Pushing xcom")
 
 
+def test_retry_policy_decision_logged_outside_post_execute_group(create_runtime_ti, mock_supervisor_comms):
+    """The retry policy decision log line closes the 'Post Execute' group instead of nesting inside it."""
+    call_order: list[str] = []
+    tracked = {"::group::Post Execute", "::endgroup::", "Retry policy decision"}
+
+    class _FailPolicy(RetryPolicy):
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            return RetryDecision(action=RetryAction.FAIL, reason="auth error, do not retry")
+
+    class _AlwaysFails(BaseOperator):
+        def execute(self, context):
+            raise RuntimeError("boom")
+
+    task = _AlwaysFails(task_id="fail_policy_task", retry_policy=_FailPolicy())
+    ti = create_runtime_ti(task=task, should_retry=True)
+    log = mock.MagicMock(spec=["info", "debug", "warning", "error", "exception", "bind"])
+
+    def tracking_info(msg, *args, **kwargs):
+        if msg in tracked:
+            call_order.append(msg)
+
+    log.info.side_effect = tracking_info
+
+    state, msg, error = run(ti, context=ti.get_template_context(), log=log)
+    finalize(ti, state=state, context=ti.get_template_context(), log=log)
+
+    # No reopened "Post Execute", only finalize() ::endgroup:: follows the retry policy decision.
+    assert call_order == [
+        "::endgroup::",
+        "::group::Post Execute",
+        "::endgroup::",
+        "Retry policy decision",
+        "::endgroup::",
+    ]
+
+
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
     """finalize() closes the post-execute log group but does not open it."""
     task = BaseOperator(task_id="some_task")
