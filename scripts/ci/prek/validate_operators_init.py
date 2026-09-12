@@ -303,8 +303,8 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
     ``self.field = field``, ``self.field = field or <default>``, the equivalent
     value-preserving ternaries, the local rebind ``field = field or <default>``,
     tuple assignments pairing names one-to-one, forwarding via
-    ``super().__init__(field=field)``, and ``field is None`` / ``field is not None``
-    provision checks.
+    ``super().__init__(field=field)``, ``field is None`` / ``field is not None``
+    provision checks, and verbatim copies into ``start_trigger_args``.
 
     :param ctor: The constructor function node.
     :param template_fields: The template fields of the class.
@@ -335,6 +335,13 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
                 name = _target_name(target)
                 if name is not None and name in template_fields:
                     mark(value, name)
+                elif isinstance(value, ast.Call) and _is_start_trigger_args_assignment(target, value):
+                    # The triggerer renders only the trigger_kwargs entries whose key is both an
+                    # operator template field and a trigger attribute (airflow/triggers/base.py),
+                    # so only a verbatim copy under the field's own name is safe un-rendered.
+                    for key, item in _iter_trigger_kwargs_items(value):
+                        if key in template_fields and _target_name(item) == key:
+                            sanctioned.add(id(item))
         elif isinstance(node, ast.Call) and _is_super_init_call(node):
             for keyword in node.keywords:
                 if keyword.arg is not None and keyword.arg in template_fields:
@@ -343,6 +350,55 @@ def _collect_sanctioned_uses(ctor: ast.FunctionDef, template_fields: list[str]) 
             # Reads whether the argument was passed, not its value — only __init__ can see that.
             sanctioned.add(id(node.left))
     return sanctioned
+
+
+def _is_start_trigger_args_assignment(target: ast.expr, value: ast.Call) -> bool:
+    """
+    Check whether an assignment rebuilds ``self.start_trigger_args``.
+
+    Matches ``self.start_trigger_args = StartTriggerArgs(...)`` and
+    ``self.start_trigger_args = dataclasses.replace(self.start_trigger_args, ...)``. Aliased
+    imports and positional ``StartTriggerArgs`` arguments are deliberately not matched.
+
+    :param target: The assignment target.
+    :param value: The assigned call.
+    :return: True if the assignment constructs or copies ``StartTriggerArgs``.
+    """
+    if not (isinstance(target, ast.Attribute) and _target_name(target) == "start_trigger_args"):
+        return False
+    name = _resolve_base_name(value.func)
+    if name == "StartTriggerArgs":
+        return True
+    return (
+        name == "replace"
+        and bool(value.args)
+        and isinstance(value.args[0], ast.Attribute)
+        and _target_name(value.args[0]) == "start_trigger_args"
+    )
+
+
+def _iter_trigger_kwargs_items(call: ast.Call) -> Iterator[tuple[str | None, ast.expr]]:
+    """
+    Yield the ``(key, value)`` pairs of a call's ``trigger_kwargs=`` argument.
+
+    Supports a ``{...}`` literal and a ``dict(...)`` call; ``**`` unpacking yields a None key.
+    Other keywords (``timeout``, ``next_kwargs``, ...) are never rendered and are not inspected.
+
+    :param call: The call node.
+    :return: Iterator over the key/value pairs passed as ``trigger_kwargs``.
+    """
+    for keyword in call.keywords:
+        if keyword.arg != "trigger_kwargs":
+            continue
+        if isinstance(keyword.value, ast.Dict):
+            for key, item in zip(keyword.value.keys, keyword.value.values):
+                yield (
+                    (key.value if isinstance(key, ast.Constant) and isinstance(key.value, str) else None),
+                    item,
+                )
+        elif isinstance(keyword.value, ast.Call) and _resolve_base_name(keyword.value.func) == "dict":
+            for inner in keyword.value.keywords:
+                yield inner.arg, inner.value
 
 
 def _check_constructor_field_logic(
