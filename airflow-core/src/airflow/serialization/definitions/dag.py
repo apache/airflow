@@ -745,66 +745,88 @@ class SerializedDAG:
             select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
         ).all()
 
-        for deadline_alert in deadline_alert_records:
-            if not deadline_alert:
-                continue
+        if not deadline_alert_records:
+            return
 
-            deserialized_deadline_alert = decode_deadline_alert(
-                {
-                    Encoding.TYPE: DAT.DEADLINE_ALERT,
-                    Encoding.VAR: {
-                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-                    },
-                }
-            )
+        team_name = (
+            DagModel.get_team_name(self.dag_id, session=session)
+            if airflow_conf.getboolean("core", "multi_team")
+            else None
+        )
+        metrics_tags = prune_dict({"dag_id": self.dag_id, "team_name": team_name})
 
-            interval = deserialized_deadline_alert.interval
+        # Read every value off the ORM up front. A failing alert can leave the session rolled back
+        # and its instances detached, so nothing after this point may touch ORM state -- otherwise
+        # the skip path raises DetachedInstanceError and takes the DagRun down anyway.
+        run_id = orm_dagrun.run_id
+        dagrun_id = orm_dagrun.id
+        dagrun_dag_id = orm_dagrun.dag_id
+        bundle_name = orm_dagrun.dag_model.bundle_name
+        stored_alerts = [
+            (alert.id, alert.reference, alert.interval, alert.callback_def)
+            for alert in deadline_alert_records
+            if alert
+        ]
 
-            if isinstance(interval, SerializedVariableInterval):
-                interval = interval.resolve()
-
-            if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
-                deadline_time = deserialized_deadline_alert.reference.evaluate_with(
-                    session=session,
-                    interval=interval,
-                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
-                    dag_id=self.dag_id,
-                    run_id=orm_dagrun.run_id,
+        for alert_id, alert_reference, alert_interval, alert_callback_def in stored_alerts:
+            # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
+            try:
+                deserialized_deadline_alert = decode_deadline_alert(
+                    {
+                        Encoding.TYPE: DAT.DEADLINE_ALERT,
+                        Encoding.VAR: {
+                            DeadlineAlertFields.REFERENCE: alert_reference,
+                            DeadlineAlertFields.INTERVAL: alert_interval,
+                            DeadlineAlertFields.CALLBACK: alert_callback_def,
+                        },
+                    }
                 )
 
-                if deadline_time is not None:
-                    session.add(
-                        Deadline(
-                            deadline_time=deadline_time,
-                            callback=deserialized_deadline_alert.callback,
-                            dagrun_id=orm_dagrun.id,
-                            deadline_alert_id=deadline_alert.id,
-                            dag_id=orm_dagrun.dag_id,
-                            bundle_name=orm_dagrun.dag_model.bundle_name,
-                        )
-                    )
-                    team_name = (
-                        DagModel.get_team_name(self.dag_id, session=session)
-                        if airflow_conf.getboolean("core", "multi_team")
-                        else None
-                    )
-                    stats.incr(
-                        "deadline_alerts.deadline_created",
-                        tags=prune_dict({"dag_id": self.dag_id, "team_name": team_name}),
-                    )
-                elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
-                    type(deserialized_deadline_alert.reference)
-                ):
-                    log.warning(
-                        "skipping deadline alert because the deadline reference evaluated to None",
+                interval = deserialized_deadline_alert.interval
+
+                if isinstance(interval, SerializedVariableInterval):
+                    interval = interval.resolve()
+
+                if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
+                    deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                        session=session,
+                        interval=interval,
+                        # TODO : Pretty sure we can drop these last two; verify after testing is complete
                         dag_id=self.dag_id,
-                        run_id=orm_dagrun.run_id,
-                        deadline_alert_id=deadline_alert.id,
-                        reference_type=deserialized_deadline_alert.reference.reference_name,
-                        required_dagrun_column=required_dagrun_column,
+                        run_id=run_id,
                     )
+
+                    if deadline_time is not None:
+                        session.add(
+                            Deadline(
+                                deadline_time=deadline_time,
+                                callback=deserialized_deadline_alert.callback,
+                                dagrun_id=dagrun_id,
+                                deadline_alert_id=alert_id,
+                                dag_id=dagrun_dag_id,
+                                bundle_name=bundle_name,
+                            )
+                        )
+                        stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
+                    elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
+                        type(deserialized_deadline_alert.reference)
+                    ):
+                        log.warning(
+                            "skipping deadline alert because the deadline reference evaluated to None",
+                            dag_id=self.dag_id,
+                            run_id=run_id,
+                            deadline_alert_id=alert_id,
+                            reference_type=deserialized_deadline_alert.reference.reference_name,
+                            required_dagrun_column=required_dagrun_column,
+                        )
+            except Exception:
+                log.exception(
+                    "skipping deadline alert because creating its deadline failed",
+                    dag_id=self.dag_id,
+                    run_id=run_id,
+                    deadline_alert_id=alert_id,
+                )
+                stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
 
     @provide_session
     def set_task_instance_state(

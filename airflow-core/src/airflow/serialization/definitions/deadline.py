@@ -402,7 +402,14 @@ class SerializedVariableInterval:
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
             ) from e
 
-        return timedelta(seconds=seconds)
+        try:
+            return timedelta(seconds=seconds)
+        except OverflowError as e:
+            # ``timedelta`` raises OverflowError, which is not a ValueError, so callers
+            # inspecting for a bad interval would otherwise miss it.
+            raise ValueError(
+                f"VariableInterval '{self.key}' is too large to be a valid interval: {seconds} seconds"
+            ) from e
 
 
 @attrs.define
