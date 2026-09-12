@@ -281,7 +281,11 @@ def build_provider_distribution(
                 console_print(f"[info]Removing {file} to workaround flit bug on wheel-only packages")
                 file.unlink(missing_ok=True)
     elif build_backend == "hatchling":
-        command = [sys.executable, "-m", "hatch", "build", "-c", "-t", "custom"]
+        command = [sys.executable, "-m", "hatch", "build", "-c"]
+        # Only providers shipping a hatch_build.py declare the custom target; hatch aborts with
+        # "Build script does not exist" if "-t custom" is requested without one.
+        if (target_provider_root_sources_path / "hatch_build.py").exists():
+            command += ["-t", "custom"]
         if distribution_format == "sdist" or distribution_format == "both":
             command += ["-t", "sdist"]
         if distribution_format == "wheel" or distribution_format == "both":

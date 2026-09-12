@@ -16,6 +16,7 @@
 # under the License.
 
 ---
+build-system: hatchling
 package-name: apache-airflow-providers-elasticsearch
 name: Elasticsearch
 description: |

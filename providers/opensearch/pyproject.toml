@@ -20,8 +20,16 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.0.2"]
-build-backend = "flit_core.buildapi"
+requires = [
+    "hatchling==1.32.0",
+    "packaging==26.3",
+    "pathspec==1.1.1",
+    "pluggy==1.6.0",
+    "tomli==2.4.1; python_version < '3.11'",
+    "tomlkit==0.15.1",
+    "trove-classifiers==2026.6.1.19",
+]
+build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-opensearch"
@@ -62,6 +70,9 @@ dependencies = [
     "apache-airflow>=3.0.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "opensearch-py>=2.2.0",
+    # Start of shared search dependencies
+    "pendulum>=3.1.0",
+    # End of shared search dependencies
 ]
 
 [dependency-groups]
@@ -110,16 +121,33 @@ apache-airflow-providers-standard = {workspace = true}
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.opensearch.get_provider_info:get_provider_info"
 
-[tool.flit.module]
-name = "airflow.providers.opensearch"
+[tool.hatch.version]
+path = "src/airflow/providers/opensearch/__init__.py"
 
-# Explicit sdist contents so the build does not rely on VCS information
-# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
-[tool.flit.sdist]
+[tool.hatch.build.targets.sdist]
 include = [
-    "docs/",
+    "docs",
+    "src/airflow/providers/opensearch",
+    "tests",
     "provider.yaml",
+    "NOTICE"
+]
+exclude = [
     "src/airflow/__init__.py",
     "src/airflow/providers/__init__.py",
-    "tests/",
+]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../../shared/search/src/airflow_shared/search" = "src/airflow/providers/opensearch/_shared/search"
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/airflow']
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+]
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-search",
 ]

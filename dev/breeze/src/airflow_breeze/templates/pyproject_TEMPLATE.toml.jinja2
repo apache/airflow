@@ -179,6 +179,9 @@ include = [
     "docs",
     "src/airflow/providers/{{ PROVIDER_PATH }}",
     "tests",
+{% if SHARED_DISTRIBUTIONS %}
+    "provider.yaml",
+{% endif %}
     "NOTICE"
 ]
 exclude = [
@@ -187,6 +190,13 @@ exclude = [
 {% endfor -%}
 ]
 
+{% if HATCH_SDIST_FORCE_INCLUDE %}
+[tool.hatch.build.targets.sdist.force-include]
+{% for source, destination in HATCH_SDIST_FORCE_INCLUDE.items() %}
+"{{ source }}" = "{{ destination }}"
+{% endfor %}
+{% endif %}
+{% if HATCH_HAS_CUSTOM_BUILD %}
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
 
@@ -195,17 +205,29 @@ artifacts = [
     "{{ artifact }}",
 {% endfor -%}
 ]
+{% endif %}
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/airflow']
+{% if HATCH_ARTIFACTS %}
 artifacts = [
 {% for artifact in HATCH_ARTIFACTS %}
     "{{ artifact }}",
 {% endfor -%}
 ]
+{% endif -%}
 exclude = [
 {% for exclude in HATCH_EXCLUDES %}
     "{{ exclude }}",
 {% endfor -%}
 ]
 {% endif -%}
+{% if SHARED_DISTRIBUTIONS %}
+
+[tool.airflow]
+shared_distributions = [
+{% for distribution in SHARED_DISTRIBUTIONS %}
+    "{{ distribution }}",
+{% endfor %}
+]
+{% endif %}

@@ -1012,7 +1012,12 @@ def regenerate_pyproject_toml(
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
     context["BUILD_SYSTEM"] = provider_details.build_system
+    pyproject_tool = load_pyproject_toml(get_pyproject_toml_path).get("tool", {})
+    context["SHARED_DISTRIBUTIONS"] = pyproject_tool.get("airflow", {}).get("shared_distributions", [])
     if context["BUILD_SYSTEM"] == "hatchling":
+        hatch_targets = pyproject_tool.get("hatch", {}).get("build", {}).get("targets", {})
+        context["HATCH_HAS_CUSTOM_BUILD"] = "custom" in hatch_targets
+        context["HATCH_SDIST_FORCE_INCLUDE"] = hatch_targets.get("sdist", {}).get("force-include", {})
         context["HATCH_ARTIFACTS"] = provider_details.hatch_artifacts
         context["HATCH_EXCLUDES"] = provider_details.hatch_excludes
         context["HATCH_REQUIRES"] = provider_details.hatch_requires
