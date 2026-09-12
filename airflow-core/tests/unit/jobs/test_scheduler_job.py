@@ -5594,6 +5594,7 @@ class TestSchedulerJob:
         )
         assert actual == expected
 
+    @pytest.mark.parametrize("timed_out", [False, True], ids=["finished", "timed_out"])
     @pytest.mark.parametrize(
         ("run_type", "expected"),
         [
@@ -5601,19 +5602,26 @@ class TestSchedulerJob:
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, False),
             (DagRunType.ASSET_TRIGGERED, True),
+            (DagRunType.OPERATOR_TRIGGERED, True),
+            (DagRunType.ASSET_MATERIALIZATION, True),
         ],
         ids=[
             DagRunType.MANUAL.name,
             DagRunType.SCHEDULED.name,
             DagRunType.BACKFILL_JOB.name,
             DagRunType.ASSET_TRIGGERED.name,
+            DagRunType.OPERATOR_TRIGGERED.name,
+            DagRunType.ASSET_MATERIALIZATION.name,
         ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
+    def test_should_update_dag_next_dagruns_after_run_type(
+        self, run_type, expected, timed_out, session, dag_maker
+    ):
         """Test that whether next dag run is updated depends on run type"""
         with dag_maker(
             schedule="*/1 * * * *",
             max_active_runs=3,
+            dagrun_timeout=datetime.timedelta(seconds=60),
         ):
             EmptyOperator(task_id="dummy")
 
@@ -5621,7 +5629,7 @@ class TestSchedulerJob:
             run_id="run",
             run_type=run_type,
             logical_date=DEFAULT_DATE,
-            start_date=timezone.utcnow(),
+            start_date=timezone.utcnow() - datetime.timedelta(days=1) if timed_out else timezone.utcnow(),
             state=State.SUCCESS,
             session=session,
         )
