@@ -82,6 +82,10 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]>=2.0.0"]
 "openai" = ["pydantic-ai-slim[openai]>=2.0.0"]
 "mcp" = ["pydantic-ai-slim[mcp]>=2.0.0"]
+# Modal-hosted sandboxes for SandboxToolset, the backend to use where the worker host
+# cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
+# only Modal credentials.
+"modal" = ["modal>=1.5.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
 # Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an

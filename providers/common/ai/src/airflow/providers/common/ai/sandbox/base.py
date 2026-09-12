@@ -114,6 +114,13 @@ class SandboxExecResult:
     dropped bytes while reading that stream, before any model-facing formatting.
     ``sandbox_terminated`` means the backend destroyed the sandbox to stop the
     command, so the toolset must provision a fresh one before the next call.
+
+    ``applied_timeout`` is the deadline the backend actually gave the command,
+    when that differs from the one it was asked for -- a backend may have to
+    shorten it, for instance to fit what is left of a sandbox's life. ``None``
+    means the requested deadline was used as given. The toolset reports this
+    rather than the request, so a model that times out is told the budget it
+    really had and can ask for something that fits.
     """
 
     exit_code: int
@@ -123,6 +130,7 @@ class SandboxExecResult:
     stdout_truncated: bool = False
     stderr_truncated: bool = False
     sandbox_terminated: bool = False
+    applied_timeout: float | None = None
 
 
 class SandboxBackend(ABC):

@@ -375,13 +375,22 @@ class SandboxToolset(AbstractToolset[Any]):
         if result.stderr:
             parts.append(f"[stderr]\n{self._truncate(result.stderr, result.stderr_truncated)}")
         output = "\n".join(parts) if parts else "(no output)"
+        notes: list[str] = []
         if result.timed_out:
-            note = f"[timed out after {timeout:g}s]"
-            if result.sandbox_terminated:
-                note += " [sandbox was replaced; files from earlier calls are gone]"
-            return f"{output}\n{note}"
-        if result.exit_code:
-            return f"{output}\n[exit code: {result.exit_code}]"
+            # What the command actually got, which a backend may have had to shorten.
+            # Telling the model the number it asked for would send it back with a bigger
+            # one when the real constraint was never its request.
+            applied = result.applied_timeout if result.applied_timeout is not None else timeout
+            notes.append(f"[timed out after {applied:g}s]")
+        elif result.exit_code:
+            notes.append(f"[exit code: {result.exit_code}]")
+        if result.sandbox_terminated:
+            # Said whatever else happened, not only after a timeout: a backend can lose
+            # the sandbox under an ordinary-looking failure too, and the model has to
+            # learn that its files are gone from somewhere.
+            notes.append("[sandbox was replaced; files from earlier calls are gone]")
+        if notes:
+            return f"{output}\n{' '.join(notes)}"
         return output
 
     def _truncate(self, text: str, already_truncated: bool) -> str:
