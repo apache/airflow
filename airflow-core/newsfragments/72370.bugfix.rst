@@ -1,0 +1,1 @@
+Fixed failure/retry emails inheriting a stale pinned bundle version for Dag runs with ``disable_bundle_versioning`` enabled, instead of following the unpinned ``dag_run.bundle_version`` like the equivalent task callbacks do.

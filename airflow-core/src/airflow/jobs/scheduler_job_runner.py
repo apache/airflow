@@ -1680,8 +1680,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _email_bundle_name = (
                         ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
                     )
+                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
+                    # leave the callback unpinned so it runs against the same code as the task.
                     _email_bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
+                        ti.dag_version.bundle_version
+                        if ti.dag_version and ti.dag_run.bundle_version is not None
+                        else ti.dag_run.bundle_version
                     )
                     _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
