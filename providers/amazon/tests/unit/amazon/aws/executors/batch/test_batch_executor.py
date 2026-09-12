@@ -50,7 +50,12 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -232,15 +237,24 @@ class TestAwsBatchExecutor:
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = workload.ti.key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
+
         mock_executor.queue_workload(workload, mock.Mock())
 
         mock_executor.batch.submit_job.return_value = {"jobId": ARN1, "jobName": "some-job-name"}
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert task_queue[workload.ti.key] == workload
         assert len(mock_executor.pending_jobs) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
         assert len(mock_executor.pending_jobs) == 1
@@ -295,6 +309,11 @@ class TestAwsBatchExecutor:
         workload = mock.Mock(spec=ExecuteCallback)
         workload.callback = mock.Mock()
         workload.callback.key = mock_airflow_key()
+        workload.key = workload.callback.key
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
@@ -355,7 +374,7 @@ class TestAwsBatchExecutor:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
-    def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
+    def test_task_sdk_callback_with_queue(self, running_state_mock, mock_airflow_key, mock_executor):
         """Test task sdk execution for callbacks with queue from end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
 
@@ -363,6 +382,11 @@ class TestAwsBatchExecutor:
         workload.callback = mock.Mock()
         workload.callback.key = mock_airflow_key()
         workload.callback.data = {"queue": "fast-queue"}
+        workload.key = workload.callback.key
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
 
         mock_executor.queue_workload(workload, mock.Mock())
 

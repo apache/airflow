@@ -25,7 +25,8 @@ from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor  # noqa: TC001
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -149,7 +150,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        return self.celery_executor.slots_occupied + self.kubernetes_executor.slots_occupied
 
     def queue_command(
         self,
