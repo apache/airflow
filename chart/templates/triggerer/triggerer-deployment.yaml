@@ -160,6 +160,7 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "metadata_db_environment" . | indent 10 }}
             {{- if .Values.triggerer.waitForMigrations.env }}
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -207,6 +208,7 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "metadata_db_environment" . | indent 10 }}
             {{- if $keda }}
             {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.triggerer.keda.usePgbouncer) .) | indent 10 }}
             {{- end }}
