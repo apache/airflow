@@ -636,7 +636,7 @@ class TestLLMSchemaCompareOperatorApproval:
     def test_execute_complete_approved_returns_dict(self):
         result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         resumed = op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
@@ -652,7 +652,7 @@ class TestLLMSchemaCompareOperatorApproval:
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS, allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": modified},
         }
 

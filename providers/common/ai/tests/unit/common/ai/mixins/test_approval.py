@@ -52,11 +52,13 @@ class FakeOperator(LLMApprovalMixin):
         prompt: str = "Summarize this",
         task_id: str = "test_task",
         approval_timeout: timedelta | None = None,
+        on_approval_timeout: str = "fail",
         allow_modifications: bool = False,
     ):
         self.prompt = prompt
         self.task_id = task_id
         self.approval_timeout = approval_timeout
+        self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
 
         self.defer = MagicMock()
@@ -203,8 +205,23 @@ class TestDeferForApproval:
         trigger_call_kwargs = mock_trigger_cls.call_args[1]
         assert trigger_call_kwargs["timeout_datetime"] == fake_now + timeout
 
-        defer_kwargs = op.defer.call_args[1]
-        assert defer_kwargs["timeout"] == timeout
+        assert "timeout" not in op.defer.call_args[1]
+
+    @pytest.mark.parametrize(
+        ("on_approval_timeout", "expected_defaults"),
+        [("fail", None), ("approve", ["Approve"]), ("reject", ["Reject"])],
+    )
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_on_approval_timeout_sets_hitl_defaults(
+        self, mock_upsert, mock_trigger_cls, context, on_approval_timeout, expected_defaults
+    ):
+        op = FakeOperator(approval_timeout=timedelta(hours=1), on_approval_timeout=on_approval_timeout)
+
+        op.defer_for_approval(context, "output")
+
+        assert mock_upsert.call_args[1]["defaults"] == expected_defaults
+        assert mock_trigger_cls.call_args[1]["defaults"] == expected_defaults
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -213,9 +230,7 @@ class TestDeferForApproval:
 
         trigger_call_kwargs = mock_trigger_cls.call_args[1]
         assert trigger_call_kwargs["timeout_datetime"] is None
-
-        defer_kwargs = approval_op.defer.call_args[1]
-        assert defer_kwargs["timeout"] is None
+        assert "timeout" not in approval_op.defer.call_args[1]
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -248,20 +263,20 @@ class TestDeferForApproval:
         assert "Paris is the capital of France." in call_kwargs["body"]
 
     def test_approved_returns_generated_output(self, approval_op):
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         result = approval_op.execute_complete({}, generated_output="hello world", event=event)
 
         assert result == "hello world"
 
     def test_rejected_raises_rejection_exception(self, approval_op):
-        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer admin."):
             approval_op.execute_complete({}, generated_output="output", event=event)
 
     def test_empty_chosen_options_raises_rejection(self, approval_op):
-        event = {"chosen_options": [], "responded_by_user": "admin"}
+        event = {"chosen_options": [], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         with pytest.raises(HITLRejectException, match="Output was rejected by the reviewer admin."):
             approval_op.execute_complete({}, generated_output="output", event=event)
@@ -283,7 +298,7 @@ class TestDeferForApproval:
     def test_approved_with_modified_output(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": "modified output"},
         }
 
@@ -299,7 +314,7 @@ class TestDeferForApproval:
         # string contract instead of returning a dict as the task's output.
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": {"sneaky": "dict"}},
         }
 
@@ -311,7 +326,7 @@ class TestDeferForApproval:
     def test_approved_with_list_modified_output_is_serialized(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": ["task_b", "task_c"]},
         }
 
@@ -324,7 +339,7 @@ class TestDeferForApproval:
     def test_approved_with_unmodified_list_output_returns_original(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": ["task_a"]},
         }
 
@@ -337,7 +352,7 @@ class TestDeferForApproval:
     def test_approved_with_non_string_list_items_raises(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": ["task_a", 2]},
         }
 
@@ -347,7 +362,7 @@ class TestDeferForApproval:
     def test_approved_with_cleared_output_raises(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": None},
         }
 
@@ -357,7 +372,7 @@ class TestDeferForApproval:
     def test_approved_with_unmodified_output(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": "same output"},
         }
 
@@ -370,7 +385,7 @@ class TestDeferForApproval:
     def test_approved_modifications_allowed_but_no_params_input(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": None,
         }
 
@@ -381,7 +396,7 @@ class TestDeferForApproval:
     def test_approved_modifications_allowed_empty_output_key(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": "original"},
         }
 
@@ -393,7 +408,7 @@ class TestDeferForApproval:
         """When allow_modifications=False, params will be empty so params_input is empty too."""
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {},
         }
 
@@ -405,7 +420,7 @@ class TestDeferForApproval:
         """When allow_modifications=False, tampered params_input with output must be ignored."""
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "reviewer",
+            "responded_by_user": {"id": "u1", "name": "reviewer"},
             "params_input": {"output": "tampered output"},
         }
 
@@ -420,8 +435,46 @@ class TestDeferForApproval:
 
         assert result == "output"
 
+    def test_timed_out_rejection_names_the_timeout_default(self, approval_op):
+        event = {"chosen_options": ["Reject"], "responded_by_user": None, "timedout": True}
+
+        with pytest.raises(
+            HITLRejectException,
+            match="Output was rejected automatically: approval_timeout expired with on_approval_timeout='reject'.",
+        ):
+            approval_op.execute_complete({}, generated_output="output", event=event)
+
+    @pytest.mark.parametrize(
+        ("event", "expected_approver"),
+        [
+            ({"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}, "admin"),
+            (
+                {"chosen_options": ["Approve"], "responded_by_user": None, "timedout": True},
+                "the approval timeout default",
+            ),
+        ],
+        ids=["reviewer", "timeout_default"],
+    )
+    @patch("airflow.providers.common.ai.mixins.approval.log", autospec=True)
+    def test_approval_logs_who_approved(self, mock_log, approval_op, event, expected_approver):
+        approval_op.execute_complete({}, generated_output="output", event=event)
+
+        mock_log.info.assert_called_once_with("Output approved by %s.", expected_approver)
+
+    def test_timed_out_approval_ignores_stale_params_input(self, approval_op_with_modifications):
+        event = {
+            "chosen_options": ["Approve"],
+            "params_input": {"output": "stale output"},
+            "responded_by_user": None,
+            "timedout": True,
+        }
+
+        result = approval_op_with_modifications.execute_complete({}, generated_output="output", event=event)
+
+        assert result == "output"
+
     def test_rejection_message_includes_username(self, approval_op):
-        event = {"chosen_options": ["Reject"], "responded_by_user": "alice"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "alice"}}
 
         with pytest.raises(HITLRejectException, match="alice"):
             approval_op.execute_complete({}, generated_output="output", event=event)
@@ -452,6 +505,21 @@ class TestAwaitInputForApproval:
             op.defer_for_approval(context, "output")
 
         assert exc_info.value.timeout == timeout
+
+    @pytest.mark.parametrize(
+        ("on_approval_timeout", "expected_defaults"),
+        [("fail", None), ("approve", ["Approve"]), ("reject", ["Reject"])],
+    )
+    @patch(UPSERT_HITL_PATH)
+    def test_on_approval_timeout_sets_hitl_defaults_on_await(
+        self, mock_upsert, context, on_approval_timeout, expected_defaults
+    ):
+        op = FakeOperator(approval_timeout=timedelta(hours=1), on_approval_timeout=on_approval_timeout)
+
+        with pytest.raises(TaskAwaitingInput):
+            op.defer_for_approval(context, "output")
+
+        assert mock_upsert.call_args[1]["defaults"] == expected_defaults
 
     @patch(UPSERT_HITL_PATH)
     def test_pydantic_output_stringified_on_await(self, mock_upsert, approval_op, context):

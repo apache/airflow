@@ -193,6 +193,32 @@ class TestLLMOperatorApproval:
         assert op.require_approval is False
         assert op.allow_modifications is False
         assert op.approval_timeout is None
+        assert op.on_approval_timeout == "fail"
+
+    def test_unknown_on_approval_timeout_raises(self):
+        with pytest.raises(ValueError, match="on_approval_timeout must be"):
+            LLMOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                approval_timeout=timedelta(hours=1),
+                on_approval_timeout="skip",
+            )
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"require_approval": True},
+            {"require_approval": True, "approval_timeout": timedelta(0)},
+            {"approval_timeout": timedelta(hours=1)},
+        ],
+        ids=["no_approval_timeout", "zero_approval_timeout", "no_require_approval"],
+    )
+    def test_on_approval_timeout_without_prerequisites_raises(self, kwargs):
+        with pytest.raises(
+            ValueError, match="has no effect without require_approval=True and a positive approval_timeout"
+        ):
+            LLMOperator(task_id="t", prompt="p", llm_conn_id="c", on_approval_timeout="approve", **kwargs)
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
@@ -289,7 +315,10 @@ class TestLLMOperatorApproval:
         with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
-        assert exc_info.value.timeout == timeout
+        if AIRFLOW_V_3_3_PLUS:
+            assert exc_info.value.timeout == timeout
+        else:
+            assert mock_trigger_cls.call_args[1]["timeout_datetime"] is not None
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
@@ -329,7 +358,7 @@ class TestLLMOperatorApproval:
     def test_execute_complete_approved(self):
         """execute_complete returns output when approved."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         result = op.execute_complete({}, generated_output="the output", event=event)
 
@@ -340,7 +369,7 @@ class TestLLMOperatorApproval:
         from airflow.providers.standard.exceptions import HITLRejectException
 
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
-        event = {"chosen_options": ["Reject"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         with pytest.raises(HITLRejectException):
             op.execute_complete({}, generated_output="output", event=event)
@@ -360,7 +389,7 @@ class TestLLMOperatorApproval:
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "editor",
+            "responded_by_user": {"id": "u1", "name": "editor"},
             "params_input": {"output": "edited"},
         }
 
@@ -372,7 +401,7 @@ class TestLLMOperatorApproval:
     def test_execute_complete_rehydrates_pydantic_for_structured_output(self):
         """When output_type is a BaseModel, execute_complete returns the model, not the JSON string."""
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         result = op.execute_complete({}, generated_output='{"text":"hello"}', event=event)
 
@@ -392,7 +421,7 @@ class TestLLMOperatorApproval:
         op = LLMOperator(
             task_id="t", prompt="p", llm_conn_id="c", output_type=output_type, require_approval=True
         )
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         result = op.execute_complete({}, generated_output=generated_output, event=event)
 
