@@ -453,6 +453,16 @@ def extract_version_data(
             }
         )
 
+    toolset_services = []
+    for toolset in provider_yaml.get("toolsets", []):
+        for entry in toolset.get("external-services", []):
+            toolset_services.append(
+                {
+                    "module": entry.get("module", ""),
+                    "services": entry.get("services", []),
+                }
+            )
+
     # Extract modules from source files
     modules = extract_modules_from_yaml(provider_yaml, tag, layout, dir_path, provider_id, version)
     module_counts = count_modules(modules)
@@ -466,6 +476,7 @@ def extract_version_data(
             "dependencies": pyproject_data["dependencies"],
             "optional_extras": pyproject_data["optional_extras"],
             "connection_types": connection_types,
+            "toolset_services": toolset_services,
             "module_counts": module_counts,
             "modules": modules,
         }

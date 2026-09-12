@@ -884,3 +884,53 @@ class TestMainConnectionTypesExternalServices:
         written = json.loads((output_dir / "providers.json").read_text())
         provider = next(p for p in written["providers"] if p["id"] == "testprov")
         assert provider["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+    @patch("extract_metadata.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_metadata.fetch_pypi_data_parallel", autospec=True, return_value={})
+    @patch("extract_metadata.load_release_tags", autospec=True, return_value=set())
+    def test_toolset_external_services_propagates_to_providers_json(
+        self, _load_release_tags, _fetch_pypi_data_parallel, _fetch_provider_inventory, tmp_path
+    ):
+        """Same drift-guard as above (`ToolsetServicesContract`, extra="forbid"), for the
+        `toolsets.external-services` sub-key added alongside `python-modules`.
+        """
+        providers_dir = tmp_path / "providers"
+        provider_dir = providers_dir / "testprov"
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").write_text(
+            textwrap.dedent("""\
+                name: Test Provider
+                description: A test provider.
+                versions:
+                  - 1.0.0
+                toolsets:
+                  - integration-name: Test Provider
+                    python-modules:
+                      - airflow.providers.test.toolsets.hook
+                    external-services:
+                      - module: airflow.providers.test.toolsets.hook
+                        services:
+                          - Any Airflow connection, through its provider hook
+                """)
+        )
+        output_dir = tmp_path / "output"
+        script_dir = tmp_path / "script"
+        output_dir.mkdir()
+        script_dir.mkdir()
+
+        with (
+            patch("extract_metadata.PROVIDERS_DIR", providers_dir),
+            patch("extract_metadata.OUTPUT_DIR", output_dir),
+            patch("extract_metadata.SCRIPT_DIR", script_dir),
+            patch.object(sys, "argv", ["extract_metadata.py"]),
+        ):
+            main()
+
+        written = json.loads((output_dir / "providers.json").read_text())
+        provider = next(p for p in written["providers"] if p["id"] == "testprov")
+        assert provider["toolset_services"] == [
+            {
+                "module": "airflow.providers.test.toolsets.hook",
+                "services": ["Any Airflow connection, through its provider hook"],
+            }
+        ]
