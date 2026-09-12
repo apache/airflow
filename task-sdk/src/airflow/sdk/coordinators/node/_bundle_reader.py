@@ -15,7 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Read and verify TypeScript Dag bundles."""
+"""
+Read and verify TypeScript Dag bundles.
+
+File order: layout comment, metadata comment, then executable JavaScript.
+Read the headers, verify the section digests, and return coordinator metadata.
+"""
 
 from __future__ import annotations
 
@@ -34,18 +39,23 @@ from airflow.sdk.coordinators._bundle_metadata import extract_supervisor_schema_
 if TYPE_CHECKING:
     from typing import BinaryIO
 
-EMBEDDED_LAYOUT_MARKER = b"//# airflowBundle="
-EMBEDDED_LAYOUT_MAX_BYTES = 4096
-EMBEDDED_METADATA_MARKER = b"//# airflowMetadata="
-EMBEDDED_METADATA_MAX_BYTES = 1024 * 1024
-BUNDLE_METADATA_VERSION_MAJOR = 1
-_HASH_READ_CHUNK = 1 << 20
-_VERIFY_CACHE_MAXSIZE = 256
+# Format prefixes and whole-line limits must agree with the TypeScript encoder.
+_LAYOUT_COMMENT_PREFIX = b"//# airflowBundle="
+_MAX_LAYOUT_LINE_BYTES = 4096
+_METADATA_COMMENT_PREFIX = b"//# airflowMetadata="
+_MAX_METADATA_LINE_BYTES = 1024 * 1024
+_SUPPORTED_BUNDLE_MAJOR_VERSION = 1
+
+# Bound hashing memory and process-local cache growth independently of the format.
+_HASH_CHUNK_BYTES = 1024 * 1024
+_MAX_DIGEST_CACHE_ENTRIES = 256
 _LOWER_HEX_DIGITS = frozenset("0123456789abcdef")
 
 
 @attrs.define(frozen=True)
-class _Section:
+class _DeclaredSection:
+    """A declared byte range (end exclusive) and its expected SHA-256 digest."""
+
     start: int
     end: int
     sha256: bytes
@@ -53,15 +63,19 @@ class _Section:
 
 @attrs.define(frozen=True)
 class _BundleLayout:
-    metadata: _Section
-    code: _Section
+    """The metadata and executable sections described by the layout comment."""
+
+    metadata: _DeclaredSection
+    code: _DeclaredSection
 
 
 @attrs.define(frozen=True)
-class _BundleDigestKey:
+class _DigestCacheKey:
+    """File identity, timestamps, size, and declared layout for one cached calculation."""
+
     path: str
-    metadata: _Section
-    code: _Section
+    metadata: _DeclaredSection
+    code: _DeclaredSection
     device: int
     inode: int
     mtime_ns: int
@@ -70,7 +84,9 @@ class _BundleDigestKey:
 
 
 @attrs.define(frozen=True)
-class _BundleDigests:
+class _ComputedDigests:
+    """SHA-256 digests calculated from the actual section bytes."""
+
     metadata: bytes
     code: bytes
 
@@ -97,30 +113,34 @@ def read_bundle(bundle_path: pathlib.Path) -> BundleMetadata:
 
     with bundle_file:
         try:
-            stat_result = os.fstat(bundle_file.fileno())
+            # Save file identity, size, and timestamps to detect changes during reading.
+            initial_file_info = os.fstat(bundle_file.fileno())
         except OSError as exc:
             raise OSError(f"cannot read {bundle_path.name}: {exc}") from exc
 
-        layout, metadata_payload = _read_framing(bundle_file, path=bundle_path, file_size=stat_result.st_size)
-        _verify_integrity(bundle_file, path=bundle_path, layout=layout, initial_stat=stat_result)
+        layout, metadata_payload = _read_bundle_headers(
+            bundle_file, path=bundle_path, file_size=initial_file_info.st_size
+        )
+        _verify_integrity(bundle_file, path=bundle_path, layout=layout, initial_file_info=initial_file_info)
 
-    return _decode_metadata(metadata_payload)
+    # Interpret metadata only after checking its serialized bytes against the declared digest.
+    return _parse_bundle_metadata(metadata_payload)
 
 
 class _BundleDigestCache:
-    """Bounded LRU cache keyed by the open file's identity and declared layout."""
+    """Process-local LRU of computed digests, not file contents or verification verdicts."""
 
     def __init__(self, maxsize: int) -> None:
         self._maxsize = maxsize
-        self._entries: OrderedDict[_BundleDigestKey, _BundleDigests] = OrderedDict()
+        self._entries: OrderedDict[_DigestCacheKey, _ComputedDigests] = OrderedDict()
 
-    def get(self, key: _BundleDigestKey) -> _BundleDigests | None:
+    def get(self, key: _DigestCacheKey) -> _ComputedDigests | None:
         digests = self._entries.get(key)
         if digests is not None:
             self._entries.move_to_end(key)
         return digests
 
-    def put(self, key: _BundleDigestKey, digests: _BundleDigests) -> None:
+    def put(self, key: _DigestCacheKey, digests: _ComputedDigests) -> None:
         self._entries[key] = digests
         self._entries.move_to_end(key)
         while len(self._entries) > self._maxsize:
@@ -130,7 +150,7 @@ class _BundleDigestCache:
         self._entries.clear()
 
 
-_digest_cache = _BundleDigestCache(maxsize=_VERIFY_CACHE_MAXSIZE)
+_digest_cache = _BundleDigestCache(maxsize=_MAX_DIGEST_CACHE_ENTRIES)
 
 
 def _parse_offset(section: dict[str, Any], field: str) -> int:
@@ -144,7 +164,7 @@ def _parse_offset(section: dict[str, Any], field: str) -> int:
     return int(value, 16)
 
 
-def _parse_section(layout: dict[str, Any], name: str) -> _Section:
+def _parse_section(layout: dict[str, Any], name: str) -> _DeclaredSection:
     section = layout.get(name)
     if not isinstance(section, dict):
         raise ValueError(f"bundle layout is missing the {name} section")
@@ -159,7 +179,7 @@ def _parse_section(layout: dict[str, Any], name: str) -> _Section:
         or any(character not in _LOWER_HEX_DIGITS for character in sha256)
     ):
         raise ValueError(f"bundle layout {name}.sha256 must be 64 lowercase hexadecimal digits")
-    return _Section(start=start, end=end, sha256=bytes.fromhex(sha256))
+    return _DeclaredSection(start=start, end=end, sha256=bytes.fromhex(sha256))
 
 
 def _parse_layout(payload: bytes) -> _BundleLayout:
@@ -175,47 +195,41 @@ def _parse_layout(payload: bytes) -> _BundleLayout:
     )
 
 
-def _is_supported_metadata_version(value: Any) -> bool:
+def _is_supported_bundle_version(value: Any) -> bool:
     if not isinstance(value, str) or re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", value) is None:
         return False
+    # Compare decimal text without converting an arbitrarily long number to int.
     major = value.partition(".")[0].lstrip("0") or "0"
-    return major == str(BUNDLE_METADATA_VERSION_MAJOR)
+    return major == str(_SUPPORTED_BUNDLE_MAJOR_VERSION)
 
 
-def _validate_metadata_version(metadata: dict[str, Any]) -> None:
-    value = metadata.get("airflow_bundle_metadata_version")
-    if not _is_supported_metadata_version(value):
-        raise ValueError(
-            f"unsupported airflow bundle metadata version {value!r}; "
-            f"this runtime supports major version {BUNDLE_METADATA_VERSION_MAJOR}"
-        )
-
-
-def _hash_region(f: BinaryIO, *, start: int, end: int, path: pathlib.Path, section: str) -> bytes:
-    f.seek(start)
-    digest = hashlib.sha256()
-    remaining = end - start
-    while remaining:
-        chunk = f.read(min(_HASH_READ_CHUNK, remaining))
+def _hash_region(bundle_file: BinaryIO, *, start: int, end: int, path: pathlib.Path, section: str) -> bytes:
+    # Hash incrementally so large executable sections do not need to fit in memory.
+    bundle_file.seek(start)
+    hasher = hashlib.sha256()
+    remaining_bytes = end - start
+    while remaining_bytes:
+        chunk = bundle_file.read(min(_HASH_CHUNK_BYTES, remaining_bytes))
         if not chunk:
             raise ValueError(f"{path.name} was truncated while hashing its {section} region")
-        digest.update(chunk)
-        remaining -= len(chunk)
-    return digest.digest()
+        hasher.update(chunk)
+        remaining_bytes -= len(chunk)
+    return hasher.digest()
 
 
-def _get_stat_identity(stat_result: os.stat_result) -> tuple[int, int, int, int, int]:
+def _get_file_identity_fields(file_info: os.stat_result) -> tuple[int, int, int, int, int]:
+    """Select file identity, timestamps, and size for before/after comparisons."""
     return (
-        stat_result.st_dev,
-        stat_result.st_ino,
-        stat_result.st_mtime_ns,
-        stat_result.st_ctime_ns,
-        stat_result.st_size,
+        file_info.st_dev,
+        file_info.st_ino,
+        file_info.st_mtime_ns,
+        file_info.st_ctime_ns,
+        file_info.st_size,
     )
 
 
 def _read_prefixed_line(
-    f: BinaryIO,
+    bundle_file: BinaryIO,
     *,
     path: pathlib.Path,
     marker: bytes,
@@ -225,7 +239,7 @@ def _read_prefixed_line(
 ) -> bytes:
     """Read one bounded, newline-terminated bundle line and return its payload."""
     try:
-        line = f.readline(max_bytes + 1)
+        line = bundle_file.readline(max_bytes + 1)
     except OSError as exc:
         raise OSError(f"cannot read {path.name}: {exc}") from exc
     if not line.startswith(marker):
@@ -235,92 +249,92 @@ def _read_prefixed_line(
     if not line.endswith(b"\n"):
         raise ValueError(f"embedded airflow {section} is not newline-terminated")
     payload = line[len(marker) : -1]
+    # These characters would end the JavaScript comment even inside JSON strings.
     if b"\r" in payload or b"\xe2\x80\xa8" in payload or b"\xe2\x80\xa9" in payload:
         raise ValueError(f"embedded airflow {section} contains a JavaScript line terminator")
     return payload
 
 
-def _validate_layout(
-    layout: _BundleLayout,
-    *,
-    metadata_start: int,
-    metadata_end: int,
-    code_start: int,
-    code_end: int,
-) -> None:
-    if (layout.metadata.start, layout.metadata.end) != (metadata_start, metadata_end):
-        raise ValueError("bundle layout metadata offsets do not match the metadata section")
-    if (layout.code.start, layout.code.end) != (code_start, code_end):
-        raise ValueError("bundle layout code offsets do not match the executable section")
-
-
 def _compute_stable_digests(
-    f: BinaryIO,
+    bundle_file: BinaryIO,
     *,
     path: pathlib.Path,
     layout: _BundleLayout,
-    initial_stat: os.stat_result,
-) -> _BundleDigests:
-    digests = _BundleDigests(
+    initial_file_info: os.stat_result,
+) -> _ComputedDigests:
+    digests = _ComputedDigests(
         metadata=_hash_region(
-            f, start=layout.metadata.start, end=layout.metadata.end, path=path, section="metadata"
+            bundle_file, start=layout.metadata.start, end=layout.metadata.end, path=path, section="metadata"
         ),
-        code=_hash_region(f, start=layout.code.start, end=layout.code.end, path=path, section="code"),
+        code=_hash_region(
+            bundle_file, start=layout.code.start, end=layout.code.end, path=path, section="code"
+        ),
     )
     try:
-        post_hash_stat = os.fstat(f.fileno())
+        post_hash_file_info = os.fstat(bundle_file.fileno())
     except OSError as exc:
         raise OSError(f"cannot stat {path.name} after verification: {exc}") from exc
-    if _get_stat_identity(post_hash_stat) != _get_stat_identity(initial_stat):
+    # Reject a detected file change before caching the calculated digests.
+    if _get_file_identity_fields(post_hash_file_info) != _get_file_identity_fields(initial_file_info):
         raise ValueError(f"{path.name} changed while its integrity was being verified")
     return digests
 
 
 def _verify_integrity(
-    f: BinaryIO,
+    bundle_file: BinaryIO,
     *,
     path: pathlib.Path,
     layout: _BundleLayout,
-    initial_stat: os.stat_result,
+    initial_file_info: os.stat_result,
 ) -> None:
-    cache_key = _BundleDigestKey(
+    cache_key = _DigestCacheKey(
         path=os.fspath(path),
         metadata=layout.metadata,
         code=layout.code,
-        device=initial_stat.st_dev,
-        inode=initial_stat.st_ino,
-        mtime_ns=initial_stat.st_mtime_ns,
-        ctime_ns=initial_stat.st_ctime_ns,
-        size=initial_stat.st_size,
+        device=initial_file_info.st_dev,
+        inode=initial_file_info.st_ino,
+        mtime_ns=initial_file_info.st_mtime_ns,
+        ctime_ns=initial_file_info.st_ctime_ns,
+        size=initial_file_info.st_size,
     )
-    actual_digests = _digest_cache.get(cache_key)
-    if actual_digests is None:
-        actual_digests = _compute_stable_digests(f, path=path, layout=layout, initial_stat=initial_stat)
-        _digest_cache.put(cache_key, actual_digests)
+    # Reuse calculated hashes only when the file information and declared layout match.
+    computed_digests = _digest_cache.get(cache_key)
+    if computed_digests is None:
+        computed_digests = _compute_stable_digests(
+            bundle_file, path=path, layout=layout, initial_file_info=initial_file_info
+        )
+        _digest_cache.put(cache_key, computed_digests)
 
-    for section, actual_digest, expected_digest in (
-        ("metadata", actual_digests.metadata, layout.metadata.sha256),
-        ("code", actual_digests.code, layout.code.sha256),
+    for section, computed_digest, declared_digest in (
+        ("metadata", computed_digests.metadata, layout.metadata.sha256),
+        ("code", computed_digests.code, layout.code.sha256),
     ):
-        if actual_digest != expected_digest:
+        if computed_digest != declared_digest:
             raise ValueError(f"{path.name} {section} SHA-256 mismatch")
 
+    # Check again on both cache-hit and cache-miss paths.
     try:
-        final_stat = os.fstat(f.fileno())
+        final_file_info = os.fstat(bundle_file.fileno())
     except OSError as exc:
         raise OSError(f"cannot stat {path.name} after reading it: {exc}") from exc
-    if _get_stat_identity(final_stat) != _get_stat_identity(initial_stat):
+    if _get_file_identity_fields(final_file_info) != _get_file_identity_fields(initial_file_info):
         raise ValueError(f"{path.name} changed while it was being read")
 
 
-def _decode_metadata(payload: bytes) -> BundleMetadata:
+def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
+    """Validate the metadata document and extract the fields needed by the coordinator."""
     try:
         metadata = json.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise ValueError(f"cannot parse embedded airflow metadata: {exc}") from exc
     if not isinstance(metadata, dict):
         raise ValueError("embedded airflow metadata must contain a mapping")
-    _validate_metadata_version(metadata)
+    value = metadata.get("airflow_bundle_metadata_version")
+    if not _is_supported_bundle_version(value):
+        raise ValueError(
+            f"unsupported airflow bundle metadata version {value!r}; "
+            f"this runtime supports major version {_SUPPORTED_BUNDLE_MAJOR_VERSION}"
+        )
     dags = metadata.get("dags")
     if not isinstance(dags, dict):
         raise ValueError("embedded airflow metadata must contain a dags mapping")
@@ -330,33 +344,33 @@ def _decode_metadata(payload: bytes) -> BundleMetadata:
     )
 
 
-def _read_framing(f: BinaryIO, *, path: pathlib.Path, file_size: int) -> tuple[_BundleLayout, bytes]:
+def _read_bundle_headers(
+    bundle_file: BinaryIO, *, path: pathlib.Path, file_size: int
+) -> tuple[_BundleLayout, bytes]:
+    """Read both comment payloads and check their declared ranges against the file."""
     layout_payload = _read_prefixed_line(
-        f,
+        bundle_file,
         path=path,
-        marker=EMBEDDED_LAYOUT_MARKER,
-        max_bytes=EMBEDDED_LAYOUT_MAX_BYTES,
+        marker=_LAYOUT_COMMENT_PREFIX,
+        max_bytes=_MAX_LAYOUT_LINE_BYTES,
         section="bundle layout",
         missing_error=f"{path.name} has no airflow bundle layout; rebuild with airflow-ts-pack",
     )
     layout = _parse_layout(layout_payload)
     metadata_payload = _read_prefixed_line(
-        f,
+        bundle_file,
         path=path,
-        marker=EMBEDDED_METADATA_MARKER,
-        max_bytes=EMBEDDED_METADATA_MAX_BYTES,
+        marker=_METADATA_COMMENT_PREFIX,
+        max_bytes=_MAX_METADATA_LINE_BYTES,
         section="metadata",
         missing_error=f"{path.name} has no embedded airflow metadata after its layout",
     )
-    layout_line_size = len(EMBEDDED_LAYOUT_MARKER) + len(layout_payload) + 1
-    metadata_start = layout_line_size + len(EMBEDDED_METADATA_MARKER)
+    layout_line_size = len(_LAYOUT_COMMENT_PREFIX) + len(layout_payload) + 1
+    metadata_start = layout_line_size + len(_METADATA_COMMENT_PREFIX)
     metadata_end = metadata_start + len(metadata_payload)
     code_start = metadata_end + 1
-    _validate_layout(
-        layout,
-        metadata_start=metadata_start,
-        metadata_end=metadata_end,
-        code_start=code_start,
-        code_end=file_size,
-    )
+    if (layout.metadata.start, layout.metadata.end) != (metadata_start, metadata_end):
+        raise ValueError("bundle layout metadata offsets do not match the metadata section")
+    if (layout.code.start, layout.code.end) != (code_start, file_size):
+        raise ValueError("bundle layout code offsets do not match the executable section")
     return layout, metadata_payload

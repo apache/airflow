@@ -123,7 +123,7 @@ class TestBundleReader:
 
     def test_rejects_oversized_layout(self, tmp_path):
         bundle = write_bundle(tmp_path, "sales")
-        _replace_layout_payload(bundle, b"A" * _reader.EMBEDDED_LAYOUT_MAX_BYTES)
+        _replace_layout_payload(bundle, b"A" * _reader._MAX_LAYOUT_LINE_BYTES)
 
         with pytest.raises(ValueError, match="bundle layout exceeds"):
             read_bundle(tmp_path / "bundle.mjs")
@@ -279,7 +279,7 @@ class TestBundleReader:
         write_bundle(
             tmp_path,
             "sales",
-            metadata_payload=b"A" * _reader.EMBEDDED_METADATA_MAX_BYTES,
+            metadata_payload=b"A" * _reader._MAX_METADATA_LINE_BYTES,
         )
 
         with pytest.raises(ValueError, match="embedded airflow metadata exceeds"):
@@ -387,11 +387,11 @@ class TestBundleReader:
 
     def test_digest_cache_evicts_least_recently_used_entry(self):
         cache = _reader._BundleDigestCache(maxsize=2)
-        section = _reader._Section(start=0, end=1, sha256=b"0" * 32)
-        digests = _reader._BundleDigests(metadata=b"1" * 32, code=b"2" * 32)
+        section = _reader._DeclaredSection(start=0, end=1, sha256=b"0" * 32)
+        digests = _reader._ComputedDigests(metadata=b"1" * 32, code=b"2" * 32)
 
         def build_key(inode):
-            return _reader._BundleDigestKey(
+            return _reader._DigestCacheKey(
                 path="bundle.mjs",
                 metadata=section,
                 code=section,
