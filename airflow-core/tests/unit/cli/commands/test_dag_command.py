@@ -30,6 +30,7 @@ import pendulum
 import pytest
 import time_machine
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -47,10 +48,12 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
+from airflow.utils.retries import MAX_DB_RETRIES
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -1227,6 +1230,39 @@ class TestCliDagsReserialize:
 
         serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
         assert serialized_dag_ids == {"test_example_bash_operator", "test_sensor"}
+
+    @conf_vars({("core", "load_examples"): "false"})
+    @pytest.mark.parametrize("failures", [1, MAX_DB_RETRIES], ids=["recovered", "exhausted"])
+    def test_reserialize_preserves_previous_bundles_after_retry(self, configure_dag_bundles, failures):
+        bundles = {name: self.test_bundles_config[name] for name in ("bundle1", "bundle2")}
+        attempts = {name: 0 for name in bundles}
+        bulk_write = SerializedDAG.bulk_write_to_db
+
+        def write_then_fail(bundle_name, *args, **kwargs):
+            attempts[bundle_name] += 1
+            result = bulk_write(bundle_name, *args, **kwargs)
+            if bundle_name == "bundle2" and attempts[bundle_name] <= failures:
+                raise OperationalError("publish bundle", {}, RuntimeError("retry publication"))
+            return result
+
+        with (
+            configure_dag_bundles(bundles),
+            mock.patch.object(SerializedDAG, "bulk_write_to_db", autospec=True, side_effect=write_then_fail),
+        ):
+            args = self.parser.parse_args(["dags", "reserialize"])
+            if failures == MAX_DB_RETRIES:
+                with pytest.raises(OperationalError, match="retry publication"):
+                    dag_command.dag_reserialize(args)
+            else:
+                dag_command.dag_reserialize(args)
+
+        expected = {"test_example_bash_operator"}
+        if failures < MAX_DB_RETRIES:
+            expected.add("test_sensor")
+        with create_session(scoped=False) as observer:
+            assert set(observer.scalars(select(DagModel.dag_id))) == expected
+            assert set(observer.scalars(select(SerializedDagModel.dag_id))) == expected
+        assert attempts == {"bundle1": 1, "bundle2": min(failures + 1, MAX_DB_RETRIES)}
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_reserialize_should_make_equal_hash_with_dag_processor(self, configure_dag_bundles, session):
