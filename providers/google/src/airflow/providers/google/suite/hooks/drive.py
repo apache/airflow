@@ -43,6 +43,8 @@ class GoogleDriveHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param subject: Optional Google Workspace user to impersonate using
+        Domain-Wide Delegation.
     """
 
     _conn: Resource | None = None
@@ -52,10 +54,12 @@ class GoogleDriveHook(GoogleBaseHook):
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        subject: str | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            subject=subject,
         )
         self.api_version = api_version
 
