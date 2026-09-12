@@ -76,9 +76,11 @@ class DocumentLoaderOperator(BaseOperator):
         ``google_cloud_default``, ...). Ignored for local paths.
     :param source_bytes: Raw file bytes, typically from XCom.
     :param file_type: File extension hint (e.g. ``".pdf"``). Required when
-        using ``source_bytes``, since bytes carry no extension to detect --
-        omitting it is a Dag-parse-time error. Optional with ``source_path``,
-        where it overrides auto-detection.
+        using ``source_bytes``, since bytes carry no extension to detect.
+        Omitting it is rejected when the operator is constructed -- Dag parse
+        time for a regular task, run time for a mapped one, since ``expand()``
+        validates argument names only and defers construction to ``unmap()``.
+        Optional with ``source_path``, where it overrides auto-detection.
     :param parser: Parsing backend selection. ``"auto"`` (default) picks the
         backend from the file extension.
     :param file_extensions: When ``source_path`` is a directory or glob,
