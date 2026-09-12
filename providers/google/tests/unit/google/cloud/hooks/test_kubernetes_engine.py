@@ -20,11 +20,14 @@ from __future__ import annotations
 import copy
 import logging
 from asyncio import Future
+from datetime import datetime, timedelta
 from unittest import mock
 
 import kubernetes.client
 import pytest
 import pytest_asyncio
+import time_machine
+from google.auth.compute_engine import Credentials
 from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
@@ -37,6 +40,7 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEKubernetesHook,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import _CredentialsToken
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -581,6 +585,88 @@ class TestGKEKubernetesAsyncHook:
         )
         assert "Test string #1" in logs
         assert "Test string #2" in logs
+
+    @staticmethod
+    def _mock_token(tokens):
+        token = mock.AsyncMock()
+        token.get.side_effect = list(tokens)
+        return token
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    async def test_get_conn_caches_client_and_token(self, mock_build_client, mock_get_token, async_hook):
+        mock_get_token.return_value = self._mock_token(["token-1", "token-1"])
+        mock_build_client.return_value = mock.MagicMock(default_headers={})
+
+        async with async_hook.get_conn() as conn_first:
+            pass
+        async with async_hook.get_conn() as conn_second:
+            pass
+
+        assert conn_first is conn_second
+        mock_build_client.assert_called_once_with()
+        mock_get_token.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    async def test_get_conn_refreshes_authorization_header_per_entry(
+        self, mock_build_client, mock_get_token, async_hook
+    ):
+        mock_get_token.return_value = self._mock_token(["token-1", "token-2"])
+        kube_client = mock.MagicMock(default_headers={})
+        mock_build_client.return_value = kube_client
+
+        async with async_hook.get_conn():
+            assert kube_client.default_headers["Authorization"] == "Bearer token-1"
+        async with async_hook.get_conn():
+            assert kube_client.default_headers["Authorization"] == "Bearer token-2"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("elapsed", [301, 601])
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), autospec=True)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"), autospec=True)
+    async def test_cached_client_refreshes_short_lived_credentials(
+        self, mock_build_client, mock_get_token, async_hook, elapsed
+    ):
+        credentials = mock.MagicMock(spec=Credentials)
+        credentials.token = "token-1"
+        credentials.expiry = datetime(2026, 1, 1, 0, 10)
+        mock_get_token.return_value = _CredentialsToken(credentials)
+        kube_client = mock_build_client.return_value
+        kube_client.default_headers = {}
+
+        with time_machine.travel("2026-01-01 00:00:00+00:00", tick=False) as clock:
+            async with async_hook.get_conn() as first_client:
+                assert first_client.default_headers["Authorization"] == "Bearer token-1"
+
+            clock.shift(timedelta(seconds=elapsed))
+            credentials.token = "token-2"
+            credentials.expiry = datetime(2026, 1, 1, 0, 20)
+            async with async_hook.get_conn() as second_client:
+                assert second_client is first_client
+                assert second_client.default_headers["Authorization"] == "Bearer token-2"
+
+        mock_build_client.assert_called_once()
+        mock_get_token.assert_awaited_once()
+        assert credentials.refresh.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    async def test_close_releases_client_and_token(self, mock_build_client, mock_get_token, async_hook):
+        mock_get_token.return_value = self._mock_token(["token-1"])
+        kube_client = mock.MagicMock(default_headers={}, close=mock.AsyncMock())
+        mock_build_client.return_value = kube_client
+
+        async with async_hook.get_conn():
+            pass
+        await async_hook.close()
+
+        kube_client.close.assert_awaited_once()
+        assert async_hook._cached_kube_client is None
+        assert async_hook._cached_token is None
 
 
 @pytest_asyncio.fixture

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from unittest import mock
@@ -29,6 +30,7 @@ import google.auth
 import google.auth.compute_engine
 import pytest
 import tenacity
+import time_machine
 from google.api_core.client_options import ClientOptions
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import GoogleAuthError, RefreshError
@@ -1066,6 +1068,7 @@ class TestCredentialsToken:
     async def test_get(self):
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
+        mock_credentials.expiry = None
         token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
         assert await token.get() == "ACCESS_TOKEN"
         mock_credentials.refresh.assert_called_once()
@@ -1073,6 +1076,40 @@ class TestCredentialsToken:
         mock_credentials.reset_mock()
         assert await token.get() == "ACCESS_TOKEN"
         mock_credentials.refresh.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("elapsed", [301, 601])
+    async def test_get_refreshes_short_lived_credentials(self, elapsed):
+        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.token = "FIRST_TOKEN"
+        mock_credentials.expiry = datetime(2026, 1, 1, 0, 10)
+        token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
+
+        with time_machine.travel("2026-01-01 00:00:00+00:00", tick=False) as clock:
+            assert await token.get() == "FIRST_TOKEN"
+            clock.shift(timedelta(seconds=299))
+            assert await token.get() == "FIRST_TOKEN"
+            mock_credentials.refresh.assert_called_once()
+
+            clock.shift(timedelta(seconds=elapsed - 299))
+            mock_credentials.token = "SECOND_TOKEN"
+            mock_credentials.expiry = datetime(2026, 1, 1, 0, 20)
+            assert await token.get() == "SECOND_TOKEN"
+            assert mock_credentials.refresh.call_count == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("remaining", "expected_lifetime"), [(600, 600), (0, 0), (-30, 0)])
+    async def test_refresh_reports_credentials_lifetime(self, remaining, expected_lifetime):
+        credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        credentials.token = "ACCESS_TOKEN"
+        credentials.expiry = datetime(2026, 1, 1) + timedelta(seconds=remaining)
+        token = hook._CredentialsToken(credentials)
+
+        with time_machine.travel("2026-01-01 00:00:00+00:00", tick=False):
+            response = await token.refresh(timeout=10)
+
+        assert response.value == "ACCESS_TOKEN"
+        assert response.expires_in == expected_lifetime
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE_NAME}.get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
@@ -1093,6 +1130,7 @@ class TestGoogleBaseAsyncHook:
     async def test_get_token(self, mock_auth_default, monkeypatch) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
+        mock_credentials.expiry = None
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",

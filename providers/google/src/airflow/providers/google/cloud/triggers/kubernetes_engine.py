@@ -434,3 +434,8 @@ class GKEJobTrigger(BaseTrigger):
             impersonation_chain=self.impersonation_chain,
         )
         return PodManager(kube_client=sync_hook.core_v1_client)
+
+    async def cleanup(self) -> None:
+        """Release the hook's cached API client when the trigger exits."""
+        await super().cleanup()
+        await self.hook.close()
