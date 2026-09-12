@@ -701,7 +701,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             if isinstance(var, VariableResponse):
                 if var.value:
                     mask_secret(var.value, var.key)
-                var_result = VariableResult.from_variable_response(var)
+                var_result = VariableResult.from_api_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
             else:

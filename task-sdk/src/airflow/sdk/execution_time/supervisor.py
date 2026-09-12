@@ -1814,7 +1814,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
-                asset_result = AssetResult.from_asset_response(asset_resp)
+                asset_result = AssetResult.from_api_response(asset_resp)
                 resp = asset_result
                 dump_opts = {"exclude_unset": True}
             else:
@@ -1822,7 +1822,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetAssetByUri):
             asset_resp = self.client.assets.get(uri=msg.uri)
             if isinstance(asset_resp, AssetResponse):
-                asset_result = AssetResult.from_asset_response(asset_resp)
+                asset_result = AssetResult.from_api_response(asset_resp)
                 resp = asset_result
                 dump_opts = {"exclude_unset": True}
             else:
@@ -1841,7 +1841,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
                 extra=msg.extra,
             )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
+            asset_event_result = AssetEventsResult.from_api_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetAssetEventByAssetAlias):
@@ -1855,7 +1855,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
                 extra=msg.extra,
             )
-            asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
+            asset_event_result = AssetEventsResult.from_api_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetPrevSuccessfulDagRun):
@@ -1890,7 +1890,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, ValidateInletsAndOutlets):
             inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
-            resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
+            resp = InactiveAssetsResult.from_api_response(inactive_assets_resp)
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, ResendLoggingFD):
             # We need special handling here!
@@ -1923,7 +1923,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = (
                 task_store
                 if isinstance(task_store, ErrorResponse)
-                else TaskStateStoreResult.from_task_state_store_response(task_store)
+                else TaskStateStoreResult.from_api_response(task_store)
             )
         elif isinstance(msg, SetTaskStateStore):
             self.client.task_state_store.set(msg.ti_id, msg.key, msg.value, expires_at=msg.expires_at)
@@ -1939,14 +1939,14 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = (
                 asset_store
                 if isinstance(asset_store, ErrorResponse)
-                else AssetStateStoreResult.from_asset_state_store_response(asset_store)
+                else AssetStateStoreResult.from_api_response(asset_store)
             )
         elif isinstance(msg, GetAssetStateStoreByUri):
             asset_store = self.client.asset_state_store.get(msg.key, uri=msg.uri)
             resp = (
                 asset_store
                 if isinstance(asset_store, ErrorResponse)
-                else AssetStateStoreResult.from_asset_state_store_response(asset_store)
+                else AssetStateStoreResult.from_api_response(asset_store)
             )
         elif isinstance(msg, SetAssetStateStoreByName):
             self.client.asset_state_store.set(msg.key, msg.value, name=msg.name)
