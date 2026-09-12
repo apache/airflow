@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Ha de completar-se dins de {{interval}} de {{reference}}",
+    "completionRuleDynamic": "Ha de completar-se dins d'un interval variable mesurat des de {{reference}}",
     "count_one": "{{count}} termini",
     "count_other": "{{count}} terminis",
     "referenceType": {
@@ -91,10 +92,6 @@
     "critical": "CRÍTIC",
     "debug": "DEPURACIÓ",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Pantalla completa",
-      "tooltip": "Prem {{hotkey}} per a pantalla completa"
-    },
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
     "search": {

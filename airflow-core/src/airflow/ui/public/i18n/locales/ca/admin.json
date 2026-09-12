@@ -177,6 +177,7 @@
           "title": "Ignorar"
         }
       },
+      "parsingFile": "Analitzant el fitxer...",
       "title": "Importar Variables",
       "upload": "Penjar un fitxer JSON",
       "uploadPlaceholder": "Penjar un fitxer JSON que contingui variables (per exemple, {\"key\": \"value\", ...})"
