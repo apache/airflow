@@ -20,17 +20,21 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
 )
+from airflow.providers.amazon.aws.utils.waiter_with_logging import _LazyStatusFormatter
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.helpers import prune_dict
 
 from unit.amazon.aws.triggers.test_base import TestAwsBaseWaiterTrigger
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.opensearch_serverless."
+FAILURE_MESSAGE = "The KMS key used to encrypt the collection is no longer accessible."
+NOT_FOUND_MESSAGE = "Collection with name test_collection_name not found."
 
 
 class TestBaseBedrockTrigger(TestAwsBaseWaiterTrigger):
@@ -87,3 +91,50 @@ class TestOpenSearchServerlessCollectionActiveTrigger:
 
         assert response == TriggerEvent({"status": "success", "collection_id": self.COLLECTION_ID})
         assert mock_get_waiter().wait.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch.object(OpenSearchServerlessHook, "get_waiter")
+    @mock.patch.object(OpenSearchServerlessHook, "get_async_conn")
+    async def test_run_failure_message_includes_status(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock(
+            side_effect=WaiterError(
+                name=self.EXPECTED_WAITER_NAME,
+                reason=(
+                    "Waiter encountered a terminal failure state: "
+                    'For expression "collectionDetails[0].status"'
+                ),
+                last_response={
+                    "collectionDetails": [
+                        {
+                            "id": self.COLLECTION_ID,
+                            "status": "FAILED",
+                            "failureCode": "KMS_KEY_INACCESSIBLE",
+                            "failureMessage": FAILURE_MESSAGE,
+                        }
+                    ],
+                    "collectionErrorDetails": [],
+                },
+            )
+        )
+        trigger = OpenSearchServerlessCollectionActiveTrigger(collection_id=self.COLLECTION_ID)
+
+        response = await trigger.run().asend(None)
+
+        assert response.payload["status"] == "error"
+        assert (
+            response.payload["message"].splitlines()[0]
+            == f"OpenSearch Serverless Collection creation failed.: FAILED - {FAILURE_MESSAGE}"
+        )
+
+    def test_status_queries_surface_collection_error_details(self):
+        """A collection that does not exist comes back as a 200 with only collectionErrorDetails set."""
+        trigger = OpenSearchServerlessCollectionActiveTrigger(collection_name=self.COLLECTION_NAME)
+        not_found = {
+            "collectionDetails": [],
+            "collectionErrorDetails": [
+                {"name": self.COLLECTION_NAME, "errorCode": "NOT_FOUND", "errorMessage": NOT_FOUND_MESSAGE}
+            ],
+        }
+
+        assert str(_LazyStatusFormatter(trigger.status_queries, not_found)) == NOT_FOUND_MESSAGE

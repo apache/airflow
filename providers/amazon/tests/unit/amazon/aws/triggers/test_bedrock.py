@@ -20,6 +20,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockAgentCoreControlHook,
@@ -41,6 +42,7 @@ from airflow.triggers.base import TriggerEvent
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.bedrock."
+FAILURE_REASON = "Access denied when calling Bedrock. Check your request permissions and retry."
 
 
 class TestBaseBedrockTrigger:
@@ -138,6 +140,34 @@ class TestBedrockKnowledgeBaseActiveTrigger(TestBaseBedrockTrigger):
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         mock_get_waiter().wait.assert_called_once()
 
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockAgentHook, "get_waiter")
+    @mock.patch.object(BedrockAgentHook, "get_async_conn")
+    async def test_run_failure_message_includes_status(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock(
+            side_effect=WaiterError(
+                name=self.EXPECTED_WAITER_NAME,
+                reason='Waiter encountered a terminal failure state: For expression "knowledgeBase.status"',
+                last_response={
+                    "knowledgeBase": {
+                        "knowledgeBaseId": self.KNOWLEDGE_BASE_NAME,
+                        "status": "FAILED",
+                        "failureReasons": [FAILURE_REASON],
+                    }
+                },
+            )
+        )
+        trigger = BedrockKnowledgeBaseActiveTrigger(knowledge_base_id=self.KNOWLEDGE_BASE_NAME)
+
+        response = await trigger.run().asend(None)
+
+        assert response.payload["status"] == "error"
+        assert (
+            response.payload["message"].splitlines()[0]
+            == f"Bedrock Knowledge Base creation failed.: FAILED - ['{FAILURE_REASON}']"
+        )
+
 
 class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
     EXPECTED_WAITER_NAME = "ingestion_job_complete"
@@ -177,6 +207,38 @@ class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
         assert_expected_waiter_type(mock_get_waiter, self.EXPECTED_WAITER_NAME)
         assert response == TriggerEvent({"status": "success", "ingestion_job_id": self.INGESTION_JOB_ID})
         mock_get_waiter().wait.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BedrockAgentHook, "get_waiter")
+    @mock.patch.object(BedrockAgentHook, "get_async_conn")
+    async def test_run_failure_message_includes_status(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_get_waiter().wait = AsyncMock(
+            side_effect=WaiterError(
+                name=self.EXPECTED_WAITER_NAME,
+                reason='Waiter encountered a terminal failure state: For expression "ingestionJob.status"',
+                last_response={
+                    "ingestionJob": {
+                        "ingestionJobId": self.INGESTION_JOB_ID,
+                        "status": "FAILED",
+                        "failureReasons": [FAILURE_REASON],
+                    }
+                },
+            )
+        )
+        trigger = BedrockIngestionJobTrigger(
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+            data_source_id=self.DATA_SOURCE_ID,
+            ingestion_job_id=self.INGESTION_JOB_ID,
+        )
+
+        response = await trigger.run().asend(None)
+
+        assert response.payload["status"] == "error"
+        assert (
+            response.payload["message"].splitlines()[0]
+            == f"Bedrock ingestion job creation failed.: FAILED - ['{FAILURE_REASON}']"
+        )
 
 
 class TestBedrockAgentRuntimeReadyTrigger(TestBaseBedrockTrigger):
