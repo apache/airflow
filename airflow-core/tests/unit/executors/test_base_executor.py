@@ -72,6 +72,14 @@ def test_invalid_slotspool():
         BaseExecutor(0)
 
 
+@mock.patch("airflow.executors.base_executor.stats")
+def test_init_stats_failure_does_not_block_construction(mock_stats):
+    """A metrics misconfiguration must not prevent the executor from being constructed."""
+    mock_stats.initialize.side_effect = RuntimeError("boom")
+
+    BaseExecutor()
+
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
