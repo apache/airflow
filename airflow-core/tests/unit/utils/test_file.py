@@ -29,6 +29,7 @@ from airflow.utils import file as file_utils
 from airflow.utils.file import (
     correct_maybe_zipped,
     list_py_file_paths,
+    might_contain_dag_via_default_heuristic,
     open_maybe_zipped,
 )
 
@@ -229,3 +230,22 @@ def test_get_unique_dag_module_name(edge_filename, expected_modification):
         mocked_sha1.return_value.hexdigest.return_value = "mocked_path_hash_sha1"
         modify_module_name = file_utils.get_unique_dag_module_name(edge_filename)
         assert modify_module_name == expected_modification
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param(b"from airflow.sdk import DAG", True, id="airflow-and-dag"),
+        pytest.param(b"from airflow.sdk import asset", True, id="airflow-and-asset"),
+        pytest.param(b"from airflow.sdk import Asset", True, id="mixed-case-asset"),
+        pytest.param(
+            b"DAG_DEFAULTS = {'asset_bucket': 's3://data-lake'}", False, id="keywords-without-airflow"
+        ),
+        pytest.param(b"from airflow.configuration import conf", False, id="airflow-without-dag-or-asset"),
+    ],
+)
+def test_might_contain_dag_via_default_heuristic(tmp_path, content, expected):
+    candidate = tmp_path / "candidate.py"
+    candidate.write_bytes(content)
+
+    assert might_contain_dag_via_default_heuristic(file_path=str(candidate)) is expected
