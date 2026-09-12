@@ -93,6 +93,8 @@
     "debug": "DEBUG",
     "error": "ERROR",
     "info": "INFO",
+    "noLogsHelp": "Check the <AuditLogLink>Audit Log</AuditLogLink> for details.",
+    "noLogsTitle": "No task logs are available.",
     "noTryNumber": "No try number",
     "search": {
       "matchCount": "{{current}} of {{total}}",
