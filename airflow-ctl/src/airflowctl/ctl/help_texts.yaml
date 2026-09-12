@@ -95,6 +95,12 @@ taskinstances:
   list: "List all task instances for a given Dag run"
   get: "Get a task instance for a given Dag run"
   get-dependencies: "Get unmet scheduler dependencies for a task instance"
+  list-state-store: "List all state store entries for a task instance"
+  get-state-store: "Retrieve a single task state store entry by its key"
+  set-state-store: "Set a task state store value. Parsed as JSON if valid, otherwise stored as a string"
+  update-state-store: "Update an existing key's value. Parsed as JSON if valid, otherwise stored as a string"
+  delete-state-store: "Delete a single task state store key by its key"
+  clear-state-store: "Delete all state store keys for a task instance"
 
 tasks:
   clear: "Clear task instances of a Dag by its ID"

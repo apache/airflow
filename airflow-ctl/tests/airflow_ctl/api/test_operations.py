@@ -100,6 +100,8 @@ from airflowctl.api.datamodels.generated import (
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
+    TaskStateStoreCollectionResponse,
+    TaskStateStoreResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1863,6 +1865,12 @@ class TestTaskInstancesOperations:
     task_dependency_collection_response = TaskDependencyCollectionResponse(
         dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")],
     )
+    task_state_store_response = TaskStateStoreResponse(
+        key="my_key",
+        value={"my_val": 0},  # type: ignore[arg-type]
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        expires_at=None,
+    )
 
     def _make_client_asserting_path(self, expected_path: str, response_model) -> Client:
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1917,6 +1925,141 @@ class TestTaskInstancesOperations:
         )
         response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
         assert response == self.task_instance_collection_response
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_list_state_store(self, map_index):
+        collection_response = TaskStateStoreCollectionResponse(
+            task_state_store=[self.task_state_store_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(200, json=json.loads(collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list_state_store(
+            "dag_id", "dag_run_id", "task_id", map_index=map_index
+        )
+        assert response == collection_response
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_get_state_store(self, map_index):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(200, json=json.loads(self.task_state_store_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get_state_store(
+            "dag_id", "dag_run_id", "task_id", key, map_index=map_index
+        )
+        assert response == self.task_state_store_response
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_set_state_store(self, value, expected):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            assert json.loads(request.content) == {"value": expected, "expires_at": "default"}
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.set_state_store("dag_id", "dag_run_id", "task_id", key, value)
+        assert response == key
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_update_state_store(self, value, expected):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            assert json.loads(request.content) == {"value": expected}
+            return httpx.Response(200)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.update_state_store("dag_id", "dag_run_id", "task_id", key, value)
+        assert response == key
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_delete_state_store(self, map_index):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.delete_state_store(
+            "dag_id", "dag_run_id", "task_id", key, map_index=map_index
+        )
+        assert response == key
+
+    @pytest.mark.parametrize(
+        ("map_index", "all_map_indices", "expected_params"),
+        [
+            (None, False, {}),
+            (2, False, {"map_index": "2"}),
+            (None, True, {"all_map_indices": "true"}),
+        ],
+    )
+    def test_clear_state_store(self, map_index, all_map_indices, expected_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == (
+                "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store"
+            )
+            assert dict(request.url.params) == expected_params
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.clear_state_store(
+            "dag_id",
+            "dag_run_id",
+            "task_id",
+            map_index=map_index,
+            all_map_indices=all_map_indices,
+        )
+        assert response == "task_id"
 
 
 class TestTasksOperations:
