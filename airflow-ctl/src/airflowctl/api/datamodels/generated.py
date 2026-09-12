@@ -78,12 +78,17 @@ class AssetExpressionAssetInfo(BaseModel):
     persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
     optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
     degrades gracefully instead of failing response validation.
+
+    A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+    and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+    schedule stays visible without revealing which asset it waits on.
     """
 
-    uri: Annotated[str, Field(title="Uri")]
-    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str | None, Field(title="Uri")]
+    name: Annotated[str | None, Field(title="Name")]
     group: Annotated[str, Field(title="Group")]
     id: Annotated[int | None, Field(title="Id")] = None
+    hidden: Annotated[bool | None, Field(title="Hidden")] = False
 
 
 class AssetExpressionRef(BaseModel):

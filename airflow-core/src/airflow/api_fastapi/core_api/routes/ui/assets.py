@@ -22,6 +22,7 @@ import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import ColumnElement, and_, case, exists, func, select, true
 
+from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.db.assets import generate_assets_with_last_event_query
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -149,11 +150,16 @@ def get_assets(
 )
 def next_run_assets(
     dag_id: str,
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
 ) -> NextRunAssetsResponse:
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
     if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
+    asset_expression = redact_asset_expression(
+        dag_model.asset_expression, readable_asset_ids=readable_assets_filter.value or set()
+    )
 
     latest_run = dag_model.get_last_dagrun(session=session)
     event_filter = (
@@ -241,7 +247,7 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        model_data: dict[str, Any] = {"asset_expression": dag_model.asset_expression, "events": events}
+        model_data: dict[str, Any] = {"asset_expression": asset_expression, "events": events}
         return NextRunAssetsResponse.model_validate(model_data)
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
@@ -276,7 +282,7 @@ def next_run_assets(
             for row in raw_rows
         ]
         model_data = {
-            "asset_expression": dag_model.asset_expression,
+            "asset_expression": asset_expression,
             "events": events,
             "pending_partition_count": pending_partition_count,
         }
@@ -350,7 +356,7 @@ def next_run_assets(
         )
 
     model_data = {
-        "asset_expression": dag_model.asset_expression,
+        "asset_expression": asset_expression,
         "events": events,
         "pending_partition_count": pending_partition_count,
     }

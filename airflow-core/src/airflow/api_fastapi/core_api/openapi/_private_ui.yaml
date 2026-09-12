@@ -2442,10 +2442,14 @@ components:
     AssetExpressionAssetInfo:
       properties:
         uri:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Uri
         name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Name
         group:
           type: string
@@ -2455,6 +2459,10 @@ components:
           - type: integer
           - type: 'null'
           title: Id
+        hidden:
+          type: boolean
+          title: Hidden
+          default: false
       type: object
       required:
       - uri
@@ -2473,7 +2481,16 @@ components:
         optional so a row persisted before id-enrichment (or migrated from the pre-3.0
         dataset format)
 
-        degrades gracefully instead of failing response validation.'
+        degrades gracefully instead of failing response validation.
+
+
+        A leaf the caller is not authorized to read is served with ``hidden`` set
+        and ``uri``, ``name``
+
+        and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``),
+        so the shape of the
+
+        schedule stays visible without revealing which asset it waits on.'
     AssetExpressionRef:
       properties:
         asset_ref:
