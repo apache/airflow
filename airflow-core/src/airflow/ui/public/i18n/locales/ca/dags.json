@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "Tots els tipus d'execució",
     "allStates": "Tots els estats",
+    "anyRunState": "Qualsevol execució",
     "favorite": {
       "all": "Tots",
       "favorite": "Favorits",
       "unfavorite": "No favorits"
     },
+    "lastRunState": "Última execució",
     "paused": {
       "active": "Actius",
       "all": "Tots",
@@ -73,6 +75,7 @@
       "preventRunningTasks": "Evitar rellançar tasques en execució",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
+      "runOnLatestVersionForced": "Sempre utilitza la versió més recent: no hi ha cap versió anterior a la qual tornar",
       "upstream": "Aigües amunt"
     }
   },

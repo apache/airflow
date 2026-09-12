@@ -1,5 +1,8 @@
 {
   "additional_data": "Dades addicionals",
+  "alias_one": "Àlies",
+  "alias_other": "Àliases",
+  "aliases": "Àliases",
   "asset_many": "Assets",
   "asset_one": "Asset",
   "assetStateStore": {
@@ -50,5 +53,8 @@
   "scheduledDags": "Dags programats",
   "scheduling": "Programats",
   "searchPlaceholder": "Cercar Assets",
-  "taskDependencies": "Dependències de tasca"
+  "taskDependencies": "Dependències de tasca",
+  "watcher_one": "Observador",
+  "watcher_other": "Observadors",
+  "watchers": "Observadors"
 }
