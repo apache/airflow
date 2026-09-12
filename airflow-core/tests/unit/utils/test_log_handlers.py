@@ -76,7 +76,10 @@ from tests_common.test_utils.file_task_handler import (
     extract_events,
     mock_parsed_logs_factory,
 )
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import (
+    skip_if_cncf_kubernetes_not_installed,
+    skip_if_force_lowest_dependencies_marker,
+)
 
 pytestmark = [pytest.mark.db_test]
 
@@ -255,6 +258,7 @@ class TestFileTaskLogHandler:
         os.remove(log_filename)
 
     @skip_if_force_lowest_dependencies_marker
+    @skip_if_cncf_kubernetes_not_installed
     @pytest.mark.parametrize(
         "executor_name",
         [

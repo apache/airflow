@@ -29,6 +29,7 @@ from airflow.utils.scheduler_health import serve_health_check
 from airflow.utils.serve_logs import serve_logs
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.markers import skip_if_cncf_kubernetes_not_installed
 
 pytestmark = pytest.mark.db_test
 
@@ -43,9 +44,17 @@ class TestSchedulerCommand:
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),
-            ("KubernetesExecutor", False),
-            ("LocalExecutor,KubernetesExecutor", True),
-            ("KubernetesExecutor,LocalExecutor", True),
+            pytest.param("KubernetesExecutor", False, marks=skip_if_cncf_kubernetes_not_installed),
+            pytest.param(
+                "LocalExecutor,KubernetesExecutor",
+                True,
+                marks=skip_if_cncf_kubernetes_not_installed,
+            ),
+            pytest.param(
+                "KubernetesExecutor,LocalExecutor",
+                True,
+                marks=skip_if_cncf_kubernetes_not_installed,
+            ),
         ],
     )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
