@@ -355,8 +355,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self._setup_spark_configuration(context)
 
         if self.deferrable:
-            self.execute_async(context)
-            return
+            return self.execute_async(context)
 
         return super().execute(context)
 
