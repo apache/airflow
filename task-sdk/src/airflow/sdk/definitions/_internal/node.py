@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from airflow.sdk._shared.dagnode.node import GenericDAGNode
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
@@ -50,6 +51,8 @@ def validate_key(k: str, max_length: int = 250):
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots, and underscores exclusively"
         )
+    if ".." in k and not conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+        raise ValueError(f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal")
 
 
 def validate_group_key(k: str, max_length: int = 200):

@@ -41,6 +41,8 @@ from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
+
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 
@@ -67,12 +69,22 @@ class TestDag:
                 "dots, and underscores exclusively",
                 id="illegal",
             ),
+            pytest.param(
+                "a..b",
+                ValueError,
+                "The key 'a..b' must not contain consecutive dots ('..') to prevent path traversal",
+                id="double-dot",
+            ),
         ],
     )
     def test_dag_id_validation(self, dag_id, exc_type, exc_value):
         with pytest.raises(exc_type) as ctx:
             DAG(dag_id)
         assert str(ctx.value) == exc_value
+
+    @conf_vars({("core", "allow_double_dot_in_ids"): "True"})
+    def test_dag_id_allows_double_dots_when_enabled(self):
+        assert DAG("a..b").dag_id == "a..b"
 
     def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
