@@ -149,7 +149,9 @@ def _get_registered_priority_weight_strategy(
     return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
-class _PriorityWeightStrategyNotRegistered(AirflowException):
+class _PriorityWeightStrategyNotRegistered(ValueError):
+    """When an unregistered priority weight strategy is being accessed."""
+
     def __init__(self, type_string: str) -> None:
         self.type_string = type_string
 
@@ -221,10 +223,7 @@ def _encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     priority_weight_strategy_class = type(validate_and_load_priority_weight_strategy(var))
     with contextlib.suppress(KeyError):
         return get_weight_rule_from_priority_weight_strategy(priority_weight_strategy_class)
-    importable_string = qualname(priority_weight_strategy_class)
-    if _get_registered_priority_weight_strategy(importable_string) is None:
-        raise _PriorityWeightStrategyNotRegistered(importable_string)
-    return importable_string
+    return qualname(priority_weight_strategy_class)
 
 
 def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
