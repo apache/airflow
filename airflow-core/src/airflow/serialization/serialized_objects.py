@@ -578,7 +578,7 @@ class BaseSerialization:
                 cls.serialize(
                     {
                         "exc_cls_name": var.__class__.__name__,
-                        "args": [var.args],
+                        "args": list(var.args),
                         "kwargs": {},
                     },
                     strict=strict,
