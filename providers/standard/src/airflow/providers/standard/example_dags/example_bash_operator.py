@@ -48,6 +48,7 @@ with DAG(
     - Executing simple bash commands
     - Creating task dependencies, including loops and templated commands
     - Pushing several named XComs from one task with `multiple_outputs`
+    - Pushing several named XComs, resilient to task failure, via the XCom directory
 
     This example is intended for beginners who want to understand how Airflow
     interacts with system-level commands using bash.
@@ -105,6 +106,26 @@ with DAG(
     )
     # [END howto_operator_bash_multiple_outputs]
     describe_dag_folder >> show_dag_folder_stats >> run_this_last
+
+    # [START howto_operator_bash_xcom_dir]
+    write_multiple_xcoms = BashOperator(
+        task_id="write_multiple_xcoms",
+        bash_command="""
+            set -e
+            echo "42" > "$AIRFLOW_XCOM_DIR/row_count"
+            xcom push --json summary '{"rows": 42, "errors": 0}'
+        """,
+    )
+
+    read_multiple_xcoms = BashOperator(
+        task_id="read_multiple_xcoms",
+        bash_command=(
+            "echo \"row_count={{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='row_count') }}"
+            " summary={{ ti.xcom_pull(task_ids='write_multiple_xcoms', key='summary') }}\""
+        ),
+    )
+    # [END howto_operator_bash_xcom_dir]
+    write_multiple_xcoms >> read_multiple_xcoms >> run_this_last
 
 # [START howto_operator_bash_skip]
 this_will_skip = BashOperator(
