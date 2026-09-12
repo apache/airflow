@@ -976,6 +976,17 @@ logging:
       type: string
       default: "filename,lineno"
       example: ~
+    dag_tags_in_logs:
+      description: |
+        Set to ``True`` to include Dag tags as structured log fields on task logs emitted once the
+        Dag has been parsed (log lines emitted earlier, during parsing itself, cannot carry them).
+        Tags that contain a colon (e.g. ``env:prod``) are split into a key/value field. Plain tags
+        (e.g. ``production``) are emitted with an empty value. Disabled by default to avoid unexpected
+        field-name collisions, since Dag tags are free-form, user-defined strings.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration

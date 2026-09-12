@@ -1,0 +1,1 @@
+Added ``[logging] dag_tags_in_logs`` to optionally include Dag tags as structured log context on task logs.
