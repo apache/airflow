@@ -62,7 +62,10 @@ try:
 
         When *disable_verify_ssl* is True the TLS certificate check is turned off
         on the *client_configuration* that is passed (or on a fresh default copy)
-        so that callers do not need to repeat this logic at every call-site.
+        so that callers do not need to repeat this logic at every call-site. Likewise,
+        when *ssl_ca_cert* is provided, it is set as the CA bundle used to verify the
+        Kubernetes API server certificate, so a custom/intermediate CA can be trusted
+        without disabling verification altogether.
         """
 
         def __init__(
@@ -70,11 +73,15 @@ try:
             configuration: client.Configuration | None = None,
             *,
             disable_verify_ssl: bool = False,
+            ssl_ca_cert: str | None = None,
         ) -> None:
-            if disable_verify_ssl:
+            if disable_verify_ssl or ssl_ca_cert:
                 if configuration is None:
                     configuration = client.Configuration.get_default_copy()
-                configuration.verify_ssl = False
+                if disable_verify_ssl:
+                    configuration.verify_ssl = False
+                if ssl_ca_cert:
+                    configuration.ssl_ca_cert = ssl_ca_cert
             super().__init__(configuration=configuration)
 
         def call_api(self, *args: Any, **kwargs: Any) -> Any:
