@@ -411,6 +411,21 @@ class TestTaskInstance:
         ti.run(mark_success=True)
         assert ti.state == State.SUCCESS
 
+    def test_error_does_not_commit(self, create_task_instance, session):
+        """error() must leave committing to the caller (see #12818)."""
+        ti = create_task_instance()
+        session.commit()
+
+        ti.error(session=session)
+
+        # Not yet committed: a genuinely separate connection (scoped=False, like the
+        # execution API's SessionDep uses) must not see the FAILED state.
+        with create_session(scoped=False) as other_session:
+            other_ti = other_session.get(TaskInstance, ti.id)
+            assert other_ti.state != State.FAILED
+
+        assert ti.state == State.FAILED
+
     @pytest.mark.usefixtures("test_pool")
     def test_run_pooling_task(self, create_task_instance):
         """
