@@ -1,0 +1,1 @@
+Task SDK error email notifications (``email_on_failure`` / ``email_on_retry``) now pass ``from_email=None`` by default instead of the hardcoded ``airflow@airflow``. This allows custom email backends (e.g. SendGrid, Amazon SES) and ``SmtpNotifier`` to resolve sender identity from connection extras or environment defaults.
