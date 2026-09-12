@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from decimal import Decimal
+from fractions import Fraction
 from unittest.mock import Mock
 
 import pytest
@@ -23,7 +25,7 @@ from openai.types.batch import Batch
 from openai.types.responses import Response
 from openai.types.responses.response import IncompleteDetails
 
-from airflow.providers.common.compat.sdk import Context, TaskDeferred
+from airflow.providers.common.compat.sdk import DAG, BaseOperator, Context, TaskDeferred, XComArg
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAITriggerEventError
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.operators.openai import (
@@ -148,6 +150,8 @@ class TestOpenAIResponseOperatorTokenCeilings:
             pytest.param("not-a-number", id="non-integer-string"),
             pytest.param("-5", id="negative-string"),
             pytest.param("None", id="literal-none-string"),
+            pytest.param(Decimal("10.5"), id="decimal"),
+            pytest.param(Fraction(21, 2), id="fraction"),
         ],
     )
     @pytest.mark.parametrize("param_name", ["max_output_tokens", "max_tool_calls"])
@@ -216,6 +220,20 @@ class TestOpenAIResponseOperatorTokenCeilings:
                 response_kwargs={"max_output_tokens": 50},
                 max_output_tokens=0,
             )
+
+    def test_xcom_arg_ceiling_does_not_fail_on_construction(self):
+        with DAG("test_dag", schedule=None) as dag:
+            upstream = BaseOperator(task_id="upstream")
+
+        operator = OpenAIResponseOperator(
+            task_id=TASK_ID,
+            conn_id=CONN_ID,
+            input_text="Write a haiku.",
+            max_output_tokens=upstream.output,
+            dag=dag,
+        )
+
+        assert isinstance(operator.max_output_tokens, XComArg)
 
     @pytest.mark.parametrize(
         "blank_value", [pytest.param("", id="empty"), pytest.param("   ", id="whitespace")]

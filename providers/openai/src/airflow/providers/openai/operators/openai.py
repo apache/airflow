@@ -160,17 +160,17 @@ class OpenAIResponseOperator(BaseOperator):
 
     def _validate_literal_ceiling_values(self) -> None:
         """
-        Eagerly validate a ceiling value that cannot possibly still be an unrendered template.
+        Eagerly validate a ceiling value that is already a final literal, not a template.
 
-        A ``str`` value might be a template awaiting ``render_template_fields()``, so it must wait
-        for ``_build_response_kwargs()`` at ``execute()`` time. Any other type (``int``, ``bool``,
-        ``float``) is already final at construction -- it only reaches here as a literal, never via
-        Jinja rendering -- so an invalid one is rejected at Dag-parse time instead of surfacing only
-        when the task runs.
+        Only ``bool``, ``float``, and ``int`` are recognized as literals here -- they are already
+        final at construction and never arrive via Jinja rendering, so an invalid one is rejected
+        at Dag-parse time instead of surfacing only when the task runs. Anything else (``str``
+        templates awaiting ``render_template_fields()``, or template values such as ``XComArg``
+        that resolve later) must wait for ``_build_response_kwargs()`` at ``execute()`` time.
         """
         for param_name in self._TOKEN_CEILING_PARAM_NAMES:
             value = getattr(self, param_name)
-            if value is not None and not isinstance(value, str):
+            if value is not None and isinstance(value, (bool, float, int)):
                 self._coerce_token_ceiling(param_name, value)
 
     @cached_property
@@ -182,10 +182,14 @@ class OpenAIResponseOperator(BaseOperator):
     def _coerce_token_ceiling(param_name: str, value: int | str) -> int:
         """Coerce a templated token-ceiling argument to a positive int, or raise ``ValueError``."""
         # bool is an int subclass (isinstance(True, int) is True) and must be rejected before the
-        # int check below; float must also be rejected explicitly since int(10.5) == 10 silently
-        # truncates instead of raising -- both can reach here as real Python objects, not just
-        # strings, when a Dag uses render_template_as_native_obj=True.
-        if isinstance(value, (bool, float)):
+        # allowlist check below. Only int and str are accepted as real values to coerce; anything
+        # else -- float, Decimal, Fraction, or any other numeric type -- is rejected here instead
+        # of being handed to int(), since int() silently truncates those (e.g. int(10.5) == 10,
+        # int(Decimal("10.5")) == 10) rather than raising. Such values can reach here as real Python
+        # objects, not just strings, when a Dag uses render_template_as_native_obj=True.
+        if isinstance(value, bool):
+            raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
+        if not isinstance(value, (int, str)):
             raise ValueError(f"{param_name!r} must be an integer, got {value!r}.")
         try:
             coerced = int(value)
