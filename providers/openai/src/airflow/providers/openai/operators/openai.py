@@ -92,8 +92,9 @@ class OpenAIResponseOperator(BaseOperator):
     OpenAI API itself -- OpenAI exposes no monetary cost limit on the Responses API, so this
     operator has no cost cap. For a monetary limit, use
     :doc:`apache-airflow-providers-common-ai:index` instead. When ``max_output_tokens`` is hit, the
-    request does not fail: the response comes back with ``status="incomplete"`` and truncated
-    ``output_text`` -- the ceiling is not a guarantee that no partial output is returned.
+    request does not fail: the response comes back with ``status="incomplete"`` -- but
+    ``output_text`` is not guaranteed to contain any content, since a reasoning model can spend
+    the entire ceiling on reasoning tokens without producing visible output.
 
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The input prompt for the model. This can be a string or a structured list of
@@ -216,7 +217,11 @@ class OpenAIResponseOperator(BaseOperator):
         )
         if response.status == "incomplete":
             reason = response.incomplete_details.reason if response.incomplete_details else None
-            if reason == "max_output_tokens":
+            if reason and response.output_text:
+                # Any reason -- including max_output_tokens -- can fire before any output text
+                # is produced (e.g. a reasoning model spends the whole ceiling on reasoning
+                # tokens), so whether truncated content actually exists is decided by looking at
+                # output_text itself, not by the reason string.
                 self.log.warning(
                     "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
                     "text is truncated, not empty.",
@@ -224,8 +229,6 @@ class OpenAIResponseOperator(BaseOperator):
                     reason,
                 )
             elif reason:
-                # Other reasons (e.g. content_filter) can fire before any output text is
-                # produced, so unlike max_output_tokens we cannot promise truncated content exists.
                 self.log.warning(
                     "Response %s is incomplete (incomplete_details.reason=%s); the returned output "
                     "text may be empty.",

@@ -59,8 +59,10 @@ the number of tokens generated; ``max_tool_calls`` caps the number of built-in t
 may make. Both limits are enforced by the OpenAI API itself; OpenAI exposes no monetary cost limit
 on the Responses API, so this operator has no cost cap. For a monetary limit, use
 :doc:`apache-airflow-providers-common-ai:index` instead. Hitting ``max_output_tokens`` does not
-fail the request: the response comes back with ``status="incomplete"`` and truncated
-``output_text``, so ``return_value`` will be the truncated text, not an error.
+fail the request: the response comes back with ``status="incomplete"``, so ``return_value`` will
+not raise -- but it is not guaranteed to be truncated text either. A reasoning model can spend
+the entire ceiling on reasoning tokens and return an empty ``output_text``, in which case
+``return_value`` is an empty string.
 
 A rendered ``max_output_tokens`` or ``max_tool_calls`` that is blank or whitespace-only -- for
 example ``max_output_tokens="{{ params.tokens or '' }}"`` when ``params.tokens`` is unset -- is

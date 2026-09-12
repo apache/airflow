@@ -291,13 +291,22 @@ class TestOpenAIResponseOperatorTokenCeilings:
                 "max_output_tokens",
                 "Truncated hai",
                 "the returned output text is truncated, not empty.",
-                id="max_output_tokens",
+                id="max_output_tokens-nonempty-output",
             ),
             pytest.param(
                 "content_filter",
                 "",
                 "the returned output text may be empty.",
-                id="content_filter",
+                id="content_filter-empty-output",
+            ),
+            pytest.param(
+                # A reasoning model can spend the entire max_output_tokens ceiling on reasoning
+                # tokens and produce no visible output text -- the wording must be decided by
+                # output_text, not by reason, even when reason is "max_output_tokens".
+                "max_output_tokens",
+                "",
+                "the returned output text may be empty.",
+                id="max_output_tokens-empty-output",
             ),
         ],
     )
@@ -321,7 +330,10 @@ class TestOpenAIResponseOperatorTokenCeilings:
             f"incomplete_details.reason={reason}" in message and expected_fragment in message
             for message in caplog.messages
         )
-        if reason == "max_output_tokens":
+        # The wording is decided by output_text, not by reason: a truthy output_text always gets
+        # the "truncated, not empty" message and an empty one always gets "may be empty",
+        # regardless of what reason is.
+        if output_text:
             assert not any("may be empty" in message for message in caplog.messages)
         else:
             assert not any("truncated, not empty" in message for message in caplog.messages)
