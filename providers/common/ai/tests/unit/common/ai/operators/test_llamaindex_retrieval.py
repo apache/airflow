@@ -172,7 +172,7 @@ class TestRetrievalOperatorOutput:
         kwargs = _li["load_index_from_storage"].call_args.kwargs
         assert kwargs["embed_model"] is byo
         warning = "embedding_kwargs is ignored when embed_model is a pre-built embedding model"
-        assert (warning in caplog) is expect_warning
+        assert any(warning in record.message for record in caplog.records) is expect_warning
 
     def test_invalid_embed_model_raises_typeerror(self, _li, tmp_path):
         # An object that's neither None/str nor duck-types as BaseEmbedding
