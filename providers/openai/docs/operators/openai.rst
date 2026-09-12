@@ -65,29 +65,45 @@ See the `Responses API reference
 <https://platform.openai.com/docs/api-reference/responses/create>`__ for the authoritative list
 of parameters. ``response_kwargs`` passes straight through to the underlying ``create_response``
 call, so most keyword arguments the Responses API accepts can be set there, with the exceptions
-noted below. Options worth knowing about:
+noted below. What actually works also depends on the ``openai`` package version installed in the
+environment, not the reference page above: ``Responses.create`` accepts no arbitrary keyword
+arguments, so passing one the installed package doesn't recognize raises ``TypeError`` before any
+request is sent. Use ``extra_body`` as a fallback to pass a parameter the installed package doesn't
+know about yet. Options worth knowing about:
 
-- ``background``: run the response asynchronously on OpenAI's side. See the note below before
-  using this with ``OpenAIResponseOperator``.
-- ``stream``: return a stream of response events instead of a single completed response. Do not
-  set this on ``OpenAIResponseOperator``: ``execute`` reads ``response.status`` and
+- ``background``: run the response asynchronously on OpenAI's side. See the note on ``background``
+  below before using this with ``OpenAIResponseOperator``.
+- ``stream``: return a stream of response events instead of a single completed response. Do not set
+  this on ``OpenAIResponseOperator``: ``execute`` reads ``response.status`` and
   ``response.output_text``, neither of which exists on the streamed response object, so the task
   raises ``AttributeError``. Stream responses from a ``@task`` using
   :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` instead.
-- ``store``: whether the response is retained on OpenAI's side, for example so it can later be
-  used as a ``previous_response_id``.
-- ``reasoning``: reasoning configuration for reasoning models.
-- ``service_tier``: currently one of ``'auto'``, ``'default'``, ``'flex'``, ``'scale'`` or
-  ``'priority'``, selecting the processing tier the request is served from.
-- ``prompt_cache_key``: an identifier used to route requests to the same prompt cache.
-- ``safety_identifier``: a stable identifier for the end user, used for safety and abuse
-  detection.
-- ``truncation``: one of ``'auto'`` or ``'disabled'``, controlling whether the model truncates
-  context that exceeds its window.
+- ``store``: whether the response is retained on OpenAI's side, for example so it can later be used
+  as a ``previous_response_id``. Through ``OpenAIResponseOperator``, ``execute`` only passes
+  ``response.id`` to the task log and returns ``response.output_text``, so nothing downstream of
+  this operator's task can retrieve a stored response's id — this only matters when the response
+  is created via ``OpenAIHook`` directly.
+- ``previous_response_id``: the id of a prior response to continue a multi-turn conversation from.
+  Cannot be used together with ``conversation`` — pass one or the other, not both.
+- ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}``. The example
+  Dag above (and the operator's own default) uses ``gpt-4o-mini``, which is not a reasoning model,
+  so this option only takes effect if ``model`` is also set to a reasoning model.
+- ``service_tier``: the processing tier the request is served from.
+- ``prompt_cache_key``: an identifier used to route requests to the same prompt cache. How long a
+  cache entry is retained is a separate option whose name depends on the installed package:
+  ``prompt_cache_retention`` at the 2.37.0 floor, deprecated in later releases in favor of
+  ``prompt_cache_options.ttl``.
+- ``safety_identifier``: a stable identifier for the end user, used for safety and abuse detection.
+- ``truncation``: one of ``'auto'`` or ``'disabled'`` (the default). Under ``'disabled'``, a
+  request whose input exceeds the model's context window fails with a 400 error; ``'auto'``
+  shortens the input to fit instead.
 - ``include``: additional output fields to include in the response, such as encrypted reasoning
-  content.
+  content. These fields land on ``response.output``, but ``response.output_text`` only aggregates
+  ``message``/``output_text`` content, so anything ``include`` adds is fetched and then discarded
+  by ``execute``. Use ``OpenAIHook`` directly to access it.
 - ``metadata``: a mapping of key-value pairs attached to the response for your own bookkeeping.
-- ``max_output_tokens``: an upper bound on the number of tokens the model can generate.
+- ``max_output_tokens``: an upper bound on the number of tokens the model can generate, including
+  reasoning tokens as well as visible output tokens.
 - ``max_tool_calls``: an upper bound on the number of built-in tool calls the model can make.
 
 .. note::
