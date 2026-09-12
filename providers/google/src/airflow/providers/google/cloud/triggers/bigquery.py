@@ -274,7 +274,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if job_status["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results)
+                    records = await hook.get_records(query_results)
 
                     # If empty list, then no records are available
                     if not records:
@@ -360,7 +360,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                         query_results = await hook.get_job_output(
                             job_id=self.job_id, project_id=self.project_id
                         )
-                        records = hook.get_records(
+                        records = await hook.get_records(
                             query_results=query_results,
                             as_dict=self.as_dict,
                             selected_fields=self.selected_fields,
@@ -528,9 +528,9 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                             job_id=self.second_job_id, project_id=self.project_id
                         )
 
-                        first_records = hook.get_records(first_query_results)
+                        first_records = await hook.get_records(first_query_results)
 
-                        second_records = hook.get_records(second_query_results)
+                        second_records = await hook.get_records(second_query_results)
 
                         # If empty list, then no records are available
                         if not first_records:
@@ -683,7 +683,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                 response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if response_from_hook["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results)
+                    records = await hook.get_records(query_results)
                     _records = records.pop(0) if records else None
                     hook.value_check(self.sql, self.pass_value, _records, self.tolerance)
                     yield TriggerEvent({"status": "success", "message": "Job completed", "records": _records})
@@ -878,7 +878,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
 
     async def _partition_exists(self, hook: BigQueryAsyncHook, job_id: str | None, project_id: str):
         query_results = await hook.get_job_output(job_id=job_id, project_id=project_id)
-        records = hook.get_records(query_results)
+        records = await hook.get_records(query_results)
         if records:
             records = [row[0] for row in records]
             return self.partition_id in records

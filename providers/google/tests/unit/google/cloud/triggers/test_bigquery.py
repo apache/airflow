@@ -641,14 +641,14 @@ class TestBigQueryIntervalCheckTrigger:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records", new_callable=mock.AsyncMock)
     async def test_interval_check_trigger_success(
         self, mock_get_records, mock_get_job_output, mock_job_status, mock_sync_hook, interval_check_trigger
     ):
         """
         Tests the BigQueryIntervalCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_get_records.return_value = {}
+        mock_get_records.return_value = []
         mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         mock_get_job_output.return_value = ["0"]
 
@@ -791,7 +791,7 @@ class TestBigQueryValueCheckTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records", new_callable=mock.AsyncMock)
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_op_trigger_success(
