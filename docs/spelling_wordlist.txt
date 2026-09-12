@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractCapability
 AbstractFileSystem
 AbstractToolset
 accessor
@@ -672,6 +673,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+FilteredToolset
 finalStatus
 fips
 firebase
@@ -1314,6 +1316,7 @@ preflight
 prek
 Preload
 preload
+PreparedToolset
 prepend
 prepended
 prepends
@@ -1945,6 +1948,7 @@ winrm
 WIT
 workgroup
 workspaces
+WrapperToolset
 writeable
 wsman
 WTF

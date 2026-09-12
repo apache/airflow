@@ -24,10 +24,11 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 if TYPE_CHECKING:
-    from pydantic_ai.toolsets.abstract import ToolsetTool
+    from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
     from airflow.sdk.types import Logger
 
@@ -60,3 +61,17 @@ class LoggingToolset(WrapperToolset[Any]):
             self.logger.exception("Tool %s failed after %.2fs", name, elapsed)
             self.logger.info("::endgroup::")
             raise
+
+
+@dataclass
+class ToolLoggingCapability(AbstractCapability[Any]):
+    """Apply tool-call logging to the complete toolset assembled for an agent run."""
+
+    logger: Logger | logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
+
+    @classmethod
+    def get_serialization_name(cls) -> str | None:
+        return None
+
+    def get_wrapper_toolset(self, toolset: AbstractToolset[Any]) -> AbstractToolset[Any]:
+        return LoggingToolset(wrapped=toolset, logger=self.logger)

@@ -374,6 +374,11 @@ but anything passed through ``agent_params`` is forwarded to the underlying
 
 Capabilities compose with toolsets -- pydantic-ai merges tools from both.
 
+When ``enable_tool_logging=True`` (the default), ``AgentOperator`` applies
+real-time tool-call logging to the complete toolset assembled from capabilities,
+including factory-backed toolsets, nested capabilities, and MCP tools. Provider-native
+tools that execute server-side are not covered by Airflow's real-time tool-call logging.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
     :language: python
     :start-after: [START howto_operator_agent_capabilities_composed]
@@ -476,7 +481,8 @@ Parameters
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
-- ``enable_tool_logging``: Wrap each toolset in
+- ``enable_tool_logging``: Wrap the toolsets supplied through ``toolsets=`` and
+  capabilities in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
@@ -530,8 +536,8 @@ Logging
 -------
 
 All AI operators automatically log a post-run summary after ``run_sync()``
-completes. ``AgentOperator`` additionally wraps toolsets for real-time
-per-tool-call logging (controlled by ``enable_tool_logging``).
+completes. ``AgentOperator`` additionally wraps the assembled toolset for
+real-time per-tool-call logging (controlled by ``enable_tool_logging``).
 
 **Real-time tool call logging** (AgentOperator only) — each tool call is
 logged as it happens:
