@@ -25,9 +25,11 @@ from unittest import mock
 import kubernetes.client
 import pytest
 import pytest_asyncio
+from aiohttp import ClientResponse
 from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import API_TIMEOUT
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
@@ -564,9 +566,14 @@ class TestGKEKubernetesAsyncHook:
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
     async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         caplog.set_level(logging.INFO)
-        # As logs are read in raw mode, need to mock the response object plus read method
-        response_mock = mock.AsyncMock()
-        response_mock.read.return_value = b"Test string #1\nTest string #2\n"
+
+        # Logs are streamed in raw mode, so the response stands in for an aiohttp ClientResponse:
+        # a MagicMock, since close() is synchronous and iter_chunked returns an async iterator.
+        async def iter_chunked(_chunk_size):
+            yield b"Test string #1\nTest string #2\n"
+
+        response_mock = mock.MagicMock(spec=ClientResponse)
+        response_mock.content.iter_chunked = iter_chunked
         self.make_mock_awaitable(read_namespaced_pod_log, result=response_mock)
 
         logs = await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
@@ -578,6 +585,7 @@ class TestGKEKubernetesAsyncHook:
             follow=False,
             timestamps=True,
             _preload_content=False,
+            _request_timeout=(API_TIMEOUT, API_TIMEOUT),
         )
         assert "Test string #1" in logs
         assert "Test string #2" in logs
