@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import os
+import threading
 import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from itertools import repeat
@@ -35,6 +36,7 @@ from airflow.sdk import BaseXCom, TaskInstanceState
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, event_loop
 from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions._internal.expandinput import BatchedExpandInput
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -47,7 +49,7 @@ from airflow.sdk.exceptions import (
     TaskDeferred,
 )
 from airflow.sdk.execution_time.comms import DeadlockImminentError
-from airflow.sdk.execution_time.context import context_update_for_unmapped
+from airflow.sdk.execution_time.context import OutletEventAccessors, context_update_for_unmapped
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor, TaskExecutor
 from airflow.sdk.execution_time.task_runner import IndexedTaskInstance, IndexedTaskState
 
@@ -56,6 +58,83 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.context import Context
+
+
+def _serialize_outlet_events(accessors: OutletEventAccessors) -> list[dict[str, Any]]:
+    """
+    Snapshot the outlet asset events one sub-task recorded into a JSON-safe list.
+
+    Persisted on the sub-task's checkpoint so a later attempt can replay them via
+    ``_replay_outlet_events`` when the sub-task is skipped because it already succeeded.
+    """
+    events: list[dict[str, Any]] = []
+    for _asset_or_alias, accessor in accessors.items():
+        if isinstance(accessor.key, AssetUniqueKey):
+            events.append(
+                {
+                    "kind": "asset",
+                    "name": accessor.key.name,
+                    "uri": accessor.key.uri,
+                    "extra": accessor.extra,
+                    "partition_keys": sorted(accessor.partition_keys),
+                }
+            )
+        for alias_event in accessor.asset_alias_events:
+            events.append(
+                {
+                    "kind": "asset_alias",
+                    "source_alias_name": alias_event.source_alias_name,
+                    "dest_asset_key": {
+                        "name": alias_event.dest_asset_key.name,
+                        "uri": alias_event.dest_asset_key.uri,
+                    },
+                    "dest_asset_extra": alias_event.dest_asset_extra,
+                    "extra": alias_event.extra,
+                }
+            )
+    return events
+
+
+def _merge_outlet_events(target: OutletEventAccessors, source: OutletEventAccessors) -> None:
+    """
+    Merge every outlet asset event recorded in ``source`` into ``target``.
+
+    Used both to fold a sub-task's isolated accessor into the IterableOperator's shared
+    ``context["outlet_events"]`` right after it succeeds, and to replay a checkpointed
+    snapshot (via ``_replay_outlet_events``) for a sub-task skipped on retry.
+    """
+    for asset_or_alias, accessor in source.items():
+        target_accessor = target[asset_or_alias]
+        target_accessor.extra.update(accessor.extra)
+        target_accessor.asset_alias_events.extend(accessor.asset_alias_events)
+        target_accessor.partition_keys.update(accessor.partition_keys)
+
+
+def _replay_outlet_events(target: OutletEventAccessors, events: list[dict[str, Any]]) -> None:
+    """
+    Re-populate ``target`` with events a sub-task recorded on a previous attempt.
+
+    A sub-task skipped on retry (because it already succeeded) never re-executes, so it never
+    re-emits into the fresh ``OutletEventAccessors`` created for the new attempt.
+    """
+    replayed = OutletEventAccessors()
+    for event in events:
+        if event["kind"] == "asset":
+            accessor = replayed[Asset(name=event["name"], uri=event["uri"])]
+            accessor.extra.update(event["extra"])
+            if event["partition_keys"]:
+                accessor.add_partitions(event["partition_keys"])
+        else:
+            accessor = replayed[AssetAlias(name=event["source_alias_name"])]
+            accessor.asset_alias_events.append(
+                AssetAliasEvent(
+                    source_alias_name=event["source_alias_name"],
+                    dest_asset_key=AssetUniqueKey(**event["dest_asset_key"]),
+                    dest_asset_extra=event["dest_asset_extra"],
+                    extra=event["extra"],
+                )
+            )
+    _merge_outlet_events(target, replayed)
 
 
 class IterableOperator(BaseOperator):
@@ -254,6 +333,23 @@ class IterableOperator(BaseOperator):
         for key, value in self.partial_kwargs.items():
             if key in self._operator.template_fields:
                 XComArg.apply_upstream_relationship(self, value)
+        # Populated with each sub-task's unmapped operator while it is actively executing, so
+        # on_kill() (see below) can propagate a kill/timeout signal to whichever sub-tasks happen
+        # to be in flight; guarded by a lock since sub-tasks execute concurrently.
+        self._active_sub_operators: set[BaseOperator] = set()
+        self._active_sub_operators_lock = threading.Lock()
+
+    def on_kill(self) -> None:
+        # The default BaseOperator.on_kill() is a no-op, which would otherwise leave every
+        # currently in-flight sub-task unaware that the IterableOperator itself was killed
+        # (SIGTERM) or hit its execution_timeout: propagate to each active sub-operator instead.
+        with self._active_sub_operators_lock:
+            active_operators = list(self._active_sub_operators)
+        for operator in active_operators:
+            try:
+                operator.on_kill()
+            except Exception:
+                self.log.exception("Error calling on_kill() for sub-task operator %s", operator.task_id)
 
     @property
     def returns_dag_result(self) -> bool:
@@ -432,21 +528,31 @@ class IterableOperator(BaseOperator):
                 indexed_task_state.try_number,
             )
             await self._xcom_push(task, indexed_task_state.result)
+            if indexed_task_state.outlet_events:
+                _replay_outlet_events(context["outlet_events"], indexed_task_state.outlet_events)
             return task, None, None
 
+        # Isolated per-sub-task accessor: sub-tasks run concurrently and each needs its own
+        # events attributed correctly so they can be checkpointed and merged individually (see
+        # _serialize_outlet_events/_merge_outlet_events).
+        outlet_events = OutletEventAccessors()
         try:
             if task.is_async:
-                result = await self._run_async_operator(context, task)
+                result = await self._run_async_operator(context, task, outlet_events)
             else:
-                result = await executor.run_sync(self._run_operator, context, task)
+                result = await executor.run_sync(self._run_operator, context, task, outlet_events)
 
             indexed_task_state = IndexedTaskState(
                 status=TaskInstanceState.SUCCESS, try_number=task.try_number
             )
             if result is not None and task.do_xcom_push:
                 indexed_task_state.result = result
+            serialized_outlet_events = _serialize_outlet_events(outlet_events)
+            if serialized_outlet_events:
+                indexed_task_state.outlet_events = serialized_outlet_events
             await task.aset_state(indexed_task_state)
             await self._xcom_push(task, indexed_task_state.result)
+            _merge_outlet_events(context["outlet_events"], outlet_events)
             return task, result, None
         except BaseException as e:
             await task.aset_state(
@@ -457,26 +563,40 @@ class IterableOperator(BaseOperator):
             )
             return task, None, e
 
-    def _run_operator(self, context: Context, task_instance: IndexedTaskInstance):
-        with TaskExecutor(task_instance=task_instance) as executor:
+    def _run_operator(
+        self, context: Context, task_instance: IndexedTaskInstance, outlet_events: OutletEventAccessors
+    ):
+        with TaskExecutor(
+            task_instance=task_instance,
+            active_operators=self._active_sub_operators,
+            active_operators_lock=self._active_sub_operators_lock,
+        ) as executor:
             return executor.run(
                 context={
                     **clone_context(context),
                     **{
                         "ti": task_instance,
                         "task_instance": task_instance,
+                        "outlet_events": outlet_events,
                     },
                 }
             )
 
-    async def _run_async_operator(self, context: Context, task_instance: IndexedTaskInstance):
-        with TaskExecutor(task_instance=task_instance) as executor:
+    async def _run_async_operator(
+        self, context: Context, task_instance: IndexedTaskInstance, outlet_events: OutletEventAccessors
+    ):
+        with TaskExecutor(
+            task_instance=task_instance,
+            active_operators=self._active_sub_operators,
+            active_operators_lock=self._active_sub_operators_lock,
+        ) as executor:
             return await executor.arun(
                 context={
                     **clone_context(context),
                     **{
                         "ti": task_instance,
                         "task_instance": task_instance,
+                        "outlet_events": outlet_events,
                     },
                 }
             )
