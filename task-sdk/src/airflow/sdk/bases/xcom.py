@@ -680,11 +680,35 @@ class XComIterable(Sequence):
 
 
 class FlattenedXComIterable(XComIterable):
-    """An XComIterable whose iterator recursively expands nested iterables (except str/bytes)."""
+    """
+    An XComIterable whose iterator recursively expands nested iterables (except str/bytes).
+
+    ``__len__``/``__getitem__`` must speak in terms of *flattened* items, not the raw pages
+    ``XComIterable`` stores, since a single page can expand to any number of items (or none).
+    That can only be answered by walking the full flattened stream at least once, so it is
+    materialized lazily and cached on first random-access use. ``__iter__`` remains a plain
+    streaming generator over ``XComIterable``'s own lazy per-page fetches and does not depend
+    on this cache, so a simple ``for`` loop still never gets penalized for a full materialization.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._flattened_cache: list[Any] | None = None
 
     def __iter__(self) -> Iterator[Any]:
         for item in super().__iter__():
             yield from self._flatten(item)
+
+    def _flattened(self) -> list[Any]:
+        if self._flattened_cache is None:
+            self._flattened_cache = list(self.__iter__())
+        return self._flattened_cache
+
+    def __len__(self) -> int:
+        return len(self._flattened())
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        return self._flattened()[key]
 
     @classmethod
     def _flatten(cls, item: Any) -> Iterator[Any]:
