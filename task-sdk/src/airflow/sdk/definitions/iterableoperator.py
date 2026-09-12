@@ -243,7 +243,11 @@ class IterableOperator(BaseOperator):
 
     @property
     def task_type(self) -> str:
-        return self._operator.__class__.__name__
+        # self._operator is the MappedOperator/DecoratedMappedOperator wrapper used to unmap
+        # each sub-task; its own task_type field already holds the wrapped operator's class
+        # name (set from operator_class.__name__ when the wrapper is built), which is what
+        # should be reported here (e.g. as TaskInstance.operator), not the wrapper's class name.
+        return self._operator.task_type
 
     @property
     def task_retries(self) -> int:

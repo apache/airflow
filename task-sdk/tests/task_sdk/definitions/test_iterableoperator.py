@@ -304,13 +304,14 @@ class TestIterableOperator:
             assert result == expected
 
     def test_task_type(self):
-        """Test that IterableOperator correctly reports task_type."""
+        """Test that IterableOperator correctly reports the wrapped operator's class name,
+        not the internal MappedOperator wrapper's class name."""
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             iterable_op = create_iterable_operator(dag, expand_input)
 
             assert isinstance(iterable_op, IterableOperator)
-            assert iterable_op.task_type == "MappedOperator"
+            assert iterable_op.task_type == "MockOperator"
 
     def test_task_retries(self):
         """Test that IterableOperator inherits retries from the wrapped operator, since
