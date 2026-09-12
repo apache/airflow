@@ -127,6 +127,29 @@ class TestConstructorFieldLogic:
                 0,
                 id="provision-check-passed-to-a-helper",
             ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo}, timeout=foo)",
+                0,
+                id="verbatim-copy-into-start-trigger-args",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = dataclasses.replace(self.start_trigger_args, trigger_kwargs=dict(foo=self.foo))",
+                0,
+                id="verbatim-copy-via-replace-of-start-trigger-args",
+            ),
+            pytest.param(
+                "self.foo = foo\n"
+                "self.start_trigger_args = StartTriggerArgs(trigger_kwargs={'foo': self.foo.upper()})",
+                1,
+                id="transformation-inside-start-trigger-args",
+            ),
+            pytest.param(
+                "self.foo = foo\nself.other = dataclasses.replace(self.other, foo=self.foo)",
+                1,
+                id="replace-of-another-object-is-not-sanctioned",
+            ),
         ],
     )
     def test_flags_logic_but_not_sanctioned_patterns(self, ctor_body: str, expected: int):
