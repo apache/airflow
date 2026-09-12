@@ -38,9 +38,10 @@ from tests_common.test_utils.integration_setup import (
     unpause_trigger_dag_and_get_run_id,
     wait_for_dag_run,
 )
-from tests_common.test_utils.otel_utils import (
-    dump_airflow_metadata_db,
-    extract_metrics_from_output,
+from tests_common.test_utils.otel_console_utils import extract_metrics_from_output
+from tests_common.test_utils.otel_jaeger_utils import (
+    get_span_tags,
+    provided_child_spans_found_under_span,
 )
 
 if TYPE_CHECKING:
@@ -109,6 +110,20 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
                     log.error("Could not read %s: %s", full_path, e)
 
                 print("\n===== END =====\n")
+
+
+def get_non_idle_loop_trace(all_traces: list[dict]) -> dict | None:
+    for trace in all_traces:
+        scheduler_loop_span = next(
+            (s for s in trace["spans"] if s["operationName"] == "scheduler.scheduler_loop"),
+            None,
+        )
+        if scheduler_loop_span is None:
+            continue
+        # A non-idle scheduler_loop span means this iteration actually scheduled something.
+        if get_span_tags(scheduler_loop_span).get("airflow.scheduler.loop_iteration.idle") is False:
+            return trace
+    return None
 
 
 @pytest.mark.integration("otel")
@@ -183,7 +198,7 @@ class TestOtelIntegration:
         migrate_command = ["airflow", "db", "migrate"]
         subprocess.run(migrate_command, check=True, env=os.environ.copy())
 
-        cls.dags = serialize_and_get_dags(dag_folder=cls.dag_folder)
+        cls.dags = serialize_and_get_dags(dag_folder=cls.dag_folder, num_of_dags=2)
 
     def dag_execution_for_testing_metrics(self, capfd):
         # Metrics.
@@ -388,10 +403,6 @@ class TestOtelIntegration:
 
             print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id)
         finally:
-            if self.log_level == "debug":
-                with create_session() as session:
-                    dump_airflow_metadata_db(session)
-
             # Terminate the processes.
             terminate_process(scheduler_process)
             scheduler_status = scheduler_process.poll()
@@ -440,3 +451,70 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == expected_hierarchy
+
+    @pytest.mark.execution_timeout(160)
+    def test_scheduler_debug_traces(self, capfd):
+        # Enable debug traces.
+        os.environ["AIRFLOW__TRACES__OTEL_DEBUG_TRACES_ON"] = "True"
+
+        scheduler_process = None
+        apiserver_process = None
+        try:
+            # Start the processes here and not as fixtures or in a common setup,
+            # so that the test can capture their output.
+            scheduler_process, apiserver_process = start_scheduler()
+
+            dag_id = "demo_dag"
+
+            assert len(self.dags) > 0
+            dag = self.dags[dag_id]
+
+            assert dag is not None
+
+            conf = None
+
+            run_id_1 = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
+            run_id_2 = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
+
+            wait_for_dag_run(dag_id=dag_id, run_id=run_id_1, max_wait_time=90)
+            wait_for_dag_run(dag_id=dag_id, run_id=run_id_2, max_wait_time=90)
+
+            time.sleep(10)
+
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id_1)
+            print_ti_output_for_dag_run(dag_id=dag_id, run_id=run_id_2)
+        finally:
+            # Terminate the processes.
+            terminate_process(scheduler_process)
+            scheduler_status = scheduler_process.poll()
+            assert scheduler_status is not None, (
+                "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+            )
+
+            terminate_process(apiserver_process)
+            apiserver_status = apiserver_process.poll()
+            assert apiserver_status is not None, (
+                "The apiserver process status is None, which means that it hasn't terminated as expected."
+            )
+
+        capfd.readouterr()
+
+        host = "jaeger"
+        service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
+        r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
+        traces = r.json()["data"]
+
+        # There are spans that don't get exported on every loop iteration. The ones below
+        # reliably re-appear every time that the loop does some work.
+        expected_children_spans = [
+            "scheduler._do_scheduling",
+            "scheduler.critical_section",
+            "scheduler._process_executor_events",
+        ]
+
+        non_idle_trace = get_non_idle_loop_trace(traces)
+        assert non_idle_trace is not None, "expected at least one non-idle scheduler_loop span"
+
+        assert provided_child_spans_found_under_span(
+            non_idle_trace, "scheduler.scheduler_loop", expected_children_spans
+        ), f"expected {expected_children_spans} as descendants of scheduler.scheduler_loop"
