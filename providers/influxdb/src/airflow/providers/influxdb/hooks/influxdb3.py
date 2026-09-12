@@ -42,25 +42,12 @@ except ImportError:
         Point = None  # type: ignore[assignment, misc]
 
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
 
     from airflow.providers.common.compat.sdk import Connection
-
-
-def _import_pandas() -> Any:
-    """Import pandas for query result handling or raise a provider feature error."""
-    try:
-        import pandas as pd
-    except ImportError as e:
-        raise AirflowOptionalProviderFeatureException(
-            "pandas is required for InfluxDB 3 query results. Reinstall "
-            "apache-airflow-providers-influxdb or install pandas directly."
-        ) from e
-
-    return pd
 
 
 class InfluxDB3Hook(BaseHook):
@@ -213,7 +200,7 @@ class InfluxDB3Hook(BaseHook):
         :param query: SQL query string
         :return: pandas DataFrame with query results
         """
-        pd = _import_pandas()
+        import pandas as pd
 
         client = self.get_conn()
         result = client.query(query=query, language="sql", mode="pandas")
@@ -240,7 +227,7 @@ class InfluxDB3Hook(BaseHook):
         :return: pandas DataFrame with query results
         """
         client = await self.aget_conn()
-        pd = _import_pandas()
+        import pandas as pd
 
         result = await client.query_async(query=query, language="sql", mode="pandas")
 
