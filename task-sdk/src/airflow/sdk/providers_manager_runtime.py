@@ -25,7 +25,7 @@ import traceback
 import warnings
 from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING, Any, NamedTuple
-from urllib.parse import SplitResult
+from urllib.parse import SplitResult, urlsplit
 
 import structlog
 
@@ -395,6 +395,80 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
                 provider_uses_connection_types,
             )
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
+        self._warn_about_unresolvable_connection_types()
+
+    @staticmethod
+    def _connection_type_as_stored(connection_type: str) -> str:
+        """
+        Return the connection type that a stored connection presents for this declaration.
+
+        This follows what a connection goes through on the way out and back in.
+        ``Connection.get_uri()`` lowercases the type and encodes '_' as '-', because RFC 3986
+        forbids '_' in a URI scheme, and reading a connection back from a URI or from JSON
+        decodes it again. A declaration that does not come back unchanged is registered under
+        a name no such connection ever presents.
+        """
+        # Imported here because airflow.sdk.definitions.connection imports this module at
+        # module level. _normalize_conn_type is the decoder itself, so calling it keeps this
+        # in step with the aliases it applies rather than restating them.
+        from airflow.sdk.definitions.connection import Connection
+
+        scheme = urlsplit(f"{connection_type.lower().replace('_', '-')}://host").scheme
+        return Connection._normalize_conn_type(scheme)
+
+    def _warn_about_unresolvable_connection_types(self) -> None:
+        """
+        Warn about a declared connection type that a stored connection cannot resolve.
+
+        A hook registers under the ``connection-type`` string verbatim, while a connection
+        read from a URI, from JSON, or rebuilt from the secrets cache presents the decoded
+        form of that string. Where the two differ, the hook is unreachable for those
+        connections. A connection created directly through the UI, the REST API or the CLI
+        keeps the declared spelling and does resolve, which is what lets the mismatch go
+        unnoticed until a connection is served from somewhere else.
+
+        Where two providers declare two spellings of one name it is worse than unreachable: a
+        connection for either resolves whichever hook holds the decoded name, and because that
+        resolves rather than failing, there is no error anywhere to carry the explanation.
+
+        Discovery is the only place either can be reported. provider.yaml.schema.json
+        validates the providers in this repository alone, so a third-party distribution never
+        passes through it, and Connection.get_hook() is reached only once a lookup has already
+        failed, which the collision never does.
+        """
+        declared_by_stored_name: dict[str, list[str]] = {}
+        for connection_type in self._hook_provider_dict:
+            stored_name = self._connection_type_as_stored(connection_type)
+            declared_by_stored_name.setdefault(stored_name, []).append(connection_type)
+
+        for stored_name, declared in declared_by_stored_name.items():
+            if all(connection_type == stored_name for connection_type in declared):
+                continue
+            connection_types = sorted(declared)
+            packages = [self._hook_provider_dict[name].package_name for name in connection_types]
+            if not stored_name:
+                log.warning(
+                    "A declared connection type cannot be carried in a connection URI, so a "
+                    "connection read from a URI or from JSON has no connection type at all.",
+                    connection_types=connection_types,
+                    packages=packages,
+                )
+            elif len(connection_types) > 1:
+                log.warning(
+                    "Several declared connection types are read back under one name, so a "
+                    "connection for any of them resolves whichever hook holds that name.",
+                    connection_types=connection_types,
+                    packages=packages,
+                    read_back_as=stored_name,
+                )
+            else:
+                log.warning(
+                    "A declared connection type is read back under a different name, so a "
+                    "connection read from a URI or from JSON cannot reach its hook.",
+                    connection_type=connection_types[0],
+                    package=packages[0],
+                    read_back_as=stored_name,
+                )
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
