@@ -24,6 +24,8 @@ PyPI <https://pypi.org/project/apache-airflow/>`__.
 Installation via ``pipx`` or ``uv`` as tool
 '''''''''''''''''''''''''''''''''''''''''''
 
+For a first local run, see the :doc:`/start`. The commands below are the same tools with more detail.
+
 For a local development and testing environment, you can install and run Apache Airflow directly from PyPI.
 
 If you use ``pipx`` you can run directly from PyPI with the command below:
