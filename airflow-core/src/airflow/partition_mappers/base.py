@@ -24,7 +24,7 @@ from airflow.partition_mappers.wait_policy import WaitForAll, WaitPolicy
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from datetime import datetime
+    from datetime import datetime, tzinfo
 
     from airflow.partition_mappers.window import Window
 
@@ -43,6 +43,18 @@ class PartitionMapper(ABC):
     # Declared result type of decode_downstream; RollupMapper rejects windows
     # whose expected_decoded_type does not match. Temporal mappers use datetime.
     expected_decoded_type: ClassVar[type] = str
+
+    @property
+    def tzinfo(self) -> tzinfo | None:
+        """
+        Timezone this mapper localizes keys in, if any.
+
+        Non-temporal mappers return ``None`` (the default). Temporal mappers
+        override to expose their configured timezone so
+        :class:`RollupMapper` can hand it to calendar-sensitive windows via
+        :meth:`~airflow.partition_mappers.window.Window.to_upstream_tz`.
+        """
+        return None
 
     def __init__(self, *, max_downstream_keys: int | None = None) -> None:
         if max_downstream_keys is not None and (
@@ -191,9 +203,14 @@ class RollupMapper(PartitionMapper):
     def to_upstream(self, downstream_key: str) -> frozenset[str]:
         """Return the complete set of upstream partition keys required for *downstream_key*."""
         decoded = self.upstream_mapper.decode_downstream(downstream_key)
+        # Hand the upstream mapper's timezone to the window via to_upstream_tz so
+        # calendar windows (DayWindow) can enumerate the real local hours across
+        # DST. Non-temporal mappers expose tzinfo=None and fall back to fixed-count
+        # behaviour. Custom Window subclasses that only implement the one-arg
+        # to_upstream keep working because Window.to_upstream_tz defaults to that.
         return frozenset(
             self.upstream_mapper.encode_upstream(expected_upstream)
-            for expected_upstream in self.window.to_upstream(decoded)
+            for expected_upstream in self.window.to_upstream_tz(decoded, self.upstream_mapper.tzinfo)
         )
 
     def to_partition_date(self, downstream_key: str) -> datetime | None:
