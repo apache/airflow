@@ -28,6 +28,6 @@ Here is the current database schema diagram for the Edge3 provider tables.
    The main purpose of this diagram is to help with troubleshooting and understanding of the
    internal Edge3 DB architecture in case you have any problems with the database.
 
-.. This image is automatically generated during documentation build by the ``generate_erd`` Sphinx extension.
+.. This diagram is automatically generated during documentation build by the ``generate_erd`` Sphinx extension.
 
-.. image:: img/edge3_erd.svg
+.. mermaid:: img/edge3_erd.mmd
