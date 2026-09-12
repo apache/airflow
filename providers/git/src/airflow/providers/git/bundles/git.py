@@ -212,9 +212,8 @@ class GitDagBundle(BaseDagBundle):
                 raise RuntimeError("Error cloning repository") from e
             except InvalidGitRepositoryError as e:
                 raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
-            # If tracking_ref was just repointed to a SHA that predates this working clone's
-            # last fetch, this checkout fails until the clone is fetched or storage is cleared;
-            # tracked at https://github.com/apache/airflow/issues/71388
+            if not self._has_version(self.repo, self.tracking_ref):
+                self.repo.remotes.origin.fetch()
             self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:
