@@ -46,8 +46,9 @@ Airflow 3.4.0
 
 In Airflow 3.4.0 the base image changed again - from ``debian:bookworm-slim`` with a Python compiled in
 the image, to the `Docker Hardened Image <https://dhi.io>`_ for Python, which already carries a Python
-built by Docker. This removes the Python compilation (and the download and signature verification that
-went with it) from the build entirely.
+built by Docker. This removes the Python compilation, and the source download and signature verification
+that went with it, from the build entirely - the OS dependency layer of the production image went from
+roughly 210s to 105s in a local cache-disabled build.
 
 * The ``BASE_IMAGE`` arg now defaults to ``ghcr.io/apache/airflow/base/python:<version>-debian12-dev``,
   which is Airflow's public mirror of the upstream ``dhi.io/python`` image. Pulling from ``dhi.io``
