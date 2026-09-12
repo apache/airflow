@@ -32,6 +32,7 @@ import ast
 import sys
 from enum import Enum, auto
 from pathlib import Path
+from typing import NamedTuple
 
 from common_prek_utils import console
 
@@ -43,10 +44,15 @@ class QueryState(Enum):
     LIMITED_RESULT = auto()
 
 
+class ErrorLocation(NamedTuple):
+    line: int
+    column: int
+
+
 class FirstLimitVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         self.bindings: dict[str, QueryState] = {}
-        self.errors: list[tuple[int, int]] = []
+        self.errors: list[ErrorLocation] = []
 
     def get_state(self, node: ast.AST | None) -> QueryState:
         if isinstance(node, ast.Name):
@@ -109,7 +115,7 @@ class FirstLimitVisitor(ast.NodeVisitor):
             and node.func.attr == "first"
             and self.get_state(node.func.value) not in {QueryState.LIMITED, QueryState.LIMITED_RESULT}
         ):
-            self.errors.append((node.lineno, node.col_offset + 1))
+            self.errors.append(ErrorLocation(node.lineno, node.col_offset + 1))
 
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
@@ -180,7 +186,7 @@ class FirstLimitVisitor(ast.NodeVisitor):
             super().generic_visit(node)
 
 
-def check_source(source: str, filename: str = "<unknown>") -> list[tuple[int, int]]:
+def check_source(source: str, filename: str = "<unknown>") -> list[ErrorLocation]:
     visitor = FirstLimitVisitor()
     visitor.visit(ast.parse(source, filename=filename))
     return sorted(visitor.errors)
@@ -195,9 +201,9 @@ def main(filenames: list[str]) -> int:
             console.print(f"{filename}:{error.lineno}: {error.msg}", markup=False, highlight=False)
             failed = True
             continue
-        for line, column in errors:
+        for location in errors:
             console.print(
-                f"{filename}:{line}:{column}: .first() requires .limit(1) on the statement before execution.",
+                f"{filename}:{location.line}:{location.column}: .first() requires .limit(1) on the statement before execution.",
                 markup=False,
                 highlight=False,
             )
