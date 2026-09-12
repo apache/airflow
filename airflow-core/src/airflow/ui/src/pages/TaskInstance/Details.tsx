@@ -27,7 +27,7 @@ import {
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
 
-import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+import { Alert, ClipboardRoot, ClipboardIconButton } from "src/system-components";
 
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
@@ -131,6 +131,16 @@ export const Details = () => {
 
   return (
     <Box p={2}>
+      {taskInstance?.retry_reason === null || taskInstance?.retry_reason === undefined ? undefined : (
+        <Alert
+          data-testid="retry-reason-alert"
+          mb={2}
+          status={taskInstance.state === "failed" ? "error" : "warning"}
+          title={translate("taskInstance.retryReason")}
+        >
+          {taskInstance.retry_reason}
+        </Alert>
+      )}
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
         <div />
       ) : (
@@ -162,6 +172,12 @@ export const Details = () => {
               </Flex>
             </Table.Cell>
           </Table.Row>
+          {tryInstance?.retry_reason === null || tryInstance?.retry_reason === undefined ? undefined : (
+            <Table.Row>
+              <Table.Cell>{translate("taskInstance.retryReason")}</Table.Cell>
+              <Table.Cell>{tryInstance.retry_reason}</Table.Cell>
+            </Table.Row>
+          )}
           <Table.Row>
             <Table.Cell>{translate("taskId")}</Table.Cell>
             <Table.Cell>
