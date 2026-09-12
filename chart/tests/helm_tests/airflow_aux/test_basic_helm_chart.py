@@ -352,15 +352,17 @@ class TestBaseChartTest:
 
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {
+                "app.kubernetes.io/instance": release_name,
+                "app.kubernetes.io/managed-by": "Helm",
+                "app.kubernetes.io/name": "airflow",
+                "app.kubernetes.io/part-of": "airflow",
+                "app.kubernetes.io/version": "3.3.1",
+                "helm.sh/chart": mock.ANY,
                 "label1": "value1",
                 "label2": "value2",
-                "tier": "airflow",
-                "release": release_name,
-                "heritage": "Helm",
-                "chart": mock.ANY,
             }
             if component:
-                expected_labels["component"] = component
+                expected_labels["app.kubernetes.io/component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
@@ -409,11 +411,13 @@ class TestBaseChartTest:
         ]
         for k8s_object_name, component in kind_names_tuples:
             expected_labels = {
+                "app.kubernetes.io/component": component,
+                "app.kubernetes.io/instance": release_name,
+                "app.kubernetes.io/name": "airflow",
+                "app.kubernetes.io/part-of": "airflow",
+                "app.kubernetes.io/version": "3.3.1",
                 "label1": "value1",
                 "label2": "value2",
-                "tier": "airflow",
-                "release": release_name,
-                "component": component,
             }
             assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
