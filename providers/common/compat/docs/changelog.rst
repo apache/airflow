@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add common.compat alias for BaseEventTrigger (#72140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix lineage entities sharing mutable defaults across instances (#72509)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing unit tests for common.compat lineage entities (#72506)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 1.18.0
 ......
 

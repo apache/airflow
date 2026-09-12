@@ -234,7 +234,7 @@ This allows multiple paginated requests to be performed efficiently within a sin
 
        @task
        async def get_users():
-           hook = KiotaRequestAdapterHook.get_hook(conn_id="msgraph_default")
+           hook = await KiotaRequestAdapterHook.aget_hook(conn_id="msgraph_default")
 
            return await hook.paginated_run(url="users")
 

@@ -31,7 +31,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { getDuration } from "src/utils";
+import { type DurationFormat, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
@@ -59,10 +59,16 @@ const REPROCESS_BEHAVIOR_VALUES = [
 const isReprocessBehavior = (value: string | null): value is ReprocessBehavior =>
   (REPROCESS_BEHAVIOR_VALUES as ReadonlyArray<string | null>).includes(value);
 
-const getColumns = (
-  onSelectBackfill: (backfillId: number) => void,
-  translate: TFunction,
-): Array<ColumnDef<BackfillResponse>> => [
+type ColumnProps = {
+  readonly onSelectBackfill: (backfillId: number) => void;
+  readonly translate: TFunction;
+} & Pick<DurationFormat, "formatElapsed">;
+
+const getColumns = ({
+  formatElapsed,
+  onSelectBackfill,
+  translate,
+}: ColumnProps): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -129,7 +135,7 @@ const getColumns = (
       <Text>
         {row.original.completed_at === null
           ? ""
-          : getDuration(row.original.created_at, row.original.completed_at)}
+          : formatElapsed(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
@@ -144,6 +150,7 @@ const getColumns = (
 
 export const Backfills = () => {
   const { t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -207,7 +214,7 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns(onSelectBackfill, translate);
+  const columns = getColumns({ formatElapsed, onSelectBackfill, translate });
 
   return (
     <>

@@ -81,7 +81,7 @@ This package is for Yandex, including:
     - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 4.5.1
+Release: 4.5.2
 
 Provider package
 ----------------
@@ -110,8 +110,7 @@ PIP package                                 Version required
 ``yandexcloud``                             ``>=0.328.0; python_version < "3.13"``
 ``yandex-query-client``                     ``>=0.1.4``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``grpcio``                                  ``>=1.70.0; python_version < "3.14"``
-``grpcio``                                  ``>=1.78.0; python_version >= "3.14"``
+``grpcio``                                  ``>=1.78.0``
 ==========================================  =======================================
 
 Downloading official packages
@@ -120,5 +119,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-yandex 4.5.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-yandex 4.5.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-yandex 4.5.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-yandex 4.5.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_yandex-4.5.2-py3-none-any.whl.sha512>`__)

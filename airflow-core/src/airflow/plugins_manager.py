@@ -20,9 +20,11 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 from collections.abc import Iterable
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
@@ -30,7 +32,13 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
+    ExternalViewDict as ExternalViewDict,
+    FastAPIAppDict as FastAPIAppDict,
+    FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
@@ -183,7 +191,7 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: str) -> None:
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
     """
     Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
 
@@ -230,17 +238,17 @@ def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: st
 
 
 @cache
-def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
+def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     """Collect extension points for the UI."""
     log.debug("Initialize UI plugin")
 
     seen_url_routes: dict[str, str | None] = {}
 
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
     for plugin in _get_plugins()[0]:
-        external_views_to_remove = []
-        react_apps_to_remove = []
+        external_views_to_remove: list[ExternalViewDict] = []
+        react_apps_to_remove: list[ReactAppDict] = []
         for external_view in plugin.external_views:
             if not isinstance(external_view, dict):
                 log.warning(
@@ -291,10 +299,10 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
             react_apps.append(react_app)
             seen_url_routes[url_route] = plugin.name
 
-        for item in external_views_to_remove:
-            plugin.external_views.remove(item)
-        for item in react_apps_to_remove:
-            plugin.react_apps.remove(item)
+        for external_view in external_views_to_remove:
+            plugin.external_views.remove(external_view)
+        for react_app in react_apps_to_remove:
+            plugin.react_apps.remove(react_app)
     return external_views, react_apps
 
 
@@ -346,6 +354,106 @@ def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
             {**middleware, "team_name": plugin.team_name} for middleware in plugin.fastapi_root_middlewares
         )
     return fastapi_apps, fastapi_root_middlewares
+
+
+PluginTranslations = dict[str, dict[str, dict[str, Any]]]
+
+
+def merge_translations(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Deep-merge ``override`` onto ``base`` (recursing into nested dicts) and return a new dict."""
+    merged = dict(base)
+    for key, value in override.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = merge_translations(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_translation_source(source: Any) -> PluginTranslations:
+    """Load one ``ui_translations`` entry (inline mapping or ``<language>/<namespace>.json`` tree)."""
+    result: PluginTranslations = {}
+
+    if isinstance(source, dict):
+        for language, namespaces in source.items():
+            for namespace, keys in namespaces.items():
+                if not isinstance(keys, dict):
+                    raise ValueError(f"translations for {language!r}/{namespace!r} must be a mapping")
+                result.setdefault(language, {})[namespace] = keys
+        return result
+
+    directory = Path(source)
+    if not directory.is_dir():
+        raise ValueError(f"translation source {source!r} is neither a directory nor an inline mapping")
+    for language_dir in sorted(directory.iterdir()):
+        if not language_dir.is_dir():
+            continue
+        for namespace_file in sorted(language_dir.glob("*.json")):
+            try:
+                content = json.loads(namespace_file.read_text("utf-8"))
+            except (OSError, ValueError):
+                log.warning("Skipping unreadable UI translation file %s", namespace_file)
+                continue
+            result.setdefault(language_dir.name, {})[namespace_file.stem] = content
+    return result
+
+
+@cache
+def get_ui_translations() -> PluginTranslations:
+    """
+    Collect and deep-merge the ``language -> namespace -> keys`` UI translations from all plugins.
+
+    Never raises: a broken source (unreadable file, bad ``ui_translations`` value) is skipped with a
+    warning so it cannot stop the API server starting or keep other plugins from loading.
+    """
+    plugin_translations: PluginTranslations = {}
+    for plugin in _get_plugins()[0]:
+        try:
+            for source in plugin.ui_translations:
+                contributed = _load_translation_source(source)
+                for language, namespaces in contributed.items():
+                    language_translations = plugin_translations.setdefault(language, {})
+                    for namespace, keys in namespaces.items():
+                        language_translations[namespace] = merge_translations(
+                            language_translations.get(namespace, {}), keys
+                        )
+        except Exception:
+            log.exception("Skipping invalid UI translations from plugin %s", plugin.name)
+            continue
+    return plugin_translations
+
+
+def warn_about_unknown_translation_keys(plugin_translations: PluginTranslations, reference_dir: Path) -> None:
+    """Warn about plugin keys absent from the English reference (likely stale). Only logs; never raises."""
+
+    def _warn(keys: dict[str, Any], reference: Any, language: str, namespace: str, prefix: str = "") -> None:
+        for key, value in keys.items():
+            in_reference = isinstance(reference, dict) and key in reference
+            if isinstance(value, dict):
+                _warn(
+                    value,
+                    reference.get(key) if in_reference else None,
+                    language,
+                    namespace,
+                    f"{prefix}{key}.",
+                )
+            elif not in_reference:
+                log.warning(
+                    "Plugin UI translation for %s/%s sets key %r, which is not in the English "
+                    "reference and may be stale.",
+                    language,
+                    namespace,
+                    f"{prefix}{key}",
+                )
+
+    for language, namespaces in plugin_translations.items():
+        for namespace, keys in namespaces.items():
+            try:
+                reference = json.loads((reference_dir / f"{namespace}.json").read_text("utf-8"))
+            except (OSError, ValueError):
+                reference = {}
+            _warn(keys, reference, language, namespace)
 
 
 @cache

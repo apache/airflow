@@ -1594,7 +1594,6 @@ POOLS_COMMANDS = (
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
             ARG_POOL_TEAM_NAME,
-            ARG_OUTPUT,
             ARG_VERBOSE,
         ),
     ),
@@ -1602,7 +1601,7 @@ POOLS_COMMANDS = (
         name="delete",
         help="Delete pool",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_delete"),
-        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_POOL_NAME, ARG_VERBOSE),
     ),
     ActionCommand(
         name="import",

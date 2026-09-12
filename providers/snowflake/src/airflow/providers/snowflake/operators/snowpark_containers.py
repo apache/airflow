@@ -64,6 +64,9 @@ class SnowparkContainerJobOperator(BaseOperator):
         This is separate from the ``warehouse`` parameter used by the operator's
         own SQL commands
     :param replicas: (Optional) number of job replicas to run. (default value: 1)
+    :param external_access_integrations: (Optional) Names of the external access
+        integrations that allow your job to access external sites. Names are
+        case-sensitive (default value: None)
     :param wait_for_completion: poll until the job reaches a terminal state.
         When disabled, the job is submitted and the operator returns
         immediately. (default value: True)
@@ -100,6 +103,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         "name",
         "query_warehouse",
         "snowflake_conn_id",
+        "external_access_integrations",
     )
 
     def __init__(
@@ -113,6 +117,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         name: str | None = None,
         query_warehouse: str | None = None,
         replicas: int = 1,
+        external_access_integrations: list[str] | None = None,
         wait_for_completion: bool = True,
         drop_on_completion: bool = True,
         poll_interval: int = 10,
@@ -136,6 +141,7 @@ class SnowparkContainerJobOperator(BaseOperator):
         self.name = name
         self.query_warehouse = query_warehouse
         self.replicas = replicas
+        self.external_access_integrations = external_access_integrations
         self.wait_for_completion = wait_for_completion
         self.drop_on_completion = drop_on_completion
         self.poll_interval = poll_interval
@@ -172,6 +178,9 @@ class SnowparkContainerJobOperator(BaseOperator):
             sql += f" REPLICAS = {self.replicas}"
         if self.query_warehouse:
             sql += f" QUERY_WAREHOUSE = {self.query_warehouse}"
+        if self.external_access_integrations:
+            eais = ", ".join(self.external_access_integrations)
+            sql += f" EXTERNAL_ACCESS_INTEGRATIONS = ({eais})"
         if self.spec_text:
             sql += f" FROM SPECIFICATION $${self.spec_text}$$"
         else:
